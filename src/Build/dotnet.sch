@@ -3,11 +3,23 @@
 ;;                   -> ???
 ;;
 ;; Loads appropriate system-dependent stuff
+;;
 
 ;; BEFORE LOADING THIS FILE:  Make sure your Scheme interpreter's
 ;; current-directory is the root of this source tree.
 
+;; FIXME
+;;
+;; Combines the functions of
+;;     setup.sch
+;;     src/Build/petit-unix-defns.sch
+;;
+;; param-filename is defined the same here as in petit-unix-defns.sch
+;; but build-config-files, load-compiler, build-runtime-system,
+;; and build-twobit are different.
+;;
 ;; TODO:  Umm... finish.
+;;
 ;; Also, fix nbuild.sch and nbuild-files.sch
 ;;   Gotta separate the new compiler sources from the old Std. C
 ;;   and add them to the larceny_src
@@ -295,6 +307,9 @@
     (write-crock 2 p body-crock-2)
     (close-output-port p)))
   
+;; FIXME:  build-twobit-base uses a crock to figure out how to generate
+;; code in an order that satisfies various dependencies.
+
 (define (build-twobit-base app-name additional-files)
   (define crock-file-1
     (param-filename 'util "dotnet-twobit-1.sch"))
@@ -310,7 +325,7 @@
     (param-filename 'util '("dotnet.sch")) 
 
      ;; Next bunch is the result of breaking down larceny-setup
-     ;; into seperate components seperated by its calls to load
+     ;; into separate components separated by its calls to load
 
      (list crock-file-1)
      (param-filename 'util
@@ -353,7 +368,7 @@
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #t))
      (build-twobit-base
-       "Twobit"
+       "Twobit.fasl"
        (list (param-filename
               'auxiliary "dotnet-compile-file.sch")))))
 
@@ -363,7 +378,7 @@
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #f))
     (build-twobit-base
-      "Larceny"
+      "Larceny.fasl"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))
 
         ;; Next two are prerequisites for seal-twobit
@@ -380,6 +395,8 @@
         ,@(param-filename 'debugger '("debug.sch"
                                       "inspect-cont.sch"
                                       "trace.sch"))
+        ,@(param-filename
+           'auxiliary '("macros.sch" "defaults.sch"))
         ,@(param-filename 'util '("dotnet-larceny.sch"))))))
 
 (define (build-larceny-lcg)
@@ -388,7 +405,7 @@
   (parameterize ((compat:read-case-sensitive? #t)
                  ((nbuild-key->parameter 'development?) #f))
     (build-twobit-base
-      "LarcenyLcg"
+      "LarcenyLcg.fasl"
       `(,@(param-filename 'compiler '("driver-larceny.sch"))
 
         ;; Next two are prerequisites for seal-twobit

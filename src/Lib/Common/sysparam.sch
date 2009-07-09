@@ -7,28 +7,51 @@
 ($$trace "sysparam")
 
 ; System parameters are defined in the Library using this procedure.
+;
+; Larceny's parameters pre-date SRFI 39, which is incompatible with
+; Larceny's parameters.  The following definition has been modified
+; to be almost compatible with SRFI 39.  The one remaining incompatibility
+; occurs when the first argument is a string and the second a procedure.
+; In that case, the ambiguity is resolved by using Larceny's semantics.
 
-(define (make-parameter name value . rest)
-  (let ((ok? (if (null? rest) 
-                 (lambda (x) #t) 
-                 (car rest))))
-    (lambda args
-;; No need to protect this!
-;      (call-without-interrupts
-;        (lambda ()
+(define (make-parameter arg1 . rest)
+  (let* ((srfi39-style? (or (null? rest)
+                            (and (not (string? arg1))
+                                 (not (symbol? arg1))
+                                 (procedure? (car rest)))))
+         (converter (if (and srfi39-style? (pair? rest))
+                        (car rest)
+                        values))
+         (ok? (if (or (null? rest) (null? (cdr rest)))
+                  (lambda (x) #t) 
+                  (cadr rest)))
+         (name (if srfi39-style? #f arg1))
+         (value (if srfi39-style? (converter arg1) (car rest))))
+    (define (complain-argcount)
+      (assertion-violation name "too many arguments" (cons arg1 rest))
+      #t)
+    (define (complain-bad-value x)
+      (assertion-violation name "invalid value for parameter" x)
+      #t)
+    (if srfi39-style?
+        (lambda args
+          (if (pair? args)
+              (if (null? (cdr args))
+                  (let ((new-value (converter (car args))))
+                    (set! value new-value)
+                    value)
+                  (complain-argcount))
+              value))
+        (lambda args
           (if (pair? args)
               (if (null? (cdr args))
                   (let ((new-value (car args)))
                     (if (ok? new-value)
                         (begin (set! value new-value)
                                value)
-                        (begin (error name ": Invalid value " (car args))
-                               #t)))
-                  (begin (error name ": too many arguments.")
-                         #t))
-              value)
-;             ))
-          )))
+                        (complain-bad-value (car args))))
+                  (complain-argcount))
+              value)))))
 
 ; Returns an assoc list of system information.
 
@@ -78,6 +101,7 @@
 	  (cons 'flonum-bits            64)
 	  (cons 'flonum-representation  'ieee)
           (cons 'case-sensitivity       (not (sys$system-feature 'foldcase)))
+          (cons 'transcoder             (sys$system-feature 'transcoder))
           (cons 'safety                 (sys$system-feature 'safety))
           (cons 'execution-mode         (sys$system-feature 'execmode))
           (cons 'ignore-first-line      (sys$system-feature 'ignore1))

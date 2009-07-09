@@ -74,7 +74,10 @@
       (if (> e0 flonum:maxexponent)
           flonum:+infinity
           (let* ((x0 (make-flonum 0 b0 e0))
-                 (x1 (make-flonum 0 (+ b0 1) e0))
+                 (b0+1 (+ b0 1))
+                 (x1 (if (= b0+1 two^53)
+                         (make-flonum 0 two^52 (+ e0 1))
+                         (make-flonum 0 b0+1 e0)))
                  (d0 (- b (%flonum->bignum x0)))
                  (d1 (- (%flonum->bignum x1) b)))
             (cond ((< d0 d1) x0)
@@ -132,7 +135,18 @@
   ; Convert a flonum to an exact integer.
 
   (define (%flonum->integer a)
-    (big-normalize! (%flonum->bignum a)))
+    (let* ((a (flround a))
+           (e (float-exponent a)))
+      (cond ((fx<=? -53 e -24)
+             (let ((n (fxrsha (float-significand-high-bits a)
+                              (fx- (fx+ e 24)))))
+               (if (fl<? a 0.0)
+                   (- n)
+                   n)))
+            ((fl=? a 0.0)
+             0)
+            (else
+             (big-normalize! (%flonum->bignum a))))))
 
   ; Given two flonums 'real' and 'imag' create a compnum from the two.
   ; Independent of endianness.

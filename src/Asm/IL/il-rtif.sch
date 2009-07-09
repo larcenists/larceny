@@ -188,6 +188,7 @@
 ;; rep:load-static-link : number -> ilpackage
 ;; IL to load the MacScheme Procedure the given number of levels up the 
 ;; static link chain.
+
 (define (rep:load-static-link up)
   (list
    (il:load-register ENV-REGISTER)
@@ -204,22 +205,26 @@
 ;; rep:load-rib : number -> ilpackage
 ;; IL to load the MacScheme rib (array) the given number of levels up 
 ;; the static link chain.
+
 (define (rep:load-rib up)
   (list (rep:load-static-link up)
         (rep:procedure-rib)))
 
 ;; rep:procedure-parent : -> ilpackage
 ;; Pops procedure, loads procedure's parent
+
 (define (rep:procedure-parent)
   (il:ldfld iltype-procedure il-procedure "parent"))
 
 ;; rep:procedure-rib : -> ilpackage
 ;; Pops procedure, loads procedure's env rib
+
 (define (rep:procedure-rib)
   (il:ldfld iltype-schemeobject-array il-procedure "rib"))
 
 ;; rep:procedure-constants : -> ilpackage
 ;; Pops procedure, loads procedure's constant vector
+
 (define (rep:procedure-constants)
   (il:ldfld iltype-schemeobject-array il-procedure "constants"))
 
@@ -263,10 +268,14 @@
   (if (< slot CONTINUATION-FRAME-SLOTS)
       (list
        ilpackage
-       (il:stfld (if (zero? slot) iltype-procedure iltype-schemeobject) il-continuation-frame
+       (il:stfld (if (zero? slot)
+                     iltype-procedure
+                     iltype-schemeobject)
+                 il-continuation-frame
                  (twobit-format #f "s~s" slot)))
       (list
-       (il:ldfld iltype-schemeobject-array il-continuation-frame "overflowSlots")
+       (il:ldfld iltype-schemeobject-array
+                 il-continuation-frame "overflowSlots")
        (il 'ldc.i4 (- slot CONTINUATION-FRAME-SLOTS))
        ilpackage
        (il 'stelem.ref))))

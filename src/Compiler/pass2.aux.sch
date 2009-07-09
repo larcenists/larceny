@@ -381,8 +381,23 @@
                     (list (car args) (make-constant '()))))
         (else (make-call (make-variable name:LIST) args))))
 
+(define (make-call-to-UNSPECIFIED)
+  (make-call (make-variable op:UNSPECIFIED) '()))
+
+(define (make-call-to-TRAP msgcode)
+  (make-call (make-variable name:CHECK!)
+             (list (make-constant #f)
+                   (make-constant $ex.assert)
+                   (make-constant (vector-ref pass2-error-messages msgcode))
+                   (make-constant -1))))
+
 (define (pass2-error i . etc)
-  (apply cerror (cons (vector-ref pass2-error-messages i) etc)))
+  (let ((msg (vector-ref pass2-error-messages i)))
+    (case i
+     ((0)
+      (apply twobit-bug msg etc))
+     (else
+      (apply twobit-error msg etc)))))
 
 (define pass2-error-messages
   '#("System error: violation of an invariant in pass 2 "
@@ -413,7 +428,9 @@
 
 (define (R-lookup R I)
   (or (assq I R)
-      (pass2-error p2error:violation-of-invariant R I)))
+      (if (eq? I name:IGNORED)
+          (make-R-entry I '() '() '())
+          (pass2-error p2error:violation-of-invariant R I))))
 
 (define (references R I)
   (cadr (R-lookup R I)))

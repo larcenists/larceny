@@ -9,8 +9,463 @@ a derived FFI. It is not yet fully evolved, but it is useful.
 
 [WARNING]
 ================================================================
+This section has undergone signficant revision, but 
+not all of the material has been properly vetted.
 Some of the information in this section may be out of date.
 ================================================================
+
+[NOTE]
+================================================================
+Some of the text below is adapted from the 2008 Scheme Workshop 
+paper, ``The Layers of Larceny's Foreign Function Interface,'' 
+by Felix S Klock II.  That paper may provide additional insight 
+for those searching for implementation details and motivations.
+================================================================
+
+[[FfiOverview, Introducing the FFI]]
+==== Introducing the FFI
+
+There are a number of different potential ways to use the FFI. 
+One client may want to develop code in C and load it into Larceny. 
+Another client may want to load native libraries 
+provided by the host operating system, enabling invocation 
+of foreign code from Scheme expressions without developing 
+any C code or even running a C compiler. 
+Larceny's FFI can be used for both of these cases, 
+but many of its facilities target a third client 
+in between the two extremes: a client with a C compiler and 
+the header files and object code for the foreign libraries, 
+but who wishes to avoid writing glue code in C to interface 
+with the libraries. 
+
+There are four main steps to interacting with foreign code: 
+
+1. identifying the space of values manipulated by the 
+   foreign code that will also be manipulated in Scheme, 
+2. describing how to marshal values between foreign and 
+   Scheme code, 
+3. loading library file(s) holding foreign object code, and 
+4. linking procedures from the loaded library. 
+
+Step 1 is conceptual, while steps 2 through 4 
+yield artifacts in Scheme source code. 
+
+[[FfiForeignValues, The space of foreign values]]
+==== The space of foreign values
+
+At the machine code level, foreign values are uninterpreted 
+sequences of bits.  Often foreign object code is oriented 
+around manipulating word-sized bit-sequences ('words') 
+or arrays and tuples of words. 
+
+Many libraries are written with a particular 
+interpretation of such values.  In C code, explicit types are 
+often used hints to guide such interpretation; for example, 
+a +0+ of type +bool+ is usually interpreted as 'false', 
+while a +1+ (or other non-zero value) of type +bool+ is 
+usually interpreted as 'true'. 
+Another example are C enumerations (or 'enums').
+An enum declaration defines a set of named 
+integral constants.  After the C declaration:
+-------------------------------------------------------------------------------
+enum months { JAN = 1, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC };
+-------------------------------------------------------------------------------
+a +JAN+ in C code now denotes +1+, +FEB+ is +2+, and so on.
+Furthermore, tools like debuggers may render a variable +x+ 
+dynamically assigned the value +2+ (and of static type +enum months+)
+as +FEB+.  Thus the enum declaration 
+intoduces a new interpretation for a finite set of integers. 
+
+This leads to questions for a client of an FFI; 
+we explore some below. 
+
+- Should foreign words be passed over to 
+the Scheme world as uninterpreted numbers (and thus
+be converted into Scheme integers, usually fixnums), 
+or should they be marshaled into interpreted values, such as 
++#f+ and +#t+ for the +bool+ type, or the Scheme symbols
+{+JAN+, +FEB+, +MAR+, +APR+, +MAY+, +JUN+, 
+ +JUL+, +AUG+, +SEP+, +OCT+, +NOV+, +DEC+}
+for the +enum months+ type? 
+- Similarly, how should Scheme values be marshaled into 
+foreign words?
+
+- A foreign library might leave the mapping 
+of names like +FEB+ to words like +2+ 'unspecified' 
+in the library interface. 
+That is, while the C compiler will know +FEB+ maps to +2+ 
+according to a particular version of the library's header file, 
+the library designer may intend to change this mapping 
+in the future, and clients writing C code should 'only' use 
+the names to refer to a +enum months+ value, and 'not' integer 
+expressions. 
+* How should this constraint be handled in the FFI; should 
+ the library client revise their code in reaction to 
+ such changes to the mapping? 
+* Or should the system derive
+ the mapping from the header files, in the same manner that
+ the C compiler does? 
+
+- Foreign libraries often manipulate 
+mutable entities, like arrays of words where 
+modifications can be observed (often by design). 
+* How should such values be marshaled? 
+* Is it sound to copy such values to the Scheme heap? 
+  If so, is a shallow copy sufficient? 
+
+- Will the foreign code hold references to heap-allocated 
+objects?  Heap-allocated objects that 'leak' out to 
+foreign memory must be treated with care; 
+garbage collection presents two main problems. 
+* First, such objects must not move during a garbage collection; 
+Larceny supports this via special-purpose allocation routines: 
+ +cons-nonrelocatable+, +make-nonrelocatable-bytevector+, 
+ and +make-nonrelocatable-vector+.
+////////////////////////////////////////////////////////////////////
++syscall:make-nonrelocatable+
+////////////////////////////////////////////////////////////////////
+* Second, the garbage collector must know to hold on to 
+(i.e. trace)
+such values as long as they are needed by foreign code; 
+otherwise the objects or their referents may be 
+collected without the knowledge of the foreign code.
+
+Answering these questions may require deep knowledge 
+of the intended usage of the foreign library.
+
+The Larceny FFI attempts to ease interfacing with 
+foreign code in the presence of the above concerns, 
+but the nature of the header files included with
+most foreign libraries means that the FFI cannot infer 
+the answers unassisted.
+
+[NOTE]
+================================================================
+Foreign C code developed to work in concert with Larceny 
+could hypothetically be written to cope with holding 
+handles for objects managed by the the garbage collector, 
+but there is currently no significant support 
+for this use-case.
+================================================================
+
+[NOTE]
+================================================================
+One class of foreign values is not addressed
+by the Larceny FFI: structures passed by value (as
+opposed to by reference, ie pointers to structures).
+There is no way to describe the interface to a
+foreign procedure that accepts or produces a 
+C +struct+ (at least not properly nor portably).
+
+This tends to not matter for many foreign libraries
+(since many C programmers eschew passing structures
+by value), but it can arise.
+
+If the foreign library of interest has procedures that
+accept or produce a C +struct+, we currently recommend
+either avoiding such procedures, or writing
+adapter code in C that marshals between values handled 
+by the FFI and the C +struct+.
+================================================================
+
+The conclusion is: when designing an interface to a foreign
+library, you should analyze the values manipulated on the 
+foreign side and identify their relationship with values 
+on the Scheme side. 
+After you have identified the domains of interest, 
+you then describe how the values will be marshaled 
+back and forth between the two domains.
+
+[[FfiMarshalling, Marshalling via ffi-attributes]]
+==== Marshalling via ffi-attributes
+
+This section describes the marshalling protocol defined in
++lib/Base/std-ffi.sch+.
+
+Foreign functions automatically marshal their inputs and outputs
+according to type-descriptors attached to each foreign
+function.
+
+Type-descriptors are S-expressons formed according to the following
+grammar:
+
+................................................................
+TypeDesc ::= CoreAttr | ArrowT | MaybeT | OneOfT
+
+CoreAttr ::= PrimAttr | VoidStar | ---
+
+PrimAttr ::= CurrentPrimAttr | DeprecatedPrimAttr
+
+CurrentPrimAttr
+         ::= int | uint | byte | short | ushort | char | uchar
+          |  long | ulong | longlong | ulonglong
+          |  size_t | float | double |  bool | string | void
+
+DeprecatedPrimAttr
+         ::= unsigned | boxed
+
+VoidStar ::= void* | ---
+
+ArrowT   ::= (-> (TypeDesc ...) TypeDesc) 
+
+MaybeT   ::= (maybe TypeDesc)
+
+OneOfT   ::= (oneof (Any Fixnum) ... TypeDesc)
+................................................................
+where +---+ represents a user-extensible part of the grammar
+(see below),
++Any+ represents any Scheme value, and +Fixnum+ represents 
+any word-sized integer.
+
+A central registry maps +CoreAttr+'s to a foreign
+representation and two conversion routines: 
+one to convert a Scheme value to a foreign argument, and 
+another to convert a foreign result back back to a Scheme value. 
+The denoted components are collectively referred to as a _type_
+within the FFI documentation. 
+The registry is extensible; the +ffi-add-attribute-core-entry!+
+procedure adds new +CoreAttr's+ to the registry, and 
+one can alternatively add short-hands for
+type-descriptors via the +ffi-add-alias-of-attribute-entry!+
+procedure. 
+Finally, one can add new +VoidStar+ productions 
+(subtypes of the +void*+ type-descriptor)
+via the +ffi-install-void*-subtype+ procedure
+(defined in the +lib/Standard/foreign-stdlib.sch+ library). 
+
+////////////////////////////////////////////////////////////////////
+For example the symbol +'char+ denotes a type with procedures that
+convert Scheme characters to a corresponding signed byte
+representation and back again, while the symbol
++'uchar+ denotes similar procedures that convert
+between Scheme characters and unsigned bytes.
+////////////////////////////////////////////////////////////////////
+
+===== Primitive Attribute Types
+
+The following is a list of the accepted types and their conversions 
+at the boundary between Scheme and foreign code:
+
++int+:: 
+  Exact integer values in the range [-2^31^,2^31^-1].
+  Scheme integers in that range are converted to and from C "+int+".
++uint+:: 
+  Exact integer values in the range [0,2^32^-1].
+  Scheme integers in that ranges are converted to and from C "+unsigned int+".
++byte+:: 
+  Synonymous with +int+ in the current implementation. 
++short+:: 
+  Synonymous with +int+ in the current implementation. 
++ushort+:: 
+  Synonymous with +unsigned+ in the current implementation. 
++char+:: 
+  Scheme ASCII characters are converted to and from C "+char+".
++uchar+::
+  Scheme ASCII characters are converted to and from C "+unsigned char+".
++long+::
+  Synonymous with +int+ in the current implementation. 
++ulong+:: 
+  Synonymous with +unsigned+ in the current implementation. 
++longlong+::
+  Exact integer values in the range [-2^63^,2^63^-1].
+  Scheme integers in that range are converted 
+  to and from C "+long long+".
++ulonglong+::
+  Exact integer values in the range [0,2^64^-1].
+  Scheme integers in that range are converted 
+  to and from C "+unsigned long long+".
++size_t+::
+  Synonymous with +uint+ in the current implementation.
++float+:: 
+  Scheme flonums are converted to and from C "+float+".
+  The conversion to +float+ is performed via 
+  a C +(float)+ cast from a C +double+.
++double+:: 
+  Scheme flonums are converted to and from C "double".
++bool+:: 
+  Scheme objects are converted to C "+int+"; 
+  +#f+ is converted to 0, and all other objects to 1. 
+  In the reverse direction, 0 is converted to +#f+ and
+  all other integers to +#t+.
++string+::
+  A Scheme string holding ASCII characters 
+  is _copied_ into a NUL-terminated bytevector, 
+  passing a pointer to its first byte to the foreign procedure;
+  +#f+ is converted to a C "+(char*)0+" value.
+  In the reverse direction, a pointer to a NUL-terminated sequence
+  of bytes interpreted as ASCII characters is 
+  copied into a freshly allocated Scheme string; a NULL pointer is
+  converted to +#f+.
++void+:: 
+  No return value.
+  (Only used in return position for foreign functions; 
+  all Scheme procedures passed to the FFI are invoked in a context
+  expecting one value.)
+
++unsigned+::
+  Synonymous with +uint+; deprecated.
++boxed+:: 
+  Any heap-allocated data structure (pair,
+  bytevector-like, vector-like, procedure) is converted to 
+  a C "`void*`" to the first element of the structure. The
+  value `#f` is also acceptable. It is converted to a C "`(void*)0`"
+  value.
+  (Only used in argument position for foreign functions; foreign
+   functions are not expected to return direct references 
+   to heap-allocated values.)
+
+===== Extending the Core Attribute Registry
+
+The public interface to many foreign libraries is written
+in terms of types defined within that foreign library.
+One can introduce new types to the Larceny FFI
+by extending the core attribute entry table.
+
+proc:ffi-add-attribute-core-entry![args="entry-name rep-sym marshal unmarshal",result="unspecified"]
+
+<<ffi-add-attribute-core-entry!>> extends the 
+internal registry with the new entry specified by its arguments.
+
+- _entry-name_ is a symbol (the symbolic type name being
+introduced to the ffi).
+- _rep-name_ is a low-level type descriptor symbol, one of 
++signed32+, +unsigned32+, +signed64+, +unsigned64+
+(representing varieties of fixed width integers), 
++ieee32+ (representing ``floats''), 
++ieee64+ (representing ``doubles''), or 
++pointer+ (representing ``+(void*)+'' in C).
+- _marshal_ is a marshaling function that accepts a Scheme object and a symbol
+(the name of the invoking procedure); it is responsible for checking
+the Scheme object's validity and then producing a corresponding 
+instance of the low-level representation.
+- _unmarshal_ is either +#f+ or an unmarshalling function that 
+accepts an instance of the low-level representation
+and produces a corresponding Scheme object.
+
+////////////////////////////////////////////////////////////////////
+Perhaps document ffi-attribute-core-entry ?
+////////////////////////////////////////////////////////////////////
+
+===== Attribute Type Constructors
+
+Core attributes suffice for linking to simple
+functions.
+Constructured FFI attributes express more complex 
+marshaling protocols
+
+.Arrow Type Constructors
+
+A structured FFI attribute
+of the form +(-> (_s_1_ ... _s_n_) _s_r_)+ 
+(called an _arrow type_)
+allows passing functions from Scheme to C
+and back again.  Each of the _s_1_, ..., _s_n_, _s_r_ 
+is an FFI attribute.
+When an arrow type describes an input to a foreign
+function, it marshals a Scheme procedure to a 
+C function pointer by generating glue code to hook the two together
+and marshal values as described by the FFI attributes 
+within the arrow type.
+Likewise, when an arrow type describes an output from a
+foreign function, it marshals a C function pointer 
+to a Scheme procedure, again by generating glue code.
+These two mappings naturally generalize to arbitrary nesting 
+of arrow types, so one can create callbacks that consume
+callouts, return callouts that consume callbacks, and so on.
+
+[WARNING]
+================================================================
+The current implementation of arrow types introduces an 
+unnecessary space leak, because none of Larceny's current
+garbage collectors attempt to reclaim some of the structure
+allocated (in particular, the so-called trampolines) 
+when functions are marshaled via arrow types.
+
+The FFI could be revised to reduce the leak
+(e.g. it could keep a cache of generated trampolines and 
+reuse them, but currently do not do so).
+
+Many foreign libraries have a structure where one only
+sets up a fixed set of callbacks, and then all further
+computation does not require arrow type marshaling.
+This is one reason why fixing this problem 
+has been a low priority item for the Larceny development 
+team.
+================================================================
+
+.Maybe Type Constructor
+
++(maybe _t_)+ captures the 
+pattern of passing +NULL+ in C and +#f+ in Scheme
+to represent the absence of information.
+The FFI attribute _t_ within the maybe type
+describes the typical information passed; 
+the constructed maybe type 
+marshals +#f+ to the foreign null pointer or +0+ (as appropriate), 
+and otherwise applies the marshaling of _t_.
+Likewise, it unmarshals the foreign
+null pointer and +0+ to +#f+, and otherwise applies the 
+unmarshaling of _t_.
+
+(There are a few other built-in type constructors, such as
+ the +oneof+ type constructor, but they 
+ are not as fully-developed as the two above, and are intended
+ for use only for internal development for now.)
+
+===== void* Type Hierarchies
+
+Using the +void*+ attribute 
+wraps foreign addresses up in a Larceny record, 
+so that standard numeric
+operations cannot be directly applied by accident.
+The FFI uses two features of Larceny's record system:
+the record type descriptor is a first class
+value with an inspectable name, and 
+record types are extensible via single-inheritance.
+
+.Basic Operations on +void*+
+
+The FFI provides +void*-rt+, a record type
+descriptor with a single field (a wrapped address).
+There is also a family of functions for dereferencing the 
+pointer within a +void*-rt+ and manipulating the 
+state it references.
+
+proc:void*->address[args="x",result="number"]
+Extracts the underlying address held in a +void*+.
+
+proc:void*?[args="x",result="boolean"]
+Distinquishes +void*+'s from other Scheme values.
+
+proc:void*-byte-ref[args="x idx",result="number"]
+Extracts byte at offset from address within 'x'.
+
+proc:void*-byte-set![args="x idx val",result="unspecified"]
+Modifies byte at offset from address within 'x'.
+
+proc:void*-word-ref[args="x idx",result="number"]
+Extracts word-sized integer at offset from address within 'x'.
+
+proc:void*-word-set![args="x idx val",result="unspecified"]
+Modifies word-sized integer at offset from address within 'x'.
+
+proc:void*-void*-ref[args="x idx",result="void*"]
+Extracts address (and wraps it in a +void*+) at offset from address within 'x'.
+
+proc:void*-void*-set![args="x idx val",result="unspecified"]
+Modifies address at offset from address within 'x'.
+
+proc:void*-double-ref[args="x idx",result="number"]
+Extracts 64-bit flonum at offset from address within 'x'.
+
+proc:void*-double-set![args="x idx val",result="unspecified"]
+Modifies 64-bit flonum at offset from address within 'x'.
+
+.Type Hierarchies
+
+Procedures for establishing type hierarchies are provided by the
++lib/Standard/foreign-stdlib.sch+ library; see
+<<ffi-install-void*-subtype>> and <<establish-void*-subhierarchy!>>.
 
 [[FfiCompiliing, Creating loadable modules]]
 ==== Creating loadable modules
@@ -50,12 +505,12 @@ By default, /lib/libc.so is made available to the foreign function interface, so
 
 proc:foreign-file[args="filename",result="unspecified"]
 
-     Foreign-file loads the named object file into Larceny and makes it available for dynamic linking. 
+<<foreign-file>> loads the named object file into Larceny and makes it available for dynamic linking. 
 
 Larceny uses the operating system provided dynamic linker to do dynamic linking. The operation of the dynamic linker varies from platform to platform: 
 
   * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
-  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the LD_LIBRARY_PATH environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
+  * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the `LD_LIBRARY_PATH` environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
 
 proc:foreign-procedure[args="name (arg-type ...) return-type",result="unspecified"]
 
@@ -82,114 +537,6 @@ Returns a foreign null pointer.
 proc:foreign-null-pointer?[args="integer",result="boolean"]
 
 Tests whether its argument is a foreign null pointer. 
-
-===== Types
-
-A _type_ is denoted by a symbol. The following is a list of the accepted types and their conversions at the call-out to the foreign procedure: 
-
-**int** Any exact integer value in the range [-2^31,2^31-1] is
-  acceptable and is converted to a C "int". **unsigned** Any exact
-  integer value in the range [0,2^32-1] is acceptable and is converted
-  to a C "unsigned". 
-
-**short** Synonymous with **int** in the current implementation. 
-
-**ushort** Synonymous to **unsigned** in the current implementation. 
-
-**char** A character is acceptable. It is converted to a C "int" type. 
-
-**uchar** A character is acceptable. It is converted to a C "unsigned" type. 
-
-**long** Synonymous with **int** in the current implementation. 
-
-**ulong** Synonymous with **unsigned** in the current implementation. 
-
-**float** A flonum is acceptable. It is converted to a C "float". 
-
-**double** A flonum is acceptable. It is converted to a C "double". 
-
-**bool** Any object is acceptable. It is converted to a C "int":
-#f is converted to 0, and all other objects to 1. 
-
-**boxed** Any heap-allocated data structure (pair,
-  bytevector-like, vector-like, procedure) is acceptable. It is
-  converted to a C "void*" to the first element of the structure. The
-  value #f is also acceptable. It is converted to a C "(void*)0"
-  value. 
-
-**string** A string or #f is acceptable. A string is _copied_
-  into a NUL-terminated bytevector, and the resulting pointer is
-  passed. #f is converted to a C "(char*)0" value.
-
-
-Additionally, the types can be used as the return type, where conversions back to Scheme values take place: 
-
-**int** A C "int" is expected; it is converted to an exact
-  integer. 
-
-**unsigned** A C "unsigned" is expected; it is converted to
-  an exact integer. 
-
-**short** Synonymous with **int** in the current
-  implementation. 
-
-**ushort** Synonymous with **unsigned** in the
-  current implementation. 
-
-**char** A C "int" is expected; it is
-  converted to a character. 
-
-**uchar** A C "unsigned" is expected; it
-  is converted to a character. 
-
-**long** Synonymous with **int** in the
-  current implementation. 
-
-**ulong** Synonymous with **unsigned** in
-  the current implementation. 
-
-**float** A C "float" is expected. It is
-  converted to a flonum. 
-
-**double** A C "double" is expected. It is
-  converted to a flonum. 
-
-**bool** A C "int" is expected. 0 is
-  converted to #f, all other values to #t.
-
-**void** No return
-  value. **string** A C "char*" is expected. If it is non-null, it is
-  expected to point to a NUL-terminated string, which is copied into a
-  newly allocated Scheme string which is then returned. If the return
-  value is null, then #f is returned.
-
-FIXME: add documentation for the ** tramp ** type, which marsalls
-a callback trampoline.
-
-FIXME: add documentation for the ** -> ** and ** maybe ** type
-constructors.  Make sure to note that ** -> ** currently has a space
-leak on _every_ marshalling (because I believe it generates a fresh
-trampoline on every invocation).  We could at least tighten the leak
-here if we kept a cache of generated trampolines and reused them, but
-currently do not do so.
-
-FIXME: add documentation for the ** void* ** type, the
-corresponding _void*-rt_ record type descriptor, and the
-procedures
-void*->address
-void*-byte-ref
-void*-byte-set!
-void*-word-ref
-void*-word-set!
-void*-void*-ref
-void*-void*-set!
-void*-double-ref
-void*-double-set!
-
-Also document
-ffi-add-attribute-core-entry! 
-(and perhaps ffi-attribute-core-entry ?)
-
 
 [[FfiAccess, Foreign data access]]
 ==== Foreign Data Access
@@ -416,18 +763,89 @@ forms work by dynamically generating, compiling, and running C code at
 expansion time to determine the desired values of structure offsets or
 macro constants.
 
-_Syntax define-c-values_
+Here is a grammar for the +define-c-info+ form provided by 
+the +foreign-ctools+ library.
 
-++ (define-c-values <cc-spec> (<include-path> ...) (<c-prologue> ...) (<scheme-name> <printf-fmt> <c-expr> <c-decls> ...))++
+................................................................
+<exp>     ::= (define-c-info <c-decl> ... <c-defn> ...)
+
+<c-decl>  ::= (compiler <cc-spec>)
+           |  (path <include-path>)
+           |  (include <header>)
+           |  (include<> <header>)
+
+<cc-spec> ::= cc | cl
+
+<c-defn>  ::= (const <id> <c-type> <c-expr>)
+           |  (sizeof <id> <c-type-expr>)
+           |  (struct <c-name> <field-clause> ...)
+           |  (fields <c-name> <field-clause> ...)
+           |  (ifdefconst <id> <c-type> <c-name>)
+
+<c-type>  ::= int | uint | long | ulong
+
+<include-path> 
+          ::= <string-literal>
+
+<header>  ::= <string-literal>
+
+<field-clause>
+          ::= (<offset-id> <c-field>)
+           |  (<offset-id> <c-field> <size-id>)
+
+<c-expr>  ::= <string-literal>
+
+<c-type-expr>
+          ::= <string-literal>
+
+<c-name>  ::= <string-literal>
+
+<c-field> ::= <string-literal>
+................................................................
 
 
 _Syntax define-c-info_
 
-++ (define-c-info <decl> ... <defn> ...)++
-where  ++<decl> ::= (compiler <cc-spec>) | (path <include-path>) | (include <header>) | (include<> <header>)++
-and ++<cc-spec> ::= cc | cl++
-and ++<defn>    ::= (const <scheme-name> <type> <c-expr>) | (sizeof <scheme-name> <c-type>) | (struct <c-name> (<scheme-name> <c-field>) ...) | (fields <c-name> (<scheme-name> <c-field>) ...)++
-and ++<type>    ::= int | uint | long | ulong++
+++ (define-c-info <c-decl> ... <c-defn> ...)++
+
+The +<c-decl>+ clauses of +define-c-info+
+control how header files are processed.
+The +compiler+ clause selects between +cc+
+(the default UNIX system compiler) and +cl+
+(the compiler included with Microsoft's Windows SDK).
+The +path+ clause adds a directory to search when
+looking for header files.
+The +include+ and +include<>+ clauses indicate
+header files to include when executing the 
++<c-defn>+ clauses;
+the two variants correspond to the quoted and bracketed
+forms of the C preprocessor's +#include+ directive.
+//////////////////////////////////////////
+All of the +<c-decl>+ variants are optional.
+//////////////////////////////////////////
+
+The +<c-defn>+ clauses bind identifiers.
+A +(const _x_ _t_ "_ae_")+ clause binds _x_ to 
+the integer value of _ae_ according to the C language;
+_ae_ can be any C arithmetic expression that evaluates
+to a value of type _t_.
+(The expected usage is for _ae_ to be an 
+expression that the C preprocessor expands to an arithmetic expression.)
+
+The remaining clauses provide similar functionality: 
+
+- +(sizeof _x_ "_te_")+ 
+ binds _x_ to the size occupied by values 
+ of type _te_, where _te_ is any C type expression.
+- +(struct "_cn_" ... (_x_ "_cf_" _y_) ...)+
+ binds _x_ to the offset from the start of a
+ structure of type +struct _cn_+ to its
+ _cf_ field, and binds _y_, if present, to the field's size.
+ A +fields+ clause is similar, but it applies 
+ to structures of type +_cn_+ rather than +struct _cn_+.
+- +(ifdefconst _x_ _t_ "_cn_")+ 
+ binds _x_ to the value of +_cn_+ if +_cn_+ is defined; 
+ _x_ is otherwise bound to Larceny's unspecified value.
 
 ===== foreign-sugar
 
@@ -475,7 +893,29 @@ proctempl:ffi-install-void*-subtype[args="rtd",result="rtd"]
 proctempl:ffi-install-void*-subtype[args="string",optarg="parent-rtd",result="rtd"]
 proctempl:ffi-install-void*-subtype[args="symbol",optarg="parent-rtd",result="rtd"]
 
+<<ffi-install-void*-subtype>>
+extends the core attribute registry with a new primitive
+entry for _subtype_.
+The _parent-rtd_ argument should be a subtype of +void*-rt+
+and defaults to +void*-rt+.
+In the case of the _symbol_ or _string_ inputs, the 
+procedure constructs a new record type subtyping the _parent_ argument.
+In the case of the _rtd_ input, the _rtd_ record type 
+must extend +void*-rt+.
+<<ffi-install-void*-subtype>> returns the subtype record type.
+
+The returned record type represents a tagged wrapped C pointer,
+allowing one to encode type hierarchies.
+
 proc:establish-void*-subhierarchy![args="symbol-tree",result="unspecified"]
+
+<<establish-void*-subhierarchy!>> is a convenience function 
+for constructing large object hierarchies. 
+It descends the _symbol-tree_, 
+creates a record type descriptor for each symbol
+(where the root of the tree has the parent +void*-rt+), 
+and invokes <<ffi-install-void*-subtype>> on all 
+of the introduced types.
 
 _Type char*_ extends _void*_
 proc:string->char*[args="string",result="char*"]
@@ -495,9 +935,86 @@ proc:CallWithDoubleStar[var="call-with-double*",args="num-vector function",resul
 FIXME: (There are other functions, but I want to test and document the
 ones above first...)
 
+===== foreign-cstructs
+
+The +foreign-cstructs+ library provides a 
+more direct interface to C structures.
+It provides the +define-c-struct+ special form.
+This form is layered on top of +define-c-info+; 
+the latter provides the structure field offsets 
+and sizes used to generate constructors
+(which produce appropriately sized bytevectors, 
+not record instances).
+The +define-c-struct+ form combines these 
+with marshaling and unmarshaling procedures to 
+provide high-level access to a structure. 
+
+The grammar for the +define-c-struct+ form is presented below.
+.....................................................................
+<exp>    ::= (define-c-struct (<struct-type> <ctor-id> <c-decl> ...)
+                <field-clause> ...)
+
+<field-clause>
+         ::= (<c-field> <getter>) | (<c-field> <getter> <setter>)
+
+<getter> ::= (<id>) | (<id> <unmarshal>)
+
+<setter> ::= (<id>) | (<id> <marshal>)
+
+<marshal> ::= <ffi-attr-symbol> | <marshal-proc-exp>
+
+<unmarshal> ::= <ffi-attr-symbol> | <unmarshal-proc-exp>
+
+<struct-type> ::= <string-literal>
+.....................................................................
+
 ===== foreign-cenums
 
-Provides the special form ++define-c-enum++
+This library provides the special forms
+ ++define-c-enum++ and ++define-c-enum-set++,
+which associate the identifiers of 
+a C +enum+ type declaration 
+with the integer values they denote.
 
-FIXME: add the doc
+The +define-c-enum+ form describes enums
+encoding a discriminated sum; 
++define-c-enum-set+ describes bitmasks, 
+mapping them to R^6^RS enum-sets in Scheme.
+
+The +(define-c-enum _en_ (<c-decl> ...)  (_x_ "_cn_") ...)+
+form adds the +_en_+ FFI attribute.
+The attribute marshals each symbol +_x_+ to 
+the integer value that +_cn_+ denotes in C; 
+unmarshaling does the inverse translation.
+
+The +(define-c-enum-set _ens_ (<c-decl> ...) (_x_ "_cn_") ...)+
+form binds _ens_ to an R^6^RS enum-set constructor
+with universe resulting from 
++(make-enumeration '(_x_ ...))+; it also adds the +_ens_+
+FFI attribute.  The attribute marshals an
+enum-set _s_ constructed by _ens_ 
+to the corresponding bitmask in C (that is,
+the integer one would get by logically or'ing
+all _cn_ such that the corresponding _x_ is in _s_).
+Unmarshaling attempts to do the inverse translation.
+
+//////////////////////////////////////////////////////////
+The inverse uniquely exists when the high-to-low mapping 
+is a bijection, which 
+depends on the denotations of  _cn_ ... assigned
+by the header files.
+//////////////////////////////////////////////////////////
+
+
+The grammar for the two forms is presented below.
+................................................................
+<exp> ::= (define-c-enum <enum-id> (<c-decl> ...)
+            (<id> <c-name>) ...)
+
+<exp> ::= (define-c-enum-set <enum-id> (<c-decl> ...)
+            (<id> <c-name>) ...)
+
+<enum-id> ::= <id>
+................................................................
+
 

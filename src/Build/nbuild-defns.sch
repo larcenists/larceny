@@ -3,13 +3,13 @@
 (define (with-current-directory dir thunk)
   (let ((cdir #f))
     (dynamic-wind
-	(lambda ()
-	  (set! cdir (current-directory))
-	  (current-directory dir))
-	thunk
-	(lambda ()
-	  (set! dir (current-directory))
-	  (current-directory cdir)))))
+        (lambda ()
+          (set! cdir (current-directory))
+          (current-directory dir))
+        thunk
+        (lambda ()
+          (set! dir (current-directory))
+          (current-directory cdir)))))
 
 ; File lists and procedures
 

@@ -11,21 +11,20 @@
 
 (define (fx:check! name x)
   (if (not (fixnum? x))
-      (assertion-violation name "argument not a fixnum" x)))
+      (assertion-violation name (errmsg 'msg:notfixnum) x)))
 
 (define (fx:range-check! name x)
   (fx:check! name x)
   (if (not (and (fx<=? 0 x) (fx<? x (fixnum-width))))
-      (assertion-violation name "fixnum shift count out of range" x)))
+      (assertion-violation name (errmsg 'msg:fixnumshift) x)))
 
 (define (fx:check-result name x)
   (if (fixnum? x)
       x
-      (let ((c0 (make-implementation-restriction-violation))
-            (c1 (make-who-condition name))
-            (c2 (make-message-condition "result out of fixnum range"))
-            (c3 (make-irritants-condition (list x))))
-        (raise (condition c0 c1 c2 c3)))))
+      (raise-r6rs-exception (make-implementation-restriction-violation)
+                            name
+                            (errmsg 'msg:fixnumrange)
+                            (list x))))
 
 ; fixnum? is a primop; see Lib/Arch/*/primops.sch
 
@@ -140,7 +139,7 @@
            (fx:check! 'fx- x)
            (fx:check! 'fx- y)
            (fx:check-result 'fx- (- x y))))
-        (assertion-violation 'fx- "too many arguments" (cons x rest))))
+        (assertion-violation 'fx- (errmsg 'msg:toomanyargs) (cons x rest))))
 
 (define (fx* x y)
   (fx:check! 'fx* x)
@@ -153,7 +152,7 @@
   (fx:check! 'fxdiv-and-mod x)
   (fx:check! 'fxdiv-and-mod y)
   (cond ((fx=? y 0)
-         (assertion-violation 'fxdiv "zero divisor" x y))
+         (assertion-violation 'fxdiv (errmsg 'msg:zerodivide) x y))
         ((fx>=? x 0)
          (values (quotient x y) (remainder x y)))
         ((fx<? y 0)
@@ -177,7 +176,7 @@
   (fx:check! 'fxdiv x)
   (fx:check! 'fxdiv y)
   (cond ((fx=? y 0)
-         (assertion-violation 'fxdiv "zero divisor" x y))
+         (assertion-violation 'fxdiv (errmsg 'msg:zerodivide) x y))
         ((fx>=? x 0)
          (quotient x y))
         ((fx<? y 0)
@@ -201,7 +200,7 @@
   (fx:check! 'fxdiv x)
   (fx:check! 'fxdiv y)
   (cond ((fx=? y 0)
-         (assertion-violation 'fxmod "zero divisor" x y))
+         (assertion-violation 'fxmod (errmsg 'msg:zerodivide) x y))
         ((fx>=? x 0)
          (remainder x y))
         ((fx<? y 0)
@@ -356,23 +355,22 @@
         (fxif mask
               (fxarithmetic-shift-left fx3 fx2)
               fx1))
-      (assertion-violation 'fxcopy-bit "illegal third argument" fx3)))
+      (assertion-violation 'fxcopy-bit (errmsg 'msg:illegalarg3) fx3)))
 
 ; FIXME: The 5.97 draft idiotically insists that the third argument
 ; of fxbit-field be less than (fixnum-width).
 
-(define fixnum-range:idiotic-error
-  "the R6RS requires the third argument to be less than (fixnum-width)")
-
 (define (fxbit-field fx1 fx2 fx3)
   (fx:range-check! 'fxbit-field fx2)
   (if (fx=? fx3 (fixnum-width))
-      (assertion-violation 'fxbit-field fixnum-range:idiotic-error fx3))
+      (assertion-violation 'fxbit-field
+                           (errmsg 'msg:fixnumrange:idiotic-error)
+                           fx3))
   (fx:range-check! 'fxbit-field fx3)
   (if (fx<=? fx2 fx3)
       (let* ((mask (fxnot (fxarithmetic-shift-left -1 fx3))))
         (fxarithmetic-shift-right (fxand fx1 mask) fx2))
-      (assertion-violation 'fxbit-field "range error" fx1 fx2 fx3)))
+      (assertion-violation 'fxbit-field (errmsg 'msg:rangeerror) fx1 fx2 fx3)))
 
 (define (fxcopy-bit-field to start end from)
   (fx:range-check! 'fxcopy-bit-field start)
@@ -385,7 +383,9 @@
         (fxif mask
               (fxarithmetic-shift-left from start)
               to))
-      (assertion-violation 'fxcopy-bit-field "range error" to start end from)))
+      (assertion-violation 'fxcopy-bit-field
+                           (errmsg 'msg:rangeerror)
+                           to start end from)))
 
 (define (fxrotate-bit-field n start end count)
   (fx:range-check! 'fxrotate-bit-field start)
@@ -402,7 +402,8 @@
                    (field (fxior field1 field2)))
               (fxcopy-bit-field n start end field))))
       (assertion-violation 'fxrotate-bit-field
-                           "range error" n start end count)))
+                           (errmsg 'msg:rangeerror)
+                           n start end count)))
 
 (define (fxreverse-bit-field n start end)
   (fx:range-check! 'fxreverse-bit-field start)
@@ -416,7 +417,9 @@
                          (fxand bits 1))))
           ((fx=? width 0)
            (fxcopy-bit-field n start end rbits)))
-      (assertion-violation 'fxreverse-bit-field "range error" n start end)))
+      (assertion-violation 'fxreverse-bit-field
+                           (errmsg 'msg:rangeerror)
+                           n start end)))
 
 ; Shift procedures.
 
@@ -432,8 +435,10 @@
          (ncheck (fxrsha result shift)))
     (if (fx=? n ncheck)
         result
-        (assertion-violation 'fxarithmetic-shift-left
-                             "result not a fixnum" n shift))))
+        (raise-r6rs-exception (make-implementation-restriction-violation)
+                              'fxarithmetic-shift-left
+                              (errmsg 'msg:fixnumrange)
+                              (list n shift)))))
 
 (define (fxarithmetic-shift-right n shift)
   (fx:check! 'fxarithmetic-shift-right n)

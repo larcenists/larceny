@@ -190,17 +190,21 @@
 	  (error "Foreign-procedure " name ": " x 
 		 " is out of range for a signed integer type.")))
 
+    (define (ascii-char? x)
+      (and (char? x)
+           (< -1 (char->integer x) 256)))
+
     (define (character->char x name)
-      (if (char? x)
+      (if (ascii-char? x)
 	  (let ((c (char->integer x)))
 	    (if (> c 127)
-		(- 256 c)
+	        (- c 256)
 		c))
 	  (error "Foreign-procedure " name ": " x
 		 " is not a character.")))
 
     (define (character->uchar x name)
-      (if (char? x)
+      (if (ascii-char? x)
 	  (char->integer x)
 	  (error "Foreign-procedure " name ": " x
 		 " is not a character.")))
@@ -278,6 +282,7 @@
       (uchar    unsigned32 ,character->uchar        ,uchar->character)
       (long     signed32   ,integer-check           ,id)
       (ulong    unsigned32 ,unsigned-integer-check  ,id)
+      (size_t   unsigned32 ,unsigned-integer-check  ,id)
       (float    ieee32     ,flonum-check            ,id)
       (double   ieee64     ,flonum-check            ,id)
       (longlong  signed64   ,longlong-check         ,id)
@@ -288,6 +293,9 @@
       (void*    unsigned32 ,void*->unsigned          ,unsigned->void*)
       (tramp    unsigned32 ,trampoline->pointer     ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
+
+(define (ffi-attribute-core? t)
+  (not (not (assq t *ffi-attributes*))))
 
 (define (ffi-attribute-core-entry t)
   (let ((probe (assq t *ffi-attributes*)))
@@ -740,7 +748,7 @@
     (%set32u x offs v)))
 
 ;; (size is in 8-bit bytes, not in bits here)
-(define (size->%getter size)
+(define (size->%integer-getter size)
   (if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
       (lambda (x offs)
         (let rec ((accum 0) (size size) (offs offs) (mult 1))
@@ -758,7 +766,7 @@
                    (- size 1)
                    (- offs 1)
                    (* mult 256)))))))
-(define (size->%setter size)
+(define (size->%integer-setter size)
   (let ((init-divisor (expt 2 (* (- size 1) 8))))
     (if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
         (lambda (x offs n)
@@ -771,6 +779,14 @@
             (cond ((not (zero? size))
                  (bytevector-set! x offs (remainder (quotient n d) 256))
                  (rec (- size 1) (+ offs 1) (/ d 256)))))))))
+(define (size->%bytevector-getter size)
+  (lambda (x offs)
+    (let ((rtn (make-bytevector size)))
+      (bytevector-copy! x offs rtn 0 size)
+      rtn)))
+(define (size->%bytevector-setter size)
+  (lambda (x offs src)
+    (bytevector-copy! src 0 x offs size)))
 
 ; %get-* and %set-*: get and set values in bytevectors in C language terms.
 

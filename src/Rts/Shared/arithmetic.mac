@@ -24,7 +24,7 @@
 
 #define NOGLOBALS
 
-#include \"larceny.h\"			/* includes config.h also */
+#include \"larceny.h\"                  /* includes config.h also */
 #include \"millicode.h\"
 #include \"macros.h\"
 
@@ -83,8 +83,8 @@ void initialize_generic_arithmetic( void )
 
 (define-template 'binary-decision-tree
   '(name retry-name contagion-name error-code
-	fixnum+fixnum flonum+flonum compnum+compnum 
-	bignum+bignum-code ratnum+ratnum-code rectnum+rectnum)
+        fixnum+fixnum flonum+flonum compnum+compnum 
+        bignum+bignum-code ratnum+ratnum-code rectnum+rectnum)
 "
 void EXPORT @name@( word *globals, cont_t k )
 {
@@ -100,27 +100,24 @@ void EXPORT @name@( word *globals, cont_t k )
     h1 = header_byte( x, BVEC_TAG );
     h2 = header_byte( y, BVEC_TAG );
     if (h1 == FLONUM_HDR) {
-      if (h2 == FLONUM_HDR || h2 == COMPNUM_HDR && compnum_imag( y ) == 0.0) {
-	@flonum+flonum@
+      if (h2 == FLONUM_HDR) {
+        @flonum+flonum@
       }
       else
-	goto mixed;
+        goto mixed;
     }
     else if (h1 == COMPNUM_HDR) {
       if (h2 == COMPNUM_HDR) {
-	@compnum+compnum@
-      }
-      else if (h2 == FLONUM_HDR && compnum_imag( x ) == 0.0) {
-	@flonum+flonum@
+        @compnum+compnum@
       }
       else
-	goto mixed;
+        goto mixed;
     }
     else if (h1 == BIGNUM_HDR) {
       if (h2 == BIGNUM_HDR)
-	generic_binary_operation( globals, @bignum+bignum-code@, k );
+        generic_binary_operation( globals, @bignum+bignum-code@, k );
       else
-	goto mixed;
+        goto mixed;
     }
     else
       goto error;
@@ -134,16 +131,16 @@ void EXPORT @name@( word *globals, cont_t k )
     h2 = header_byte( y, VEC_TAG );
     if (h1 == RATNUM_HDR) {
       if (h2 == RATNUM_HDR) 
-	generic_binary_operation( globals, @ratnum+ratnum-code@, k );
+        generic_binary_operation( globals, @ratnum+ratnum-code@, k );
       else
-	goto mixed;
+        goto mixed;
     }
     else if (h1 == RECTNUM_HDR) {
       if (h2 == RECTNUM_HDR) {
         @rectnum+rectnum@
       }
       else
-	goto mixed;
+        goto mixed;
     }
     else
       goto error;
@@ -190,7 +187,7 @@ void EXPORT @name@( word *globals, cont_t k )
      (ratnum+ratnum-code ,(string-append "MS_RATNUM_" name2))
      (rectnum+rectnum
       ,(string-append 
-	"generic_binary_operation( globals, MS_RECTNUM_" name2 ", k );")))))
+        "generic_binary_operation( globals, MS_RECTNUM_" name2 ", k );")))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -351,9 +348,9 @@ if (fabs( yr ) >= fabs( yi )) {
   ga_box_compnum( globals, (xr + r*xi) / den, (xi - r*xr) / den );
 }
 else {
-  double r = yr / xi;
+  double r = yr / yi;
   double den = yi + r * yr;
-  ga_box_compnum( globals, (xi + r*xr) / den, (xr - r*xi) / den );
+  ga_box_compnum( globals, (r*xr + xi) / den, (r*xi - xr) / den );
 }
 ")
 
@@ -383,8 +380,8 @@ else {
 
 /* These operate on the bignum metaword (sign/length) */
 
-#define bigmeta_length( x ) (x & 0xFFFF)
-#define bigmeta_sign( x ) ((x >> 16) & 1)
+#define bigmeta_length( x ) (x & 0xFFFFFF)
+#define bigmeta_sign( x ) ((x >> 24) & 1)
 
 void EXPORT mc_quo( word *globals, cont_t k )
 {
@@ -393,7 +390,7 @@ void EXPORT mc_quo( word *globals, cont_t k )
 
   if (is_both_fixnums( x, y )) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-    if (y == 0) mc_exception( globals, EX_DIV );
+    if (y == 0) mc_exception( globals, EX_QUOTIENT );
 #endif
 /*  This doesn't work for (/ (least-fixnum) -1)          */
 /*  globals[ G_RESULT ] = fixnum((s_word)x / (s_word)y); */
@@ -406,7 +403,7 @@ void EXPORT mc_quo( word *globals, cont_t k )
     word z = *(ptrof( x )+1);
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-      if (y == 0) mc_exception( globals, EX_DIV );
+      if (y == 0) mc_exception( globals, EX_QUOTIENT );
 #endif
       z = *(ptrof( x )+2) / (y >> 2);
       ga_box_longint( globals, 0, z );
@@ -423,7 +420,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
 
   if (is_both_fixnums( x, y )) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-    if (y == 0) mc_exception( globals, EX_DIV );
+    if (y == 0) mc_exception( globals, EX_REMAINDER );
 #endif
     globals[ G_RESULT ] = fixnum((s_word)nativeint(x) % (s_word)nativeint(y));
     return;
@@ -434,7 +431,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
     word z = *(ptrof( x )+1);
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
 #if defined(EXPLICIT_DIVZ_CHECK)
-      if (y == 0) mc_exception( globals, EX_DIV );
+      if (y == 0) mc_exception( globals, EX_REMAINDER );
 #endif
       z = *(ptrof( x )+2) % (y >> 2);
       ga_box_longint( globals, 0, z );
@@ -530,8 +527,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
 ; mc_greater_or_equalp
 ;
 ; Fixnums are done in-line.
-; Compnums and rectnums are not in the domain of this function, but compnums
-; with a 0 imaginary part are and have to be handled specially.
+; Compnums and rectnums are not in the domain of this function.
 
 (define (order-not-equal name name2 op)
   (expand-template
@@ -542,10 +538,10 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
      (error-code ,(string-append "EX_" name2 "P"))
      (fixnum+fixnum 
       ,(apply string-append
-	      "setcc( (int)nativeint(x) " op " (int)nativeint(y) );" '()))
+              "setcc( (int)nativeint(x) " op " (int)nativeint(y) );" '()))
      (flonum+flonum 
       ,(apply string-append 
-	      "setcc( flonum_val(x) " op " flonum_val(y) );" '()))
+              "setcc( flonum_val(x) " op " flonum_val(y) );" '()))
      (compnum+compnum "goto error;")
      (bignum+bignum-code ,(string-append "MS_BIGNUM_" name2))
      (ratnum+ratnum-code ,(string-append "MS_RATNUM_" name2))
@@ -572,8 +568,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
       (false "globals[ G_RESULT ] = FALSE_CONST;"))
   (unary-decision-tree
    "mc_rationalp" "0/* none */"
-   true true
-   (string-append "if (compnum_imag( x ) == 0.0) " true " else " false)
+   true true false
    true true false #f false))
 
 (let ((true "globals[ G_RESULT ] = TRUE_CONST;")
@@ -584,9 +579,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
    "double v = flonum_val( x );
 setcc( is_integer( v ) && is_rational( v ) );
 "
-   "double v = flonum_val( x );
-setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
-"
+   false
    true false false #f false))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -595,7 +588,7 @@ setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
 
 (define (exactness-test name exact? exception)
   (let ((true "globals[ G_RESULT ] = TRUE_CONST;")
-	(false "globals[ G_RESULT ] = FALSE_CONST;"))
+        (false "globals[ G_RESULT ] = FALSE_CONST;"))
     (unary-decision-tree
      name exception
      (if exact? true false)
@@ -643,7 +636,7 @@ setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
 (unary-decision-tree
  "mc_imag_part" "EX_IMAGPART"
  "globals[ G_RESULT ] = fixnum(0);"
- "ga_box_flonum( globals, 0.0 );"  ; FIXME?
+ "globals[ G_RESULT ] = fixnum(0);"
  "ga_box_flonum( globals, compnum_imag( x ) );"
  "globals[ G_RESULT ] = fixnum(0);"
  "globals[ G_RESULT ] = fixnum(0);"
@@ -652,33 +645,20 @@ setcc( compnum_imag(x) == 0.0 && is_integer( v ) );
 
 (unary-decision-tree
  "mc_round" "EX_ROUND"
- #f					; fixnum - nothing
+ #f                                     ; fixnum - nothing
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_even( v ) );"
-"if (compnum_imag( x ) == 0.0) {
-  double v = flonum_val( x ); 
-  ga_box_flonum( globals, round_to_even( v ) );
-}
-else
-  goto error;
-"
- #f					; bignum - nothing
+ "goto error;"                          ; compnum
+ #f                                     ; bignum - nothing
  "generic_unary_operation( globals, MS_RATNUM_ROUND, k );"  ; ratnum
- "goto error;"				; rectnum
- #t					; has a continuation
+ "goto error;"                          ; rectnum
+ #t                                     ; has a continuation
  #f)
 
 (unary-decision-tree
  "mc_truncate" "EX_TRUNC"
  #f
  "double v = flonum_val( x ); ga_box_flonum( globals, round_to_zero( v ) );"
-"
-if (compnum_imag( x ) == 0.0) {
-  double v = flonum_val( x ); 
-  ga_box_flonum( globals, round_to_zero( v ) );
-}
-else
-  goto error;
-"
+ "goto error;"                          ; compnum
  #f 
  "generic_unary_operation( globals, MS_RATNUM_TRUNCATE, k );"
  "goto error;"
@@ -751,7 +731,7 @@ static void ga_box_longint( word *globals, word hi, word lo )
       mc_alloc_bv( globals );
       p = (word*)globals[ G_RESULT ];
       p[0] = mkheader( 3*sizeof(word), BIGNUM_HDR );
-      p[1] = (sign << 16) | 2;   /* sign | 2 words */
+      p[1] = mkbignum_header( sign, 2 );
       p[2] = lo;
       p[3] = hi;
       globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
@@ -760,6 +740,7 @@ static void ga_box_longint( word *globals, word hi, word lo )
 }
 
 /* Box an sign/magnitude integer value in a one-word bignum */
+
 static void ga_box_word( word *globals, word x, int sign )
 {
   word *p;
@@ -768,7 +749,7 @@ static void ga_box_word( word *globals, word x, int sign )
   mc_alloc_bv( globals );
   p = (word*)globals[ G_RESULT ];
   p[0] = mkheader( 2*sizeof(word), BIGNUM_HDR );
-  p[1] = (sign << 16) | 1;   /* sign | 1 word */
+  p[1] = mkbignum_header( sign, 1 );
   p[2] = x;
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }
@@ -788,25 +769,13 @@ static void ga_box_flonum( word *globals, double d )
 static void ga_box_compnum( word *globals, double r, double i )
 {
   word *p;
-  double one = 1.0;
-  double zero = 0.0;
-  double posinf = one/zero; /* Microsoft has issues with 1.0/0.0 ... */
-  /* 
-   * For now, we return a flonum if the imaginary part is +0.0.
-   * This will probably have to change for R6RS, so leave it up
-   * front where it is conspicuously inefficient and easy to find.
-   */
-  if (i == 0.0 && (1.0/i == posinf)) {
-    ga_box_flonum( globals, r );
-  } else {
-    globals[ G_RESULT ] = fixnum(6*sizeof(word));
-    mc_alloc_bv( globals );
-    p = (word*)globals[ G_RESULT ];
-    *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
-    *(double*)(p+2) = r;
-    *(double*)(p+4) = i;
-    globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
-  }
+  globals[ G_RESULT ] = fixnum(6*sizeof(word));
+  mc_alloc_bv( globals );
+  p = (word*)globals[ G_RESULT ];
+  *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
+  *(double*)(p+2) = r;
+  *(double*)(p+4) = i;
+  globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }
 
 "

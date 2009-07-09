@@ -195,7 +195,7 @@
         (define fstat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
            (linux 
-            (let ((xstat (foreign-procedure "__xfstat" '(int string boxed) 'int)))
+            (let ((xstat (foreign-procedure "__fxstat" '(int string boxed) 'int)))
               (define-c-info (include<> "sys/stat.h") 
                 (const stat_ver int "_STAT_VER"))
               (lambda (name buf) (xstat stat_ver name buf))))
@@ -204,7 +204,7 @@
         (define lstat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
            (linux 
-            (let ((xstat (foreign-procedure "__xlstat" '(int string boxed) 'int)))
+            (let ((xstat (foreign-procedure "__lxstat" '(int string boxed) 'int)))
               (define-c-info (include<> "sys/stat.h") 
                 (const stat_ver int "_STAT_VER"))
               (lambda (name buf) (xstat stat_ver name buf))))

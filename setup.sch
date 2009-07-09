@@ -155,11 +155,12 @@
                      (flag always-source)
                      ;; Target variation options
                      (flag native)
-		     (flag nasm)
-		     (flag sassy)
-		     ;; Deprecated options
+                     (flag nasm)
+                     (flag sassy)
+                     (flag common)
+                     ;; Deprecated options
                      (flag code-cov)
-		     (flag rebuild-code-cov))
+                     (flag rebuild-code-cov))
   (define (displn arg) (display arg) (newline))
   (define (help-text) 
     (displn "To setup Larceny, call ")
@@ -232,9 +233,12 @@
                            ((linux86) 'linux-el)
                            ((macosx86) 'macosx-el)
                            (else host:)))
-                (target: (if target: target: host:)))
+                (target: (cond (target: target:)
+                               (common 'clr-el)   ; FIXME
+                               (else host:))))
            (setup-real! scheme: host: target: c-compiler: string-rep:
-            (or native sassy nasm) code-cov rebuild-code-cov sassy nasm)))))
+            (or native sassy nasm) code-cov rebuild-code-cov
+            sassy nasm)))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -245,40 +249,45 @@
 ;; then calls UNIX-INITIALIZE
 
 (define (setup-real! host-scheme host-arch target-arch 
-		     c-compiler-choice string-rep-choice
+                     c-compiler-choice string-rep-choice
                      native code-cov rebuild-code-cov 
-		     sassy nasm)
+                     sassy nasm)
   (define (platform->endianness sym)
     (case sym 
-      ((macosx solaris) 'big)
-      ((macosx-el linux-el cygwin win32)       'little)
+      ((macosx solaris clr-be)                  'big)
+      ((macosx-el linux-el cygwin win32 clr-el) 'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx solaris linux-el cygwin) 'unix)
+      ((macosx macosx-el solaris linux-el cygwin) 'unix)
       ((win32) 'win32)
+      ((clr-be) 'unix)     ; FIXME
+      ((clr-el) 'win32)    ; FIXME
       (else (error 'platform->os "Unhandled case: ~a" sym))))
 
   ;; Warn about "semi-working" cases
 
   (cond ((and (not native)
-	      (memq host-arch '(cygwin win32)))
-	 (display "Warning: Petit/Standard-C on Windows is incomplete.")
-	 (newline)
-	 (display "Use at own risk, or try Petit/NASM")
-	 (newline)
-	 (newline)
+              (memq host-arch '(cygwin win32)))
+         (display "Warning: Petit/Standard-C on Windows is incomplete.")
+         (newline)
+         (display "Use at own risk, or try Petit/NASM")
+         (newline)
+         (newline)
 
-	 ;; In particular, control transfer points are not guaranteed
-	 ;; to be 4-byte aligned, and therefore on win32 we use the
-	 ;; CODEPTR_SHIFT2 feature to ensure they have a fixnum tag.
-	 ;; This almost works, except that addresses with significant
-	 ;; bits that are corrupted by the shift-by-2; thus things
-	 ;; break when dynamically loading compiled code on win32
-	 ;; non-native.
-	 ))
+         ;; In particular, control transfer points are not guaranteed
+         ;; to be 4-byte aligned, and therefore on win32 we use the
+         ;; CODEPTR_SHIFT2 feature to ensure they have a fixnum tag.
+         ;; This almost works, except that addresses with significant
+         ;; bits that are corrupted by the shift-by-2; thus things
+         ;; break when dynamically loading compiled code on win32
+         ;; non-native.
+         ))
 
   (case host-scheme
+    ((plt-r5rs)
+     (set! *host-dir*  "PLT-R5RS")
+     (set! *host-name* "PLT-R5RS"))
     ((mzscheme) 
      (set! *host-dir*  "MzScheme") 
      (set! *host-name* "MzScheme"))
@@ -307,19 +316,20 @@
                                 (nasm   'features-x86-nasm-linux)
                                 (native 'features-x86-nasm-linux)
                                 (else   'features-petit-linux)))
-	  ((cygwin)       'features-petit-cygwin)
-	  ((win32)        (cond (sassy  'features-x86-sassy-win32)
-				(nasm   'features-x86-nasm-win32)
-				(native 'features-x86-nasm-win32)
-				(else   'features-petit-win32)))
+          ((cygwin)       'features-petit-cygwin)
+          ((win32)        (cond (sassy  'features-x86-sassy-win32)
+                                (nasm   'features-x86-nasm-win32)
+                                (native 'features-x86-nasm-win32)
+                                (else   'features-petit-win32)))
 
-          ;; if client says we're using unix,
+          ;; if client says we're using unix or clr,
           ;; then just use value set by features.sch
 
-          ((unix)         *change-feature-set*)
+          ((unix clr-be clr-el)
+                          *change-feature-set*)
 
-	  (else
-           (error 'petit-setup.sch "Must add support for target-arch"))
+          (else
+           (error 'setup.sch "Must add support for target-arch"))
           ))
 
   (case target-arch
@@ -332,21 +342,23 @@
           ((macosx
             macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
-	  ((cygwin)  "petitcygwinmswindows")
-          ((linux-el) "petitdebianlinux")))
+          ((cygwin)  "petitcygwinmswindows")
+          ((linux-el) "petitdebianlinux")
+          ((clr-be clr-le) "common")))        ; FIXME
 
   (set! *host:endianness* (platform->endianness host-arch))
   (set! *target:endianness* (platform->endianness target-arch))
+  (set! *target:os* (platform->os target-arch))
   
   (cond (sassy
          (case target-arch
-	   ((win32)
+           ((win32)
             (set! *target:machine* 'x86-sass)
             (set! *target:machine-source* "IAssassin")
             (set! *makefile-configuration* 'x86-win32-static-visualc)
             (set! *heap-type* 'sassy)
             (set! *runtime-type* 'sassy-native))
-	   ((macosx-el)
+           ((macosx-el)
             (set! *target:machine* 'x86-sass)
             (set! *target:machine-source* "IAssassin")
             (set! *makefile-configuration* 'sassy-macosx-static-gcc-nasm)
@@ -359,7 +371,7 @@
             (set! *heap-type* 'sassy)
             (set! *runtime-type* 'sassy-native))))
 
-	(native
+        (native
          (case target-arch
            ((solaris)
             (set! *target:machine* 'sparc)
@@ -368,16 +380,16 @@
             (set! *heap-type* 'sparc-native)
             (set! *runtime-type* 'sparc-native))
 
-	   ;; Win32 native is just Petit with extasm of NASM rather than C
+           ;; Win32 native is just Petit with extasm of NASM rather than C
 
-	   ((win32)
+           ((win32)
             (set! *target:machine* 'x86-nasm)
             (set! *target:machine-source* "Standard-C")
             (set! *makefile-configuration* #f)
             (set! *heap-type* 'petit)
             (set! *runtime-type* 'petit))
 
-	   ;; Linux86 native is just Petit with extasm of NASM rather than C           
+           ;; Linux86 native is just Petit with extasm of NASM rather than C           
            ((linux-el)
             (set! *target:machine* 'x86-nasm)
             (set! *target:machine-source* "Standard-C")
@@ -389,6 +401,13 @@
             (error "Unsupported architecture for native setup: "
                    target-arch))))
 
+        ((memq target-arch '(clr-be clr-el))
+         (set! *target:machine* 'clr)
+         (set! *target:machine-source* "IL")
+         (set! *makefile-configuration* #f)
+         (set! *heap-type* 'clr)
+         (set! *runtime-type* 'clr))
+
         (else
          (set! *target:machine* 'standard-c)
          (set! *target:machine-source* "Standard-C")
@@ -399,17 +418,17 @@
 
   (set! *code-coverage* (or code-cov rebuild-code-cov))
   (set! *rebuild-code-coverage* rebuild-code-cov)
-	
+        
   ;; [usually #f; user may override with e.g. 'mwcc aka CodeWarrior]
 
   (set! *host:c-compiler* (or c-compiler-choice
-			      (and native (not sassy)
-				   (eq? target-arch 'win32)
-				   'nasm+msvc)
+                              (and native (not sassy)
+                                   (eq? target-arch 'win32)
+                                   'nasm+msvc)
                               (and native (not sassy)
                                    (eq? target-arch 'linux-el)
                                    'nasm+gcc)
-			      #f))
+                              #f))
 
   (set! *target:string-rep*
         (case string-rep-choice
@@ -425,10 +444,15 @@
                       string-rep-choice))))
   
   (if (or (eq? *target:machine* 'x86-nasm)
-	  (eq? *target:machine* 'x86-sass))
+          (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
  
-  (unix-&-win32-initialize))
+  (case target-arch
+   ((clr-be clr-el)
+    (load "src/Build/dotnet.sch")
+    (larceny-setup "Larceny" *target:os* *target:endianness*))   ; FIXME
+   (else
+    (unix-&-win32-initialize))))
 
 (define (setup-load-build . args) 
   (apply setup args)

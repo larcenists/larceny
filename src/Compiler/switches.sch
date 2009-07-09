@@ -39,6 +39,9 @@
   
 ; Debugging and convenience.
 
+(define compile-despite-errors
+  (make-twobit-flag 'compile-despite-errors))
+
 (define issue-warnings
   (make-twobit-flag 'issue-warnings))
 
@@ -87,6 +90,9 @@
                 (twobit-warning))))
             (else
              (twobit-warning))))))
+
+(define faster-arithmetic
+  (make-twobit-flag 'faster-arithmetic))
 
 (define control-optimization
   (make-twobit-flag 'control-optimization))
@@ -151,7 +157,8 @@
     #t))
 
 (define (twobit-all-flags)
-  (let ((i.w   (issue-warnings))
+  (let ((c.d.e (compile-despite-errors))
+        (i.w   (issue-warnings))
         (i.s.c (include-source-code))
         (i.v.n (include-variable-names))
         (i.p.n (include-procedure-names))
@@ -169,6 +176,7 @@
         (r.i   (representation-inference))
         (lo.o   (local-optimization)))
     (lambda ()
+      (compile-despite-errors c.d.e)
       (issue-warnings i.w)
       (include-source-code i.s.c)
       (include-variable-names i.v.n)
@@ -196,6 +204,7 @@
      (set-compiler-flags! 'standard)
      (avoid-space-leaks #t)
      (integrate-procedures 'none)
+     (faster-arithmetic #f)
      (control-optimization #f)
      (parallel-assignment-optimization #f)
      (lambda-optimization #f)
@@ -207,7 +216,8 @@
      (common-subexpression-elimination #f)
      (representation-inference #f)
      (local-optimization #f))
-    ((standard) 
+    ((standard)
+     (compile-despite-errors #t)
      (issue-warnings #t)
      (include-source-code #f)
      (include-procedure-names #t)
@@ -215,6 +225,7 @@
      (avoid-space-leaks #f)
      (runtime-safety-checking #t)
      (integrate-procedures 'none)
+     (faster-arithmetic #f)
      (control-optimization #t)
      (parallel-assignment-optimization #t)
      (lambda-optimization #t)
@@ -229,18 +240,21 @@
     ((fast-safe)
      (let ((bbmode (benchmark-block-mode)))
        (set-compiler-flags! 'standard)
+       (compile-despite-errors #f)
        (integrate-procedures 'larceny)
        (benchmark-mode #t)
        (benchmark-block-mode bbmode)))
     ((fast-unsafe) 
      (set-compiler-flags! 'fast-safe)
-     (runtime-safety-checking #f))
+     (runtime-safety-checking #f)
+     (faster-arithmetic #t))
     (else 
      (error "set-compiler-flags!: unknown mode " how))))
 
 (define (display-twobit-flags which)
   (case which
     ((debugging)
+     (display-twobit-flag compile-despite-errors)
      (display-twobit-flag issue-warnings)
      (display-twobit-flag include-procedure-names)
      (display-twobit-flag include-variable-names)
@@ -249,6 +263,7 @@
      (display-twobit-flag avoid-space-leaks))
     ((optimization)
      (display-twobit-flag integrate-procedures)
+     (display-twobit-flag faster-arithmetic)
      (display-twobit-flag control-optimization)
      (display-twobit-flag parallel-assignment-optimization)
      (display-twobit-flag lambda-optimization)

@@ -122,7 +122,7 @@
                                                  (graph! exp vars known #f))
                                                (call.args exp))))
                 (else
-                 (error "Unrecognized expression" exp))))
+                 (twobit-error "unrecognized expression" exp))))
 
 ;        (define (graph! exp vars known tail?)
 ;          (set! size (+ size 1))
@@ -190,7 +190,7 @@
                     result))))
     
     (add-vertex! #t
-                 (make-lambda '() '() '() '() '() '() '() exp)
+                 (make-lambda '() '() '() '() '() '() #f exp)
                  '()
                  '())
     result))

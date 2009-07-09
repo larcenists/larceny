@@ -386,9 +386,19 @@ void EXPORT mc_typetag_set( word *globals )
 #define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
 #define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
 
-/* returns true iff x and y are zeros with different sign bits. */
-static int diff_zeroes(double x, double y) {
-  return x == 0.0 && y == 0.0 && (1.0 / x != 1.0 / y);
+/* returns true iff x and y have the same bit-level representation. */
+
+static int same_bits(double x, double y) {
+  byte * xbits = (byte *) &x;
+  byte * ybits = (byte *) &y;
+  return xbits[0] == ybits[0] &&
+    xbits[1] == ybits[1] &&
+    xbits[2] == ybits[2] &&
+    xbits[3] == ybits[3] &&
+    xbits[4] == ybits[4] &&
+    xbits[5] == ybits[5] &&
+    xbits[6] == ybits[6] &&
+    xbits[7] == ybits[7];
 }
 
 void EXPORT mc_eqv( word *globals, cont_t k )
@@ -405,19 +415,19 @@ void EXPORT mc_eqv( word *globals, cont_t k )
     int t2 = *ptrof( y ) & 255;
     if (t1 == BIGNUM_HDR && t2 == BIGNUM_HDR)
       mc_equalp( globals, k );
-    else if ((t1 == FLONUM_HDR || t1 == COMPNUM_HDR) &&
-             (t2 == FLONUM_HDR || t2 == COMPNUM_HDR))
-      /* zeros with different signs are not eqv */
-      if ( t1 == FLONUM_HDR && t2 == FLONUM_HDR && 
-	   diff_zeroes( flonum_val(x), flonum_val(y)) ) {
-        globals[ G_RESULT ] = FALSE_CONST;
-      } else if ( t1 == COMPNUM_HDR && t2 == COMPNUM_HDR &&
-		  ( diff_zeroes( compnum_real(x), compnum_real(y)) 
-		    || diff_zeroes( compnum_imag(x), compnum_imag(y)) )) {
+    else if ( t1 == FLONUM_HDR && t2 == FLONUM_HDR ) {
+      if ( same_bits( flonum_val(x), flonum_val(y) ) )
+	globals[ G_RESULT ] = TRUE_CONST;
+      else
 	globals[ G_RESULT ] = FALSE_CONST;
-      } else {
-        mc_equalp( globals, k );
-      }
+    }
+    else if ( t1 == COMPNUM_HDR && t2 == COMPNUM_HDR ) {
+      if ( same_bits( compnum_real(x), compnum_real(y) ) &&
+	   same_bits( compnum_imag(x), compnum_imag(y) ) )
+	globals[ G_RESULT ] = TRUE_CONST;
+      else
+	globals[ G_RESULT ] = FALSE_CONST;
+    }
     else if (t1 == STR_HDR && t2 == STR_HDR &&
 	     (string_length(x) == 0) && (string_length(y) == 0))
       globals[ G_RESULT ] = TRUE_CONST; /* (eqv? "" "") */
@@ -702,21 +712,6 @@ static void check_signals( word *globals, cont_t k )
   }
 }
 
-static cont_t internal_fixnum_to_retaddr( word *globals, word off ) {
-  cont_t k;
-  if (globals[ G_REG0 ]) {
-    assert(tagof(globals[ G_REG0 ]) == PROC_TAG);
-    assert(tagof(procedure_ref( globals[ G_REG0 ], 0)) == BVEC_TAG);
-    k = off
-      + (procedure_ref( globals[ G_REG0 ], 0)
-	 - BVEC_TAG
-	 + BVEC_HEADER_BYTES);
-    return k;
-  } else {
-    return off;
-  }
-}
-
 /* Call Scheme when the VM is in Scheme mode already. The problem here is
    that when Scheme code calls a millicode procedure, it is not required to
    save any of its registers.  Thus, when the millicode must call out to 
@@ -815,14 +810,26 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k,
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
 
-  my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  if (k == 0) {
+    my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  }
+  else {
+
+    /* To call the procedure, return to its offset 0. */
+    /* Note: that is IAssassin-dependent. */
+
+    globals[ G_RETADDR ] = 0;
+    return;
+  }
 }
 
-/* Return address for scheme-to-scheme call frame. 
-   */
+/* Return address for scheme-to-scheme call frame. */
+
 RTYPE return_from_scheme( CONT_PARAMS )
 {
-  my_longjmp( dispatch_jump_buffer, DISPATCH_RETURN_FROM_S2S_CALL );
+  cont_t k = restore_context( globals );
+  globals[ G_RETADDR ] = k;
+  return k;
 }
 
 /* Restore all registers.
@@ -840,7 +847,7 @@ cont_t restore_context( word *globals )
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
   
-  k = internal_fixnum_to_retaddr( globals, stkp[ 4 ]);
+  k = stkp[ 4 ];
 
   if (stkp[ 5+NREGS+1 ] == TRUE_CONST)
     globals[ G_RESULT ] = stkp[ 5+NREGS ];

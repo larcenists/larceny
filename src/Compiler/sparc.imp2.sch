@@ -18,7 +18,8 @@
 (define-subtype 'eqtype1    'true)  
 (define-subtype 'procedure  'true)
 (define-subtype 'vector     'true)
-(define-subtype 'bytevector 'true)
+(define-subtype 'bvlike     'true)
+(define-subtype 'bytevector 'bvlike)
 (define-subtype 'string     'true)
 (define-subtype 'pair       'true)
 (define-subtype 'emptylist  'eqtype1)
@@ -84,6 +85,8 @@
 (define rep:char         (symbol->rep 'char))
 (define rep:string       (symbol->rep 'string))
 (define rep:vector       (symbol->rep 'vector))
+(define rep:bytevector   (symbol->rep 'bytevector))
+(define rep:bvlike       (symbol->rep 'bvlike))
 (define rep:procedure    (symbol->rep 'procedure))
 (define rep:bottom       (symbol->rep 'bottom))
 
@@ -123,6 +126,8 @@
          rep:string)
         ((vector? x)
          rep:vector)
+        ((bytevector? x)
+         rep:bytevector)
         ; Everything counts as true except for #f.
         (else
          rep:true)))
@@ -191,6 +196,7 @@
      
      (cell-set!          (object nonpointer)         .cell-set!:nwb)
      (vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
+     (.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
      )))
 
 (define rep-result
@@ -207,21 +213,43 @@
      (procedure?        (procedure)                 (truth))
      (vector?           (vector)                    (truth))
      (bytevector?       (bytevector)                (truth))
+     (bytevector-like?  (bvlike)                    (truth))
      (string?           (string)                    (truth))
      (pair?             (pair)                      (truth))
      (null?             (emptylist)                 (truth))
      (symbol?           (symbol)                    (truth))
      (char?             (char)                      (truth))
      (fixnum?           (fixnum)                    (truth))
+     (fixnum?           (!fixnum)                   (truth))  ; FIXME
+     (fixnum?           (fixnum!)                   (truth))  ; FIXME
+     (fixnum?           (index)                     (truth))  ; FIXME
+     (fixnum?           (zero)                      (truth))  ; FIXME
      (.fixnum?          (fixnum)                    (truth))
+     (.fixnum?          (!fixnum)                   (truth))  ; FIXME
+     (.fixnum?          (fixnum!)                   (truth))  ; FIXME
+     (.fixnum?          (index)                     (truth))  ; FIXME
+     (.fixnum?          (zero)                      (truth))  ; FIXME
      (flonum?           (flonum)                    (truth))
      (exact?            (exact)                     (truth))
+     (exact?            (fixnum)                    (truth))  ; FIXME
+     (exact?            (!fixnum)                   (truth))  ; FIXME
+     (exact?            (fixnum!)                   (truth))  ; FIXME
+     (exact?            (index)                     (truth))  ; FIXME
+     (exact?            (zero)                      (truth))  ; FIXME
+     (exact?            (flonum)                    (false))
      (inexact?          (inexact)                   (truth))
+     (inexact?          (flonum)                    (truth))  ; FIXME
+     (inexact?          (fixnum)                    (false))  ; FIXME
+     (inexact?          (!fixnum)                   (false))  ; FIXME
+     (inexact?          (fixnum!)                   (false))  ; FIXME
+     (inexact?          (index)                     (false))  ; FIXME
+     (inexact?          (zero)                      (false))  ; FIXME
 
      (boolean?          (object)                    (boolean))
      (procedure?        (object)                    (boolean))
      (vector?           (object)                    (boolean))
      (bytevector?       (object)                    (boolean))
+     (bytevector-like?  (object)                    (boolean))
      (string?           (object)                    (boolean))
      (pair?             (object)                    (boolean))
      (null?             (object)                    (boolean))
@@ -237,6 +265,28 @@
      (>=                (!fixnum zero)              (truth))
      (.<=:fix:fix       (zero !fixnum)              (truth))
      (.>=:fix:fix       (!fixnum zero)              (truth))
+
+     (.fxlognot         (fixnum)                    (fixnum))
+     (.fxlogand         (fixnum fixnum)             (fixnum))
+     (.fxlogior         (fixnum fixnum)             (fixnum))
+     (.fxlogxor         (fixnum fixnum)             (fixnum))
+     (.fxlsh            (fixnum fixnum)             (fixnum))
+     (.fxrsha           (fixnum fixnum)             (fixnum))
+     (.fxrshl           (fixnum fixnum)             (fixnum))
+     
+     (.fxlogand         (!fixnum fixnum)            (!fixnum))
+     (.fxlogand         (fixnum !fixnum)            (!fixnum))
+     (.fxlogior         (!fixnum !fixnum)           (!fixnum))
+     (.fxlogxor         (!fixnum !fixnum)           (!fixnum))
+     (.fxrsha           (!fixnum !fixnum)           (!fixnum))
+     (.fxrshl           (!fixnum !fixnum)           (!fixnum))
+     
+     (.fxlogand         (index fixnum)              (index))
+     (.fxlogand         (fixnum index)              (index))
+     (.fxlogior         (index index)               (index))
+     (.fxlogxor         (index index)               (index))
+     (.fxrsha           (index fixnum)              (index))
+     (.fxrshl           (index fixnum)              (index))
      
      (+                 (index index)               (!fixnum))
      (+                 (fixnum fixnum)             (exactint))
@@ -264,9 +314,13 @@
      (make-vector       (object object)             (vector))
      (.vector-length:vec (vector)                   (index))
 
+     (make-bytevector   (object object)             (bytevector))
+     (.bytevector-like-length:bvl (bytevector)      (index))
+     (.bytevector-like-ref:trusted (bytevector fixnum) (index))
+
      (make-string       (object object)             (string))
-     (.string-length:str (string)                    (index))
-     (.string-ref:trusted (string fixnum)            (char))
+     (.string-length:str (string)                   (index))
+     (.string-ref:trusted (string fixnum)           (char))
 
      (cons              (object object)             (pair))
 
@@ -310,15 +364,24 @@
    ; returns false.
    
    '(
+     (boolean?    (object)           (boolean)         (object))
+     (procedure?  (object)           (procedure)       (object))
+     (vector?     (object)           (vector)          (object))
+     (bytevector? (object)           (bytevector)      (object))
+     (bytevector-like? (object)      (bvlike)          (object))
+     (string?     (object)           (string)          (object))
+     (pair?       (object)           (pair)            (object))
+     (null?       (object)           (emptylist)       (object))
+     (symbol?     (object)           (symbol)          (object))
+     (.symbol?    (object)           (symbol)          (object))
+     (char?       (object)           (char)            (object))
+     (.char?      (object)           (char)            (object))
      (fixnum?     (object)           (fixnum)          (object))
      (.fixnum?    (object)           (fixnum)          (object))
      (flonum?     (object)           (flonum)          (object))
-     (vector?     (object)           (vector)          (object))
-     (string?     (object)           (string)          (object))
-     (char?       (object)           (char)            (object))
-     (pair?       (object)           (pair)            (object))
-     (null?       (object)           (emptylist)       (object))
-
+     (exact?      (object)           (exact)           (object))
+     (inexact?    (object)           (inexact)         (object))
+     
      (eq?         (object true)      (true true)       (object true))
      (eq?  (object nonpointer) (nonpointer nonpointer) (object nonpointer))
      (eq?         (object boolean)   (boolean boolean) (object boolean))

@@ -29,8 +29,17 @@
 
 (define-foreign (g-signal-parse-name string int boxed boxed bool) bool)
 (define-foreign (g-signal-query int boxed) void)
+(define-foreign (g-type-init) void)
 (define-foreign (g-type-name int) string)
-    
+(define-foreign (g-type-parent int) int)
+
+;; Note that this only produces a useful result if the type has been
+;; registered, which seems like it may be delayed until the first
+;; construction of an instance of the type.  So it cannot be used to
+;; inspect the object hierarchy at library load time, unless one 
+;; forces the relevant g-types to all be registered beforehand.
+(define-foreign (g-type-from-name string) int)
+
 (define (gsignal+object->params signal-name gobject)
   (define (type->symbol x)
     (string->symbol (string-downcase (g-type-name x))))

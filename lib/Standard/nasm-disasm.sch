@@ -9,11 +9,10 @@
 
 (define (nasm-disassemble-bytevector bv)
   (let ((tempfile "nasmtemp.o"))
-    (call-with-output-file tempfile
-      (lambda (out)
-        (for-each (lambda (byte)
-                    (write-char (integer->char byte) out))
-                  (bytevector->list bv))))
+    (let ((out (open-file-output-port tempfile)))
+      (put-bytevector out bv)
+      (flush-output-port out)
+      (close-output-port out))
     (system (string-append "ndisasm -b32 " tempfile))))
 
 (define (nasm-disassemble-procedure p)

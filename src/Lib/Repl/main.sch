@@ -23,6 +23,7 @@
   (setup-interrupt-and-error-handlers)
   (evaluator interpret)
   (issue-warnings #t)              ; Warnings are off during bootstrapping
+  (issue-deprecated-warnings? #t)   ; Warnings are off during bootstrapping
   (interactive-entry-point argv))
 
 
@@ -35,7 +36,11 @@
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
 
-  (let* ((features (system-features))
+  (let* ((clr? (equal? "CLR" (cdr (assq 'arch-name (system-features)))))
+
+         (ignored (if clr? (clr-process-arguments))) ; FIXME
+
+         (features (system-features))
 
          (get-feature
           (lambda (name)
@@ -44,22 +49,60 @@
 
          (adjust-case-sensitivity!
           (lambda ()
-            (case-sensitive? (get-feature 'case-sensitivity))))
+            (let ((flag (get-feature 'case-sensitivity)))
+              (case-sensitive? flag)
+              (port-folds-case! (current-input-port) (not flag)))))
+
+         (adjust-transcoder!
+          (lambda ()
+            (let ((t (get-feature 'transcoder))
+                  (rep (get-feature 'char-representation))
+                  (os (get-feature 'os-name)))
+              (cond ((and t (> t 0))
+                     (default-transcoder t)
+                     (console-io/initialize))
+                    ((string=? os "Win32")
+                     ; FIXME: Windows would prefer UTF-16
+                     (default-transcoder
+                      (make-transcoder (latin-1-codec))))
+                    ((eq? rep 'unicode)
+                     (default-transcoder
+                      (make-transcoder (utf-8-codec)))
+                     (console-io/initialize))))))
+
+         ; Compiler switches are defined only in released heaps,
+         ; so we use them only if safety is other than 1 or
+         ; the execution mode is other than r5rs.
 
          (adjust-safety!
           (lambda (safety)
-            (case safety
-             ((0 1)
-              (eval '(catch-undefined-globals #f)               ; FIXME
-                    (interaction-environment))))))
+            (let* ((emode (get-feature 'execution-mode))
+                   (dargo? (eq? 'dargo emode)) 
+                   (settings
+                    (if (and (eq? emode 'r5rs) (= safety 1))
+                        #f
+                        (case safety
+                         ((0)  `(begin (runtime-safety-checking #f)
+                                       (faster-arithmetic #t)))
+                         ((1)  `(begin (runtime-safety-checking #t)
+                                       (catch-undefined-globals (not ,dargo?))
+                                       (faster-arithmetic #f)))
+                         (else `(begin (runtime-safety-checking #t)
+                                       (catch-undefined-globals #t)
+                                       (faster-arithmetic #f)))))))
+              (if (not clr?)                                            ; FIXME
+                  (eval settings (interaction-environment))))))
+
+         ; FIXME
 
          (adjust-optimization!
           (lambda (opt)
             (case opt
-             ((0 1)
-              (eval '(begin (control-optimization #f)
-                            (global-optimization #f))
-                    (interaction-environment))))))
+             ((0)
+              (if (not clr?)                                            ; FIXME
+                  (eval '(begin (control-optimization #f)
+                                (global-optimization #f))
+                        (interaction-environment)))))))
 
          (add-require-path!
           (lambda ()
@@ -96,10 +139,15 @@
                       (string-append (current-directory) "/" path)))))
 
             (let* ((path (get-feature 'library-path))
+                   (path (if (string=? path "")
+                             (getenv "LARCENY_LIBPATH")  ; FIXME
+                             path))
+                   (path (if (string? path) path #f))
                    (os (get-feature 'os-name))
                    (separator (if (string=? os "Win32") #\; #\:)))
-              (for-each add-path!
-                        (reverse (list-of-paths path separator))))))
+              (if path
+                  (for-each add-path!
+                            (reverse (list-of-paths path separator)))))))
 
          (aeryn-mode!
           (lambda ()
@@ -122,12 +170,10 @@
       (failsafe-process-arguments)
       (if (herald)
           (writeln (herald)))
+      (adjust-transcoder!)
       (adjust-case-sensitivity!)
-      (if (< (get-feature 'safety) 1)                     ; FIXME
-          (adjust-safety! 1))                             ; FIXME
-      (let ((path (get-feature 'library-path)))
-        (if (not (string=? path ""))
-            (add-require-path!)))
+      (adjust-safety! (get-feature 'safety))
+      (add-require-path!)
       (if (eq? emode 'err5rs)
           (begin (aeryn-mode!)
                  (writeln "ERR5RS mode (no libraries have been imported)")))
@@ -137,17 +183,28 @@
      ; than enter the debugger.
 
      ((dargo)
-      (adjust-safety! 1)                                  ; FIXME
+      (if clr?                                            ; FIXME
+          (begin (failsafe-load-init-files)
+                 (failsafe-process-arguments)))
+      (adjust-transcoder!)
+      (adjust-case-sensitivity!)
+      (adjust-safety! (get-feature 'safety))
       (adjust-optimization! 2)                            ; FIXME
-      (let ((path (get-feature 'library-path)))
-        (if (not (string=? path ""))
-            (add-require-path!)))
+      (add-require-path!)
       (aeryn-mode!)
       (parameterize ((error-handler
                       (lambda the-error
                         (parameterize ((print-length 7)
                                        (print-level 7))
-                          (decode-and-raise-r6rs-exception the-error)))))
+                          (decode-and-raise-r6rs-exception the-error))))
+                     (issue-deprecated-warnings? #f)
+                     (read-larceny-weirdness? #f)
+                     (read-traditional-weirdness? #f)
+                     (read-mzscheme-weirdness? #f))
+        ; Twobit has its own issue-warnings switch.
+        ; FIXME: not working in Common Larceny
+        (if (not clr?)
+            (eval '(issue-warnings #f) (interaction-environment)))
         (let* ((pgm (get-feature 'top-level-program))
                (input (if (string=? pgm "")
                           (do ((x (read) (read))
@@ -227,7 +284,7 @@
        ((>= i (vector-length argv)) #t)
        (else
         (let ((arg (vector-ref argv i)))
-          (cond 
+          (cond
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))
             (failsafe-eval-thunk 
@@ -236,6 +293,12 @@
                 (read (open-input-string (vector-ref argv (+ i 1))))))
              (list "Error parsing argument " (+ i 1)))
             (loop (+ i 2)))
+           ((and (string=? arg "--")
+                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
+            ; FIXME: Common Larceny is the oddball here
+            (command-line-arguments
+             (list->vector
+              (cdr (member "--" (vector->list argv))))))
            ((and (> (string-length arg) 0)
                  (char=? (string-ref arg 0) #\-))
             (writeln "Error unrecognized option " arg)
@@ -244,6 +307,89 @@
             (if (file-exists? arg)
                 (failsafe-load-file arg))
             (loop (+ i 1))))))))))
+
+; FIXME: Native and Petit Larceny use C code to parse the command line,
+; but Common Larceny duplicates some of that parsing here.
+; FIXME: no checking of library-path and top-level-program parameters
+
+(define (clr-process-arguments)
+  (let* ((features (system-features))
+         (argv (command-line-arguments))
+
+         (clr:case-sensitivity #f)
+         (clr:execution-mode #f)
+         (clr:library-path #f)
+         (clr:top-level-program #f))
+
+    (define (return! args)
+      (command-line-arguments args)
+      (if clr:case-sensitivity
+          (set! features
+                (cons (cons 'case-sensitivity clr:case-sensitivity)
+                      features)))
+      (if clr:execution-mode
+          (set! features
+                (cons (cons 'execution-mode clr:execution-mode)
+                      features)))
+      (if clr:library-path
+          (set! features
+                (cons (cons 'library-path clr:library-path)
+                      features)))
+      (if clr:top-level-program
+          (set! features
+                (cons (cons 'top-level-program clr:top-level-program)
+                      features)))
+      (set! system-features
+            (lambda () features))
+      (eval `(set! system-features
+                   (lambda () ',features))
+            (interaction-environment))
+      (unspecified))
+
+    (let loop ((i 0)
+               (args '()))
+      (cond 
+       ((>= i (vector-length argv))
+        (return! (list->vector (reverse args))))
+       (else
+        (let ((arg (vector-ref argv i)))
+          (cond
+           ((member arg '("-fold-ccase" "--fold-case" "/fold-case"))
+            (set! clr:case-sensitivity? #f)
+            (loop (+ i 1) args))
+           ((member arg '("-err5rs" "--err5rs" "/err5rs"))
+            (set! clr:execution-mode 'err5rs)
+            (loop (+ i 1) args))
+           ((member arg '("-r6rs" "--r6rs" "/r6rs"))
+            (set! clr:execution-mode 'dargo)
+            (loop (+ i 1) args))
+           ((and (member arg '("-path" "--path" "/path"))
+                 (< (+ i 1) (vector-length argv)))
+            (set! clr:library-path (vector-ref argv (+ i 1)))
+            (loop (+ i 2) args))
+           ((and (member arg '("-program" "--program" "/program"))
+                 (< (+ i 1) (vector-length argv)))
+            (set! clr:top-level-program (vector-ref argv (+ i 1)))
+            (loop (+ i 2) args))
+           ((string=? arg "--")
+            (let ((args (append (reverse args)
+                                (member "--" (vector->list argv)))))
+              (return! (list->vector args))))
+
+           ;; All other command-line arguments are saved for later.
+
+           ((and (or (string=? arg "-e")
+                     (string=? arg "--eval"))
+                 (< (+ i 1) (vector-length argv)))
+            (loop (+ i 2)
+                  (cons (vector-ref argv (+ i 1))
+                        (cons arg args))))
+           ((and (> (string-length arg) 0)
+                 (char=? (string-ref arg 0) #\-))
+            (writeln "Error unrecognized option " arg)
+            (loop (+ i 1) args))
+           (else
+            (loop (+ i 1) (cons arg args))))))))))
 
 ;; retract-eof : Any -> Any
 

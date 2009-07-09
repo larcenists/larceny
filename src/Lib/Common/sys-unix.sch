@@ -41,6 +41,9 @@
 (define (unix:write fd buffer nbytes offset)
   (syscall syscall:write fd buffer nbytes offset))
 
+(define (unix:lseek fd offset whence)
+  (syscall syscall:lseek fd offset whence))
+
 (define (unix:pollinput fd)                ; #t if ready
   (= (syscall syscall:pollinput fd) 1))
 
@@ -57,23 +60,30 @@
 
 (define *conio-input-firsttime*)
 (define *conio-output-firsttime*)
+(define *conio-error-firsttime*)
 
 (define (osdep/initialize-console)     ; Must be called in every process.
   (set! *conio-input-firsttime* #t)
   (set! *conio-output-firsttime* #t)
+  (set! *conio-error-firsttime* #t)
   #t)
 
 (define (osdep/open-console io-mode)
   (case io-mode
-    ((input) 
+    ((input)
      (if *conio-input-firsttime* 
          (begin (set! *conio-input-firsttime* #f)
                 unix:stdin)
          (unix:open "/dev/tty" unix:open-read 0)))
-    ((output) 
+    ((output)
      (if *conio-output-firsttime*
          (begin (set! *conio-output-firsttime* #f)
                 unix:stdout)
+         (unix:open "/dev/tty" unix:open-write unix:create-mode)))
+    ((error)
+     (if *conio-error-firsttime*
+         (begin (set! *conio-error-firsttime* #f)
+                unix:stderr)
          (unix:open "/dev/tty" unix:open-write unix:create-mode)))
     (else
      (error "osdep/open-terminal: invalid mode: " io-mode)
@@ -90,19 +100,35 @@
 
 ; File system.
 ;
-; A file name is a string, a file descriptor is a fixnum, io-mode is a
-; symbol ('input' or 'output'), and tx-mode is a symbol ('text' or 'binary').
-; A buffer is a bytevector-like structure.
+; A file name is a string.
+; A file descriptor is a fixnum.
+; A buffer is a bytevector.
+;
+; io-mode is a symbol ('input' or 'output').
+; tx-mode is a symbol ('text' or 'binary').
+;
+; The optional arguments recognized by osdep/open-file are the symbols
+;     'no-create'
+;     'no-truncate'
+; These optional arguments are ignored if io-mode is 'input'.
 
-(define (osdep/open-file fn io-mode tx-mode)
+(define (osdep/open-file fn io-mode tx-mode . optargs)
   (if (not (string? fn))
       (error "osdep/open-file: invalid filename " fn))
-  (let ((binary-mode (if (eq? tx-mode 'binary) unix:open-binary 0)))
+  (let ((binary-mode (if (eq? tx-mode 'binary) unix:open-binary 0))
+        (create-mode (if (and (eq? io-mode 'output)
+                              (memq 'no-create optargs))
+                         0
+                         unix:open-create))
+        (truncate-mode (if (and (eq? io-mode 'output)
+                                (memq 'no-truncate optargs))
+                           0
+                           unix:open-trunc)))
     (cond ((eq? io-mode 'input)
            (unix:open fn (+ unix:open-read binary-mode) 0))
           ((eq? io-mode 'output)
            (unix:open fn 
-                      (+ unix:open-write unix:open-create unix:open-trunc
+                      (+ unix:open-write create-mode truncate-mode
                          binary-mode)
                       unix:create-mode))
           (else
@@ -138,6 +164,9 @@
       (error "osdep/write-file4: invalid byte count or offset " k "/" offset))
   (unix:write fd buf k offset))
 
+(define (osdep/lseek-file fd offset whence)
+  (unix:lseek fd offset whence))
+
 (define (osdep/delete-file fn)
   (if (not (string? fn))
       (error "osdep/delete-file: invalid filename " fn))
@@ -166,7 +195,10 @@
 (define (osdep/relative-path-string? path)
   (not (osdep/absolute-path-string? path)))
 
-; Why is this file used on Win32?  We'll support windows paths...for now.
+; FIXME: Why was this file used on Win32?
+; As of changeset:5768, this file is no longer used on Win32,
+; but we'll continue to support Windows paths...for now.
+
 (define (osdep/absolute-path-string? path)
   (or (char=? #\/ (string-ref path 0))
       (and (> (string-length path) 1)

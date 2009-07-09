@@ -6,11 +6,6 @@
 
 ($$trace "number")
 
-; FIXME:  This could be computed by (acos -1.0)
-; if it were defined after acos.
-
-(define *pi* 3.14159265358979323846)           ; from <math.h>
-
 (define (rational? obj)
   (and (real? obj)
        (or (exact? obj)
@@ -27,7 +22,10 @@
        n)))
 
 (define min
-  (letrec ((min (lambda (x . y) (loop y x (exact? x))))
+  (letrec ((min (lambda (x . y)
+                  (if (<= x x)
+                      (loop y x (exact? x))
+                      x)))
            (loop (lambda (y x exact)
                    (if (null? y)
                        x
@@ -42,7 +40,10 @@
     min))
  
 (define max
-  (letrec ((max (lambda (x . y) (loop y x (exact? x))))
+  (letrec ((max (lambda (x . y)
+                  (if (<= x x)
+                      (loop y x (exact? x))
+                      x)))
            (loop (lambda (y x exact)
                    (if (null? y)
                        x
@@ -79,12 +80,19 @@
  
 (define gcd
   (letrec ((loop (lambda (x y)
-                   (cond ((or (zero? x) (zero? y)) (+ x y))
-                         ((< x y) (let ((q (quotient y x)))
-                                    (loop x (- y (* q x)))))
-                         ((> x y) (let ((q (quotient x y)))
-                                    (loop (- x (* q y)) y)))
-                         (else (if (exact? y) x (+ x 0.0))))))
+                   (cond ((zero? x) (finish y x))
+                         ((zero? y) (finish x y))
+                         ((< x y)
+                          (if (= x 1)
+                              (finish x y)
+                              (loop x (remainder y x))))
+                         ((> x y)
+                          (if (= y 1)
+                              (finish y x)
+                              (loop (remainder x y) y)))
+                         (else (finish x y)))))
+           (finish (lambda (x y)
+                     (if (exact? y) x (+ x 0.0))))
            (gcd (lambda (x . rest)
                   (let ((x (abs x)))
                     (cond ((null? rest) x)
@@ -105,7 +113,7 @@
         ((null? (cddr args))
          (let ((x (abs (car args)))
                (y (abs (cadr args))))
-           (* x (quotient y (gcd x y)))))
+           (* x (quotient y (max 1 (gcd x y))))))
         (else (apply lcm
                      (cons (lcm (car args) (cadr args))
                            (cddr args))))))
@@ -357,6 +365,13 @@
 	((and (real? z)
 	      (<= -1.0 z 1.0))
 	 (flonum:asin (exact->inexact z)))
+        ((or (and (real? z)
+                  (< z -1.0))
+             (let ((y (imag-part z)))
+               (or (> y 0)
+                   (and (= y 0)
+                        (< (real-part z) 0)))))
+         (- (asin (- z))))
 	(else
 	 (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))))
 
@@ -368,7 +383,7 @@
 	      (<= -1.0 z 1.0))
 	 (flonum:acos (exact->inexact z)))
 	(else
-	 (- (/ *pi* 2) (asin z)))))
+         (- (/ (acos -1.0) 2.0) (asin z)))))
 
 (define (atan z . rest)
   (if (null? rest)
@@ -424,12 +439,12 @@
 (define (make-rectangular a b) 
 
   (define (construct-compnum a b)
-    (if (= b 0.0)
+    (if (and (exact? b) (= b 0))
 	a
 	(make-compnum a b)))
 
   (define (construct-rectnum a b)
-    (if (= b 0)
+    (if (and (exact? b) (= b 0))
 	a
 	(make-rectnum a b)))
 
@@ -443,6 +458,8 @@
 		(if (= 0.0 (imag-part b))
 		    (construct-compnum a (real-part b))
 		    (fail b)))
+               ((and (exact? b) (= b 0))
+                a)
 	       (else
 		(make-rectangular a (exact->inexact b)))))
 	((compnum? a) 
@@ -465,6 +482,7 @@
 ; Procedures added for R6RS
 ;
 ; FIXME:  Some of these should be integrable.
+; exact and inexact now are.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -475,7 +493,7 @@
 (define (rational-valued? obj)
   (and (number? obj)
        (zero? (imag-part obj))
-       (finite? obj)))
+       (finite? (real-part obj))))
 
 (define (integer-valued? obj)
   (and (number? obj)
@@ -487,15 +505,20 @@
 (define (inexact z) (exact->inexact z))
 
 (define (finite? x)
-  (and (real? x)
-       (not (infinite? x))
-       (not (nan? x))))
+  (if (real? x)
+      (and (not (infinite? x))
+           (not (nan? x)))
+      (assertion-violation 'finite? (errmsg 'msg:notreal) x)))
 
 (define (infinite? x)
-  (and (inexact? x) (or (= x 1e500) (= x -1e500))))
+  (if (real? x)
+      (and (inexact? x) (or (= x 1e500) (= x -1e500)))
+      (assertion-violation 'infinite? (errmsg 'msg:notreal) x)))
 
 (define (nan? x)
-  (and (inexact? x) (not (= x x))))
+  (if (real? x)
+      (and (inexact? x) (not (= x x)))
+      (assertion-violation 'nan? (errmsg 'msg:notreal) x)))
 
 ; FIXME: all of these should be faster
 
@@ -535,28 +558,38 @@
            (values (- q) r)))))
 
 (define (div x y)
-  (if (and (exact? x)
-           (exact? y)
-           (integer? x)
-           (integer? y)
-           (>= x 0)
-           (> y 0))
-      (quotient x y)
-      (call-with-values
-       (lambda () (div-and-mod x y))
-       (lambda (q r) q))))
+  (cond ((and (fixnum? x)
+              (fixnum? y)
+              (fx>=? x 0))
+         (quotient x y))
+        ((and (exact? x)
+              (exact? y)
+              (integer? x)
+              (integer? y)
+              (>= x 0)
+              (> y 0))
+         (quotient x y))
+        (else
+         (call-with-values
+          (lambda () (div-and-mod x y))
+          (lambda (q r) q)))))
 
 (define (mod x y)
-  (if (and (exact? x)
-           (exact? y)
-           (integer? x)
-           (integer? y)
-           (>= x 0)
-           (> y 0))
-      (remainder x y)
-      (call-with-values
-       (lambda () (div-and-mod x y))
-       (lambda (q r) r))))
+  (cond ((and (fixnum? x)
+              (fixnum? y)
+              (fx>=? x 0))
+         (remainder x y))
+        ((and (exact? x)
+              (exact? y)
+              (integer? x)
+              (integer? y)
+              (>= x 0)
+              (> y 0))
+         (remainder x y))
+        (else
+         (call-with-values
+          (lambda () (div-and-mod x y))
+          (lambda (q r) r)))))
 
 (define (div0-and-mod0 x y)
   (call-with-values

@@ -23,9 +23,10 @@
     (define (rem-ref! fd) ;; returns #t if fd not in result bag.  O/w #f.
       (let loop ((l bag))
         (cond ((null? (cdr l)) 
-               (error 'rem-ref! ": no references left!"))
+               #t)
               ((eqv? fd (cadr l))
-               (set-cdr! l (cddr l)))
+               (set-cdr! l (cddr l))
+               (unspecified))
               (else 
                (loop (cdr l)))))
       (not (memv fd (cdr bag))))
@@ -50,7 +51,7 @@
   (define (close)
     (cond ((rem-fd-ref! fd)
            (let ((res (unix/close fd)))
-             (cond ((< res 0)
+             (cond ((and #f (< res 0))             ; FIXME, but see ticket #629
                     (error 'close ": error " res 
                            " closing input descriptor port " fd)))))))
   (add-fd-ref! fd)
@@ -73,7 +74,7 @@
   (define (close) 
     (cond ((rem-fd-ref! fd)
            (let ((res (unix/close fd)))
-             (cond ((not (zero? res))
+             (cond ((and #f (not (zero? res)))     ; FIXME, but see ticket #629
                     (error 'close ": error " res " closing custom output "
                            "descriptor port " fd)))))))
   (add-fd-ref! fd)

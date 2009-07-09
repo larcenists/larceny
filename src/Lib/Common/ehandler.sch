@@ -95,11 +95,12 @@
 (define break-handler
   (make-parameter "break-handler"
                   (lambda (proc code-address)
-                    (display "Breakpoint: ")
-                    (display proc)
-                    (display " @ ")
-                    (display code-address)
-                    (newline))))
+                    (let ((out (current-error-port)))
+                      (display "Breakpoint: " out)
+                      (display proc out)
+                      (display " @ " out)
+                      (display code-address out)
+                      (newline out)))))
 
 ; The system signal handler is called when an asynchronous signal is received
 ; for which a lowlevel handler has been installed.  It takes one argument:
@@ -111,9 +112,10 @@
 (define system-signal-handler
   (make-parameter "system-signal-handler"
                   (lambda (sig)
-                    (display "Signal: ")
-                    (display sig)
-                    (newline))))
+                    (let ((out (current-error-port)))
+                      (display "Signal: " out)
+                      (display sig out)
+                      (newline out)))))
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and
@@ -182,14 +184,20 @@
           ((not (fixnum? arg2)) (not-a-fix name arg2))
           ((and (not (null? rest))
                 (not (fixnum? ((car rest) arg1 arg2))))
-           (error name ": fixnum overflow " arg1 " " arg2))
+           (raise-r6rs-exception (make-implementation-restriction-violation)
+                                 name
+                                 (errmsg 'msg:fixnumrange)
+                                 (list arg1 arg2)))
           (else (error "decode-system-error: confused about " name))))
 
   (define (fix-unop name arg1 . rest)
     (cond ((not (fixnum? arg1)) (not-a-fix name arg1))
           ((and (not (null? rest))
                 (not (fixnum? ((car rest) arg1))))
-           (error name ": fixnum overflow " arg1))
+           (raise-r6rs-exception (make-implementation-restriction-violation)
+                                 name
+                                 (errmsg 'msg:fixnumrange)
+                                 (list arg1)))
           (else (error "decode-system-error: confused about " name))))
 
   (define (flo-binop name arg1 arg2 . rest)
@@ -215,7 +223,9 @@
              (error name " " (cadr rest) " cannot be stored in a " thing))
             (else
              (if (bignum? arg1)
-                 (begin (display "BIG: ") (bigdump* arg1) (newline)))
+                 (begin (display "BIG: " port)
+                        (bigdump* arg1 port)
+                        (newline port)))
              (error "decode-system-error: confused about " 
                     name " " arg1 " " arg2)))))
 
@@ -279,7 +289,7 @@
        ((= code $ex.fl-)
         (flo-binop "fl-" arg1 arg2))
        ((= code $ex.fl--)
-        (flo-unop  "fl-" arg1 fl-))
+        (flo-unop  "fl-" arg1))
        ((= code $ex.fl=)
         (flo-binop "fl=" arg1 arg2))
        ((= code $ex.fl<)
@@ -294,6 +304,14 @@
         (flo-binop "fl*" arg1 arg2))
        ((= code $ex.fl/)
         (flo-binop "fl/" arg1 arg2))
+       ((= code $ex.flfloor)
+        (flo-unop "flfloor" arg1))
+       ((= code $ex.flceiling)
+        (flo-unop "flceiling" arg1))
+       ((= code $ex.fltruncate)
+        (flo-unop "fltruncate" arg1))
+       ((= code $ex.flround)
+        (flo-unop "flround" arg1))
        ((= code $ex.logior)
         (fix-binop "fxlogior" arg1 arg2))
        ((= code $ex.logand)
@@ -387,6 +405,11 @@
                  arg1 arg2))
        ((= code $ex.plen)
         (error "Procedure-length: " arg1 " is not a procedure."))
+
+       ;; Records
+
+       ((= code $ex.record)
+        (error "Record access: " arg1 " is not a " (rtd-name arg2)))
 
        ;; Vector-like
 

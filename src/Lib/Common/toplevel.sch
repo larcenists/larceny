@@ -454,6 +454,16 @@
   (environment-set! larc 'some? some?)
   (environment-set! larc 'union union)
 
+  (environment-set! larc 'larceny:map larceny:map)                      ; FIXME
+  (environment-set! larc 'larceny:for-each larceny:for-each)            ; FIXME
+  (environment-set! larc 'larceny:member larceny:member)                ; FIXME
+  (environment-set! larc 'larceny:assoc larceny:assoc)                  ; FIXME
+
+  (environment-set! larc 'larceny:list-copy larceny:list-copy)          ; FIXME
+  (environment-set! larc 'larceny:fold-right larceny:fold-right)        ; FIXME
+  (environment-set! larc 'larceny:remove larceny:remove)                ; FIXME
+  (environment-set! larc 'larceny:remove! larceny:remove!)              ; FIXME
+
   ;; hash functions and hashtables
 
   (environment-set! larc 'object-hash object-hash)
@@ -529,6 +539,8 @@
   (environment-set! larc 'environment-get-macro environment-get-macro)
   (environment-set! larc 'environment-set-macro! environment-set-macro!)
   (environment-set! larc 'environment-macro? environment-macro?)
+  (environment-set! larc 'larceny-initialized-environment 
+                    larceny-initialized-environment)
 
   ;; numbers
 
@@ -863,8 +875,12 @@
   (environment-set! larc 'procedure-source-file procedure-source-file)
   (environment-set! larc 'procedure-source-position
                     procedure-source-position)
+  (environment-set! larc 'procedure-source-line procedure-source-line)
+  (environment-set! larc 'procedure-source-column procedure-source-column)
   (environment-set! larc 'procedure-expression procedure-expression)
+  (environment-set! larc 'procedure-formals procedure-formals)
   (environment-set! larc 'procedure-environment procedure-environment)
+  (environment-set! larc 'procedure-name-set! procedure-name-set!)      ; FIXME
 
   (environment-set! larc 'call/cc call/cc)
 
@@ -933,6 +949,10 @@
   (environment-set! larc 'raise raise)
   (environment-set! larc 'raise-continuable raise-continuable)
 
+  ;; Larceny's extensions to the R6RS exception mechanism
+
+  (environment-set! larc 'raise-r6rs-exception raise-r6rs-exception)
+
   ;; conditions
 
   (environment-set! larc '&condition &condition)
@@ -998,6 +1018,7 @@
   (environment-set! larc 'call-with-text-input-file call-with-text-input-file)
   (environment-set! larc 'call-with-text-output-file
                     call-with-text-output-file)
+  (environment-set! larc 'close-open-ports close-open-ports)
   (environment-set! larc 'close-open-files close-open-files)
   (environment-set! larc 'console-input-port console-input-port)
   (environment-set! larc 'console-input-port-factory
@@ -1005,6 +1026,9 @@
   (environment-set! larc 'console-output-port console-output-port)
   (environment-set! larc 'console-output-port-factory
                     console-output-port-factory)
+  (environment-set! larc 'console-error-port console-error-port)
+  (environment-set! larc 'console-error-port-factory
+                    console-error-port-factory)
   (environment-set! larc 'delete-file delete-file)
   (environment-set! larc 'environment-printer environment-printer)
   (environment-set! larc 'eof-object eof-object)
@@ -1035,6 +1059,14 @@
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'port-folds-case? port-folds-case?)
   (environment-set! larc 'port-folds-case! port-folds-case!)
+
+  ; FIXME (lib/MzScheme/dotnet.sch)
+
+  (environment-set! larc 'io/port-recognizes-javadot-symbols?
+                    io/port-recognizes-javadot-symbols?)
+  (environment-set! larc 'io/port-recognizes-javadot-symbols!
+                    io/port-recognizes-javadot-symbols!)
+
   (environment-set! larc 'print-length print-length)
   (environment-set! larc 'print-level print-level)
   (environment-set! larc 'procedure-printer procedure-printer)
@@ -1080,6 +1112,7 @@
   (environment-set! larc 'transcoded-port transcoded-port)
   (environment-set! larc 'port-has-port-position? port-has-port-position?)
   (environment-set! larc 'port-position port-position)
+  (environment-set! larc 'port-position-nocache port-position-nocache) ;FIXME
   (environment-set! larc 'port-lines-read port-lines-read) ;FIXME
   (environment-set! larc 'port-line-start port-line-start) ;FIXME
   (environment-set! larc 'port-has-set-port-position!?
@@ -1247,6 +1280,8 @@
 
   ;; common and less common extensions to R4RS
 
+  (environment-set! larc
+                    'issue-deprecated-warnings? issue-deprecated-warnings?)
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
   (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)
@@ -1517,6 +1552,8 @@
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
   (environment-set! larc 'setenv setenv)
+  (environment-set! larc 'get-errno get-errno)
+  (environment-set! larc 'set-errno! set-errno!)
   (environment-set! larc 'make-env-parameter make-env-parameter)
   (environment-set! larc 'system system)
   (environment-set! larc 'current-directory current-directory)
@@ -1639,6 +1676,9 @@
   (environment-set! larc 'load-verbose load-verbose)
   (environment-set! larc 'macro-expand toplevel-macro-expand)
   (environment-set! larc 'macro-expander macro-expander)
+  (environment-set! larc 'current-source-file current-source-file)
+  (environment-set! larc 'source-location-recorder source-location-recorder)
+  (environment-set! larc 'read-source-code read-source-code)
   (environment-set! larc 'typetag typetag)
   (environment-set! larc 'typetag-set! typetag-set!)
   (environment-set! larc 'unspecified unspecified)

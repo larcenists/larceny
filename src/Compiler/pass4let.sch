@@ -201,8 +201,8 @@
                  ((3) (let ((rs (cg-result-args output args regs frame env)))
                         (gen! output
                               $op3 (entry.op entry) (car rs) (cadr rs))))
-                 (else (error "Bug detected by cg-primop-result"
-                              (make-readable exp))))
+                 (else (twobit-bug "cg-primop-result"
+                                   (make-readable exp))))
                (if tail?
                    (begin (gen-pop! output frame)
                           (gen! output $return)
@@ -210,8 +210,8 @@
                    (cg-move output frame regs 'result target)))
         (if (negative? (entry.arity entry))
             (cg-special-result output exp target regs frame env tail?)
-            (error "Wrong number of arguments to integrable procedure"
-                   (make-readable exp))))))
+            ; cg-integrable-call knows how to deal with this
+            (cg-integrable-call output exp target regs frame env tail?)))))
 
 (define (cg-primop2-result! output entry args regs frame env)
   (let ((op (entry.op entry))
@@ -287,7 +287,7 @@
                                   rr
                                   (cons r rs)
                                   (cons r temps)))))
-                     ((procedure) (error "Bug in cg-variable" arg))
+                     ((procedure) (twobit-bug "cg-variable" arg))
                      ((register)
                       (let ((r (entry.regnum entry)))
                         (loop (cdr args)
@@ -304,9 +304,9 @@
                               rr
                               (cons r rs)
                               (cons r temps))))
-                     (else (error "Bug in cg-result-args" arg)))))
+                     (else (twobit-bug "cg-result-args" arg)))))
                 (else
-                 (error "Bug in cg-result-args"))))))
+                 (twobit-bug "cg-result-args"))))))
   
   (define (save-result! args registers rr rs temps)
     (let ((r (car registers)))
@@ -449,4 +449,4 @@
                                         (car (call.args exp))
                                         E1))))
     (else
-     (error "Unrecognized pattern in cg-let-transform" pattern))))
+     (twobit-bug "unrecognized pattern in cg-let-transform" pattern))))

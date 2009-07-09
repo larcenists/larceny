@@ -52,15 +52,8 @@ By default, Larceny's Twobit compiler makes several
 assumptions that allow it to generate faster code;
 for example, the compiler assumes Scheme's standard
 procedures will not be redefined.
-To obtain strict conformance to R5RS semantics at
-the expense of slower code, evaluate the expression
-
-----------------------------------------------------------------
-    (compiler-switches 'standard)
-----------------------------------------------------------------
-
-For more information on compiler switches, see the
-section of this user manual devoted to
+To obtain strict conformance to R5RS semantics, see
+the section of this user manual devoted to
 <<PerformanceSection, performance>>.
 
 
@@ -114,6 +107,7 @@ To enable autoloading of other ERR5RS/R6RS libraries,
 you can:
 
 - use the <<R6RSLibraryPathSection, `-path` command-line option>>
+- use the <<R6RSLibraryVariableSection, `LARCENY_LIBPATH`>> environment variable
 - use <<current-require-path,`current-require-path`>>
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
@@ -167,8 +161,8 @@ library, you must import that library explicitly:
 
 In Larceny, you may omit the call to `load` because the
 `(larceny benchmarking)` library will be autoloaded when
-it is imported.  In most other ERR5RS systems, however,
-you must load all of the nonstandard libraries that will
+it is imported.  In other ERR5RS systems, however, you
+may have to load all of the nonstandard libraries that will
 be imported by a top-level program or library before you
 load that top-level program or library.
 
@@ -189,49 +183,105 @@ include:
 
 R6RS standard libraries:
 
-    (rnrs base (6))                  ; R6RS chapter 9
-    (rnrs unicode (6))               ; R6RS library chapter 1
-    (rnrs bytevectors (6))           ; R6RS library chapter 2
-    (rnrs lists (6))                 ; R6RS library chapter 3
-    (rnrs sorting (6))               ; R6RS library chapter 4
-    (rnrs control (6))               ; R6RS library chapter 5
-    (rnrs exceptions (6))            ; R6RS library section 7.1
-    (rnrs conditions (6))            ; R6RS library sections 7.2 and 7.3
-    (rnrs io ports (6))              ; R6RS library sections 8.1 and 8.2
-    (rnrs io simple (6))             ; R6RS library sections 8.1 and 8.3
-    (rnrs files (6))                 ; R6RS library chapter 9
-    (rnrs programs (6))              ; R6RS library chapter 10
-    (rnrs arithmetic fixnums (6))    ; R6RS library section 11.2
-    (rnrs arithmetic flonums (6))    ; R6RS library section 11.3
-    (rnrs arithmetic bitwise (6))    ; R6RS library section 11.4
-    (rnrs syntax-case (6))           ; R6RS library chapter 12
-    (rnrs hashtables (6))            ; R6RS library chapter 13
-    (rnrs enums)                     ; R6RS library chapter 14
-    (rnrs (6))                       ; R6RS library chapter 15
-    (rnrs eval (6))                  ; R6RS library chapter 16
-    (rnrs mutable-pairs (6))         ; R6RS library chapter 17
-    (rnrs mutable-strings (6))       ; R6RS library chapter 18
-    (rnrs r5rs (6))                  ; R6RS library chapter 19
+    (rnrs base (6))                        ; R6RS chapter 9
+    (rnrs unicode (6))                     ; R6RS library chapter 1
+    (rnrs bytevectors (6))                 ; R6RS library chapter 2
+    (rnrs lists (6))                       ; R6RS library chapter 3
+    (rnrs sorting (6))                     ; R6RS library chapter 4
+    (rnrs control (6))                     ; R6RS library chapter 5
+    (rnrs exceptions (6))                  ; R6RS library section 7.1
+    (rnrs conditions (6))                  ; R6RS library sections 7.2 and 7.3
+    (rnrs io ports (6))                    ; R6RS library sections 8.1 and 8.2
+    (rnrs io simple (6))                   ; R6RS library sections 8.1 and 8.3
+    (rnrs files (6))                       ; R6RS library chapter 9
+    (rnrs programs (6))                    ; R6RS library chapter 10
+    (rnrs arithmetic fixnums (6))          ; R6RS library section 11.2
+    (rnrs arithmetic flonums (6))          ; R6RS library section 11.3
+    (rnrs arithmetic bitwise (6))          ; R6RS library section 11.4
+    (rnrs syntax-case (6))                 ; R6RS library chapter 12
+    (rnrs hashtables (6))                  ; R6RS library chapter 13
+    (rnrs enums)                           ; R6RS library chapter 14
+    (rnrs (6))                             ; R6RS library chapter 15
+    (rnrs eval (6))                        ; R6RS library chapter 16
+    (rnrs mutable-pairs (6))               ; R6RS library chapter 17
+    (rnrs mutable-strings (6))             ; R6RS library chapter 18
+    (rnrs r5rs (6))                        ; R6RS library chapter 19
 
 R6RS standard libraries that are autoloadable but deprecated in Larceny:
 
-    (rnrs records procedural (6))    ; R6RS library section 6.3 (deprecated)
-    (rnrs records inspection (6))    ; R6RS library section 6.4 (deprecated)
-    (rnrs records syntactic (6))     ; R6RS library section 6.2 (deprecated)
+    (rnrs records procedural (6))          ; R6RS library section 6.3
+    (rnrs records inspection (6))          ; R6RS library section 6.4
+    (rnrs records syntactic (6))           ; R6RS library section 6.2
+
+SRFI libraries (which follow the SRFI 97 naming convention):
+
+    (srfi :1 lists)                        ; list library
+    (srfi :2 and-let*)                     ; extended `and` and `let*`
+    (srfi :5 let)                          ; extended version of `let`
+    (srfi :6 basic-string-ports)           ; basic string ports
+    (srfi :8 receive)                      ; binding to multiple values
+    (srfi :9 records)                      ; defining record types
+    (srfi :11 let-values)                  ; syntax for multiple values
+    (srfi :13 strings)                     ; string libraries
+    (srfi :14 char-set)                    ; character-set library
+    (srfi :16 case-lambda)                 ; syntax for variable arity
+    (srfi :17 generalized-set!)            ; generalized set!
+    (srfi :19 time)                        ; time data types and procedures
+    (srfi :23 error)                       ; error reporting mechanism
+    (srfi :25 multi-dimensional-arrays)    ; multi-dimensional array primitives
+    (srfi :26 cut)                         ; specializing without currying
+    (srfi :27 random-bits)                 ; sources of random bits
+    (srfi :28 basic-format-strings)        ; basic format strings
+    (srfi :29 localization)                ; localization
+    (srfi :38 with-shared-structure)       ; i/o for data with shared structure
+    (srfi :39 parameters)                  ; parameter objects
+    (srfi :41 streams)                     ; streams
+    (srfi :42 eager-comprehensions)        ; eager comprehensions
+    (srfi :43 vectors)                     ; vector library
+    (srfi :45 lazy)                        ; iterative lazy algorithms
+    (srfi :48 intermediate-format-strings) ; format
+    (srfi :51 rest-values)                 ; rest values hackery
+    (srfi :54 cat)                         ; still more formatting
+    (srfi :59 vicinities)                  ; vicinity
+    (srfi :61 cond)                        ; a more general cond clause
+    (srfi :63 arrays)                      ; homogeneous, heterogeneous arrays
+    (srfi :64 testing)                     ; an API for test suites
+    (srfi :67 compare-procedures)          ; three-way comparison procedures
+    (srfi :78 lightweight-testing)         ; lightweight testing
+    (srfi :87 case)                        ; a more general case clause
+    (srfi :98 os-environment-variables)    ; environment variables
+    (srfi :99 records)                     ; ERR5RS records (composite library)
+    (srfi :99 records procedural)          ; ERR5RS records (procedural API)
+    (srfi :99 records inspection)          ; ERR5RS records (inspection API)
+    (srif :99 records syntactic)           ; ERR5RS records (syntactic API)
+
+SRFI libraries that are autoloadable but deprecated in Larceny,
+usually because they have been superseded in whole or in part by
+R6RS syntax or libraries:
+
+    (srfi :60 integer-bits)                ; integers as bits
+    (srfi :66 octet-vectors)               ; octet vectors
+    (srfi :69 basic-hash-tables)           ; basic hash tables
+    (srfi :71 let)                         ; extensions of let, let*, letrec
+    (srfi :74 blobs)                       ; octet-addressed binary blocks
+    (srfi :86 mu-and-nu)                   ; mu and nu simulating values etc
+    (srfi :95 sorting-and-merging)         ; sorting and merging
 
 Other autoloadable libraries:
 
-    (err5rs records procedural)      ; ERR5RS records (procedural API)
-    (err5rs records inspection)      ; ERR5RS records (inspection API)
-    (err5rs records syntactic)       ; ERR5RS records (syntactic API)
-    (err5rs load)                    ; ERR5RS load procedure
-    (rnrs load)                      ; equivalent to (err5rs load)
-    (larceny load)                   ; extension of (err5rs load)
-    (larceny compiler)               ; separate compilation for ERR5RS/R6RS
-    (larceny benchmarking)           ; timing facilities
-    (larceny records printer)        ; custom printing of records
-    (r5rs)                           ; approximates the R5RS top level
-    (explicit-renaming)              ; macro system with explicit renaming
+    (err5rs records procedural)            ; ERR5RS records (procedural API)
+    (err5rs records inspection)            ; ERR5RS records (inspection API)
+    (err5rs records syntactic)             ; ERR5RS records (syntactic API)
+    (err5rs load)                          ; ERR5RS load procedure
+    (rnrs load)                            ; equivalent to (err5rs load)
+    (larceny load)                         ; extension of (err5rs load)
+    (larceny compiler)                     ; separate compilation (ERR5RS/R6RS)
+    (larceny benchmarking)                 ; timing facilities
+    (larceny profiling)                    ; profiling of Scheme code
+    (larceny records printer)              ; custom printing of records
+    (larceny shivers-syntax)               ; syntax favored by Olin Shivers
+    (r5rs)                                 ; approximates the R5RS top level
+    (explicit-renaming)                    ; macros with explicit renaming
 
 
 [[ERR5RSLibraryPathSection]]
@@ -255,6 +305,11 @@ directory.
 adds one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
 
+The <<R6RSLibraryVariableSection, `LARCENY_LIBPATH`>>
+environment variable can also be used to add one or more directories
+to the directories in the
+<<current-require-path,`current-require-path`>>.
+
 
 [[ERR5RSprimitivesSection]]
 
@@ -266,15 +321,10 @@ declaration with a `primitives` clause that names the R5RS
 procedures to be imported.  For example:
 
 ----------------------------------------------------------------
-    (import (primitives ; the procedures defined by SRFI 6
-                        open-input-string open-output-string
-                        get-output-string
-                        ; other useful procedures
-                        random current-seconds
+    (import (primitives random current-seconds
                         getenv setenv system
                         current-directory file-modification-time
-                        make-parameter system-features
-                        vector-like-cas!)
+                        system-features vector-like-cas!)
             (rnrs base)
             (rnrs control))
 ----------------------------------------------------------------
@@ -315,6 +365,17 @@ standard input, terminating it with an end-of-file.
 You probably don't want to do that.  Had you wanted
 to type R6RS code at Larceny, you'd be using ERR5RS
 mode instead.
+
+By default, Larceny's Twobit compiler uses settings
+that make good sense for production code but violate
+some absolute requirements of the R6RS.  For maximal
+adherence to R6RS requirements (at the expense of
+portability, interoperability, and/or performance),
+see the discussion of
+<<compiler-switches, `compiler-switches`>>
+in the section on the
+<<LarcenyCompilerSection, `(larceny compiler)`>>
+library.
 
 
 [[R6rsPreDefinedSection]]
@@ -369,6 +430,29 @@ script without being interpreted by the `scheme-script` processor.
 We emphasize that this extension is non-portable.
 Other implementations of the R6RS may not provide
 anything comparable to Larceny's `-path` option.
+Even if they do, their mappings from library names
+to file names may be incompatible with Larceny's.
+================================================================
+
+
+[[R6RSLibraryVariableSection]]
+
+==== Library environment variable
+
+As another extension to the R6RS, Larceny allows
+R6RS top-level programs to import any libraries
+that can be found in directories specified by the
+`LARCENY_LIBPATH` environment variable.
+The value of that environment variable should be
+a string in the same format as for Larceny's `-path`
+command-line option, described above.
+
+[WARNING]
+================================================================
+We emphasize that this extension is non-portable.
+Other implementations of the R6RS may not support
+anything comparable to Larceny's `LARCENY_LIBPATH`
+environment variable.
 Even if they do, their mappings from library names
 to file names may be incompatible with Larceny's.
 ================================================================
@@ -526,8 +610,7 @@ Errors
 ~~~~~~
 
 In R6RS modes, errors should result in an error message
-followed by a clean exit from the program, but some errors
-may enter the debugger; this is a known bug.
+followed by a clean exit from the program.
 
 If your program encounters an error in an interactive mode
 (R5RS or ERR5RS), it will enter the debugger; this is
@@ -590,14 +673,14 @@ If something goes wrong while
 <<CompilingStdLibSection,compiling the ERR5RS/R6RS runtime>>,
 make sure you are running the copy of Larceny you think
 you are running and have read and write permission
-for +lib/R6RS+ and all its subdirectories and files.
+for +lib/R6RS+, +lib/SRFI+, and all their subdirectories and files.
 If you get an error message about something being
 "`expanded against a different build of this library`",
-then one or more of the compiled files in +lib/R6RS+
-and its subdirectories has gone
+then one or more of the compiled files in +lib/R6RS+ or +lib/SRFI+
+or its subdirectories has gone
 <<CompilingChapter,stale>>.
-Removing all `.slfasl` files from +lib/R6RS+ and its
-subdirectories will eliminate the stale file(s).
+Removing all `.slfasl` files from +lib/R6RS+ and +lib/SRFI+ and
+their subdirectories will eliminate the stale file(s).
 
 [WARNING]
 ================================================================
@@ -647,18 +730,22 @@ to provide at least some clues.
 Performance
 ~~~~~~~~~~~
 
-By default, Larceny's Twobit compiler assumes that Scheme's
-standard procedures will not be redefined, which allows the
-compiler to generate inline code for many calls to standard
-procedures. If you want to be able to redefine standard
-procedures, then you should evaluate the expression
+By default, Larceny's Twobit compiler makes several
+assumptions that allow it to generate faster code;
+for example, the compiler assumes Scheme's standard
+procedures will not be redefined.
 
-----------------------------------------------------------------    
-        (integrate-procedures #f)
+To disable certain compiler optimizations that are
+incompatible with the R6RS, see the section that
+describes the
+<<LarcenyCompilerSection, `(larceny compiler)` library>>.
+
+To obtain strict conformance to R5RS semantics at
+the expense of slower code, evaluate the expression
+
 ----------------------------------------------------------------
-
-After this expression has been evaluated, the compiler will generate
-slower code.
+    (compiler-switches 'standard)
+----------------------------------------------------------------
 
 To make the compiler generate faster code, you can promise not to
 redefine standard procedures _and_ not to redefine any top-level

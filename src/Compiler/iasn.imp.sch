@@ -210,14 +210,29 @@
 
     ; Added for CSE, representation analysis.
 
-    (,name:CHECK!    -1 check!                  #f         -1 ,:dead     ,:none #f)
-    (.vector-length:vec 1 vector-length:vec     #f        401 ,:immortal ,:none #f)
-    (.vector-ref:trusted 2 vector-ref:trusted ,stdc-imm?  402 ,:vector   ,:none #f)
-    (.vector-set!:trusted 3 vector-set!:trusted #f        403 ,:dead     ,:vector #f)
-    (.vector-set!:trusted:nwb 3 vector-set!:trusted:nwb #f 403 ,:dead     ,:vector #f)   ; FIXME
-    (.string-length:str 1 ustring-length:str    #f         40 ,:immortal ,:none #f)
-    (.string-ref:trusted 2 ustring-ref:trusted  #f         78 ,:string   ,:none #f)
-    (.string-set!:trusted 3 ustring-set!:trusted ,stdc-imm? 79 ,:dead    ,:string #f)
+    (,name:CHECK!    -1 check!           #f            -1 ,:dead     ,:none #f)
+    (.vector-length:vec 1 vector-length:vec #f        401 ,:immortal ,:none #f)
+    (.vector-ref:trusted
+                      2 vector-ref:trusted ,stdc-imm? 402 ,:vector   ,:none #f)
+    (.vector-set!:trusted
+                      3 vector-set!:trusted #f        403 ,:dead   ,:vector #f)
+    (.vector-set!:trusted:nwb
+                      3 vector-set!:trusted:nwb #f    403 ,:dead   ,:vector #f)
+    (.string-length:str
+                      1 ustring-length:str #f          40 ,:immortal ,:none #f)
+    (.string-ref:trusted
+                      2 ustring-ref:trusted #f         78 ,:string   ,:none #f)
+    (.string-set!:trusted
+                      3 ustring-set!:trusted ,stdc-imm? 79 ,:dead  ,:string #f)
+
+    ; FIXME: should support immediate index for bytevector-ref
+
+    (.bytevector-like-length:bvl
+                      1 bytevector-like-length:bvl #f  -1 ,:immortal ,:none #f)
+    (.bytevector-like-ref:trusted
+                      2 bytevector-like-ref:trusted #f -1 ,:string   ,:none #f)
+    (.bytevector-like-set!:trusted
+                      3 bytevector-like-set!:trusted #f -1 ,:dead  ,:string #f)
 
     (.car:pair        1 car:pair         #f           404 ,:car      ,:none #f)
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
@@ -241,20 +256,16 @@
     (.fxrsha          2 fxrsha           #f            75 ,:immortal ,:none #f)
     (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none #f)
 
-    ; Not yet implemented.
+    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
+    (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
+    (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
+    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
 
-;    (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.-:flo:flo       2 -:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.*:flo:flo       2 *:flo:flo        #f            -1 ,:immortal ,:none)
-;    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
-
-;    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.=:obj:flo       2 =:obj:flo        #f            -1 ,:immortal ,:none)
-;    (.=:flo:obj       2 =:flo:obj        #f            -1 ,:immortal ,:none)
-;    (.<:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
+    (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
+    (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
+    (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
+    (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
 
     ;; FIXME: This is not a good place for these, because the compiler
     ;; doesn't need to see them:
@@ -370,6 +381,8 @@
     (exact?           1 exact?           #f            25 ,:immortal ,:none #f)
     (inexact?         1 inexact?         #f            26 ,:immortal ,:none #f)
     (exact->inexact   1 exact->inexact   #f            27 ,:immortal ,:none #t)
+    (inexact          1 exact->inexact   #f            27 ,:immortal ,:none #t)
+    (exact            1 inexact->exact   #f            28 ,:immortal ,:none #t)
     (inexact->exact   1 inexact->exact   #f            28 ,:immortal ,:none #t)
     (round            1 round            #f            29 ,:immortal ,:none #t)
     (truncate         1 truncate         #f            30 ,:immortal ,:none #t)
@@ -558,8 +571,6 @@
     (--               1 --               #f            32 ,:immortal ,:none #t)
     (unspecified      0 unspecified      #f             3 ,:dead     ,:none #f)
     (undefined        0 undefined        #f             4 ,:dead     ,:none #f)
-
-    (bytevector-ref:trusted 2 bytevector-ref:trusted ,stdc-imm? 700 ,:immortal ,:none #f)
 
     ;; For Intel; read reflective registers (perhaps its time for iasn.imp.sch)
     ;; These take a bytevector as argument and write the results into it.

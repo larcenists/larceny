@@ -11,12 +11,12 @@
   (writeln "Error: test failed: " token)
   #f)
 
-(or (equal? '("This is an error" "with info" 37)
+(or (equal? '("This is an error" "with info" " " 37)
 	    (call-with-current-continuation
 	     (lambda (abort)
 	       (parameterize ((error-handler
 			       (lambda args
-				 (abort (cdr args)))))
+				 (abort args))))
 		(error "This is an error" "with info" 37)
 		#f))))
     (fail 'error))

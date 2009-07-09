@@ -467,6 +467,7 @@
     "HAVE_DLFCN"
     "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
+    "EXPLICIT_DIVZ_CHECK"               ; better error messages
     "DEBIAN_STRDUP_WEIRDNESS"
     ))
 
@@ -483,6 +484,7 @@
     "HAVE_DLFCN"
     "DYNAMIC_LOADING"
     "STACK_UNDERFLOW_COUNTING"
+    "EXPLICIT_DIVZ_CHECK"               ; better error messages
     "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
     "USE_CACHED_STATE"
     ))

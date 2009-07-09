@@ -96,7 +96,7 @@
                  (rlist (reverse alist))
                  (n2 (length alist)))
             (if (not (= n n2))
-                (error "compiler bug (limit-available!)" (list n n2)))
+                (twobit-bug "limit-available!" (list n n2)))
 #;          (display "Compiler: trimming list of available expressions...")
 #;          (newline)
             (vector-set! available
@@ -355,7 +355,5 @@
 ; is never true.
 
 (define (declaration-error E)
-  (if (issue-warnings)
-      (begin (display "WARNING: Assertion is false: ")
-             (write (make-readable E #t))
-             (newline))))
+  (twobit-warn "WARNING: Assertion is false: "
+               (make-readable E #t)))

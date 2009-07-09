@@ -5,8 +5,7 @@
 ; Convert various data into bytevector representation.
 ; The bytevector header is not included in the returned bytevector.
 ;
-; These support routines run under Chez Scheme and other implementations
-; without native support for byte vectors.
+; These support routines run under MzScheme v37x.
 
 (if (not (eq? (nbuild-parameter 'target-endianness) 'big))
     (error "misc2bytevector.ss is only for big-endian targets."))
@@ -21,21 +20,20 @@
 (define (symbol->bytevector s)
   (string->bytevector (symbol->string s)))
 
-; SPARC specific.
+; Bignums are bytevector-like with the sign in the high byte of
+; the first word (0 for 0 or positive, 1 for negative), a digit
+; count in the low 24 bits (three bytes) and then base-2^32 digits
+; in the next words with the least significant word first.
 ;
-; Bignums are bytevector-like with the sign in the first two bytes
-; (0 for 0 or positive, 1 for negative), followed by a digit
-; count (two bytes) and then base-2^32 digits in the next words.
-; with the least significant word first.
-;
-;	+------------------------+--------+
-;	|       length           | header |
-;	+------------------------+--------+
-;	| sign          |   digitcount    |
-;	+---------------------------------+
-;	|              lsd                |
-;	+---------------------------------+
-;	...
+;       big end                  little end
+;       +------------------------+--------+
+;       |       length           | header |
+;       +------------------------+--------+
+;       | sign   |          digitcount    |
+;       +---------------------------------+
+;       |              lsd                |
+;       +---------------------------------+
+;       ...
 
 (define (bignum->bytevector b)
 
@@ -48,46 +46,45 @@
 
   (define (divide b l)
     (if (< b two^32)
-	(flatten (reverse (cons (split-int b) l)))
-	(divide (quotient b two^32)
-		(cons (split-int (remainder b two^32)) l))))
+        (flatten (reverse (cons (split-int b) l)))
+        (divide (quotient b two^32)
+                (cons (split-int (remainder b two^32)) l))))
 
-  (let* ((sign   (if (negative? b) '(0 1) '(0 0)))
-	 (b      (abs b))
-	 (digits (divide b '()))
-	 (len    (quotient (length digits) 4))
-	 (count  (list (quotient len 256) (remainder len 256))))
+  (let* ((sign   (if (negative? b) 1 0))
+         (b      (abs b))
+         (digits (divide b '()))
+         (len    (quotient (length digits) 4)))
     (list->bytevector
-     (append sign count digits))))
+     (append (split-int (+ len (fxlsh sign 24))) digits))))
 
 
-; IEEE specific, and specific to Chez Scheme.
+; IEEE specific, and specific to MzScheme.
 ;
 ; Flonums (IEEE double) are bytevector-like. The first word is unused. The two
 ; next words contain the double:
 ;
-;	+------------------------+--------+
-;	|      length            | header |
-;	+------------------------+--------+
-;	|      unused                     |
-;	+---------------------------------+
-;	|      IEEE double precision      |
-;	|                                 |
-;	+---------------------------------+
+;       +------------------------+--------+
+;       |      length            | header |
+;       +------------------------+--------+
+;       |      unused                     |
+;       +---------------------------------+
+;       |      IEEE double precision      |
+;       |                                 |
+;       +---------------------------------+
 ;
 ; Compnums are similar:
 ;
-;	+------------------------+--------+
-;	|      length            | header |
-;	+------------------------+--------+
-;	|      unused                     |
-;	+---------------------------------+
-;	|      (real part)                |
-;	|      IEEE double precision      |
-;	+---------------------------------+
-;	|      (imaginary part)           |
-;	|      IEEE double precision      |
-;	+---------------------------------+
+;       +------------------------+--------+
+;       |      length            | header |
+;       +------------------------+--------+
+;       |      unused                     |
+;       +---------------------------------+
+;       |      (real part)                |
+;       |      IEEE double precision      |
+;       +---------------------------------+
+;       |      (imaginary part)           |
+;       |      IEEE double precision      |
+;       +---------------------------------+
 ;
 ; An IEEE number, in turn, is represented as follows (64 bits)
 ;
@@ -116,7 +113,7 @@
 
 (define (compnum->bytevector c)
   (let ((f1 (flonum-bits (real-part c)))
-	(f2 (flonum-bits (imag-part c))))
+        (f2 (flonum-bits (imag-part c))))
     (list->bytevector (append '(0 0 0 0) f1 f2))))
 
 ; Return a list of byte values representing an IEEE double precision number.
@@ -137,8 +134,8 @@
   (define two^8  (expt 2 8))
 
   (list (quotient b two^24)
-	(quotient (remainder b two^24) two^16)
-	(quotient (remainder b two^16) two^8)
-	(remainder b two^8)))
+        (quotient (remainder b two^24) two^16)
+        (quotient (remainder b two^16) two^8)
+        (remainder b two^8)))
 
 ; eof

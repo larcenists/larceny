@@ -239,6 +239,12 @@ LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
 TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
 COMPILE_STDLIB_SCRIPT="src/Build/compile-standard-libraries.sch"
 
+pushd ${HOME}/larcenytest
+YESTERDAY_DIR=`ls -trd *-${DIRNAME}-${TRACK}-*[0-9] | tail -1`
+echo compressing ${YESTERDAY_DIR} to ${YESTERDAY_DIR}.tar.gz
+tar czf ${YESTERDAY_DIR}.tar.gz ${YESTERDAY_DIR} && rm -rf ${YESTERDAY_DIR}
+popd
+
 mkdir -p ${DIR}
 
 function cdashupdatelog {

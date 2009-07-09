@@ -15,7 +15,7 @@
 (define *rep-meets-special* '#())
 
 (define (representation-error msg . stuff)
-  (apply error
+  (apply twobit-bug
          (if (string? msg)
              (string-append "Bug in flow analysis: " msg)
              msg)
@@ -137,7 +137,7 @@
     
     (define (compute-joins!)
       (let ((default (lambda (x y)
-                       (error "Compiler bug: special meet or join" x y))))
+                       (twobit-bug "special meet or join" x y))))
         (set! *rep-joins-special* (make-vector n default))
         (set! *rep-meets-special* (make-vector n default)))
       (set! *rep-joins* (make-bytevector n^2))
@@ -346,12 +346,13 @@
 ;
 ; The multiplier isn't critical.  A multiplier of 1000 would be
 ; small enough to cause widening on pathological cases, but
-; would waste a lot of time first.  A multiplier of 12 is just
-; large enough to avoid widening on Larceny's current code.
-; A multiplier of 5 would be large enough to avoid widening on
-; all but 3 expressions.
+; would waste a lot of time first.  A multiplier of 12 used
+; to be just large enough to avoid widening on Larceny's code,
+; and a multiplier of 5 used to be large enough to avoid widening
+; on all but 3 expressions.
+; Larceny's bignum code now needs a larger multiplier.
 
-(define aeval:multiplier 25)
+(define aeval:multiplier 75)
 
 (define aeval:calls 0)
 (define aeval:threshold 0)
@@ -469,8 +470,7 @@
   (let* ((debugging? #f)
          (T (constraint.lhs new))
          (E (constraint.rhs new))
-         (K (constraint.killer new))
-         (cs (constraints-for-variable constraints T)))
+         (K (constraint.killer new)))
     
     (define (loop type K cs newcs)
       (if (null? cs)
@@ -567,11 +567,8 @@
                         (display (make-readable E #t))
                         (newline)))
              (if (not (null? cs))
-                 (begin
-                  (display "Compiler bug: ")
-                  (write T)
-                  (display " has unexpectedly nonempty constraints")
-                  (newline)))
+                 (twobit-bug "Pass3rep: unexpectedly nonempty constraints"
+                             T))
              (hashtable-put! table T (list (list T E K)))
              constraints)))))
 
@@ -666,11 +663,10 @@
                        (available:killer-combine Krep K2)))
                 ((call? E2)
                  (if init
-                     (begin (display "Compiler bug in cs-intersect")
-                            (larceny-break))
+                     (twobit-bug "cs-intersect" cs1 cs2)
                      (loop cs c rep Krep)))
                 (else
-                 (error "Compiler bug in cs-intersect"))))))
+                 (twobit-bug "cs-intersect"))))))
   (call-with-values
    (lambda ()
      (loop cs1 #f rep:object available:killer:none))

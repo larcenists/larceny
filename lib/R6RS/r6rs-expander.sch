@@ -1432,8 +1432,11 @@
                            (syntax-violation 'syntax "Template dimension error (too few ...'s?)" id))))
                  (else
                   (syntax-reflect id)))))
-        (((syntax ...) p)
-         (process-template p dim #t))
+        (((syntax ...) p)                          ; Andre van Tonder gave us
+         (if ellipses-quoted?                      ; this patch for ticket #637
+             `(list ,(process-template (car template) dim #t)
+                    ,(process-template p dim #t))
+             (process-template p dim #t)))
         ((? (lambda (_) (not ellipses-quoted?))
             (t (syntax ...) . tail))
          (let* ((head (segment-head template)) 
@@ -1683,7 +1686,10 @@
                                                     (values))))))
 
                                         ;; Register library for any further expansion.
-                                        (if (eq? library-type 'library)
+                                        ;; FIXME: expand-file shouldn't do this
+                                        (if (and (eq? library-type 'library)
+                                                 (not
+                                                  (larceny:r6rs-expand-only)))
                                             (eval expanded-library (interaction-environment)))
 
                                         expanded-library))))))))))))
@@ -2015,14 +2021,15 @@
 
         ; [Larceny]
 
-        (let ((form (syntax-debug form))
-              (subforms (if subform (list (syntax-debug subform)) '()))
-              (msg (cond ((symbol? who)
-                          (string-append (symbol->string who) ": " message))
-                         ((string? who)
-                          (string-append who ": " message))
-                         (else message))))
-          (apply error 'syntax-violation msg form subforms))))
+        (let* ((form (syntax-debug form))
+               (subform (if subform (syntax-debug subform) #f))
+               (c1 (make-who-condition who))
+               (c2 (make-message-condition message))
+               (c3 (make-syntax-violation form subform))
+               (c (if who
+                      (condition c1 c2 c3)
+                      (condition c2 c3))))
+          (raise c))))
 
     (define (syntax-debug exp)
       (sexp-map (lambda (leaf)
@@ -2284,6 +2291,10 @@
     ;; between invocations of run-r6rs-sequence.  
     ;; For importing and evaluating stuff in the persistent 
     ;; interactive environment, see REPL above.
+
+    ;; FIXME:  Since expand-toplevel-sequence calls eval on every
+    ;; library in the sequence, the following procedure calls eval
+    ;; on every library twice.  That can double the compile time.
     
     (define (run-r6rs-sequence forms)
       (with-toplevel-parameters

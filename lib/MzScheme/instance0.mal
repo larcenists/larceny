@@ -29,7 +29,7 @@
                         (,$invoke 2))   ; (proc instance arglist)
 
                        3                ; close over the proc, class, and state vector
-                       #(%instance #f 0.0 #f #f)) ; DO NOT CHANGE THIS NAME!
+                       #(%instance #f 0.0 #f #f #f)) ; DO NOT CHANGE THIS NAME!
              (,$return))
             0
             #f)

@@ -84,7 +84,7 @@ The <code>ioproc</code> layer
 <p>
 At the <code>ioproc</code> layer, a port is implemented
 using a Scheme procedure of one argument:
-a symbol that denotes the operation to perform.
+a symbol that indicates the operation to perform.
 After dispatching on that symbol, the ioproc procedure
 returns a port-specific procedure that, when called,
 performs the operation.  The operations are:
@@ -127,11 +127,101 @@ The <code>iosys</code> layer implements Scheme ports.
 Each port is an object that encapsulates:
 </p>
 <ul>
+<li>whether the port is binary or textual</li>
+<li>the port's direction: one of<br>
+    <code>closed input output input/output</code>
 <li>an <code>ioproc</code></li>
 <li>any <code>iodata</code> needed by the <code>ioproc</code></li>
+<li>port state: one of<br>
+    <code>closed error eof binary textual auxstart auxend input/output</code>
+</li>
+<li>reader mode (for textual ports only)<br>
+    such as whether the port is case-sensitive
+</li>
+<li>transcoder</li>
+</li>buffer mode: one of<br>
+    <code>none line datum block</code>
+</li>
 <li>buffers</li>
-<li>...</li>
+<li>whether the port supports <code>set-port-position!</code>
+<li>port position</li>
+<li>whether the last end-of-line was represented by a return</li>
 </ul>
+
+<h3>
+<a name="portstate">
+The port state
+</a>
+</h3>
+
+<p>
+Once a port enters the <code>closed</code>, <code>error</code>,
+or <code>eof</code> states, it remains in that state.
+</p>
+
+<blockquote>
+<p>
+On Unix systems, where some programmers (and the R6RS, alas)
+like to think an end-of-file on a console port can be followed
+by more input, what actually happens in Larceny is that the
+end-of-file causes the console port to be abandoned by the
+<code>(current-input-port)</code> procedure, which opens
+a fresh console port that becomes the current input port.
+</p>
+</blockquote>
+
+<p>
+An open binary port is normally in the <code>binary</code>
+state.
+</p>
+
+<p>
+A textual input port is normally in the <code>textual</code>
+state, but often enters the <code>auxstart</code> state when
+the main buffer is filled and often enters the <code>auxend</code>
+state when the main buffer has almost been emptied.
+These two states use a small auxiliary buffer to deal
+with multi-byte encodings that span a buffer boundary.
+They also support the use of a sentinel byte that
+simplifies the inline code for <code>get-char</code>.
+</p>
+
+<p>
+Textual output ports make similar use of the auxiliary buffer.
+</p>
+
+<p>
+Combined input/output ports are normally in the
+<code>input/output</code> state.  They buffer at most
+one character, for a maximum of four bytes.
+</p>
+
+<h3>
+<a name="portposition">
+Port position
+</a>
+</h3>
+
+<p>
+All of Larceny's textual input ports keep track of their
+current port position in units of characters, lines, and
+offsets within a line.  Larceny's end-of-line processing
+depends upon the offset within a line together with a
+boolean that indicates whether the previous end-of-line
+was represented by a lone return character.
+</p>
+
+<p>
+The R6RS end-of-line semantics has an interesting
+interaction with
+<code>set-port-position!</code>.
+Unless the end-of-line style of a textual input port
+is <code>none</code>, setting a new port position
+sometimes requires R6RS-conforming implementations to
+examine the character that precedes the new position
+in order to implement the mandated end-of-line semantics.
+
+</p>
 
 <h2>
 <a name="specialized">

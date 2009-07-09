@@ -8,7 +8,14 @@
 
 (let ((proc-names 
        (append 
+
+        ;; From Base/pp.sch
+        '(pretty-line-length pretty-print)
         
+        ;; From Base/defaults.sch
+
+        '(set-parameter-defaults-for-a-standard-heap!)
+
         ;; From Asm/IL/il-corememory.sch
         '(link-lop-segment/clr 
           eval/clr 
@@ -29,15 +36,15 @@
           dot-javadot-syntax-definition
           )
 
-	;; Exports
-	;; Felix is just copying everything from lib/MzScheme/init.sch, to ensure that a missing item will not cause the windows.sch demo to fail.  
-	;; XXX Remove items that we should not be exporting!  e.g. PLT-isms
-	'(
-	weird-printer)
+        ;; Exports
+        ;; Felix is just copying everything from lib/MzScheme/init.sch, to ensure that a missing item will not cause the windows.sch demo to fail.  
+        ;; XXX Remove items that we should not be exporting!  e.g. PLT-isms
+        '(
+        weird-printer)
 
-	;; Miscellaneous
-	'(
-	add1
+        ;; Miscellaneous
+        '(
+        add1
         arity-at-least?
         arity-at-least-value
         arity-plus
@@ -54,14 +61,14 @@
         make-arity-at-least
         %nary->fixed-arity
         )
-	
-	;; (uncommented)
-	'(
-	%instance)
+        
+        ;; (uncommented)
+        '(
+        %instance)
 
-	;; instance
-	'(
-	allocate-instance-state-vector
+        ;; instance
+        '(
+        allocate-instance-state-vector
         instance?
         instance/class
         instance/procedure
@@ -77,9 +84,9 @@
         set-instance-class-to-self!
         uninitialized-entity-procedure)
 
-	;; class
-	'(
-	%class-cpl
+        ;; class
+        '(
+        %class-cpl
         %class-default-initargs
         %class-direct-default-initargs
         %class-direct-slots
@@ -199,9 +206,9 @@
         subclasses-of?
         )
 
-	;; generic
-	'(
-	*default-class-class*
+        ;; generic
+        '(
+        *default-class-class*
         *default-entityclass-class*
         *default-generic-class*
         *default-method-class*
@@ -342,9 +349,9 @@
         updater-method
         )
 
-	;; gprint
+        ;; gprint
         '(
-	named-object-printer-method
+        named-object-printer-method
         print-object
         print-unreadable-object
         )
@@ -587,9 +594,73 @@
 
   (seal-twobit proc-names))
 
+
+;;; Load a bunch of useful things.  
+;;; FIXME: Some of these files could usefully be loaded in private namespaces.
+
+;;; FIXME: Common Larceny doesn't support heap dumping,
+;;; so we can't just load files here and dump the heap.
+;;; As a temporary expedient, it's easiest just to copy
+;;; certain files into this file:
+
+(define auxiliary-syntax-definitions
+  '(begin
+
+;;; FIXME: copied from lib/Base/macros.sch
+
+(define-syntax bound?
+  (syntax-rules ()
+    ((bound? x)
+     (bound? x (interaction-environment)))
+    ((bound? ?x ?env)
+     (let ((env ?env)
+           (name (quote ?x)))
+       (or (environment-variable? env name)
+           (environment-macro? env name))))))
+
+(define-syntax time
+  (syntax-rules ()
+    ((time ?expr)
+     (run-with-stats (lambda () ?expr)))))
+
+;;; End of copied text.
+
+)) ; end of auxiliary-syntax-definitions
+
+
+;;; Improve some definitions
+
+(define (procedure-documentation-string p)
+  (let ((e (procedure-expression p)))
+    (if (and (list? e)
+             (> (length e) 2)
+             (string? (caddr e))
+             (not (null? (cdddr e))))
+        (caddr e)
+        #f)))
+
+;;; Set parameters to their defaults.
+
+(set-parameter-defaults-for-a-standard-heap!)
+(set! set-parameter-defaults-for-a-standard-heap! (undefined))
+
+;;; Eval the syntax definitions.
+
 (eval dot-javadot-syntax-definition)
+(eval auxiliary-syntax-definitions)
+
+;;; Install debugger.
 
 (install-debugger)
+(define install-debugger)
+
+;;; Install pretty printer as default printer.
+
+(repl-printer
+ (lambda (x port)
+   (if (not (eq? x (unspecified)))
+       (pretty-print x port))))
+
 
 ; It's necessary to set the interaction environment so that any uses of 
 ; EVAL in the loaded file will reference the correct environment.
@@ -619,3 +690,5 @@
                 (interaction-environment old-env)))))))
 
 (load-evaluator new-load-eval)
+
+; eof

@@ -116,6 +116,7 @@
                             compiler-flags
                             global-optimization-flags
                             runtime-safety-flags
+                            compile-despite-errors
                             issue-warnings
                             include-procedure-names
                             include-source-code
@@ -127,6 +128,7 @@
                             runtime-safety-checking
                             catch-undefined-globals
                             integrate-procedures
+                            faster-arithmetic
                             control-optimization
                             parallel-assignment-optimization
                             lambda-optimization
@@ -283,6 +285,20 @@
         (caddr e)
         #f)))
 
+;;; Give names to all procedures in the interaction environment.
+
+(let* ((env (interaction-environment))
+       (vars (environment-variables env))
+       (cells (map (lambda (var) (environment-get-cell env var))
+                   vars)))
+  (for-each (lambda (var cell)
+              (let ((val (.cell-ref cell)))
+                (if (and (procedure? val)
+                         (not (procedure-name val)))
+                    (procedure-name-set! val var))))
+            vars
+            cells))
+
 ;;; Set parameters to their defaults.
 
 (compat:load (param-filename 'auxiliary "defaults.sch"))
@@ -301,7 +317,7 @@
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))
 	  "Win32")
-  (system "larceny.bin -reorganize-and-dump -heap larceny.heap")
+  (system ".\\larceny.bin.exe -reorganize-and-dump -heap larceny.heap")
   (system "move larceny.heap.split larceny.heap"))
  (else
   (system "./larceny.bin -reorganize-and-dump -heap larceny.heap")

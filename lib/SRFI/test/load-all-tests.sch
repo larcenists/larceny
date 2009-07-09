@@ -17,12 +17,11 @@
    8
    9
    11
-   12
    13
    14
    16
    17
-   19
+   ;; 19 ;; depends on C FFI, which doesn't work in Common Larceny; see below
    ;; 22 ;; this is not a normal srfi test...
    23
    25
@@ -36,4 +35,24 @@
    38
    39
    42
+   45
+   48
+   51
+   54
+   60
+   61
+   63
+   64
+   66
+   67
+   69
+   71
+   74
+   86
+   87
+   95
+   98
+   19 ;; depends on C FFI, which doesn't work in Common Larceny
+   43 ;; redefines vector-map etc, so it has to come near the end
+   78
    ))

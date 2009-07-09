@@ -90,10 +90,7 @@
     (define (approximate-log2-of-integer p)
       (if (<= p two^n)
           (log2 (exact->inexact p))
-          (do ((q two^n (* q q))
-               (k n (+ k k)))
-              ((<= p q)
-               (- k (approximate-log2-of-integer (quotient q p)))))))
+          (bitwise-length p)))
     
     (define (log2 x)
       (/ (log x) log:2))
@@ -335,7 +332,28 @@
 		((>= idx (+ 70 (vector-length v))) #f)
 		(else (vector-ref v (- idx 70)))))))
 
+    ; Given an error code as returned by contagion-error-code,
+    ; returns the name of the procedure.
+    ;
+    ; Returns #f if no name can be found.
+
+    (define (%contagion-error-proc code)
+      (cond ((eq? code $ex.add)        '+)
+            ((eq? code $ex.sub)        '-)
+            ((eq? code $ex.mul)        '*)
+            ((eq? code $ex.div)        '/)
+            ((eq? code $ex.quotient)   'quotient)
+            ((eq? code $ex.remainder)  'remainder)
+            ((eq? code $ex.modulo)     'modulo)
+            ((eq? code $ex.equalp)     '=)
+            ((eq? code $ex.lessp)      '<)
+            ((eq? code $ex.lesseqp)    '<=)
+            ((eq? code $ex.greaterp)   '>)
+            ((eq? code $ex.greatereqp) '>=)
+            (else #f)))
+
     (set! millicode-support v)
-    (set! contagion-error-code %contagion-error-code)))
+    (set! contagion-error-code %contagion-error-code)
+    (set! contagion-error-proc %contagion-error-proc)))
 
 ; eof

@@ -31,7 +31,7 @@
 
 ; ISO Latin 1 character set.
 
-(define (make-iso-latin-1-table)
+(define (make-ascii-table)
 
   (define tbl (make-bytevector 256))
 
@@ -43,22 +43,6 @@
 
   (do ((i (char->integer #\a) (+ i 1)))
       ((> i (char->integer #\z)))
-    (bytevector-set! tbl i 2))
-
-  (do ((i (char->integer #\À) (+ i 1)))
-      ((> i (char->integer #\Ö)))
-    (bytevector-set! tbl i 1))
-
-  (do ((i (char->integer #\Ø) (+ i 1)))
-      ((> i (char->integer #\ß)))
-    (bytevector-set! tbl i 1))
-
-  (do ((i (char->integer #\à) (+ i 1)))
-      ((> i (char->integer #\ö)))
-    (bytevector-set! tbl i 2))
-
-  (do ((i (char->integer #\ø) (+ i 1)))
-      ((> i (char->integer #\ÿ)))
     (bytevector-set! tbl i 2))
 
   (do ((i (char->integer #\0) (+ i 1)))
@@ -77,7 +61,7 @@
 
   tbl)
 
-(set! *char-table* (make-iso-latin-1-table))
+(set! *char-table* (make-ascii-table))
 
 
 (define (string-ci=? s1 s2)

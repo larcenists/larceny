@@ -60,7 +60,7 @@
      (debug/displayln)
      (parameterize ((print-length *debug-print-length*)
                     (print-level *debug-print-level*))
-       (decode-error the-error (console-output-port)))
+       (decode-error the-error (current-error-port)))
      (debug/enter-debugger #f)))
 
   ; Install a keyboard interrupt handler that invokes the debugger so
@@ -164,7 +164,7 @@
       (lambda ()
         (call-with-error-handler
          (lambda error
-           (decode-error error (console-output-port))
+           (decode-error error (current-error-port))
            (k (unspecified)))
          thunk))))))
 
@@ -197,9 +197,10 @@
   (debug/display *inspector-help*))
 
 (define (debug/repl count inspector)
-  (with-input-from-port (console-input-port)
+  (with-input-from-port (transcoded-port (standard-input-port)
+                                         (native-transcoder))
     (lambda ()
-      (with-output-to-port (console-output-port)
+      (with-output-to-port (current-error-port)
         repl))))
 
 (define (debug/down count inspector)
@@ -223,7 +224,7 @@
 	 (expr  (code 'expression))
 	 (proc  (code 'procedure)))
     (if (not (null? prefix))
-	(display (car prefix)))
+	(debug/display (car prefix)))
     (case class
       ((system-procedure)
        (debug/display "system continuation"))
@@ -233,7 +234,19 @@
        (debug/display "interpreted expression ")
        (debug/print-object expr))
       ((compiled-procedure)
-       (debug/display "compiled procedure " (procedure-name proc)))
+       (debug/display "compiled procedure "
+                      (procedure-name proc)
+                      " "
+                      (let ((file (procedure-source-file proc))
+                            (line (procedure-source-line proc))
+                            (col  (procedure-source-column proc)))
+                        (cond ((and file line col)
+                               (list file ":" (+ line 1) ":" (+ col 1)))
+                              ((and file line)
+                               (list file ":" (+ line 1)))
+                              (file
+                               (list file))
+                              (else "")))))
       (else
        (error "debug/summarize-frame: Unknown class " class)))
     (debug/displayln)))
@@ -392,12 +405,12 @@ activations; the default count for d and u is 1.
 
 (define (debug/display . xs)
   (for-each (lambda (x) 
-              (display x (console-output-port))) 
+              (display x (current-error-port))) 
             xs))
 
 (define (debug/displayln . xs)
   (apply debug/display xs)
-  (newline (console-output-port)))
+  (newline (current-error-port)))
 
 (define (debug/read)
   (read (console-input-port)))
@@ -405,11 +418,11 @@ activations; the default count for d and u is 1.
 (define (debug/print-object obj)
   (parameterize ((print-length *debug-print-length*)
                  (print-level *debug-print-level*))
-    (write obj (console-output-port))))
+    (write obj (current-error-port))))
 
 (define (debug/print-code expr)
   (parameterize ((print-length #f)
                  (print-level #f))
-    (pretty-print expr (console-output-port))))
+    (pretty-print expr (current-error-port))))
 
 ; eof

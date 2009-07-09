@@ -60,6 +60,7 @@
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'input 'binary)))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
         this)
       (assertion-violation 'make-custom-binary-input-port
                            "illegal argument(s)"
@@ -103,6 +104,8 @@
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'output 'binary)))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
+        (file-io/remember this) ; FIXME
         this)
       (assertion-violation 'make-custom-binary-output-port
                            "illegal argument(s)"
@@ -159,6 +162,8 @@
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'input 'output 'binary)))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
+        (file-io/remember this) ; FIXME
         this)
       (assertion-violation 'make-custom-binary-input/output-port
                            "illegal argument(s)"
@@ -208,7 +213,9 @@
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'input 'binary)))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
         (set! this (io/custom-transcoded-port this))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
         this)
       (assertion-violation 'make-custom-textual-input-port
                            "illegal argument(s)"
@@ -333,7 +340,10 @@
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'output 'binary)))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
         (set! this (io/custom-transcoded-port this))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
+        (file-io/remember this) ; FIXME
         this)
       (assertion-violation 'make-custom-textual-output-port
                            "illegal argument(s)"
@@ -394,7 +404,10 @@
                                 'set-position!))
             (set! this
                   (io/make-port customio/ioproc name 'input 'output 'binary)))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
         (set! this (io/custom-transcoded-port this))
+        (io/port-alist-set! this (list (cons 'port-position get-position)))
+        (file-io/remember this) ; FIXME
         this)
       (assertion-violation 'make-custom-textual-input/output-port
                            "illegal argument(s)"

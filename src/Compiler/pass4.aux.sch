@@ -408,7 +408,7 @@
   (let ((instruction (caddr entry)))
     (if (or (not (eq? #f (cadr entry)))
             (not (eq? $nop (car instruction))))
-        (error "Compiler bug: cgframe" entry)
+        (twobit-bug "cgframe" entry)
         (begin
          (set-car! (cdr entry) n)
          (set-car! instruction (cadr instruction))
@@ -512,7 +512,7 @@
           (if (eq? #f n)
               (let ((n (cgframe:unused-slot frame entry)))
                 (cgframe:slot.offset-set! entry n))))
-        (error "Compiler bug: cgframe-touch!" frame var))))
+        (twobit-bug "cgframe-touch!" frame var))))
 
 (define (cgframe-rename! frame alist)
   (for-each (lambda (entry)
@@ -525,11 +525,15 @@
 ; release variables that may be stored into slot 0.
 
 (define (cgframe-release! frame var)
+  (define (remq1 x l)
+    (cond ((not (pair? l)) l)
+          ((eq? x (car l)) (cdr l))
+          (else (cons (car l) (remq1 x (cdr l))))))
   (let* ((slots (cgframe:slots frame))
          (entry (assq var slots)))
     (if (and entry
              (not (cgframe:slot.stalezero? entry)))
-        (begin (cgframe:slots-set! frame (remq entry slots))
+        (begin (cgframe:slots-set! frame (remq1 entry slots))
                (let ((n (cgframe:slot.offset entry)))
                  (if (and (not (eq? #f n))
                           (not (zero? n)))

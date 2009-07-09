@@ -14,6 +14,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SObject
     // -------------------------------------------
+
     public abstract class SObject {
         // Debugging
         public override string ToString() {
@@ -33,6 +34,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SImmediate
     // -------------------------------------------
+
     public sealed class SImmediate : SObject {
         public const int IMM_COUNT = 16;
         public static readonly SImmediate[] immediates =
@@ -82,6 +84,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SChar
     // -------------------------------------------
+
     public sealed class SChar : SObject {
         public const int CHAR_COUNT = 256;
         public static readonly SChar[] characters =
@@ -140,6 +143,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SFixnum
     // -------------------------------------------
+
     public sealed class SFixnum : SObject {
         public readonly int value;
         public static SFixnum[] pool;
@@ -160,6 +164,7 @@ namespace Scheme.Rep {
         // Stores numbers minPreAlloc to maxPreAlloc
         //          0 -> (maxPreAlloc - minPreAlloc + 1)
         // minPreAlloc -> maxPreAlloc
+
         public static void Initialize()
         {
             pool = new SFixnum[maxPreAlloc - minPreAlloc + 1];
@@ -211,12 +216,13 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // STagged
     // -------------------------------------------
+
     public class STagged : SObject {
         public int tag;
 
         public STagged (int tag) {
           this.tag = tag;
-	}
+        }
 
         public void check_typetag(int tag, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this);
@@ -224,7 +230,8 @@ namespace Scheme.Rep {
         public void check_typetag(int tag, SObject arg2, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2);
         }
-        public void check_typetag(int tag, SObject arg2, SObject arg3, int excode) {
+        public void check_typetag(int tag,
+                                  SObject arg2, SObject arg3, int excode) {
             if (this.tag != tag) Exn.fault(excode, null, this, arg2, arg3);
         }
 
@@ -234,6 +241,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SVL (vector-like)
     // -------------------------------------------
+
     public sealed class SVL : STagged {
         public readonly SObject[] elements;
 
@@ -284,6 +292,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SByteVL (bytevector-like)
     // -------------------------------------------
+
     public sealed class SByteVL : STagged {
         public readonly byte[] elements;
         public static System.Text.Encoding stringEncoding
@@ -298,7 +307,7 @@ namespace Scheme.Rep {
                 Array.Clear (this.elements, 0, size);
             else {
                 for (int i = 0; i < size; i++) elements[i] = fill;
-                }
+            }
         }
 
         public int length() {
@@ -364,9 +373,10 @@ namespace Scheme.Rep {
 
         // unsafeAsDouble: interprets bytes as the bit representation
         //     of a double value
+
         public double unsafeAsDouble(int steps) {
             return System.BitConverter.ToDouble(elements, 4 + steps * 8);
-              // steps * sizeof(double)) + offset
+	    // steps * sizeof(double)) + offset
         }
         public void unsafeSetDouble(int steps, double d) {
             byte[] b = System.BitConverter.GetBytes(d);
@@ -378,8 +388,8 @@ namespace Scheme.Rep {
         private bool isIntegralFlonum() {
             double v = this.unsafeAsDouble(0);
             bool b = (Math.Ceiling(v) == Math.Floor(v))
-	      && (v != Double.PositiveInfinity)
-	      && (v != Double.NegativeInfinity);
+              && (v != Double.PositiveInfinity)
+              && (v != Double.NegativeInfinity);
             return b;
         }
 
@@ -405,8 +415,11 @@ namespace Scheme.Rep {
             }
         }
 
-        // asString returns a CLR string with the same characters as the Scheme string
+
+        // asString returns a CLR string with the same characters
+        // as the Scheme string
         // It does not add ""
+
         public string asString() {
             return stringEncoding.GetString(elements);
         }
@@ -417,6 +430,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // SPair
     // -------------------------------------------
+
     public sealed class SPair : SObject {
         public SObject first;
         public SObject rest;
@@ -470,6 +484,7 @@ namespace Scheme.Rep {
     // -------------------------------------------
     // Procedure
     // -------------------------------------------
+
     public sealed class Procedure : STagged {
         public CodeVector entrypoint;
         public Procedure parent;
@@ -478,16 +493,16 @@ namespace Scheme.Rep {
         public SObject[] constants;
 
         public Procedure (CodeVector entrypoint,
-			  SVL constantvector,
+                          SVL constantvector,
                           Procedure parent,
                           SObject [] rib) : base (Constants.PROC_TAG)
         {
-	  this.entrypoint = entrypoint;
-	  this.constantvector = constantvector;
-	  this.constants = constantvector.elements;
-	  this.parent = parent;
-	  this.rib = rib;
-	}
+          this.entrypoint = entrypoint;
+          this.constantvector = constantvector;
+          this.constants = constantvector.elements;
+          this.parent = parent;
+          this.rib = rib;
+        }
 
         public Procedure(CodeVector entrypoint,
                          SObject constantvector,
@@ -508,7 +523,8 @@ namespace Scheme.Rep {
             : this(entrypoint, (SVL) constantvector, null, null) {}
 
         public Procedure(CodeVector entrypoint) /* used in Call.cs */
-            : this(entrypoint, Factory.makeVector(1, Factory.False), null, null) {}
+            : this(entrypoint,
+                   Factory.makeVector(1, Factory.False), null, null) {}
 
         public void setCode(SObject code) {
           CodeVector cv = code as CodeVector;
@@ -517,7 +533,8 @@ namespace Scheme.Rep {
             } else if (code == Factory.False) {
                 this.entrypoint = CodeVector.NoCode;
             } else {
-                Exn.internalError("procedure-set! 0 called, not a codevector: " + code);
+                Exn.internalError("procedure-set! 0 called, not a codevector: "
+				  + code);
             }
         }
 
@@ -531,38 +548,39 @@ namespace Scheme.Rep {
             this.constants = constantvector.elements;
         }
 
-       public CodeAddress InitialCodeAddress
-       {
-	 get {
-	     return this.entrypoint.InitialCodeAddress;
-             }
-       }
+        public CodeAddress InitialCodeAddress {
+            get {
+                return this.entrypoint.InitialCodeAddress;
+            }
+        }
 
         /** lookup
          * Look up (rib, slot) in lexical environment
          */
+
         public SObject lookup(int ri, int slot) {
-	  Procedure proc;
+          Procedure proc;
 
-	  for (proc = this; ri > 0; ri--)
-	      proc = proc.parent;
+          for (proc = this; ri > 0; ri--)
+              proc = proc.parent;
 
-	  return proc.rib [slot];
+          return proc.rib [slot];
         }
 
         /** update
          * Mutate a lexically bound variable at (rib, slot) to new_value
          */
+
         public void update (int ri, int slot, SObject newValue)
         {
-	  Procedure proc = this;
+          Procedure proc = this;
 
-	  for (proc = this; ri > 0; ri--)
-	      proc = proc.parent;
+          for (proc = this; ri > 0; ri--)
+              proc = proc.parent;
 
-	  proc.rib [slot] = newValue;
-	  if (slot == 0)
-	      proc.parent = newValue as Procedure;
+          proc.rib [slot] = newValue;
+          if (slot == 0)
+              proc.parent = newValue as Procedure;
         }
 
         private string getName() {
@@ -582,6 +600,7 @@ namespace Scheme.Rep {
             }
 
         }
+
         public override void write(TextWriter w) {
             w.Write("#<PROCEDURE: ");
             w.Write(getName());
@@ -590,17 +609,19 @@ namespace Scheme.Rep {
             w.Write(">");
         }
 
-		public Delegate makeEventHandler(EventInfo ei)
-		{
-			Type tDelegate = ei.EventHandlerType;
+        public Delegate makeEventHandler(EventInfo ei)
+        {
+            Type tDelegate = ei.EventHandlerType;
             Type returnType = GetDelegateReturnType(tDelegate);
 
             // event handlers must have return type of void
+
             if (returnType != typeof(void))
                 throw new ApplicationException("Delegate has a return type.");
 
             // create a dynamic method based on the return and 
             // argument types of the event handler
+
             DynamicMethod handler = new DynamicMethod(
                 "makeEventHandler",
                 null,
@@ -608,29 +629,41 @@ namespace Scheme.Rep {
                 this.GetType());                            
 
             // now we will generate IL code for the dynamic method
+
             ILGenerator ilgen = handler.GetILGenerator();
 
             // need information for Call.call method
-            Type[] callbackParameters = new Type[] { typeof(Procedure), typeof(SObject), typeof(SObject) };
-            MethodInfo callMethod = typeof(Call).GetMethod("callback",
-                callbackParameters);
+
+            Type[] callbackParameters
+                = new Type[] { typeof(Procedure),
+                               typeof(SObject),
+                               typeof(SObject) };
+            MethodInfo callMethod
+                = typeof(Call).GetMethod("callback", callbackParameters);
 
             // need information for Factory.makeForeignBox method
-            MethodInfo makeForeignBoxMethod = typeof(Factory).GetMethod("makeForeignBox");
+
+            MethodInfo makeForeignBoxMethod
+                = typeof(Factory).GetMethod("makeForeignBox");
             
             ilgen.Emit(OpCodes.Ldarg_0); // this
             ilgen.Emit(OpCodes.Ldarg_1); // (object sender)
             ilgen.Emit(OpCodes.Call, makeForeignBoxMethod); // boxed sender
             ilgen.Emit(OpCodes.Ldarg_2); // (EventArgs e)
             ilgen.Emit(OpCodes.Call, makeForeignBoxMethod); // (boxed args)
-            ilgen.Emit(OpCodes.Call, callMethod); // Call.call(this, Factory.makeForeignBox(sender), Factory.makeForeignBox(e));
+
+            // Call.call(this,
+            //           Factory.makeForeignBox(sender),
+            //           Factory.makeForeignBox(e));
+
+            ilgen.Emit(OpCodes.Call, callMethod);
             ilgen.Emit(OpCodes.Pop); // necessary... YES! not sure why, though.
             ilgen.Emit(OpCodes.Ret); // return from method
 
-			return handler.CreateDelegate(tDelegate, this);
-		}
+            return handler.CreateDelegate(tDelegate, this);
+        }
 
-		private Type[] GetDelegateParameterTypes(Type d)
+        private Type[] GetDelegateParameterTypes(Type d)
         {
             if (d.BaseType != typeof(MulticastDelegate))
                 throw new ApplicationException("Not a delegate.");
@@ -643,6 +676,7 @@ namespace Scheme.Rep {
             Type[] typeParameters = new Type[parameters.Length + 1];
 
             // first parameter is always "this" object.
+
             typeParameters[0] = this.GetType();
 
             for (int i = 0; i < parameters.Length; i++)
@@ -664,12 +698,12 @@ namespace Scheme.Rep {
 
             return invoke.ReturnType;
         }
-      //
-      // This is ugly, but in order to create delegates of the correct
-      // type, we have to match the signature exactly.  I expect that
-      // this will change come version 2 of the CLR, so we can live
-      // with this for now.
-      //
+        //
+        // This is ugly, but in order to create delegates of the correct
+        // type, we have to match the signature exactly.  I expect that
+        // this will change come version 2 of the CLR, so we can live
+        // with this for now.
+        //
 
 #if 0
         public void event_callback (Object sender, EventArgs e) {
@@ -1087,26 +1121,31 @@ namespace Scheme.Rep {
     // CodeVectors and ConstantVectors
     // -------------------------------------------
 
-    // This should be abstract, but it causes Scheme to be an order of magnitude
-    // slower when starting.
+    // This should be abstract, but it causes Scheme to be an order of
+    // magnitude slower when starting.
+
     public /* abstract */ class CodeVector : SObject
     {
-      // Maximum number of labels to which jump index may refer.
-      public const int CONTROL_POINT_LIMIT = 16384;
+        // Maximum number of labels to which jump index may refer.
 
-      public static readonly CodeVector NoCode = new DataCodeVector (Factory.False);
+        public const int CONTROL_POINT_LIMIT = 16384;
 
-      public readonly CodeAddress [] controlPoints;
+        public static readonly CodeVector NoCode
+            = new DataCodeVector (Factory.False);
 
-      public CodeVector (int controlPointCount)
-      {
-	if (controlPointCount > CONTROL_POINT_LIMIT)
-	    throw new Exception ("Maximum number of control points exceeded: "+controlPointCount);
+        public readonly CodeAddress [] controlPoints;
 
-        this.controlPoints = new CodeAddress [controlPointCount];
-        for (int i = 0; i < controlPointCount; ++i)
-            this.controlPoints [i] = new CodeAddress (this, i);
-      }
+        public CodeVector (int controlPointCount)
+        {
+            if (controlPointCount > CONTROL_POINT_LIMIT)
+                throw
+                  new Exception ("Maximum number of control points exceeded: "
+                                 + controlPointCount);
+
+            this.controlPoints = new CodeAddress [controlPointCount];
+            for (int i = 0; i < controlPointCount; ++i)
+                this.controlPoints [i] = new CodeAddress (this, i);
+        }
 
         /** call
          * Given a jump index (0 for entry point, NOT the same as label number),
@@ -1114,22 +1153,24 @@ namespace Scheme.Rep {
          */
         // This should be abstract, but see above.
         // public abstract void call(int jump_index);
-      public virtual CodeAddress call (int jump_index)
-      {
-	throw new Exception ("Subclass of CodeVector did not override call method.");
-      }
 
-      public virtual CodeAddress InitialCodeAddress
-      {
-        get {
-	    return this.controlPoints [0];
-	    }
-      }
+        public virtual CodeAddress call (int jump_index)
+        {
+          throw new Exception (
+              "Subclass of CodeVector did not override call method.");
+        }
 
-      public CodeAddress Address (int i)
-      {
-	return this.controlPoints [i];
-      }
+        public virtual CodeAddress InitialCodeAddress
+        {
+            get {
+                return this.controlPoints [0];
+            }
+        }
+
+        public CodeAddress Address (int i)
+        {
+          return this.controlPoints [i];
+        }
 
         public virtual int id() { return 0; }
         public string name() {
@@ -1166,6 +1207,7 @@ namespace Scheme.Rep {
     /* ForeignBox
      * Holds foreign values; cooperates with ffi.
      */
+
     public class ForeignBox : SObject {
         public object value;
         public ForeignBox(object value) {

@@ -7,23 +7,23 @@
 ;
 ; 20 August 1999
 
-(define host-system 'larceny)		; Don't remove this!
+(define host-system 'larceny)           ; Don't remove this!
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; FIXME:  These definitions should go away after v0.95 is released.
 
-(define open-raw-latin-1-output-file open-output-file)
-(define open-raw-latin-1-input-file open-input-file)
-(define call-with-raw-latin-1-output-file call-with-output-file)
-(define call-with-raw-latin-1-input-file call-with-input-file)
+;(define open-raw-latin-1-output-file open-output-file)
+;(define open-raw-latin-1-input-file open-input-file)
+;(define call-with-raw-latin-1-output-file call-with-output-file)
+;(define call-with-raw-latin-1-input-file call-with-input-file)
 
 ; FIXME:  These names should go away as soon as possible.
 
-(define open-binary-input-file open-raw-latin-1-input-file)
-(define open-binary-output-file open-raw-latin-1-output-file)
-(define call-with-binary-input-file call-with-raw-latin-1-input-file)
-(define call-with-binary-output-file call-with-raw-latin-1-output-file)
+;(define open-binary-input-file open-raw-latin-1-input-file)
+;(define open-binary-output-file open-raw-latin-1-output-file)
+;(define call-with-binary-input-file call-with-raw-latin-1-input-file)
+;(define call-with-binary-output-file call-with-raw-latin-1-output-file)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -67,50 +67,60 @@
 (cond (#f (eq? (nbuild-parameter 'host-endianness)
                (nbuild-parameter 'target-endianness))
        (let ((misc->bytevector
-	      (lambda (x)
-		(let ((bv (bytevector-like-copy x)))
-		  (typetag-set! bv $tag.bytevector-typetag)
-		  bv)))
-	     (clear-first-word 
-	      (lambda (bv)
-		(bytevector-like-set! bv 0 0)
-		(bytevector-like-set! bv 1 0)
-		(bytevector-like-set! bv 2 0)
-		(bytevector-like-set! bv 3 0)
-		bv)))
-	 (set! bignum->bytevector misc->bytevector)
-	 (set! flonum->bytevector
-	       (lambda (x)
-		 (clear-first-word (misc->bytevector x))))
-	 (set! compnum->bytevector
-	       (lambda (x)
-		 (clear-first-word (misc->bytevector x))))
-	 #t))
+              (lambda (x)
+                (let ((bv (bytevector-like-copy x)))
+                  (typetag-set! bv $tag.bytevector-typetag)
+                  bv)))
+             (clear-first-word 
+              (lambda (bv)
+                (bytevector-like-set! bv 0 0)
+                (bytevector-like-set! bv 1 0)
+                (bytevector-like-set! bv 2 0)
+                (bytevector-like-set! bv 3 0)
+                bv)))
+         (set! bignum->bytevector
+               (lambda (x)
+                 (let ((bv (misc->bytevector x)))
+                   ;FIXME: remove all this after new bignums are stable
+                   (case (nbuild-parameter 'target-endianness)
+                    ((little)
+                     (bytevector-like-set! bv 2 0)
+                     (bytevector-like-set! bv 3 (if (< x 0) 1 0)))
+                    ((big)
+                     (bytevector-like-set! bv 1 0)
+                     (bytevector-like-set! bv 0 (if (< x 0) 1 0)))))))
+         (set! flonum->bytevector
+               (lambda (x)
+                 (clear-first-word (misc->bytevector x))))
+         (set! compnum->bytevector
+               (lambda (x)
+                 (clear-first-word (misc->bytevector x))))
+         #t))
       ((eq? (nbuild-parameter 'target-endianness) 'big)
        (compat:load (string-append (nbuild-parameter 'compatibility)
-				   "tobytevector-be.sch")))
+                                   "tobytevector-be.sch")))
       ((eq? (nbuild-parameter 'target-endianness) 'little)
        (compat:load (string-append (nbuild-parameter 'compatibility)
-				   "tobytevector-el.sch")))
+                                   "tobytevector-el.sch")))
       (else
        ???))
 
 (define (list->bytevector l)
   (let ((b (make-bytevector (length l))))
     (do ((i 0 (+ i 1))
-	 (l l (cdr l)))
-	((null? l) b)
+         (l l (cdr l)))
+        ((null? l) b)
       (bytevector-set! b i (car l)))))
 
 (define bytevector-word-ref 
   (let ((two^8  (expt 2 8))
-	(two^16 (expt 2 16))
-	(two^24 (expt 2 24)))
+        (two^16 (expt 2 16))
+        (two^24 (expt 2 24)))
     (lambda (bv i)
       (+ (* (bytevector-ref bv i) two^24)
-	 (* (bytevector-ref bv (+ i 1)) two^16)
-	 (* (bytevector-ref bv (+ i 2)) two^8)
-	 (bytevector-ref bv (+ i 3))))))
+         (* (bytevector-ref bv (+ i 1)) two^16)
+         (* (bytevector-ref bv (+ i 2)) two^8)
+         (bytevector-ref bv (+ i 3))))))
 
 ;(define (twobit-format fmt . rest)
 ;  (let ((out (open-output-string)))

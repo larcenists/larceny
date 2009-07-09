@@ -69,6 +69,25 @@
 		 srfi-38		; I/O of shared structure
 		 srfi-39		; Parameter objects
 		 srfi-42		; Eager comprehensions
+                 srfi-43                ; Vector Library
+                 srfi-45                ; Iterative Lazy Algorithms
+                 srfi-48                ; Intermedaite format strings
+                 srfi-51                ; Handling rest list
+                 srfi-54                ; Formatting
+                 srfi-59                ; Vicinity
+                 srfi-60                ; Integers as Bits
+                 srfi-61                ; A more general COND clause
+                 srfi-63                ; Homogeneous and Heterogeneous Arrays
+                 srfi-64                ; Scheme API for test suites
+                 srfi-66                ; Octet Vectors
+                 srfi-67                ; Compare procedures
+                 srfi-69                ; Basic hash tables
+                 srfi-71                ; Extended LET-syntax...multiple values
+                 srfi-74                ; Octet-addressed binary blocks
+                 srfi-86                ; MU and NU etc
+                 srfi-87                ; => in case clauses
+                 srfi-95                ; sorting and merging
+                 srfi-98                ; os-environment-variables
                  )
     ((cond-expand) 
      (syntax-error "Unfulfilled cond-expand"))
@@ -186,6 +205,44 @@
      (begin (require 'srfi-39) body ...))
     ((cond-expand (srfi-42 body ...) more-clauses ...)
      (begin (require 'srfi-42) body ...))
+    ((cond-expand (srfi-43 body ...) more-clauses ...)
+     (begin (require 'srfi-43) body ...))
+    ((cond-expand (srfi-45 body ...) more-clauses ...)
+     (begin (require 'srfi-45) body ...))
+    ((cond-expand (srfi-48 body ...) more-clauses ...)
+     (begin (require 'srfi-48) body ...))
+    ((cond-expand (srfi-51 body ...) more-clauses ...)
+     (begin (require 'srfi-51) body ...))
+    ((cond-expand (srfi-54 body ...) more-clauses ...)
+     (begin (require 'srfi-54) body ...))
+    ((cond-expand (srfi-59 body ...) more-clauses ...)
+     (begin (require 'srfi-59) body ...))
+    ((cond-expand (srfi-60 body ...) more-clauses ...)
+     (begin (require 'srfi-60) body ...))
+    ((cond-expand (srfi-61 body ...) more-clauses ...)
+     (begin (require 'srfi-61) body ...))
+    ((cond-expand (srfi-63 body ...) more-clauses ...)
+     (begin (require 'srfi-63) body ...))
+    ((cond-expand (srfi-64 body ...) more-clauses ...)
+     (begin (require 'srfi-64) body ...))
+    ((cond-expand (srfi-66 body ...) more-clauses ...)
+     (begin (require 'srfi-66) body ...))
+    ((cond-expand (srfi-67 body ...) more-clauses ...)
+     (begin (require 'srfi-67) body ...))
+    ((cond-expand (srfi-69 body ...) more-clauses ...)
+     (begin (require 'srfi-69) body ...))
+    ((cond-expand (srfi-71 body ...) more-clauses ...)
+     (begin (require 'srfi-71) body ...))
+    ((cond-expand (srfi-74 body ...) more-clauses ...)
+     (begin (require 'srfi-74) body ...))
+    ((cond-expand (srfi-86 body ...) more-clauses ...)
+     (begin (require 'srfi-86) body ...))
+    ((cond-expand (srfi-87 body ...) more-clauses ...)
+     (begin (require 'srfi-87) body ...))
+    ((cond-expand (srfi-95 body ...) more-clauses ...)
+     (begin (require 'srfi-95) body ...))
+    ((cond-expand (srfi-98 body ...) more-clauses ...)
+     (begin (require 'srfi-98) body ...))
 
     ;; Other features are not supported!
     ((cond-expand (feature-id body ...) more-clauses ...)

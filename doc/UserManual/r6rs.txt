@@ -39,20 +39,12 @@ exported by the `(rnrs base)` library.
 Larceny's R5RS mode does not support `library`, `import`, or
 `identifier-syntax`.
 
-The following deviations from R6RS semantics are known bugs
-that should be fixed in a future release.
-
-In Larceny v0.96, the imaginary part of an inexact real is
-inexact.  Some of the algebraic and transcendental functions
-do not yet behave as specified by the R6RS, especially with
-regard to branch cuts.
-
-The `number->string` and `string->number` procedures do not
-yet support mantissa widths.
-
+[NOTE]
+================================================================
 The semantics of `quasiquote`, `let-syntax`, and `letrec-syntax`
 differ between the R5RS and the R6RS.  Larceny's R5RS mode still
 supports the R5RS semantics.
+================================================================
 
 
 [[R6rsUnicodeSection]]
@@ -63,7 +55,7 @@ Unicode
 All of Larceny's modes support all features of the `(rnrs unicode)`
 library.
 
-Larceny v0.96 conforms to
+Larceny v0.97 conforms to
 <<Standards, The Unicode Standard>>, Version 5.0.
 
 
@@ -150,6 +142,11 @@ and
 libraries.  ERR5RS and R6RS modes also support the
 <<Err5rsRecordsSyntacticSection, `(err5rs records syntactic)`>>
 library.
+These libraries are equivalent to the
+`(srfi :99 records procedural)`,
+`(srfi :99 records inspection)`, and
+`(srfi :99 records syntactic)` libraries.
+
 
 The record definition syntax of
 http://srfi.schemers.org/srfi-9/[SRFI 9]
@@ -273,8 +270,8 @@ operations are required to check their arguments and may also
 have to check their results.
 Isolated operations in small micro-benchmarks are likely to
 be slower than groups of similar operations in larger programs,
-because the Twobit compiler removes redundant checks and
-propagates type information.
+however, because the Twobit compiler removes redundant checks
+and propagates type information.
 ================================================================
 
 
@@ -303,19 +300,13 @@ renamed to `make-oldstyle-hashtable`.  In Larceny v0.96,
 avoid that warning, call `make-r6rs-hashtable` instead.
 ================================================================
 
-[WARNING]
+[NOTE]
 ================================================================
-Before using Larceny's R5RS or ERR5RS mode to dump a heap image
-that contains `eq?` or `eqv?` hashtables you have created, you
-should call `(reset-all-hashtables!)` to tell those hashtables
-to rehash themselves whenever you begin a new session with the
-dumped heap.  Alternatively, you may call
-`(reset-all-hashtables!)` whenever you begin a new session with
-the dumped heap.  If you do neither of those things, then
-attempts to access an `eq?` or `eqv?` hashtable in a new session
-are likely to generate assertion violations.  In future versions
-of Larceny, hashtables may reset themselves automatically when
-they are dumped to a heap image.
+When you use Larceny's R5RS or ERR5RS mode to dump a heap image
+that contains `eq?` or `eqv?` hashtables you have created, they
+are automatically reset so they will
+rehash themselves whenever you begin a new session with the
+dumped heap.
 ================================================================
 
 
@@ -335,8 +326,7 @@ syntax.
 Eval
 ~~~~
 
-ERR5RS and R6RS modes are believed to support the `(rnrs eval)`
-library, but the `environment` procedure has not been tested.
+ERR5RS and R6RS modes support the `(rnrs eval)` library.
 Larceny's R5RS mode provides an R5RS-compatible eval procedure,
 not an R6RS-compatible eval procedure, and does not provide the
 `environment` procedure.

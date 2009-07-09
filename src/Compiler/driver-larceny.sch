@@ -8,6 +8,34 @@
 ; heap (twobit exposed only through COMPILE-FILE and COMPILE-EXPRESSION).
 ; Uses basis functionality defined in driver-common.sch
 
+; The code in this file is used only in Larceny heaps,
+; so it can assume Larceny-specific extensions to Scheme.
+; In particular, it can record source code locations for
+; use by Twobit's pass 1.
+
+; This definition overrides the stub in pass1.sch.
+; It returns the value of the current-source-file parameter,
+; after converting a string to a symbol to avoid duplication
+; of filename strings in the heap.
+
+(define (source-file-name)
+  (let ((fn (current-source-file)))
+    (if (string? fn)
+        (let ((sym (string->symbol fn)))
+          (current-source-file sym)
+          sym)
+        fn)))
+
+; The source-location-recorder parameter hooks both load and
+; compile-file to the macro expander's source-file-positions
+; variable.
+
+(define (twobit:source-location-recorder position-table)
+  (set! source-file-positions position-table)
+  (unspecified))
+
+(source-location-recorder twobit:source-location-recorder)
+
 ; Compile and assemble a scheme source file and produce a FASL file.
 
 (define (compile-file infilename . rest)
@@ -21,34 +49,36 @@
                                   *fasl-file-type*)))
           (user
            (assembly-user-data)))
-      (if (and (eq? (integrate-procedures) 'none)
-               (issue-warnings))
-          (begin 
-            (display "WARNING from compiler: ")
-            (display "integrate-procedures = none")
-            (newline)
-            (display "Performance is likely to be poor.")
-            (newline)))
-      (let ((syntaxenv
-             (syntactic-copy
-              (environment-syntax-environment
-               (interaction-environment)))))
-        (if (benchmark-block-mode)
-            (process-file-block infilename
-                                `(,outfilename binary)
-                                (cons write-fasl-token
-                                      (assembly-declarations user))
-                                dump-fasl-segment-to-port
-                                (lambda (forms)
-                                  (assemble (compile-block forms syntaxenv) 
-                                            user)))
-            (process-file infilename
-                          `(,outfilename binary)
-                          (cons write-fasl-token
-                                (assembly-declarations user))
-                          dump-fasl-segment-to-port
-                          (lambda (expr)
-                            (assemble (compile expr syntaxenv) user)))))
+      (if (eq? (integrate-procedures) 'none)
+          (twobit-warn
+           (string-append
+            "integrate-procedures = none"
+            (string #\newline)
+            "Performance is likely to be poor.")))
+      (let* ((syntaxenv
+              (syntactic-copy
+               (environment-syntax-environment
+                (interaction-environment)))))
+        (parameterize ((current-source-file infilename))
+          (if (benchmark-block-mode)
+              (process-file-block infilename
+                                  `(,outfilename binary)
+                                  (cons write-fasl-token
+                                        (assembly-declarations user))
+                                  read-source-code
+                                  dump-fasl-segment-to-port
+                                  (lambda (forms)
+                                    (assemble (compile-block forms syntaxenv) 
+                                              user)))
+              (process-file infilename
+                            `(,outfilename binary)
+                            (cons write-fasl-token
+                                  (assembly-declarations user))
+                            read-source-code
+                            dump-fasl-segment-to-port
+                            (lambda (expr)
+                              (assemble (compile expr syntaxenv) user))))))
+      ((source-location-recorder) #f)
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
@@ -103,12 +133,14 @@
           (process-file-block infilename 
                               outfilename 
                               '()
+                              read
                               write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
           (process-file infilename 
                         outfilename 
                         '()
+                        read
                         write-lap 
                         (lambda (x) 
                           (compile x syntaxenv)))))
@@ -131,6 +163,7 @@
     (process-file file
                   `(,outputfile binary)
                   (assembly-declarations user)
+                  read
                   write-lop
                   (lambda (x) 
                     (assemble (if malfile? (eval x) x) user)))
@@ -155,12 +188,14 @@
           (process-file-block input-file
                               `(,output-file binary)
                               (assembly-declarations user)
+                              read
                               write-lop
                               (lambda (x)
                                 (assemble (compile-block x syntaxenv) user)))
           (process-file input-file
                         `(,output-file binary)
                         (assembly-declarations user)
+                        read
                         write-lop
                         (lambda (x) 
                           (assemble (compile x syntaxenv) user)))))
@@ -180,6 +215,7 @@
       (process-file `(,infilename binary)
                     `(,outfilename binary)
                     (list write-fasl-token)
+                    read
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

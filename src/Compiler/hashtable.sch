@@ -98,10 +98,10 @@
 ; Larceny's old-style hashtables are now deprecated.
 
 (define (make-hashtable . args)
-  (display "WARNING: delegating to make-r6rs-hashtable;")
-  (newline)
-  (display "    for Larceny's old hashtables, call make-oldstyle-hashtable")
-  (newline)
+  ;(display "WARNING: delegating to make-r6rs-hashtable;")
+  ;(newline)
+  ;(display "    for Larceny's old hashtables, call make-oldstyle-hashtable")
+  ;(newline)
   (apply make-r6rs-hashtable args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -112,7 +112,7 @@
 
 (define (make-r6rs-hashtable hash equiv? . rest)
   (define (searcher key bucket)
-    (assp equiv? key bucket))
+    (assp (lambda (x) (equiv? key x)) bucket))
   (cond ((null? rest)
          (make-oldstyle-hashtable hash searcher))
         (else

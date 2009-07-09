@@ -58,11 +58,9 @@ files:
 
 ----------------------------------------------------------------
     larceny
-    twobit
     scheme-script
     larceny.bin
     larceny.heap
-    twobit.heap
     startup.sch
 ----------------------------------------------------------------
 
@@ -116,7 +114,7 @@ imported libraries, but R6RS programs that rely on such
 mechanisms are not portable.  In particular, R6RS libraries
 are not portable.
 
-Larceny provides four distinct Larceny-specific
+Larceny provides five distinct Larceny-specific
 mechanisms that non-portable R6RS programs can use to
 import or to define libraries:
 
@@ -132,21 +130,28 @@ standard naming conventions as described in the next section.
 
 3.  R6RS top-level programs may use
 <<R6RSLibraryPathSection, Larceny's `-path` option>>
-to specify a directory that contains other libraries
+to specify directories that contains other libraries
 the program may import, provided those libraries are
 located in files that follow Larceny's standard naming
 conventions as described in the next section.
 
-4.  R6RS top-level programs and Scheme scripts may
+4.  R6RS top-level programs may use
+<<R6RSLibraryVariableSection, Larceny's `LARCENY_LIBPATH` environment variable>>
+to specify a directories that contains other libraries
+the program may import, provided those libraries are
+located in files that follow Larceny's standard naming
+conventions as described in the next section.
+
+5.  R6RS top-level programs and Scheme scripts may
 <<DefiningLibrariesSection, define their own libraries>>
 in the same file that contains the top-level program or
 Scheme script.
 
-ERR5RS programs may use any of those four mechanisms,
-and may also use a fifth mechanism:
+ERR5RS programs may use any of those five mechanisms,
+and may also use a sixth mechanism:
 An ERR5RS program can be written as a little configuration
 program that loads the program's libraries from files
-before any libraries are imported.  This fifth mechanism
+before any libraries are imported.  This sixth mechanism
 is portable, but is not available to R6RS programs.
 
 
@@ -162,11 +167,17 @@ nonstandard library whose name is of the form
 Larceny will search for that library in the following
 files:
 
+- `_directory_/_name1_/_name2_/.../_lastname_.larceny.slfasl`
+- `_directory_/_name1_/_name2_/.../_lastname_.larceny.sls`
 - `_directory_/_name1_/_name2_/.../_lastname_.slfasl`
 - `_directory_/_name1_/_name2_/.../_lastname_.sls`
 - ...
+- `_directory_/_name1_/_name2_.larceny.slfasl`
+- `_directory_/_name1_/_name2_.larceny.sls`
 - `_directory_/_name1_/_name2_.slfasl`
 - `_directory_/_name1_/_name2_.sls`
+- `_directory_/_name1_.larceny.slfasl`
+- `_directory_/_name1_.larceny.sls`
 - `_directory_/_name1_.slfasl`
 - `_directory_/_name1_.sls`
 
@@ -212,14 +223,16 @@ deprecated.
 Mapping library names to files (R5RS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In R5RS mode, Larceny's `-path` option may be used to
-specify a directory to be searched by the `require`
+In R5RS mode, Larceny's `-path` option
+and `LARCENY_LIBPATH` environment variable
+may be used to
+specify directories to be searched by the `require`
 procedure, which takes a single symbol _libname_ as
 its argument.
 The `require` procedure will search for the following
 files in every directory that is part of the current
-require path, starting with the directory specified
-by the `-path` option:
+require path, starting with the directories specified
+by LARCENY_LIBPATH and the `-path` option:
 
 - `_libname_.fasl`
 - `_libname_.sch`

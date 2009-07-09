@@ -1,6 +1,10 @@
 (require 'std-ffi)
 (require 'foreign-ctools)
 
+;; XXX The implementation should not look for float and double
+;; but instead should map the symbolic type descriptor to its
+;; low level type and then handle ieee32 and ieee64 accordingly.
+
 ;; Define getters and setters for a C struct.  Examples:
 ;
 ; Assume pair.h contains "struct pair" definition with (at least)
@@ -161,29 +165,69 @@
              (lambda () (make-bytevector whole-size 0)))
 
        (set! ?getter
-             (let ((low-getter (size->%getter ?size))
-                   (conv (cond 
-                          ((procedure? ?conv-get)
-                           ?conv-get)
-                          ((symbol? ?conv-get)
-                           (ffi/ret-converter ?conv-get))
-                          ((not ?conv-get) 
-                           (lambda (x name) x)))))
-               (check-twoary conv)
-               (lambda (x) (conv (low-getter x ?offset) ?field)))) 
+             (cond 
+              ((eq? 'boxed ?conv-get)
+               (let ((getter (size->%bytevector-getter ?size)))
+                 (lambda (x) (getter x ?offset))))
+              ((eq? 'float ?conv-get)
+               (if (and #f (zero? (modulo ?offset 4))) ; working around R6RS restriction
+                   (lambda (x) (bytevector-ieee-single-native-ref x ?offset))
+                   (lambda (x) 
+                     (let ((bv (make-bytevector 4)))
+                       (bytevector-copy! x ?offset bv 0 4)
+                       (bytevector-ieee-single-native-ref bv 0)))))
+              ((eq? 'double ?conv-get)
+               (if (and #f (zero? (modulo ?offset 8))) ; working around R6RS restriction
+                   (lambda (x) (bytevector-ieee-double-native-ref x ?offset))
+                   (lambda (x) 
+                     (let ((bv (make-bytevector 8)))
+                       (bytevector-copy! x ?offset bv 0 8)
+                       (bytevector-ieee-double-native-ref bv 0)))))
+              (else
+               (let ((low-getter (size->%integer-getter ?size))
+                     (conv (cond 
+                            ((procedure? ?conv-get)
+                             ?conv-get)
+                            ((symbol? ?conv-get)
+                             (ffi/ret-converter ?conv-get))
+                            ((not ?conv-get) 
+                             (lambda (x name) x)))))
+                 (check-twoary conv)
+                 (lambda (x) (conv (low-getter x ?offset) ?field)))) ))
        ...
 
        (set! ?setter
-             (let ((low-setter (size->%setter ?size))
-                   (conv (cond
-                          ((procedure? ?conv-set)
-                           ?conv-set)
-                          ((symbol? ?conv-set)
-                           (ffi/arg-converter ?conv-set))
-                          ((not ?conv-set)
-                           (lambda (x name) x)))))
-               (check-twoary conv)
-               (lambda (x n) (low-setter x ?offset (conv n ?field))))) 
+             (cond 
+              ((eq? 'boxed ?conv-set)
+               (let ((setter (size->%bytevector-setter ?size)))
+                 (lambda (x bv) (setter x ?offset bv))))
+              ((eq? 'float ?conv-set)
+               (if (and #f (zero? (modulo ?offset 4))) ; working around R6RS restriction
+                   (lambda (x n) 
+                     (bytevector-ieee-single-native-set! x ?offset n))
+                   (lambda (x n)
+                     (let ((bv (make-bytevector 4)))
+                       (bytevector-ieee-single-native-set! bv 0 n)
+                       (bytevector-copy! bv 0 x ?offset 4)))))
+              ((eq? 'double ?conv-set)
+               (if (and #f (zero? (modulo ?offset 8))) ; working around R6RS restriction
+                   (lambda (x n) 
+                     (bytevector-ieee-double-native-set! x ?offset n))
+                   (lambda (x n)
+                     (let ((bv (make-bytevector 8)))
+                       (bytevector-ieee-double-native-set! bv 0 n)
+                       (bytevector-copy! bv 0 x ?offset 8)))))
+              (else
+               (let ((low-setter (size->%integer-setter ?size))
+                     (conv (cond
+                            ((procedure? ?conv-set)
+                             ?conv-set)
+                            ((symbol? ?conv-set)
+                             (ffi/arg-converter ?conv-set))
+                            ((not ?conv-set)
+                             (lambda (x name) x)))))
+                 (check-twoary conv)
+                 (lambda (x n) (low-setter x ?offset (conv n ?field)))))))
        ...
        ))))))
 

@@ -79,9 +79,9 @@
     (assertion-violation who "operation no longer supported"))
 
   (define (deprecated-warning who)
-    (display "WARNING: ")
-    (display who)
-    (display " is no longer supported"))
+    (display "WARNING: " (current-error-port))
+    (display who (current-error-port))
+    (display " is no longer supported" (current-error-port)))
 
   (set! read
         (lambda p
@@ -122,7 +122,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (make-source-location input-port)
-  (let* ((i (port-position input-port))
+  (let* ((i (port-position-nocache input-port))
          (j (port-lines-read input-port))
          (k (- i (port-line-start input-port))))
     (vector i j k)))
@@ -222,14 +222,8 @@
                    (char=? c #\newline))
                (read-char input-port)
                (loop (peek-char input-port)))
-;             ((char=? c #\;)
-;              (scanner1))
-;             ((char=? c #\()
-;              (read-char input-port)
-;              (accept 'lparen))
-;             ((char=? c #\))
-;              (read-char input-port)
-;              (accept 'rparen))
+              ((char=? c #\;)
+               (scanner1))
               (else
                (if keep-source-locations?
                    (set! locationStart
@@ -8132,26 +8126,30 @@
     (define (scannerError msg)
       (define msgtxt
         (cond ((= msg errLongToken)
-               "Amazingly long token")
+               "amazingly long token")
               ((= msg errIncompleteToken)
-               "Incomplete or illegal token")
+               "incomplete or illegal token")
               ((= msg errIllegalHexEscape)
-               "Illegal hex escape")
+               "illegal hex escape")
               ((= msg errIllegalNamedChar)
-               "Illegal character syntax")
+               "illegal character syntax")
               ((= msg errIllegalString)
-               "Illegal string syntax")
+               "illegal string syntax")
               ((= msg errIllegalSymbol)
-               "Illegal symbol syntax")
+               "illegal symbol syntax")
               ((= msg errNoDelimiter)
-               "Missing delimiter")
+               "missing delimiter")
               ((= msg errSquareBracket)
-               "Square brackets are disabled")
+               "square brackets are disabled")
               ((= msg errLexGenBug)
-               "Bug in lexical analyzer (generated)")
-              (else "Bug in lexical analyzer")))
+               "bug in lexical analyzer (generated)")
+              (else "bug in lexical analyzer")))
       (let* ((c (scanChar))
              (next (if (char? c) (string c) ""))
+             (line (+ 1 (port-lines-read input-port)))
+             (msgtxt (string-append msgtxt
+                                    " in line "
+                                    (number->string line)))
              (msgtxt (string-append msgtxt
                                     ": "
                                     (substring string_accumulator
@@ -8160,11 +8158,17 @@
                                     next)))
 
         ; must avoid infinite loop on current input port
+        ;
+        ; FIXME: the R6RS says the exception must (in some cases)
+        ; be both &lexical and &i/o-read, but the &i/o-read
+        ; part appears to have been a mistake.
 
         (consumeChar)
-        (error 'get-datum
-               (string-append "Lexical Error: " msgtxt " ")
-               input-port))
+        (raise-r6rs-exception
+         (make-lexical-violation)
+         'get-datum
+          (string-append "lexical error: " msgtxt " ")
+          input-port))
       (next-token))
   
     ; Accepts a token of the given kind, returning that kind.
@@ -8863,7 +8867,9 @@
                   (string-append "illegal " culprit-as-string)
                   culprit-as-string))
              (msg (string-append
-                   "Syntax error while parsing "
+                   "Syntax error in line "
+                   (number->string (+ 1 (port-lines-read input-port)))
+                   " while parsing "
                    (symbol->string nonterminal)
                    (string #\newline)
                    "  Encountered "
@@ -8882,7 +8888,8 @@
                                                    (symbol->string terminal)))
                                   expected-terminals)))))
                    (string #\newline))))
-        (error 'get-datum msg input-port)))
+        (raise-r6rs-exception (make-lexical-violation)
+                              'get-datum msg input-port)))
 
     ; The list of tokens that can start a datum in R6RS mode.
 

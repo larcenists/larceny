@@ -34,7 +34,8 @@
 ; (load "inits/petit-0.92.scm")
 
 ; MZSCHEME 301
-(load "inits/mzscheme-301.scm")
+;; Below is now performed by compat:load-sassy beforehand
+; (load "inits/mzscheme-301.scm")
 
 ; CHICKEN/CSI 2.2 with libffi, syntax-case and numbers eggs
 ; (load "inits/csi-2.2-libffi.scm")

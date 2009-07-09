@@ -72,6 +72,7 @@ Safety:
 
 Speed:
   integrate-procedures       Generate in-line code for primitive procedures.
+  faster-arithmetic          Omit some checking in fixnum/flonum arithmetic.
   control-optimization       Improve code for IF, AND, OR, COND, CASE.
   parallel-assignment-optimization    Choose a good order of evaluation.
   lambda-optimization        Improve code for known local procedures.

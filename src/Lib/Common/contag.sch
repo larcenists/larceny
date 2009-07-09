@@ -75,8 +75,9 @@
     #t)
 
   (define (oops-in-predicate a b retry)
-    (error "INTERNAL ERROR in pcontagion: illegal comparison: "
-	   "ops = " a ", " b "; code=" (contagion-error-code retry))
+    (assertion-violation (contagion-error-proc (contagion-error-code retry))
+                         (errmsg 'msg:notreal)
+                         a b)
     #t)
 
   (define (fun f1 f2)
@@ -114,16 +115,12 @@
         ; must be a ratnum, so return it
 	a))
 
-  (define (->flo a)			; 'a' flonum, compnum w/0i, bignum
+  (define (->flo a)			; 'a' flonum, bignum
     (if (bytevector-like? a)
 	(let ((t (typetag a)))
 	  (cond ((eq? t sys$tag.flonum-typetag) a)
 		((eq? t sys$tag.bignum-typetag) 
 		 (exact->inexact:rational a))
-		((eq? t sys$tag.compnum-typetag)
-		 (if (zero? (imag-part a))
-		     a
-		     #f))
 		(else
 		 #f)))
 	#f))
@@ -159,12 +156,7 @@
 
   (define (algorithm*c a b retry)
     (if (and (integer? a)
-             (integer? b)
-             (if (inexact? a)
-                 (let ((unity (/ a a)))
-                   (= unity unity))
-                 (let ((unity (/ b b)))
-                   (= unity unity))))
+             (integer? b))
 	(let ((a (->int a))
 	      (b (->int b)))
 	  (exact->inexact (retry a b)))
@@ -175,17 +167,12 @@
   ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
   ; representable as exact integers, represent as bignums and compare. 
   ; Otherwise represent as flonums and compare.  One of the arguments
-  ; is a bignum, the other is a flonum or compnum.  Compnums with non-zero
+  ; is a bignum, the other is a flonum.  Compnums with non-zero
   ; imaginary parts are illegal and flagged as such.
 
   (define (algorithm*p a b retry)
     (if (and (integer? a)
-             (integer? b)
-             (if (inexact? a)
-                 (let ((unity (/ a a)))
-                   (= unity unity))
-                 (let ((unity (/ b b)))
-                   (= unity unity))))
+             (integer? b))
 	(let ((a (->int a))
 	      (b (->int b)))
 	  (if (and a b)
@@ -201,29 +188,19 @@
   ; representable as exact rationals, represent as such and compare. 
   ; Otherwise the other involves an infinity or NaN, so 0.0 can be
   ; substituted for the ratnum.
-  ; One of the arguments is a ratnum, the other is a flonum or compnum.
-  ; Compnums with non-zero imaginary parts are illegal
-  ; and flagged as such.
+  ; One of the arguments is a ratnum, the other is a flonum.
 
   (define (algorithm*pratnum a b retry)
     (cond ((flonum? a)
-           (let ((unity (/ a a)))
-             (if (= unity unity)
+           (let ((zero (- a a)))
+             (if (= zero zero)
                  (retry (->rat a) b)
                  (retry a 0.0))))
           ((flonum? b)
-           (let ((unity (/ b b)))
-             (if (= unity unity)
+           (let ((zero (- b b)))
+             (if (= zero zero)
                  (retry a (->rat b))
                  (retry 0.0 b))))
-          ((compnum? a)
-           (if (= 0.0 (imag-part a))
-               (algorithm*pratnum (real-part a) b retry)
-               (contagion-error a b retry)))
-          ((compnum? b)
-           (if (= 0.0 (imag-part b))
-               (algorithm*pratnum a (real-part b) retry)
-               (contagion-error a b retry)))
           (else
            (contagion-error a b retry))))
           
@@ -236,10 +213,10 @@
     (if (and (integer? a)
              (integer? b)
              (if (inexact? a)
-                 (let ((unity (/ a a)))
-                   (= unity unity))
-                 (let ((unity (/ b b)))
-                   (= unity unity))))
+                 (let ((zero (- a a)))
+                   (= zero zero))
+                 (let ((zero (- b b)))
+                   (= zero zero))))
 	(let ((a (->int a))
 	      (b (->int b)))
 	  (retry a b))
@@ -255,21 +232,21 @@
 
   (define (algorithm*eratnum a b retry)
     (cond ((flonum? a)
-           (let ((unity (/ a a)))
-             (if (= unity unity)
+           (let ((zero (- a a)))
+             (if (= zero zero)
                  (retry (->rat a) b)
                  (retry a 0.0))))
           ((flonum? b)
-           (let ((unity (/ b b)))
-             (if (= unity unity)
+           (let ((zero (- b b)))
+             (if (= zero zero)
                  (retry a (->rat b))
                  (retry 0.0 b))))
           ((compnum? a)
-           (if (real? a)
+           (if (= 0.0 (imag-part a))
                (algorithm*eratnum (real-part a) b retry)
                #f))
           ((compnum? b)
-           (if (real? b)
+           (if (= 0.0 (imag-part b))
                (algorithm*eratnum a (real-part b) retry)
                #f))
           (else
@@ -429,12 +406,12 @@
                     (fun id bignum->rectnum)
 		    (fun id ratnum->rectnum)
                     oops
-                    (fun id flonum->ratnum)      ;FIXME
+                    (fun id flonum->ratnum)
                     oops-in-predicate)
 	    (vector (fun id fixnum->flonum)
                     algorithm*p 
 		    algorithm*pratnum
-		    (fun flonum->compnum rectnum->compnum) ;FIXME
+		    (fun flonum->ratnum id)
 		    oops
                     oops-in-predicate)
 	    (vector oops-in-predicate

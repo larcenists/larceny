@@ -159,7 +159,11 @@
   "GCC under Unix"
   'gcc
   ".o"
-  (let ((host-os (classify-unix-system)))
+  (let ((host-os (classify-unix-system))
+        (match-gcc-version?
+         (lambda (ver-string)
+           (let ((cmd (string-append "gcc --version | grep '" ver-string "'")))
+             (zero? (system cmd))))))
     `((compile            . ,c-compiler:gcc-unix)
       (link-library       . ,c-library-linker:gcc-unix)
       (link-executable    . ,(case host-os
@@ -170,7 +174,15 @@
 			       ((macosx) c-so-linker:gcc-macosx)
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix)
-      (make-configuration . petit-unix-static-gcc))))
+      (make-configuration . ,(cond 
+			      ((match-gcc-version? " 3.")
+			       'petit-unix-static-gcc-v3)
+			      ((match-gcc-version? " 4.")
+			       'petit-unix-static-gcc-v4)
+			      (else
+			       (error 'dumpheap-unix.sch 
+				      "Unmatched GCC version."))
+			      )))))
 
 ; eof
 

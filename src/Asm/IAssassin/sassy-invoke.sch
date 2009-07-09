@@ -140,13 +140,13 @@
     (ia86.timer_check)
     `(add ,$r.cont 4)
     (ia86.align-after
-     `(call ,(t_label ly)))))
+     `(call ,ly))))
 
 (define-sassy-instr (ia86.t_setrtn_skip ly)
   (let ()
     `(add ,$r.cont 4)
     (ia86.align-after
-     `(call ,(t_label ly)))))
+     `(call ,ly))))
 
 (define-sassy-instr (ia86.t_apply x y)
   (ia86.timer_check)

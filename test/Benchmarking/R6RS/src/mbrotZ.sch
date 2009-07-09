@@ -56,7 +56,7 @@
          (output (read))
          (s2 (number->string count))
          (s1 (number->string input1))
-         (name "mbrot"))
+         (name "mbrotZ"))
     (run-r6rs-benchmark
      (string-append name ":" s1 ":" s2)
      count

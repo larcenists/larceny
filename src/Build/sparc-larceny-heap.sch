@@ -113,6 +113,7 @@
                             compiler-flags
                             global-optimization-flags
                             runtime-safety-flags
+                            compile-despite-errors
                             issue-warnings
                             include-procedure-names
                             include-source-code
@@ -123,6 +124,7 @@
                             runtime-safety-checking
                             catch-undefined-globals
                             integrate-procedures
+                            faster-arithmetic
                             control-optimization
                             parallel-assignment-optimization
                             lambda-optimization
@@ -245,6 +247,20 @@
              (not (null? (cdddr e))))
         (caddr e)
         #f)))
+
+;;; Give names to all procedures in the interaction environment.
+
+(let* ((env (interaction-environment))
+       (vars (environment-variables env))
+       (cells (map (lambda (var) (environment-get-cell env var))
+                   vars)))
+  (for-each (lambda (var cell)
+              (let ((val (.cell-ref cell)))
+                (if (and (procedure? val)
+                         (not (procedure-name val)))
+                    (procedure-name-set! val var))))
+            vars
+            cells))
 
 ;;; Set parameters to their defaults.
 

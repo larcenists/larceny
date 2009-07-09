@@ -46,5 +46,18 @@
 	   (eq? (cdr a) a)))
     (fail 'read-shared:1))
 
+(or (let* ((a (cons 1 2))
+           (b (cons 1 2))
+           (c (cons 3 4))
+           (d (list a b c a b c))
+           (p (open-output-string))
+           (s (begin (write-with-shared-structure d p)
+                     (get-output-string p)))
+           (p (open-input-string s))
+           (e (read-with-shared-structure p)))
+      (and (equal? d e)
+           (string=? s "(#1=(1 . 2) #2=(1 . 2) #3=(3 . 4) #1# #2# #3#)")))
+    (fail 'multiple-sharing))
+
 (writeln "Done.")
 

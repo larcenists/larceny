@@ -8,10 +8,21 @@
 ; Documentation format is documented in Larceny Note #12.
 ; Summary:  documentation structure is a vector:
 ;
-;   #(procedure-name source-code arity file-name file-position)
+;   #(procedure-name source-code arity file-name file-position formals)
 ;
 ; Any of the entries can be #f, and if the tail of the vector is all #f,
 ; then it may be omitted.
+;
+; The file-position may be one of several things:
+;     #f
+;     an exact non-negative integer specifying
+;         the zero-origin offset in characters
+;     a vector of three exact non-negative integers specifying
+;         (0) the zero-origin offset in characters
+;         (1) the zero-origin line number
+;         (2) the zero-origin column number
+;     a pair (not a list) of two such vectors specifying both
+;         the beginning (car) and end (cdr)
 
 ($$trace "procinfo")
 
@@ -20,6 +31,7 @@
 (define doc.arity 2)
 (define doc.file-name 3)
 (define doc.file-position 4)
+(define doc.formals 5)
 
 ; PROC[1] is the constant vector.
 ; CV[0] is the documentation slot.
@@ -60,18 +72,94 @@
 		 (vector-ref doc x)
 		 #f)))
 	  ((not proc) proc)
-	  (else (error "doc-accessor: " proc " is not a procedure or #f.")))))
+	  (else
+           (assertion-violation 'doc-accessor (errmsg 'msg:notproc) proc)))))
+
+(define (doc-mutator x)
+  (lambda (proc newval)
+    (cond ((procedure? proc)
+	   (let ((doc (procedure-documentation proc)))
+	     (if (and (vector? doc) (< x (vector-length doc)))
+		 (vector-set! doc x newval)
+		 #f)))
+	  (else
+           (assertion-violation 'doc-mutator (errmsg 'msg:notproc) proc)))))
 
 (define procedure-arity (doc-accessor doc.arity))
 (define procedure-name (doc-accessor doc.procedure-name))
-(define procedure-source-file (doc-accessor doc.file-name))
-(define procedure-source-position (doc-accessor doc.file-position))
+(define procedure-source-file-larceny (doc-accessor doc.file-name))
+(define procedure-source-position-larceny (doc-accessor doc.file-position))
 (define procedure-expression (doc-accessor doc.source-code))
+(define procedure-formals (doc-accessor doc.formals))
+
+(define procedure-name-set! (doc-mutator doc.procedure-name))
+
+(define (procedure-source-file proc)
+  (let ((sf (procedure-source-file-larceny proc)))
+    (cond ((symbol? sf)
+           (symbol->string sf))
+          ((string? sf)
+           sf)
+          (else
+           #f))))
+
+(define (procedure-source-position proc)
+  (let ((k (procedure-source-position-larceny proc)))
+    (cond ((fixnum? k) k)
+          ((and (vector? k) (= 3 (vector-length k)))
+           (vector-ref k 0))
+          ((and (pair? k)
+                (let ((k (car k)))
+                  (and (vector? k) (= 3 (vector-length k)))))
+           (vector-ref (car k) 0))
+          (else #f))))
+
+(define (procedure-source-line proc)
+  (let ((k (procedure-source-position-larceny proc)))
+    (cond ((and (vector? k) (= 3 (vector-length k)))
+           (vector-ref k 1))
+          ((and (pair? k)
+                (let ((k (car k)))
+                  (and (vector? k) (= 3 (vector-length k)))))
+           (vector-ref (car k) 1))
+          (else #f))))
+
+(define (procedure-source-column proc)
+  (let ((k (procedure-source-position-larceny proc)))
+    (cond ((and (vector? k) (= 3 (vector-length k)))
+           (vector-ref k 2))
+          ((and (pair? k)
+                (let ((k (car k)))
+                  (and (vector? k) (= 3 (vector-length k)))))
+           (vector-ref (car k) 2))
+          (else #f))))
 
 (define (procedure-documentation-string proc)
   #f)
 
 (define (procedure-environment proc)
   #f)
+
+; The name of the current source file is a parameter.
+
+(define current-source-file
+  (make-parameter "current-source-file"
+                  #f
+                  (lambda (x)
+                    (or (eq? x #f)
+                        (string? x)
+                        (symbol? x)))))
+
+; Source locations are recorded by calling the current value
+; of the source-location-recorder parameter, whose argument
+; is a position table as returned by get-datum-with-source-locations
+;
+; The macro expander or compiler can assign a useful value
+; to that parameter; its initial value does nothing.
+
+(define source-location-recorder
+  (make-parameter "source-location-recorder"
+                  (lambda (position-table) #t)
+                  procedure?))
 
 ; eof

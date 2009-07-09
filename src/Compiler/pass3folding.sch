@@ -83,7 +83,8 @@
                 (changed? (constant-folding! L variables)))
            (if changed?
                (constant-propagation (lambda.body L) (+ i 1))
-               (lambda.body L))))))
+               (lambda.body L))))
+        exp))
   (constant-propagation exp 0))
 
 ; Given a callgraph, returns a hashtable of abstract values for
@@ -177,10 +178,10 @@
                                (else (aeval1-error)))))
                       (else
                        (aeval1-error)))))))
-        (else (error "Unrecognized expression." exp))))
+        (else (twobit-bug "unrecognized expression." exp))))
 
     (define (aeval1-error)
-      (error "Compiler bug: constant propagation (aeval1)"))
+      (twobit-bug "Compiler bug: constant propagation (aeval1)"))
     
     ; Combines two <symbolic>s.
     
@@ -265,7 +266,7 @@
                        (collect! proc)
                        #t))))))
         (else
-         (error "Unrecognized expression" exp))))
+         (twobit-bug "unrecognized expression" exp))))
 
     (for-each (lambda (node)
                 (let* ((name (callgraphnode.name node))
@@ -350,9 +351,30 @@
     
     ; Given a known lambda expression L, its original formal parameters,
     ; and a list of all calls to L, deletes arguments that are now
-    ; ignored because of constant propagation.
-    
+    ; ignored because of constant propagation, moving side effects
+    ; (which can arise only from arguments that are begin expressions)
+    ; to some other argument.
+    ;
+    ; FIXME: for now, this procedure does nothing if any ignored
+    ; argument in any call might have a side effect.
+
     (define (delete-ignored-args! L formals0 calls)
+      (let ((formals1 (lambda.args L))
+            (side-effects? #f))
+        (for-each (lambda (call)
+                    (do ((formals0 formals0 (cdr formals0))
+                         (formals1 formals1 (cdr formals1))
+                         (args (call.args call)
+                               (cdr args)))
+                        ((null? formals0))
+                      (if (and (eq? (car formals1) name:IGNORED)
+                               (begin? (car args)))
+                          (set! side-effects? #t))))
+                  calls)
+        (if (not side-effects?)
+            (really-delete-ignored-args! L formals0 calls))))
+    
+    (define (really-delete-ignored-args! L formals0 calls)
       (let ((formals1 (lambda.args L)))
         (for-each (lambda (call)
                     (do ((formals0 formals0 (cdr formals0))
@@ -544,7 +566,7 @@
                   (call.proc-set! exp proc)
                   (call.args-set! exp args)
                   exp))))
-         (else (error "Unrecognized expression" exp))))
+         (else (twobit-bug "unrecognized expression" exp))))
 
     (fold! L)
     changed?))

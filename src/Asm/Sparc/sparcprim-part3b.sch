@@ -284,6 +284,8 @@
         (begin (sparc.slli as $r.tmp0 8 rd)
                (sparc.ori  as rd $imm.character rd)))))
 
+; Similar to emit-bytevector-like-ref!, but without any checking.
+
 (define (emit-bytevector-like-ref-trusted! as rs1 rs2 rd charize?)
   (let ((rs2 (force-hwreg! as rs2 $r.argreg2)))
     (sparc.srai   as rs2 2 $r.tmp1)
@@ -334,6 +336,17 @@
           )
         (begin
           (sparc.srai   as r1 2 $r.tmp1)))
+    (sparc.srli as r2 2 $r.tmp0)
+    ; Using ARGREG2 as the destination is OK because the resulting pointer
+    ; value always looks like a fixnum.  By doing so, we avoid needing TMP2.
+    (sparc.addi as $r.result (- 4 $tag.bytevector-tag) $r.argreg2)
+    (sparc.stbr as $r.tmp0 $r.tmp1 $r.argreg2)))
+
+
+(define (emit-bytevector-like-set-trusted! as idx byte)
+  (let ((r1 (force-hwreg! as idx $r.tmp1))
+        (r2 (force-hwreg! as byte $r.argreg3)))
+    (sparc.srai   as r1 2 $r.tmp1)
     (sparc.srli as r2 2 $r.tmp0)
     ; Using ARGREG2 as the destination is OK because the resulting pointer
     ; value always looks like a fixnum.  By doing so, we avoid needing TMP2.

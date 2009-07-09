@@ -183,8 +183,16 @@
           (void*-float-set! array (* 4 i) (exact->inexact 
                                             (vector-ref vect i))))))))
 
-        
-
+;; bytevector->bytes : PI [Rtd] . Bytevector -> Rtd
+(define (bytevector->bytes rtd)
+  (let ((malloc (stdlib/malloc rtd)))
+    (lambda (bv)
+      (let* ((len (bytevector-length bv))
+             (array (malloc (+ 4 len))))
+        (do ((i 0 (+ i 1)))
+            ((= i len) (void*-word-set! array len 0) array)
+          (void*-byte-set! array i (bytevector-ref bv i)))))))
+       
 ;; A Char** is a Void* that points to an array of C strings.
 (define char**-rt (ffi-install-void*-subtype 'char**))
 
@@ -230,6 +238,18 @@
         (stdlib/free array)
         val))))
 
+;; A UByte* is a Void* that points to an array of unsigned bytes
+(define ubyte*-rt (ffi-install-void*-subtype 'ubyte*))
+
+;; call-with-ubyte* : Bytevector (UByte* -> T) -> T
+(define call-with-ubyte*
+  (let ((bytevector->array (bytevector->bytes ubyte*-rt)))
+    (lambda (bv func)
+      (let* ((array (bytevector->array bv))
+             (val (func array)))
+        (stdlib/free array)
+        val))))
+
 ;; A Double* is a Void* that points to an array of doubles
 (define double*-rt (ffi-install-void*-subtype 'double*))
 
@@ -250,6 +270,20 @@
   (let ((vector->array (numvector->floats float*-rt)))
     (lambda (vec func)
       (let* ((array (vector->array vec))
+             (val (func array)))
+        (stdlib/free array)
+        val))))
+
+;; A Bool* is a Void* that points to an array of booleans
+(define bool*-rt (ffi-install-void*-subtype 'bool*))
+
+;; call-with-bool* : [Vectorof Boolean] (Bool* -> T) -> T
+(define call-with-bool*
+  (let ((vector->array (wordvector->words bool*-rt)))
+    (lambda (vec func)
+      (let* ((array (vector->array 
+                     (list->vector (map (lambda (x) (if x 1 0))
+                                        (vector->list vec)))))
              (val (func array)))
         (stdlib/free array)
         val))))

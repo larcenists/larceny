@@ -15,8 +15,7 @@
 	((and (null? (cdr rest)) (fixnum? (car rest)))
 	 (sys$exit (car rest)))
 	((null? (cdr rest))
-	 (error "exit: bad argument: " (car rest))
-	 #t)
+         (sys$exit (if (car rest) 0 1)))
 	(else
 	 (error "exit: too many arguments.")
 	 #t)))

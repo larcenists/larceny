@@ -28,6 +28,10 @@
   ; The above copyright notice and this permission notice
   ; shall be included in all copies or substantial portions
   ; of the Software. 
+
+  ; The original call to raise has been changed to a call to
+  ; raise-continuable.  See
+  ; http://www.r6rs.org/r6rs-errata.html
   
   (define-syntax guard
     (syntax-rules ()
@@ -42,7 +46,7 @@
                     (lambda ()
                       (let ((var condition))      ; clauses may SET! var
                         (guard-aux (handler-k (lambda ()
-                                                (raise condition)))
+                                                (raise-continuable condition)))
                                    clause ...))))))))
             (lambda ()
               (call-with-values

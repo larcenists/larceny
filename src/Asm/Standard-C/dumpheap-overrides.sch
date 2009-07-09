@@ -98,7 +98,7 @@
     (display "Loading code for ") (display lop-file) (newline)
     (let ((fasl-file (rewrite-file-type lop-file ".lop" ".fasl")))
       (let ((entrypoints 
-	     (call-with-input-file lop-file
+	     (call-with-raw-latin-1-input-file lop-file
 	       (lambda (in)
 		 (let loop ((decls '()))
 		   (let ((item (read in)))
@@ -121,7 +121,7 @@
     (let ((entrypoints '())
 	  (bootstrap-id (or bootstrap-id
 			    (string-append ".petit-bootstrap-id-" *unique-id*))))
-      (call-with-output-file fasl-file
+      (call-with-raw-latin-1-output-file fasl-file
 	(lambda (out)
           (write-fasl-token out)
 	  (if so-name
@@ -196,7 +196,7 @@
 
   (let ((file-unique-id (string-append ".petit-bootstrap-id-" *unique-id*)))
     (delete-file fasl-name)
-    (call-with-output-file fasl-name
+    (call-with-raw-latin-1-output-file fasl-name
       (lambda (out)
 	(dump-prologue file-unique-id out)
 	(do ((segments segments (cdr segments)))

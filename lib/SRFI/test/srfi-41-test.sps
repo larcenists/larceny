@@ -8,7 +8,7 @@
 ;
 ;(cond-expand (srfi-41))
 
-(import (rnrs) (srfi-41))
+(import (rnrs) (srfi :41 streams))
 
 (define (writeln . xs)
   (for-each display xs)

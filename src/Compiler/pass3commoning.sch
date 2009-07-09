@@ -64,11 +64,9 @@
    (lambda (return)
      
      (define (error . stuff)
-       (display "Bug detected during intraprocedural optimization")
-       (newline)
-       (for-each (lambda (s)
-                   (display s) (newline))
-                 stuff)
+       (apply twobit-bug
+              "Bug detected during intraprocedural optimization"
+              stuff)
        (return (make-constant #f)))
      
      ; Given an expression, an environment, the available expressions,

@@ -58,6 +58,7 @@
 
 ;; il-type? : Any -> Bool
 ;; Returns non-false iff x is an IL-type.
+
 (define (il-type? x)
   (or (il-primtype? x)
       (il-classtype? x)
@@ -88,6 +89,7 @@
 ;;  (make-il-field IL-type IL-class String)
 
 ;; il : symbol arg ... -> ilpackage
+
 (define (il code . args)
   (cond ((symbol? code)
          (raw:make-il code args))
@@ -97,6 +99,7 @@
 
 ;; il-delay-force : il-delay -> ilpackage
 ;; Forces a delayed ilpackage
+
 (define (il-delay-force il-delay)
   ((il-delay.il il-delay)))
 
@@ -106,6 +109,7 @@
 ;; emit : consumer ilpackage ... -> void
 ;; Adds a representation of IL code to the current bytevector.
 ;; Representations include lists and promises which yield lists.
+
 (define (emit consumer . ilpackages)
   (define (emit/h ilpackage)
     (cond ((il? ilpackage)
@@ -121,6 +125,7 @@
 ;; emit/il : assembler|(ilpackage -> void) (union il il-delay) -> void
 ;; Emit a single IL representation to the consumer. Only IL structures and
 ;; IL-delay structures.
+
 (define (emit/il consumer il)
   (cond ((procedure? consumer) (consumer il))
         (else
@@ -132,6 +137,7 @@
 
 ;; il:load-constant : datum -> ilpackage
 ;; IL to load the SchemeObject representation of a constant onto the stack.
+
 (define (il:load-constant datum)
   (cond ((immediate-fixnum? datum)
          ;; Fixnum in preallocated fixnum pool
@@ -248,6 +254,7 @@
 ;; il:load-constant/vector : number -> ilpackage
 ;; IL code to load a SchemeObject constant from the constant vector.
 ;; ASM ONLY
+
 (define (il:load-constant/vector index)
   (if (codegen-option 'cache-constant-vector)
       (list (il 'ldloc LOCAL-CONSTANT-VECTOR)
@@ -264,6 +271,7 @@
 
 ;; il:ldstr : string -> ilpackage
 ;; IL code to load a System.String onto the stack
+
 (define (il:ldstr str0)
   (let* ((str1 (twobit-format #f "~s" str0))
          (strs (map (lambda (c)
@@ -276,25 +284,30 @@
 
 ;; il:ldfld : iltype ilclass string -> ilpackage
 ;; IL code to load from (instance) field
+
 (define (il:ldfld type class field)
   (il 'ldfld (make-il-field type class field)))
 
 ;; il:stfld : iltype ilclass string -> ilpackage
 ;; IL code to store to (instance) field
+
 (define (il:stfld type class field)
   (il 'stfld (make-il-field type class field)))
 
 ;; il:ldsfld : iltype ilclass string -> ilpackage
 ;; IL code to load from a static field
+
 (define (il:ldsfld type class field)
   (il 'ldsfld (make-il-field type class field)))
 
 ;; il:stsfld : iltype ilclass string -> ilpackage
 ;; IL code to store to a static field
+
 (define (il:stsfld type class field)
   (il 'stsfld (make-il-field type class field)))
 
 ;; il:load-real8 : real -> ilpackage
+
 (define (il:load-real8 datum)
   (cond ((and (inexact? datum)
               (real? datum)
@@ -308,10 +321,12 @@
          (il 'ldc.r8 (exact->inexact datum)))))
 
 ;; il:load-int8 : integer -> ilpackage
+
 (define (il:load-int8 datum)
   (il 'ldc.i8 (string-append "0x" (number->string datum 16))))
 
 ;; il:load-int16-array : (listof integer) -> ilpackage
+
 (define (il:load-int16-array data)
   (list (il 'ldc.i4 (length data))
         (il 'newarr iltype-int16)
@@ -327,6 +342,7 @@
 ;; il:call : (listof sym) iltype ilclass string (listof iltype) -> ilpackage
 ;; IL to call method; opts may include '(virtual instance tail). If 'tail
 ;; option is given, generates 'ret automatically
+
 (define (il:call opts type class method argtypes)
   (let ((method-name (if (memq 'instance opts) 
 			 make-il-instance-method 
@@ -335,6 +351,7 @@
 
 ;; il:call-name : (listof sym) string -> ilpackage
 ;; DEPRECATED for external use
+
 (define (il:call-name opts method-name)
   (let ((call-code (cond ((memq 'new opts) 'newobj)
                          ((memq 'virtual opts) 'callvirt)
@@ -352,6 +369,7 @@
 ;; il:call-scheme : -> ilpackage
 ;; Code for a scheme-to-scheme call. A codevector and jump index
 ;; should be the only things on the stack. Doesn't return.
+
 (define (il:call-scheme)
   (list (il:flush-result-cache)
         (if (codegen-option 'direct-tail-calls)
@@ -369,8 +387,10 @@
              (il 'ret)))))
 
 ;; il:comment : format-string value ... -> ilpackage
+
 (define (il:comment format-string . args)
-  (il 'comment (string-append "// " (apply twobit-format #f format-string args))))
+  (il 'comment (string-append "// "
+                              (apply twobit-format #f format-string args))))
 
 (define (il:comment/info key arg)
   (il 'comment (string-append "//* " key (twobit-format #f " ~s" arg))))
@@ -386,16 +406,19 @@
 ;; One of: entrypoint maxstack module 
 ;;         assembly-extern assembly local line
 ;;         custom
+
 (define (il:directive directive . args)
   (apply il 'directive directive args))
 
 ;; il:branch : symbol number -> ilpackage
 ;; Takes a branch code ('br, 'bgt, ...) and a destination label number.
+
 (define (il:branch type target)
   (il type (make-il-label target)))
 
 ;; il:branch-s : symbol number -> ilpackage
 ;; Emits the short branch form of the given branch
+
 (define (il:branch-s type num)
   (il (string->symbol (twobit-format #f "~a.s" type)) (make-il-label num)))
 
@@ -404,8 +427,9 @@
 ;; If it is, then control transfers after the check with the top of the stack
 ;; having been cast to the given type. If the test fails, then the failure
 ;; code is executed with the stack having been popped.
-;; NOTE: If code-if-fail does not escape (return/tail call...), then it must push
-;; one item onto the stack (of the appropriate type).
+;; NOTE: If code-if-fail does not escape (return/tail call...), then it must
+;; push one item onto the stack (of the appropriate type).
+
 (define (il:check-type iltype code-if-fail)
   (lambda (as)
     (let ((success-label (allocate-label as)))
@@ -422,6 +446,7 @@
 ;; code if false, otherwise continues executing with next item in stack cast to
 ;; supplied iltype. Like above, failure code must either push appropriate type
 ;; onto stack or escape.
+
 (define (il:check-bool iltype code-if-fail)
   (lambda (as)
     (let ((success-label (allocate-label as)))
@@ -438,6 +463,7 @@
 
 ;; il-quote-name : string -> string
 ;; Quote names which are also IL keywords
+
 (define (il-quote-name name)
   (cond ((memq (string->symbol name) il-keywords-must-quote)
          (twobit-format #f "'~a'" name))
@@ -445,6 +471,7 @@
 
 ;; il-keywords-must-quote : (listof symbol)
 ;; If used as names, these must be quoted. (May be incomplete)
+
 (define il-keywords-must-quote
   '(private public static instance
     extends call class virtual cil managed fault value nested
@@ -453,6 +480,7 @@
     ))
 
 ;; il-field->string : IL-field -> string
+
 (define (il-field->string fld)
   (let ((type (il-field.type fld))
 	(class (il-field.class fld))
@@ -464,6 +492,7 @@
 		   "::" (il-quote-name fieldname))))
 
 ;; il-method->string : IL-method -> string
+
 (define (il-method->string mthd)
   (let ((type (il-method.type mthd))
 	(class (il-method.class mthd))
@@ -485,6 +514,7 @@
 		     "(" arglist ")"))))
 
 ;; il-class->string : IL-class -> string
+
 (define (il-class->string cls)
   (let ((assembly (il-class.assembly cls))
 	(namespaces (il-class.namespaces cls))
@@ -499,7 +529,9 @@
 				      (list namespaces)
 				      (or namespaces '())))
 		   (list "." (il-quote-name classname))))))
+
 ;; il-type->string : IL-type -> string
+
 (define (il-type->string typ)
   (cond ((il-primtype? typ)
 	 (il-primtype.string typ))
@@ -513,6 +545,7 @@
 		     (twobit-format #f "Invalid argument: ~a" typ)))))
 
 ;; il-classtype->string : IL-classtype -> string
+
 (define (il-classtype->string classname)
   (string-append 
    "class "
@@ -523,6 +556,7 @@
 
 ;; il:load-codevector : string -> ilpackage
 ;; IL to load a codevector instance based on class name
+
 (define (il:load-codevector cvname ns)
   (il:ldsfld iltype-codevector (make-il-class #f ns cvname) "instance"))
 
@@ -531,6 +565,7 @@
 
 ;; il:load-register : int|symbol -> ilpackage
 ;; IL to load a MacScheme virtual register
+
 (define (il:load-register register)
   (cond ((and (codegen-option 'cache-result) (eq? register 'result))
          (il 'ldloc LOCAL-RESULT))
@@ -558,6 +593,7 @@
 ;; il:set-register : int|symbol ilpackage -> ilpackage
 ;; IL to store the value pushed by the given IL fragment into the specified
 ;; MacScheme virtual rgister
+
 (define (il:set-register register ilpackage)
   (cond ((and (codegen-option 'cache-result) (eq? register 'result))
          (list ilpackage
@@ -576,8 +612,13 @@
                    (il:call '()
                             iltype-void
                             il-reg
-                            (if (zero? register) "set_ProcRegister0" (string-append "set_Register" (number->string register)))
-                            (list (if (zero? register) iltype-procedure iltype-schemeobject))))
+                            (if (zero? register)
+                                "set_ProcRegister0"
+                                (string-append "set_Register"
+                                               (number->string register)))
+                            (list (if (zero? register)
+                                      iltype-procedure
+                                      iltype-schemeobject))))
              (list ilpackage
                    (il:stsfld
                     (if (zero? register) iltype-procedure iltype-schemeobject)
@@ -590,6 +631,7 @@
 ;; il:set-register/pop : int|symbol -> ilpackage
 ;; Stores the top item on the stack into the specified register
 ;; NOTE: implementation assumes registers as static fields
+
 (define (il:set-register/pop register)
   (il:set-register register '()))
 
@@ -600,12 +642,14 @@
 ;;   il:fault*
 
 ;; il:recache-result : -> ilpackage
+
 (define (il:recache-result)
   (if (codegen-option 'cache-result)
       (il:set-register 'result (il:load-register 'real-result))
       '()))
 
 ;; il:flush-result-cache : -> ilpackage
+
 (define (il:flush-result-cache)
   (if (codegen-option 'cache-result)
       (il:set-register 'real-result (il:load-register 'result))
@@ -617,6 +661,7 @@
         (il:recache-result)))
 
 ;; il:recache-constant-vector : -> ilpackage
+
 (define (il:recache-constant-vector)
   (if (codegen-option 'cache-constant-vector)
       (list
@@ -628,6 +673,7 @@
 
 ;; il:load-global-cell : number -> ilpackage
 ;; Loads a global cell (not its contents)
+
 (define (il:load-global-cell index)
   (list (il:load-constant/vector index)
         ;; Avoid this cast, it is known that elements in the constant vector
@@ -674,7 +720,8 @@
 
 (define (il:fault/invoke-nonproc argc)
   (list (il 'ldc.i4 argc)
-        (il:call '() iltype-code-address il-exn "faultInvokeNonProc" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultInvokeNonProc"
+                 (list iltype-int32))
         (il 'ret)))
 
 (define (il:fault/apply-nonproc k1 k2)
@@ -686,17 +733,20 @@
 
 (define (il:fault/undef-global index)
   (list (il 'ldc.i4 index)
-        (il:call '() iltype-code-address il-exn "faultGlobal" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultGlobal"
+                 (list iltype-int32))
         (il 'ret)))
 
 (define (il:fault/argc expectedc)
   (list (il 'ldc.i4 expectedc)
-        (il:call '() iltype-code-address il-exn "faultArgCount" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultArgCount"
+                 (list iltype-int32))
         (il 'ret)))
 
 (define (il:fault/vargc expectedc)
   (list (il 'ldc.i4 expectedc)
-        (il:call '() iltype-code-address il-exn "faultVarArgCount" (list iltype-int32))
+        (il:call '() iltype-code-address il-exn "faultVarArgCount"
+                 (list iltype-int32))
         (il 'ret)))
 
 ;; =========================================================
@@ -705,6 +755,7 @@
 ;; il:use-fuel/call code is only emitted after the target of
 ;; invocation is stored into ENV-REGISTER (reg0) in invocation seq;
 ;; that is why it uses FIRST-JUMP-INDEX as point of continuation.
+
 (define (il:use-fuel/call)
   (if (codegen-option 'insert-use-fuel)
       (il:use-fuel FIRST-JUMP-INDEX #f)
@@ -725,6 +776,7 @@
       (il:branch 'br target)))
 
 ;; il:use-fuel : number Label|#f -> ilpackage
+
 (define (il:use-fuel jump-index resume-label)
   (lambda (as)
     (let ((label-okay (or resume-label (allocate-label as))))
@@ -741,6 +793,7 @@
 ;; LOCAL VARIABLES
 
 ;; with-il-locals : assembler (listof string) (string ... -> 'a) -> 'a
+
 (define (with-il-locals as types consumer)
   (let ((variables (map (lambda (t) (allocate-il-local as t)) types)))
     (let ((result (apply consumer variables)))
@@ -748,6 +801,7 @@
       result)))
 
 ;; allocate-il-local : assembler iltype -> num
+
 (define (allocate-il-local as type)
   (let loop ((n 0) (vars (as:local-variables as)))
     (cond ((null? vars)
@@ -761,6 +815,7 @@
           (else (loop (+ n 1) (cdr vars))))))
 
 ;; deallocate-il-local : assembler number -> void
+
 (define (deallocate-il-local as n)
   (let loop ((n n) (vars (as:local-variables as)))
     (cond ((zero? n)
@@ -772,15 +827,18 @@
 
 ;; il:label : number -> ilpackage
 ;; Represents an IL label based on a number
+
 (define (il:label num)
   (il 'label (make-il-label num)))
 
 ;; il:label/header : cvid -> ilpackage
 ;; Used for the first part of each codevector, with jump index 0.
+
 (define (il:label/header id)
   (il 'label (make-il-label id)))
 
 ;; intern-label : as number|cvid -> number
+
 (define (intern-label as label)
   (let* ((user (as-user as))
          (id (as:current-codevector as))
@@ -798,6 +856,7 @@
              jump-index)))))
 
 ;; as:collect-local-lables : as cvid -> number
+
 (define (as:collect-local-labels as id)
   (let* ((label-map (gvector-ref (user-data.label-map (as-user as)) (car id)))
          (label-map/id (filter (lambda (p) (equal? id (cddr p))) label-map))
@@ -805,6 +864,7 @@
     (map car (compat:sort labels (lambda (a b) (<= (cdr a) (cdr b)))))))
 
 ;; as:label->index : assembler num -> num
+
 (define (as:label->index as label)
   (let ((user (as-user as))
         (id (as:current-codevector as)))
@@ -815,6 +875,7 @@
                   (user-data.label-map user))))))
 
 ;; il-label->string : IL-label -> string
+
 (define (il-label->string label)
   (let ((label (il-label.key label)))
     (cond ((pair? label)
@@ -829,10 +890,12 @@
 ;; DUMPHEAP
 
 ;; il:loader-name : number -> string
+
 (define (il:loader-name n)
   (twobit-format #f "Loader_~a" (+ 1 n)))
 
 ;; il:constant-vector-max-stack : constant-vector -> number
+
 (define (il:constant-vector-max-stack constants)
   (apply max
          (map (lambda (constant)
@@ -844,6 +907,7 @@
               (vector->list constants))))
 
 ;; il:constant-max-stack : constant -> number
+
 (define (il:constant-max-stack constant)
   (cond ((pair? constant)
          (+ 1 (max (il:constant-max-stack (car constant))
@@ -854,6 +918,7 @@
         (else 4)))
 
 ;; il:constant-vector : constant-vector -> ilpackage
+
 (define (il:constant-vector constants)
   (list (il 'ldc.i4 (length constants))
         (il 'newarr iltype-schemeobject)
@@ -861,6 +926,7 @@
         (rep:make-vector)))
 
 ;; il:resolve-constant : tagged-constant -> ilpackage
+
 (define (il:resolve-constant constant)
   (case (car constant)
     ((data doc)

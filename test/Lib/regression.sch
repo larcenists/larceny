@@ -187,18 +187,18 @@
          -inf.0)
    (test "Ticket #33 (1)"               ; Bug in Larceny through 0.90
          (/ (hide 3+4.5i) (hide 3+4.5i))
-         1.0)
+         1.0+0.0i)
    (test "Ticket #33 (2)"               ; Bug in Larceny through 0.90
          (/ (hide 4.5+3i) (hide 4.5+3i))
-         1.0)
+         1.0+0.0i)
    (test "Ticket #33 (3)"               ; Bug in Larceny through 0.90
          (number->string (hide (/ (hide +3.0i) (hide +3.0i))))
-         "1.0")
+         "1.0+0.0i")
    (test "Ticket #33 (4)"               ; Bug in Larceny through 0.90
-         (flonum? (/ (hide 3+4.5i) (hide 3+4.5i)))
+         (compnum? (/ (hide 3+4.5i) (hide 3+4.5i)))
          #t)
    (test "Ticket #33 (5)"               ; Bug in Larceny through 0.90
-         (flonum? (/ (hide 4.5+3i) (hide 4.5+3i)))
+         (compnum? (/ (hide 4.5+3i) (hide 4.5+3i)))
          #t)
    ; Long-time latent bug in Larceny through 0.91,
    ; discovered during reimplementation of multiple values for 0.92.
@@ -510,6 +510,30 @@
    (test "Ticket #554"                  ; Bug in Larceny 0.962
          (bitwise-and (expt 2 100) 17)  ; detected by PLT test suite
          0)
+
+   (test "Ticket #605"                  ; Bug in Larceny 0.97b1
+         (exact->inexact (- (expt 2 96) 1))
+         7.922816251426434e28)
+
+   (test "Ticket #641"                  ; Bug in Larceny 0.97b1
+         ((lambda (f_2_3)               ; compiler bug
+            (f_2_3 '1 '2))
+          (lambda (ta_5_8 ta_6_8)
+            ((lambda (a_11)
+               ((lambda (b_14)
+                  ((lambda ()
+                     ((lambda (c_19)
+                        ((lambda (d_21)
+                           ((lambda (e_23) '99)
+                            (+ a_11
+                               b_14
+                               c_19
+                               d_21)))
+                         (+ a_11 b_14 c_19)))
+                      a_11))))
+                ta_6_8))
+             ta_5_8)))
+         99)
 
    ))
 

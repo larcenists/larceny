@@ -147,71 +147,110 @@
     (fast 0)))
 
 ; The string-titlecase procedure converts the first cased character
-; in each word to titlecase, and downcases all other cased characters.
+; in each word to titlecase, and downcases all other cased characters
+; using string-downcase.
+;
+; Algorithm, from The Unicode Standard 5.0 section 3.13:
+;     toTitlecase(X): Find the word boundaries in X according
+;     to Unicode Standard Annex #29, "Text Boundaries."  For
+;     each word boundary, find the first cased character F
+;     following the word boundary.  If F exists, map F to
+;     Titlecase_Mapping(F); then map all characters C
+;     between F and the following word boundary to
+;     Lowercase_Mapping(C).
 
 (define (string-titlecase s)
   (let ((n (string-length s)))
-    (define (loop i isFirst chars)
-      (if (= i n)
 
-          ; Concatenate the characters and strings.
-          (let* ((n2 (do ((mapped chars (cdr mapped))
-                          (n2 0
-                              (+ n2 (if (char? (car mapped))
-                                        1
-                                        (string-length (car mapped))))))
-                         ((null? mapped) n2)))
-                 (s2 (make-string n2)))
-            (define (loop i mapped)
-              (if (null? mapped)
-                  s2
-                  (let ((c2 (car mapped)))
-                    (if (char? c2)
-                        (let ((i1 (- i 1)))
-                          (string-set! s2 i1 c2)
-                          (loop i1 (cdr mapped)))
-                        (do ((j (- (string-length c2) 1) (- j 1))
-                             (i (- i 1) (- i 1)))
-                            ((< j 0)
-                             (loop i (cdr mapped)))
-                          (string-set! s2 i (string-ref c2 j)))))))
-            (loop n2 chars))
+    ; 0 <= i <= k <= n
+    ;
+    ; i is the index of the next character in s to be mapped.
+    ;
+    ; k is the index in s of the next word break.
+    ;
+    ; isFirst is true if s[i] might be the first cased character
+    ; of a word.
+    ;
+    ; chars is a list of characters and strings that, when reversed
+    ; and appended together, would form toTitlecase(X), where X is
+    ; the sequence of characters in s whose index is less than i.
+    ;
+    ; If i is less than k, then:
+    ;     if isFirst is true, and s[i] is cased, then s[i] is
+    ;         the first cased character within a word and should
+    ;         be mapped to titlecase;
+    ;     if isFirst is true, but s[i] is not cased, then s[i]
+    ;         should be mapped to lowercase and the search for
+    ;         the first cased character should continue at s[i+1];
+    ;     if isFirst is false, then s[i] should be mapped to lowercase.
+    ;
+    ; The cased characters are those that satisfy one of:
+    ;     char-upper-case?
+    ;     char-lower-case?
+    ;     char-title-case?
 
-          (let* ((c (string-ref s i))
-                 (cp (char->integer c))
-                 (category (char-general-category c)))
-            (case category
-             ((Lu Ll Lt)
-              (let ((probe (if (< cp #x00df)
-                               #f
-                               (binary-search-16bit cp special-case-chars))))
-                (if isFirst
-                    (let ((x (if probe
-                                 (vector-ref special-titlecase-mapping probe)
-                                 (char-titlecase c))))
-                      (loop (+ i 1) #f (cons x chars)))
-                    (let ((x (if probe
-                                 (vector-ref special-lowercase-mapping probe)
-                                 (char-downcase c))))
-                      (loop (+ i 1) #f (cons x chars))))))
-             ((Po Pf)
-              (case (char->integer c)
-               ; The MidLetter characters are:
-               ; apostrophe, middle dot,
-               ; Hebrew punctuation GERSHAYIM,
-               ; right single quotation mark,
-               ; hyphenation point, colon
-               ;
-               ; Also, Hebrew punctuation GERESH counts as alphabetic
-               ((#x0027 #x00b7 #x05f4 #x2019 #x2027 #x003a #x05f3)
-                (loop (+ i 1) isFirst (cons c chars)))
-               (else
-                (loop (+ i 1) #t (cons c chars)))))
-             ((Mn Me Cf Lm Sk)
-              (loop (+ i 1) isFirst (cons c chars)))
-             (else
-              (loop (+ i 1) #t (cons c chars)))))))
-    (loop 0 #t '())))
+    (define (loop i k isFirst chars)
+      (cond ((< i k)
+             (let* ((c (string-ref s i))
+                    (cp (char->integer c)))
+               (if isFirst
+                   (if (or (char-upper-case? c)
+                           (char-lower-case? c)
+                           (char-title-case? c))
+                       (let* ((probe (if (< cp #x00df)
+                                         #f
+                                         (binary-search-16bit
+                                          cp special-case-chars)))
+                              (x (if probe
+                                     (vector-ref special-titlecase-mapping
+                                                 probe)
+                                     (char-titlecase c))))
+                         (loop (+ i 1) k #f (cons x chars)))
+                       (loop (+ i 1)
+                             k
+                             #t
+                             (cons (string-downcase (string c)) chars)))
+                   (loop k
+                         (string-next-word-break s k)
+                         #t
+                         (cons (string-downcase (substring s i k)) chars)))))
+
+            ((= i n)
+
+             ; Concatenate the characters and strings.
+             (let* ((n2 (do ((mapped chars (cdr mapped))
+                             (n2 0
+                                 (+ n2 (if (char? (car mapped))
+                                           1
+                                           (string-length (car mapped))))))
+                            ((null? mapped) n2)))
+                    (s2 (make-string n2)))
+               (define (loop i mapped)
+                 (if (null? mapped)
+                     s2
+                     (let ((c2 (car mapped)))
+                       (if (char? c2)
+                           (let ((i1 (- i 1)))
+                             (string-set! s2 i1 c2)
+                             (loop i1 (cdr mapped)))
+                           (do ((j (- (string-length c2) 1) (- j 1))
+                                (i (- i 1) (- i 1)))
+                               ((< j 0)
+                                (loop (+ i 1) (cdr mapped)))
+                             (string-set! s2 i (string-ref c2 j)))))))
+               (loop n2 chars)))
+
+            ((= i k)
+             (loop i
+                   (string-next-word-break s i)
+                   #t
+                   chars))
+
+            (else
+             (assertion-violation 'string-titlecase
+                                  "bug in string-titlecase" s))))
+
+    (loop 0 (string-next-word-break s 0) #t '())))
 
 ; Returns the case-folded version of a string.
 ; If the string is already case-folded, then it may be returned.

@@ -13,20 +13,26 @@ public class Number {
     public const int BIGITS_PER_FIXNUM = 2;
     public const int BIGITS_PER_LONG = 4;
 
-    public const ushort BIGNUM_POSITIVE = 0;
-    public const ushort BIGNUM_NEGATIVE = 1;
+    public const byte BIGNUM_POSITIVE = 0;
+    public const byte BIGNUM_NEGATIVE = 1;
+
+    public const int MAX_BIGNUM_BIGITS = 8000000;      // see bignums.sch
     
-	#if !BIG_ENDIAN
     public const int BIGNUM_LENGTH_OFFSET = 0;
-    public const int BIGNUM_SIGN_OFFSET = 1;
+    public const int BIGNUM_LENGTH_MASK = 0xFFFFFF;
+
+	#if !BIG_ENDIAN
+    public const int BIGNUM_SIGN_OFFSET = 3;
 	#else
-    public const int BIGNUM_LENGTH_OFFSET = 1;
     public const int BIGNUM_SIGN_OFFSET = 0;
 	#endif
+
+    public const int BIGNUM_SIGN_SHIFT = 24;
+
     public const int BIGNUM_DATA_OFFSET = 2;
 
     public static SByteVL makeBignum(ulong value, bool positive) {
-        ushort bigitc = 0;
+        int bigitc = 0;
         for (ulong v = value; v != 0; v = v >> BIGIT_BITS) {
             bigitc ++;
         }
@@ -43,11 +49,11 @@ public class Number {
 
     public static SByteVL makeBignum(short[] bigits, bool positive) {
         int bigitc = bigits.Length;
-        if (bigitc > UInt16.MaxValue)
+        if (bigitc > MAX_BIGNUM_BIGITS)
             throw new Exception ("Internal error:  bignum too large");
         else {
 
-            SByteVL b = allocBignum((ushort) bigitc);
+            SByteVL b = allocBignum(bigitc);
             setBignumSign (b, positive);
 
             // Bignums use a sign + magnitude representation,
@@ -82,7 +88,7 @@ public class Number {
         }
     }
 
-    public static SByteVL allocBignum(ushort bigitc) {
+    public static SByteVL allocBignum(int bigitc) {
         int length = (bigitc*BYTES_PER_BIGIT + 3) & ~(int)3;
         SByteVL b = new SByteVL(Tags.BignumTag, length + 4, 0);
         setBignumLengthInBigits(b, bigitc);
@@ -90,23 +96,25 @@ public class Number {
     }
 
     // getBignumLength returns the number of data words in the bignum
-    public static ushort getBignumLength(SByteVL b) {
-        return b.getUInt16(BIGNUM_LENGTH_OFFSET);
+    public static int getBignumLength(SByteVL b) {
+        return BIGNUM_LENGTH_MASK & (int) b.getUInt32(BIGNUM_LENGTH_OFFSET);
     }
-    public static void setBignumLengthInBigits(SByteVL b, ushort bigitc) {
-        ushort wordc = (ushort) ((bigitc + 1) >> 1);
-        b.setUInt16(BIGNUM_LENGTH_OFFSET, wordc);
+    public static void setBignumLengthInBigits(SByteVL b, int bigitc) {
+        byte sign = getBignumSign(b) ? BIGNUM_POSITIVE : BIGNUM_NEGATIVE;
+        int wordc = (bigitc + 1) >> 1;
+        uint meta = (((uint) sign) << BIGNUM_SIGN_SHIFT) | (uint) wordc;
+        b.setUInt32(BIGNUM_LENGTH_OFFSET, meta);
     }
 
     public static bool getBignumSign(SByteVL b) {
-        return b.getUInt16(BIGNUM_SIGN_OFFSET) == BIGNUM_POSITIVE;
+        return b.getByte(BIGNUM_SIGN_OFFSET) == BIGNUM_POSITIVE;
     }
     public static void setBignumSign(SByteVL b, bool sign) {
-        b.setUInt16(BIGNUM_SIGN_OFFSET, sign ? BIGNUM_POSITIVE : BIGNUM_NEGATIVE);
+        b.setByte(BIGNUM_SIGN_OFFSET, sign ? BIGNUM_POSITIVE : BIGNUM_NEGATIVE);
     }
 
     public static bool isZeroBignum(SByteVL b) {
-        return b.getUInt16(BIGNUM_LENGTH_OFFSET) == 0;
+        return getBignumLength(b) == 0;
     }
 
         #if !BIG_ENDIAN

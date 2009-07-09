@@ -1,6 +1,56 @@
-(define version-299? (> (string->number (version)) 299))
-(define version-301? (>= (string->number (version)) 301))
-(define version-370? (>= (string->number (version)) 370))
+;; require-4.x-id : Sexp Symbol -> Any
+
+(define (require-4.x-id require-spec id)
+  (let ((ns0 (make-namespace)))
+    (eval `(require ,require-spec) ns0)
+    (eval id ns0)))
+
+(define (version-greater-or-equal-to? n)
+  (cond 
+   ((and (number? n) (integer? n) (>= n 200) (< n 400))
+    (lambda (version-string)
+      ;; Below based on Danny Yoo's version-case PLaneT package
+      (cond 
+       ;; Old-style version string
+       ((regexp-match "^([0-9][0-9][0-9])[.0-9]*$" version-string)
+	=> (lambda (full-and-part)
+	     (>= (string->number (list-ref full-and-part 1)) n)))
+       ;; New-style version string; (x.y.z where x >= 4)
+       ;; inherently >= 400
+       ((regexp-match "^([.0-9])*$"               version-string)
+	#t))))
+   ;; Strings *only* denote new-style versions!
+   ((string? n)
+    (lambda (version-string)
+      (cond
+       ((regexp-match "^([0-9][0-9][0-9])[.0-9]*$" version-string)
+	;; Old-style version can't possibly be >= n.
+	#f)
+       (else
+	;; If we have a new style version, use PLT's library 
+	;; to do the comparison.
+	(let ((version<=?
+	       (require-4.x-id 'version/utils 'version<=?)))
+	  (version<=? n version-string))))))))
+
+(define version-299? 
+  ((version-greater-or-equal-to? 299) (version)))
+(define version-301? 
+  ((version-greater-or-equal-to? 301) (version)))
+(define version-370? 
+  ((version-greater-or-equal-to? 370) (version)))
+(define version-4.x? 
+  ((version-greater-or-equal-to? "4.0.0") (version)))
+
+(define bytes->list
+  (cond (version-4.x?
+	 (let ((b->i-l bytes->list)
+	       (ilist->mlist 
+		(require-4.x-id 'scheme/mpair 'list->mlist)))
+	   (lambda args
+	     (ilist->mlist (apply b->i-l args)))))
+	(else
+	 bytes->list)))
 
 ;; When *exit-on-error* is set, make our error handler die loudly
 (cond (*exit-on-error*
@@ -15,12 +65,55 @@
                  (newline)
                  (exit 113)))))))
 
+;; import "old" syntax and procedures that handle mutable lists
+;; reasonably, but *after* code below so we can convert mlist->list
+
+(define namespace-require/copy namespace-require/copy)
+(cond
+ (version-4.x?
+  (namespace-require/copy 'r5rs)))
+(cond 
+ (version-4.x?
+  (set! namespace-require/copy
+	(let ((n-r/c namespace-require/copy)
+	      (mlist->list 
+	       (require-4.x-id 'scheme/mpair 'mlist->list)))
+	  (lambda (form)
+	    (n-r/c (mlist->list form)))))))
+
 ;; Why not just require?
 ;; Well... that doesn't work on certain versions of DrScheme.
-(namespace-require/copy '(lib "list.ss"))
+;; More specifically, namespace-require/copy imports bindings
+;; into the top-level in a "destructive" way that will change
+;; the behavior of (some/most) previously resolved identifiers.
+;(namespace-require/copy '(lib "list.ss"))
+(define (ormap f l)
+  (cond ((null? l) #f) (else (or (f (car l)) (ormap f (cdr l))))))
+(define (andmap f l)
+  (cond ((null? l) #t) (else (and (f (car l)) (andmap f (cdr l))))))
+
 (namespace-require/copy '(lib "etc.ss"))
 (namespace-require/copy '(lib "process.ss"))
 (namespace-require/copy '(prefix mz: mzscheme))
+
+(define namespace-mapped-symbols
+  (cond
+   (version-4.x?
+    (let ((ilist->mlist (require-4.x-id 'scheme/mpair 'list->mlist)))
+      (lambda args
+	(ilist->mlist (apply mz:namespace-mapped-symbols args)))))
+   (else
+    mz:namespace-mapped-symbols)))
+
+(define eval eval)
+(cond (version-4.x?
+       (set! eval 
+	     (let ((old-eval eval))
+	       (lambda args
+		 (if (null? (cdr args))
+		     (old-eval (car args) 
+			       (interaction-environment))
+		     (apply old-eval args)))))))
 
 (define ($$trace x) #t)
 (define host-system 'mzscheme)
@@ -84,13 +177,16 @@
 
 (define (call-with-error-control thunk1 thunk2) 
   (with-handlers 
-   [(values (lambda (exn)
-
+   ((values (lambda (exn)
+	      (display "Hola from compat.sch call-with-error-control")
+	      (display " thunk2 proxy")
+	      (display exn)
+	      (newline)
 	      ;; delay lookup of print-error-trace as long 
 	      ;; as possible, to allow errortrace.ss to be
 	      ;; required after this file is loaded.
 	      (cond 
-	       ((memq 'print-error-trace (mz:namespace-mapped-symbols))
+	       ((memq 'print-error-trace (namespace-mapped-symbols))
 		(let* ((ns-var-val mz:namespace-variable-value)
 		       (exn-message (ns-var-val 'exn-message))
 		       (print-error-trace (ns-var-val 'print-error-trace)))
@@ -98,12 +194,12 @@
 		  (newline)
 		  (print-error-trace (current-output-port) exn))))
 
-	      (thunk2)))]
+	      (thunk2))))
     (thunk1)))
 
 
 (define (call-with-error-handler handler thunk)
-  (with-handlers [(values handler)]
+  (with-handlers ((values handler))
     (thunk)))
 
 (define (call-without-interrupts thunk)
@@ -147,7 +243,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; A well-defined sorting procedure
-(define compat:sort quicksort)
+(define compat:sort 
+  (cond
+   (version-4.x?
+    (let ((mlist->ilist (require-4.x-id 'scheme/mpair 'mlist->list))
+	  (ilist->mlist (require-4.x-id 'scheme/mpair 'list->mlist))
+	  (quicksort (require-4.x-id 'mzlib/list 'quicksort)))
+      (lambda args 
+	(ilist->mlist
+	 (apply quicksort
+		(mlist->ilist (car args))
+		(cdr args))))))
+   (else
+    (namespace-require/copy '(only (lib "list.ss") quicksort))
+    quicksort)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -162,7 +271,8 @@
 
 (define error
   (lambda (msg . irritants)
-    (let [(err (open-output-string))]
+    (begin (display "Hola from compat.sch error") (newline))
+    (let ((err (open-output-string)))
       (display msg err)
       (for-each (lambda (x) (display " " err) (display x err)) irritants)
       (mz:error 'error (get-output-string err)))))
@@ -349,21 +459,69 @@
              (lambda () BODY   ...)
              (lambda () (PARAM ORIG) ...)))))))
 
-(set! copy-file mz:copy-file)
+(define copy-file mz:copy-file)
 
 (require (lib "pretty.ss"))
 
+(define alist->hash-table 'not-yet-defined)
 ;; for Sassy
 (define (compat:load-sassy)
   (parameterize ((current-directory "src/Lib/Sassy/"))
-    (load (if version-301?
-              "inits/mzscheme-301.scm"
-              "inits/mzscheme-299.400.scm"))
+    (load (cond
+	   (version-4.x?
+	    "inits/mzscheme-4.1.5.scm")
+	   (version-301?
+	    "inits/mzscheme-301.scm")
+	   (else
+	    "inits/mzscheme-299.400.scm")))
     (load "sassy.scm")
     (set! sassy-text-bytevector
           (lambda (sassy-output)
             (list->bytevector (sassy-text-list sassy-output))))
+	    
     ))
 
 ;; Parameter to control reader behavior
 (define compat:read-case-sensitive? read-case-sensitive)
+
+(define (append! . args)
+
+  (define (loop rest tail)
+    (cond ((null? rest)
+           tail)
+          ((null? (car rest))
+           (loop (cdr rest) tail))
+          (else
+           (loop (cdr rest)
+                 (begin (set-cdr! (last-pair (car rest)) tail)
+                        (car rest))))))
+
+  (if (null? args)
+      '()
+      (let ((a (reverse! args)))
+        (loop (cdr a) (car a)))))
+
+(define (last-pair l)
+  (if (null? (cdr l))
+      l
+      (last-pair (cdr l))))
+
+(define (reverse! l)
+  (define (loop0 prev curr next)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop1 (cdr next) curr next)))
+  (define (loop1 next prev curr)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop2 next (cdr next) curr)))
+  (define (loop2 curr next prev)
+    (set-cdr! curr prev)
+    (if (null? next)
+        curr
+        (loop0 curr next (cdr next))))
+  (if (null? l)
+      '()
+      (loop0 '() l (cdr l))))

@@ -28,9 +28,11 @@
 ; .>:fix:fix      (might not be necessary)
 ; .>=:fix:fix
 ; 
-; .--             (might not be necessary)
+; .--
 ; .+:idx:idx
 ; .-:idx:idx
+; .+:fix:fix
+; .-:fix:fix
 ;
 ; .fxlognot
 ; .fxlogand
@@ -40,6 +42,18 @@
 ; .fxrsha
 ; .fxrshl
 ; 
+; .=:flo:flo
+; .<:flo:flo
+; .<=:flo:flo
+; .>:flo:flo
+; .>=:flo:flo
+; 
+; .--             (not yet implemented)
+; .+:flo:flo
+; .-:flo:flo
+; .*:flo:flo
+; ./:flo:flo
+;
 ; .integer->char:trusted
 ; .char->integer:chr
 ; 
@@ -55,12 +69,21 @@
 ; .ustring-set!:trusted (deprecated, might not be necessary)
 ; 
 ; .vector-length:vec
-; .vector-ref:trusted
-; .vector-set!:trusted
-; .vector-set!:trusted:nwb
+; .vector-ref:trusted         (really vector-like-ref:trusted)
+; .vector-set!:trusted        (really vector-like-set!:trusted)
+; .vector-set!:trusted:nwb    (really vector-like-set!:trusted:nwb)
+;
+; .bytevector-like-length:bvl
+; .bytevector-like-ref:trusted
+; .bytevector-like-set!:trusted
 
 (define twobit-sort
   (lambda (less? list) (compat:sort list less?)))
+
+;; FIXME: this belongs in *.imp.sch,
+;; but that file must be loaded after this one.
+
+(define larceny:endianness (nbuild-parameter 'target-endianness))
 
 ;; A hook for backends to override if they have a register preference
 ;; Produces #t only if r1 preferred over r2 (otherwise inconclusive).
@@ -137,6 +160,33 @@
 (define op:UNSPECIFIED        'unspecified)
 (define op:FIXNUM?            'fixnum?)
 
+; The safety:checked? predicate is used to implement primops
+; whose code varies depending upon compiler switches
+; that determine the level of runtime safety checking.
+; The safety level is encoded as
+;
+; 0 -- unsafe (no runtime checking)
+; 1 -- R5RS-safe (check only if necessary to prevent a crash)
+; 2 -- R6RS-compatible (check as mandated by R6RS)
+; 3 -- R6RS-conforming (raise exceptions mandated by R6RS)
+;
+; Given a symbol that names a primop and one of the four encodings
+; above { 0, 1, 2, 3 }, returns #t if the current compiler switches
+; correspond to that encoding for that primop; returns #f otherwise.
+
+(define (safety:level? primop level)
+  (case level
+   ((0) (not (runtime-safety-checking)))
+   ((1) (and (runtime-safety-checking)
+             (or (and (memq primop
+                            '(fx<? fx<=? fx=? fx>? fx>=?
+                              fl<? fl<=? fl=? fl>? fl>=?
+                              fx+ fx- fx*
+                              fl+ fl- fl* fl/))
+                      (faster-arithmetic)))))
+   ((2) (and (runtime-safety-checking)
+             (not (safety:level? primop 1))))
+   ((3) #f)))
 
 ; Constant folding.
 ; Prototype, will probably change in the future.
@@ -149,6 +199,9 @@
 (define constant-folding-predicates cadr)
 (define constant-folding-folder caddr)
 
+; 0 -- (runtime-safety-checking #f)
+; 1 -- (and (runtime-safety-checking
+;
 ; FIXME: This table should hold more of the procedures that
 ; Twobit inserts prior to constant folding.
 
@@ -159,9 +212,12 @@
                    (and (number? n)
                         (exact? n)
                         (rational? n)))))
+                           
     `(
       ; This makes some assumptions about the host system,
       ; notably that its char->integer procedure is compatible.
+
+      (.safety:level? (,always? ,always?) ,safety:level?)
       
       (.fixnum? (,smallint?) ,smallint?)
       (.char? (,always?) ,char?)
@@ -197,7 +253,9 @@
                           (exact? n)
                           (rational? n))))
           ; smallint? is defined later.
-          (smallint? (lambda (n) (smallint? n))))
+          (smallint? (lambda (n) (smallint? n)))
+          (flonum? (lambda (x)
+                     (and (number? x) (inexact? x) (real? x)))))
       `(
         ; This makes some assumptions about the host system.
         
@@ -224,6 +282,7 @@
         (length (,list?) ,length)
         (-- (,ratnum?) ,(lambda (x) (- 0 x)))   ; FIXME: Larceny-specific
         (fixnum? (,smallint?) ,smallint?)       ; FIXME: Larceny-specific
+        (flonum? (,always?) ,flonum?)       ; FIXME: Larceny-specific
         ))))
 
 ; Compiler macros.
@@ -292,6 +351,37 @@
 
 (define common-compiler-macros
   (list
+
+; The .case:safety macro is introduced only by compiler macros,
+; and expands into (the equivalent of) a cond expression whose
+; tests (after constant folding) are boolean constants, exactly
+; one of which is true.  See examples below.
+
+'
+(define-syntax .case:safety
+  (syntax-rules ()
+   ((_ primop (#t exp))
+    exp)
+   ((_ primop ((0 1 2 3) exp))
+    exp)
+   ((_ primop ((0 1 2) exp) clause ...)
+    (if (.safety:level? 'primop 3)
+        (.case:safety primop clause ...)
+        exp))
+   ((_ primop ((1 2 3) exp) clause ...)
+    (if (.safety:level? 'primop 0)
+        (.case:safety primop clause ...)
+        exp))
+   ((_ primop ((i j) exp) clause ...)
+    (if (.safety:level? 'primop i)
+        exp
+        (if (.safety:level? 'primop j)
+            exp
+            (.case:safety primop clause ...))))
+   ((_ primop ((i) exp) clause ...)
+    (if (.safety:level? 'primop i)
+        exp
+        (.case:safety primop clause ...)))))
 
 '
 (define-syntax .rewrite-eqv?
@@ -377,36 +467,47 @@
 
 (list 'define-syntax name:CALL
       (list 'syntax-rules
-            '   (r4rs r5rs larceny quote lambda
-                 boolean?
-                 car cdr
-                 vector-length vector-ref vector-set!
-                 string-length string-ref string-set!
-                 make-ustring ustring-length ustring-ref ustring-set!
-                 list vector
-                 cadddr cddddr cdddr caddr cddr cdar cadr caar
-                 make-vector make-bytevector make-string
-                 endianness big little
-                 bytevector-u8-ref bytevector-u8-set!
-                 = < > <= >= + * - /
-                 abs negative? positive? min max
-                 fx=? fx<? fx>? fx<=? fx>=?
-                 fxzero? fxpositive? fxnegative?
-                 fxmin fxmax
-                 fx+ fx- fx*
-                 fxnot fxand fxior fxxor fxif
-                 fxeven? fxodd?
-                 fl=? fl<? fl>? fl<=? fl>=?
-                 flzero? flpositive? flnegative?
-                 flmin flmax
-                 fl+ fl- fl* fl/
-                 eqv? memv assv memq
-                 map for-each
-                 char=? char<? char>? char<=? char>=?
-                 lookahead-u8 get-u8
-                 lookahead-char get-char put-char
-                 peek-char read-char write-char
-                 )
+            '(r4rs r5rs larceny quote lambda
+              boolean?
+              car cdr
+              vector-length vector-ref vector-set!
+              bytevector-length bytevector-ref bytevector-set!
+              bytevector-like-length bytevector-like-ref bytevector-like-set!
+              bytevector-u8-ref bytevector-u8-set!
+              bytevector-u16-ref bytevector-u16-set!
+              bytevector-u16-native-ref bytevector-u16-native-set!
+              bignum-length bignum-ref bignum-set!                      ; FIXME
+              string-length string-ref string-set!
+              make-ustring ustring-length ustring-ref ustring-set!
+              list vector
+              cadddr cddddr cdddr caddr cddr cdar cadr caar
+              make-vector make-bytevector make-string
+              endianness big little
+              = < > <= >= + * - /
+              abs negative? positive? min max
+              div mod
+              fx= fx< fx> fx<= fx>=                ; FIXME
+              fx=? fx<? fx>? fx<=? fx>=?
+              fxzero? fxpositive? fxnegative?
+              fxmin fxmax
+              fx+ fx- fx*
+              fxnot fxand fxior fxxor fxif
+              fxeven? fxodd?
+              fl=? fl<? fl>? fl<=? fl>=?
+              flzero? flpositive? flnegative?
+              flmin flmax flabs
+              flfloor flceiling fltruncate flround
+              fl+ fl- fl* fl/
+              eqv? memv assv memq
+              map for-each
+              char=? char<? char>? char<=? char>=?
+              lookahead-u8 get-u8
+              lookahead-char get-char put-char
+              peek-char read-char write-char
+              record-ref:bummed                    ; FIXME
+              record-set!:bummed                   ; FIXME
+              native-endianness
+              )
 
    ; FIXME: Eliminating these next two should fix ticket #37.
 
@@ -439,6 +540,9 @@
       (.check! (pair? x) ,$ex.cdr x)
       (.cdr:pair x)))
 
+`  ((_ larceny make-vector (make-vector ?n))
+    (make-vector ?n '()))
+
 `  ((_ larceny vector-length (vector-length v0))
     (let ((v v0))
       (.check! (vector? v) ,$ex.vlen v)
@@ -450,7 +554,7 @@
       (.check! (.fixnum? i) ,$ex.vref v i)
       (.check! (vector? v) ,$ex.vref v i)
       (.check! (.<:fix:fix i (.vector-length:vec v)) ,$ex.vref v i)
-      (.check! (.>=:fix:fix i 0) ,$ex.vref  v i)
+      (.check! (.>=:fix:fix i 0) ,$ex.vref v i)
       (.vector-ref:trusted v i)))
    
 `  ((_ larceny vector-set! (vector-set! v0 i0 x0))
@@ -462,7 +566,205 @@
       (.check! (.<:fix:fix i (.vector-length:vec v)) ,$ex.vset v i x)
       (.check! (.>=:fix:fix i 0) ,$ex.vset v i x)
       (.vector-set!:trusted v i x)))
+
+`  ((_ larceny make-bytevector (make-bytevector ?n ?fill))
+    (let ((bv (make-bytevector ?n)))
+      (bytevector-fill! bv ?fill)
+      bv))
+
+`  ((_ larceny bytevector-length (bytevector-length bv0))
+    (let ((bv bv0))
+      (.check! (bytevector? bv) ,$ex.bvlen bv)
+      (.bytevector-like-length:bvl bv)))
+
+`  ((_ larceny bytevector-ref (bytevector-ref bv0 i0))
+    (let ((bv bv0)
+          (i i0))
+      (.check! (.fixnum? i) ,$ex.bvref bv i)
+      (.check! (bytevector? bv) ,$ex.bvref bv i)
+      (.check! (.<:fix:fix i (.bytevector-like-length:bvl bv)) ,$ex.bvref bv i)
+      (.check! (.>=:fix:fix i 0) ,$ex.bvref bv i)
+      (.bytevector-like-ref:trusted bv i)))
    
+`  ((_ larceny bytevector-set! (bytevector-set! bv0 i0 x0))
+    (let ((bv bv0)
+          (i i0)
+          (x x0))
+      (.check! (.fixnum? i) ,$ex.bvset bv i x)
+      (.check! (bytevector? bv) ,$ex.bvset bv i x)
+      (.check! (.<:fix:fix i (.bytevector-like-length:bvl bv))
+               ,$ex.bvset bv i x)
+      (.check! (.>=:fix:fix i 0) ,$ex.bvset bv i x)
+      (.bytevector-like-set!:trusted bv i x)))
+
+`  ((_ larceny bytevector-like-length (bytevector-like-length bv0))
+    (let ((bv bv0))
+      (.check! (bytevector-like? bv) ,$ex.bvllen bv)
+      (.bytevector-like-length:bvl bv)))
+
+`  ((_ larceny bytevector-like-ref (bytevector-like-ref bv0 i0))
+    (let ((bv bv0)
+          (i i0))
+      (.check! (.fixnum? i) ,$ex.bvlref bv i)
+      (.check! (bytevector-like? bv) ,$ex.bvlref bv i)
+      (.check! (.<:fix:fix i (.bytevector-like-length:bvl bv))
+               ,$ex.bvlref bv i)
+      (.check! (.>=:fix:fix i 0) ,$ex.bvlref bv i)
+      (.bytevector-like-ref:trusted bv i)))
+
+`  ((_ larceny bytevector-like-set! (bytevector-like-set! bv0 i0 x0))
+    (let ((bv bv0)
+          (i i0)
+          (x x0))
+      (.check! (.fixnum? i) ,$ex.bvlset bv i x)
+      (.check! (bytevector-like? bv) ,$ex.bvlset bv i x)
+      (.check! (.<:fix:fix i (.bytevector-like-length:bvl bv))
+               ,$ex.bvlset bv i x)
+      (.check! (.>=:fix:fix i 0) ,$ex.bvlset bv i x)
+      (.bytevector-like-set!:trusted bv i x)))
+
+`  ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
+    (bytevector-ref x y))
+
+`  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x0 y0 z0))
+    (let ((x x0)
+          (y y0)
+          (z z0))
+#;    (.check! (.<:fix:fix z 256) ,$ex.bvset x y z)                     ; FIXME
+#;    (.check! (.>=:fix:fix z 0) ,$ex.bvset x y z)                      ; FIXME
+      (if (not (fx<=? 0 z 255))
+          (begin (write (list 'bytevector-u8-set! x y z))
+                 (newline)
+                 (larceny-break)))
+      (bytevector-set! x y z)))
+
+`  ((_ larceny bytevector-u16-ref (bytevector-u16-ref bv0 i0 which0))
+    (let ((bv bv0)
+          (i i0)
+          (which which0))
+      (.check! (.fixnum? i) ,$ex.bvref bv i)
+      (.check! (bytevector? bv) ,$ex.bvref bv i)
+      (.check! (.>=:fix:fix i 0) ,$ex.bvref bv i)
+      (let ((i+1 (.+:idx:idx i 1)))
+        (.check! (.<:fix:fix i+1 (.bytevector-like-length:bvl bv))
+                 ,$ex.bvref bv i)
+        (let ((b1 (.bytevector-like-ref:trusted bv i+1))
+              (b0 (.bytevector-like-ref:trusted bv i))
+              (which (cond ((eq? which 'big) which)
+                           ((eq? which 'little) which)
+                           (else (native-endianness)))))
+          (if (eq? which 'big)
+              (.+:idx:idx (.fxlsh b0 8) b1)
+              (.+:idx:idx (.fxlsh b1 8) b0))))))
+
+`  ((_ larceny bytevector-u16-set! (bytevector-u16-set! bv0 i0 n0 which0))
+    (let ((bv bv0)
+          (i i0)
+          (n n0)
+          (which which0))
+      (.check! (.fixnum? i) ,$ex.bvset bv i)
+      (.check! (bytevector? bv) ,$ex.bvset bv i)
+      (.check! (.>=:fix:fix i 0) ,$ex.bvset bv i)
+      (let ((i+1 (.+:idx:idx i 1)))
+        (.check! (.<:fix:fix i+1 (.bytevector-like-length:bvl bv))
+                 ,$ex.bvset bv i)
+        (.check! (.<:fix:fix n 65536) ,$ex.bvset bv i n)
+        (.check! (.>=:fix:fix n 0) ,$ex.bvset bv i n)
+        (let ((lo (.fxlogand n #x00ff))
+              (hi (.fxrsha n 8))
+              (which (cond ((eq? which 'big) which)
+                           ((eq? which 'little) which)
+                           (else (native-endianness)))))
+          (if (eq? which 'big)
+              (begin (.bytevector-like-set!:trusted bv i hi)
+                     (.bytevector-like-set!:trusted bv i+1 lo))
+              (begin (.bytevector-like-set!:trusted bv i lo)
+                     (.bytevector-like-set!:trusted bv i+1 hi)))))))
+
+`  ((_ larceny bytevector-u16-native-ref (bytevector-u16-native-ref bv0 i0))
+    (let ((bv bv0)
+          (i i0))
+      (.check! (.fixnum? i) ,$ex.bvref bv i)
+      (.check! (.=:fix:fix (.fxlogand i 1) 0) ,$ex.bvref bv i)
+      (bytevector-u16-ref bv i (native-endianness))))
+
+`  ((_ larceny bytevector-u16-native-set! (bytevector-u16-set! bv0 i0 n0))
+    (let ((bv bv0)
+          (i i0)
+          (n n0))
+      (.check! (.fixnum? i) ,$ex.bvset bv i n)
+      (.check! (.=:fix:fix (.fxlogand i 1) 0) ,$ex.bvset bv i n)
+      (bytevector-u16-set! bv i n (native-endianness))))
+
+;;; FIXME: temporary hack
+
+`  ((_ larceny bignum-length (bignum-length b0))
+    (if (eq? 'big (native-endianness))
+        (let* ((b b0)
+               (l3 (.bytevector-like-ref:trusted b 3))
+               (l2 (.bytevector-like-ref:trusted b 2))
+               (l1 (.bytevector-like-ref:trusted b 1))
+               (l0 (.+:idx:idx l3 (.+:idx:idx (.fxlsh l2 8) (.fxlsh l1 16))))
+               (l  (+ l0 l0)))
+          (cond ((.=:fix:fix l 0) l)
+                ((.=:fix:fix (bignum-ref b (.-:idx:idx l 1)) 0)
+                 (.-:idx:idx l 1))
+                (else l)))
+        (let* ((b b0)
+               (l0 (.bytevector-like-ref:trusted b 0))
+               (l1 (.bytevector-like-ref:trusted b 1))
+               (l2 (.bytevector-like-ref:trusted b 2))
+               (l0 (.+:idx:idx l0 (.+:idx:idx (.fxlsh l1 8) (.fxlsh l2 16))))
+               (l  (+ l0 l0)))
+          (cond ((.=:fix:fix l 0) l)
+                ((.=:fix:fix (bignum-ref b (.-:idx:idx l 1)) 0)
+                 (.-:idx:idx l 1))
+                (else l)))))
+
+`  ((_ larceny bignum-ref (bignum-ref a0 i0))
+    (if (eq? 'big (native-endianness))
+        (let* ((a a0)
+               (i i0)
+               (j (.fxlogand i 1))
+               (k (.+:idx:idx i (.-:idx:idx 3 (.+:idx:idx j j))))
+               (k (.+:idx:idx k k))
+               (b1 (.bytevector-like-ref:trusted a (.+:idx:idx k 1)))
+               (b0 (.bytevector-like-ref:trusted a k)))
+          (.+:idx:idx (.fxlsh b0 8) b1))
+        (let* ((a a0)
+               (i i0)
+               (k (.+:idx:idx i 2))
+               (k (.+:idx:idx k k))
+               (b1 (.bytevector-like-ref:trusted a (.+:idx:idx k 1)))
+               (b0 (.bytevector-like-ref:trusted a k)))
+          (.+:idx:idx b0 (.fxlsh b1 8)))))
+
+`  ((_ larceny bignum-set! (bignum-set! a0 i0 x0))
+    (if (eq? 'big (native-endianness))
+        (let* ((a a0)
+               (i i0)
+               (j (.fxlogand i 1))
+               (k (.+:idx:idx i (.-:idx:idx 3 (.+:idx:idx j j))))
+               (k (.+:idx:idx k k))
+               (x x0))
+          (.bytevector-like-set!:trusted a (.+:idx:idx k 1) (.fxlogand x 255))
+          (.bytevector-like-set!:trusted a k (.fxrsha x 8)))
+        (let* ((a a0)
+               (i i0)
+               (k (.+:idx:idx i 2))
+               (k (.+:idx:idx k k))
+               (x x0))
+          (.bytevector-like-set!:trusted a (.+:idx:idx k 1) (.fxrsha x 8))
+          (.bytevector-like-set!:trusted a k (.fxlogand x 255)))))
+
+;;; FIXME: end of temporary hack
+
+`  ((_ larceny native-endianness (native-endianness))
+    ',larceny:endianness)
+
+`  ((_ larceny make-string (make-string ?n))
+    (make-string ?n #\space))
+
 `  ((_ larceny string-length (string-length v0))
     (let ((v v0))
       (.check! (string? v) ,$ex.slen v)
@@ -474,7 +776,7 @@
       (.check! (.fixnum? i) ,$ex.sref v i)
       (.check! (string? v) ,$ex.sref v i)
       (.check! (.<:fix:fix i (.string-length:str v)) ,$ex.sref v i)
-      (.check! (.>=:fix:fix i 0) ,$ex.sref  v i)
+      (.check! (.>=:fix:fix i 0) ,$ex.sref v i)
       (.string-ref:trusted v i)))
    
 `  ((_ larceny string-set! (string-set! v0 i0 x0))
@@ -583,23 +885,6 @@
 `  ((_ larceny caar (caar ?e))
     (car (car ?e)))
 
-`  ((_ larceny make-vector (make-vector ?n))
-    (make-vector ?n '()))
-
-`  ((_ larceny make-bytevector (make-bytevector ?n ?fill))
-    (let ((bv (make-bytevector ?n)))
-      (bytevector-fill! bv ?fill)
-      bv))
-
-`  ((_ larceny make-string (make-string ?n))
-    (make-string ?n #\space))
-
-`  ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
-    (bytevector-ref x y))
-
-`  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
-    (bytevector-set! x y z))
-
 `  ((_ larceny = (= ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 ?e2)
@@ -649,7 +934,7 @@
       (* t1 t2)))
 
 `  ((_ larceny - (- ?e))
-    (- 0 ?e))
+    (-- ?e))
 `  ((_ larceny - (- ?e1 ?e2 ?e3 ?e4 ...))
     (let* ((t1 ?e1)
            (t2 (+ ?e2 ?e3 ?e4 ...)))
@@ -694,14 +979,48 @@
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
 
+`  ((_ larceny div (div ?x ?y))
+    (let ((x ?x) (y ?y))
+      (if (and (fixnum? x)
+               (fixnum? y)
+               (fx>=? x 0))
+          (quotient x y)
+          (apply div x y '()))))
+
+`  ((_ larceny mod (mod ?x ?y))
+    (let ((x ?x) (y ?y))
+      (if (and (fixnum? x)
+               (fixnum? y)
+               (fx>=? x 0))
+          (remainder x y)
+          (apply mod x y '()))))
+
+   ; FIXME: these names are now deprecated
+
+`  ((_ larceny fx= (fx= ?x ?y))
+    (fx=? ?x ?y))
+`  ((_ larceny fx< (fx< ?x ?y))
+    (fx<? ?x ?y))
+`  ((_ larceny fx<= (fx<= ?x ?y))
+    (fx<=? ?x ?y))
+`  ((_ larceny fx> (fx> ?x ?y))
+    (fx>? ?x ?y))
+`  ((_ larceny fx>= (fx>= ?x ?y))
+    (fx>=? ?x ?y))
+
    ; Special cases for two or three arguments.
 
 `  ((_ larceny fx=? (fx=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (.fixnum? x) ,$ex.fx= x)
-      (.check! (.fixnum? y) ,$ex.fx= y)
-      (.=:fix:fix x y)))
+      (.case:safety fx=?
+       ((0 1)
+        (.=:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx= x)
+         (.check! (.fixnum? y) ,$ex.fx= y)
+         (.=:fix:fix x y))))))
 `  ((_ larceny fx=? (fx=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -711,9 +1030,14 @@
 `  ((_ larceny fx<? (fx<? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (.fixnum? x) ,$ex.fx< x)
-      (.check! (.fixnum? y) ,$ex.fx< y)
-      (.<:fix:fix x y)))
+      (.case:safety fx<?
+       ((0 1)
+        (.<:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx< x)
+         (.check! (.fixnum? y) ,$ex.fx< y)
+         (.<:fix:fix x y))))))
 `  ((_ larceny fx<? (fx<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -723,9 +1047,14 @@
 `  ((_ larceny fx>? (fx>? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (.fixnum? x) ,$ex.fx> x)
-      (.check! (.fixnum? y) ,$ex.fx> y)
-      (.>:fix:fix x y)))
+      (.case:safety fx>?
+       ((0 1)
+        (.>:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx> x)
+         (.check! (.fixnum? y) ,$ex.fx> y)
+         (.>:fix:fix x y))))))
 `  ((_ larceny fx>? (fx>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -735,9 +1064,14 @@
 `  ((_ larceny fx<=? (fx<=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (.fixnum? x) ,$ex.fx<= x)
-      (.check! (.fixnum? y) ,$ex.fx<= y)
-      (.<=:fix:fix x y)))
+      (.case:safety fx<=?
+       ((0 1)
+        (.<=:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx<= x)
+         (.check! (.fixnum? y) ,$ex.fx<= y)
+         (.<=:fix:fix x y))))))
 `  ((_ larceny fx<=? (fx<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -747,9 +1081,14 @@
 `  ((_ larceny fx>=? (fx>=? ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (.fixnum? x) ,$ex.fx>= x)
-      (.check! (.fixnum? y) ,$ex.fx>= y)
-      (.>=:fix:fix x y)))
+      (.case:safety fx>=?
+       ((0 1)
+        (.>=:fix:fix x y))
+       (#t
+        (begin
+         (.check! (.fixnum? x) ,$ex.fx>= x)
+         (.check! (.fixnum? y) ,$ex.fx>= y)
+         (.>=:fix:fix x y))))))
 `  ((_ larceny fx>=? (fx>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -788,51 +1127,73 @@
       (fxmax (if (fx>=? x y) x y) z)))
 
    ; These procedures accept only two arguments.
-   ; FIXME:  The calls to fx:check-result are necessary
-   ; in order to generate an &implementation-restriction
-   ; condition.
 
 `  ((_ larceny fx+ (fx+ ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (fixnum? x) ,$ex.fx+ x y)
-      (.check! (fixnum? y) ,$ex.fx+ x y)
-      (let ((z (+ x y)))
-        (if (not (fixnum? z))
-            (fx:check-result 'fx+ z))
-        (.check! (fixnum? z) ,$ex.fx+ x y)
-        z)))
+      (.case:safety fx+
+       ((0)
+        (.+:idx:idx x y))
+       ((1)
+        (begin
+         (.check! (fixnum? x) ,$ex.fx+ x y)
+         (.check! (fixnum? y) ,$ex.fx+ x y)
+         (.+:idx:idx x y)))
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx+ x y)
+         (.check! (fixnum? y) ,$ex.fx+ x y)
+         (let ((z (.+:fix:fix x y)))
+           (.check! (fixnum? z) ,$ex.fx+ x y)
+           z))))))
+          
 
 `  ((_ larceny fx* (fx* ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (fixnum? x) ,$ex.fx* x y)
-      (.check! (fixnum? y) ,$ex.fx* x y)
-      (let ((z (* x y)))
-        (if (not (fixnum? z))
-            (fx:check-result 'fx* z))
-        (.check! (fixnum? z) ,$ex.fx* x y)
-        z)))
+      (.case:safety fx*                    ; FIXME
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx* x y)
+         (.check! (fixnum? y) ,$ex.fx* x y)
+         (let ((z (* x y)))
+           (.check! (fixnum? z) ,$ex.fx* x y)
+           z))))))
 
 `  ((_ larceny fx- (fx- ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (fixnum? x) ,$ex.fx- x y)
-      (.check! (fixnum? y) ,$ex.fx- x y)
-      (let ((z (- x y)))
-        (if (not (fixnum? z))
-            (fx:check-result 'fx- z))
-        (.check! (fixnum? z) ,$ex.fx- x y)
-        z)))
+      (.case:safety fx-
+       ((0)
+         (.-:idx:idx x y))
+       ((1)
+        (begin
+         (.check! (fixnum? x) ,$ex.fx- x y)
+         (.check! (fixnum? y) ,$ex.fx- x y)
+         (.-:idx:idx x y)))
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx- x y)
+         (.check! (fixnum? y) ,$ex.fx- x y)
+         (let ((z (- x y)))
+           (.check! (fixnum? z) ,$ex.fx- x y)
+           z))))))
 
 `  ((_ larceny fx- (fx- ?x))
     (let ((x ?x))
-      (.check! (fixnum? x) ,$ex.fx-- x)
-      (let ((z (- 0 x)))
-        (if (not (fixnum? z))
-            (fx:check-result 'fx- z))
-        (.check! (fixnum? z) ,$ex.fx-- x)
-        z)))
+      (.case:safety fx-
+       ((0)
+        (.-:idx:idx 0 x))
+       ((1)
+        (begin
+         (.check! (fixnum? x) ,$ex.fx-- x)
+         (.-:idx:idx 0 x)))
+       (#t
+        (begin
+         (.check! (fixnum? x) ,$ex.fx-- x)
+         (let ((z (- 0 x)))
+           (.check! (fixnum? z) ,$ex.fx-- x)
+           z))))))
 
 `  ((_ larceny fxnot (fxnot ?x))
     (.fxlognot ?x))
@@ -879,7 +1240,7 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl= x)
       (.check! (flonum? y) ,$ex.fl= y)
-      (= x y)))
+      (.=:flo:flo x y)))
 `  ((_ larceny fl=? (fl=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -891,7 +1252,7 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl< x)
       (.check! (flonum? y) ,$ex.fl< y)
-      (< x y)))
+      (.<:flo:flo x y)))
 `  ((_ larceny fl<? (fl<? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -903,7 +1264,7 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl> x)
       (.check! (flonum? y) ,$ex.fl> y)
-      (> x y)))
+      (.>:flo:flo x y)))
 `  ((_ larceny fl>? (fl>? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -915,7 +1276,7 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl<= x)
       (.check! (flonum? y) ,$ex.fl<= y)
-      (<= x y)))
+      (.<=:flo:flo x y)))
 `  ((_ larceny fl<=? (fl<=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -927,7 +1288,7 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl>= x)
       (.check! (flonum? y) ,$ex.fl>= y)
-      (>= x y)))
+      (.>=:flo:flo x y)))
 `  ((_ larceny fl>=? (fl>=? ?x ?y ?z))
     (let* ((x ?x)
            (y ?y)
@@ -965,6 +1326,42 @@
           (z ?z))
       (flmax (if (fl>=? x y) x y) z)))
 
+`  ((_ larceny flabs (flabs ?x))
+    (let ((x ?x))
+      (if (fl<? x 0.0)
+          (fl- x)
+          x)))
+
+`  ((_ larceny flfloor (flfloor ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.flfloor x)
+      (if (fl<? x 0.0)
+          (let ((g (fltruncate x)))
+            (if (not (fl=? g x))
+                (fl- g 1.0)
+                g))
+          (fltruncate x))))
+
+`  ((_ larceny flceiling (flceiling ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.flceiling x)
+      (if (fl<? x 0.0)
+          (fltruncate x)
+          (let ((g (fltruncate x)))
+            (if (not (fl=? g x))
+                (fl+ g 1.0)
+                g)))))
+
+`  ((_ larceny fltruncate (fltruncate ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.fltruncate x)
+      (truncate x)))
+
+`  ((_ larceny flround (flround ?x))
+    (let ((x ?x))
+      (.check! (flonum? x) ,$ex.flround x)
+      (round x)))
+
    ; Special cases for two, three, or more arguments.
 
 `  ((_ larceny fl+ (fl+))
@@ -976,7 +1373,7 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl+ x y)
       (.check! (flonum? y) ,$ex.fl+ x y)
-      (+ x y)))
+      (.+:flo:flo x y)))
 `  ((_ larceny fl+ (fl+ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl+ x (fl+ y z))))
@@ -990,35 +1387,46 @@
           (y ?y))
       (.check! (flonum? x) ,$ex.fl* x y)
       (.check! (flonum? y) ,$ex.fl* x y)
-      (* x y)))
+      (.*:flo:flo x y)))
 `  ((_ larceny fl* (fl* ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl* x (fl* y z))))
 
 `  ((_ larceny fl- (fl- ?x))
     (let ((x ?x))
-      (.check! (flonum? x) ,$ex.fl-- x)
-      (- 0.0 x)))
+      (.case:safety fl-
+       ((0 1)
+        (-- x))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl-- x)
+         ; FIXME
+         (-- x))))))
 `  ((_ larceny fl- (fl- ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl- x y)
       (.check! (flonum? y) ,$ex.fl- x y)
-      (- x y)))
+      (.-:flo:flo x y)))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
       (fl- x (fl+ y z))))
 
 `  ((_ larceny fl/ (fl/ ?x))
     (let ((x ?x))
-      (.check! (flonum? x) ,$ex.fl/ x)
-      (/ 1.0 x)))
+      (.case:safety fl/
+       ((0 1)
+        (/ 1.0 x))
+       (#t
+        (begin
+         (.check! (flonum? x) ,$ex.fl/ x)
+         (./:flo:flo 1.0 x))))))
 `  ((_ larceny fl/ (fl/ ?x ?y))
     (let ((x ?x)
           (y ?y))
       (.check! (flonum? x) ,$ex.fl/ x y)
       (.check! (flonum? y) ,$ex.fl/ x y)
-      (/ x y)))
+      (./:flo:flo x y)))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
       (fl/ x (fl* y z))))
@@ -1255,6 +1663,60 @@
 
 `  ((_ larceny write-char (write-char c p))
     (put-char p c))
+
+   ; Record accesses.
+   ; Checks that obj is a record of type rtd (or a subtype).
+   ; The hierarchy vector should be the one expected for the
+   ; most common case (usually rtd), and depth is the depth
+   ; at which rtd must be found within the hierarchy vector
+   ; of obj.  i is the 0-origin index of the field within obj.
+   ;
+   ; FIXME: this isn't being inlined yet.
+   ; FIXME: rtd is usually a lexical variable that isn't in a register,
+   ; and fetching it as an argument to .check! interferes with peephole
+   ; optimization.  That's why this is written using if expressions.
+
+`  ((_ larceny record-ref:bummed (record-ref:bummed obj0 rtd0 hvec0 depth0 i0))
+    (let ((obj obj0)
+          (rtd rtd0)
+          (hvec hvec0)
+          (depth depth0)
+          (i i0))
+      (define (record-ref)
+        (.vector-ref:trusted obj i))
+      (define (complain)
+        (.check! #f ,$ex.record obj rtd)
+        0)
+      (if (structure? obj)
+          (let ((hvec2 (.vector-ref:trusted obj 0)))
+            (if (eq? hvec hvec2)
+                (record-ref)
+                (if (eq? rtd (.vector-ref:trusted hvec2 depth))
+                    (record-ref)
+                    (complain))))
+          (complain))))
+
+`  ((_ larceny record-set!:bummed
+               (record-set!:bummed obj0 rtd0 hvec0 depth0 i0 x0))
+    (let ((obj obj0)
+          (rtd rtd0)
+          (hvec hvec0)
+          (depth depth0)
+          (i i0)
+          (x x0))
+      (define (record-set!)
+        (.vector-set!:trusted obj i x))
+      (define (complain)
+        (.check! #f ,$ex.record obj rtd)
+        0)
+      (if (structure? obj)
+          (let ((hvec2 (.vector-ref:trusted obj 0)))
+            (if (eq? hvec hvec2)
+                (record-set!)
+                (if (eq? rtd (.vector-ref:trusted hvec2 depth))
+                    (record-set!)
+                    (complain))))
+          (complain))))
 
    ; Default case: expand into the original expression.
 

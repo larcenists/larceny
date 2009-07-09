@@ -147,17 +147,20 @@
                   (pattern (cadr exp))
                   (f (car pattern))
                   (args (cdr pattern))
-                  (body (cddr exp)))
-             (if (and (symbol? (car (cadr exp)))
-                      (benchmark-mode)
-                      (list? (cadr exp)))
-                 `(,def ,f
-                        (,lambda0 ,args
-                           ((,lambda0 (,f)
-                               (,set!0 ,f (,lambda0 ,args ,@body))
-                               ,pattern)
-                            0)))
-                 `(,def ,f (,lambda0 ,args ,@body))))
+                  (body (cddr exp))
+                  (posn (pass1-lookup-source-position def))
+                  (lam (if (and (symbol? (car (cadr exp)))
+                                (benchmark-mode)
+                                (list? (cadr exp)))
+                           `(,lambda0 ,args
+                               ((,lambda0 (,f)
+                                   (,set!0 ,f (,lambda0 ,args ,@body))
+                                   ,pattern)
+                                0))
+                           `(,lambda0 ,args ,@body)))
+                  (new `(,def ,f ,lam)))
+             (pass1-equate-source-positions! exp new)
+             new)
            env))
          ((> (length exp) 3) (m-error "Malformed definition" exp))
          (else (let ((id (cadr exp)))
@@ -286,7 +289,9 @@
       (let* ((formals (cadr exp))
              (alist (rename-vars formals))
              (env (syntactic-rename env alist))
-             (body (cddr exp)))
+             (body (cddr exp))
+             (source-file-position
+              (pass1-lookup-source-position exp)))
 
         (do ((alist alist (cdr alist)))
             ((null? alist))
@@ -331,7 +336,7 @@
                                    (if (include-source-code)
                                        exp
                                        #f)
-                                   source-file-name
+                                   (source-file-name)
                                    source-file-position)
                          (m-body body env))))
 

@@ -25,14 +25,20 @@
   (let ((u (as-user as)))
     (user-data.proc-counter! u 0)
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u)))
-    (user-data.local-counter! u 0)
-    (user-data.labels! u '()))
+    (user-data.local-counter! u 0))
   (reset-symbolic-label-cache!)
   (let ((e (new-proc-id as)))
     (as-source! as (cons (list $.entry e #t) (as-source as))))
   (current-sassy-assembly-structure as))
 
+; Checks for free identifiers in the given Sassy input,
+; which is a common error when writing new sequences of
+; assembly code.  The association lists make this check
+; too expensive for large inputs, however, so sassy-assemble
+; calls it only for small inputs.
+
 (define (check-for-free-ids code)
+
   (define (keyword? x)
     (case x
       ((eax ebx ecx edx edi esi esp ebp
@@ -44,6 +50,7 @@
          
   (let ((need-labels  '())
         (found-labels '()))
+
     (define (sym x)
       (cond ((and (not (keyword? x))
                   (not (memq x found-labels))
@@ -91,9 +98,10 @@
 
 (define (sassy-assemble as code)
   ;(begin (display code) (newline))
-  (check-for-free-ids code)
-  (sassy `(,@(map (lambda (l) `(export ,(t_label (compiled-procedure as l))))
-                  (user-data.labels (as-user as)))
+  (if (< (length code) 100)                 ; FIXME
+      (check-for-free-ids code))
+  (sassy `(,@(map (lambda (entry) `(export ,(compiled-procedure as (car entry))))
+                  (as-labels as))
            (org  ,$bytevector.header-bytes)
            (text ,@code))
          'dont-expand))
@@ -117,7 +125,7 @@
                   (let* ((sym-table (sassy-symbol-table code))
                          (sassy-sym (hash-table-ref 
                                      sym-table 
-                                     (t_label (compiled-procedure as (car entry)))))
+                                     (compiled-procedure as (car entry))))
                          (offset (sassy-symbol-offset sassy-sym)))
                     (set-cdr! entry offset)))
                 (as-labels as))
@@ -147,19 +155,17 @@
 ; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
-;  seen-labels          A list of labels at lower addresses
+;  [slot no longer used]
 ;  local-counter        A serial number for (local) labels
 
 (define (make-user-data) (list 0 0 '() 0 #f #f #f))
 
 (define (user-data.toplevel-counter u) (car u))
 (define (user-data.proc-counter u) (cadr u))
-(define (user-data.labels u) (caddr u))
 (define (user-data.local-counter u) (cadddr u))
 
 (define (user-data.toplevel-counter! u x) (set-car! u x))
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
-(define (user-data.labels! u x) (set-car! (cddr u) x))
 (define (user-data.local-counter! u x) (set-car! (cdddr u) x))
 
 ;  sassy-output         <sassy-output> for code, or #f if none yet
@@ -320,8 +326,6 @@
 (define-instruction $.label
   (lambda (instruction as)
     (list-label instruction)
-    (let ((u (as-user as)))
-      (user-data.labels! u (cons (operand1 instruction) (user-data.labels u))))
     (make-asm-label as (operand1 instruction))
     (emit-sassy as ia86.t_label
                 (compiled-procedure as (operand1 instruction)))))
@@ -546,7 +550,7 @@
            (ns (operand3 instruction))
            (v (make-vector (+ n 1) 
                            (lambda ()
-                             (emit-sassy as ia86.t_push_result)))))
+                             (emit-sassy as ia86.t_push_temp)))))
       (emit-sassy as ia86.t_check_save n)
       ;; setup zeroed register; push PADWORD (sometimes)
       (emit-sassy as ia86.t_setup_save_stores n)
@@ -594,8 +598,7 @@
   (lambda (instruction as)
     (list-instruction "branch" instruction)
     (emit-sassy as
-	       (if (assq (operand1 instruction) 
-			 (as-labels as))
+	       (if (find-label-locally as (operand1 instruction))
 		   ia86.t_branch
 		   ia86.t_skip)
 	       (compiled-procedure as (operand1 instruction)))))
@@ -604,8 +607,7 @@
   (lambda (instruction as)
     (list-instruction "branchf" instruction)
     (emit-sassy as 
-	       (if (assq (operand1 instruction)
-			 (as-labels as))
+	       (if (find-label-locally as (operand1 instruction))
 		   ia86.t_branchf 
 		   ia86.t_skipf)
 	       (compiled-procedure as (operand1 instruction)))))
@@ -680,8 +682,7 @@
   (lambda (instruction as)
     (list-instruction "setrtn/branch" instruction)
     (emit-sassy as 	      
-                (if (assq (operand1 instruction) 
-                          (as-labels as))
+                (if (find-label-locally as (operand1 instruction))
                     ia86.t_setrtn_branch
                     ia86.t_setrtn_skip)
                 (compiled-procedure as (operand1 instruction)))))
@@ -699,7 +700,7 @@
     (emit-sassy as ia86.t_reg_branchf
                 (operand1 instruction) 
                 (compiled-procedure as (operand2 instruction))
-                (not (assq (operand2 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand2 instruction))))))
 
 (define-instruction $reg/check
   (lambda (instruction as)
@@ -715,7 +716,7 @@
                 (operand1 instruction)
                 (operand2 instruction)
                 (compiled-procedure as (operand3 instruction))
-                (not (assq (operand3 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand3 instruction))))))
 
 (define-instruction $reg/op2/branchf
   (lambda (instruction as)
@@ -725,7 +726,7 @@
                 (operand2 instruction)
                 (operand3 instruction)
                 (compiled-procedure as (operand4 instruction))
-                (not (assq (operand4 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand4 instruction))))))
 
 (define-instruction $reg/op2imm/branchf
   (lambda (instruction as)
@@ -735,7 +736,7 @@
                 (operand2 instruction)
                 (constant-value (operand3 instruction))
                 (compiled-procedure as (operand4 instruction))
-                (not (assq (operand4 instruction) (as-labels as))))))
+                (not (find-label-locally as (operand4 instruction))))))
 
 (define-instruction $reg/op1/setreg
   (lambda (instruction as)

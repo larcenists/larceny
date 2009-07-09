@@ -154,7 +154,7 @@
     ((variable? exp) (cg-variable output exp target regs frame env tail?))
     ((begin? exp) (cg-sequential output exp target regs frame env tail?))
     ((call? exp) (cg-call output exp target regs frame env tail?))
-    (else (error "Unrecognized expression." exp))))
+    (else (twobit-bug "unrecognized expression" exp))))
 
 
 ; Lambda expressions that evaluate to closures.
@@ -282,7 +282,7 @@
                         (cgreg-bind! regs r v)
                         (gen-store! output frame r v))))
             (else
-             (error "Bug in cg-close-lambda")))
+             (twobit-bug "cg-close-lambda")))
           (if (>= r R-1)
               (begin (gen! output $op2 $cons R-1)
                      (gen! output $setreg R-1)))))))
@@ -563,7 +563,7 @@
                  (negative? (cgframe-size frame)))
              (return-nostore id)
              (return id))))
-      ((procedure) (error "Bug in cg-variable" exp))
+      ((procedure) (twobit-bug "cg-variable" exp))
       ((register)
        (let ((r (entry.regnum entry)))
          (if (or tail?
@@ -586,7 +586,7 @@
                 (gen-load! output frame r id)
                 (cgreg-bind! regs r id)
                 r))))
-      (else (error "Bug in cg-variable" exp)))))
+      (else (twobit-bug "cg-variable" exp)))))
 
 (define (cg-sequential output exp target regs frame env tail?)
   (cg-sequential-loop output (begin.exprs exp) target regs frame env tail?))
@@ -749,6 +749,6 @@
   
   (if (< n *nregs*)
       (loop1 (- *nhwregs* 1) n '())
-      (error (string-append "Compiler bug: can't allocate "
-                            (number->string n)
-                            " registers on this target."))))
+      (twobit-bug (string-append "can't allocate "
+                                 (number->string n)
+                                 " registers on this target."))))

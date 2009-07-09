@@ -887,4 +887,16 @@
 (define exists some?)
 (define cons* list*)
 
+; SRFI 1 redefines these things, some of which we'll need for the R6RS.
+
+(define larceny:map map)                ; incompatible with SRFI 1
+(define larceny:for-each for-each)      ; incompatible with SRFI 1
+(define larceny:member member)          ; incompatible with SRFI 1
+(define larceny:assoc assoc)            ; incompatible with SRFI 1
+
+(define larceny:list-copy list-copy)    ; incompatible with SRFI 1
+(define larceny:fold-right fold-right)  ; incompatible with SRFI 1
+(define larceny:remove remove)          ; incompatible with SRFI 1
+(define larceny:remove! remove!)        ; incompatible with SRFI 1
+
 ; eof

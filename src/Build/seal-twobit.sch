@@ -114,6 +114,7 @@
     compiler-flags
     global-optimization-flags
     runtime-safety-flags
+    compile-despite-errors
     issue-warnings
     include-procedure-names
     include-source-code
@@ -123,6 +124,7 @@
     runtime-safety-checking
     catch-undefined-globals
     integrate-procedures
+    faster-arithmetic
     control-optimization
     parallel-assignment-optimization
     lambda-optimization

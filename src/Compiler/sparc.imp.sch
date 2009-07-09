@@ -161,6 +161,15 @@
     (.string-ref:trusted 2 ustring-ref:trusted #f       -1 ,:string   ,:none)
     (.string-set!:trusted 3 ustring-set!:trusted #f     -1 ,:dead     ,:string)
 
+    ; FIXME: should support immediate index for bytevector-ref
+
+    (.bytevector-like-length:bvl
+                      1 bytevector-like-length:bvl #f  -1 ,:immortal ,:none)
+    (.bytevector-like-ref:trusted
+                      2 bytevector-like-ref:trusted #f -1 ,:string   ,:none)
+    (.bytevector-like-set!:trusted
+                      3 bytevector-like-set!:trusted #f -1 ,:dead    ,:string)
+
     (.car:pair        1 car:pair         #f            -1 ,:car      ,:none)
     (.cdr:pair        1 cdr:pair         #f            -1 ,:cdr      ,:none)
 
@@ -191,12 +200,22 @@
 ;    (./:flo:flo       2 /:flo:flo        #f            -1 ,:immortal ,:none)
 
 ;    (.=:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;   ;(.=:obj:flo       2 =:obj:flo        #f            -1 ,:immortal ,:none)
-;   ;(.=:flo:obj       2 =:flo:obj        #f            -1 ,:immortal ,:none)
-;    (.<:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.<=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>:flo:flo       2 =:flo:flo        #f            -1 ,:immortal ,:none)
-;    (.>=:flo:flo      2 =:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.<:flo:flo       2 <:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.<=:flo:flo      2 <=:flo:flo       #f            -1 ,:immortal ,:none)
+;    (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
+;    (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
+
+     (.+:flo:flo       2 +                #f            -1 ,:immortal ,:none)
+     (.-:flo:flo       2 -                #f            -1 ,:immortal ,:none)
+     (.*:flo:flo       2 *                #f            -1 ,:immortal ,:none)
+     (./:flo:flo       2 /                #f            -1 ,:immortal ,:none)
+
+     (.=:flo:flo       2 =                #f            -1 ,:immortal ,:none)
+     (.<:flo:flo       2 <                #f            -1 ,:immortal ,:none)
+     (.<=:flo:flo      2 <=               #f            -1 ,:immortal ,:none)
+     (.>:flo:flo       2 >                #f            -1 ,:immortal ,:none)
+     (.>=:flo:flo      2 >=               #f            -1 ,:immortal ,:none)
+
     )))
 
 (define $r4rs-integrable-procedures$
@@ -235,6 +254,8 @@
     (exact?           1 exact?           #f          #x24 ,:immortal ,:none)
     (inexact?         1 inexact?         #f          #x25 ,:immortal ,:none)
     (exact->inexact   1 exact->inexact   #f          #x26 ,:immortal ,:none)
+    (inexact          1 exact->inexact   #f            -1 ,:immortal ,:none)
+    (exact            1 inexact->exact   #f            -1 ,:immortal ,:none)
     (inexact->exact   1 inexact->exact   #f          #x27 ,:immortal ,:none)
     (round            1 round            #f          #x28 ,:immortal ,:none)
     (truncate         1 truncate         #f          #x29 ,:immortal ,:none)

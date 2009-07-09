@@ -160,11 +160,14 @@
         {
             double x = this.unsafeAsDouble(0);
             double y = arg1.unsafeAsDouble(0);
-            if (x == 0.0 && y == 0.0) {
-              Reg.Result = (1.0/y == 1.0/x) ? Factory.True : Factory.False;
-            } else { 
-              Reg.Result = (y == x) ? Factory.True : Factory.False;
+            byte[] xbytes = System.BitConverter.GetBytes(x);
+            byte[] ybytes = System.BitConverter.GetBytes(y);
+            bool r = true;
+            for (int i = 0; i < xbytes.Length; i++) {
+                if (xbytes[i] != ybytes[i])
+                    r = false;
             }
+            Reg.Result = r ? Factory.True : Factory.False;
         }
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, flonum, SByteVL, FlonumTag) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)) ? Factory.True : Factory.False;
@@ -196,11 +199,30 @@
         }
 
         // Compnums
+
+        // FIXME: the code duplication should be removed
+
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(eqvp_not_eq, compnum, SByteVL, CompnumTag) {
-            Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
-                                      &&
-                          arg1.unsafeAsDouble(1) == this.unsafeAsDouble(1)) ? Factory.True : Factory.False;
+            double x = this.unsafeAsDouble(0);
+            double y = arg1.unsafeAsDouble(0);
+            byte[] xbytes = System.BitConverter.GetBytes(x);
+            byte[] ybytes = System.BitConverter.GetBytes(y);
+            bool r = true;
+            for (int i = 0; i < xbytes.Length; i++) {
+                if (xbytes[i] != ybytes[i])
+                    r = false;
+            }
+            x = this.unsafeAsDouble(1);
+            y = arg1.unsafeAsDouble(1);
+            xbytes = System.BitConverter.GetBytes(x);
+            ybytes = System.BitConverter.GetBytes(y);
+            for (int i = 0; i < xbytes.Length; i++) {
+                if (xbytes[i] != ybytes[i])
+                    r = false;
+            }
+            Reg.Result = r ? Factory.True : Factory.False;
         }
+
         SPECIALOP2_OVERRIDE_REVERSED_HANDLE(numeric_equals, compnum, SByteVL, CompnumTag) {
             Reg.Result = (arg1.unsafeAsDouble(0) == this.unsafeAsDouble(0)
                                       &&

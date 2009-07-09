@@ -217,8 +217,9 @@
 ; all ports
 
 (define port.setposn   18) ; boolean: true iff supports set-port-position!
+(define port.alist     19) ; association list: used mainly by custom ports
 
-(define port.structure-size 19)      ; size of port structure
+(define port.structure-size 20)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -243,6 +244,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (io/initialize)
+  ; Nothing, for the time being.
+  #t)
+
+(define (io/finalize)
   ; Nothing, for the time being.
   #t)
 
@@ -331,6 +336,7 @@
                        readmode:binary))
 
     (vector-set! v port.setposn set-position?)
+    (vector-set! v port.alist '())
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -481,7 +487,8 @@
   (assert (port? p))
   (assert (bytevector? bvl))
   (assert (let ((t (vector-like-ref p port.transcoder)))
-            (or (eq? t codec:binary) (eq? t codec:latin-1))))
+            (or (eq? t codec:binary)
+                (eq? (io/transcoder-codec t) 'latin-1))))
   (let ((buf (vector-like-ref p port.mainbuf))
         (tt  (typetag bvl)))
     (io/flush-buffer p)
@@ -509,9 +516,13 @@
       (begin (error "io/discretionary-flush: not an output port: " p)
              #t)))
 
+; Flushes output-only ports, but does not flush combined input/output
+; ports because they are unbuffered on the output side.
+
 (define (io/flush p)
   (if (and (port? p) (io/output-port? p))
-      (io/flush-buffer p)
+      (if (not (io/input-port? p))
+          (io/flush-buffer p))
       (begin (error "io/flush: not an output port: " p)
              #t)))
 
@@ -538,30 +549,26 @@
 (define (io/port-at-eof? p)
   (and (port? p) (eq? (vector-like-ref p port.state) 'eof)))
 
-(define (io/port-position p)
-  (cond ((io/input-port? p)
-         (+ (vector-like-ref p port.mainpos)
-            (vector-like-ref p port.mainptr)))
-        ((io/output-port? p)
-         (+ (vector-like-ref p port.mainpos)
-            (vector-like-ref p port.mainlim)))
+; The port alist was added to implement R6RS semantics for
+; port-position and set-port-position!, and may eventually
+; be used for other things also.
+
+(define (io/port-alist p)
+  (cond ((port? p)
+         (vector-like-ref p port.alist))
         (else
-         (error "io/port-position: " p " is not an open port.")
+         (error 'io/port-alist (errmsg 'msg:illegal) p)
          #t)))
 
-(define (io/port-lines-read p)
-  (cond ((io/input-port? p)
-         (vector-like-ref p port.linesread))
+(define (io/port-alist-set! p alist)
+  (cond ((not (port? p))
+         (error 'io/port-alist (errmsg 'msg:illegal1) p))
+        ((not (and (list? alist)
+                   (every? pair? alist)))
+         (error 'io/port-alist (errmsg 'msg:illegal2) p))
         (else
-         (error 'io/port-lines-read "not a textual input port" p)
-         #t)))
-
-(define (io/port-line-start p)
-  (cond ((io/input-port? p)
-         (vector-like-ref p port.linestart))
-        (else
-         (error 'io/port-line-start "not a textual input port" p)
-         #t)))
+         (vector-like-set! p port.alist alist)
+         (unspecified))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -772,8 +779,7 @@
                         (vector-like-ref p port.readmode))
               readmode:flags))
         (else
-         (io/complain-of-illegal-argument 'io/port-recognizes-javadot-symbols?
-                                          p))))
+         (io/complain-of-illegal-argument 'io/port-allows-flags? p))))
 
 (define (io/port-allows-larceny-weirdness? p)
   (cond ((io/input-port? p)
@@ -847,9 +853,146 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; R6RS i/o (preliminary and incomplete)
+; R6RS i/o
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; R6RS port positions are a mess, mainly because they mimic
+; a Posix feature that works only for file descriptors and
+; whose semantics is specified in terms of bytes, not characters.
+; As specified in Scheme, port positions also interact (badly)
+; with other misfeatures, including input/output ports (whose
+; semantics were modelled on Posix features that assume one
+; byte per character) and custom ports (whose semantics mandates
+; at least one character of lookahead buffering, but does not
+; include any provision for buffer corrections when calculating
+; port positions).
+;
+; In Larceny, all ports support the port-position operation.
+; Binary ports report the position in bytes, and textual ports
+; report the position in characters.
+;
+; For set-port-position!, the situation is more complex:
+;
+; some ports do not support set-port-position!
+;     e.g. pipes and sockets
+; binary file ports support set-port-position!
+; custom ports may support set-port-position!
+;     If so, then Larceny assumes their positions are reported
+;     in bytes (for binary ports) or characters (for textual
+;     ports) and relies on those assumptions to implement
+;     buffer corrections.
+; custom input/output (combined) ports must support set-port-position!
+;     Larceny relies on set-port-position! to implement any buffer
+;     correction required when switching from input to output.
+; textual input file ports support set-port-position!
+;     With Latin-1 or UTF-8 transcoding, the implementation
+;     uses a cache and a port-position-in-bytes procedure.
+;     If the position has not been cached, then a warning
+;     is issued and the implementation proceeds as for UTF-16
+;     transcoding.
+;     With UTF-16 transcoding, set-port-position! is implemented
+;     by resetting to the beginning of the file and reading the
+;     specified number of characters.
+; textual input/output file ports support set-port-position!
+;     Implementation is the same as for input-only file ports.
+; textual output-only files ports support set-port-position!
+;     Buffer corrections are implemented using caching and
+;     a port-position-in-bytes procedure that is part of the
+;     port structure.
+; bytevector and string ports support set-port-position!
+;     They mimic file ports.
+;
+; For textual ports, if the argument to set-port-position! is
+; nonzero and is also not the result of a previous call to
+; port-position on the port, then an exception should be raised.
+;
+; A position cache that maps character positions to byte positions
+; is maintained for textual ports that support set-port-position!.
+; If the port uses variable-length transcoding (with a codec other
+; than Latin-1, or an eol-style other than none), then the port
+; must supply one of the following procedures in the port's alist:
+;
+;     port-position-in-bytes
+;     port-position-in-chars (used by custom ports)
+
+(define (io/port-position p)
+  (if (io/binary-port? p)
+      (io/port-position-nocache p)
+      (let ((posn (io/port-position-nocache p)))
+
+        (if (and (> posn 0)
+                 (vector-like-ref p port.setposn))
+
+            ; Cache the position for future use by set-port-position!
+
+            (let* ((posn (io/port-position-nocache p))
+                   (t (io/port-transcoder p))
+                   (alist (io/port-alist p))
+                   (probe1 (assq 'port-position alist))
+                   (port-position-in-chars (if probe1 (cdr probe1) #f))
+                   (probe2 (assq 'port-position-in-bytes alist))
+                   (port-position-in-bytes (if probe2 (cdr probe2) #f))
+                   (probe3 (assq 'cached-positions alist))
+                   (ht (if probe3
+                           (cdr probe3)
+                           (let* ((ht (make-hashtable abs =))
+                                  (entry (cons 'cached-positions ht)))
+                             (io/port-alist-set! p (cons entry alist))
+                             ht))))
+
+              (cond ((and (eq? 'latin-1 (io/transcoder-codec t))
+                          (eq? 'none (io/transcoder-eol-style t)))
+                     (hashtable-set! ht posn posn))
+                    (port-position-in-chars
+                     (hashtable-set! ht posn posn))
+                    (port-position-in-bytes
+                     (let* ((byte-posn (port-position-in-bytes))
+                            (byte-posn
+                             (if (io/input-port? p)
+                                 (- byte-posn
+                                    (- (vector-like-ref p port.mainlim)
+                                       (vector-like-ref p port.mainptr))
+                                    (- (vector-like-ref p port.auxlim)
+                                       (vector-like-ref p port.auxptr)))
+                                 byte-posn)))
+                       (hashtable-set! ht posn byte-posn)))
+                    (else
+                     (assertion-violation
+                      'port-position
+                      "internal error: no support for set-port-position!")))))
+
+        posn)))
+
+; Like io/port-position, but faster and more space-efficient
+; because it doesn't cache.  The call to io/flush is necessary
+; for correct caching when called by io/port-position above.
+
+(define (io/port-position-nocache p)
+  (cond ((io/input-port? p)
+         (+ (vector-like-ref p port.mainpos)
+            (vector-like-ref p port.mainptr)))
+        ((io/output-port? p)
+         (io/flush p)
+         (+ (vector-like-ref p port.mainpos)
+            (vector-like-ref p port.mainlim)))
+        (else
+         (error "io/port-position: " p " is not an open port.")
+         #t)))
+
+(define (io/port-lines-read p)
+  (cond ((io/input-port? p)
+         (vector-like-ref p port.linesread))
+        (else
+         (error 'io/port-lines-read "not a textual input port" p)
+         #t)))
+
+(define (io/port-line-start p)
+  (cond ((io/input-port? p)
+         (vector-like-ref p port.linestart))
+        (else
+         (error 'io/port-line-start "not a textual input port" p)
+         #t)))
 
 (define (io/port-has-set-port-position!? p)
   (cond ((port? p)
@@ -858,31 +1001,112 @@
          (error 'io/has-set-port-position!? "illegal argument" p)
          #t)))
 
+; FIXME: for textual output ports with variable-length encoding,
+; any output operation should invalidate all cached positions
+; that lie beyond the position of the output operation.
+
 (define (io/set-port-position! p posn)
-  (cond ((and (port? p)
-              (vector-like-ref p port.setposn))
-         (cond ((eq? (vector-like-ref p port.state) 'closed)
-                (unspecified))
-               ((and (exact? posn) (integer? posn))
-                (io/reset-buffers! p)
-                (vector-like-set! p port.mainpos posn)
-                (let ((r (((vector-like-ref p port.ioproc) 'set-position!)
-                          (vector-like-ref p port.iodata)
-                          posn)))
-                  (cond ((eq? r 'ok)
-                         (if (eq? (vector-like-ref p port.state) 'eof)
-                             (vector-like-set!
-                              p
-                              port.state
-                              (if (binary-port? p) 'binary 'textual)))
-                         (unspecified))
-                        (else
-                         (error 'set-port-position! "io error" p posn)))))
-               (else
-                (error 'io/set-port-position! "illegal argument" posn))))
+  (if (io/output-port? p)
+      (io/flush p))
+  (cond ((not (and (port? p)
+                   (vector-like-ref p port.setposn)))
+         (error 'io/set-port-position! (errmsg 'msg:illegalarg1) p posn))
+        ((eq? (vector-like-ref p port.state) 'closed)
+         (unspecified))
+        ((not (and (exact? posn) (integer? posn)))
+         (error 'io/set-port-position! "illegal argument" posn))
+        ((or (= posn 0)
+             (io/binary-port? p))
+         (io/reset-buffers! p)
+         (vector-like-set! p port.mainpos posn)
+         (io/set-port-position-as-binary! p posn))
         (else
-         (error 'io/set-port-position! "illegal argument" p)
-         #t)))
+
+         ; Lookup the corresponding byte position.
+
+         (let* ((t (io/port-transcoder p))
+                (codec (io/transcoder-codec t))
+                (input? (io/input-port? p))
+                (output? (io/output-port? p))
+                (alist (io/port-alist p))
+                (probe1 (assq 'port-position alist))
+                (port-position-in-chars (if probe1 (cdr probe1) #f))
+                (probe2 (assq 'port-position-in-bytes alist))
+                (port-position-in-bytes (if probe2 (cdr probe2) #f))
+                (probe3 (assq 'cached-positions alist))
+                (ht (if probe3 (cdr probe3) #f))
+                (byte-posn (and ht (hashtable-ref ht posn #f))))
+
+           (define (reposition!)
+             (io/reset-buffers! p)
+             (vector-like-set! p port.mainpos posn)
+             (io/set-port-position-as-binary! p byte-posn))
+
+           ; We can't enforce the R6RS restriction for combined
+           ; input/output ports because it may be a lookahead correction.
+
+           (cond ((or byte-posn
+                      (and input? output?))
+
+                  (if (and (not input?)
+                           output?
+                           (not (eq? codec 'latin-1))
+                           (not port-position-in-chars))
+                      (issue-warning-deprecated
+                       'set-port-position!...on_Unicode_output_port))
+
+                  (reposition!))
+
+                 (else
+
+                  ; error case: posn > 0 and not in cache
+
+                  (if (not (issue-deprecated-warnings?))
+
+                      (assertion-violation 'set-port-position!
+                                           (errmsg 'msg:uncachedposition)
+                                           p posn)
+
+                      ; FIXME: ad hoc warning message
+
+                      (let ((out (current-error-port)))
+                        (display "Warning from set-port-position!: " out)
+                        (newline out)
+                        (display (errmsg 'msg:uncachedposition) out)
+                        (display ": " out)
+                        (write posn out)
+                        (newline out)
+
+                        ; Attempt the operation anyway.  Hey, it might work.
+
+                        (cond ((or port-position-in-chars
+                                   (and
+                                    (eq? 'latin-1 codec)
+                                    (eq? 'none (io/transcoder-eol-style t))))
+                               (reposition!))
+                              ((io/input-port? p)
+                               (io/set-port-position! p 0)
+                               (do ((posn posn (- posn 1)))
+                                   ((= posn 0))
+                                 (read-char p)))
+                              (else
+                               (reposition!))))))))))
+
+  (unspecified))
+
+(define (io/set-port-position-as-binary! p posn)
+  (let ((r (((vector-like-ref p port.ioproc) 'set-position!)
+            (vector-like-ref p port.iodata)
+            posn)))
+    (cond ((eq? r 'ok)
+           (if (eq? (vector-like-ref p port.state) 'eof)
+               (vector-like-set!
+                p
+                port.state
+                (if (binary-port? p) 'binary 'textual)))
+           (unspecified))
+          (else
+           (error 'set-port-position! "io error" p posn)))))
 
 (define (io/port-transcoder p)
   (assert (port? p))
@@ -950,18 +1174,30 @@
 (define errmode:replace 1)
 (define errmode:raise   2)
 
+; May be redefined at startup as specified by system-features.
+; (See also command-line processing).
+
+(define default-transcoder
+  (make-parameter "default-transcoder"
+                  codec:latin-1
+                  (lambda (t)
+                    (and (fixnum? t)
+                         (<= codec:latin-1 t transcoder-mask:codec)))))
+
 ; In Larceny, *every* symbol names an end-of-line style,
 ; and *every* symbol names an error handling mode.
 
 (define (io/make-transcoder codec eol-style handling-mode)
   (define (local-error msg irritant)
-    (display "Warning: ")
-    (display msg)
-    (display ": ")
-    (write irritant)
-    (newline)
-    (display "Using Larceny-specific interpretation.")
-    (newline))
+    (if (issue-deprecated-warnings?)
+        (let ((out (current-error-port)))
+          (display "Warning: " out)
+          (display msg out)
+          (display ": " out)
+          (write irritant out)
+          (newline out)
+          (display "Using Larceny-specific interpretation." out)
+          (newline out))))
   (let ((bits:codec (case codec
                      ((latin-1) codec:latin-1)
                      ((utf-8)   codec:utf-8)
@@ -1042,7 +1278,6 @@
                                     (vector-like-ref p port.type)))
         (vector-like-set! newport port.transcoder t)
         (vector-like-set! newport port.state 'textual)
-        (vector-like-set! newport port.setposn #f)
         (vector-like-set! newport port.readmode (default-read-mode))
 
         ; io/transcode-port! expects a newly filled mainbuf,
@@ -1118,10 +1353,8 @@
 
 (define (io/custom-transcoded-port p)
   (assert (port? p))
-  (let* ((setposn (vector-like-ref p port.setposn))
-         (t (make-transcoder (utf-8-codec) 'none 'ignore))
+  (let* ((t (make-transcoder (utf-8-codec) 'none 'ignore))
          (newport (io/transcoded-port p t)))
-    (vector-like-set! newport port.setposn setposn)
     newport))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1492,6 +1725,9 @@
           ((eq? state 'closed)
            (error 'put-char "write attempted on closed port " p))
           ((> mainlim 0)
+
+           ; Must correct for buffered lookahead character.
+
            (if (vector-like-ref p port.setposn)
                (begin (io/set-port-position! p mainpos)
                       (io/put-char-input/output p c))
@@ -1508,6 +1744,89 @@
                    (else
                     (io/set-error-state! p)
                     (io/put-char-input/output p c))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Bulk i/o.
+;;;
+;;; Most of these handle a common case by returning the same
+;;; value as a corresponding R6RS library procedure, but may
+;;; fail on complex or unusual cases by returning #f.
+;;;
+;;; These should be majorly bummed, else there's no point.
+;;;
+;;; FIXME: could add a few more, such as
+;;;     get-bytevector-n!
+;;;     get-string-n!
+;;;     put-bytevector
+;;;
+;;; Note, however, that io/put-string-maybe didn't help as much
+;;; as io/get-line-maybe, and probably wasn't worth the effort
+;;; and code size.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Handles the common case in which the line is all-Ascii,
+; terminated by a linefeed, and lies entirely within the buffer.
+
+(define (io/get-line-maybe p)
+  (and (port? p)
+       (let ((type (.vector-ref:trusted p port.type))
+             (buf  (.vector-ref:trusted p port.mainbuf))
+             (ptr  (.vector-ref:trusted p port.mainptr)))
+         (define (loop i)
+           (let ((unit (bytevector-ref buf i)))     ; FIXME: should be trusted
+             (cond ((and (.<:fix:fix 13 unit)       ; 13 = #\return
+                         (.<:fix:fix unit 128))
+                    (loop (.+:idx:idx i 1)))
+                   ((.=:fix:fix 10 unit)            ; 10 = #\linefeed
+                    (let* ((n (.-:idx:idx i ptr))
+                           (s (make-string n)))
+                      (loop2 ptr i s 0)))
+                   (else #f))))
+         (define (loop2 j k s i)
+           (cond ((.<:fix:fix j k)
+                  (.string-set!:trusted s i (.integer->char:trusted
+                                             (bytevector-ref buf j)))
+                  (loop2 (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
+                 (else
+                  (.vector-set!:trusted:nwb p port.mainptr (.+:idx:idx k 1))
+                  s)))
+         (and (eq? type type:textual-input)
+              (not (vector-like-ref p port.wasreturn))
+              (loop ptr)))))
+
+; Handles the common case in which the string is all-Ascii
+; and can be buffered without flushing.
+
+(define (io/put-string-maybe p s start count)
+  (and (port? p)
+       (string? s)
+       (fixnum? start)
+       (fixnum? count)
+       (.<=:fix:fix 0 start)
+       (let ((k (.+:fix:fix start count))
+             (n (.string-length:str s))
+             (type (.vector-ref:trusted p port.type))
+             (buf  (.vector-ref:trusted p port.mainbuf))
+             (lim  (.vector-ref:trusted p port.mainlim)))
+         (define (loop i j)
+           (cond ((.<:fix:fix i k)
+                  (let* ((c (.string-ref:trusted s i))
+                         (sv (.char->integer:chr c)))
+                    (if (and (.<:fix:fix 10 sv)    ; 10 = #\newline
+                             (.<:fix:fix sv 128))
+                        (begin (bytevector-set! buf j sv) ; FIXME
+                               (loop (.+:idx:idx i 1) (.+:idx:idx j 1)))
+                        #f)))
+                 (else
+                  (.vector-set!:trusted:nwb p port.mainlim j)
+                  #t)))
+         (and (.<:fix:fix start n)
+              (<= k n)
+              (eq? type type:textual-output)
+              (.<=:fix:fix (.+:idx:idx lim count) (bytevector-length buf))
+              (loop start lim)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -1627,7 +1946,10 @@
   (vector-like-set! p port.mainlim 0)
   (vector-like-set! p port.auxptr 0)
   (vector-like-set! p port.auxlim 0)
-  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel))
+  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel)
+  (case (vector-like-ref p port.state)
+   ((auxstart auxend)
+    (vector-like-set! p port.state 'textual))))
 
 ; Shallow-clones a port without closing it.
 
@@ -1842,10 +2164,13 @@
             ((fx= errmode errmode:ignore)
              (io/get-char p lookahead?))
             (else
-             (raise-r6rs-exception (make-i/o-decoding-error p)
-                                   'get-char
-                                   "utf-8 decoding error"
-                                   units)))))
+             (let* ((line (+ 1 (port-lines-read p)))
+                    (msg (string-append "utf-8 decoding error in line "
+                                        (number->string line))))
+               (raise-r6rs-exception (make-i/o-decoding-error p)
+                                     'get-char
+                                     msg
+                                     units))))))
 
   ; Forces at least one more byte into the active buffer,
   ; and retries.

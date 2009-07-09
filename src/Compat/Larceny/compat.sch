@@ -60,6 +60,9 @@
   (let ((eh (error-handler)))
     (error-handler (lambda args
 		     (error-handler eh)
+                     (parameterize ((print-length 7)
+                                    (print-level 7))
+                       (decode-error args))
 		     (thunk2)
 		     (apply eh args)))
     (thunk1)
@@ -113,6 +116,21 @@
   (if (not (environment-variable? env1 'recognize-javadot-symbols?))
       (set! recognize-javadot-symbols? (lambda l #f))))
 
+;; Doing the same trick to handle IO on older versions of Larceny
+(let ((env1 (interaction-environment)))
+  (if (not (environment-variable? env1 'call-with-raw-latin-1-output-file))
+      (set! call-with-raw-latin-1-output-file call-with-output-file))
+  (if (not (environment-variable? env1 'call-with-raw-latin-1-input-file))
+      (set! call-with-raw-latin-1-input-file call-with-input-file))
+  (if (not (environment-variable? env1 'open-raw-latin-1-output-file))
+      (set! open-raw-latin-1-output-file open-output-file))
+  (if (not (environment-variable? env1 'open-raw-latin-1-input-file))
+      (set! open-raw-latin-1-input-file open-input-file))
+  (if (not (environment-variable? env1 'with-output-to-raw-latin-1-file))
+      (set! with-output-to-raw-latin-1-file with-output-to-file))
+  (if (not (environment-variable? env1 'with-input-from-raw-latin-1-file))
+      (set! with-input-from-raw-latin-1-file with-input-from-file)))
+
 ;; Doing the same trick to handle fx* on older
 ;; versions of Larceny.
 (let ((env1 (interaction-environment)))
@@ -133,7 +151,15 @@
 (define (compat:load-sassy)
   (define old-env (interaction-environment))
   (define new-env #f)
-  (set! new-env (environment-copy old-env))
+  (cond
+   ;; Guard to allow bootstrap under old Larceny versions
+   ((environment-variable? old-env 'larceny-initialized-environment)
+    (set! new-env (environment-copy (larceny-initialized-environment))))
+   (else 
+    ;; If control goes thru this path, bindings on which SRFI
+    ;; libraries rely may have been changed in interaction environment
+    ;; (by "changed", I mean "corrupted" -- see Ticket #585)
+    (set! new-env (environment-copy old-env))))
   (interaction-environment new-env)
   (for-each 
     require

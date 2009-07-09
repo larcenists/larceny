@@ -97,7 +97,7 @@
 (define (make-list nelem . rest)
   (let ((val (if (null? rest) #f (car rest))))
     (define (loop n l)
-      (if (zero? n)
+      (if (<= n 0)
 	  l
 	  (loop (- n 1) (cons val l))))
     (loop nelem '())))

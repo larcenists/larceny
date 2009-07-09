@@ -62,6 +62,14 @@
 
 (cond-expand (srfi-27))
 
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
 ; (check expr)
 ;    evals expr and issues an error if it is not #t.
 
@@ -279,3 +287,4 @@
 (display "passed (check-basics-1)")
 (newline)
 
+(writeln "Done.")

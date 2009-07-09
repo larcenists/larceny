@@ -7,11 +7,13 @@ The `(larceny compiler)` library exports the
 `load` and `require` procedures of `(larceny load)`,
 the
 <<current-require-path,`current-require-path`>>
-procedure, and the
+procedure, the
 <<compile-file,`compile-file`>>,
 <<compile-library,`compile-library`>>, and
 <<compile-stale-libraries,`compile-stale-libraries`>>
-procedures described below.
+procedures described below,
+and the
+<<compiler-switches,`compiler-switches`>> procedure.
 
 These procedures can be used to compile ERR5RS/R6RS
 libraries and top-level programs before they are imported
@@ -77,4 +79,71 @@ are older than _changedfile_.
 In future versions of Larceny, `compile-stale-libraries`
 might compile only the source files that depend upon
 _changedfile_.
+================================================================
+
+proc:compiler-switches[args=""]
+proctempl:compiler-switches[args="mode"]
+
+If no argument is supplied, then the current settings
+of all compiler switches are displayed.  Each of those
+switches is itself a parameter that is exported by the
+`(larceny compiler)` library.  Calling any individual
+compiler switch with no arguments will return its current
+setting.  Calling any individual compiler switch with an
+argument (usually a boolean) will change its setting to
+that argument.
+
+The `compiler-switches` procedure may also be called with
+one of the following symbols as its argument:
+
+`default`
+sets most compiler switches to their default settings.
+
+`fast-safe`
+enables all optimizations but continues to generate
+code to perform all run-time type and range checks that
+are needed for safety
+(in the traditional sense, not the R6RS sense).
+
+`fast-unsafe`
+enables all optimizations and also disables type and
+range checking.  This setting is deprecated because it
+compromises safety (in the traditional sense).
+
+`slow`
+turns off all optimizations.
+
+`standard`
+sets compiler switches for maximal conformance to the
+R5RS and R6RS standards.
+
+[WARNING]
+================================================================
+The `standard` setting is deprecated because it generates
+very slow code (because the R5RS makes it difficult to
+inline standard procedures), disables most compile-time
+checking (because the R6RS forbids rejection of programs
+with obvious errors unless the R6RS classifies the errors
+as syntactic), and may also compromise the portability or
+interoperability of ERR5RS/R6RS libraries and programs
+(because the R6RS outlaws several extensions that Larceny
+uses to improve its compatibility with other implementations
+of the R5RS and R6RS as well as interoperability between
+Larceny's own R5RS and ERR5RS/R6RS modes).
+================================================================
+
+[TIP]
+================================================================
+Selective toggling of compiler switches is almost always
+better than using the `standard` setting.
+To improve R5RS conformance without sacrificing too much
+performance, set the `benchmark-mode` switch to false and
+set the `integrate-procedures` switch to false only when
+compiling files that need to be sensitive to redefinitions
+of standard procedures.
+For R6RS libraries and programs, setting the `benchmark-mode`
+and `global-optimization` switches to false will eliminate a
+couple of minor conformance issues with only a small loss
+of performance and without sacrificing compile-time checking
+or portability.
 ================================================================

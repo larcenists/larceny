@@ -8,25 +8,20 @@
 ($$trace "system-interface")
 
 ; FIXME: temporary infrastructure for Unicode conversion
+; FIXME: defaults to (native-transcoder), which iosys.sch defines later
 
 (define (sys$string->cstring s)
   (cond ((bytevector? s) s)
         ((string? s)
-         (let* ((n (string-length s))
-                (bv (make-bytevector n)))
-           (do ((i 0 (+ i 1)))
-               ((= i n) bv)
-             (bytevector-set! bv i (char->integer (string-ref s i))))))
-        (else (error "sys$string->cstring: bad string " s))))
+         (string->bytevector s (native-transcoder)))
+        (else (error 'sys$string->cstring "bad string" s))))
 
-(define (sys$cstring->string bvl)
-  (cond ((bytevector-like? bvl)
-         (let* ((n (bytevector-like-length bvl))
-                (s (make-string n)))
-           (do ((i 0 (+ i 1)))
-               ((= i n) s)
-             (string-set! s i (integer->char (bytevector-like-ref bvl i))))))
-        (else (error "sys$cstring->string: bad cstring " bvl))))
+(define (sys$cstring->string bv)
+  (cond ((bytevector? bv)
+         (bytevector->string bv (native-transcoder)))
+        (else (error 'sys$cstring->string "bad cstring" bv))))
+
+; FIXME: temporary instrumentation for C <--> Scheme string conversions.
 
 (define **syscall-magic-cookie** (make-vector 50 #f))
 
@@ -132,6 +127,7 @@
 (define feature$r6path            15)
 (define feature$r6program         16)
 (define feature$unsafe            17)
+(define feature$transcoder        18)
 
 (define (sys$system-feature name)
 
@@ -155,7 +151,7 @@
        (case arch
          ((0) "SPARC")
          ((1) "Standard-C")
-	 ((2) "X86-NASM")
+         ((2) "X86-NASM")
          ((3) "IAssassin")
          ((4) "CLR")
          (else "Unknown"))))
@@ -177,8 +173,8 @@
          ((4) "OSF")
          ((5) "Unix")
          ((6) "Generic")
-	 ((7) "BSD Unix")
-	 ((8) "MacOS X")
+         ((7) "BSD Unix")
+         ((8) "MacOS X")
          (else "Unknown"))))
     ((os-major)
      (get-feature feature$os-major))
@@ -266,6 +262,8 @@
      (case (get-feature feature$unsafe)
       ((0) 1)
       (else 0)))
+    ((transcoder)
+     (get-feature feature$transcoder))
     (else 
      (error "sys$system-feature: " name " is not a system feature name"))))
 
@@ -290,6 +288,13 @@
     (error "setenv: not a string: " value))
   (unspecified))
 
+(define (get-errno)
+  (syscall syscall:errno))
+
+(define (set-errno! n)
+  (assert (fixnum? n))
+  (syscall syscall:seterrno n))
+
 (define (make-env-parameter name . rest)
   (let ((*name* (sys$check-env-var 'make-env-parameter name))
         (ok?    (if (null? rest)
@@ -298,13 +303,13 @@
     (lambda args
       (cond
         ((not (pair? args))
-                (getenv *name*))
+         (getenv *name*))
         ((not (null? (cdr args)))
-                (error *name* ": too many arguments."))
+         (error *name* ": too many arguments."))
         ((ok? (car args))
-                (setenv *name* (car args)))
+         (setenv *name* (car args)))
         (else
-                (error *name* ": Invalid value " (car args)))))))
+         (error *name* ": Invalid value " (car args)))))))
 
 (define (sro ptr hdr limit)
   (if (not (and (fixnum? ptr)
@@ -325,9 +330,9 @@
             (sys$cstring->string result)
             result))
       (let ((path (car rest)))
-	(if (not (string? path))
-	    (error "current-directory: " path " is not a string."))
-	(syscall syscall:chdir (sys$string->cstring path)))))
+        (if (not (string? path))
+            (error "current-directory: " path " is not a string."))
+        (syscall syscall:chdir (sys$string->cstring path)))))
 
 (define (sys$c-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:c-ffi-apply trampoline arg-encoding ret-encoding actuals))

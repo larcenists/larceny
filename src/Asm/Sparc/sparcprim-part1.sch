@@ -603,6 +603,24 @@
   (lambda (as x)
     (millicode-call/1arg as $m.bvlcmp x)))
 
+; FIXME: these trusted operations should replace
+; the untrusted operations above.
+
+(define-primop 'bytevector-like-length:bvl
+  (lambda (as)
+    (emit-get-length-trusted! as 
+                              $tag.bytevector-tag
+                              $r.result
+                              $r.result)))
+
+(define-primop 'bytevector-like-ref:trusted
+  (lambda (as r)
+    (emit-bytevector-like-ref-trusted! as $r.result r $r.result #f)))
+
+(define-primop 'bytevector-like-set!:trusted
+  (lambda (as r1 r2)
+    (emit-bytevector-like-set-trusted! as r1 r2)))
+
 ; Strings
 
 ; RESULT must have nonnegative fixnum.
