@@ -89,9 +89,6 @@
 	  ((eq? name (sassy-symbol-name (car rst))) (car rst))
 	  (else (iter (cdr rst))))))
 
-(define (sassy-symbol-current name)
-  (sassy-symbol-exists? sassy-current name))
-
 (define (sassy-hexdump list-of-bytes)
   (let ((print-count (lambda (count)
 		       (let ((n (number->string count 16)))

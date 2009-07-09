@@ -34,8 +34,6 @@
 ; 		        ;
 ;=======================;
 
-(define sassy-current #f)
-
 (define (sassy input . options)
 
   (define expand? #t)
@@ -62,8 +60,6 @@
 		 32                       ; default bits size
 		 recover-fixup-errors?    ; continue post reloc fail
 		 '())))                   ; failed reloc (target offset)'s
-
-    (set! sassy-current output)
 
     (when expand? (sassy-expand (make-hash-table))) ; install fresh macro table
     
