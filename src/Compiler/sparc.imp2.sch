@@ -194,9 +194,11 @@
 ;     (fl>                (flonum flonum)             .>:flo:flo)
 ;     (fl>=               (flonum flonum)             .>=:flo:flo)
      
-     (cell-set!          (object nonpointer)         .cell-set!:nwb)
-     (vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
-     (.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
+     ; SATB in RROF has stronger constraint: must ensure value in 
+     ; *overwritten* slot can be omitted from snapshot construction.
+     ;(cell-set!          (object nonpointer)         .cell-set!:nwb)
+     ;(vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
+     ;(.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
      )))
 
 (define rep-result
