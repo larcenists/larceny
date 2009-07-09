@@ -147,6 +147,10 @@
     ((ebp)    'ebp)
     (else (error 'try-low hwreg " is not a symbolic hwreg..."))))
  
+;; has-low? : RegSymbol -> Boolean
+;; Returns true if hwreg has low variant (see try-low above)
+(define (has-low? hwreg)
+  (memq hwreg '(eax ebx ecx edx)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 
@@ -315,7 +319,7 @@
   `(call	(& ,$r.globals ,$m.exception))
   `(dwords	,excode)
   `(align	,$bytewidth.code-align)
-  `(jmp	,@(if short? '(short) '()) ,restart))
+  `(jmp	,@(if short? '(short) '(try-short)) ,restart))
 
 ;;; alloc
 ;;;	Given fixnum number of words in RESULT, allocate
@@ -363,6 +367,9 @@
 	((= const -1)
          `(xor ,hwreg ,hwreg) ; 3 bytes
          `(dec ,hwreg))
+        ((and (has-low? hwreg) (<= 0 const 255))
+         `(xor ,hwreg ,hwreg) ; 4 bytes
+         `(mov ,(try-low hwreg) ,const))
 	(else
 	 `(mov ,hwreg ,const)))); 5 bytes
 		
@@ -803,7 +810,8 @@
                   (ia86.align-after 
                    `(call ,$r.temp)))
                  (else
-                  `(jmp ,(compiled-procedure 
+                  `(jmp try-short 
+                        ,(compiled-procedure 
                           (current-sassy-assembly-structure) 
                           label))))))))
 
@@ -811,37 +819,37 @@
 ;;; as appropriate to avoid timer checks.
 
 (define-sassy-instr (ia86.t_skip lbl)
-  `(jmp	,lbl))
+  `(jmp try-short	,lbl))
 
 (define-sassy-instr (ia86.t_skipf lbl)
   `(cmp	,$r.result.low ,$imm.false)
-  `(je	,lbl))
+  `(je	try-short ,lbl))
 
 (define-sassy-instr (ia86.t_branch lbl)
   `(dec	(dword (& ,$r.globals ,$g.timer)))
-  `(jnz	,lbl)
+  `(jnz	try-short ,lbl)
   (ia86.mcall	$m.timer-exception 'timer-exception)
-  `(jmp	,lbl))
+  `(jmp	try-short ,lbl))
 
 (define-sassy-instr (ia86.t_branchf lbl)
   (ia86.timer_check)
   `(cmp	,$r.result.low ,$imm.false)
-  `(je	,lbl))
+  `(je	try-short ,lbl))
 
 (define-sassy-instr (ia86.t_reg_branchf regno lbl a-skip?)
   (cond ((not a-skip?)
          (ia86.timer_check)))
   `(cmp	,(try-low (reg regno)) ,$imm.false)
-  `(je	,lbl))
+  `(je	try-short ,lbl))
 
 (define-sassy-instr (ia86.t_check w x y lbl)
   `(cmp	,$r.result.low ,$imm.false)
-  `(je	,lbl))
+  `(je	try-short ,lbl))
 
 ;; Felix thinks we shouldn't be seeing these.  And yet we do.
 (define-sassy-instr (ia86.t_reg_check regno lbl)
   `(cmp	,(try-low (reg regno)) ,$imm.false)
-  `(je	,lbl))
+  `(je	try-short ,lbl))
 
 ;; Call handler for noncontinuable exception with RESULT,
 ;; SECOND, and THIRD defined.
@@ -1143,11 +1151,11 @@
            `(mov ,$r.result ,hwreg)))
     (ia86.mcall	mcode jnc)
     `(cmp	,$r.result.low ,$imm.false)
-    `(je	,l)
+    `(je try-short	,l)
     `(jmp short ,l2)
     `(label ,l1)
     `(cmp	,hwreg ,$r.second)
-    `(,jnc ,l)
+    `(,jnc try-short ,l)
     `(label ,l2)
     ))
 
@@ -1201,11 +1209,11 @@
     (ia86.const2regf $r.second imm)
     (ia86.mcall	mcode jnc)
     `(cmp	,$r.result.low ,$imm.false)
-    `(je	,l)
+    `(je try-short	,l)
     `(jmp short ,l2)
     `(label ,l1)
     `(cmp	,(reg hwregno) ,imm)
-    `(,jnc	,l)
+    `(,jnc try-short	,l)
     `(label ,l2)))
 
 ;;; generic_imm_compare imm, cc, millicode
@@ -1906,6 +1914,7 @@
              ((internal:branchf-flonum?) ia86.t_reg_op1_branchf_flonum?)
              ((internal:branchf-pair?) ia86.t_reg_op1_branchf_pair?)
              ((internal:branchf-vector?) ia86.t_reg_op1_branchf_vector?)
+             ((internal:branchf-bytevector?) ia86.t_reg_op1_branchf_bytevector?)
              ((internal:branchf-structure?) ia86.t_reg_op1_branchf_structure?)
              ((internal:branchf-zero?) ia86.t_reg_op1_branchf_zero?)
              (else (error 'ia86.t_reg_op1_branchf op)))))
@@ -1917,6 +1926,7 @@
              ((internal:check-flonum?) ia86.t_reg_op1_check_flonum?)
              ((internal:check-pair?)   ia86.t_reg_op1_check_pair?)
              ((internal:check-vector?) ia86.t_reg_op1_check_vector?)
+             ((internal:check-bytevector?) ia86.t_reg_op1_check_bytevector?)
              ((internal:check-string?) ia86.t_reg_op1_check_string?)
              ((internal:check-ustring?) ia86.t_reg_op1_check_ustring?)
              ((internal:check-structure?) ia86.t_reg_op1_check_structure?)
@@ -2226,7 +2236,7 @@
 
 (define-sassy-instr (flat1:reg_op1_check_string? rs l)
   (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.string)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (flat4:string?)
   (ia86.double_tag_predicate
@@ -2252,7 +2262,7 @@
 
 (define-sassy-instr (flat4:reg_op1_check_string? rs l)
   (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.ustring)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define ia86.t_op1_39                   flat1:string?)
 (define ia86.t_op2_109                  flat1:make-string)
@@ -2377,12 +2387,12 @@
          `(cmp	,(reg rs1) ,(reg rs2)))
         (else
          `(cmp	,(reg rs1) (& ,$r.globals ,(g-reg rs2)))))
-  `(jne ,l))
+  `(jne try-short ,l))
 
 ;; XXX timer? XXX
 (define-sassy-instr (ia86.t_reg_op2imm_branchf_eq? rs1 imm l a-skip?)
   `(cmp	,(reg rs1) ,imm)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_op2_57 regno)		; eqv?
   (ia86.loadr	$r.second regno)
@@ -3075,7 +3085,7 @@
          `(cmp	,(reg hwregno) ,(reg regno)))
         (else
          `(cmp	,(reg hwregno) (& ,$r.globals ,(g-reg regno)))))
-  `(,jnc ,l))
+  `(,jnc try-short ,l))
 
 ;; For these, we jump on the *opposite* of the condition we are
 ;; testing for, b/c the check jumps if condition *fails*
@@ -3156,7 +3166,7 @@
 
 (define-sassy-instr (ia86.trusted_fixnum_compare_imm_branch hwregno imm l jnc)
   `(cmp	,(reg hwregno) ,imm)
-  `(,jnc ,l))
+  `(,jnc try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op2imm_check_451 hwregno imm l)	; =:fix:fix
   (ia86.trusted_fixnum_compare_imm_branch hwregno imm l 'jne))
@@ -3338,13 +3348,13 @@
   (cond ((not a-skip?)
          (ia86.timer_check)))
   `(cmp	,(try-low (reg rs)) ,imm)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.reg_generic_compare_imm_branchf imm rs l a-skip?)
   (cond ((not a-skip?)
          (ia86.timer_check)))
   `(cmp	,(reg rs) ,imm)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_branchf_null? rs l a-skip?)
   (ia86.reg_generic_compare_lowimm_branchf $imm.null rs l a-skip?))
@@ -3356,7 +3366,7 @@
   (cond ((not a-skip?)
          (ia86.timer_check)))
   (ia86.single_tag_test (reg rs) $tag.pair-tag)
-  `(jnz ,l))
+  `(jnz try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_branchf_zero? rs l a-skip?)
   (let ((l1 (fresh-label))
@@ -3368,11 +3378,11 @@
     `(mov ,$r.result ,(reg rs))
     (ia86.mcall	$m.zerop 'zerop)
     `(cmp ,$r.result.low ,$imm.false)
-    `(je  ,l)
+    `(je try-short ,l)
     `(jmp short ,l2)
     `(label ,l1)
     `(cmp       ,(reg rs) 0)
-    `(jnz ,l)
+    `(jnz try-short ,l)
     `(label ,l2)))
 
 (define-sassy-instr (ia86.t_reg_op1_branchf_fixnum? rs l a-skip?)
@@ -3383,7 +3393,7 @@
         (else
          `(mov ,$r.result ,(reg rs))
          `(test ,$r.result.low ,$tag.fixtagmask)))
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_check_fixnum? rs l)
   (cond ((hwreg_has_low rs)
@@ -3391,21 +3401,21 @@
         (else
          `(mov ,$r.result ,(reg rs))
          `(test ,$r.result.low ,$tag.fixtagmask)))
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_branchf_flonum? rs l a-skip?)
   (cond ((not a-skip?)
          (ia86.timer_check)))
   (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.flonum)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_check_flonum? rs l)
   (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.flonum)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_check_pair? rs l)
   (ia86.single_tag_test (reg rs) $tag.pair-tag)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 ; FIXME: the op1/branchf code duplicates the op1/check code
 
@@ -3413,21 +3423,31 @@
   (cond ((not a-skip?)
          (ia86.timer_check)))
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.vector)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_check_vector? rs l)
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.vector)
-  `(jne ,l))
+  `(jne try-short ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_branchf_bytevector? rs l a-skip?)
+  (cond ((not a-skip?)
+         (ia86.timer_check)))
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.bytevector)
+  `(jne try-short ,l))
+
+(define-sassy-instr (ia86.t_reg_op1_check_bytevector? rs l)
+  (ia86.double_tag_test (reg rs) $tag.bytevector-tag $hdr.bytevector)
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_branchf_structure? rs l a-skip?)
   (cond ((not a-skip?)
          (ia86.timer_check)))
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.struct)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 (define-sassy-instr (ia86.t_reg_op1_check_structure? rs l)
   (ia86.double_tag_test (reg rs) $tag.vector-tag $hdr.struct)
-  `(jne ,l))
+  `(jne try-short ,l))
 
 ;; "Reflective ops"; processor level performance measurement.
 ;; Very sketch!

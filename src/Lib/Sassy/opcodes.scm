@@ -254,9 +254,19 @@
 				    ((2) s-word)
 				    ((4) s-dword))
 				  new))
-			    (error "sassy: out of range" (+ new sizer 1))
-			    (begin (pnt (integer->byte-list new sizer))
-				   (sassy-reloc-value-set! a-reloc new))))))
+			    (cond 
+                             ((not (sassy-reloc-fixup-error-recovery? (t-outp t)))
+                              (sassy-signal-labels-out-of-range 
+                               (list target) (list (+ new sizer 1))))
+                             (else
+                              ;; delay signal of failure to post-assembly
+                              (sassy-push-erroneous-reloc-label! (t-outp t) 
+                                                                 target
+                                                                 (+ new sizer 1))
+                              ;; use fake offset so patching continues
+                              (set! new -1))))
+                        (begin (pnt (integer->byte-list new sizer))
+                               (sassy-reloc-value-set! a-reloc new)))))
 	(when (= 4 sizer)
 	      (sassy-reloc-patcher-set! a-reloc patcher)
 	      (push-t-reloc! t a-reloc))

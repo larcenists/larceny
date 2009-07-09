@@ -29,7 +29,7 @@
 ; export all
 
 (define-record-type sassy-output
-  (make-sassy-output a b c d e f g h i j k)
+  (make-sassy-output a b c d e f g h i j k l m)
   sassy-output?
   (a sassy-symbol-table sassy-symbol-table-set!)
   (b sassy-reloc-list  sassy-reloc-list-set!)
@@ -41,7 +41,9 @@
   (h sassy-text-align sassy-text-align-set!)
   (i sassy-heap-size  sassy-heap-size-set!)
   (j sassy-text-org   sassy-text-org-set!)
-  (k sassy-bits       sassy-bits-set!))
+  (k sassy-bits       sassy-bits-set!)
+  (l sassy-reloc-fixup-error-recovery?)
+  (m sassy-erroneous-reloc-labels sassy-erroneous-reloc-labels-set!))
 
 (define-record-type sassy-symbol
   (make-sassy-symbol a b c d e f g)
@@ -133,6 +135,10 @@
 		 (print-string string)
 		 (set! string '()))))))
 
+(define (sassy-push-erroneous-reloc-label! sassy-output target offset)
+  (let ((elabels (cons (list target offset)
+                       (sassy-erroneous-reloc-labels sassy-output))))
+    (sassy-erroneous-reloc-labels-set! sassy-output elabels)))
 
 (define sassy-print-relocs #f)
 

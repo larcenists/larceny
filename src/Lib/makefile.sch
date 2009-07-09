@@ -514,7 +514,8 @@
 	     (apply list
 	       ((sassy-file ".scm") "extras")
 	       (map (srfi-file ".sch") (cdr file-and-deps)))))
-	 '(("push-stacks")
+	 '(("inits/larceny-0.97")
+	   ("push-stacks")
 	   ("api" "srfi-9")
 	   ("intern")
 	   ("macros" "srfi-9")

@@ -175,7 +175,15 @@
                 (cons (car instrs) rev-stores))
           (if (not (null? rev-stores))
               (save-and-stores as i1 (reverse rev-stores) instrs))))))
-               
+
+(define-peephole $stack
+  (lambda (as i1 i2 i3 t1 t2 t3)
+    (cond ((= (car i2) $op1)
+           (cond ((= (car i3) $load)
+                  (stack-op1-load as i1 i2 i3 t3))))
+          ((= (car i2) $setreg)
+           (stack-setreg as i1 i2 t2))
+          )))
 
 ; Reg-setreg is not restricted to hardware registers, as $movereg is 
 ; a standard instruction.
@@ -305,6 +313,7 @@
                 cdr:pair
                 not
                 null?
+                fixnum?
                 procedure?
                 bytevector-like?
                 vector-like?
@@ -542,6 +551,7 @@
               ((flonum?)      'internal:check-flonum?)
               ((pair?)        'internal:check-pair?)
               ((vector?)      'internal:check-vector?)
+              ((bytevector?)  'internal:check-bytevector?)
               ((structure?)   'internal:check-structure?)
               ((string?)      'internal:check-string?)    ;FIXME
               ((ustring?)     'internal:check-ustring?)   ;FIXME
@@ -626,6 +636,7 @@
               ((fixnum?)     'internal:branchf-fixnum?)
               ((flonum?)     'internal:branchf-flonum?)
               ((vector?)     'internal:branchf-vector?)
+              ((bytevector?) 'internal:branchf-bytevector?)
               ((structure?)  'internal:branchf-structure?)
               ;;((char?)       'internal:branchf-char?)
               ;;((fxzero?)     'internal:branchf-fxzero?)
@@ -651,3 +662,27 @@
         (store-ks (map operand1 il:stores))
         (store-ns (map operand2 il:stores)))
     (as-source! as (cons (list $save/stores save-n store-ks store-ns) tail))))
+
+;; stack n            stack n
+;; op1   op     ==>   setreg m
+;; load  m,n          reg m
+;;                    op1 op
+(define (stack-op1-load as i:stack i:op1 i:load tail)
+  (let ((n (operand1 i:stack))
+        (op (operand1 i:op1))
+        (m (operand1 i:load)))
+    (cond 
+     ((eqv? n (operand2 i:load))
+      ;; longer, but setreg/reg or reg/op1 will itself be optimized,
+      ;; and avoids memory traffic of second stack load.
+      (as-source! as (append (list (list $stack n)
+                                   (list $setreg m)
+                                   (list $reg m)
+                                   (list $op1 op))
+                             tail))))))
+
+(define (stack-setreg as i:stack i:setreg tail)
+  (let ((n  (operand1 i:stack))
+        (rd (operand1 i:setreg)))
+    (if (is_hwreg rd)
+        (as-source! as (cons (list $load rd n) tail)))))

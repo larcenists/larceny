@@ -44,7 +44,7 @@
       ((eax ebx ecx edx edi esi esp ebp
          al  bl  cl  dl
          & align reloc abs
-         short
+         short try-short
          dword byte) #t)
       (else #f)))
          
@@ -95,16 +95,59 @@
        
 
     
+;; match instances of (X try-short . Y) in code tree and rewrite them
+;; according to policy encoded in make-replacement function.
+
+(define (replace-try-short-with code make-replacement)
+  (let rec ((x code))
+    (cond ((and (pair? x) (pair? (cdr x)) (eq? 'try-short (cadr x)))
+           (make-replacement (rec (car x)) (rec (cddr x))))
+          ((pair? x) (cons (rec (car x)) (rec (cdr x))))
+          (else x))))
+
+;; match instances of (X try-short L); replace with (X short L)
+
+(define (shorten-try-short code)
+  (replace-try-short-with code (lambda (x y) (cons x (cons 'short y)))))
+
+;; match instances of (X try-short L); drop try-short unconditionally
+
+(define (kill-try-short code)
+  (replace-try-short-with code cons))
+
+;; match instances of (X try-short L); if L in labels, drop try-short
+
+(define (kill-try-short-for-labels code labels)
+  ;; FIXME: should use hashset to represent large labels list,
+  ;; avoiding O(n^2) blowup
+  (replace-try-short-with code (lambda (x y)
+                                 (if (memq (car y) labels)
+                                     (cons x y)
+                                     (cons x (cons 'try-short y))))))
+
+(define (sassy/trying-short code)
+  (sassy (shorten-try-short code) 'dont-expand 'recover-from-fixup-errors))
+
+(define (sassy/not-trying-short code)
+  (sassy (kill-try-short code) 'dont-expand))
+
+(define (sassy/try-short-iteratively code)
+  (twobit-iterative-try/fallback 
+   code 
+   sassy/trying-short
+   (lambda (x) (relocs-out-of-range-condition? x))
+   (lambda (x c) (kill-try-short-for-labels x (relocs-out-of-range-labels c)))
+   sassy/not-trying-short))
 
 (define (sassy-assemble as code)
+  (define satry sassy/try-short-iteratively)
   ;(begin (display code) (newline))
   (if (< (length code) 100)                 ; FIXME
       (check-for-free-ids code))
-  (sassy `(,@(map (lambda (entry) `(export ,(compiled-procedure as (car entry))))
+  (satry `(,@(map (lambda (entry) `(export ,(compiled-procedure as (car entry))))
                   (as-labels as))
            (org  ,$bytevector.header-bytes)
-           (text ,@code))
-         'dont-expand))
+           (text ,@code))))
 
 (define (assembly-end as segment)
   segment)

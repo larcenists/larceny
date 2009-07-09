@@ -727,7 +727,7 @@
 
 (define (%get16 x offs)
   (let ((v (%get16u x offs)))
-    (if (>= v 32767) (- (- 65536 v)) v)))
+    (if (>= v 32768) (- (- 65536 v)) v)))
 
 (define (%get32 x offs)
   (let ((v (%get32u x offs)))
