@@ -177,8 +177,6 @@
 		      (export char->integer
 			      integer->char
 			      sassy
-			      sassy-current
-			      sassy-symbol-current
 			      sassy-expand
 			      sassy-make-bin
 			      sassy-make-elf)))

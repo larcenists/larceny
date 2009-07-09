@@ -162,8 +162,6 @@
 (define (make-sassy-postpass k)
   (lambda (as seg)
     (let ((code (sassy-assemble as (car seg))))
-      (user-local.sassy-input!  (as-user-local as) (car seg))
-      (user-local.sassy-output! (as-user-local as) code)
       (for-each (lambda (entry) 
                   (let* ((sym-table (sassy-symbol-table code))
                          (sassy-sym (hash-table-ref 
@@ -211,15 +209,7 @@
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
 (define (user-data.local-counter! u x) (set-car! (cdddr u) x))
 
-;  sassy-output         <sassy-output> for code, or #f if none yet
-;  sassy-input          The sexp that was passed to sassy-assemble, or #f
-(define (make-user-local) (list #f #f))
-
-(define (user-local.sassy-output u) (car u))
-(define (user-local.sassy-input u) (car (cdr u)))
-
-(define (user-local.sassy-output! u x) (set-car! u x))
-(define (user-local.sassy-input! u x) (set-car! (cdr u) x))
+(define (make-user-local) (list))
 
 (define (fresh-label)
   (let* ((as (current-sassy-assembly-structure))

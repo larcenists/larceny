@@ -6,15 +6,6 @@
 
 (load "src/Build/petit-unix-defns.sch")
 
-;; filter : (X -> Bool) [Listof X] -> [Listof X]
-;; returns list containing only elements from LST satisfying PRED?
-
-(define (filter pred? lst)
-  (let loop ((lst lst))
-    (cond ((null? lst) lst) 
-          ((pred? (car lst)) (cons (car lst) (loop (cdr lst))))
-          (else (loop (cdr lst))))))
-
 ;; A KeySpec is one of 
 ;; (list Symbol 'required)
 ;; (list Symbol 'with-default Any)
@@ -24,6 +15,16 @@
 ;; Parses ARGL according to KEYSPECS.  If the result satisf
 
 (define (parse-keys argl keyspecs proc)
+
+  ;; filter : (X -> Bool) [Listof X] -> [Listof X]
+  ;; returns list containing only elements from LST satisfying PRED?
+
+  (define (filter pred? lst)
+    (let loop ((lst lst))
+      (cond ((null? lst) lst) 
+            ((pred? (car lst)) (cons (car lst) (loop (cdr lst))))
+            (else (loop (cdr lst))))))
+
   (define spec-key car)
   (define spec-type cadr)
   (define spec-default caddr)
