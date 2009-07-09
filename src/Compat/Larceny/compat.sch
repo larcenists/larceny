@@ -16,18 +16,6 @@
 
 (define host-system 'larceny)
 
-(define (write-byte bytenum . rest)
-  (let ((port (if (null? rest) 
-                  (current-output-port)
-                  (car rest))))
-    (write-char (integer->char bytenum) port)))
-
-; Temporary?
-
-(define (.check! flag exn . args)
-  (if (not flag)
-      (apply error "Runtime check exception: " exn args)))
-
 ; Temporary until all versions of Larceny have migrated to the new
 ; environment system.
 
@@ -50,23 +38,6 @@
 	(compat:load (string-append auxlib "list.sch"))
 	(compat:load (string-append auxlib "pp.sch"))
         )))
-
-(define (with-optimization level thunk) 
-  (thunk))
-
-; Calls thunk1, and if thunk1 causes an error to be signalled, calls thunk2.
-
-(define (call-with-error-control thunk1 thunk2) 
-  (let ((eh (error-handler)))
-    (error-handler (lambda args
-		     (error-handler eh)
-                     (parameterize ((print-length 7)
-                                    (print-level 7))
-                       (decode-error args))
-		     (thunk2)
-		     (apply eh args)))
-    (thunk1)
-    (error-handler eh)))
 
 (define (larc-new-extension fn ext)
   (let* ((l (string-length fn))
