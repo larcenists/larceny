@@ -855,9 +855,12 @@
                (let* ((?t1 ?exp1)
                       (?t2 ?exp2)
                       ...
-                      (v (make-vector ?n ?t1)))
-                 (.vector-set!:trusted v ?n2 ?t2)
+                      (v (make-vector ?n ?t1))
+                      ;;(when-felix-is-paranoid-count (gc-counter))       ; XXX
+                      )
+                 (.vector-set!:trusted:nwb v ?n2 ?t2)
                  ...
+                 ;;(assert (= when-felix-is-paranoid-count (gc-counter))) ; XXX
                  v))))))
       (vector-aux1 (?e1 ?e2 ...) 0 () () ())))
 
