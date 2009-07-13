@@ -736,9 +736,13 @@
     `(targets
       ("compat.date" ,(lambda args #t)))
     `(dependencies
-      ("compat.date" (,(string-append (nbuild-parameter 'compatibility)
-                                      "compat2"
-                                      file-type))))))
+      ("compat.date" ,(map (lambda (basename)
+                             (string-append (nbuild-parameter 'compatibility)
+                                            basename
+                                            file-type))
+                           '("compat2" 
+                             "tobytevector-be" 
+                             "tobytevector-el"))))))
 
 (define compat-project/fasl (make-compat-project ".fasl"))
 (define compat-project/lop (make-compat-project ".lop"))
