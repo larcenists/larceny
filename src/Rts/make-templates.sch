@@ -306,21 +306,30 @@ CC=cl
 
 ; SPARC-SOLARIS
 (define make-template-target-sparc-solaris
-"larceny.bin: $(LARCENY_OBJECTS) Util/ffi-dummy.o
+"default_target: larceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+larceny.bin: kill_version_o $(LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
 
 ; X86-WIN32
 (define make-template-target-sassy-win32
-"larceny.bin.exe: $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
+"default_target: larceny.bin.exe
+kill_version_o: 
+	del Sys\\version.$(O)
+larceny.bin.exe: kill_version_o $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin.exe $(X86_SASSY_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	del Sys\\version.$(O)")
 
 ; SPARC-SOLARIS with Boehm collector
 (define make-template-target-sparc-solaris-bdw
-"bdwlarceny.bin: $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
+"default_target: bdwlarceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+bdwlarceny.bin: kill_version_o $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 	( cd bdw-gc ; make gc.a )
 	$(CC) $(PROFILE) $(TCOV) -o bdwlarceny.bin $(BDW_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) \\
@@ -342,7 +351,10 @@ CC=cl
 
 ; SunOS 5.6 (not tested much lately)
 (define make-template-target-petit-solaris-shared
-"libpetit.so: $(PETIT_LARCENY_OBJECTS)
+"default_target: libpetit.so
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+libpetit.so: kill_version_o $(PETIT_LARCENY_OBJECTS)
 	ld -G -o libpetit.so -L/usr/lib -lc $(PETIT_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
@@ -379,7 +391,10 @@ CC=cl
 	ranlib libpetit.a")
 
 (define make-template-target-sassy-unix-static
-"larceny.bin: $(X86_SASSY_LARCENY_OBJECTS)
+"default_target: larceny.bin
+kill_version_o: 
+	rm -f Sys/version.$(O)
+larceny.bin: kill_version_o $(X86_SASSY_LARCENY_OBJECTS)
 	$(CC) $(PROFILE) -m32 $(TCOV) -o larceny.bin $(X86_SASSY_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	rm Sys/version.$(O)")

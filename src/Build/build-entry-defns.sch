@@ -55,7 +55,11 @@
                        )))
 
     (make:make larceny-runtime-project 
-               (param-filename 'rts make-target))))
+               (param-filename 'rts make-target))
+    ;; petit-win32.sch actually doesn't pass an arg to make... 
+    ;; should I do same? 
+    (execute-in-directory (nbuild-parameter 'rts)
+                          (string-append (make-command) " " make-target))))
 
 (define build-runtime-system build-runtime)  ; Old name
 
