@@ -357,9 +357,10 @@
 	((= const -1)
          `(xor ,hwreg ,hwreg) ; 3 bytes
          `(dec ,hwreg))
-        ((and (has-low? hwreg) (<= 0 const 255))
-         `(xor ,hwreg ,hwreg) ; 4 bytes
-         `(mov ,(try-low hwreg) ,const))
+       ;; This seems to hurt performance more than it helps size.
+       ;;((and (has-low? hwreg) (<= 0 const 255))
+       ;; `(xor ,hwreg ,hwreg) ; 4 bytes
+       ;; `(mov ,(try-low hwreg) ,const))
 	(else
 	 `(mov ,hwreg ,const)))); 5 bytes
 		
