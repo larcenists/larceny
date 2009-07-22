@@ -36,6 +36,7 @@ const char *larceny_gc_technology = "precise";
 #include "summ_matrix_t.h"
 #include "seqbuf_t.h"
 #include "uremset_t.h"
+#include "uremset_array_t.h"
 #include "math.h"
 
 #include "memmgr_internal.h"
@@ -2682,6 +2683,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     gc->gno_count = gen_no + 1;
   else
     gc->gno_count = gen_no;
+  gc->the_remset = alloc_uremset_array( gc, info );
 
   data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );

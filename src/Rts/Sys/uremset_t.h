@@ -187,7 +187,6 @@ uremset_t
                                                summary_t *s_outparam ),
                   void     (*checkpoint_stats)( uremset_t *urs, int gno )
                   );
-
 #endif /* INCLUDED_UREMSET_T_H */
 
 /* eof */

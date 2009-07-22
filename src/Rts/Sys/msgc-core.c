@@ -614,7 +614,7 @@ msgc_mark_objects_from_roots( msgc_context_t *context,
 }
 
 static int pushing_entries_from_remset = 0;
-static bool push_remset_entry( word obj, void* data, unsigned *count )
+static bool push_remset_entry( word obj, void* data )
 {
   PUSH( (msgc_context_t*)data, obj, pushing_entries_from_remset << 8 );
   mark_from_stack( (msgc_context_t*)data );

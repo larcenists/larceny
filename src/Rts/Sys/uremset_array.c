@@ -26,6 +26,7 @@ struct uremset_array_data {
 
 static void assimilate_and_clear( uremset_t *urs, int g1, int g2 )
 {
+  assert(0);
 }
 static int live_count( uremset_t *urs, int gno )
 {
@@ -65,15 +66,19 @@ static void expand_remset_gnos( uremset_t *urs, int fresh_gno )
 }
 static void              clear( uremset_t *urs, int gno )
 {
+  assert(0);
 }
 static bool       add_elem_new( uremset_t *urs, word w )
 {
+  assert(0);
 }
 static bool           add_elem( uremset_t *urs, word w )
 {
+  assert(0);
 }
 static bool          add_elems( uremset_t *urs, word *bot, word *top )
 {
+  assert(0);
 }
 
 struct apply_scanner_to_rs_data {
@@ -84,6 +89,8 @@ static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
 {
   struct apply_scanner_to_rs_data *my_data = 
     (struct apply_scanner_to_rs_data*)data;
+  assert(0);
+
   return my_data->scanner( loc, my_data->scanner_data );
 }
 static void enumerate_gno( uremset_t *urs, 
@@ -95,6 +102,8 @@ static void enumerate_gno( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
+
+  assert(0);
 
   rs_enumerate( DATA(urs)->remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
@@ -109,6 +118,9 @@ static void enumerate_allbutgno( uremset_t *urs, int gno,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
+
+  assert(0);
+
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=1; i < DATA(urs)->remset_count; i++) {
@@ -128,6 +140,9 @@ static void enumerate_older( uremset_t *urs, int gno,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
+
+  assert(0);
+
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=gno; i < DATA(urs)->remset_count; i++) {
@@ -145,6 +160,9 @@ static void    enumerate_minor( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
+
+  assert(0);
+
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=1; i < DATA(urs)->remset_count; i++) {
@@ -163,6 +181,8 @@ static void enumerate_complement( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
+
+  assert(0);
 
   for( i = 1; i <= ecount; i++ ) {
     if (! gset_memberp( i, gset )) {
@@ -183,6 +203,9 @@ static void          enumerate( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
+
+  assert(0);
+
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=1; i < DATA(urs)->remset_count; i++) {
@@ -195,6 +218,9 @@ static void          enumerate( uremset_t *urs,
 static bool      is_remembered( uremset_t *urs, word w )
 {
   int w_gno = gen_of(w);
+
+  assert(0);
+
   return 
     (rs_isremembered( DATA(urs)->remset[ w_gno ], w )
      || rs_isremembered( DATA(urs)->major_remset[ w_gno ], w ));
@@ -204,13 +230,30 @@ static void       init_summary( uremset_t *urs,
                                 int max_words_per_step, 
                                 /* out parameter */ summary_t *s )
 {
+
+  assert(0);
+
 }
 
-uremset_t *alloc_uremset_array( gc_t *gc )
+uremset_t *alloc_uremset_array( gc_t *gc, gc_param_t *info )
 {
+  int i;
   uremset_array_data_t *data;
   uremset_t *urs;
   data = (uremset_array_data_t*)must_malloc( sizeof( uremset_array_data_t ) );
+
+  data->remset = 
+    (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
+  data->major_remset = 
+    (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
+
+  data->remset[0] = (void*)0xDEADBEEF;
+  data->major_remset[0] = (void*)0xDEADBEEF;
+  for ( i = 1; i < gc->gno_count; i++ ) {
+    data->remset[i] = create_remset( info->rhash, 0 );
+    data->major_remset[i] = create_remset( info->rhash, 0 );
+  }
+
   return create_uremset_t( "word hashset arrays",
                            (void*)data, 
                            expand_remset_gnos,
