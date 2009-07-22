@@ -17,6 +17,7 @@ struct gc_data {
   bool use_np_collector;	/* True if dynamic area is non-predictive */
   bool shrink_heap;		/* True if heap can be shrunk */
   bool fixed_ephemeral_area;    /* True iff ephemeral_area_count is invariant */
+  bool remset_undirected;       /* Regional (vs gen'l directed remsets) */
 
   int  dynamic_min;		/* 0 or lower limit of expandable area */
   int  dynamic_max;		/* 0 or upper limit of expandable area */

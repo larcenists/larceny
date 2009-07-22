@@ -58,7 +58,8 @@ static void* verify_remsets_msgc_fcn( word obj, word src, void *data )
   }
   assert( src_gen >= 0);
   assert( obj_gen >= 0);
-  if ((src_gen != obj_gen) &&
+  if (((DATA(gc)->remset_undirected && (src_gen != obj_gen))
+       || (! DATA(gc)->remset_undirected && (src_gen > obj_gen))) &&
       ! gc_is_nonmoving( gc, obj_gen )) {
     assert( src_gen >= 0 );
     if (src_gen > 0) {

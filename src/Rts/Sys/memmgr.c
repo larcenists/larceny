@@ -1699,9 +1699,11 @@ static void after_collection( gc_t *gc )
     sm_after_collection( DATA(gc)->summaries );
 
   SMIRCY_VERIFICATION_POINT(gc);
-  REMSET_VERIFICATION_POINT(gc);
-  NURS_SUMMARY_VERIFICATION_POINT(gc);
-
+  if (DATA(gc)->remset_undirected) {
+    /* why the guard?  See note below. */
+    REMSET_VERIFICATION_POINT(gc);
+    NURS_SUMMARY_VERIFICATION_POINT(gc); 
+  }
   assert(! DATA(gc)->use_summary_instead_of_remsets );
   SUMMMTX_VERIFICATION_POINT(gc);
 
@@ -1710,6 +1712,12 @@ static void after_collection( gc_t *gc )
     oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
   if (DATA(gc)->dynamic_area)
     oh_after_collection( DATA(gc)->dynamic_area );
+  if (! DATA(gc)->remset_undirected) {
+    /* hack to work around delayed clearing of remset in generational gc;
+     * the remset has dangling pointers in it until it is cleared by
+     * the oh_after_collection invocation above. */
+    REMSET_VERIFICATION_POINT(gc);
+  }
 
 }
 
@@ -1810,7 +1818,7 @@ enumerate_remsets_complement( gc_t *gc,
   if (DATA(gc)->enumerate_major_with_minor_remsets) {
     urs_enumerate_complement( gc->the_remset, gset, f, fdata );
   } else {
-    urs_enumerate_minor( gc->the_remset, f, fdata );
+    urs_enumerate_minor_complement( gc->the_remset, gset, f, fdata );
   }
 }
 
@@ -2596,6 +2604,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   gen_no = 0;
   data->is_partitioned_system = 1;
   data->use_np_collector = info->use_non_predictive_collector;
+  data->remset_undirected = FALSE;
   size = 0;
 
   strcpy( buf, "GEN " );
@@ -2720,6 +2729,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   data->is_partitioned_system = 1;
   assert( ! info->use_non_predictive_collector );
   data->use_np_collector = 0; /* RROF is not ROF. */
+  data->remset_undirected = TRUE;
   size = 0;
 
   strcpy( buf, "RGN " );

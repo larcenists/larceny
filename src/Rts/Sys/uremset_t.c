@@ -10,51 +10,52 @@
 uremset_t
 *create_uremset_t(char *id, 
                   void *data, 
-                  void   (*expand_remset_gnos)( uremset_t *urs, 
-                                                int fresh_gno ), 
-                  void                (*clear)( uremset_t *urs, int gno ), 
-                  void (*assimilate_and_clear)( uremset_t *urs, 
-                                                int g1, int g2 ),
-                  bool         (*add_elem_new)( uremset_t *urs, word w ), 
-                  bool             (*add_elem)( uremset_t *urs, word w ), 
-                  bool            (*add_elems)( uremset_t *urs, 
-                                                word *bot, 
-                                                word *top ), 
-                  void        (*enumerate_gno)( uremset_t *urs, 
-                                                int gno, 
-                                                bool (*scanner)(word loc, 
-                                                                void *data), 
-                                                void *data ),
-                  void  (*enumerate_allbutgno)( uremset_t *urs, 
-                                                int gno, 
-                                                bool (*scanner)(word loc, 
-                                                                void *data), 
-                                                void *data ),
-                  void      (*enumerate_older)( uremset_t *urs, 
-                                                int gno, 
-                                                bool (*scanner)(word loc, 
-                                                                void *data), 
-                                                void *data ),
-                  void      (*enumerate_minor)( uremset_t *urs, 
-                                                bool (*scanner)(word loc, 
-                                                                void *data), 
-                                                void *data ),
-                  void (*enumerate_complement)( uremset_t *urs, 
-                                                gset_t genset, 
-                                                bool (*scanner)(word loc, 
-                                                                void *data), 
-                                                void *data ), 
-                  void            (*enumerate)( uremset_t *urs, 
-                                                bool (*scanner)(word loc, 
-                                                                void *data), 
-                                                void *data ),
-                  bool        (*is_remembered)( uremset_t *urs, word w ), 
-                  int            (*live_count)( uremset_t *urs, int gno ),
-                  void         (*init_summary)( uremset_t *urs, 
-                                                int gno, 
-                                                int max_words_per_step, 
-                                                summary_t *s_outparam ),
-                  void     (*checkpoint_stats)( uremset_t *urs, int gno )
+                  void         (*expand_remset_gnos)( uremset_t *urs, 
+                                                      int fresh_gno ), 
+                  void                      (*clear)( uremset_t *urs, int gno ), 
+                  void       (*assimilate_and_clear)( uremset_t *urs, 
+                                                      int g1, int g2 ),
+                  bool               (*add_elem_new)( uremset_t *urs, word w ), 
+                  bool                   (*add_elem)( uremset_t *urs, word w ), 
+                  bool                  (*add_elems)( uremset_t *urs, 
+                                                      word *bot, 
+                                                      word *top ), 
+                  void              (*enumerate_gno)( uremset_t *urs, 
+                                                      int gno, 
+                                                      bool (*scanner)(word loc, 
+                                                                      void *data), 
+                                                      void *data ),
+                  void        (*enumerate_allbutgno)( uremset_t *urs, 
+                                                      int gno, 
+                                                      bool (*scanner)(word loc, 
+                                                                      void *data), 
+                                                      void *data ),
+                  void            (*enumerate_older)( uremset_t *urs, 
+                                                      int gno, 
+                                                      bool (*scanner)(word loc, 
+                                                                      void *data), 
+                                                      void *data ),
+                  void (*enumerate_minor_complement)( uremset_t *urs, 
+                                                      gset_t genset, 
+                                                      bool (*scanner)(word loc, 
+                                                                      void *data), 
+                                                      void *data ),
+                  void       (*enumerate_complement)( uremset_t *urs, 
+                                                      gset_t genset, 
+                                                      bool (*scanner)(word loc, 
+                                                                      void *data), 
+                                                      void *data ), 
+                  void                  (*enumerate)( uremset_t *urs, 
+                                                      bool (*scanner)(word loc, 
+                                                                      void *data), 
+                                                      void *data ),
+                  bool              (*is_remembered)( uremset_t *urs, word w ), 
+                  int                  (*live_count)( uremset_t *urs, int gno ),
+                  void               (*init_summary)( uremset_t *urs, 
+                                                      int gno, 
+                                                      int max_words_per_step, 
+                                                      summary_t *s_outparam ),
+                  void           (*checkpoint_stats)( uremset_t *urs, int gno )
                   )
 {
   uremset_t *urs;
@@ -63,19 +64,23 @@ uremset_t
   urs->id = id;
   urs->data = data;
 
-  urs->expand_remset_gnos   = expand_remset_gnos;
-  urs->clear                = clear;
-  urs->assimilate_and_clear = assimilate_and_clear;
-  urs->add_elem_new         = add_elem_new;
-  urs->add_elem             = add_elem;
-  urs->add_elems            = add_elems;
-  urs->enumerate_gno        = enumerate_gno;
-  urs->enumerate_allbutgno  = enumerate_allbutgno;
-  urs->enumerate_older      = enumerate_older;
-  urs->enumerate_minor      = enumerate_minor;
-  urs->enumerate            = enumerate;
-  urs->is_remembered        = is_remembered;
-  urs->live_count           = live_count;
-  urs->init_summary         = init_summary;
-  urs->checkpoint_stats     = checkpoint_stats;
+  urs->expand_remset_gnos         = expand_remset_gnos;
+  urs->clear                      = clear;
+  urs->assimilate_and_clear       = assimilate_and_clear;
+
+  urs->add_elem_new               = add_elem_new;
+  urs->add_elem                   = add_elem;
+  urs->add_elems                  = add_elems;
+
+  urs->enumerate_gno              = enumerate_gno;
+  urs->enumerate_allbutgno        = enumerate_allbutgno;
+  urs->enumerate_older            = enumerate_older;
+  urs->enumerate_minor_complement = enumerate_minor_complement;
+  urs->enumerate                  = enumerate;
+  urs->is_remembered              = is_remembered;
+  urs->live_count                 = live_count;
+  urs->init_summary               = init_summary;
+  urs->checkpoint_stats           = checkpoint_stats;
+
+  return urs;
 }

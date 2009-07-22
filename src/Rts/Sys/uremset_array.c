@@ -79,7 +79,12 @@ static bool           add_elem( uremset_t *urs, word w )
 }
 static bool          add_elems( uremset_t *urs, word *bot, word *top )
 {
-  rs_add_elems_distribute( DATA(urs)->remset, bot, top );
+  assert( DATA(urs)->remset != NULL );
+  if (bot != top) {
+    annoyingmsg("urs_add_elems rs[]=0x%08x bot=0x%08x top=0x%08x",
+                DATA(urs)->remset, bot, top );
+    rs_add_elems_distribute( DATA(urs)->remset, bot, top );
+  }
 }
 
 struct apply_scanner_to_rs_data {
@@ -102,8 +107,6 @@ static void enumerate_gno( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
-
-  assert(0);
 
   rs_enumerate( DATA(urs)->remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
@@ -152,20 +155,25 @@ static void enumerate_older( uremset_t *urs, int gno,
                   apply_scanner_to_rs, &wrapper_data );
   }
 }
-static void    enumerate_minor( uremset_t *urs, 
-                                bool (*scanner)(word loc, void *data), 
-                                void *data )
+static void enumerate_minor_complement( uremset_t *urs, 
+                                        gset_t gset, 
+                                        bool (*scanner)(word loc, void *data), 
+                                        void *data )
 {
   int i;
   struct apply_scanner_to_rs_data wrapper_data;
+  int rs_count;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
 
+  rs_count = DATA(urs)->remset_count;
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
-  for( i=1; i < DATA(urs)->remset_count; i++) {
-    rs_enumerate( DATA(urs)->remset[ i ], 
-                  apply_scanner_to_rs, &wrapper_data );
+  for( i=1; i < rs_count; i++) {
+    if (! gset_memberp( i, gset )) {
+      rs_enumerate( DATA(urs)->remset[ i ], 
+                    apply_scanner_to_rs, &wrapper_data );
+    }
   }
 }
 static void enumerate_complement( uremset_t *urs, 
@@ -184,11 +192,13 @@ static void enumerate_complement( uremset_t *urs,
 
   for( i = 1; i <= ecount; i++ ) {
     if (! gset_memberp( i, gset )) {
-      rs_enumerate( DATA(urs)->remset[i], apply_scanner_to_rs, data);
+      rs_enumerate( DATA(urs)->remset[i], 
+                    apply_scanner_to_rs, &wrapper_data);
       /* XXX: I may need to filter out members of gc->remset[i] 
        * because some components like summ_matrix assume that
        * the enumerate does not duplicate entries... */
-      rs_enumerate( DATA(urs)->major_remset[i], apply_scanner_to_rs, data);
+      rs_enumerate( DATA(urs)->major_remset[i], 
+                    apply_scanner_to_rs, &wrapper_data);
     }
   }
 }
@@ -217,7 +227,8 @@ static bool      is_remembered( uremset_t *urs, word w )
 {
   int w_gno = gen_of(w);
 
-  assert(0);
+  if (w_gno == 0) 
+    return FALSE;
 
   return 
     (rs_isremembered( DATA(urs)->remset[ w_gno ], w )
@@ -268,7 +279,7 @@ uremset_t *alloc_uremset_array( gc_t *gc, gc_param_t *info )
                            enumerate_gno,
                            enumerate_allbutgno, 
                            enumerate_older, 
-                           enumerate_minor, 
+                           enumerate_minor_complement, 
                            enumerate_complement, 
                            enumerate,
                            is_remembered,
