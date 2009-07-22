@@ -586,7 +586,13 @@ parse_options( int argc, char **argv, opt_t *o )
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
-    else 
+    else if   (hstrcmp( *argv, "-rhashrep" ) == 0) {
+      o->gc_info.chose_rhashrep = TRUE;
+      o->gc_info.chose_rbitsrep = FALSE;
+    } else if (hstrcmp( *argv, "-rbitsrep" ) == 0) {
+      o->gc_info.chose_rhashrep = FALSE;
+      o->gc_info.chose_rbitsrep = TRUE;
+    } else 
 #endif /* !BDW_GC */
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
@@ -1387,6 +1393,10 @@ static char *wizardhelptext[] = {
   "  -ssb nnnn",
   "     Set the remembered-set Sequential Store Buffer (SSB) size, in "
         "elements.",
+  "  -rhashrep",
+  "     Select the hashtable (array) representation of the remembered set.",
+  "  -rbitsrep",
+  "     Select the bitmap (tree) representation of the remembred set.",
 #endif
   "  -ticks nnnn",
   "     Set the initial countdown timer interval value.",

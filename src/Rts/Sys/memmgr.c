@@ -2697,7 +2697,14 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     gc->gno_count = gen_no + 1;
   else
     gc->gno_count = gen_no;
-  gc->the_remset = alloc_uremset_array( gc, info );
+
+  if (info->chose_rhashrep) { 
+    gc->the_remset = alloc_uremset_array( gc, info );
+  } else if (info->chose_rbitsrep) {
+    gc->the_remset = alloc_uremset_extbmp( gc, info );
+  } else {
+    gc->the_remset = alloc_uremset_array( gc, info );
+  }
 
   data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
@@ -2830,7 +2837,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     gc->gno_count = gen_no;
-    gc->the_remset = alloc_uremset_extbmp( gc, info );
+
+    if (info->chose_rhashrep) { 
+      gc->the_remset = alloc_uremset_array( gc, info );
+    } else if (info->chose_rbitsrep) {
+      gc->the_remset = alloc_uremset_extbmp( gc, info );
+    } else {
+      /* extbmp rep not mature enough (yet) to be RROF default */
+      gc->the_remset = alloc_uremset_array( gc, info );
+    }
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );

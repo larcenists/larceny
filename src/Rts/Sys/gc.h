@@ -89,6 +89,9 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool print_float_stats_minor;        /* In the regional system. */
   bool print_float_stats_refine;       /* In the regional system. */
 
+  bool chose_rhashrep;
+  bool chose_rbitsrep;
+
   /* Common parameters */
   word *globals;		/* globals table used by collector */
 
