@@ -201,7 +201,7 @@ static tnode_t *alloc_tnode( extbmp_t *ebmp,
   return retval;
 }
 
-static void clear_leaf_fields( extbmp_t *ebmp, leaf_t *l ) {
+static void init_leaf_fields_cleared( extbmp_t *ebmp, leaf_t *l ) {
   int i;
   int bmp_words = ebmp->leaf_words;
   word *bmp = l->bitmap;
@@ -220,7 +220,7 @@ static tnode_t *alloc_leaf( extbmp_t *ebmp, word start, word limit )
   retval->leaf.limit = limit;
 #endif
 
-  clear_leaf_fields( ebmp, &retval->leaf );
+  init_leaf_fields_cleared( ebmp, &retval->leaf );
 
   dbmsg(     "alloc_leaf(ebmp,start=0x%08x,limit=0x%08x)"
              "           ==> 0x%08x",
@@ -228,7 +228,7 @@ static tnode_t *alloc_leaf( extbmp_t *ebmp, word start, word limit )
   return retval;
 }
 
-static void clear_inode_fields( extbmp_t *ebmp, inode_t *n )
+static void init_inode_fields_cleared( extbmp_t *ebmp, inode_t *n )
 {
   int i;
   int entries = ebmp->entries_per_inode;
@@ -261,7 +261,7 @@ static tnode_t *alloc_inode( extbmp_t *ebmp,
   retval->inode.limit = limit;
 #endif
 
-  clear_inode_fields( ebmp, &retval->inode );
+  init_inode_fields_cleared( ebmp, &retval->inode );
 
   dbmsg(     "alloc_inode(ebmp,%8d,start=0x%08x,limit=0x%08x)"
              " ==> 0x%08x", 
