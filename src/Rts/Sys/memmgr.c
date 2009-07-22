@@ -1717,6 +1717,7 @@ static void after_collection( gc_t *gc )
      * the remset has dangling pointers in it until it is cleared by
      * the oh_after_collection invocation above. */
     REMSET_VERIFICATION_POINT(gc);
+    NURS_SUMMARY_VERIFICATION_POINT( gc );
   }
 
 }
@@ -2825,6 +2826,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     gc->gno_count = gen_no;
+    gc->the_remset = alloc_uremset_array( gc, info );
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );

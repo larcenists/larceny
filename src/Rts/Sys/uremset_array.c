@@ -71,7 +71,7 @@ static void              clear( uremset_t *urs, int gno )
 }
 static bool       add_elem_new( uremset_t *urs, word w )
 {
-  assert(0);
+  rs_add_elem_new( DATA(urs)->major_remset[ gen_of(w) ], w );
 }
 static bool           add_elem( uremset_t *urs, word w )
 {
@@ -188,9 +188,7 @@ static void enumerate_complement( uremset_t *urs,
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
 
-  assert(0);
-
-  for( i = 1; i <= ecount; i++ ) {
+  for( i = 1; i < ecount; i++ ) {
     if (! gset_memberp( i, gset )) {
       rs_enumerate( DATA(urs)->remset[i], 
                     apply_scanner_to_rs, &wrapper_data);
@@ -211,8 +209,6 @@ static void          enumerate( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
-
-  assert(0);
 
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */

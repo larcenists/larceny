@@ -76,6 +76,7 @@ uremset_t
   urs->enumerate_allbutgno        = enumerate_allbutgno;
   urs->enumerate_older            = enumerate_older;
   urs->enumerate_minor_complement = enumerate_minor_complement;
+  urs->enumerate_complement       = enumerate_complement;
   urs->enumerate                  = enumerate;
   urs->is_remembered              = is_remembered;
   urs->live_count                 = live_count;
