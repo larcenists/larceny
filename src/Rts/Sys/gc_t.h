@@ -43,17 +43,6 @@ struct gc {
     /* In precise collectors: A pointer to the unified remset, or NULL. 
        */
 
-  remset_t **remset;
-    /* In precise collectors: An array of pointers to remembered sets, 
-       or NULL.  Entry 0 in the array is unused.
-       These remsets track region-crossing pointers due to mutator activity.
-       */
-  remset_t **major_remset;
-    /* In precise collectors: An array of pointers to remembered sets, 
-       or NULL.  Entry 0 in the array is unused.
-       These remsets track region-crossing pointers due to collector activity.
-       */
-
   smircy_context_t *smircy;
     /* The current mark/refine context, or NULL if no mark has been
        initiated since last refinement was completed.
@@ -215,9 +204,8 @@ struct gc {
   void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *), void * );
   void (*enumerate_smircy_roots)( gc_t *gc, void (*f)( word*, void *), void * );
   void (*enumerate_remsets_complement)( gc_t *gc, gset_t genset,
-				        bool (*f)(word, void*, unsigned * ),
-				        void *,
-				        bool enumerate_np_remset );
+				        bool (*f)(word, void*),
+				        void * );
      /* Invokes f on every word in the remsets in the complement of genset.
         If f returns TRUE then word argument is retained in the remset 
         being traversed; otherwise word is removed (see interface for 
@@ -279,8 +267,8 @@ struct gc {
 #define gc_enumerate_smircy_roots( gc,s,d ) \
   ((gc)->enumerate_smircy_roots( (gc),(s),(d) ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
-#define gc_enumerate_remsets_complement( gc, gset, s, d, f ) \
-  ((gc)->enumerate_remsets_complement( gc, gset, s, d, f ))
+#define gc_enumerate_remsets_complement( gc, gset, s, d ) \
+  ((gc)->enumerate_remsets_complement( gc, gset, s, d ))
 #define gc_enumerate_remembered_locations( gc, gset, s, d) \
   ((gc)->enumerate_remembered_locations( gc, gset, s, d ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
@@ -331,9 +319,8 @@ gc_t
 				             void * ),
 	     void (*enumerate_remsets_complement)
 	        ( gc_t *gc, gset_t genset,
-		  bool (*f)(word, void*, unsigned * ),
-		  void *data,
-		  bool enumerate_np_remset ),
+		  bool (*f)(word, void*),
+		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset, 
 	          void (*f)( word, int, void* ), void* ),

@@ -208,7 +208,7 @@ static void init_np_env( cheney_env_t *e, gc_t *gc,
 
 #if ROF_COLLECTOR
 static void root_scanner_np( word *ptr, void *data );
-static bool remset_scanner_np( word obj, void *data, unsigned *count );
+static bool remset_scanner_np( word obj, void *data );
 static void scan_oflo_np_promote( cheney_env_t *e );
 static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
 #endif
@@ -291,7 +291,7 @@ static void root_scanner_np( word *ptr, void *data )
 #endif
 
 #if ROF_COLLECTOR
-static bool remset_scanner_np( word object, void *data, unsigned *count )
+static bool remset_scanner_np( word object, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   gset_t       forw_gset = e->forw_gset;
@@ -302,8 +302,7 @@ static bool remset_scanner_np( word object, void *data, unsigned *count )
 
   remset_scanner_core( e, object, loc, 
                        forw_np_record( loc, forw_gset, dest, lim,
-                                       has_intergen_ptr, old_obj_gen, e ),
-                       *count );
+                                       has_intergen_ptr, old_obj_gen, e ));
 
   FORW_NP_ENV_END( e, dest, lim )
   return has_intergen_ptr;

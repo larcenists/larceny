@@ -15,6 +15,7 @@
 #include "stats.h"
 #include "gc_t.h"
 #include "remset_t.h"
+#include "uremset_t.h"
 
 typedef struct static_data static_data_t;
 
@@ -88,7 +89,7 @@ static void stats( static_heap_t *heap )
 
   stats_add_gen_stats( DATA(heap)->self, &s );
   if (heap->collector->gno_count > DATA(heap)->gen_no)
-    rs_stats( heap->collector->remset[ DATA(heap)->gen_no ] );
+    urs_checkpoint_stats( heap->collector->the_remset, DATA(heap)->gen_no );
 }
 
 static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )

@@ -18,6 +18,7 @@
 #include "msgc-core.h"
 #include "young_heap_t.h" /* for yh_is_address_mapped */
 #include "static_heap_t.h" /* for sh_is_address_mapped */
+#include "uremset_t.h"
 
 #define LARGE_OBJECT_LIMIT 1024 /* elements */
 
@@ -657,8 +658,8 @@ msgc_mark_objects_from_roots_and_remsets( msgc_context_t *context,
     int i;
     for( i = 1; i < context->gc->gno_count; i++ ) {
       pushing_entries_from_remset = i;
-      rs_enumerate( context->gc->remset[i], push_remset_entry, context );
-      rs_enumerate( context->gc->major_remset[i], push_remset_entry, context );
+      urs_enumerate_gno( context->gc->the_remset, i, 
+                         push_remset_entry, context );
     }
   }
 

@@ -555,7 +555,7 @@ STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
 STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
 SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/summ_matrix_t.h
-UREMSET_T_H=Sys/uremset_t.h
+UREMSET_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/uremset_t.h
 YOUNG_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/young_heap_t.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
 PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\
@@ -639,7 +639,8 @@ Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(SUMM_MATRIX_T_H) Sys/seqbuf_t.h Sys/memmgr_internal.h
 Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
-	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
+	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
+	$(UREMSET_T_H) $(YOUNG_HEAP_T_H)
 Sys/nursery.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(STACK_H) \\
 	$(YOUNG_HEAP_T_H)
@@ -648,7 +649,8 @@ Sys/old_heap_t.$(O): $(LARCENY_H) $(OLD_HEAP_T_H)
 Sys/old-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) Sys/region_group_t.h \\
-	$(SEMISPACE_T_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H)
+	$(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
+	$(UREMSET_T_H) $(YOUNG_HEAP_T_H)
 Sys/osdep.$(O): $(LARCENY_H)
 Sys/seqbuf.$(O): $(LARCENY_H) $(GCLIB_H) $(SEQBUF_T_H)
 Sys/region_group.$(O): $(LARCENY_H) Sys/region_group_t.h $(OLD_HEAP_T_H)
@@ -672,7 +674,8 @@ Sys/stats.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
 Sys/summ_matrix.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h \\
-	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H)
+	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H) \\
+	$(UREMSET_T_H)
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  $(GC_T_H) $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)

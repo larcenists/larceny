@@ -110,7 +110,7 @@ struct cheney_env {
     /* Scanner function for forwarding from globals[]
        */
 
-  bool (*scan_from_remsets)( word obj, void *data, unsigned *count );
+  bool (*scan_from_remsets)( word obj, void *data );
     /* Scanner function for forwarding from remembered sets.
        */
 
@@ -164,6 +164,7 @@ struct cheney_env {
 #define SCAN_STATIC         2
 #define ENUMERATE_NP_REMSET 4
 #define SPLITTING_GC        8
+#define POINTS_ACROSS_FCN  16
 
 /* Ad-hoc instrumentation */
 static gc_event_stats_t cheney; /* FIXME: duplicated across each include */
@@ -314,7 +315,7 @@ static void stop( void )
 /* 'p' is not local to the macro because it is also used by the expansion 
    of FORW.
    */
-#define remset_scanner_core( e, ptr, p, FORW, count )                \
+#define remset_scanner_core( e, ptr, p, FORW )                       \
   do {                                                               \
     int g_lhs, g_rhs;                                                \
     p = ptrof( ptr );                                                \
@@ -324,12 +325,10 @@ static void stop( void )
       FORW;                                                          \
       ++p;                                                           \
       FORW;                                                          \
-      count += 2;                                                    \
     }                                                                \
     else {                                                           \
       word words = sizefield( *p ) / 4;                              \
       COUNT_REMSET_LARGE_OBJ( words );                               \
-      count += words;                                                \
       while (words--) {                                              \
         ++p;                                                         \
         FORW;                                                        \
@@ -337,7 +336,7 @@ static void stop( void )
     }                                                                \
   } while (0)
 
-#define remset_scanner_update_rs( e, ptr, p, FORW, count, update_remset ) \
+#define remset_scanner_update_rs( e, ptr, p, FORW, update_remset )        \
   do {                                                                    \
     int g_lhs, g_rhs;                                                     \
     p = ptrof( ptr );                                                     \
@@ -347,12 +346,10 @@ static void stop( void )
       FORW;                                                               \
       ++p;                                                                \
       FORW;                                                               \
-      count += 2;                                                         \
     }                                                                     \
     else {                                                                \
       word words = sizefield( *p ) / 4;                                   \
       COUNT_REMSET_LARGE_OBJ( words );                                    \
-      count += words;                                                     \
       while (words--) {                                                   \
         ++p;                                                              \
         FORW;                                                             \

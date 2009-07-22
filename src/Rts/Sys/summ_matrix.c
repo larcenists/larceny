@@ -46,6 +46,7 @@
 #include "seqbuf_t.h"
 #include "semispace_t.h"
 #include "smircy.h"
+#include "uremset_t.h"
 
 #define DEFAULT_OBJS_POOL_SIZE 2048 /* 2K elements = 8KB */
 #define DEFAULT_LOCS_POOL_SIZE 1024 /* 1K elements = 8KB */
@@ -1839,7 +1840,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
   check_rep_3( summ );
 }
 
-static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *count )
+static bool scan_object_for_remset_summary( word ptr, void *data )
 {
   word *loc = ptrof(ptr);
   word scanned = 0;
@@ -1964,8 +1965,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data, unsigned *coun
     remsum->count_objects_added += 1;
     remsum->words_added += scanned;
   }
-
-  *count += scanned;
 
  end:
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2106,20 +2105,14 @@ static int sm_build_summaries_by_scanning( summ_matrix_t *summ,
 
   for ( i = start_remset; i < finis_remset; i++ ) {
     /* enumerating all *rows*; thus this is the pROWduction loop. */
-    dbmsg("enum remsets of %d, live minor: %d major: %d", i, 
-               summ->collector->remset[ i ]->live, 
-               summ->collector->major_remset[ i ]->live );
+    dbmsg("enum remsets of %d, live %d", i, 
+          urs_live_count( summ->collector->the_remset, i ));
     p_remsum->skip_these = NULL;
-    rs_enumerate( summ->collector->remset[ i ], 
-                  scan_object_for_remset_summary,
-                  (void*) p_remsum );
-    /* don't allow duplicate scans */
-    p_remsum->skip_these = summ->collector->remset[ i ];
-    rs_enumerate( summ->collector->major_remset[ i ], 
-                  scan_object_for_remset_summary,
-                  (void*) p_remsum );
-    if ( (summ->collector->remset[ i ]->live > 0) || 
-         (summ->collector->major_remset[ i ]->live > 0) ) {
+    urs_enumerate_gno( summ->collector->the_remset, i, 
+                       scan_object_for_remset_summary, 
+                       (void*) p_remsum );
+    
+    if ( urs_live_count( summ->collector->the_remset, i ) > 0 ) {
       nontrivial_scans += 1;
     }
   }
@@ -2516,10 +2509,7 @@ static void fold_col_into_remset( summ_matrix_t *summ, int i, remset_t *rs )
         word *top = objs->top;
         while( p < top ) {
           if (*p != 0x0) {
-            assert( rs_isremembered( summ->collector->remset[gen_of(*p)],
-                                     *p ) ||
-                    rs_isremembered( summ->collector->major_remset[gen_of(*p)],
-                                     *p ) );
+            assert( urs_isremembered( summ->collector->the_remset, *p ));
             assert( ! rs_isremembered( rs, *p ));
             rs_add_elem( rs, *p );
           }

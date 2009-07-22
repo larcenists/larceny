@@ -17,6 +17,8 @@
 #include "seqbuf_t.h"
 
 #include "stats.h"
+#include "uremset_t.h"
+
 #include "memmgr_internal.h"
 
 static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
@@ -72,13 +74,10 @@ static void* verify_remsets_msgc_fcn( word obj, word src, void *data )
         assert( (DATA(gc)->summaries == NULL) ||
                 sm_nursery_summary_contains( DATA(gc)->summaries, src ));
       }
-      if (!rs_isremembered( gc->remset[ src_gen ], src ) &&
-	  !rs_isremembered( gc->major_remset[ src_gen ], src )) {
+      if (!urs_isremembered( gc->the_remset, src )) {
 	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
-		    " but not in remsets @0x%08x @0x%08x",
-		    src, src_gen, obj, obj_gen, 
-		    gc->remset[ src_gen ],
-		    gc->major_remset[ src_gen ]);
+		    " but not in remset ",
+		    src, src_gen, obj, obj_gen );
 	if (! gc_is_address_mapped( gc, ptrof(src), FALSE)) {
           assert( gc_is_address_mapped( gc, ptrof(src), TRUE ));
         }
@@ -114,7 +113,7 @@ static bool verify_nursery_traverse_rs( word obj, void *d, unsigned *stats )
 {
   struct verify_remsets_traverse_rs_data *data;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( rs_isremembered( data->gc->remset[ gen_of(obj) ], obj ));
+  assert( urs_isremembered( data->gc->the_remset, obj ));
   return TRUE;
 }
 

@@ -159,12 +159,11 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       rgn_grp_str = region_group_name( region_group_of(heap ));
       oh_synchronize( heap );
       consolemsg( "%scycle % 3d region% 4d "
-                  "remset live: %7d %7d %8d lastmajor: %7d "
+                  "rgn sumz live: %8d lastmajor: %7d "
                   "float{ objs: %7d/%7d words: %7d/%7d %7d }%s%s %s %s", 
                   caller_name,
                   DATA(gc)->rrof_cycle_count, 
                   rgn, 
-                  gc->remset[ rgn ]->live, gc->major_remset[ rgn ]->live, 
                   rgn_summarized_live, 
                   heap->bytes_live_last_major_gc/sizeof(word), 
                   data.objs.zzflt+data.objs.rsflt,

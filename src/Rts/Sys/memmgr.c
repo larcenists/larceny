@@ -1774,9 +1774,8 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
 static void
 enumerate_remsets_complement( gc_t *gc,
 			      gset_t gset,
-			      bool (*f)(word obj, void *data, unsigned *count),
-			      void *fdata,
-			      bool enumerate_np_young )
+			      bool (*f)(word obj, void *data),
+			      void *fdata )
 {
   int i;
   int ecount;
@@ -1807,36 +1806,10 @@ enumerate_remsets_complement( gc_t *gc,
     process_seqbuf( gc, gc->ssb[i] );
   }
 
-  for( i = 1; i <= ecount; i++ ) {
-    if (! gset_memberp( i, gset )) {
-      rs_enumerate( gc->remset[i], f, fdata);
-    }
-  }
   if (DATA(gc)->enumerate_major_with_minor_remsets) {
-    for( i = 1; i <= ecount; i++ ) {
-      if (! gset_memberp( i, gset )) {
-        rs_enumerate( gc->major_remset[i], f, fdata);
-      }
-    }
-  }
-  
-  /* XXX what is this?  Is it necessary? */
-  if (DATA(gc)->dynamic_area) {
-    i = oh_current_space(DATA(gc)->dynamic_area)->gen_no;
-    if (! gset_memberp( i, gset )) {
-      rs_enumerate( gc->remset[i], f, fdata);
-    }
-  }
-    
-  if (gc->static_area) {
-    i = DATA(gc)->static_generation;
-    { 
-      rs_enumerate( gc->remset[i], f, fdata );
-    }
-  }
-
-  if (enumerate_np_young) {
-    rs_enumerate( gc->remset[ gc->np_remset ], f, fdata );
+    urs_enumerate_complement( gc->the_remset, gset, f, fdata );
+  } else {
+    urs_enumerate_minor( gc->the_remset, f, fdata );
   }
 }
 
@@ -1850,8 +1823,7 @@ struct apply_f_to_summary_obj_entry_data {
   void *scan_data;
 };
 
-static void apply_f_to_summary_obj_entry( word obj, void *data_orig, 
-                                          unsigned *count )
+static void apply_f_to_summary_obj_entry( word obj, void *data_orig )
 {
   word *w;
   struct apply_f_to_summary_obj_entry_data *data;
@@ -1875,10 +1847,9 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig,
   }
 }
 
-static bool apply_f_to_remset_obj_entry( word obj, void *data_orig,
-                                         unsigned *count )
+static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
 {
-  apply_f_to_summary_obj_entry( obj, data_orig, count );
+  apply_f_to_summary_obj_entry( obj, data_orig );
   return TRUE;
 }
 
@@ -1896,7 +1867,7 @@ static void enumerate_remembered_locations( gc_t *gc, gset_t genset,
     remsets_data.scan_data = scan_data;
     gc_enumerate_remsets_complement( gc, genset, 
                                      apply_f_to_remset_obj_entry, 
-                                     (void*) &remsets_data, FALSE );
+                                     (void*) &remsets_data );
   }
 }
 
@@ -2582,8 +2553,7 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 }
 
 static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
-  remset_t **remset = gc->remset;
-  return rs_add_elems_distribute( remset, bot, top );
+  urs_add_elems( gc->the_remset, bot, top );
 }
 
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
@@ -2599,12 +2569,10 @@ static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
 
 static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data ) 
 {
-  remset_t **remset;
   int retval = 0;
   int g_rhs;
   word *p, *q, w;
-  remset = gc->remset;
-  retval |= rs_add_elems_distribute( remset, bot, top );
+  retval |= urs_add_elems( gc->the_remset, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
   if (DATA(gc)->summaries != NULL
@@ -2714,19 +2682,6 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     gc->gno_count = gen_no + 1;
   else
     gc->gno_count = gen_no;
-
-  gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
-  gc->major_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
-
-  gc->remset[0] = (void*)0xDEADBEEF;
-  gc->major_remset[0] = (void*)0xDEADBEEF;
-  for ( i = 1 ; i < gc->gno_count ; i++ ) {
-    gc->remset[i] =
-      create_remset( info->rhash, 0 );
-    gc->major_remset[i] =
-      create_remset( info->rhash, 0 );
-  }
 
   data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
@@ -2858,18 +2813,6 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     gc->gno_count = gen_no;
-    gc->remset = 
-      (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
-    gc->major_remset = 
-      (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
-    gc->remset[0] = (void*)0xDEADBEEF;
-    gc->major_remset[0] = (void*)0xDEADBEEF;
-    for ( i = 1 ; i < gc->gno_count ; i++ ) {
-      gc->remset[i] =
-	create_remset( info->rhash, 0 );
-      gc->major_remset[i] =
-	create_remset( info->rhash, 0 );
-    }
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
@@ -2931,11 +2874,10 @@ static void points_across_callback( gc_t *gc, word lhs, int offset, word rhs )
     {
       assert2(g_lhs > 0);
       assert2(g_rhs >= 0);
-      assert2(gc->major_remset != NULL);
 
       /* enqueue lhs in remset. */
       if (last_origin_ptr_added != lhs) {
-        rs_add_elem_new( gc->major_remset[g_lhs], lhs );
+        urs_add_elem_new( gc->the_remset, lhs );
         last_origin_ptr_added = lhs;
       }
 

@@ -43,9 +43,8 @@ gc_t
 	                                     void * ),
 	     void (*enumerate_remsets_complement)
 	        ( gc_t *gc, gset_t genset,
-		  bool (*f)(word, void*, unsigned * ),
-		  void *data, 
-		  bool enumerate_np_remset ),
+		  bool (*f)(word, void*),
+		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset,
 	          void (*f)( word, int, void* ), void* ),
@@ -72,8 +71,6 @@ gc_t
   gc->young_area = 0;
   gc->static_area = 0; 
   gc->los = 0;
-  gc->remset = 0;
-  gc->major_remset = 0;
   gc->gno_count = 0;
   gc->smircy = 0;
   gc->smircy_completion = 0;

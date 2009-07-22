@@ -33,6 +33,7 @@
 #include "remset_t.h"
 #include "stats.h"
 #include "gc_mmu_log.h"
+#include "uremset_t.h"
 
 #define PROMOTE_WITHOUT_COLLECTING       0
 #define PROMOTE_WHILE_COLLECTING         1
@@ -207,8 +208,7 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
     { 
       assert( seqbuf_clearp( heap->collector->ssb[rgn_idx] ));
       
-      rs_clear( heap->collector->remset[ rgn_idx ] );
-      rs_clear( heap->collector->major_remset[ rgn_idx ] );
+      urs_clear( heap->collector->the_remset, rgn_idx );
     }
 
     /* NOTE on the above: the standard collectors seem to do their
@@ -567,14 +567,13 @@ static void after_collection( old_heap_t *heap )
   }
   if (data->must_clear_remset) 
     /* FIXME: not accounted for in GC time measurement.  */
-    rs_clear( heap->collector->remset[ data->gen_no ] );
+    urs_clear( heap->collector->the_remset, data->gen_no );
 
   heap->allocated = used_space( heap );
   check_budget( heap, "after_collection" );
-  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d+%d.", 
+  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
 	       data->gen_no, data->target_size, heap->allocated, 
-	       heap->collector->remset[ data->gen_no ]->live,
-	       heap->collector->major_remset[ data->gen_no ]->live );
+	       urs_live_count( heap->collector->the_remset, data->gen_no ));
 }
 
 static void stats( old_heap_t *heap )
@@ -592,7 +591,7 @@ static void stats( old_heap_t *heap )
   stats_add_gen_stats( data->self, &data->gen_stats );
   stats_add_gc_stats( &data->gc_stats );
   stats_set_gc_event_stats( &data->event_stats );
-  rs_stats( heap->collector->remset[ data->gen_no ] );
+  urs_checkpoint_stats( heap->collector->the_remset, data->gen_no );
 
   memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );

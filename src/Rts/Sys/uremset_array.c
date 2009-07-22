@@ -24,6 +24,19 @@ struct uremset_array_data {
 
 #define DATA(urs) ((uremset_array_data_t*)(urs->data))
 
+static void assimilate_and_clear( uremset_t *urs, int g1, int g2 )
+{
+}
+static int live_count( uremset_t *urs, int gno )
+{
+  return (DATA(urs)->remset[gno]->live 
+          + DATA(urs)->major_remset[gno]->live);
+}
+static void checkpoint_stats( uremset_t *urs, int gno )
+{
+  rs_stats( DATA(urs)->remset[gno] );
+  rs_stats( DATA(urs)->major_remset[gno] );
+}
 static void expand_remset_gnos( uremset_t *urs, int fresh_gno )
 {
   int i;
@@ -35,14 +48,14 @@ static void expand_remset_gnos( uremset_t *urs, int fresh_gno )
     (remset_t**)must_malloc( sizeof( remset_t* )*new_remset_count );
 
   for( i = 0; i < fresh_gno; i++ ) {
-    new_remset[i] = gc->remset[i];
-    new_major_remset[i] = gc->major_remset[i];
+    new_remset[i] = DATA(urs)->remset[i];
+    new_major_remset[i] = DATA(urs)->major_remset[i];
   }
   new_remset[fresh_gno] = create_remset( 0, 0 );
   new_major_remset[fresh_gno] = create_remset( 0, 0 );
   for( i = fresh_gno+1; i < new_remset_count; i++ ) {
-    new_remset[i] = gc->remset[i-1];
-    new_major_remset[i] = gc->major_remset[i-1];
+    new_remset[i] = DATA(urs)->remset[i-1];
+    new_major_remset[i] = DATA(urs)->major_remset[i-1];
   }
   free( DATA(urs)->remset );
   free( DATA(urs)->major_remset );
@@ -139,6 +152,29 @@ static void    enumerate_minor( uremset_t *urs,
                   apply_scanner_to_rs, &wrapper_data );
   }
 }
+static void enumerate_complement( uremset_t *urs, 
+                                  gset_t gset, 
+                                  bool (*scanner)(word loc, 
+                                                  void *data), 
+                                  void *data ) 
+{
+  int i;
+  int ecount = DATA(urs)->remset_count;
+  struct apply_scanner_to_rs_data wrapper_data;
+  wrapper_data.scanner = scanner;
+  wrapper_data.scanner_data = data;
+
+  for( i = 1; i <= ecount; i++ ) {
+    if (! gset_memberp( i, gset )) {
+      rs_enumerate( DATA(urs)->remset[i], apply_scanner_to_rs, data);
+      /* XXX: I may need to filter out members of gc->remset[i] 
+       * because some components like summ_matrix assume that
+       * the enumerate does not duplicate entries... */
+      rs_enumerate( DATA(urs)->major_remset[i], apply_scanner_to_rs, data);
+    }
+  }
+}
+
 static void          enumerate( uremset_t *urs, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
@@ -179,6 +215,7 @@ uremset_t *alloc_uremset_array( gc_t *gc )
                            (void*)data, 
                            expand_remset_gnos,
                            clear,
+                           assimilate_and_clear, 
                            add_elem_new,
                            add_elem,
                            add_elems, 
@@ -186,7 +223,10 @@ uremset_t *alloc_uremset_array( gc_t *gc )
                            enumerate_allbutgno, 
                            enumerate_older, 
                            enumerate_minor, 
+                           enumerate_complement, 
                            enumerate,
                            is_remembered,
-                           init_summary );
+                           live_count, 
+                           init_summary,
+                           checkpoint_stats );
 }
