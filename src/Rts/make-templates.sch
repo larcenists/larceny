@@ -421,6 +421,7 @@ PRECISE_GC_OBJECTS=\\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
 	Sys/smircy.$(O) Sys/smircy_checking.$(O) \\
+	Sys/uremset_array.$(O) Sys/uremset_t.$(O) \\
 	Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\\
@@ -677,6 +678,8 @@ Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)
 Sys/osdep-win32.$(O): $(LARCENY_H)
 Sys/osdep-generic.$(O): $(LARCENY_H)
 Sys/util.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H)
+Sys/uremset_array.$(O): $(LARCENY_H) $(UREMSET_T_H)
+Sys/uremset_t.$(O): $(LARCENY_H) $(UREMSET_T_H)
 Sys/version.$(O): $(INC_ROOT)/config.h
 Sys/young_heap_t.$(O): $(LARCENY_H) $(YOUNG_HEAP_T_H)")
 

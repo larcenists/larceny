@@ -39,6 +39,10 @@ struct gc {
     /* In precise collectors: A pointer to a static area, or NULL.
        */
 
+  uremset_t *the_remset;
+    /* In precise collectors: A pointer to the unified remset, or NULL. 
+       */
+
   remset_t **remset;
     /* In precise collectors: An array of pointers to remembered sets, 
        or NULL.  Entry 0 in the array is unused.
