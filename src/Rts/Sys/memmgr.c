@@ -510,7 +510,7 @@ static void smircy_start( gc_t *gc )
   DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
 }
 
-static bool scan_refine_remset( word loc, void *data, unsigned *stats )
+static bool scan_refine_remset( word loc, void *data )
 {
   smircy_context_t *context = (smircy_context_t*)data;
   if (smircy_object_marked_p( context, loc )) {
@@ -528,18 +528,8 @@ static bool scan_refine_remset( word loc, void *data, unsigned *stats )
 
 static void refine_remsets_via_marksweep( gc_t *gc )
 {
-  /* use the mark/sweep system to refine (*all* of) the
-   * remembered sets. */
-  int i;
-  smircy_context_t *context;
-  context = gc->smircy;
-  
-  /* static objects die; gno_count includes static remset (thus
-   * refinement eliminates corpses with dangling pointers). */
-  for( i=1; i < gc->gno_count; i++) {
-    rs_enumerate( gc->remset[ i ], scan_refine_remset, context );
-    rs_enumerate( gc->major_remset[ i ], scan_refine_remset, context );
-  }
+  /* use mark/sweep system to refine the remembered set. */
+  urs_enumerate( gc->the_remset, scan_refine_remset, gc->smircy );
 }
 
 static void zeroed_promotion_counts( gc_t* gc ) 
@@ -1625,8 +1615,7 @@ static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt )
 	  gen_of(src) != gen_of(tgt) ||   // FSK: why are below || (opposed to &&)
 	  gen_of(src) != 0 ||
 	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  rs_isremembered( gc->remset[ gen_of(src) ], tgt ) ||      // FSK: typo?
-	  rs_isremembered( gc->major_remset[ gen_of(src) ], tgt )); // FSK: typo?
+	  urs_isremembered( gc->the_remset, src ) );
 }
 static void check_remset_invs( gc_t *gc, word src, word tgt ) 
 {
@@ -1637,8 +1626,7 @@ static void check_remset_invs( gc_t *gc, word src, word tgt )
 	  gen_of(src)  < gen_of(tgt) ||
 	  gen_of(src) != 0 ||
 	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  rs_isremembered( gc->remset[ gen_of(src) ], src ) ||
-	  rs_isremembered( gc->major_remset[ gen_of(src) ], src ));
+	  urs_isremembered( gc->the_remset, src ));
 }
 
 void gc_signal_moving_collection( gc_t *gc )
@@ -1832,6 +1820,7 @@ enumerate_remsets_complement( gc_t *gc,
     }
   }
   
+  /* XXX what is this?  Is it necessary? */
   if (DATA(gc)->dynamic_area) {
     i = oh_current_space(DATA(gc)->dynamic_area)->gen_no;
     if (! gset_memberp( i, gset )) {
@@ -1961,24 +1950,6 @@ static void stack_overflow( gc_t *gc )
 
 static void stack_underflow( gc_t *gc ) 
   { yh_stack_underflow( gc->young_area ); }
-
-#if defined(SIMULATE_NEW_BARRIER)
-/* Note we do not check whether it's in the NP extra remembered set.
-   This is correct, because that check will not be performed by the
-   new barrier -- it can only check whether it's in a normal set.
-   */
-static int isremembered( gc_t *gc, word w )
-{
-  unsigned g;
-
-  g = gen_of( w );
-  assert( g >= 0 && g < gc->gno_count );
-  if (g > 0)
-    return rs_isremembered( gc->remset[g], w ); /*XXX major_remsets too? XXX*/
-  else
-    return 0;
-}
-#endif
 
 /* Strategy: generations report the data for themselves and their 
    remembered sets.  Everything else is handled here.
@@ -2304,10 +2275,6 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
 {
   int i;
   int new_gno_count = gc->gno_count + 1;
-  remset_t** new_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*new_gno_count );
-  remset_t** new_major_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*new_gno_count );
   seqbuf_t ** new_ssb = 
     (seqbuf_t**)must_malloc( sizeof( seqbuf_t*)*new_gno_count );
   word **new_ssb_bot = (word**)must_malloc( sizeof(word*)*new_gno_count );
@@ -2315,38 +2282,31 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   word **new_ssb_lim = (word**)must_malloc( sizeof(word*)*new_gno_count );
   assert( fresh_gno < new_gno_count );
 
+  urs_expand_remset_gnos( gc->the_remset, fresh_gno );
+
   for( i = 0; i < fresh_gno; i++ ) {
-    new_remset[i] = gc->remset[i];
-    new_major_remset[i] = gc->major_remset[i];
     new_ssb[i] = gc->ssb[i];
     seqbuf_swap_in_ssb( gc->ssb[i], &new_ssb_bot[i], 
                         &new_ssb_top[i], &new_ssb_lim[i] );
     seqbuf_set_sp_data( gc->ssb[i], /* XXX */(void*) i );
   }
-  new_remset[fresh_gno] = create_remset( 0, 0 );
-  new_major_remset[fresh_gno] = create_remset( 0, 0 );
   /* XXX This code only works with RROF, but I do not have a
    * reasonable way to assert that precondition. */
   new_ssb[fresh_gno] = 
     create_seqbuf( 0, &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
-                   &new_ssb_lim[fresh_gno], ssb_process_rrof, /* XXX */(void*) fresh_gno );
+                   &new_ssb_lim[fresh_gno], ssb_process_rrof, 
+                   /* XXX */(void*) fresh_gno );
   for( i = fresh_gno+1; i < new_gno_count; i++ ) {
-    new_remset[i] = gc->remset[i-1];
-    new_major_remset[i] = gc->major_remset[i-1];
     new_ssb[i] = gc->ssb[i-1];
     seqbuf_swap_in_ssb( gc->ssb[i-1], 
                         &new_ssb_bot[i], &new_ssb_top[i], &new_ssb_lim[i] );
     seqbuf_set_sp_data( gc->ssb[i-1], /* XXX */(void*)i );
   }
 
-  free( gc->remset );
-  free( gc->major_remset );
   free( gc->ssb );
   free( DATA(gc)->ssb_bot );
   free( DATA(gc)->ssb_top );
   free( DATA(gc)->ssb_lim );
-  gc->remset = new_remset;
-  gc->major_remset = new_major_remset;
   if (gc->smircy != NULL) 
     smircy_expand_gnos( gc->smircy, fresh_gno );
   gc->ssb = new_ssb;

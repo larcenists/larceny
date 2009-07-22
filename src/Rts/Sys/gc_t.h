@@ -76,7 +76,7 @@ struct gc {
      snapshot-at-the-beginning incremental marking algorithm. */
 
   int gno_count;
-    /* The number of entries in the remset table.
+    /* The number of generations/regions.
        */
 
   int np_remset;
