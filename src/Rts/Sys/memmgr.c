@@ -37,6 +37,7 @@ const char *larceny_gc_technology = "precise";
 #include "seqbuf_t.h"
 #include "uremset_t.h"
 #include "uremset_array_t.h"
+#include "uremset_extbmp_t.h"
 #include "math.h"
 
 #include "memmgr_internal.h"
@@ -1848,8 +1849,11 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig )
     f( obj, 0, scan_data );
     f( obj, sizeof(word), scan_data );
   } else {
-    word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
-    int offset = 0;
+    word words; 
+    int offset;
+    assert2( tagof(obj) == VEC_TAG || tagof(obj) == PROC_TAG );
+    words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    offset = 0;
     while (words--) {
       offset += sizeof(word);
       f( obj, offset, scan_data );
@@ -2826,7 +2830,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     gc->gno_count = gen_no;
-    gc->the_remset = alloc_uremset_array( gc, info );
+    gc->the_remset = alloc_uremset_extbmp( gc, info );
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );

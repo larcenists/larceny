@@ -20,6 +20,7 @@
 
 #include "larceny-types.h"
 #include "gset_t.h"
+#include "gc_t.h"
 
 struct uremset {
   char *id;
@@ -142,7 +143,8 @@ struct uremset {
 #define urs_live_count( r,g )          ((r)->live_count( (r),(g) ))
 
 uremset_t
-*create_uremset_t(char *id,
+*create_uremset_t(gc_t *collector,
+                  char *id,
                   void *data, 
                   void         (*expand_remset_gnos)( uremset_t *urs, 
                                                       int fresh_gno ), 

@@ -5,10 +5,12 @@
  */
 
 #include "larceny.h"
+#include "gc_t.h"
 #include "uremset_t.h"
 
 uremset_t
-*create_uremset_t(char *id, 
+*create_uremset_t(gc_t *collector,
+                  char *id, 
                   void *data, 
                   void         (*expand_remset_gnos)( uremset_t *urs, 
                                                       int fresh_gno ), 
@@ -61,6 +63,7 @@ uremset_t
   uremset_t *urs;
   urs = (uremset_t*)must_malloc( sizeof( uremset_t ));
 
+  urs->collector = collector;
   urs->id = id;
   urs->data = data;
 

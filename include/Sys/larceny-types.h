@@ -69,6 +69,9 @@ typedef enum {
   region_group_limit_elem
 } region_group_t;
 
+/* extbmp_t is elaborated in extbmp.c */
+typedef struct extbmp extbmp_t;
+
 /* static_heap_t is elaborated in static_heap_t.h */
 typedef struct static_heap static_heap_t;
 

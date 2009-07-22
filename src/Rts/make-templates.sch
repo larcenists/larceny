@@ -411,6 +411,7 @@ larceny.bin: kill_version_o $(X86_SASSY_LARCENY_OBJECTS)
 PRECISE_GC_OBJECTS=\\
 	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
+	Sys/extbmp.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\
 	Sys/gc_mmu_log.$(O) \\
 	Sys/memmgr.$(O) Sys/memmgr_vfy.$(O) Sys/memmgr_flt.$(O) \\
@@ -421,7 +422,8 @@ PRECISE_GC_OBJECTS=\\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
 	Sys/smircy.$(O) Sys/smircy_checking.$(O) \\
-	Sys/uremset_array.$(O) Sys/uremset_t.$(O) \\
+	Sys/uremset_array.$(O) Sys/uremset_extbmp.$(O) \\
+	Sys/uremset_t.$(O) \\
 	Sys/young_heap_t.$(O)
 
 BOEHM_GC_OBJECTS=\\
@@ -555,8 +557,9 @@ STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
 STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
 SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/summ_matrix_t.h
-UREMSET_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/uremset_t.h
+UREMSET_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h $(GC_T_H) Sys/uremset_t.h
 UREMSET_ARRAY_T_H=Sys/uremset_array_t.h
+UREMSET_EXTBMP_T_H=Sys/uremset_extbmp_t.h
 YOUNG_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/young_heap_t.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
 PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\
@@ -684,6 +687,7 @@ Sys/osdep-win32.$(O): $(LARCENY_H)
 Sys/osdep-generic.$(O): $(LARCENY_H)
 Sys/util.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H)
 Sys/uremset_array.$(O): $(LARCENY_H) $(UREMSET_T_H) $(UREMSET_ARRAY_T_H)
+Sys/uremset_extbmp.$(O): $(LARCENY_H) $(UREMSET_T_H) $(UREMSET_EXTBMP_T_H)
 Sys/uremset_t.$(O): $(LARCENY_H) $(UREMSET_T_H)
 Sys/version.$(O): $(INC_ROOT)/config.h
 Sys/young_heap_t.$(O): $(LARCENY_H) $(YOUNG_HEAP_T_H)")

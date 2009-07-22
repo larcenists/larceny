@@ -265,7 +265,8 @@ uremset_t *alloc_uremset_array( gc_t *gc, gc_param_t *info )
     data->major_remset[i] = create_remset( info->rhash, 0 );
   }
 
-  return create_uremset_t( "word hashset arrays",
+  return create_uremset_t( gc, 
+                           "word hashset arrays",
                            (void*)data, 
                            expand_remset_gnos,
                            clear,
