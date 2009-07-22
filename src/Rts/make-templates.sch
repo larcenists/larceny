@@ -554,6 +554,7 @@ STACK_H=$(INC_ROOT)/Sys/larceny-types.h Sys/stack.h
 STATIC_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/static_heap_t.h
 STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
 SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/summ_matrix_t.h
+UREMSET_T_H=Sys/uremset_t.h
 YOUNG_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/young_heap_t.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
 PETIT_H=$(INC_ROOT)/Shared/millicode.h $(INC_ROOT)/Shared/petit-config.h \\

@@ -35,6 +35,7 @@ const char *larceny_gc_technology = "precise";
 #include "summary_t.h"
 #include "summ_matrix_t.h"
 #include "seqbuf_t.h"
+#include "uremset_t.h"
 #include "math.h"
 
 #include "memmgr_internal.h"

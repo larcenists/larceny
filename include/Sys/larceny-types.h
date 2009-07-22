@@ -92,6 +92,9 @@ typedef struct seqbuf seqbuf_t;
 typedef struct semispace semispace_t;
 typedef struct ss_chunk ss_chunk_t;
 
+/* uremset_t is elaborated in uremset_t.h */
+typedef struct uremset uremset_t;
+
 /* heapio_t and metadata_block_t are elaborated in heapio.h */
 typedef struct heapio_t heapio_t;
 typedef struct metadata_block_t metadata_block_t;
