@@ -90,7 +90,6 @@ static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
 {
   struct apply_scanner_to_rs_data *my_data = 
     (struct apply_scanner_to_rs_data*)data;
-  assert(0);
 
   return my_data->scanner( loc, my_data->scanner_data );
 }
@@ -237,14 +236,19 @@ static void       init_summary( uremset_t *urs,
 uremset_t *alloc_uremset_array( gc_t *gc, gc_param_t *info )
 {
   int i;
+  int remset_count;
   uremset_array_data_t *data;
   uremset_t *urs;
+
   data = (uremset_array_data_t*)must_malloc( sizeof( uremset_array_data_t ) );
 
+  remset_count = gc->gno_count;
+
+  data->remset_count = remset_count;
   data->remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
+    (remset_t**)must_malloc( sizeof( remset_t* )*remset_count );
   data->major_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
+    (remset_t**)must_malloc( sizeof( remset_t* )*remset_count );
 
   data->remset[0] = (void*)0xDEADBEEF;
   data->major_remset[0] = (void*)0xDEADBEEF;

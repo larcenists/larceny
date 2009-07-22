@@ -452,7 +452,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 
 /* The number represents how many cycles per expansion. (first guess is 1) */
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
-#define USE_ORACLE_TO_VERIFY_REMSETS 1
+#define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
