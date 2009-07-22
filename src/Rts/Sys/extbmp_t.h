@@ -9,8 +9,9 @@
 extbmp_t *create_extensible_bitmap( gc_t *gc, gc_param_t *info );
   /* Creates bitmap representing empty set of addresses */
 
-void extbmp_add_elem( extbmp_t *ebmp, word untagged_w );
-  /* ebmp := ebmp U { untagged_w } */
+bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w );
+  /* ebmp := ebmp U { untagged_w }.
+   * Returns TRUE iff untagged_w was already in ebmp. */
 
 bool extbmp_is_member( extbmp_t *ebmp, word untagged_w );
   /* untagged_w in ebmp ? */

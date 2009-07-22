@@ -482,10 +482,13 @@ static word leaf_wordaddr_lim( extbmp_t *ebmp, word first )
   return (word)((word*)first + ADDRS_PER_WORD*ebmp->leaf_words);
 }
 
-void extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
+/* Returns TRUE iff untagged_w was already in ebmp */
+bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
 { /* ebmp := ebmp U { untagged_w } */
   leaf_t *leaf;
   word first, lim;
+  word entry_word;
+  bool retval;
   unsigned int bit_idx, word_idx, bit_in_word;
 
   assert( tagof(untagged_w) == 0 );
@@ -509,9 +512,14 @@ void extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
                untagged_w, gen_of(untagged_w), *(ptrof(untagged_w)) );
 #endif
 
-  leaf->bitmap[ word_idx ] |= bit_in_word;
+  entry_word = leaf->bitmap[ word_idx ];
+  retval = entry_word & bit_in_word;
+  entry_word |= bit_in_word;
+  leaf->bitmap[ word_idx ] = entry_word;
 
   assert2( extbmp_is_member(ebmp, untagged_w ));
+
+  return retval;
 }
 
 bool extbmp_is_member( extbmp_t *ebmp, word untagged_w )
