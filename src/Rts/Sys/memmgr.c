@@ -2871,8 +2871,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     } else if (info->chose_rbitsrep) {
       gc->the_remset = alloc_uremset_extbmp( gc, info );
     } else {
-      /* extbmp rep not mature enough (yet) to be RROF default */
-      gc->the_remset = alloc_uremset_array( gc, info );
+      gc->the_remset = alloc_uremset_extbmp( gc, info );
     }
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
