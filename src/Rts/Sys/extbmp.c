@@ -182,6 +182,10 @@ struct extbmp {
   int entries_per_inode; /* branching factor */
   int depth;             /* depth=1 implies immediate children have bitmaps */
   tnode_t *tree;
+  struct {
+    leaf_t *leaf;        /* NULL iff cache invalid */
+    word   first_addr_for_leaf;
+  } mru_cache;           /* Most recently access via find_xxx */
 };
 
 static tnode_t *alloc_tnode( extbmp_t *ebmp, 
@@ -235,6 +239,10 @@ static tnode_t *alloc_leaf( extbmp_t *ebmp, word start, word limit )
 static void free_leaf( extbmp_t *ebmp, tnode_t *leaf )
 {
   dbmsg("free_leaf( ebmp, leaf=0x%08x", leaf);
+  if (leaf == (tnode_t*)ebmp->mru_cache.leaf) {
+    ebmp->mru_cache.leaf                = NULL;
+    ebmp->mru_cache.first_addr_for_leaf = 0;
+  }
   free_tnode( ebmp, leaf, 
               tag_leaf, 
               (sizeof( leaf_t )
@@ -323,6 +331,9 @@ extbmp_t *create_extensible_bitmap_params( gc_t *gc, gc_param_t *info,
                  (((long long)SHIFTED_ADDRESS_SPACE) << BIT_IDX_SHIFT),
                  0, 
                  (((long long)SHIFTED_ADDRESS_SPACE) << BIT_IDX_SHIFT));
+
+  ebmp->mru_cache.leaf    = NULL;
+  ebmp->mru_cache.first_addr_for_leaf = 0;
 
   consolemsg( "ebmp{gc,leaf_words=%d,entries_per_inode=%d,depth=%d,tree} max_leaves:%d",
               ebmp->leaf_words, ebmp->entries_per_inode, ebmp->depth, max_leaves );
@@ -422,6 +433,11 @@ static bool find_leaf_calc_offset_recur( extbmp_t *ebmp, word untagged_w,
   }
 }
 
+static word leaf_wordaddr_lim( extbmp_t *ebmp, word first );
+static word strip_tag( word w ) {
+  return (word)ptrof(w);
+}
+
 /* If returns TRUE, then 
  *   The tree has a leaf L that covers untagged_w
  *   *leaf_recv           := L
@@ -439,6 +455,7 @@ static bool find_leaf_calc_offset( extbmp_t *ebmp, word untagged_w,
   tnode_t *tree;
   int depth;
   word start_addr_of_node_coverage;
+  bool retval;
 
   dbmsg(     "find_leaf_calc_offset"
              "( ebmp, 0x%08x, "
@@ -446,15 +463,30 @@ static bool find_leaf_calc_offset( extbmp_t *ebmp, word untagged_w,
              "alloc_if_unfound=%s )", 
              untagged_w, (alloc_if_unfound?"TRUE":"FALSE") );
 
+  if (ebmp->mru_cache.leaf != NULL 
+      && (ebmp->mru_cache.first_addr_for_leaf 
+          <= strip_tag(untagged_w))
+      && (strip_tag(untagged_w)
+          < leaf_wordaddr_lim( ebmp, ebmp->mru_cache.first_addr_for_leaf))) {
+    *leaf_recv                = ebmp->mru_cache.leaf;
+    *first_addr_for_leaf_recv = ebmp->mru_cache.first_addr_for_leaf;
+    return TRUE;
+  }
+
   tree = ebmp->tree;
   depth = ebmp->depth;
   start_addr_of_node_coverage = 0;
 
-  return 
+  retval = 
     find_leaf_calc_offset_recur( ebmp, untagged_w, 
                                  tree, depth, start_addr_of_node_coverage,
                                  leaf_recv, first_addr_for_leaf_recv, 
                                  alloc_if_unfound );
+  if (retval) {
+    ebmp->mru_cache.leaf                = *leaf_recv;
+    ebmp->mru_cache.first_addr_for_leaf = *first_addr_for_leaf_recv;
+  }
+  return retval;
 }
 
 static void find_or_alloc_leaf( extbmp_t *ebmp, word untagged_w,
