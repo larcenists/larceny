@@ -110,7 +110,7 @@
  */
 
 static const int DEFAULT_LEAF_BYTES = 4096;
-static const int DEFAULT_ENTRIES_PER_INODE = 8; /* branching factor */
+static const int DEFAULT_ENTRIES_PER_INODE = 128; /* branching factor */
 
 /* default leaves large; allocate individually */
 static const int DEFAULT_LEAF_POOL_SIZE  = 1;  /*  1 element  = 4KB */
@@ -828,13 +828,16 @@ static bool tnode_enumerate( extbmp_t *ebmp,
   } else {
     int i;
     int entries;
+    int idx_start, idx_limit;
     inode_t *inode;
     bool found_nonempty_tree;
     bool subtree_is_empty;
+    word limit_addr_for_node;
 
     inode = &tree->inode;
     entries = ebmp->entries_per_inode;
     found_nonempty_tree = FALSE;
+    limit_addr_for_node = first_addr_for_node + (inode->addresses_per_child * entries);
 
 #if 1
     if (limit_enum_addr <= first_addr_for_node) {
@@ -865,7 +868,31 @@ static bool tnode_enumerate( extbmp_t *ebmp,
     }
 #endif
 
-    for (i=0; i<entries; i++) {
+    if (first_enum_addr > first_addr_for_node) {
+      /* skipping words before enum start addr */
+      int delta = (first_enum_addr - first_addr_for_node);
+      int newidx = (delta / inode->addresses_per_child);
+      if (newidx > 0)
+        found_nonempty_tree = TRUE; /* be conservative since we're skipping words. */
+      idx_start = newidx;
+    } else {
+      idx_start = 0;
+    }
+    assert( idx_start >= 0 && idx_start < entries );
+
+    if (limit_enum_addr < limit_addr_for_node) {
+      int delta = (limit_addr_for_node - limit_enum_addr);
+      int newidx = entries - (delta / inode->addresses_per_child);
+      /* skipping words after enum limit addr */
+      if (newidx < entries)
+        found_nonempty_tree = TRUE; /* be conservative since we're skipping words */
+      idx_limit = newidx;
+    } else {
+      idx_limit = entries;
+    }
+    assert( idx_limit >= 0 && idx_limit <= entries );
+
+    for (i=idx_start; i<idx_limit; i++) {
       if (inode->nodes[i] != NULL) {
         if (ignore_gno) {
           dbmsg(      "tnode_enum i:%d depth:%d first_addr:0x%08x limit:0x%08x "
