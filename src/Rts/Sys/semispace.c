@@ -535,6 +535,23 @@ void* ss_enumerate( semispace_t *ss,
   return accum;
 }
 
+void ss_enumerate_hdr_ranges( semispace_t *ss,
+                              void (*f)( word* s, word* l, void *d), 
+                              void *d )
+{
+  int i;
+  word *cursor;
+  word *end;
+
+  for (i = 0; i <= ss->current; i++) {
+    cursor = ss->chunks[i].bot;
+    end    = ss->chunks[i].top;
+    if (cursor == end)
+      continue;
+    f(cursor, end, d);
+  }
+}
+
 bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy ) 
 {
   int i;

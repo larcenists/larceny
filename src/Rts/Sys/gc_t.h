@@ -218,6 +218,20 @@ struct gc {
       * along the accumulator scan_data.
       */
 
+  void (*enumerate_hdr_address_ranges)( gc_t *gc, int gno, 
+                                        void (*f)( word *s,word *l,void *d ),
+                                        void *d );
+     /* Invokes f on series of address ranges [s,l) for gno.
+      * Guarantees: 
+      * - Every [s,l) will represent a half-open range [s,l+k) of 
+      *   well-formatted storage (for some k >= 0).
+      * - For every object o in generation/region gno, f will 
+      *   eventually be invoked on a range that covers the start of o.
+      *
+      * Note that the enumeration might include headers (or first
+      * words) of objects (pairs) unreachable from the roots.
+      */
+
   semispace_t *(*fresh_space)(gc_t *gc);
      /* Creates a fresh space to copy objects into with a 
       * distinct generation number.
@@ -271,6 +285,8 @@ struct gc {
   ((gc)->enumerate_remsets_complement( gc, gset, s, d ))
 #define gc_enumerate_remembered_locations( gc, gset, s, d) \
   ((gc)->enumerate_remembered_locations( gc, gset, s, d ))
+#define gc_enumerate_hdr_address_ranges( gc, gno, s, d ) \
+  ((gc)->enumerate_hdr_address_ranges( gc, gno, s, d ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
 #define gc_find_space( gc, n, ss )    ((gc)->find_space( gc, n, ss ))
@@ -324,6 +340,9 @@ gc_t
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset, 
 	          void (*f)( word, int, void* ), void* ),
+	     void (*enumerate_hdr_address_ranges)
+	        ( gc_t *gc, int gno, 
+	          void (*f)( word *s,word *l,void *d), void *d),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *ss ),

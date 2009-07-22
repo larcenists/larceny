@@ -1885,6 +1885,34 @@ static void enumerate_remembered_locations( gc_t *gc, gset_t genset,
   }
 }
 
+static void enumerate_hdr_address_ranges( gc_t *gc, 
+                                          int gno, 
+                                          void (*f)( word *s,word *l,void *d ),
+                                          void *d ) 
+{
+  if (gno-1 < DATA(gc)->ephemeral_area_count) {
+    semispace_t *ss;
+    ss = oh_current_space( DATA(gc)->ephemeral_area[gno-1] );
+    ss_enumerate_hdr_ranges( ss, f, d );
+
+    {
+      word *p;
+      p = NULL;
+      do {
+        p = los_walk_list( gc->los->object_lists[gno], p );
+        if (p != NULL) 
+          f( p, p+1, d );
+      } while (p != NULL);
+    }
+  }
+  {
+    if (gc->static_area != NULL && 
+        (gno == DATA(gc)->static_generation)) {
+      ss_enumerate_hdr_ranges( gc->static_area->data_area, f, d );
+    }
+  }
+}
+
 word *data_load_area( gc_t *gc, int size_bytes )
 {
   return load_text_or_data( gc, size_bytes, 0 );
@@ -3085,6 +3113,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 enumerate_smircy_roots,
 		 enumerate_remsets_complement,
 		 enumerate_remembered_locations, 
+		 enumerate_hdr_address_ranges, 
 		 fresh_space,
 		 my_find_space,
 		 allocated_to_areas,

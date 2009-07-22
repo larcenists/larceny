@@ -48,6 +48,9 @@ gc_t
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset,
 	          void (*f)( word, int, void* ), void* ),
+	     void (*enumerate_hdr_address_ranges)
+	        ( gc_t *gc, int gno, 
+	          void (*f)( word *s, word *l, void *d), void *d ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
 	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
 					 semispace_t *cur ),
@@ -122,6 +125,7 @@ gc_t
   gc->enumerate_smircy_roots = enumerate_smircy_roots;
   gc->enumerate_remsets_complement = enumerate_remsets_complement;
   gc->enumerate_remembered_locations = enumerate_remembered_locations;
+  gc->enumerate_hdr_address_ranges = enumerate_hdr_address_ranges;
   gc->fresh_space = fresh_space;
   gc->find_space = find_space;
 

@@ -177,6 +177,20 @@ void* ss_enumerate( semispace_t *ss,
      This might include objects unreachable from the roots.
      */
 
+void ss_enumerate_hdr_ranges( semispace_t *ss,
+                              void (*f)( word* s, word* l, void *d), 
+                              void *d );
+     /* Invokes f on series of address ranges [s,l) for ss.
+      * Guarantees: 
+      * - Every [s,l) will represent a half-open range [s,l+k) of 
+      *   well-formatted storage (for some k >= 0).
+      * - For every object o in ss, f will 
+      *   eventually be invoked on a range that covers the start of o.
+      *
+      * Note that the enumeration might include headers (or first
+      * words) of objects (pairs) unreachable from the roots.
+      */
+
 bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy );
   /* Returns true iff 'addr' is an object in 'ss'.
      */
