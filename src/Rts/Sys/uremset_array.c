@@ -66,7 +66,8 @@ static void expand_remset_gnos( uremset_t *urs, int fresh_gno )
 }
 static void              clear( uremset_t *urs, int gno )
 {
-  assert(0);
+  rs_clear( DATA(urs)->remset[ gno ] );
+  rs_clear( DATA(urs)->major_remset[ gno ] );
 }
 static bool       add_elem_new( uremset_t *urs, word w )
 {
@@ -78,7 +79,7 @@ static bool           add_elem( uremset_t *urs, word w )
 }
 static bool          add_elems( uremset_t *urs, word *bot, word *top )
 {
-  assert(0);
+  rs_add_elems_distribute( DATA(urs)->remset, bot, top );
 }
 
 struct apply_scanner_to_rs_data {
@@ -160,8 +161,6 @@ static void    enumerate_minor( uremset_t *urs,
   struct apply_scanner_to_rs_data wrapper_data;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
-
-  assert(0);
 
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
