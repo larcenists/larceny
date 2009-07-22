@@ -200,6 +200,10 @@ static tnode_t *alloc_tnode( extbmp_t *ebmp,
 
   return retval;
 }
+static void free_tnode( extbmp_t *ebmp, tnode_t *t, 
+                        enum tnode_tag tag, int length_in_bytes ) {
+  gclib_free( t, length_in_bytes );
+}
 
 static void init_leaf_fields_cleared( extbmp_t *ebmp, leaf_t *l ) {
   int i;
@@ -226,6 +230,14 @@ static tnode_t *alloc_leaf( extbmp_t *ebmp, word start, word limit )
              "           ==> 0x%08x",
              start, limit, retval);
   return retval;
+}
+static void free_leaf( extbmp_t *ebmp, tnode_t *leaf )
+{
+  dbmsg("free_leaf( ebmp, leaf=0x%08x", leaf);
+  free_tnode( ebmp, leaf, 
+              tag_leaf, 
+              (sizeof( leaf_t )
+               + ebmp->leaf_words*sizeof(word)));
 }
 
 static void init_inode_fields_cleared( extbmp_t *ebmp, inode_t *n )
@@ -267,6 +279,14 @@ static tnode_t *alloc_inode( extbmp_t *ebmp,
              " ==> 0x%08x", 
              address_range, start, limit, retval);
   return retval;
+}
+static void free_inode( extbmp_t *ebmp, tnode_t *inode )
+{
+  dbmsg("free_inode( ebmp, inode=0x%08x", inode);
+  free_tnode( ebmp, inode, 
+              tag_inode, 
+              (sizeof( inode_t ) 
+               + ebmp->entries_per_inode*sizeof( tnode_t* )));
 }
 
 extbmp_t *create_extensible_bitmap_params( gc_t *gc, gc_param_t *info,
@@ -572,7 +592,8 @@ int  extbmp_count_members_in( extbmp_t *ebmp, int gno )
   return accum;
 }
 
-static void tnode_enum_leaf( extbmp_t *ebmp,
+/* Returns TRUE implies leaf post-enumeration is clear[ed] (ie all zero bits). */
+static bool tnode_enum_leaf( extbmp_t *ebmp,
                              int gno,
                              bool ignore_gno, 
                              bool need_tagged_ptr, 
@@ -586,9 +607,12 @@ static void tnode_enum_leaf( extbmp_t *ebmp,
   int word_idx, j, bit_in_word;
   word curr_bmp_word, obj;
   bool scan_retval;
+  bool found_nonzero_word;
 
   leaf_words = ebmp->leaf_words;
   bitmap = leaf->bitmap;
+
+  found_nonzero_word = FALSE;
 
   for (word_idx = 0; word_idx < leaf_words; word_idx += 1) {
     curr_bmp_word = bitmap[ word_idx ];
@@ -625,6 +649,9 @@ static void tnode_enum_leaf( extbmp_t *ebmp,
               /* can probably do a bit better even without changing to
                * iteration-over-region-address-ranges -- the whole
                * page of an address belongs to the same gno */
+              /* If I do that then I will have to revisit how I am
+               * handling leaf clearing (see found_nonzero_word); but
+               * that will probably be necessary anyway. */
               continue;
             }
           }
@@ -670,7 +697,17 @@ static void tnode_enum_leaf( extbmp_t *ebmp,
       if (curr_bmp_word != curr_bmp_word_orig) {
         bitmap[ word_idx ] = curr_bmp_word;
       }
+      if (curr_bmp_word != 0) {
+        found_nonzero_word = TRUE;
+      }
     }
+  }
+
+  if (! found_nonzero_word) {
+    dbmsg("can free this leaf: 0x%08x", leaf );
+    return TRUE;
+  } else {
+    return FALSE;
   }
 }
 
@@ -699,7 +736,8 @@ static void tnode_enumerate_slow_but_certain
   }
 }
 
-static void tnode_enumerate( extbmp_t *ebmp,
+/* Returns TRUE implies node post-enumeration is clear[ed] (ie all zero bits). */
+static bool tnode_enumerate( extbmp_t *ebmp,
                              int gno, 
                              bool ignore_gno, 
                              tnode_t *tree, 
@@ -709,17 +747,22 @@ static void tnode_enumerate( extbmp_t *ebmp,
                              void *data )
 {
   if (depth == 0) {
-    tnode_enum_leaf( ebmp, gno, ignore_gno, TRUE, 
-                     &tree->leaf, 
-                     first_addr_for_node, 
-                     scanner, data );
+    return
+      tnode_enum_leaf( ebmp, gno, ignore_gno, TRUE, 
+                       &tree->leaf, 
+                       first_addr_for_node, 
+                       scanner, data );
   } else {
     int i;
     int entries;
     inode_t *inode;
+    bool found_nonempty_tree;
+    bool subtree_is_empty;
 
     inode = &tree->inode;
     entries = ebmp->entries_per_inode;
+    found_nonempty_tree = FALSE;
+
     for (i=0; i<entries; i++) {
       if (inode->nodes[i] != NULL) {
         if (ignore_gno) {
@@ -731,13 +774,28 @@ static void tnode_enumerate( extbmp_t *ebmp,
                       i, depth, first_addr_for_node,
                       inode->addresses_per_child, gno );
         }
-        tnode_enumerate( ebmp, gno, ignore_gno, 
-                         inode->nodes[i], depth-1, 
-                         (first_addr_for_node + 
-                          i * inode->addresses_per_child),
-                         scanner, data );
+        subtree_is_empty =
+          tnode_enumerate( ebmp, gno, ignore_gno, 
+                           inode->nodes[i], depth-1, 
+                           (first_addr_for_node + 
+                            i * inode->addresses_per_child),
+                           scanner, data );
+        if (! subtree_is_empty) {
+          found_nonempty_tree = TRUE; 
+        } else {
+          if (depth == 1) {
+            free_leaf( ebmp, inode->nodes[i] );
+          } else {
+            free_inode( ebmp, inode->nodes[i] );
+          }
+          inode->nodes[i] = NULL;
+        }
       }
     }
+    if (! found_nonempty_tree) {
+      dbmsg("can free this inode: 0x%08x", inode );
+    }
+    return ! found_nonempty_tree;
   }
 }
 
