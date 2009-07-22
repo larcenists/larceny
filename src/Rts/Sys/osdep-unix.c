@@ -349,8 +349,7 @@ static struct {
 } quick[ 256/4 ];
 
 #endif
-static int  zero = -1;		/* file descriptor for /dev/zero */
-static int  pagesize;		/* operating system's page size */
+static int  pagesize = -1;	/* operating system's page size */
 static void *addr_hint = 0;	/* address of the first returned block */
 static int  fragmentation;	/* current fragmentation */
 static int  initialized;
@@ -362,25 +361,29 @@ static void* alloc_block( int bytes )
 {
   void *addr;
 
-  if (zero == -1) {
+  if (pagesize == -1) {
     pagesize = getpagesize();
-    zero = open( "/dev/zero", O_RDONLY );
-    if (zero == -1) 
-      panic_exit( "mmap: %s: failed to open /dev/zero.", strerror( errno ) );
   }
-
   fragmentation += roundup( bytes, pagesize ) - bytes;
   assert( fragmentation >= 0 );
 
 again:
-  /* Fails on MacOS X for reasons not understood.  It could be that PROT_WRITE
-     requires the file to be opened for writing (docs say so) but changing
-     O_RDONLY to O_RDWR above does not help.  */
-  addr = mmap( addr_hint,
+
+  /* mmap /dev/zero is unsupported on MacOS X, according to Stevens
+     and Rago, "Advanced Programming in the Unix Environment" (APUE).
+     APUE provides an example that uses MAP_ANON instead of mmapping
+     /dev/zero, which is what Felix changed the code below to do. */
+  /* Felix also found the passing the addr_hint argument causes
+     failures on Mac OS X; APUE advises passing in 0 as the addr_hint
+     for maximal portability.  Felix is not sure why Lars chose to
+     pass the most recent address as the addr_hint; perhaps it was an
+     attempt to keep the size of the address space small? */
+
+  addr = mmap( 0,
 	       bytes,
 	       (PROT_READ | PROT_WRITE | PROT_EXEC), 
-	       MAP_PRIVATE, 
-	       zero, 
+	       (MAP_PRIVATE | MAP_ANON), 
+	       -1, 
 	       0 );
   if (addr == MAP_FAILED) {
     memfail( MF_HEAP, "mmap: %s: failed to map %d bytes.", 
