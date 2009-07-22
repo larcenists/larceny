@@ -87,7 +87,7 @@ static void stats( static_heap_t *heap )
   }
 
   stats_add_gen_stats( DATA(heap)->self, &s );
-  if (heap->collector->remset_count > DATA(heap)->gen_no)
+  if (heap->collector->gno_count > DATA(heap)->gen_no)
     rs_stats( heap->collector->remset[ DATA(heap)->gen_no ] );
 }
 

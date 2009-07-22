@@ -71,7 +71,7 @@ struct gc {
   /* Sequential store buffer for the Yuasa-style write barrier of
      snapshot-at-the-beginning incremental marking algorithm. */
 
-  int remset_count;
+  int gno_count;
     /* The number of entries in the remset table.
        */
 

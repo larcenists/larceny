@@ -221,7 +221,7 @@ static void compact_np_ssb( gc_t *gc )
    * but that function has been removed.  This does the same job,
    * but probably less efficiently because it is going to check for
    * membership before adding elements to the remset. */
-  for (i = 0; i < gc->remset_count ; i++ ) {
+  for (i = 0; i < gc->gno_count ; i++ ) {
     process_seqbuf( gc, gc->ssb[i] );
   }
 }

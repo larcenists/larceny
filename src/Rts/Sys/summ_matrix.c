@@ -752,7 +752,7 @@ static void  create_refactored_from_memmgr( summ_matrix_t *sm,
   /* data->summaries->region_count = data->region_count; */
   DATA(sm)->popularity_limit = popularity_limit;
 
-  int len = sm->collector->remset_count+1;
+  int len = sm->collector->gno_count+1;
   int i;
   DATA(sm)->remset_summaries_count = len;
   DATA(sm)->nursery_remset = create_summset( 0, 0 );
@@ -811,9 +811,9 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   summ_matrix_t *sm; 
   summ_matrix_data_t *data;
   /* int num_cols = first_gno + initial_num_rgns; */
-  int num_cols = gc->remset_count;
+  int num_cols = gc->gno_count;
   int num_under_construction = (int)(initial_num_rgns * c);
-  int num_rows = gc->remset_count;
+  int num_rows = gc->gno_count;
 
   dbmsg("  create_summ_matrix( gc, %d, initial_num_rgns: %d,"
         " %f, %f, pop_limit: %d, num_cols: %d )",
@@ -859,8 +859,8 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
 
     DATA(sm)->summarizing.goal = goal;
     DATA(sm)->summarizing.complete = FALSE;
-    DATA(sm)->summarizing.rs_cursor = gc->remset_count;
-    DATA(sm)->summarizing.rs_num = gc->remset_count;
+    DATA(sm)->summarizing.rs_cursor = gc->gno_count;
+    DATA(sm)->summarizing.rs_num = gc->gno_count;
   }
 
   sm_build_remset_summaries( sm, initial_num_rgns, rgn_next,
@@ -2028,7 +2028,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   {
     int W, dA_over_R;
 #if CONSERVATIVE_REGION_COUNT
-    N_over_R = summ->collector->remset_count;
+    N_over_R = summ->collector->gno_count;
     U = region_group_count( region_group_unfilled );
 #endif
     W = region_group_count( region_group_wait_w_sum ) +
@@ -2040,7 +2040,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
       (quotient2( ne_rgn_count, W ) + dA_over_R );
 #if 0
     num_under_construction = 
-      quotient2( summ->collector->remset_count, gc_budget );
+      quotient2( summ->collector->gno_count, gc_budget );
 #endif
 
     dbmsg("sm_build_summaries_setup"
@@ -2056,7 +2056,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   DATA(summ)->summarizing.goal = goal;
   DATA(summ)->summarizing.waiting = FALSE;
   DATA(summ)->summarizing.complete = FALSE;
-  DATA(summ)->summarizing.rs_cursor = summ->collector->remset_count;
+  DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
   DATA(summ)->summarizing.rs_num = num_under_construction;
 
   /* Optimistically assume that summarization will succeed for all
@@ -2238,7 +2238,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 
       switch_some_to_summarizing( summ, coverage );
 
-      DATA(summ)->summarizing.rs_cursor = summ->collector->remset_count;
+      DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
     }
   }
 }
@@ -2263,7 +2263,7 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
                                          int rs_num )
 {
   remset_summary_data_t remsum;
-  int remset_count;
+  int gno_count;
   int start;
   int finis;
   int nontrivial_scans;
@@ -2278,7 +2278,7 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
   remsum.count_objects_added = 0;
   remsum.words_added = 0;
 
-  remset_count = summ->collector->remset_count;
+  gno_count = summ->collector->gno_count;
   /* Construct
    *   { x | x in summarizing range | x has reference into [fst,lim) }
    */
@@ -2291,10 +2291,10 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
 
   if (start == 1) {
     sm_build_summaries_iteration_complete( summ, region_count );
-    DATA(summ)->summarizing.rs_cursor = remset_count; /* or 1? or 0? */
+    DATA(summ)->summarizing.rs_cursor = gno_count; /* or 1? or 0? */
   } else {
     /* set up rs_cursor for next invocation. */
-    assert2( finis <= remset_count );
+    assert2( finis <= gno_count );
     assert2( start > 1 );
     DATA(summ)->summarizing.rs_cursor = start;
     if (nontrivial_scans < rs_num) {
@@ -2338,7 +2338,7 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
 {
   remset_summary_data_t remsum;
   int i;
-  int remset_count = summ->collector->remset_count;
+  int gno_count = summ->collector->gno_count;
   int goal;
 
   check_rep_1( summ );
@@ -2353,7 +2353,7 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
 
   sm_build_summaries_setup( summ, 1, region_count, rgn_next, about_to_major, 
                             0 /* dA does not matter when non-incremental */ );
-  sm_build_summaries_by_scanning( summ, 1, remset_count, &remsum );
+  sm_build_summaries_by_scanning( summ, 1, gno_count, &remsum );
 
   sm_build_summaries_iteration_complete( summ, region_count );
 
@@ -2692,7 +2692,7 @@ EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
         check_col_on_own_vfy_sm_rs( summ, i, &data );
       }
 
-      for (i = 0; i < summ->collector->remset_count; i++) {
+      for (i = 0; i < summ->collector->gno_count; i++) {
         if (region_summarized( summ, i )){
           verifymsg("sanity check summary[i=%d] live: %d", 
                      i, summaries[i]->live);
@@ -3057,7 +3057,7 @@ static void wait_to_setup_next_wave( summ_matrix_t *summ )
   DATA(summ)->summarizing.waiting = TRUE;
   DATA(summ)->summarizing.goal = 0;
   DATA(summ)->summarizing.complete = TRUE;
-  DATA(summ)->summarizing.rs_cursor = summ->collector->remset_count;
+  DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
   DATA(summ)->summarizing.rs_num = 0;
 }
 
@@ -3679,7 +3679,7 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ,
    *
    * (And maybe this still not quite right, since progress invocations can lead to 
    *  a summarizing.curr_genset that is complete... but I think in that situation
-   *  the rs_cursor should be past the remset_count...)
+   *  the rs_cursor should be past the gno_count...)
    */
   if ( region_summarized( summ, g_rhs )
        || ( region_summarizing_curr( summ, g_rhs )

@@ -497,7 +497,7 @@ static void smircy_start( gc_t *gc )
      * (only "benefit" I see is refining static area's remset.) */
     return;
   }
-  gc->smircy = smircy_begin_opt( gc, gc->remset_count, 
+  gc->smircy = smircy_begin_opt( gc, gc->gno_count, 
                                  DATA(gc)->rrof_alloc_mark_bmp_once );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   smircy_push_roots( gc->smircy );
@@ -533,9 +533,9 @@ static void refine_remsets_via_marksweep( gc_t *gc )
   smircy_context_t *context;
   context = gc->smircy;
   
-  /* static objects die; remset_count includes static remset (thus
+  /* static objects die; gno_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
-  for( i=1; i < gc->remset_count; i++) {
+  for( i=1; i < gc->gno_count; i++) {
     rs_enumerate( gc->remset[ i ], scan_refine_remset, context );
     rs_enumerate( gc->major_remset[ i ], scan_refine_remset, context );
   }
@@ -1971,7 +1971,7 @@ static int isremembered( gc_t *gc, word w )
   unsigned g;
 
   g = gen_of( w );
-  assert( g >= 0 && g < gc->remset_count );
+  assert( g >= 0 && g < gc->gno_count );
   if (g > 0)
     return rs_isremembered( gc->remset[g], w ); /*XXX major_remsets too? XXX*/
   else
@@ -2062,7 +2062,7 @@ static int compact_all_ssbs( gc_t *gc )
   word *bot, *top;
 
   overflowed = 0;
-  for (i = 0; i < gc->remset_count; i++) {
+  for (i = 0; i < gc->gno_count; i++) {
     bot = *gc->ssb[i]->bot;
     top = *gc->ssb[i]->top;
     overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
@@ -2302,17 +2302,17 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data );
 static void expand_remset_gnos( gc_t *gc, int fresh_gno )
 {
   int i;
-  int new_remset_count = gc->remset_count + 1;
+  int new_gno_count = gc->gno_count + 1;
   remset_t** new_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*new_remset_count );
+    (remset_t**)must_malloc( sizeof( remset_t* )*new_gno_count );
   remset_t** new_major_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*new_remset_count );
+    (remset_t**)must_malloc( sizeof( remset_t* )*new_gno_count );
   seqbuf_t ** new_ssb = 
-    (seqbuf_t**)must_malloc( sizeof( seqbuf_t*)*new_remset_count );
-  word **new_ssb_bot = (word**)must_malloc( sizeof(word*)*new_remset_count );
-  word **new_ssb_top = (word**)must_malloc( sizeof(word*)*new_remset_count );
-  word **new_ssb_lim = (word**)must_malloc( sizeof(word*)*new_remset_count );
-  assert( fresh_gno < new_remset_count );
+    (seqbuf_t**)must_malloc( sizeof( seqbuf_t*)*new_gno_count );
+  word **new_ssb_bot = (word**)must_malloc( sizeof(word*)*new_gno_count );
+  word **new_ssb_top = (word**)must_malloc( sizeof(word*)*new_gno_count );
+  word **new_ssb_lim = (word**)must_malloc( sizeof(word*)*new_gno_count );
+  assert( fresh_gno < new_gno_count );
 
   for( i = 0; i < fresh_gno; i++ ) {
     new_remset[i] = gc->remset[i];
@@ -2329,7 +2329,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   new_ssb[fresh_gno] = 
     create_seqbuf( 0, &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
                    &new_ssb_lim[fresh_gno], ssb_process_rrof, /* XXX */(void*) fresh_gno );
-  for( i = fresh_gno+1; i < new_remset_count; i++ ) {
+  for( i = fresh_gno+1; i < new_gno_count; i++ ) {
     new_remset[i] = gc->remset[i-1];
     new_major_remset[i] = gc->major_remset[i-1];
     new_ssb[i] = gc->ssb[i-1];
@@ -2354,7 +2354,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   DATA(gc)->ssb_lim = new_ssb_lim;
   DATA(gc)->globals[ G_SSBTOPV ] = /* XXX */(word) DATA(gc)->ssb_top;
   DATA(gc)->globals[ G_SSBLIMV ] = /* XXX */(word) DATA(gc)->ssb_lim;
-  gc->remset_count = new_remset_count;
+  gc->gno_count = new_gno_count;
 }
 
 
@@ -2750,28 +2750,28 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
      is the non-predictive 'extra' set (contains only young->old pointers).
      */
   if (info->use_non_predictive_collector)
-    gc->remset_count = gen_no + 1;
+    gc->gno_count = gen_no + 1;
   else
-    gc->remset_count = gen_no;
+    gc->gno_count = gen_no;
 
-  gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+  gc->remset = (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
   gc->major_remset = 
-    (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+    (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
 
   gc->remset[0] = (void*)0xDEADBEEF;
   gc->major_remset[0] = (void*)0xDEADBEEF;
-  for ( i = 1 ; i < gc->remset_count ; i++ ) {
+  for ( i = 1 ; i < gc->gno_count ; i++ ) {
     gc->remset[i] =
       create_remset( info->rhash, 0 );
     gc->major_remset[i] =
       create_remset( info->rhash, 0 );
   }
 
-  data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->remset_count );
-  data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->remset_count );
-  data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->remset_count );
-  gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->remset_count );
-  for ( i = 0; i < gc->remset_count ; i++ ) {
+  data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
+  data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
+  data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->gno_count );
+  gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
+  for ( i = 0; i < gc->gno_count ; i++ ) {
     /* nursery has one too, an artifact of RROF.
      * XXX consider using different structures for n-YF vs ROF vs RROF;
      * RROF needs points-into information implicit with index here,
@@ -2784,7 +2784,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   gc->satb_ssb = NULL;
 
   if (info->use_non_predictive_collector)
-    gc->np_remset = gc->remset_count - 1;
+    gc->np_remset = gc->gno_count - 1;
 
   gc->id = strdup( buf );
 
@@ -2896,25 +2896,25 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
      */
   { 
     int i;
-    gc->remset_count = gen_no;
+    gc->gno_count = gen_no;
     gc->remset = 
-      (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+      (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
     gc->major_remset = 
-      (remset_t**)must_malloc( sizeof( remset_t* )*gc->remset_count );
+      (remset_t**)must_malloc( sizeof( remset_t* )*gc->gno_count );
     gc->remset[0] = (void*)0xDEADBEEF;
     gc->major_remset[0] = (void*)0xDEADBEEF;
-    for ( i = 1 ; i < gc->remset_count ; i++ ) {
+    for ( i = 1 ; i < gc->gno_count ; i++ ) {
       gc->remset[i] =
 	create_remset( info->rhash, 0 );
       gc->major_remset[i] =
 	create_remset( info->rhash, 0 );
     }
 
-    data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->remset_count );
-    data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->remset_count );
-    data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->remset_count );
-    gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->remset_count );
-    for ( i = 0; i < gc->remset_count ; i++ ) {
+    data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
+    data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
+    data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->gno_count );
+    gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
+    for ( i = 0; i < gc->gno_count ; i++ ) {
       /* nursery has one too! */
       gc->ssb[i] = 
         create_seqbuf( info->ssb, 

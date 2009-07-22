@@ -452,7 +452,7 @@ static void expand_context_plus_rgn( smircy_context_t *context, int shift_geq_gn
   obj_stack_entry_t     **rgn_to_obj_entry_new;
   large_object_cursor_t **rgn_to_los_entry_old;
   large_object_cursor_t **rgn_to_los_entry_new;
-  num_rgns = context->gc->remset_count;
+  num_rgns = context->gc->gno_count;
   num_rgns_old = context->num_rgns;
 
   dbmsg( "expand_context_plus_rgn( context, %d ) "

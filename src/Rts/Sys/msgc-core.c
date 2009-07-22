@@ -182,7 +182,7 @@ static void assert2_los_addresses_mapped( msgc_context_t *context, word obj,
       assert( gc_is_address_mapped( context->gc, ptrof(obj), TRUE ));
       consolemsg("unmapped address, los vector 0x%08x in gen %d, elem [%d] = 0x%08x",
                  obj, gen_of(obj), i+next, vector_ref(obj, i+next ));
-      consolemsg("(remset count: %d)", context->gc->remset_count);
+      consolemsg("(gno count: %d)", context->gc->gno_count);
       assert2(0);
     }
   }
@@ -199,7 +199,7 @@ static void assert2_pair_addresses_mapped( msgc_context_t *context, word w )
         gc_is_address_mapped( context->gc, ptrof(pair_cdr(w)), TRUE );
         consolemsg("unmapped address, pair 0x%08x in gen %d, cdr = 0x%08x",
                    w, gen_of(w), pair_cdr(w));
-        consolemsg("(remset count: %d)", context->gc->remset_count);
+        consolemsg("(gno count: %d)", context->gc->gno_count);
         assert2(0);
       }
       if (isptr(pair_car(w)) &&
@@ -208,7 +208,7 @@ static void assert2_pair_addresses_mapped( msgc_context_t *context, word w )
         gc_is_address_mapped( context->gc, ptrof(pair_car(w)), TRUE );
         consolemsg("unmapped address, pair 0x%08x in gen %d, car = 0x%08x",
                    w, gen_of(w), pair_car(w));
-        consolemsg("(remset count: %d)", context->gc->remset_count);
+        consolemsg("(gno count: %d)", context->gc->gno_count);
         assert2(0);
       }
 #endif
@@ -247,7 +247,7 @@ static void assert2_object_contents_mapped( msgc_context_t *context, word w,
                                     ptrof(vector_ref( w, i )), FALSE )) {
           consolemsg("unmapped address, vector 0x%08x in gen %d, elem [%d] = 0x%08x", 
                      w, gen_of( w ), i, vector_ref( w, i ));
-          consolemsg("(remset count: %d)", context->gc->remset_count);
+          consolemsg("(gno count: %d)", context->gc->gno_count);
           assert2(0);
         }
       }
@@ -655,7 +655,7 @@ msgc_mark_objects_from_roots_and_remsets( msgc_context_t *context,
   mark_from_stack( context );
   { 
     int i;
-    for( i = 1; i < context->gc->remset_count; i++ ) {
+    for( i = 1; i < context->gc->gno_count; i++ ) {
       pushing_entries_from_remset = i;
       rs_enumerate( context->gc->remset[i], push_remset_entry, context );
       rs_enumerate( context->gc->major_remset[i], push_remset_entry, context );
