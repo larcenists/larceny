@@ -135,13 +135,28 @@ void verify_remsets_via_oracle( gc_t *gc )
   data.region = 0;
   data.major = FALSE;
   data.pointsinto = TRUE;
-  if (DATA(gc)->summaries != NULL) {
-    sm_nursery_summary_enumerate( DATA(gc)->summaries, verify_nursery_traverse_rs, &data );
-    sm_nursery_summary_enumerate( DATA(gc)->summaries, verify_remsets_traverse_rs, &data );
-  }
-  /* Originally had code to verify_remsets_traverse_rs on all remsets,
-   * but that does not seem like an interesting invariant to check. */
   msgc_end( context );
+}
+
+void verify_nursery_summary_via_oracle( gc_t *gc ) 
+{
+  msgc_context_t *context;
+  int marked, traced, words_marked; 
+  struct verify_remsets_traverse_rs_data data;
+  context = msgc_begin( gc );
+  msvfy_mark_objects_from_roots_and_remsets( context );
+  data.conserv_context = context;
+  data.gc = gc;
+  data.region = 0;
+  data.major = FALSE;
+  data.pointsinto = TRUE;
+  if (DATA(gc)->summaries != NULL) { 
+    sm_nursery_summary_enumerate( DATA(gc)->summaries, 
+                                  verify_nursery_traverse_rs, &data );
+    sm_nursery_summary_enumerate( DATA(gc)->summaries, 
+                                  verify_remsets_traverse_rs, &data );
+  }
+  msgc_end( context ); 
 }
 
 void verify_summaries_via_oracle( gc_t *gc ) 

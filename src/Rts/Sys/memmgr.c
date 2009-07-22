@@ -465,6 +465,12 @@ static int next_rgn( int rgn, int num_rgns ) {
       verify_remsets_via_oracle( gc );          \
   } while (0)
 
+#define NURS_SUMMARY_VERIFICATION_POINT( gc )   \
+  do {                                          \
+    if (USE_ORACLE_TO_VERIFY_REMSETS)           \
+      verify_nursery_summary_via_oracle( gc );  \
+  } while (0)
+
 #define SUMMMTX_VERIFICATION_POINT( gc )        \
   do {                                          \
     if (USE_ORACLE_TO_VERIFY_SUMMARIES &&       \
@@ -812,6 +818,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   int marked_recv = 0, traced_recv = 0, words_marked_recv = 0;
 
   REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
   SMIRCY_VERIFICATION_POINT(gc);
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
@@ -862,6 +869,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   stop_refinem_timers( gc, &timer1, &timer2 );
 
   REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
 }
 
 static void initialize_summaries( gc_t *gc, bool about_to_major ) 
@@ -1033,6 +1041,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     print_float_stats( "premaj", gc );
 
   REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
 
   summarization_active = (DATA(gc)->summaries != NULL);
 
@@ -1045,6 +1054,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   }
 
   REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
 
   summarization_active_rgn_next = 
     (summarization_active &&
@@ -1067,6 +1077,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     }
 
     REMSET_VERIFICATION_POINT(gc);
+    NURS_SUMMARY_VERIFICATION_POINT(gc);
     SMIRCY_VERIFICATION_POINT(gc);
 
 #if ! SMIRCY_RGN_STACK_IN_ROOTS
@@ -1170,6 +1181,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       sm_clear_nursery_summary( DATA(gc)->summaries );
       gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     }
+
+    NURS_SUMMARY_VERIFICATION_POINT(gc); /* should be no-op, as it was just cleared */
 
     oh_synchronize( DATA(gc)->ephemeral_area[ rgn_next-1 ] );
     DATA(gc)->rrof_cycle_majors_sofar += 1;
@@ -1675,6 +1688,7 @@ static void before_collection( gc_t *gc )
     oh_before_collection( DATA(gc)->dynamic_area );
 
   REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
 
   assert(! DATA(gc)->use_summary_instead_of_remsets );
 
@@ -1696,6 +1710,7 @@ static void after_collection( gc_t *gc )
 
   SMIRCY_VERIFICATION_POINT(gc);
   REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
 
   assert(! DATA(gc)->use_summary_instead_of_remsets );
   SUMMMTX_VERIFICATION_POINT(gc);
