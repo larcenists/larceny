@@ -13,6 +13,7 @@
 #include "remset_t.h"
 #include "summary_t.h"
 #include "uremset_t.h"
+#include "uremset_array_t.h"
 
 typedef struct uremset_array_data uremset_array_data_t;
 
