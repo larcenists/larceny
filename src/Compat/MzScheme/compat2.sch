@@ -22,3 +22,8 @@
 (define (twobit-iterative-try/fallback input try fail? revise last-resort)
   ;; the fallback case should always be a reasonable default.
   (last-resort input))
+
+;; filter : (X -> Bool) [Listof X] -> [Listof X]
+;; returns list containing only elements from LST satisfying PRED?
+
+(require (rename (lib "1.ss" "srfi") filter filter))
