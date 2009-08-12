@@ -63,6 +63,7 @@
   (import (for (core primitives) run expand)
           (for (rnrs base) run expand)
           (for (rnrs lists) run expand)
+          (for (only (rnrs syntax-case) quasisyntax unsyntax) run expand)
           (rnrs records procedural)
           (err5rs records procedural)
           (rnrs records syntactic helper)
@@ -88,13 +89,60 @@
                protocol sealed? opaque? uid
                parent parent-cd)
         (let ()
-          (datum->syntax
-           rtd-name
-           `(,#'define-record-type-helper1
-             ,rtd-name ,constructor-name ,predicate-name
-             ,type-name ,field-specs
-             ,protocol ,sealed? ,opaque? ,uid
-             ,parent ,parent-cd))))
+
+          (define (frob x)
+            (cond ((identifier? x)
+                   x)
+                  ((pair? x)
+                   (cons (frob (car x)) (frob (cdr x))))
+                  (else
+                   (datum->syntax rtd-name x))))
+
+          #`(#,(frob #'define-record-type-helper1)
+             #,(frob rtd-name)
+             #,(frob constructor-name)
+             #,(frob predicate-name)
+             #,(frob type-name)
+             #,(frob field-specs)
+             #,(frob protocol)
+             #,(frob sealed?)
+             #,(frob opaque?)
+             #,(frob uid)
+             #,(frob parent)
+             #,(frob parent-cd))))
+
+      ; Searches for a clause beginning with the given symbol,
+      ; returning the entire clause (as a syntax object) if found
+      ; or #f if no such clause is found.
+
+      (define (clauses-assq sym clauses)
+        (syntax-case clauses ()
+         (((x1 x2 ...) y ...)
+          (if (and (identifier? #'x1)
+                   (eq? sym (syntax->datum #'x1)))
+              #'(x1 x2 ...)
+              (clauses-assq sym #'(y ...))))
+         ((y0 y1 y2 ...)
+          (clauses-assq sym #'(y1 y2 ...)))
+         (x
+          #f)))
+
+      ; Given a syntax object that represents a non-empty list,
+      ; returns the syntax object for its first element.
+
+      (define (syntax-car x)
+        (syntax-case x ()
+         ((x0 x1 ...)
+          #'x0)))
+
+      ; Given a syntax object that represents a non-empty list,
+      ; returns the syntax object obtained by omitting the first
+      ; element of that list.
+
+      (define (syntax-cdr x)
+        (syntax-case x ()
+         ((x0 x1 ...)
+          #'(x1 ...))))
 
       (define (complain)
         (syntax-violation 'define-record-type "illegal syntax" x))
@@ -102,66 +150,86 @@
       (syntax-case x ()
        ((_ explicit? rtd-name constructor-name predicate-name clause ...)
         (let* ((type-name (syntax->datum #'rtd-name))
-               (clauses (syntax->datum #'(clause ...)))
-               (fields-clause (assq 'fields clauses))
-               (parent-clause (assq 'parent clauses))
-               (protocol-clause (assq 'protocol clauses))
-               (sealed-clause (assq 'sealed clauses))
-               (opaque-clause (assq 'opaque clauses))
-               (nongenerative-clause (assq 'nongenerative clauses))
-               (parent-rtd-clause (assq 'parent-rtd clauses))
+
+;              (ignored (begin (display "got to here okay") (newline)))
+
+               (clauses #'(clause ...))
+               (fields-clause (clauses-assq 'fields clauses))
+               (parent-clause (clauses-assq 'parent clauses))
+               (protocol-clause (clauses-assq 'protocol clauses))
+               (sealed-clause (clauses-assq 'sealed clauses))
+               (opaque-clause (clauses-assq 'opaque clauses))
+               (nongenerative-clause (clauses-assq 'nongenerative clauses))
+               (parent-rtd-clause (clauses-assq 'parent-rtd clauses))
+
                (okay?
-                (and (symbol? type-name)
-                     (if (syntax->datum #'explicit?)
-                         (and (symbol? (syntax->datum #'constructor-name))
-                              (symbol? (syntax->datum #'predicate-name)))
-                         #t)
-                     (or (not fields-clause)
-                         (and
-                          (list? fields-clause)
-                          (for-all (lambda (fspec)
-                                     (or (symbol? fspec)
-                                         (and (list? fspec)
-                                              (>= (length fspec) 2)
-                                              (memq (car fspec)
-                                                    '(immutable mutable))
-                                              (symbol? (cadr fspec))
-                                              (case (length fspec)
-                                               ((2) #t)
-                                               ((3)
-                                                (and (eq? (car fspec)
-                                                          'immutable)
-                                                     (symbol? (caddr fspec))))
-                                               ((4)
-                                                (and (eq? (car fspec) 'mutable)
-                                                     (symbol? (caddr fspec))
-                                                     (symbol? (cadddr fspec))))
-                                               (else #f)))))
-                                   (cdr fields-clause))))
-                     (or (not parent-clause)
-                         (and (list? parent-clause)
-                              (= (length parent-clause) 2)
-                              (if (spanky-mode?)
-                                  (symbol? (cadr parent-clause))
-                                  #t)))
-                     (or (not protocol-clause)
-                         (and (list? protocol-clause)
-                              (= (length protocol-clause) 2)))
-                     (or (not sealed-clause)
-                         (and (list? sealed-clause)
-                              (= (length sealed-clause) 2)
-                              (boolean? (cadr sealed-clause))))
-                     (or (not opaque-clause)
-                         (and (list? opaque-clause)
-                              (= (length opaque-clause) 2)
-                              (boolean? (cadr opaque-clause))))
-                     (or (not nongenerative-clause)
-                         (and (list? nongenerative-clause)
-                              (or (null? (cdr nongenerative-clause))
-                                  (symbol? (cadr nongenerative-clause)))))
-                     (or (not parent-rtd-clause)
-                         (and (list? parent-rtd-clause)
-                              (= (length parent-rtd-clause) 3)))))
+                (let (
+                      (clauses (syntax->datum clauses))
+                      (fields-clause (syntax->datum fields-clause))
+                      (parent-clause (syntax->datum parent-clause))
+                      (protocol-clause (syntax->datum protocol-clause))
+                      (sealed-clause (syntax->datum sealed-clause))
+                      (opaque-clause (syntax->datum opaque-clause))
+                      (nongenerative-clause
+                       (syntax->datum nongenerative-clause))
+                      (parent-rtd-clause (syntax->datum parent-rtd-clause))
+                     )
+
+                  (and (symbol? type-name)
+                       (if (syntax->datum #'explicit?)
+                           (and (symbol? (syntax->datum #'constructor-name))
+                                (symbol? (syntax->datum #'predicate-name)))
+                           #t)
+                       (or (not fields-clause)
+                           (and
+                            (list? fields-clause)
+                            (for-all (lambda (fspec)
+                                       (or (symbol? fspec)
+                                           (and (list? fspec)
+                                                (>= (length fspec) 2)
+                                                (memq (car fspec)
+                                                      '(immutable mutable))
+                                                (symbol? (cadr fspec))
+                                                (case (length fspec)
+                                                 ((2) #t)
+                                                 ((3)
+                                                  (and (eq? (car fspec)
+                                                            'immutable)
+                                                       (symbol?
+                                                        (caddr fspec))))
+                                                 ((4)
+                                                  (and (eq? (car fspec)
+                                                            'mutable)
+                                                       (symbol? (caddr fspec))
+                                                       (symbol?
+                                                        (cadddr fspec))))
+                                                 (else #f)))))
+                                     (cdr fields-clause))))
+                       (or (not parent-clause)
+                           (and (list? parent-clause)
+                                (= (length parent-clause) 2)
+                                (if (spanky-mode?)
+                                    (symbol? (cadr parent-clause))
+                                    #t)))
+                       (or (not protocol-clause)
+                           (and (list? protocol-clause)
+                                (= (length protocol-clause) 2)))
+                       (or (not sealed-clause)
+                           (and (list? sealed-clause)
+                                (= (length sealed-clause) 2)
+                                (boolean? (cadr sealed-clause))))
+                       (or (not opaque-clause)
+                           (and (list? opaque-clause)
+                                (= (length opaque-clause) 2)
+                                (boolean? (cadr opaque-clause))))
+                       (or (not nongenerative-clause)
+                           (and (list? nongenerative-clause)
+                                (or (null? (cdr nongenerative-clause))
+                                    (symbol? (cadr nongenerative-clause)))))
+                       (or (not parent-rtd-clause)
+                           (and (list? parent-rtd-clause)
+                                (= (length parent-rtd-clause) 3))))))
+
                (type-name-string (symbol->string type-name))
                (cname
                 (if (symbol? (syntax->datum #'constructor-name))
@@ -192,31 +260,34 @@
                                   "-set!"))))
                (field-specs
                 (map (lambda (fspec)
-                       (let ((fspec (if (symbol? fspec)
-                                        (list 'immutable fspec)
+
+                       (let ((fspec (if (identifier? fspec)
+                                        #`(immutable #,fspec)
                                         fspec)))
                          (cond ((= (length fspec) 2)
                                 (let ((accessor-name
-                                       (make-accessor-name (cadr fspec))))
-                                  (case (car fspec)
+                                       (make-accessor-name
+                                        (syntax->datum (cadr fspec)))))
+                                  (case (syntax->datum (car fspec))
                                    ((immutable)
-                                    (list 'immutable
-                                          (cadr fspec)
-                                          accessor-name
-                                          #f))
+                                    #`(immutable
+                                       #,(cadr fspec)
+                                       #,accessor-name
+                                       #f))
                                    ((mutable)
-                                    (list 'mutable
-                                          (cadr fspec)
-                                          accessor-name
-                                          (make-mutator-name (cadr fspec)))))))
+                                    #`(mutable
+                                       #,(cadr fspec)
+                                       #,accessor-name
+                                       #,(make-mutator-name
+                                          (syntax->datum (cadr fspec))))))))
                                ((= (length fspec) 3)
-                                (list (car fspec)
-                                      (cadr fspec)
-                                      (caddr fspec)
-                                      #f))
+                                #`(#,(car fspec)
+                                   #,(cadr fspec)
+                                   #,(caddr fspec)
+                                   #f))
                                (else fspec))))
                      (if fields-clause
-                         (cdr fields-clause)
+                         (syntax-cdr fields-clause)
                          '()))))
           (if (not okay?)
               (complain))
@@ -226,9 +297,11 @@
            pname
            type-name
            field-specs
-           (and protocol-clause (cadr protocol-clause))
-           (and sealed-clause (cadr sealed-clause))
-           (and opaque-clause (cadr opaque-clause))
+
+           (and protocol-clause (cadr (syntax->datum protocol-clause)))
+           (and sealed-clause (cadr (syntax->datum sealed-clause)))
+           (and opaque-clause (cadr (syntax->datum opaque-clause)))
+
            (cond ((eq? nongenerative-clause #f)
                   #f)
                  ((null? (cdr nongenerative-clause))
