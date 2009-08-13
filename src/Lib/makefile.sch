@@ -737,7 +737,8 @@
       ("compat.date" ,(lambda args #t)))
     `(dependencies
       ("compat.date" ,(map (lambda (basename)
-                             (string-append (nbuild-parameter 'compatibility)
+                             (string-append (nbuild-parameter 
+                                             'larceny-compatibility)
                                             basename
                                             file-type))
                            '("compat2" 
@@ -892,7 +893,7 @@
     (replace-extension ".lop" files))
 
   (append (list
-           (param-filename 'compatibility "compat2.lop")
+           (param-filename 'larceny-compatibility "compat2.lop")
            (param-filename 'auxiliary "list.lop")
            (param-filename 'auxiliary "pp.lop"))
           (fix (nbuild:twobit-files))
