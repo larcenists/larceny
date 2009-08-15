@@ -69,7 +69,7 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 97;
-char *larceny_version_qualifier = "a4 (alpha test)";
+char *larceny_version_qualifier = " \"Funny in the Head\"";
 
 char *date = DATE " " TIME;
 char *user = USER;
@@ -84,11 +84,11 @@ char *user = USER;
 #elif defined(CYGWIN)
   char *osname = "Cygwin";
 #elif defined(BSD_UNIX)
-  char *osname = "BSD Unix";
+  char *osname = "BSD";
 #elif defined(POSIX_UNIX)
-  char *osname = "Posix Unix";
+  char *osname = "Posix";
 #elif defined(XOPEN_UNIX)
-  char *osname = "X/Open Unix";
+  char *osname = "X/Open";
 #elif defined(WIN32)
   char *osname = "Win32";
 #elif defined(MACOS)

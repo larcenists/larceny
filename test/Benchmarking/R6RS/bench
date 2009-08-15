@@ -82,6 +82,11 @@ setup ()
         HENCHMAN="/home/henchman/bin/larceny"
         ;;
 
+    "Darwin")
+
+        IKARUS=${IKARUS:-"ikarus"}
+        ;;
+
   esac
 
   # For both Solaris and Linux machines.
