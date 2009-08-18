@@ -41,8 +41,8 @@
    54
    60
    61
-   63
    64
+   63 ;; SRFI 64 depends on SRFI 25, which SRFI 63 replaces
    66
    67
    69
