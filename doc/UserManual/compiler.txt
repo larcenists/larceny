@@ -4,7 +4,7 @@ Compiler
 ~~~~~~~~
 
 The `(larceny compiler)` library exports the
-`load` and `require` procedures of `(larceny load)`,
+`load` and `r5rs:require` procedures of `(larceny load)`,
 the
 <<current-require-path,`current-require-path`>>
 procedure, the

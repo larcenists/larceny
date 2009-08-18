@@ -14,7 +14,7 @@ the `load` procedure can load
 R5RS libraries and programs as well as ERR5RS/R6RS
 libraries.
 
-The `r5rs:require` should be used only for dynamic loading of
+The `r5rs:require` procedure should be used only for dynamic loading of
 R5RS libraries into Larceny's underlying R5RS system.  The
 variables defined by that library can be imported into
 an ERR5RS session or ERR5RS/R6RS library or program using a

@@ -295,9 +295,7 @@ All of Larceny's modes support all features of the
 [NOTE]
 ================================================================
 Larceny's traditional `make-hashtable` procedure has been
-renamed to `make-oldstyle-hashtable`.  In Larceny v0.96,
-`make-hashtable` prints a warning when it is called.  To
-avoid that warning, call `make-r6rs-hashtable` instead.
+renamed to `make-oldstyle-hashtable`.
 ================================================================
 
 [NOTE]
