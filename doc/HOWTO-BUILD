@@ -1,7 +1,11 @@
 Building Larceny
-13 January 2009
+18 August 2009
+
 
 WHAT YOU NEED
+
+Most users of Larceny will never need to build Larceny from source,
+and can ignore this documentation.
 
 If you want to recompile the Scheme sources entirely from source, you
 will need the source code plus a Scheme system that can host Larceny's
@@ -14,6 +18,7 @@ you will also need the NASM assembler [2].
 
 To build Common Larceny, see the Common Larceny documentation in
 doc/CommonLarceny/user-manual.txt.
+
 
 WHAT TO DO
 
@@ -112,7 +117,9 @@ Petit, you must build it separately:
 
 Step 2 above creates a bootstrap heap (petit.heap, sparc.heap, or
 sasstrap.heap).  To create the user and development heap images, exit
-the host Scheme back to your command shell.
+the host Scheme back to your command shell.  Then perform one of the
+following three sets of commands (omitting those for twobit unless
+you want the Twobit compiler development environment):
 
 On Native Larceny (SPARC):
 
@@ -121,7 +128,6 @@ On Native Larceny (SPARC):
 
     % ./larceny.bin -stopcopy -- src/Build/sparc-twobit-heap.fasl
     > (exit)
-    % cp larceny twobit
 
 On IAssassin Larceny (Intel) [5]:
 
@@ -131,12 +137,6 @@ On IAssassin Larceny (Intel) [5]:
     % "./larceny.bin" -stopcopy -- src/Build/iasn-twobit-heap.fasl
     > (exit)
 
-  On *NIX:
-    % cp larceny twobit
-
-  On Windows:
-    > copy larceny.bat twobit.bat
-
 On Petit Larceny:
 
     % ./petit-larceny.bin -stopcopy -- src/Build/petit-larceny-heap.sch
@@ -145,9 +145,17 @@ On Petit Larceny:
     % ./twobit.bin -stopcopy -- src/Build/petit-twobit-heap.sch
     > (exit)
 
-You can now run "./larceny" or "./twobit" in its default -r5rs
-mode, but the -err5rs and -r6rs modes won't work until you do
-step 4.
+Then, if you want the Twobit compiler development environment:
+
+  On *NIX:
+    % cp larceny twobit
+
+  On Windows:
+    > copy larceny.bat twobit.bat
+
+You can now run "./larceny" (and maybe "./twobit") in its default
+-r5rs mode, but the -err5rs and -r6rs modes won't work until you
+do step 4.
 
 
 
@@ -157,7 +165,7 @@ Run Larceny in its default -r5rs mode, and compile the
 ERR5RS/R6RS standard libraries as follows.
 
     % larceny
-    Larceny v0.96 "Fluoridation" (...)
+    Larceny v0.97 "Funny in the Head" (...)
 
     > (require 'r6rsmode)
     > (larceny:compile-r6rs-runtime)
@@ -179,9 +187,13 @@ NOTES
 Larceny itself.  MzScheme 37x seems to work.  In the past, several
 other implementations of Scheme could be used for the build process,
 but they haven't been tested lately and aren't likely to work any
-more.
+more.  MzScheme v4.x.x may work, but we regard Larceny's support
+for v4.x.x as experimental.
 
 [2] http://sourceforge.net/projects/nasm
+
+Some versions of nasm may not work.  For Ubuntu Linux, we use
+NASM version 2.05.01.  For MacOS X, we use NASM version 0.98.40.
 
 For the 'sassy backend on 'win32, Microsoft's development tools
 and NASM must both be in your search path.

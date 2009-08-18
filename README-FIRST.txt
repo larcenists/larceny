@@ -26,7 +26,7 @@ WHAT YOU NEED
 Native (SPARC, IA32): everything should work out of the box.
 
 Petit Larceny (Solaris, Linux, Mac OS X): ensure that the GNU C
-    Compiler (gcc) is in your execution path [3].  (If you are
+    Compiler (gcc) is in your execution path.  (If you are
     building from source, see doc/HOWTO-BUILD.)
 
     Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
@@ -84,7 +84,7 @@ To precompile files that contain R5RS Scheme code:
 To precompile ERR5RS/R6RS libraries, top-level programs, and
 Scheme scripts, use the compile-stale Scheme script that is
 in Larceny's root directory.  Please see the Larceny User
-Manual [2] for details.
+Manual [3] for details.
 
 
 FURTHER READING
@@ -93,6 +93,10 @@ If you want to install Larceny for other users on your system, see
 doc/HOWTO-INSTALL.  To build your own Larceny, take a look at
 doc/HOWTO-BUILD.  To build Common Larceny, see the Common Larceny
 documentation in doc/CommonLarceny/user-manual.txt.
+
+Most importantly, see the Larceny user manual in doc/UserManual.
+The most recent version of the user manual is autobuilt daily
+and is online at http://larceny.ccs.neu.edu/doc/
 
 
 NOTES
@@ -103,7 +107,4 @@ not yet offer support for those systems.
 
 [2] http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/user-manual.html
 
-[3] We currently support gcc version 3.3; other versions may work, but
-currently gcc 4.0 seems to have trouble with the code we generate.  gcc
-version 4.0 is the default C compiler on Mac OS X 10.4, but you can
-select another version using /usr/sbin/gcc_select.
+[3] See doc/UserManual or http://larceny.ccs.neu.edu/doc/

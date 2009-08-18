@@ -3,8 +3,15 @@ Installing Larceny
 
 Short version:
 
-Copy the startup scripts wherever you like, and edit them to
-set LARCENY_ROOT to the absolute path of the Larceny tree.
+Put Larceny's main directory wherever you like, and give it
+whatever name you like.
+
+Copy the startup scripts (larceny and scheme-script) wherever
+you like, and edit them to set LARCENY_ROOT to the absolute
+path of Larceny's main directory.
+
+If the directory that contains the startup scripts is not
+already part of your path, then add it to your path.
 
 
 Long version:
@@ -31,6 +38,9 @@ Which scripts you have depends on what platform you are using:
  - Windows: Batch files "larceny.bat" and "twobit.bat"
  - Solaris, Linux, Mac OS X: Shell scripts "larceny", "twobit",
    "scheme-script", and "compile-stale"
+
+Note that "twobit" and "twobit.heap" are no longer distributed
+as part of Larceny's binary distributions.
 
 If you would like to move a larceny or twobit script to another
 directory but not rename it, it is sufficient to hard-code the

@@ -6,16 +6,47 @@ specifications of libraries that have been designed by
 Scheme programmers for Scheme programmers.  The SRFI
 project is open to anyone; see http://srfi.schemers.org
 
-Larceny currently supports many SRFIs, though not as many
-as it should.  Some SRFIs are built into Larceny, but
-most of the supported SRFIs must be loaded dynamically
-using Larceny's require procedure, as in
+The SRFI process was originally designed for R5RS Scheme.
+Some SRFIs also make sense for R6RS Scheme, and Larceny
+supports most of those SRFIs using the naming convention
+that was standardized by SRFI 97.  As described below,
+the process for requiring or importing a SRFI library
+depends on whether you are using R5RS or ERR5RS/R6RS
+Scheme.
 
-    > (require 'srfi-0)
-    > (require 'srfi-1)
-
-Implementations of the SRFIs that Larceny supports via
-the require procedure can be found in lib/SRFI.
+The final SRFIs that Larceny does not support, along
+with several that are supported but deprecated, are
+listed at
+https://trac.ccs.neu.edu/trac/larceny/wiki/DeprecatedSRFIs
 
 If you need a SRFI that Larceny doesn't yet support,
 please let us know.
+
+
+IF YOU ARE USING R5RS SCHEME:
+
+Some SRFIs are built into Larceny, but most of the
+supported SRFIs must be loaded dynamically using Larceny's
+require procedure.  Most SRFIs rely on SRFI 0, so you
+should require SRFI 0 first, like this:
+
+    > (require 'srfi-0)
+
+Then you can safely require other SRFIs, like this:
+
+    > (require 'srfi-1)
+
+Implementations of the SRFIs that Larceny supports via
+the require procedure are found in lib/SRFI.
+
+
+IF YOU ARE USING ERR5RS/R6RS SCHEME:
+
+The SRFIs that Larceny supports are named using the
+naming convention of SRFI 97, and are autoloaded on
+import.  For example:
+
+    > (import (srfi :1))
+
+Implementations of the SRFIs that Larceny supports as
+ERR5RS/R6RS libraries are found in lib/SRFI/srfi.

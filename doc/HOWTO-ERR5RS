@@ -148,53 +148,8 @@ PREDEFINED LIBRARIES
 For your convenience, Larceny pre-loads or autoloads all
 of the standard R6RS libraries and several other libraries
 besides, so you can import from those libraries without
-having to load them yourself.  The predefined libraries
-include:
-
-  R6RS standard libraries:
-
-    (rnrs base (6))                  ; R6RS chapter 9
-    (rnrs unicode (6))               ; R6RS library chapter 1
-    (rnrs bytevectors (6))           ; R6RS library chapter 2
-    (rnrs lists (6))                 ; R6RS library chapter 3
-    (rnrs sorting (6))               ; R6RS library chapter 4
-    (rnrs control (6))               ; R6RS library chapter 5
-    (rnrs exceptions (6))            ; R6RS library section 7.1
-    (rnrs conditions (6))            ; R6RS library sections 7.2 and 7.3
-    (rnrs io ports (6))              ; R6RS library sections 8.1 and 8.2
-    (rnrs io simple (6))             ; R6RS library sections 8.1 and 8.3
-    (rnrs files (6))                 ; R6RS library chapter 9
-    (rnrs programs (6))              ; R6RS library chapter 10
-    (rnrs arithmetic fixnums (6))    ; R6RS library section 11.2
-    (rnrs arithmetic flonums (6))    ; R6RS library section 11.3
-    (rnrs arithmetic bitwise (6))    ; R6RS library section 11.4
-    (rnrs syntax-case (6))           ; R6RS library chapter 12
-    (rnrs hashtables (6))            ; R6RS library chapter 13
-    (rnrs enums)                     ; R6RS library chapter 14
-    (rnrs (6))                       ; R6RS library chapter 15
-    (rnrs eval (6))                  ; R6RS library chapter 16
-    (rnrs mutable-pairs (6))         ; R6RS library chapter 17
-    (rnrs mutable-strings (6))       ; R6RS library chapter 18
-    (rnrs r5rs (6))                  ; R6RS library chapter 19
-
-  R6RS standard libraries that are pre-loaded but deprecated in Larceny:
-
-    (rnrs records procedural (6))    ; R6RS library section 6.3 (deprecated)
-    (rnrs records inspection (6))    ; R6RS library section 6.4 (deprecated)
-    (rnrs records syntactic)         ; R6RS library section 6.2 (deprecated)
-
-  Other pre-loaded libraries:
-
-    (err5rs records procedural)      ; ERR5RS records (procedural API)
-    (err5rs records inspection)      ; ERR5RS records (inspection API)
-    (err5rs records syntactic)       ; ERR5RS records (syntactic API)
-    (err5rs load)                    ; ERR5RS load procedure
-    (rnrs load)                      ; equivalent to (err5rs load)
-    (larceny load)                   ; extension of (err5rs load)
-    (larceny compiler)               ; separate compilation for ERR5RS/R6RS
-    (larceny benchmarking)           ; timing facilities
-    (r5rs)                           ; approximates the R5RS top level
-    (explicit-renaming)              ; a macro system with explicit renaming
+having to load them yourself.  For a list of predefined
+libraries, see Larceny's user manual [4].
 
 
 ACCESS TO LARCENY PROCEDURES
@@ -216,10 +171,12 @@ be compiled until all of the libraries that it imports
 have been compiled.
 
 For more information on separate compilation of ERR5RS
-libraries and programs, see Larceny's user manual.
+libraries and programs, see Larceny's user manual [4].
 
 --------
 
 [1] http://scheme-punks.org/wiki/index.php?title=ERR5RS:Charter
 [2] http://www.schemers.org/Documents/Standards/R5RS/
 [3] http://www.r6rs.org/
+[4] http://larceny.ccs.neu.edu/doc/user-manual.html
+or doc/user-manual*.html

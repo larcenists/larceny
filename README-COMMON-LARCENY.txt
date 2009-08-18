@@ -10,7 +10,7 @@ those systems.
 
 WHAT YOU NEED
 
-To run the interpreter, you will first need to the LARCENY_ROOT
+To run the interpreter, you will first need to set the LARCENY_ROOT
 environment variable explicitly to the Larceny's distribution's path 
 before running Common Larceny. Otherwise, everything else should
 work "out of the box".
