@@ -188,7 +188,7 @@ Larceny itself.  MzScheme 37x seems to work.  In the past, several
 other implementations of Scheme could be used for the build process,
 but they haven't been tested lately and aren't likely to work any
 more.  MzScheme v4.x.x may work, but we regard Larceny's support
-for v4.x.x as experimental.
+for v4.x.x as experimental; see src/Compat/PLT-R5RS/README.
 
 [2] http://sourceforge.net/projects/nasm
 

@@ -314,10 +314,11 @@ those systems.</p>
 <p>Common Larceny requires the
 <a href="http://www.ecma-international.org/publications/standards/Ecma-335.htm">
 Common Language Infrastructure</a>. It is known to work with the
-<a href="http://www.microsoft.com/net/">Microsoft .NET Framework</a> implementation,
-but the v0.93 release does not work with
-<a href="http://www.mono-project.com/downloads/">Mono</a>. It is doubtful whether the
-v0.93 release works with
+<a href="http://www.microsoft.com/net/">Microsoft .NET Framework</a> implementation.
+In the past, some releases of Common Larceny have worked with
+<a href="http://www.mono-project.com/downloads/">Mono</a> also, but we have
+not tested the current release with Mono.
+It is also conceivable that Common Larceny might work with
 <a href="http://www.dotgnu.org/pnet.html">DotGNU Portable.NET</a> or
 <a href="http://msdn.microsoft.com/net/sscli/">Microsoft Shared Source CLI (Rotor)</a>,
 but it hasn't been tried.</p>
@@ -362,9 +363,9 @@ Common Larceny yourself.</p>
 <h2>Building from Source</h2>
 <div class="sectionbody">
 <h3>Setup</h3>
-<p>To build Larceny from source, you will need a working Scheme system. You can
-build Common Larceny with another version of Larceny, or a different Scheme
-system like PLT's MzScheme.</p>
+<p>To build Common Larceny from source, you will need a working version
+of regular Larceny.  (You might be able to use Petite Chez or MzScheme
+instead, but they have not been tested recently and are not recommended.)</p>
 <p>You will also need to have a couple of executable programs available in your
 path. You may need to edit <tt>src\Rts\DotNet\makefile</tt> to use appropriate programs
 on your system.</p>
@@ -451,11 +452,11 @@ environment. Invoke <tt>larceny-setup</tt> with three or four arguments:</p>
 </ul>
 </li>
 </ul>
-<p>For example, to build under MzScheme on a Windows machine, using Microsoft's
+<p>For example, to build under Larceny on a Windows machine, using Microsoft's
 C/C++ Compiler, you would use:</p>
 <div class="literalblock">
 <div class="content">
-<pre><tt>&gt; (larceny-setup "MzScheme" 'win32 'little 'use-cl)</tt></pre>
+<pre><tt>&gt; (larceny-setup "Larceny" 'win32 'little 'use-cl)</tt></pre>
 </div></div>
 <p>After setting up the environment for building Larceny, evaluate the following:</p>
 <div class="literalblock">
@@ -498,11 +499,10 @@ suggested) and run it to enter the interactive <tt>read-eval-print</tt> loop.</p
 <p>Running the <tt>CommonLarceny.exe</tt> executable alone loads Common Larceny as an
 interpreted Scheme system. It is also possible to load Common Larceny so that
 it compiles Scheme code upon load. This creates slightly longer load times,
-but can improves execution times by quite a bit, so some find the
-CompileOnLoad version of Common Larceny more useful in certain situations.</p>
-<p>You can build the fast-loading (<tt>.fasl</tt>) and <tt>.exe</tt> files used to invoke the
-CompileOnLoad version of Common Larceny. To do this, after building
-the heap and the runtime-system, run:</p>
+but can improve execution times by quite a bit.</p>
+<p>To build the fast-loading (<tt>.fasl</tt>) and <tt>.exe</tt> files used to invoke the
+CompileOnLoad version of Common Larceny, first build the heap and the
+runtime-system as described above.  Then run:</p>
 <div class="literalblock">
 <div class="content">
 <pre><tt>&gt; (build-larceny)</tt></pre>
@@ -513,62 +513,123 @@ CompileOnLoad version of Common Larceny.</p>
 <p>To use the CompileOnLoad version of Common Larceny, invoke the runtime with:</p>
 <div class="literalblock">
 <div class="content">
-<pre><tt>%LARCENY_ROOT%\CommonLarceny.exe -- Larceny.fasl.</tt></pre>
+<pre><tt>CommonLarceny Larceny.fasl.</tt></pre>
 </div></div>
+<h3>Compiling the R6RS and ERR5RS Runtime Libraries</h3>
+<p>If you want to use Common Larceny to run R6RS or ERR5RS programs,
+then you will need to compile the R6RS runtime system and the R6RS
+standard libraries.</p>
+<p>To do so, first remove any and all <tt>.fasl</tt> and <tt>.slfasl</tt> files from
+the <tt>lib/R6RS</tt> directory and its subdirectories.  Then:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>CommonLarceny Larceny.fasl
+&gt; (require 'r6rsmode)
+&gt; (larceny:compile-r6rs-runtime)</tt></pre>
+</div></div>
+<p>This will take a very long time, and will print numerous messages
+to the screen about files not found.</p>
 </div>
 <h2>Using Common Larceny</h2>
 <div class="sectionbody">
+<p>Common Larceny can be run in any of three modes:</p>
+<ul>
+<li>
+<p>
+r5rs    &#8212;  default read/eval/print loop for R5RS programs
+</p>
+</li>
+<li>
+<p>
+err5rs  &#8212;  read/eval/print loop for debugging R6RS programs
+</p>
+</li>
+<li>
+<p>
+r6rs    &#8212;  batch-mode execution of R6RS programs
+</p>
+</li>
+</ul>
+<h3>R5RS Mode</h3>
+<p>To run Common Larceny in its default R5RS mode, just run the
+<tt>CommonLarceny.exe</tt> like this:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>CommonLarceny</tt></pre>
+</div></div>
+<p>To compile files as they are loaded, add <tt>Larceny.fasl</tt> to the
+command line, like this:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>CommonLarceny Larceny.fasl</tt></pre>
+</div></div>
+<h3>ERR5RS Mode</h3>
+<p>To run Common Larceny in ERR5RS mode, add the <tt>&#8212;err5rs</tt>
+command-line option, like this:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>CommonLarceny Larceny.fasl --err5rs</tt></pre>
+</div></div>
+<h3>R6RS Mode</h3>
+<p>To run R6RS programs in Common Larceny, you will need to specify
+the <tt>&#8212;r6rs</tt> and <tt>&#8212;program</tt> command-line options, and may also
+need to use the <tt>&#8212;path</tt> option.</p>
+<p>Suppose, for example, that you want to run an R6RS program named
+<tt>myprogram.sps</tt> that may use some of the standard R6RS libraries,
+some of the ERR5RS/R6RS libraries provided by Common Larceny, and
+some of the ERR5RS/R6RS SRFI libraries provided by Common Larceny,
+but does not define or use any other libraries.  Then you can run
+the program like this:</p>
+<div class="literalblock">
+<div class="content">
+<pre><tt>CommonLarceny Larceny.fasl --r6rs --program myprogram.sps</tt></pre>
+</div></div>
+<p>If the program defines its own libraries, or uses libraries other
+than those provided by Common Larceny, then you will need to tell
+Common Larceny where those libraries reside by using the <tt>&#8212;path</tt>
+command-line option or the <tt>LARCENY_LIBPATH</tt> environment variable,
+both of which are documented in the Larceny User Manual, which is
+online at http://larceny.ccs.neu.edu/doc/</p>
 <h3>Compiling Code to Run within Common Larceny</h3>
-<p>The compiler can also be used to compile code for loading into the
-Common Larceny interpreter. This allows you to run programs at compiled
-speeds without building the code into the larceny executable.</p>
-<p>Load the compiler using the same steps as above:</p>
+<p>The same compiler that is used to compile files as they are loaded
+can also be used to compile files ahead of time, which makes them
+load faster.</p>
+<p>Compiling a file with Common Larceny is now done the same way as
+in native Larceny.  See the Larceny User Manual, which is online
+at http://larceny.ccs.neu.edu/doc/</p>
+<p>Suppose, for example, that you want to compile two files that
+contain R5RS code, <tt>even.sch</tt> and <tt>odd.sch</tt>.  You can compile
+them as follows:</p>
 <div class="literalblock">
 <div class="content">
-<pre><tt>&gt; (load "Util/dotnet.sch")
-&gt; (larceny-setup &lt;host-scheme&gt; &lt;os&gt; &lt;endianness&gt; &lt;codegen-options&gt;)
-&gt; (load-compiler)</tt></pre>
+<pre><tt>CommonLarceny Larceny.fasl
+&gt; (compile-file "even.sch")
+&gt; (compile-file "odd.sch")
+&gt; (exit)</tt></pre>
 </div></div>
-<p>The compiler is now loaded, and you can use the following procedures:</p>
+<p>After the files have been compiled, you can load them into
+a new session of Common Larceny by listing the names of the
+compiled files on the command line, like this:</p>
 <div class="literalblock">
 <div class="content">
-<pre><tt>;; build-application : string (listof string) -&gt; void
-;; Given an application name and a list of LOP files, creates
-;; an EXE file and a FASL file (each LOP file must have a
-;; corresponding MANIFEST file).</tt></pre>
+<pre><tt>CommonLarceny Larceny.fasl even.fasl odd.fasl</tt></pre>
 </div></div>
+<p>You can also use the <tt>load</tt> procedure to load the compiled files
+into a session of Common Larceny that is already running:</p>
 <div class="literalblock">
 <div class="content">
-<pre><tt>;; compile-application : string (listof string) -&gt; void
-;; Given an application name and a list of scheme source files,
-;; creates an EXE file and a FASL file.</tt></pre>
+<pre><tt>CommonLarceny Larceny.fasl
+&gt; (load "even.fasl")
+&gt; (load "odd.fasl")</tt></pre>
 </div></div>
-<p>For example:</p>
-<div class="literalblock">
-<div class="content">
-<pre><tt>&gt; (compile-application "EvenAndOdd" (list "even.sch" "odd.sch"))
-&gt; (load "EvenAndOdd.fasl")</tt></pre>
-</div></div>
-<p>or</p>
-<div class="literalblock">
-<div class="content">
-<pre><tt>&gt; (compile313 "even.sch")
-&gt; (compile313 "odd.sch")
-&gt; (assemble313 "even.lap")
-&gt; (assemble313 "odd.lap")
-&gt; (build-application "EvenAndOdd" (list "even.lop" "odd.lop"))</tt></pre>
-</div></div>
-<p>Note that the first string you supply to build-application or
-create-application should have no file extension, and you only load the
-resulting <tt>.fasl</tt> file (as in invoking the <a href="#X1">CompileOnLoad</a> feature of
-Common Larceny), which must be in the current directory.</p>
-<p>Any Scheme system which can run the compiler can be used to compile the
-applications, but of course the resulting FASL files must be loaded
-by the Common Larceny interpreter.</p>
+<p>Once compiled, a compiled file cannot be moved because its
+absolute path name is wired into the compiled file.  This
+restriction may be removed in some future version of Common
+Larceny.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 13-Nov-2006 13:47:54 EDT
+Last updated 19-Aug-2009 16:24:49 EDT
 </div>
 </div>
 </body>

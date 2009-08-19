@@ -56,10 +56,11 @@ those systems.
 Common Larceny requires the 
 http://www.ecma-international.org/publications/standards/Ecma-335.htm[
 Common Language Infrastructure]. It is known to work with the 
-http://www.microsoft.com/net/[Microsoft .NET Framework] implementation, 
-but the v0.93 release does not work with 
-http://www.mono-project.com/downloads/[Mono]. It is doubtful whether the
-v0.93 release works with 
+http://www.microsoft.com/net/[Microsoft .NET Framework] implementation.
+In the past, some releases of Common Larceny have worked with
+http://www.mono-project.com/downloads/[Mono] also, but we have
+not tested the current release with Mono.
+It is also conceivable that Common Larceny might work with
 http://www.dotgnu.org/pnet.html[DotGNU Portable.NET] or
 http://msdn.microsoft.com/net/sscli/[Microsoft Shared Source CLI (Rotor)],
 but it hasn't been tried.
@@ -107,9 +108,9 @@ Common Larceny yourself.
 
 === Setup
 
-To build Larceny from source, you will need a working Scheme system. You can 
-build Common Larceny with another version of Larceny, or a different Scheme 
-system like PLT's MzScheme. 
+To build Common Larceny from source, you will need a working version
+of regular Larceny.  (You might be able to use Petite Chez or MzScheme
+instead, but they have not been tested recently and are not recommended.)
 
 You will also need to have a couple of executable programs available in your 
 path. You may need to edit `src\Rts\DotNet\makefile` to use appropriate programs
@@ -151,10 +152,10 @@ where:
        preprocess certain files needed to build the runtime-system. Without 
        this flag, `cpp` will be used.
 
-For example, to build under MzScheme on a Windows machine, using Microsoft's 
+For example, to build under Larceny on a Windows machine, using Microsoft's 
 C/C++ Compiler, you would use:
 
-  > (larceny-setup "MzScheme" 'win32 'little 'use-cl)
+  > (larceny-setup "Larceny" 'win32 'little 'use-cl)
 
 After setting up the environment for building Larceny, evaluate the following:
 
@@ -203,12 +204,11 @@ suggested) and run it to enter the interactive `read-eval-print` loop.
 Running the `CommonLarceny.exe` executable alone loads Common Larceny as an
 interpreted Scheme system. It is also possible to load Common Larceny so that
 it compiles Scheme code upon load. This creates slightly longer load times, 
-but can improves execution times by quite a bit, so some find the 
-CompileOnLoad version of Common Larceny more useful in certain situations.
+but can improve execution times by quite a bit.
 
-You can build the fast-loading (`.fasl`) and `.exe` files used to invoke the 
-CompileOnLoad version of Common Larceny. To do this, after building
-the heap and the runtime-system, run:
+To build the fast-loading (`.fasl`) and `.exe` files used to invoke the 
+CompileOnLoad version of Common Larceny, first build the heap and the
+runtime-system as described above.  Then run:
 
  > (build-larceny)
 
@@ -218,52 +218,106 @@ CompileOnLoad version of Common Larceny.
 
 To use the CompileOnLoad version of Common Larceny, invoke the runtime with: 
 
- %LARCENY_ROOT%\CommonLarceny.exe Larceny.fasl.
+ CommonLarceny Larceny.fasl.
+
+=== Compiling the R6RS and ERR5RS Runtime Libraries
+
+If you want to use Common Larceny to run R6RS or ERR5RS programs,
+then you will need to compile the R6RS runtime system and the R6RS
+standard libraries.
+
+To do so, first remove any and all `.fasl` and `.slfasl` files from
+the `lib/R6RS` directory and its subdirectories.  Then:
+
+    CommonLarceny Larceny.fasl
+    > (require 'r6rsmode)
+    > (larceny:compile-r6rs-runtime)
+
+This will take a very long time, and will print numerous messages
+to the screen about files not found.
 
 == Using Common Larceny
 
+Common Larceny can be run in any of three modes:
+
+ * r5rs    --  default read/eval/print loop for R5RS programs
+ * err5rs  --  read/eval/print loop for debugging R6RS programs
+ * r6rs    --  batch-mode execution of R6RS programs
+
+=== R5RS Mode
+
+To run Common Larceny in its default R5RS mode, just run the
+`CommonLarceny.exe` like this:
+
+    CommonLarceny
+
+To compile files as they are loaded, add `Larceny.fasl` to the
+command line, like this:
+
+    CommonLarceny Larceny.fasl
+
+=== ERR5RS Mode
+
+To run Common Larceny in ERR5RS mode, add the `--err5rs`
+command-line option, like this:
+
+    CommonLarceny Larceny.fasl --err5rs
+
+=== R6RS Mode
+
+To run R6RS programs in Common Larceny, you will need to specify
+the `--r6rs` and `--program` command-line options, and may also
+need to use the `--path` option.
+
+Suppose, for example, that you want to run an R6RS program named
+`myprogram.sps` that may use some of the standard R6RS libraries,
+some of the ERR5RS/R6RS libraries provided by Common Larceny, and
+some of the ERR5RS/R6RS SRFI libraries provided by Common Larceny,
+but does not define or use any other libraries.  Then you can run
+the program like this:
+
+    CommonLarceny Larceny.fasl --r6rs --program myprogram.sps
+
+If the program defines its own libraries, or uses libraries other
+than those provided by Common Larceny, then you will need to tell
+Common Larceny where those libraries reside by using the `--path`
+command-line option or the `LARCENY_LIBPATH` environment variable,
+both of which are documented in the Larceny User Manual, which is
+online at http://larceny.ccs.neu.edu/doc/
+
 === Compiling Code to Run within Common Larceny
 
-The compiler can also be used to compile code for loading into the
-Common Larceny interpreter. This allows you to run programs at compiled
-speeds without building the code into the larceny executable.
+The same compiler that is used to compile files as they are loaded
+can also be used to compile files ahead of time, which makes them
+load faster.
 
-Load the compiler using the same steps as above:
+Compiling a file with Common Larceny is now done the same way as
+in native Larceny.  See the Larceny User Manual, which is online
+at http://larceny.ccs.neu.edu/doc/
 
-    > (load "src/Build/dotnet.sch")
-    > (larceny-setup <host-scheme> <os> <endianness> <codegen-options>)
-    > (load-compiler)
+Suppose, for example, that you want to compile two files that
+contain R5RS code, `even.sch` and `odd.sch`.  You can compile
+them as follows:
 
-The compiler is now loaded, and you can use the following procedures:
+    CommonLarceny Larceny.fasl
+    > (compile-file "even.sch")
+    > (compile-file "odd.sch")
+    > (exit)
 
-    ;; build-application : string (listof string) -> void
-    ;; Given an application name and a list of LOP files, creates
-    ;; an EXE file and a FASL file (each LOP file must have a
-    ;; corresponding MANIFEST file).
+After the files have been compiled, you can load them into
+a new session of Common Larceny by listing the names of the
+compiled files on the command line, like this:
 
-    ;; compile-application : string (listof string) -> void
-    ;; Given an application name and a list of scheme source files,
-    ;; creates an EXE file and a FASL file.
+    CommonLarceny Larceny.fasl even.fasl odd.fasl
 
-For example: 
+You can also use the `load` procedure to load the compiled files
+into a session of Common Larceny that is already running:
 
-    > (compile-application "EvenAndOdd" (list "even.sch" "odd.sch"))
-    > (load "EvenAndOdd.fasl")
+    CommonLarceny Larceny.fasl
+    > (load "even.fasl")
+    > (load "odd.fasl")
 
-or
-
-    > (compile313 "even.sch")
-    > (compile313 "odd.sch")
-    > (assemble313 "even.lap")
-    > (assemble313 "odd.lap")
-    > (build-application "EvenAndOdd" (list "even.lop" "odd.lop"))
-
-Note that the first string you supply to build-application or
-create-application should have no file extension, and you only load the
-resulting `.fasl` file (as in invoking the <<X1,CompileOnLoad>> feature of
-Common Larceny), which must be in the current directory.
-
-Any Scheme system which can run the compiler can be used to compile the
-applications, but of course the resulting FASL files must be loaded
-by the Common Larceny interpreter.
-
+Once compiled, a compiled file cannot be moved because its
+absolute path name is wired into the compiled file.  This
+restriction may be removed in some future version of Common
+Larceny.
