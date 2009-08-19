@@ -47,7 +47,7 @@
 
        (let ((t (maker))
              (not-found (list 'not-found))
-             (x1 3.14159)
+             (x1 (string #\a #\b #\c))
              (sym1 'sym1)
              (vec1 (vector 'vec1))
              (pair1 (list -1))
