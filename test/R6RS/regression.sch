@@ -56,3 +56,7 @@
                  (syntax->datum (syntax (... (... foo))))))
     (assertion-violation #f "ticket:637"))
 
+; Regression test for ticket:647
+
+(if (or)
+    (assertion-violation #f "ticket:647"))

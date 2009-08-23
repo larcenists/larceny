@@ -988,7 +988,7 @@
 
     (define (expand-or exp)
       (match exp
-        ((or) #t)
+        ((or) #f)
         ((or e) (expand e))
         ((or e es ___)
          `(let ((x ,(expand e)))

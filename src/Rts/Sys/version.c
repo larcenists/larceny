@@ -25,7 +25,7 @@
  *  Doomsday Device             0.94         3 Jul 2007     4663
  *  First Safety                0.95         8 Nov 2007     5108
  *  Fluoridation                0.96        24 Dec 2007     5266
- *  Funny in the Head
+ *  Funny in the Head           0.97        19 Aug 2009     6398
  *  General Ripper 
  *  Goldie
  *  Grain Alcohol and Rainwater
