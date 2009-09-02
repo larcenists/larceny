@@ -95,6 +95,8 @@ setup ()
   PETIT=${PETIT:-"../../../petit-larceny"}
   PLTR6RS=${PLTR6RS:-"plt-r6rs"}
   YPSILON=${YPSILON:-"ypsilon"}
+  MOSH=${MOSH:-"mosh"}
+  PETITE=${PETITE:-"petite"}
  
 }
 
@@ -112,9 +114,11 @@ Usage: bench [-r runs] <system> <benchmark>
 
   ikarus           for Ikarus
   larceny          for Larceny
+  mosh             for Mosh
   petit            for Petit Larceny
-  ypsilon          for Ypsilon
+  petite           for Petite Chez
   plt              for PLT Scheme
+  ypsilon          for Ypsilon
   all              for all of the above
 
 <benchmark> is the name of the benchmark(s) to run:
@@ -256,6 +260,32 @@ ypsilon_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Mosh
+
+mosh_comp ()
+{
+  :
+}
+
+mosh_exec ()
+{
+  time "${MOSH}" "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Petite Chez
+
+petite_comp ()
+{
+  :
+}
+
+petite_exec ()
+{
+  time "${PETITE}" --optimize-level 2 --program "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 
 ## Arg processing...
 if [ "$#" -lt 2 ]; then
@@ -352,6 +382,26 @@ for system in $systems ; do
    ypsilon) NAME='Ypsilon' # copied from Ikarus' settings...
             COMP=ypsilon_comp
             EXEC=ypsilon_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+      mosh) NAME='Mosh'
+            COMP=mosh_comp
+            EXEC=mosh_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+    petite) NAME='Petite'
+            COMP=petite_comp
+            EXEC=petite_exec
             COMPOPTS=""
             EXTENSION="sch"
             EXTENSIONCOMP="sch"
