@@ -17,7 +17,7 @@ Returns a shallow copy of the procedure.
 
 The procedures above are deprecated because they
 violate abstraction barriers and make your code
-representation-independent; they are useful mainly to
+representation-dependent; they are useful mainly to
 Larceny developers, who might otherwise be tempted to
 write some low-level operations in C or assembly language.
 
