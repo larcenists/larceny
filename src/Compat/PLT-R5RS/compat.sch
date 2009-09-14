@@ -30,6 +30,7 @@
 (#%require (only mzscheme bytes->list))
 (#%require (only mzscheme real->floating-point-bytes))
 (#%require (only mzscheme write-string))
+(#%require (only mzscheme let-values)) ;; (syntax!)
 
 (load (param-filename 'compatibility ".." "MzScheme" "compat.sch"))
 
