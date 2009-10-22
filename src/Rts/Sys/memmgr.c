@@ -1813,6 +1813,8 @@ enumerate_remsets_complement( gc_t *gc,
    * don't waste time adding elements to remset[gno] for 
    * gno <= generation
    */
+  /* FSK: Is this loop still necessary?  Where are elems added between
+   * before_collection's invoke of compact_all_ssbs and here? */
   for ( i=0 ; i <= ecount; i++ ) {
     process_seqbuf( gc, gc->ssb[i] );
   }
