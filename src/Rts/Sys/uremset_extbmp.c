@@ -120,7 +120,20 @@ static void enumerate_complement( uremset_t *urs,
   int i;
   int ecount = urs->collector->gno_count;
 
-  for( i = 1; i < ecount; i++ ) {
+  /* Handle static area (aka highest numbered) first, so that we do
+   * not have to worry about scanner's asynchronous gno_count
+   * modifications (aka region allocations) messing things up.
+   * Conceptually, the for loop now goes:
+   * 
+   *    [ecount-1, 1, 2, 3, ..., ecount-2].
+   *
+   */
+  if (urs->collector->static_area != NULL) {
+    extbmp_enumerate_in( DATA(urs)->minor_remset, ecount-1, scanner, data );
+    /* Same comments as in main loop below apply here. */
+    extbmp_enumerate_in( DATA(urs)->remset, i, scanner, data );
+  }
+  for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
       extbmp_enumerate_in( DATA(urs)->minor_remset, i, scanner, data );
       /* XXX: I may need to filter out members of minor_remset because
