@@ -143,7 +143,7 @@ static void enumerate_complement( uremset_t *urs,
   if (urs->collector->static_area != NULL) {
     extbmp_enumerate_in( DATA(urs)->minor_remset, ecount-1, scanner, data );
     /* Same comments as in main loop below apply here. */
-    extbmp_enumerate_in( DATA(urs)->remset, i, scanner, data );
+    extbmp_enumerate_in( DATA(urs)->remset, ecount-1, scanner, data );
   }
   for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
