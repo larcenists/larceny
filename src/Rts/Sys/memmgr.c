@@ -2365,6 +2365,7 @@ static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed,
 static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
 				     semispace_t *current_space )
 {
+  int los_allocated;
   int cur_allocated;
   int max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
@@ -2375,8 +2376,9 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_old-1 ] );
 
   ss_sync( current_space );
-  cur_allocated = 
-    current_space->used+los_bytes_used( gc->los, current_space->gen_no );
+  los_allocated =  /* los_bytes_used( gc->los, current_space->gen_no ); */
+    los_bytes_used_include_marklists( gc->los, current_space->gen_no );
+  cur_allocated = current_space->used+los_allocated;
 
   if (cur_allocated + expansion_amount <= max_allocated) {
     ss_expand( current_space, expansion_amount );
