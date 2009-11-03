@@ -36,6 +36,7 @@ struct gc_data {
   word *satb_ssb_bot;
   word *satb_ssb_top;
   word *satb_ssb_lim;
+  int  ssb_entry_count;
 
   old_heap_t **ephemeral_area;
     /* In precise collectors: An array of pointers to ephemeral areas;

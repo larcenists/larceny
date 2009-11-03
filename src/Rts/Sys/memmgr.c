@@ -2308,7 +2308,8 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   /* XXX This code only works with RROF, but I do not have a
    * reasonable way to assert that precondition. */
   new_ssb[fresh_gno] = 
-    create_seqbuf( 0, &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
+    create_seqbuf( DATA(gc)->ssb_entry_count, 
+                   &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
                    &new_ssb_lim[fresh_gno], ssb_process_rrof, 
                    /* XXX */(void*) fresh_gno );
   for( i = fresh_gno+1; i < new_gno_count; i++ ) {
@@ -2742,13 +2743,14 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
+  DATA(gc)->ssb_entry_count = info->ssb;
   for ( i = 0; i < gc->gno_count ; i++ ) {
     /* nursery has one too, an artifact of RROF.
      * XXX consider using different structures for n-YF vs ROF vs RROF;
      * RROF needs points-into information implicit with index here,
      * but others do not. */
     gc->ssb[i] = 
-      create_seqbuf( info->ssb, 
+      create_seqbuf( DATA(gc)->ssb_entry_count, 
                      &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
                      ssb_process_gen, 0 );
   }
@@ -2882,14 +2884,16 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
+    DATA(gc)->ssb_entry_count = info->ssb;
     for ( i = 0; i < gc->gno_count ; i++ ) {
       /* nursery has one too! */
       gc->ssb[i] = 
-        create_seqbuf( info->ssb, 
+        create_seqbuf( DATA(gc)->ssb_entry_count, 
                        &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
                        ssb_process_rrof, 0 );
     }
-    gc->satb_ssb = create_seqbuf( info->ssb, &data->satb_ssb_bot, 
+    gc->satb_ssb = create_seqbuf( DATA(gc)->ssb_entry_count, 
+                                  &data->satb_ssb_bot, 
                                   &data->satb_ssb_top, &data->satb_ssb_lim, 
                                   ssb_process_satb, 0 );
   }
