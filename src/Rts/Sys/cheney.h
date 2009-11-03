@@ -127,6 +127,7 @@ struct cheney_env {
   int tospaces_cap;             /* tospaces capacity (>= tospaces_len) */
   int tospaces_cur_scan;        /* tospaces index of scanning semispace */
   int tospaces_cur_dest;        /* tospaces index of forw'ing semispace */
+  bool last_forward_was_large;  /* Track last obj was in LOS (control flow) */
   semispace_t **tospaces;       /* The first tospace */
   semispace_cursor_t *cursors;  /* Scanptr array for tospaces above */
   semispace_t *tospace2;        /* The second tospace, or 0 */
