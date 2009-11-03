@@ -104,8 +104,20 @@ static void enumerate_minor_complement( uremset_t *urs,
 
   rs_count = urs->collector->gno_count;
   /* static objects die; remset_count includes static remset (thus
-   * refinement eliminates corpses with dangling pointers). */
-  for( i=1; i < rs_count; i++) {
+   * refinement eliminates corpses with dangling pointers).
+   * 
+   * Handle static area (aka highest numbered) first, so that we do
+   * not have to worry about scanner's asynchronous gno_count
+   * modifications (aka region allocations) messing things up.
+   * Conceptually, the for loop now goes:
+   * 
+   *    [ecount-1, 1, 2, 3, ..., ecount-2].
+   *
+   */
+  if (urs->collector->static_area != NULL) {
+    extbmp_enumerate_in( DATA(urs)->minor_remset, rs_count-1, scanner, data );
+  }
+  for( i=1; i < rs_count-1; i++) {
     if (! gset_memberp( i, gset )) {
       extbmp_enumerate_in( DATA(urs)->minor_remset, i, scanner, data );
     }
