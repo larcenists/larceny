@@ -103,17 +103,9 @@ static void enumerate_minor_complement( uremset_t *urs,
   int rs_count; 
 
   rs_count = urs->collector->gno_count;
-  /* static objects die; remset_count includes static remset (thus
-   * refinement eliminates corpses with dangling pointers).
-   * 
-   * Handle static area (aka highest numbered) first, so that we do
-   * not have to worry about scanner's asynchronous gno_count
-   * modifications (aka region allocations) messing things up.
-   * Conceptually, the for loop now goes:
-   * 
-   *    [ecount-1, 1, 2, 3, ..., ecount-2].
-   *
-   */
+
+  /* See general notes on this strange control flow (and state)
+   * written in comments with enumerate_complement below. */
   if (urs->collector->static_area != NULL) {
     extbmp_enumerate_in( DATA(urs)->minor_remset, rs_count-1, scanner, data );
   }
@@ -132,18 +124,29 @@ static void enumerate_complement( uremset_t *urs,
   int i;
   int ecount = urs->collector->gno_count;
 
-  /* Handle static area (aka highest numbered) first, so that we do
-   * not have to worry about scanner's asynchronous gno_count
+  /* Handle static area (aka highest numbered) first, so that we 
+   * worry less about scanner's asynchronous gno_count
    * modifications (aka region allocations) messing things up.
    * Conceptually, the for loop now goes:
    * 
    *    [ecount-1, 1, 2, 3, ..., ecount-2].
    *
+   * Note that such modifications can still happen during any
+   * invocation of scanner, which is why we need to re-establish
+   * static_area_gno in between the two enumerate invocations below.
+   * (This ugliness has crept elsewhere: the static area's gno is also
+   * handled specially within extbmp_enumerate_in itself.)
    */
   if (urs->collector->static_area != NULL) {
-    extbmp_enumerate_in( DATA(urs)->minor_remset, ecount-1, scanner, data );
+    /* Deliberately not re-using ecount, because we want it to retain
+     * its original value during the for loop below. */
+    int static_area_gno;
+
+    static_area_gno = urs->collector->gno_count-1;
+    extbmp_enumerate_in( DATA(urs)->minor_remset, static_area_gno, scanner, data );
     /* Same comments as in main loop below apply here. */
-    extbmp_enumerate_in( DATA(urs)->remset, ecount-1, scanner, data );
+    static_area_gno = urs->collector->gno_count-1;
+    extbmp_enumerate_in( DATA(urs)->remset, static_area_gno, scanner, data );
   }
   for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
