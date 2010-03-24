@@ -192,13 +192,19 @@ LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f elf -g -DLINUX"))
 
+; FIXME: Will removed the -fno-stack-protector option that was added
+; by changeset:6415 because our MacOSX machines use gcc 4.0.1, which
+; does not support that option.  As Will interprets ticket:546, the
+; -fno-stack-protector option is needed only to solve a problem with
+; Linux, and is not needed for MacOSX.
+
 (define make-template-sassy-macosx-gcc
   (template-common
 "O=o
 CC=gcc
 DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -fno-stack-protector -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS+=-c -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX"))
