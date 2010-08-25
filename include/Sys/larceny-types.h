@@ -34,6 +34,10 @@ typedef enum { GCTYPE_COLLECT,
                GCTYPE_PROMOTE,
                  /* A promotion into an area where the target area is
                     not itself being collected, only scanned. */
+	       GCTYPE_EVACUATE,
+                 /* A promotion of objects out of the argument area.
+                    The target area is left unspecified, to be decided
+                    internally by the collector. */
                GCTYPE_FULL,
 	         /* A collection that traces every live object in the
                     system.  Used for special purposes only, like the 
@@ -52,6 +56,21 @@ typedef struct young_heap young_heap_t;
 
 /* old_heap_t is elaborated in old_heap_t.h */
 typedef struct old_heap old_heap_t;
+typedef enum { OHTYPE_EPHEMERAL, OHTYPE_DYNAMIC, OHTYPE_REGIONAL } oh_type_t;
+
+typedef enum {
+  region_group_nonrrof,    /* heap not handled by RROF GC */
+  region_group_unfilled,   /* to-space candidates */
+  region_group_wait_nosum, /* uncollected from-space candidates */
+  region_group_wait_w_sum, /* ibid, with a constructed summary */
+  region_group_summzing,   /* enqueued to be from-space candidates */
+  region_group_filled,     /* processed to-spaces */
+  region_group_popular,    /* skipped from-spaces */
+  region_group_limit_elem
+} region_group_t;
+
+/* extbmp_t is elaborated in extbmp.c */
+typedef struct extbmp extbmp_t;
 
 /* static_heap_t is elaborated in static_heap_t.h */
 typedef struct static_heap static_heap_t;
@@ -59,12 +78,25 @@ typedef struct static_heap static_heap_t;
 /* remset_t is elaborated in remset_t.h */
 typedef struct remset remset_t;
 
+/* smircy_context_t is elaborated in smircy.h */
+typedef struct smircy_context smircy_context_t;
+
+/* summary_t is elaborated in summary_t.h */
+typedef struct summary summary_t;
+typedef struct loc loc_t;
+
+/* summ_matrix_t is elaborated in summ_matrix_t.h */
+typedef struct summ_matrix summ_matrix_t;
+
 /* seqbuf_t is elaborated in seqbuf_t.h */
 typedef struct seqbuf seqbuf_t;
 
 /* semispace_t and ss_chunk_t are elaborated in semispace_t.h */
 typedef struct semispace semispace_t;
 typedef struct ss_chunk ss_chunk_t;
+
+/* uremset_t is elaborated in uremset_t.h */
+typedef struct uremset uremset_t;
 
 /* heapio_t and metadata_block_t are elaborated in heapio.h */
 typedef struct heapio_t heapio_t;
@@ -80,6 +112,9 @@ typedef struct stack_stats stack_stats_t;
 typedef struct swb_stats swb_stats_t;
 #endif
 typedef struct gc_event_stats gc_event_stats_t;
+
+/* gc_mmu_log.h */
+typedef struct gc_mmu_log gc_mmu_log_t;
 
 /* Currently these are in gc.h but should perhaps move? */
 typedef struct np_info np_info_t;

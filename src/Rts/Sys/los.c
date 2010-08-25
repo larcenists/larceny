@@ -14,7 +14,6 @@
 #include "larceny.h"
 #include "los_t.h"
 #include "gclib.h"
-#include "gc.h"			/* For MAX_GENERATIONS */
 
 #define HEADER_WORDS     4	/* Number of header words */
 #define HEADER_UNUSED    -4     /* Unused field (could be mark?) */
@@ -39,6 +38,8 @@ static los_list_t *make_los_list( void );
 static void remove( word *w );
 static void insert_at_end( word *w, los_list_t *list );
 static void set_generation_number( los_list_t *list, int gen_no, bool clear );
+static void incr_generation_number_for( los_list_t *list, int fresh_gno );
+static void swap_generation_number_for( los_list_t *list, int gno1, int gno2 );
 static void append_and_clear( los_list_t *left, los_list_t *right );
 static void dump_list( los_list_t *l, char *tag, int nbytes );
 static void clear_list( los_list_t *l );
@@ -60,6 +61,31 @@ los_t *create_los( int generations )
   los->mark2 = make_los_list();
 
   return los;
+}
+
+void expand_los_gnos( los_t *los, int fresh_gno )
+{
+  int i;
+  int new_generations = los->generations + 1;
+  los_list_t **new_object_lists =
+    (los_list_t**)must_malloc( new_generations*sizeof( los_list_t* ) );
+  
+  for ( i=0 ; i < fresh_gno ; i++ ) 
+    new_object_lists[i] = los->object_lists[i];
+  new_object_lists[fresh_gno] = make_los_list();
+  for ( i=fresh_gno+1 ; i < new_generations ; i++ ) {
+    new_object_lists[i] = los->object_lists[i-1];
+    set_generation_number( new_object_lists[i], i, FALSE );
+  }
+  /* also need to traverse the mark lists and increment any generation
+   * numbers >= fresh_gno. 
+   */
+  incr_generation_number_for( los->mark1, fresh_gno );
+  incr_generation_number_for( los->mark2, fresh_gno );
+  
+  free( los->object_lists );
+  los->object_lists = new_object_lists;
+  los->generations = new_generations;
 }
 
 los_list_t *create_los_list(void)
@@ -88,6 +114,39 @@ int los_bytes_used( los_t *los, int gen_no )
     return los->object_lists[gen_no]->bytes;
 }
 
+static int count_bytes_on_marklist( los_t *los, los_list_t *mark, 
+                                    int match_gen_no )
+{
+  word *p, *n, *h;
+  int rtn, nbytes, gen_no;
+  h = mark->header;
+  p = next( h );
+  rtn = 0;
+  while ( p != h ) {
+    n = next( p );
+    gen_no = gen_of( p - HEADER_WORDS );
+    assert2( 0 <= gen_no && gen_no < los->generations );
+    if (match_gen_no == gen_no) {
+      nbytes = size( p );
+      rtn += nbytes;
+    }
+    p = n;
+  }
+  return rtn;
+}
+
+int los_bytes_used_include_marklists( los_t *los, int gen_no )
+{
+  int rtn;
+  assert( 0 <= gen_no && gen_no < los->generations );
+
+  rtn = los->object_lists[gen_no]->bytes 
+    + count_bytes_on_marklist( los, los->mark1, gen_no )
+    + count_bytes_on_marklist( los, los->mark2, gen_no );
+
+  return rtn;
+}
+
 word *los_allocate( los_t *los, int nbytes, int gen_no )
 {
   word *w;
@@ -103,7 +162,7 @@ word *los_allocate( los_t *los, int nbytes, int gen_no )
   set_size( w, size );
   insert_at_end( w, los->object_lists[ gen_no ] );
 
-  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%p", 
+  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%08x", 
 			 size, w );
 
   return w;
@@ -161,7 +220,7 @@ void los_sweep( los_t *los, int gen_no )
     remove( p );
     nbytes = size( p );
     gclib_free( p - HEADER_WORDS, nbytes );
-    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%p",
+    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%08x",
 			   nbytes, (void*)p );
     p = n;
   }
@@ -180,9 +239,42 @@ void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen )
   append_and_clear( los->object_lists[ to_gen ], l );
 }
 
+/* This procedure only makes sense when l is a mark list,
+ * since that's the only one that is allowed to contain 
+ * objects with varied associated generations. */
+void los_append_and_clear_list_infer_gen( los_t *los, los_list_t *lst )
+{
+  word *p, *n, *h;
+  int gen_no;
+  
+  h = lst->header;
+  p = next( h );
+  while ( p != h ) {
+    n = next( p );
+    gen_no = gen_of( p - HEADER_WORDS );
+    assert2( 0 <= gen_no && gen_no < los->generations );
+    insert_at_end( p, los->object_lists[ gen_no ]);
+    p = n;
+  }
+  clear_list(lst);
+}
+
 void los_list_set_gen_no( los_list_t *list, int gen_no )
 {
   set_generation_number( list, gen_no, FALSE );
+}
+
+void los_swap_gnos( los_t *los, int gno1, int gno2 )
+{
+  los_list_t *list1, *list2;
+  list1 = los->object_lists[gno1];
+  list2 = los->object_lists[gno2];
+  set_generation_number( list1, gno2, FALSE );
+  set_generation_number( list2, gno1, FALSE );
+  los->object_lists[gno1] = list2;
+  los->object_lists[gno2] = list1;
+  swap_generation_number_for( los->mark1, gno1, gno2 );
+  swap_generation_number_for( los->mark2, gno1, gno2 );
 }
 
 word *los_walk_list( los_list_t *list, word *p )
@@ -200,21 +292,6 @@ word *los_walk_list( los_list_t *list, word *p )
   else {
     assert( ishdr( *n ) );
     return n;
-  }
-}
-
-void los_permute_object_lists( los_t *los, int permutation[] )
-{
-  los_list_t *old[ MAX_GENERATIONS ];
-  int i, k;
-
-  for ( i=0 ; i < los->generations ; i++ )
-    old[i] = los->object_lists[i];
-
-  for ( i=0 ; i < los->generations ; i++ ) {
-    k = permutation[i];
-    los->object_lists[k] = old[i];
-    los_list_set_gen_no( los->object_lists[k], k );
   }
 }
 
@@ -272,6 +349,54 @@ static void set_generation_number( los_list_t *list, int gen_no, bool clear )
   }
 }
 
+static void incr_generation_number_for( los_list_t *list, int fresh_gno )
+{
+  word *header, *this;
+  word *addr;
+  int gno;
+  
+  /* Note that this code will break completely if the same object
+   * appears in this list multiple times!  (Likewise clients of LOS
+   * must ensure objects have at most one reference in all lists.) 
+   */
+
+  header = list->header;
+  this = next( header );
+  while (this != header) {
+    addr = this - HEADER_WORDS;
+    gno = gen_of( addr );
+    if ( gno >= fresh_gno ) {
+      gclib_set_generation( addr, size( this ), gno+1 );
+    }
+    this = next( this );
+  }
+}
+
+static void swap_generation_number_for( los_list_t *list, int gno1, int gno2 )
+{
+  word *header, *this;
+  word *addr;
+  int gno;
+  
+  /* Note that this code will break completely if the same object
+   * appears in this list multiple times!  (Likewise clients of LOS
+   * must ensure objects have at most one reference in all lists.) 
+   */
+
+  header = list->header;
+  this = next( header );
+  while (this != header) {
+    addr = this - HEADER_WORDS;
+    gno = gen_of( addr );
+    if ( gno == gno1 ) {
+      gclib_set_generation( addr, size( this ), gno2 );
+    } else if ( gno == gno2 ) {
+      gclib_set_generation( addr, size( this ), gno1 );
+    }
+    this = next( this );
+  }
+}
+
 static void append_and_clear( los_list_t *left, los_list_t *right )
 {
   word *left_first = next( left->header );
@@ -310,10 +435,10 @@ static void dump_list( los_list_t *l, char *tag, int nbytes )
   int fwd_n, fwd_size, backwd_n, backwd_size;
 
   consolemsg( "{LOS} list dump %s for %d bytes", tag, nbytes );
-  consolemsg( "{LOS}   header at 0x%p", l->header - HEADER_WORDS );
+  consolemsg( "{LOS}   header at 0x%08x", l->header - HEADER_WORDS );
   fwd_n = fwd_size = 0;
   for ( p = next( l->header ) ; p != l->header ; p = next( p ) ) {
-    consolemsg( "{LOS}   > %d bytes at 0x%p", size( p ), p - HEADER_WORDS );
+    consolemsg( "{LOS}   > %d bytes at 0x%08x", size( p ), p - HEADER_WORDS );
     fwd_n++;
     fwd_size += size( p );
   }
@@ -334,6 +459,37 @@ static void clear_list( los_list_t *l )
   set_next( l->header, l->header );
   set_prev( l->header, l->header );
   l->bytes = 0;
+}
+
+bool los_is_address_mapped( los_t *los, word *addr, bool noisy ) 
+{
+  word *cursor;
+  int i;
+  bool ret = FALSE;
+  for( i = 0; i < los->generations; i++ ) {
+    cursor = NULL;
+    do { 
+      cursor = los_walk_list( los->object_lists[i], cursor );
+      if (cursor != NULL) {
+	byte* start = (byte*)(cursor - HEADER_WORDS);
+	byte* finis = start + size(cursor);
+	if (((byte*)addr >= start) && ((byte*)addr < finis)) {
+	  if (noisy)
+	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
+		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) Y",
+		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
+	  
+	  assert(! ret); ret = TRUE;
+	} else {
+	  if (noisy)
+	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
+		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) N",
+		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
+	}
+      }
+    } while (cursor != NULL);
+  }
+  return ret;
 }
 
 /* eof */

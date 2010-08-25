@@ -18,8 +18,10 @@ void wb_setup( gclib_desc_t *genv,  /* map from page to generation */
 	       byte *pagebase,      /* fixed: address of lowest page */
 	       int generations,     /* fixed: number of generations */
 	       word *globals,       /* fixed: globals vector */
-	       word **ssbtopv,      /* fixed: SSB top pointers */
-	       word **ssblimv,      /* fixed: SSB lim pointers */
+	       word **genssbtopv,   /* fixed: SSB top pointers */
+	       word **genssblimv,   /* fixed: SSB lim pointers */
+	       word **satbssbtopv,
+	       word **satbssblimv,
 	       int  np_young_gen,   /* -1 or generation # for NP young */
 	       int  np_ssbidx       /* -1 or idx in vectors for magic remset */
 	      );

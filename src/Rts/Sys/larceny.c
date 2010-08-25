@@ -109,6 +109,7 @@ int main( int argc, char **os_argv )
   command_line_options.restv = 0;
   command_line_options.gc_info.ephemeral_info = 0;
   command_line_options.gc_info.use_static_area = 1;
+  command_line_options.gc_info.mmu_buf_size = -1;
   command_line_options.gc_info.globals = globals;
 #if defined( BDW_GC )
   command_line_options.gc_info.is_conservative_system = 1;
@@ -364,15 +365,72 @@ void hardconsolemsg( const char *fmt, ... )
   fprintf( stderr, "\n" );
 }
 
+static long long generic_event_counter = 0;
+static const long long max_event_count = 0;
+static const long long key_event_count = 0;
+static const long long event_trace_len = 100;
+int saw_event() 
+{ 
+  generic_event_counter++;
+  if (max_event_count > 0) {
+    if (generic_event_counter+1 == max_event_count)
+      panic_abort( "hit max event count %lld", generic_event_counter);
+  }
+  return generic_event_counter;
+}
+
+void eventmsg( const char *fmt, ... )
+{
+  if (generic_event_counter > (key_event_count - event_trace_len)
+      && (generic_event_counter < (key_event_count + event_trace_len))) {
+    va_list args;
+    va_start( args, fmt );
+    fprintf( stderr, "(event %8lld)", generic_event_counter );
+    vfprintf( stderr, fmt, args );
+    va_end( args );
+    fprintf( stderr, "\n" );
+  }
+}
+
 /****************************************************************************
  *
  * Command line parsing.
  */
 
 static int hstrcmp( const char *s1, const char* s2 );
+
+/* A SizeSpec is either a Number n, or a Number n followed by the character 'M', 
+ * or a Number n followed by the character 'K'
+ * interpretation: [[ n ]] = n; [[ nM ]] = n*1024*1024; [[ nK ]] = n*1024
+ */
+
+/* requires: (to be determined)
+ * effects: if *argv[0] matches str as an option, *argc > 1, and *argv[1] holds
+ *          a SizeSpec, then *var holds the number corresponding to *argv[1],
+ *          advances *argv, decrements *argc, and returns 1.  Else returns 0.
+ * example: sizearg( "-option", 2, { "-option", "3K" }, receiver )
+ *          returns 1, with *receiver == 3072
+ */
 static int sizearg( char *str, int *argc, char ***argv, int *var );
+
+/* requires: (to be determined)
+ * effects: if exists integer N such that *argv[0] matches strN as an option,
+ *                    argc > 1, and *argv[1] holds a SizeSpec,
+ *          then *var holds the number corresponding to *argv[1]
+ *           and *loc holds (the largest such) N.
+ * example: hsizearg( "-optnum", 2, { "-optnum3" "2K" }, recv1, recv2 )
+ *          returns 1, with *recv1 == 2048 and *recv2 == 3
+ */
 static int hsizearg( char *str, int *argc, char ***argv, int *var, int *loc );
 static int doublearg( char *str, int *argc, char ***argv, double *var );
+
+/* requires: (to be determined)
+ * effects: if *argv[0] matches str as an option, *argc > 1, and *argv[1] holds
+ *          an integer, then *var holds the integer corresponding to *argv[1],
+ *          advances *argv, decrements *argc, and returns 1.  Else returns 0.
+ * example: numbarg( "-option", 2 { "-option" "4" }, receiver )
+ *          returns 1, with *receiver = 4.
+ */
 static int numbarg( char *str, int *argc, char ***argv, int *var );
 static int hnumbarg( char *str, int *argc, char ***argv, int *var, int *loc );
 static void compute_np_parameters( opt_t *o, int suggested_size );
@@ -394,15 +452,39 @@ static void init_generational( opt_t *o, int areas, char *name )
   o->gc_info.ephemeral_area_count = areas-2;
 }
 
+static void init_regional( opt_t *o, int areas, char *name )
+{
+  if (areas < 1)
+    invalid( name );
+
+  if (o->gc_info.ephemeral_info != 0) {
+    consolemsg( "Error: Number of areas re-specified with '%s'", name );
+    consolemsg( "Type \"larceny -heap\" for help." );
+    exit( 1 );
+  }
+  
+  o->gc_info.is_regional_system = 1;
+  o->gc_info.ephemeral_info = 
+    (sc_info_t*)must_malloc( sizeof( sc_info_t)*areas );
+  o->gc_info.ephemeral_area_count = areas;
+}
+
 static void
 parse_options( int argc, char **argv, opt_t *o )
 {
   int i, loc, prev_size, areas = DEFAULT_AREAS;
+  int mmu_size;
+  int mark_period;
+  double popular_factor = 0.0;
+  double refine_factor = 0.0;
+  double sumz_budget = 0.0;
+  double sumz_coverage = 0.0;
 #if defined( BDW_GC )
   double load_factor = 0.0;                   /* Ignore it. */
 #else
   double load_factor = DEFAULT_LOAD_FACTOR;
 #endif
+  double load_factor_hard = DEFAULT_LOAD_FACTOR_HARD;
   double expansion = 0.0;                     /* Ignore it. */
   int divisor = 0;                            /* Ignore it. */
   double feeling_lucky = 0.0;                 /* Not lucky at all. */
@@ -410,9 +492,6 @@ parse_options( int argc, char **argv, opt_t *o )
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
   int full_frequency = 0;
   double growth_divisor = 1.0;
-  double dof_free_before_collection = 1.0;
-  double dof_free_before_promotion = 1.0;
-  double dof_free_after_collection = 1.0;
   int dynamic_max = 0;
   int dynamic_min = 0;
   int val;
@@ -430,21 +509,90 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.use_static_area = 0;
     else if (hstrcmp( *argv, "-nocontract" ) == 0)
       o->gc_info.dont_shrink_heap = 1;
+    else if (hstrcmp( *argv, "-oracle" ) == 0)
+      o->gc_info.use_oracle_to_update_remsets = 1;
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
-      if (loc > 1) o->gc_info.is_generational_system = 1;
-      if (loc < 0 || loc > o->maxheaps)
+      if (loc > 1 && ! o->gc_info.is_regional_system) {
+        /* Maybe we shouldn't be inferring this anymore */
+        o->gc_info.is_generational_system = 1; 
+      }
+      if (loc < 0 || loc > o->maxheaps) {
         invalid( "-size" );
-      else if (loc > 0)
-        o->size[loc-1] = val;
-      else 
-        for ( i=1 ; i < o->maxheaps ; i++ )
-          if (o->size[i-1] == 0) o->size[i-1] = val;
+      } else if (o->gc_info.is_generational_system) {
+        if (loc > 0)
+          o->size[loc-1] = val;
+        else 
+          for ( i=1 ; i < o->maxheaps ; i++ )
+            if (o->size[i-1] == 0) o->size[i-1] = val;
+      } else if (o->gc_info.is_regional_system) {
+        o->size[loc] = val;
+      }
     }
+    else if (numbarg( "-mmusize", &argc, &argv, &mmu_size)) {
+      o->gc_info.mmu_buf_size = mmu_size;
+    }
+    else if (numbarg( "-regions", &argc, &argv, &areas))  {
+      init_regional( o, areas, "-regions" );
+    } else if (hstrcmp( *argv, "-rrof" ) == 0 || 
+             hstrcmp( *argv, "-regional" ) == 0) {
+      init_regional( o, areas, *argv );
+    }
+    else if (hstrcmp( *argv, "-rrof_prefer_big_summ" ) == 0) {
+      o->gc_info.rrof_prefer_big_summ = TRUE;
+      o->gc_info.rrof_prefer_lil_summ = FALSE;
+      o->gc_info.rrof_prefer_lat_summ = FALSE;
+    }
+    else if (hstrcmp( *argv, "-rrof_prefer_lil_summ" ) == 0) {
+      o->gc_info.rrof_prefer_lil_summ = TRUE;
+      o->gc_info.rrof_prefer_big_summ = FALSE;
+      o->gc_info.rrof_prefer_lat_summ = FALSE;
+    }
+    else if (hstrcmp( *argv, "-rrof_prefer_late_summ" ) == 0) {
+      o->gc_info.rrof_prefer_lat_summ = TRUE;
+      o->gc_info.rrof_prefer_lil_summ = FALSE;
+      o->gc_info.rrof_prefer_big_summ = FALSE;
+    }
+    else if (numbarg( "-mark_period", &argc, &argv, &mark_period)) {
+      o->gc_info.mark_period = mark_period;
+    }
+    else if (doublearg( "-refinement", &argc, &argv, &refine_factor)) {
+      o->gc_info.has_refine_factor = TRUE;
+      o->gc_info.refinement_factor = refine_factor;
+    }
+    else if (hstrcmp( *argv, "-alloc_mark_bmp_once" ) == 0) {
+      o->gc_info.alloc_mark_bmp_once = 1;
+    } 
+    else if (doublearg( "-sumzbudget", &argc, &argv, &sumz_budget)) {
+      o->gc_info.has_sumzbudget = TRUE;
+      o->gc_info.sumzbudget_inv = sumz_budget;
+    }
+    else if (doublearg( "-sumzcoverage", &argc, &argv, &sumz_coverage)) {
+      o->gc_info.has_sumzcoverage = TRUE;
+      o->gc_info.sumzcoverage_inv = sumz_coverage;
+    }
+    else if (doublearg( "-popularity", &argc, &argv, &popular_factor)) {
+      o->gc_info.has_popularity_factor = TRUE;
+      o->gc_info.popularity_factor = popular_factor;
+    }
+    else if (hstrcmp( *argv, "-print_float_stats_cycle" ) == 0)
+      o->gc_info.print_float_stats_cycle = TRUE;
+    else if (hstrcmp( *argv, "-print_float_stats_major" ) == 0)
+      o->gc_info.print_float_stats_major = TRUE;
+    else if (hstrcmp( *argv, "-print_float_stats_minor" ) == 0)
+      o->gc_info.print_float_stats_minor = TRUE;
+    else if (hstrcmp( *argv, "-print_float_stats_refine" ) == 0)
+      o->gc_info.print_float_stats_refine = TRUE;
     else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
       ;
     else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
       ;
-    else 
+    else if   (hstrcmp( *argv, "-rhashrep" ) == 0) {
+      o->gc_info.chose_rhashrep = TRUE;
+      o->gc_info.chose_rbitsrep = FALSE;
+    } else if (hstrcmp( *argv, "-rbitsrep" ) == 0) {
+      o->gc_info.chose_rhashrep = FALSE;
+      o->gc_info.chose_rbitsrep = TRUE;
+    } else 
 #endif /* !BDW_GC */
     if (numbarg( "-ticks", &argc, &argv, (int*)&o->timerval ))
       ;
@@ -453,9 +601,13 @@ parse_options( int argc, char **argv, opt_t *o )
       if (load_factor < 1.0 && load_factor != 0.0)
         param_error( "Load factor must be at least 1.0" );
 #else
-      if (load_factor < 2.0)
-        param_error( "Load factor must be at least 2.0" );
+      if (load_factor < 1.0)
+        param_error( "Load factor must be at least 1.0" );
 #endif
+    }
+    else if (doublearg( "-load_hard", &argc, &argv, &load_factor_hard )) {
+      if (load_factor_hard < 1.0)
+        param_error( "Load factor must be at least 1.0" );
     }
 #if ROF_COLLECTOR
     else if (hstrcmp( *argv, "-np" ) == 0 || hstrcmp( *argv, "-rof" ) == 0) {
@@ -477,51 +629,6 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (numbarg( "-np-remset-limit", &argc, &argv, &np_remset_limit )) 
       ;
 #endif
-#if DOF_COLLECTOR
-    else if (numbarg( "-dof", &argc, &argv, 
-                      &o->gc_info.dynamic_dof_info.generations )) {
-      o->gc_info.is_generational_system = 1;
-      o->gc_info.use_dof_collector = 1;
-    }
-    else if (numbarg( "-dof-fullgc-frequency", &argc, &argv, &full_frequency)){
-      if (full_frequency < 0)
-        param_error( "Full GC frequency must be nonnegative." );
-    }
-    else if (doublearg( "-dof-growth-divisor", &argc, &argv, &growth_divisor)){
-      if (growth_divisor <= 0.0)
-        param_error( "Growth divisor must be positive." );
-    }
-    else if (doublearg( "-feeling-lucky", &argc, &argv, &feeling_lucky ))
-      ;
-    else if (doublearg( "-dof-free-before-promotion", &argc, &argv,
-                        &dof_free_before_promotion )) {
-      if (dof_free_before_promotion <= 0.0 ||
-          dof_free_before_promotion > 1.0)
-        param_error( "-dof-free-before-promotion out of range: "
-                     "must have 0.0 < d <= 1.0. " );
-    }
-    else if (doublearg( "-dof-free-before-collection", &argc, &argv,
-                        &dof_free_before_collection )) {
-      if (dof_free_before_collection <= 0.0 ||
-          dof_free_before_collection > 1.0)
-        param_error( "-dof-free-before-collection out of range: "
-                     "must have 0.0 < d <= 1.0." );
-    }
-    else if (doublearg( "-dof-free-after-collection", &argc, &argv, 
-                        &dof_free_after_collection )) {
-      if (dof_free_after_collection <= 0.0)
-        param_error( "-dof-free-after-collection out of range: "
-                     "must have d > 0.0." );
-    }
-    else if (hstrcmp( *argv, "-dof-no-shadow-remsets" ) == 0)
-      o->gc_info.dynamic_dof_info.no_shadow_remsets = TRUE;
-    else if (hstrcmp( *argv, "-dof-fullgc-generational" ) == 0)
-      o->gc_info.dynamic_dof_info.fullgc_generational = TRUE;
-    else if (hstrcmp( *argv, "-dof-fullgc-on-collection" ) == 0)
-      o->gc_info.dynamic_dof_info.fullgc_on_collection = TRUE;
-    else if (hstrcmp( *argv, "-dof-fullgc-on-promotion" ) == 0)
-      o->gc_info.dynamic_dof_info.fullgc_on_promotion = TRUE;
-#endif /* DOF_COLLECTOR */
     else if (hstrcmp( *argv, "-nobreak" ) == 0)
       o->enable_breakpoints = 0;
     else if (hstrcmp( *argv, "-step" ) == 0)
@@ -671,16 +778,32 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->ignore1 && (! (o->r6program)))
     param_error( "Missing -program option." );
 
+  if ((((int)o->gc_info.is_conservative_system)
+       + ((int)o->gc_info.is_generational_system)
+       + ((int)o->gc_info.is_stopcopy_system)
+       + ((int)o->gc_info.is_regional_system)) > 1) {
+    param_error( "More than one kind of collector tech selected." );
+  }
+
   if (o->gc_info.is_conservative_system &&
-      (o->gc_info.is_generational_system || o->gc_info.is_stopcopy_system))
+      (o->gc_info.is_generational_system || 
+       o->gc_info.is_stopcopy_system || 
+       o->gc_info.is_regional_system))
     param_error( "Both precise and conservative gc selected." );
     
   if (o->gc_info.is_generational_system && o->gc_info.is_stopcopy_system)
     param_error( "Both generational and non-generational gc selected." );
 
-  if (!o->gc_info.is_stopcopy_system && !o->gc_info.is_conservative_system
+  /* TODO: double check logic in this case. */
+  if (!o->gc_info.is_stopcopy_system && !o->gc_info.is_conservative_system &&
+      !o->gc_info.is_regional_system
       && o->gc_info.ephemeral_info == 0)
     init_generational( o, areas, "*invalid*" );
+
+  if (o->gc_info.is_generational_system)
+    if (load_factor < 2.0)
+      param_error( "Load factor must be at least 2.0" );
+
 
   if (dynamic_max && dynamic_min && dynamic_max < dynamic_min)
     param_error( "Expandable MAX is less than expandable MIN." );
@@ -713,14 +836,8 @@ parse_options( int argc, char **argv, opt_t *o )
     }
 
     /* Dynamic generation */
-    if (o->gc_info.use_dof_collector && 
-        o->gc_info.use_non_predictive_collector) {
-      consolemsg( "Error: Both nonpredictive (ROF) and DOF gc selected." );
-      consolemsg( "Type \"larceny -help\" for help." );
-      exit( 1 );
-    }
 #if ROF_COLLECTOR
-    else if (o->gc_info.use_non_predictive_collector) {
+    if (o->gc_info.use_non_predictive_collector) {
       int size;
 
       o->gc_info.dynamic_np_info.load_factor = load_factor;
@@ -747,29 +864,6 @@ parse_options( int argc, char **argv, opt_t *o )
         o->gc_info.dynamic_np_info.extra_remset_limit = np_remset_limit;
     }
 #endif /* ROF_COLLECTOR */
-#if DOF_COLLECTOR
-    else if (o->gc_info.use_dof_collector) {
-      o->gc_info.dynamic_dof_info.load_factor = load_factor;
-      o->gc_info.dynamic_dof_info.dynamic_max = dynamic_max;
-      o->gc_info.dynamic_dof_info.dynamic_min = dynamic_min;
-      o->gc_info.dynamic_dof_info.full_frequency = full_frequency;
-      o->gc_info.dynamic_dof_info.growth_divisor = growth_divisor;
-      o->gc_info.dynamic_dof_info.free_before_promotion = 
-        dof_free_before_promotion;
-      o->gc_info.dynamic_dof_info.free_before_collection = 
-        dof_free_before_collection;
-      o->gc_info.dynamic_dof_info.free_after_collection = 
-        dof_free_after_collection;
-      if (o->size[n] == 0) {
-        int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
-        if (dynamic_min) size = max( dynamic_min, size );
-        if (dynamic_max) size = min( dynamic_max, size );
-        o->gc_info.dynamic_dof_info.area_size = size;
-      }
-      else
-        o->gc_info.dynamic_dof_info.area_size = o->size[n];
-    }
-#endif /* DOF_COLLECTOR */
     else {
       o->gc_info.dynamic_sc_info.load_factor = load_factor;
       o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
@@ -806,6 +900,29 @@ parse_options( int argc, char **argv, opt_t *o )
     o->gc_info.bdw_info.divisor = divisor;
     o->gc_info.bdw_info.dynamic_min = dynamic_min;
     o->gc_info.bdw_info.dynamic_max = dynamic_max;
+  }
+  else if (o->gc_info.is_regional_system) {
+    /* (roughly cut and pasted from is_generational_system case above) */
+
+    /* Nursery */
+    o->gc_info.nursery_info.size_bytes =
+      (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
+
+    /* Ephemeral generations */
+    prev_size = 5*o->gc_info.nursery_info.size_bytes;
+
+    for ( i = 1 ; i <= areas ; i++ ) {
+      if (o->size[i] == 0)
+        o->size[i] = prev_size;
+      assert( o->size[i] > 0 );
+      o->gc_info.ephemeral_info[i-1].size_bytes = o->size[i];
+      prev_size = o->size[i];
+    }
+
+    o->gc_info.dynamic_sc_info.load_factor = load_factor;
+    o->gc_info.dynamic_sc_info.load_factor_hard = load_factor_hard;
+    o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
+    o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
   }
 }
 
@@ -990,6 +1107,17 @@ static void dump_options( opt_t *o )
     consolemsg( "  Min size: %d", o->gc_info.sc_info.dynamic_min );
     consolemsg( "  Max size: %d", o->gc_info.sc_info.dynamic_max );
   }
+  else if (o->gc_info.is_regional_system) {
+    consolemsg( "Using regional garbage collector." );
+    consolemsg( "  Nursery" );
+    consolemsg( "    Size (bytes): %d", o->gc_info.nursery_info.size_bytes );
+    for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
+      consolemsg( "  Ephemeral area %d", i );
+      consolemsg( "    Size (bytes): %d",
+                  o->gc_info.ephemeral_info[i-1].size_bytes );
+    }    
+    consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
+  }
   else if (o->gc_info.is_generational_system) {
     consolemsg( "Using generational garbage collector." );
     consolemsg( "  Nursery" );
@@ -1010,34 +1138,6 @@ static void dump_options( opt_t *o )
       consolemsg( "    Min size: %d", i->dynamic_min );
       consolemsg( "    Max size: %d", i->dynamic_max );
       consolemsg( "    Luck: %f", i->luck );
-    }
-    else 
-#endif
-#if DOF_COLLECTOR
-    if (o->gc_info.use_dof_collector) {
-      dof_info_t *i = &o->gc_info.dynamic_dof_info;
-      consolemsg( "  Dynamic area (deferred-older-first copying)" );
-      consolemsg( "    Generations: %d", i->generations );
-      consolemsg( "    Size (bytes): %d", i->area_size );
-      consolemsg( "    Min size: %d", i->dynamic_min );
-      consolemsg( "    Max size: %d", i->dynamic_max );
-      consolemsg( "    Inverse load factor: %f", i->load_factor );
-      consolemsg( "    FullGC frequency: %d", i->full_frequency );
-      consolemsg( "    Growth divisor: %f", i->growth_divisor );
-      consolemsg( "    Free before promotion (relative to ephemeral size): %f",
-                  i->free_before_promotion );
-      consolemsg( "    Free before collection (relative to window size): %f",
-                  i->free_before_collection );
-      consolemsg( "    Free after collection (relative to ephemeral size): %f",
-                  i->free_after_collection );
-      consolemsg( "    Shadow remsets? %s", 
-                  (i->no_shadow_remsets ? "no" : "yes" ));
-      consolemsg( "    Generational full GC? %s",
-                  (i->fullgc_generational ? "yes" : "no" ));
-      consolemsg( "    Full gc policy counts: %s",
-                  (i->fullgc_on_promotion ? "promotions" :
-                   (i->fullgc_on_collection ? "collections" : 
-                    "window resets")));
     }
     else 
 #endif
@@ -1169,11 +1269,6 @@ static char *wizardhelptext[] = {
   "     Select generational collection with the renewal-oldest-first",
   "     dynamic area (radioactive decay non-predictive collection).",
 #endif
-#if DOF_COLLECTOR
-  "  -dof n",
-  "     Select generational collection with the deferred-oldest-first",
-  "     dynamic area, using n chunks.",
-#endif
   "  -size# nnnn",
   "     Heap area number '#' is given size 'nnnn' bytes.",
   "     This selects generational collection if # > 1.",
@@ -1210,13 +1305,50 @@ static char *wizardhelptext[] = {
   "     parameter).  The -expansion and -load parameters are mutually",
   "     exclusive.",
 #endif
+  /* need double indirection to get a number in output rather than just the
+   * literal "DEFAULT_MMU_BUFFER_SIZE" */
+#define STRINGIZE(val) #val
+#define STRINGIZE2(val) STRINGIZE(val)
 #if !defined(BDW_GC)
+  "  -mmusize n", 
+  "     If n >= 0, activates MMU data gathering, with MMU buffer size n.",
+  "     Use n = 0 to indicate default size (" STRINGIZE2(DEFAULT_MMU_BUFFER_SIZE) ").",
   "  -nostatic",
   "     Do not use the static area, but load the heap image into the",
   "     garbage-collected heap." ,
   "  -nocontract",
   "     Do not contract the dynamic area according to the load factor, but",
   "     always use all the memory that has been allocated.",
+  "  -rrof",
+  "  -regional",
+  "     Select regional collection with a round robin collection policy,",
+  "     which should act like a fine grained renewal-oldest-first collector.",
+  "  -regions n",
+  "     Select regional collection, with n heap areas.  The default number",
+  "     number of heap areas is " STR(DEFAULT_AREAS) ".",
+  "  -oracle",
+  "     (RROF) Turns on remembered set updating via an untimed oracle.",
+  "     Simulates how the regional garbage collector might perform if we had",
+  "     a zero cost remembered set representation, thus providing an",
+  "     estimate of how much improvement we might get from changes to the",
+  "     remembered set representation.",
+  "  -refinement d",
+  "     (RROF) Turns on periodic mark pass during collection to refine",
+  "     remembered sets.  The parameter d roughly represents the number of",
+  "     words of allocation allowed for each word of marking.",
+  "  -mark_period n",
+  "     (RROF) Turns on periodic mark pass during collection to refine",
+  "     remembered sets.  The mark pass will be invoked every n nursery",
+  "     evacuations.",
+  "  -print_float_stats_cycle",
+  "  -print_float_stats_major",
+  "  -print_float_stats_minor",
+  "  -print_float_stats_refine",
+  "     (RROF) Turns on instrumentation to print information about object",
+  "     float during various stages of regional collection.  The character",
+  "     'Z' represents trivially collectable storage, 'R' represents ",
+  "     dead storage referenced from unreachable objects in other regions",
+  "     (and thus not guaranteed to be reclaimed in next major collection).",
 #if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",
@@ -1255,61 +1387,16 @@ static char *wizardhelptext[] = {
   "     default, the limit is infinity.  This parameter does not select",
   "     anything else, not even the nonpredictive GC.",
 #endif
-#if DOF_COLLECTOR
-  "  -dof-fullgc-frequency n",
-  "     The frequency of policy-triggered full garbage collections in ",
-  "     the DOF collector, in terms of the number of collection window",
-  "     resets since the last full collection.  Full GC occurs after the",
-  "     window reset, so a value of `1' means `every reset'.",
-  "     The default value is 0 (never), which is the right thing right now.",
-  "  -dof-fullgc-on-collection",
-  "     The DOF collector should count DOF collections, rather than window",
-  "     resets, when deciding when to trigger the full collector.",
-  "  -dof-fullgc-on-promotion",
-  "     The DOF collector should count promotions into the DOF area, rather",
-  "     than window resets or DOF collections, when deciding when to trigger",
-  "     the full collector.  (Only useful for certain experimental work.)",
-  "  -dof-fullgc-generational",
-  "     Use generational techniques to attempt to speed up the full",
-  "     collector.  This may reduce the effectiveness of the collector,",
-  "     since some garbage cells are likely to be considered to be live.",
-  "  -dof-growth-divisor d",
-  "     The speed with which the heap is expanded in the DOF collector.",
-  "     The default value is 1.0, which lets the heap grow exactly as",
-  "     determined by the computed live size.  Larger numbers slow growth.",
-  "  -dof-free-before-promotion d",
-  "     A fudge factor for the DOF collector, 0.0 < d <= 1.0.  Before",
-  "     a promotion into the DOF area, a full collection will be triggered",
-  "     if the amount of free memory is less than d times the size of",
-  "     the ephemeral area.  The default value is 1.0, which ensures that",
-  "     a promotion can never fail, but it is probably pessimistic:",
-  "     survival rates out of the ephemeral generations are usually much",
-  "     lower, and choosing a lower value may reduce the frequency of DOF",
-  "     collections.",
-  "  -dof-free-before-collection d",
-  "     A fudge factor for the DOF collector, 0.0 < d <= 1.0.  Before",
-  "     a DOF collector, a full collection will be triggered if the",
-  "     amount of free memory is less than d times the size of the DOF",
-  "     collection window.  The default value is 1.0, which ensures that",
-  "     a collection can never fail, but it is probably pessimistic:",
-  "     survival rates out of the DOF window are usually much lower, and",
-  "     choosing a lower value may reduce the frequency of DOF collections.",
-  "  -dof-free-after-collection d",
-  "     A fudge factor for the DOF collector, d > 0.0.  After a DOF ",
-  "     collection, another collection is triggered unless the amount ",
-  "     of free memory is at least d times the size of the ephemeral",
-  "     area.  Values larger than 1.0 may be helpful in increasing the",
-  "     collector's robustness when running in fixed memory and in reducing",
-  "     the number of full collections triggered as a result of too little",
-  "     memory being available before GC.  Values of d smaller than 1.0",
-  "     are probably dangerous.  The default value is 1.0.",
-#endif
   "  -rhash nnnn",
   "     Set the remembered-set hash table size, in elements.  The size must",
   "     be a power of 2.",
   "  -ssb nnnn",
   "     Set the remembered-set Sequential Store Buffer (SSB) size, in "
         "elements.",
+  "  -rhashrep",
+  "     Select the hashtable (array) representation of the remembered set.",
+  "  -rbitsrep",
+  "     Select the bitmap (tree) representation of the remembred set.",
 #endif
   "  -ticks nnnn",
   "     Set the initial countdown timer interval value.",

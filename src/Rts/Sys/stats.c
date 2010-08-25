@@ -42,6 +42,9 @@
 #define ADD_WORD( src, target, field ) \
   target->field += fixnum( src->field )
 
+#define MAX_WORD( src, target, field ) \
+  target->field = max(target->field, fixnum( src->field ))
+
 /* Put a 58-bit int into two fixnum fields */
 #define PUTBIG_DWORD( src, target, field )				\
   do { target->PASTE(field,_lo) = fixnum( src->field & FIXNUM_MASK );	\
@@ -77,14 +80,173 @@ typedef struct gc_event_memstat gc_event_memstat_t;
 struct gclib_memstat {
   word heap_allocated;		/* words allocated to heap areas */
   word heap_allocated_max;	/* max words allocated to heap */
+  word heap_allocated_peak;	/* words allocated to heap at mem peak */
   word remset_allocated;	/* words allocated to remembered sets */
   word remset_allocated_max;	/* max words allocated to remset */
+  word remset_allocated_peak;	/* words allocated to remset at mem peak */
+  word summ_allocated;		/* words allocated to summary sets */
+  word summ_allocated_max;	/* max of summ_allocated over time */
+  word summ_allocated_peak;	/* summ_allocated at mem peak */
+  word smircy_allocated;	/* words allocated to marking state */
+  word smircy_allocated_max;	/* max of smircy_allocated over time */
+  word smircy_allocated_peak;	/* smircy_allocated at mem peak */
   word rts_allocated;		/* words allocated to RTS "other" */
   word rts_allocated_max;	/* max words allocated to rts */
+  word rts_allocated_peak;	/* words allocated to rts at mem peak */
   word heap_fragmentation;	/* words of external heap framgentation */
   word heap_fragmentation_max;	/* max words of external heap fragmentation */
+  word heap_fragmentation_peak;	/* heap_fragmentation at mem peak */
   word mem_allocated;		/* total words of allocation */
   word mem_allocated_max;	/* max total words of allocation */
+
+  word max_remset_scan;
+  word max_remset_scan_cpu;
+  word total_remset_scan;
+  word total_remset_scan_cpu;
+  word remset_scan_count;
+  word max_entries_remset_scan;
+  DWORD( total_entries_remset_scan );
+
+  word max_mark_pause;
+  word max_mark_pause_cpu;
+  word total_mark_pause;
+  word total_mark_pause_cpu;
+  word mark_pause_count;
+
+  word max_ms_minor;
+  word max_ms_minor_cpu;
+  word total_ms_minor;
+  word total_ms_minor_cpu;
+  word count_minors;
+  
+  word max_ms_major;
+  word max_ms_major_cpu;
+  word total_ms_major;
+  word total_ms_major_cpu;
+  word count_majors;
+  
+  word max_build_remset_summary;
+  word max_build_remset_summary_cpu;
+  word total_build_remset_summary;
+  word total_build_remset_summary_cpu;
+  word build_remset_summary_count;
+
+  word max_ms_mutator_paused;
+  word max_ms_mutator_paused_cpu;
+  
+  word count_collect_00_10_ms;
+  word count_collect_10_20_ms;
+  word count_collect_20_30_ms;
+  word count_collect_30_40_ms;
+  word count_collect_40_50_ms;
+  word count_collect_50_60_ms;
+  word count_collect_60_70_ms;
+  word count_collect_70_80_ms;
+  word count_collect_80_90_ms;
+  word count_collect_90_100_ms;
+  word count_collect_100_200_ms;
+  word count_collect_200_300_ms;
+  word count_collect_300_400_ms;
+  word count_collect_400_500_ms;
+  word count_collect_500_600_ms;
+  word count_collect_600_700_ms;
+  word count_collect_700_800_ms;
+  word count_collect_800_900_ms;
+  word count_collect_900_1000_ms;
+  word count_collect_1000_2000_ms;
+  word count_collect_geq_2000_ms;
+
+  word count_minorgc_00_10_ms;
+  word count_minorgc_10_20_ms;
+  word count_minorgc_20_30_ms;
+  word count_minorgc_30_40_ms;
+  word count_minorgc_40_50_ms;
+  word count_minorgc_50_60_ms;
+  word count_minorgc_60_70_ms;
+  word count_minorgc_70_80_ms;
+  word count_minorgc_80_90_ms;
+  word count_minorgc_90_100_ms;
+  word count_minorgc_100_200_ms;
+  word count_minorgc_200_300_ms;
+  word count_minorgc_300_400_ms;
+  word count_minorgc_400_500_ms;
+  word count_minorgc_500_600_ms;
+  word count_minorgc_600_700_ms;
+  word count_minorgc_700_800_ms;
+  word count_minorgc_800_900_ms;
+  word count_minorgc_900_1000_ms;
+  word count_minorgc_1000_2000_ms;
+  word count_minorgc_geq_2000_ms;
+
+  word count_majorgc_00_10_ms;
+  word count_majorgc_10_20_ms;
+  word count_majorgc_20_30_ms;
+  word count_majorgc_30_40_ms;
+  word count_majorgc_40_50_ms;
+  word count_majorgc_50_60_ms;
+  word count_majorgc_60_70_ms;
+  word count_majorgc_70_80_ms;
+  word count_majorgc_80_90_ms;
+  word count_majorgc_90_100_ms;
+  word count_majorgc_100_200_ms;
+  word count_majorgc_200_300_ms;
+  word count_majorgc_300_400_ms;
+  word count_majorgc_400_500_ms;
+  word count_majorgc_500_600_ms;
+  word count_majorgc_600_700_ms;
+  word count_majorgc_700_800_ms;
+  word count_majorgc_800_900_ms;
+  word count_majorgc_900_1000_ms;
+  word count_majorgc_1000_2000_ms;
+  word count_majorgc_geq_2000_ms;
+
+  word count_sumrize_00_10_ms;
+  word count_sumrize_10_20_ms;
+  word count_sumrize_20_30_ms;
+  word count_sumrize_30_40_ms;
+  word count_sumrize_40_50_ms;
+  word count_sumrize_50_60_ms;
+  word count_sumrize_60_70_ms;
+  word count_sumrize_70_80_ms;
+  word count_sumrize_80_90_ms;
+  word count_sumrize_90_100_ms;
+  word count_sumrize_100_200_ms;
+  word count_sumrize_200_300_ms;
+  word count_sumrize_300_400_ms;
+  word count_sumrize_400_500_ms;
+  word count_sumrize_500_600_ms;
+  word count_sumrize_600_700_ms;
+  word count_sumrize_700_800_ms;
+  word count_sumrize_800_900_ms;
+  word count_sumrize_900_1000_ms;
+  word count_sumrize_1000_2000_ms;
+  word count_sumrize_geq_2000_ms;
+
+  word count_minor_00_02_runs;
+  word count_minor_02_04_runs;
+  word count_minor_04_06_runs;
+  word count_minor_06_08_runs;
+  word count_minor_08_10_runs;
+  word count_minor_10_20_runs;
+  word count_minor_20_30_runs;
+  word count_minor_30_40_runs;
+  word count_minor_40_50_runs;
+  word count_minor_50_60_runs;
+  word count_minor_60_70_runs;
+  word count_minor_70_80_runs;
+  word count_minor_80_90_runs;
+  word count_minor_90_100_runs;
+  word count_minor_100_200_runs;
+  word count_minor_200_300_runs;
+  word count_minor_300_400_runs;
+  word count_minor_400_500_runs;
+  word count_minor_500_600_runs;
+  word count_minor_600_700_runs;
+  word count_minor_700_800_runs;
+  word count_minor_800_900_runs;
+  word count_minor_900_1000_runs;
+  word count_minor_1000_2000_runs;
+  word count_minor_geq_2000_runs;
 };
 
 struct gc_memstat {
@@ -110,6 +272,12 @@ struct gc_memstat {
   DWORD( full_objects_marked );
   DWORD( full_words_marked );
   DWORD( full_pointers_traced );
+
+  /* N.B.: both of the below only measure time spent in the cheney 
+   * semispace collection code, not other time spent in the memory 
+   * management system. */
+  word max_ms_cheney_collection;       /* Max milliseconds collecting in an area */
+  word max_ms_cheney_collection_cpu;   /* ditto, CPU time */
 };
 
 struct stack_memstat {
@@ -149,8 +317,10 @@ struct remset_memstat {
   DWORD( ssb_recorded );	/* SSB transactions recorded */
   DWORD( recorded );		/* remset table entries recorded */
   DWORD( objs_scanned );	/* remset table entries scanned */
-  DWORD( words_scanned );	/* Words of old objects scanned */
+  DWORD( words_scanned );	/* words of old objects scanned */
   DWORD( removed );		/* remset table entries removed */
+  word max_objs_scanned;	/* max remset table entries scanned */
+  word max_words_scanned;	/* max words of old objects scanned */
   word cleared;			/* Number of times remset was cleared */
   word scanned;			/* Number of times remset was scanned */
   word compacted;		/* Number of times SSB was compacted */
@@ -209,7 +379,7 @@ static struct {
   gc_memstat_t     gc_stats;
   gclib_memstat_t  gclib_stats;
   gen_memstat_t    gen_stats[ MAX_GENERATIONS ];
-  remset_memstat_t remset_stats[ MAX_GENERATIONS ];
+  remset_memstat_t remset_stats[ MAX_REMSETS ];
   stack_memstat_t  stack_stats;
 #if defined(SIMULATE_NEW_BARRIER)
   swb_remstat_t    swb_stats;
@@ -254,7 +424,7 @@ stats_id_t stats_new_remembered_set( int major_id, int minor_id )
 {
   int i;
 
-  assert( stats_state.remsets < MAX_GENERATIONS );
+  assert( stats_state.remsets < MAX_REMSETS );
 
   i = stats_state.remsets++;
   stats_state.remset_stats[i].major_id = fixnum(major_id);
@@ -318,12 +488,160 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, heap_allocated_max );
   PUT_WORD( stats, s, remset_allocated );
   PUT_WORD( stats, s, remset_allocated_max );
+  PUT_WORD( stats, s, summ_allocated );
+  PUT_WORD( stats, s, summ_allocated_max );
+  PUT_WORD( stats, s, smircy_allocated );
+  PUT_WORD( stats, s, smircy_allocated_max );
   PUT_WORD( stats, s, rts_allocated );
   PUT_WORD( stats, s, rts_allocated_max );
   PUT_WORD( stats, s, heap_fragmentation );
   PUT_WORD( stats, s, heap_fragmentation_max );
   PUT_WORD( stats, s, mem_allocated );
   PUT_WORD( stats, s, mem_allocated_max );
+
+  PUT_WORD( stats, s, heap_allocated_peak );
+  PUT_WORD( stats, s, remset_allocated_peak );
+  PUT_WORD( stats, s, summ_allocated_peak );
+  PUT_WORD( stats, s, smircy_allocated_peak );
+  PUT_WORD( stats, s, rts_allocated_peak );
+  PUT_WORD( stats, s, heap_fragmentation_peak );
+
+  PUT_WORD( stats, s, max_remset_scan );
+  PUT_WORD( stats, s, max_remset_scan_cpu );
+  PUT_WORD( stats, s, total_remset_scan );
+  PUT_WORD( stats, s, total_remset_scan_cpu );
+  PUT_WORD( stats, s, remset_scan_count );
+  PUT_WORD( stats, s, max_entries_remset_scan );
+  PUTBIG_DWORD( stats, s, total_entries_remset_scan );
+
+#define RANGECASE(lo, hi, recv_prefix, recv_suffix, arg)     \
+  else if (lo <= arg && arg < hi)            \
+    recv_prefix ## lo ## _ ## hi ## recv_suffix += fixnum(1)
+
+#define RANGECASE_ALT(lo, hi, lo_id, hi_id, recv_prefix, recv_suffix, arg) \
+  else if (lo <= arg && arg < hi)            \
+    recv_prefix ## lo_id ## _ ## hi_id ## recv_suffix += fixnum(1)
+
+  /* Note that the leading zero in 00 below is signifcant, 
+   * since the token is turned into an identifier as well
+   * as being used to represent zero. */
+#define RANGECASES( recv_prefix, recv_suffix, arg )          \
+  do {                                          \
+    if (0);                                     \
+    RANGECASE(   00,   10, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
+    else { assert(arg > 1000);                               \
+      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
+    }                                                        \
+  } while (0)
+
+#define RANGECASES_FINE( recv_prefix, recv_suffix, arg )     \
+  do {                                          \
+    if (0);                                     \
+    RANGECASE_ALT(0,2, 00,02, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(2,4, 02,04, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(4,6, 04,06, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(6,8, 06,08, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(8,10,08,10, recv_prefix, recv_suffix, arg ); \
+    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
+    else { assert(arg > 1000);                               \
+      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
+    }                                                        \
+  } while (0)
+  
+  /* okay, now that we have the above helper macros,
+   * here's the actual code to put in the values. */
+  RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_cheney_pause );
+  if (stats->last_gc_pause_ismajor) {
+    word ms_major     = stats->last_ms_gc_cheney_pause;
+    word ms_major_cpu = stats->last_ms_gc_cheney_pause_cpu;
+    RANGECASES( s->count_majorgc_, _ms, ms_major );
+    RANGECASES_FINE( s->count_minor_, _runs, stats->length_minor_gc_run );
+    s->max_ms_major        = max( fixnum(ms_major),     s->max_ms_major );
+    s->max_ms_major_cpu    = max( fixnum(ms_major_cpu), s->max_ms_major_cpu );
+    s->count_majors       += fixnum(1);
+    s->total_ms_major     += fixnum( ms_major );
+    s->total_ms_major_cpu += fixnum( ms_major_cpu );
+  } else {
+    word ms_minor     = stats->last_ms_gc_cheney_pause;
+    word ms_minor_cpu = stats->last_ms_gc_cheney_pause_cpu;
+    RANGECASES( s->count_minorgc_, _ms, ms_minor );
+    s->max_ms_minor        = max( fixnum(ms_minor),     s->max_ms_minor );
+    s->max_ms_minor_cpu    = max( fixnum(ms_minor_cpu), s->max_ms_minor_cpu );
+    s->count_minors       += fixnum(1);
+    s->total_ms_minor     += fixnum( ms_minor );
+    s->total_ms_minor_cpu += fixnum( ms_minor_cpu );
+  }
+  if (stats->last_ms_remset_sumrize == -1) {
+  } else {
+    word ms     = stats->last_ms_remset_sumrize;
+    word ms_cpu = stats->last_ms_remset_sumrize_cpu;
+    RANGECASES( s->count_sumrize_, _ms, ms );
+    s->max_build_remset_summary        = max( fixnum(ms), 
+                                              s->max_build_remset_summary);
+    s->max_build_remset_summary_cpu    = max( fixnum(ms_cpu), 
+                                              s->max_build_remset_summary_cpu);
+    s->build_remset_summary_count     += fixnum(1);
+    s->total_build_remset_summary     += fixnum( ms );
+    s->total_build_remset_summary_cpu += fixnum( ms_cpu );
+  }
+  if (stats->last_ms_mark_refinement == -1) {
+  } else {
+    word ms     = fixnum( stats->last_ms_mark_refinement );
+    word ms_cpu = fixnum( stats->last_ms_mark_refinement_cpu );
+    s->max_mark_pause        = max( ms, s->max_mark_pause );
+    s->max_mark_pause_cpu    = max( ms_cpu, s->max_mark_pause_cpu );
+    s->mark_pause_count     += fixnum(1);
+    s->total_mark_pause     += ms;
+    s->total_mark_pause_cpu += ms_cpu;
+  }
+
+  {
+    word ms     = stats->last_ms_gc_truegc_pause;
+    word ms_cpu = stats->last_ms_gc_truegc_pause_cpu;
+    stats->max_ms_mutator_paused = 
+      max( ms, stats->max_ms_mutator_paused );
+    stats->max_ms_mutator_paused_cpu = 
+      max( ms_cpu, stats->max_ms_mutator_paused_cpu );
+    MAX_WORD( stats, s, max_ms_mutator_paused );
+    MAX_WORD( stats, s, max_ms_mutator_paused_cpu );
+  }
 }
 
 void stats_add_gc_stats( gc_stats_t *stats )
@@ -352,6 +670,10 @@ void stats_add_gc_stats( gc_stats_t *stats )
   ADD_DWORD( stats, s, full_objects_marked );
   ADD_DWORD( stats, s, full_words_marked );
   ADD_DWORD( stats, s, full_pointers_traced );
+
+  /* RROF collector (but why not others...) */
+  MAX_WORD( stats, s, max_ms_cheney_collection );
+  MAX_WORD( stats, s, max_ms_cheney_collection_cpu );
 }
 
 void stats_add_stack_stats( stack_stats_t *stats )
@@ -406,6 +728,9 @@ void stats_add_remset_stats( stats_id_t remset, remset_stats_t *stats )
   ADD_WORD( stats, s, cleared );
   ADD_WORD( stats, s, scanned );
   ADD_WORD( stats, s, compacted );
+
+  MAX_WORD( stats, s, max_objs_scanned );
+  MAX_WORD( stats, s, max_words_scanned );
 }
 
 #if defined(SIMULATE_NEW_BARRIER)
@@ -532,13 +857,187 @@ static void fill_main_entries( word *vp )
   vp[ STAT_HEAP_MAX ]      = gclib->heap_allocated_max;
   vp[ STAT_WORDS_REMSET ]  = gclib->remset_allocated;
   vp[ STAT_REMSET_MAX ]    = gclib->remset_allocated_max;
+  vp[ STAT_WORDS_SUMMSETS ]= gclib->summ_allocated;
+  vp[ STAT_SUMMSETS_MAX ]  = gclib->summ_allocated_max;
+  vp[ STAT_WORDS_SMIRCY ]  = gclib->smircy_allocated;
+  vp[ STAT_SMIRCY_MAX ]    = gclib->smircy_allocated_max;
   vp[ STAT_WORDS_RTS ]     = gclib->rts_allocated;
   vp[ STAT_RTS_MAX ]       = gclib->rts_allocated_max;
   vp[ STAT_WORDS_WASTAGE ] = gclib->heap_fragmentation;
   vp[ STAT_WASTAGE_MAX ]   = gclib->heap_fragmentation_max;
   vp[ STAT_WORDS_MEM ]     = gclib->mem_allocated;
   vp[ STAT_WORDS_MEM_MAX ] = gclib->mem_allocated_max;
-  
+
+  vp[ STAT_MAX_REMSET_SCAN ]       = gclib->max_remset_scan;
+  vp[ STAT_MAX_REMSET_SCAN_CPU ]   = gclib->max_remset_scan_cpu;
+  vp[ STAT_TOTAL_REMSET_SCAN ]     = gclib->total_remset_scan;
+  vp[ STAT_TOTAL_REMSET_SCAN_CPU ] = gclib->total_remset_scan_cpu;
+  vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
+
+  vp[ STAT_MAX_MARK_PAUSE ]          = gclib->max_mark_pause;
+  vp[ STAT_MAX_MARK_PAUSE_CPU ]      = gclib->max_mark_pause_cpu;
+  vp[ STAT_TOTAL_MARK_PAUSE ]        = gclib->total_mark_pause;
+  vp[ STAT_TOTAL_MARK_PAUSE_CPU ]    = gclib->total_mark_pause_cpu;
+  vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->mark_pause_count;
+
+  vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
+  STAT_PUT_DWORD( vp, 
+                  TOTAL_ENTRIES_REMSET_SCAN,
+                  gclib,
+                  total_entries_remset_scan );
+
+  vp[ STAT_MAX_BUILD_REMSET_SUMMARY ]       = 
+    gclib->max_build_remset_summary;
+  vp[ STAT_MAX_BUILD_REMSET_SUMMARY_CPU ]   = 
+    gclib->max_build_remset_summary_cpu;
+  vp[ STAT_TOTAL_BUILD_REMSET_SUMMARY ]     = 
+    gclib->total_build_remset_summary;
+  vp[ STAT_TOTAL_BUILD_REMSET_SUMMARY_CPU ] = 
+    gclib->total_build_remset_summary_cpu;
+  vp[ STAT_BUILD_REMSET_SUMMARY_COUNT ]     =
+    gclib->build_remset_summary_count;
+
+  vp[ STAT_MAX_MAJORGC_PAUSE ]               = gclib->max_ms_major;
+  vp[ STAT_MAX_MAJORGC_PAUSE_CPU ]           = gclib->max_ms_major_cpu;
+  vp[ STAT_TOTAL_MAJORGC_PAUSE ]             = gclib->total_ms_major;
+  vp[ STAT_TOTAL_MAJORGC_PAUSE_CPU ]         = gclib->total_ms_major_cpu;
+  vp[ STAT_MAJORGC_PAUSE_COUNT ]             = gclib->count_majors;
+
+  vp[ STAT_MAX_MINORGC_PAUSE ]               = gclib->max_ms_minor;
+  vp[ STAT_MAX_MINORGC_PAUSE_CPU ]           = gclib->max_ms_minor_cpu;
+  vp[ STAT_TOTAL_MINORGC_PAUSE ]             = gclib->total_ms_minor;
+  vp[ STAT_TOTAL_MINORGC_PAUSE_CPU ]         = gclib->total_ms_minor_cpu;
+  vp[ STAT_MINORGC_PAUSE_COUNT ]             = gclib->count_minors;
+
+#define UPDATE_COUNT_COLLECT( lo, hi ) \
+  vp[ STAT_COUNT_COLLECT_ ## lo ## _ ## hi ] = \
+    gclib->count_collect_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_COLLECT( 00, 10 );
+  UPDATE_COUNT_COLLECT( 10, 20 );
+  UPDATE_COUNT_COLLECT( 20, 30 );
+  UPDATE_COUNT_COLLECT( 30, 40 );
+  UPDATE_COUNT_COLLECT( 40, 50 );
+  UPDATE_COUNT_COLLECT( 50, 60 );
+  UPDATE_COUNT_COLLECT( 60, 70 );
+  UPDATE_COUNT_COLLECT( 70, 80 );
+  UPDATE_COUNT_COLLECT( 80, 90 );
+  UPDATE_COUNT_COLLECT( 90, 100 );
+  UPDATE_COUNT_COLLECT( 100, 200 );
+  UPDATE_COUNT_COLLECT( 200, 300 );
+  UPDATE_COUNT_COLLECT( 300, 400 );
+  UPDATE_COUNT_COLLECT( 400, 500 );
+  UPDATE_COUNT_COLLECT( 500, 600 );
+  UPDATE_COUNT_COLLECT( 600, 700 );
+  UPDATE_COUNT_COLLECT( 700, 800 );
+  UPDATE_COUNT_COLLECT( 800, 900 );
+  UPDATE_COUNT_COLLECT( 900, 1000 );
+  UPDATE_COUNT_COLLECT( 1000, 2000 );
+  vp[ STAT_COUNT_COLLECT_GEQ_2000 ] = gclib->count_collect_geq_2000_ms;
+
+#define UPDATE_COUNT_MINORGC( lo, hi ) \
+  vp[ STAT_COUNT_MINORGC_ ## lo ## _ ## hi ] = \
+    gclib->count_minorgc_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_MINORGC( 00, 10 );
+  UPDATE_COUNT_MINORGC( 10, 20 );
+  UPDATE_COUNT_MINORGC( 20, 30 );
+  UPDATE_COUNT_MINORGC( 30, 40 );
+  UPDATE_COUNT_MINORGC( 40, 50 );
+  UPDATE_COUNT_MINORGC( 50, 60 );
+  UPDATE_COUNT_MINORGC( 60, 70 );
+  UPDATE_COUNT_MINORGC( 70, 80 );
+  UPDATE_COUNT_MINORGC( 80, 90 );
+  UPDATE_COUNT_MINORGC( 90, 100 );
+  UPDATE_COUNT_MINORGC( 100, 200 );
+  UPDATE_COUNT_MINORGC( 200, 300 );
+  UPDATE_COUNT_MINORGC( 300, 400 );
+  UPDATE_COUNT_MINORGC( 400, 500 );
+  UPDATE_COUNT_MINORGC( 500, 600 );
+  UPDATE_COUNT_MINORGC( 600, 700 );
+  UPDATE_COUNT_MINORGC( 700, 800 );
+  UPDATE_COUNT_MINORGC( 800, 900 );
+  UPDATE_COUNT_MINORGC( 900, 1000 );
+  UPDATE_COUNT_MINORGC( 1000, 2000 );
+  vp[ STAT_COUNT_MINORGC_GEQ_2000 ] = gclib->count_minorgc_geq_2000_ms;
+
+#define UPDATE_COUNT_MAJORGC( lo, hi ) \
+  vp[ STAT_COUNT_MAJORGC_ ## lo ## _ ## hi ] = \
+    gclib->count_majorgc_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_MAJORGC( 00, 10 );
+  UPDATE_COUNT_MAJORGC( 10, 20 );
+  UPDATE_COUNT_MAJORGC( 20, 30 );
+  UPDATE_COUNT_MAJORGC( 30, 40 );
+  UPDATE_COUNT_MAJORGC( 40, 50 );
+  UPDATE_COUNT_MAJORGC( 50, 60 );
+  UPDATE_COUNT_MAJORGC( 60, 70 );
+  UPDATE_COUNT_MAJORGC( 70, 80 );
+  UPDATE_COUNT_MAJORGC( 80, 90 );
+  UPDATE_COUNT_MAJORGC( 90, 100 );
+  UPDATE_COUNT_MAJORGC( 100, 200 );
+  UPDATE_COUNT_MAJORGC( 200, 300 );
+  UPDATE_COUNT_MAJORGC( 300, 400 );
+  UPDATE_COUNT_MAJORGC( 400, 500 );
+  UPDATE_COUNT_MAJORGC( 500, 600 );
+  UPDATE_COUNT_MAJORGC( 600, 700 );
+  UPDATE_COUNT_MAJORGC( 700, 800 );
+  UPDATE_COUNT_MAJORGC( 800, 900 );
+  UPDATE_COUNT_MAJORGC( 900, 1000 );
+  UPDATE_COUNT_MAJORGC( 1000, 2000 );
+  vp[ STAT_COUNT_MAJORGC_GEQ_2000 ] = gclib->count_majorgc_geq_2000_ms;
+
+#define UPDATE_COUNT_SUMMARIZE( lo, hi ) \
+  vp[ STAT_COUNT_SUMMARIZE_ ## lo ## _ ## hi ] = \
+    gclib->count_sumrize_ ## lo ## _ ## hi ## _ms
+  UPDATE_COUNT_SUMMARIZE( 00, 10 );
+  UPDATE_COUNT_SUMMARIZE( 10, 20 );
+  UPDATE_COUNT_SUMMARIZE( 20, 30 );
+  UPDATE_COUNT_SUMMARIZE( 30, 40 );
+  UPDATE_COUNT_SUMMARIZE( 40, 50 );
+  UPDATE_COUNT_SUMMARIZE( 50, 60 );
+  UPDATE_COUNT_SUMMARIZE( 60, 70 );
+  UPDATE_COUNT_SUMMARIZE( 70, 80 );
+  UPDATE_COUNT_SUMMARIZE( 80, 90 );
+  UPDATE_COUNT_SUMMARIZE( 90, 100 );
+  UPDATE_COUNT_SUMMARIZE( 100, 200 );
+  UPDATE_COUNT_SUMMARIZE( 200, 300 );
+  UPDATE_COUNT_SUMMARIZE( 300, 400 );
+  UPDATE_COUNT_SUMMARIZE( 400, 500 );
+  UPDATE_COUNT_SUMMARIZE( 500, 600 );
+  UPDATE_COUNT_SUMMARIZE( 600, 700 );
+  UPDATE_COUNT_SUMMARIZE( 700, 800 );
+  UPDATE_COUNT_SUMMARIZE( 800, 900 );
+  UPDATE_COUNT_SUMMARIZE( 900, 1000 );
+  UPDATE_COUNT_SUMMARIZE( 1000, 2000 );
+  vp[ STAT_COUNT_SUMMARIZE_GEQ_2000 ] = gclib->count_sumrize_geq_2000_ms;
+
+#define UPDATE_COUNT_MINOR_RUNS( lo, hi ) \
+  vp[ STAT_COUNT_MINOR_RUNS_ ## lo ## _ ## hi ] = \
+    gclib->count_minor_ ## lo ## _ ## hi ## _runs
+  UPDATE_COUNT_MINOR_RUNS( 00, 02 );
+  UPDATE_COUNT_MINOR_RUNS( 02, 04 );
+  UPDATE_COUNT_MINOR_RUNS( 04, 06 );
+  UPDATE_COUNT_MINOR_RUNS( 06, 08 );
+  UPDATE_COUNT_MINOR_RUNS( 08, 10 );
+  UPDATE_COUNT_MINOR_RUNS( 10, 20 );
+  UPDATE_COUNT_MINOR_RUNS( 20, 30 );
+  UPDATE_COUNT_MINOR_RUNS( 30, 40 );
+  UPDATE_COUNT_MINOR_RUNS( 40, 50 );
+  UPDATE_COUNT_MINOR_RUNS( 50, 60 );
+  UPDATE_COUNT_MINOR_RUNS( 60, 70 );
+  UPDATE_COUNT_MINOR_RUNS( 70, 80 );
+  UPDATE_COUNT_MINOR_RUNS( 80, 90 );
+  UPDATE_COUNT_MINOR_RUNS( 90, 100 );
+  UPDATE_COUNT_MINOR_RUNS( 100, 200 );
+  UPDATE_COUNT_MINOR_RUNS( 200, 300 );
+  UPDATE_COUNT_MINOR_RUNS( 300, 400 );
+  UPDATE_COUNT_MINOR_RUNS( 400, 500 );
+  UPDATE_COUNT_MINOR_RUNS( 500, 600 );
+  UPDATE_COUNT_MINOR_RUNS( 600, 700 );
+  UPDATE_COUNT_MINOR_RUNS( 700, 800 );
+  UPDATE_COUNT_MINOR_RUNS( 800, 900 );
+  UPDATE_COUNT_MINOR_RUNS( 900, 1000 );
+  UPDATE_COUNT_MINOR_RUNS( 1000, 2000 );
+  vp[ STAT_COUNT_MINOR_RUNS_GEQ_2000 ] = gclib->count_minor_geq_2000_runs;
+
   /* gc */
   vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;
   vp[ STAT_WALLOCATED_LO ] = gc->allocated_lo;
@@ -565,6 +1064,10 @@ static void fill_main_entries( word *vp )
   vp[ STAT_FULL_WMARKED_LO ] = gc->full_words_marked_lo;
   vp[ STAT_FULL_PTRACED_HI ] = gc->full_pointers_traced_hi;
   vp[ STAT_FULL_PTRACED_LO ] = gc->full_pointers_traced_lo;
+  vp[ STAT_MAX_CHENEY_GCTIME ]     = gc->max_ms_cheney_collection;
+  vp[ STAT_MAX_CHENEY_GCTIME_CPU ] = gc->max_ms_cheney_collection_cpu;
+  vp[ STAT_MAX_MUTATOR_PAUSED ]     = gclib->max_ms_mutator_paused;
+  vp[ STAT_MAX_MUTATOR_PAUSED_CPU ] = gclib->max_ms_mutator_paused_cpu;
 
   /* stack */
   vp[ STAT_STK_CREATED ]   = stack->stacks_created;
@@ -668,6 +1171,8 @@ static void fill_remset_vector( word *rv, remset_memstat_t *rs )
   rv[ STAT_R_CLEARED ] = rs->cleared;
   rv[ STAT_R_SCANNED ] = rs->scanned;
   rv[ STAT_R_COMPACTED ] = rs->compacted;
+  rv[ STAT_R_MAX_HSCAN ] = rs->max_objs_scanned;
+  rv[ STAT_R_MAX_WSCAN ] = rs->max_words_scanned;
 }
 
 /* Adds a word to a doubleword with carry propagation, both parts of
@@ -736,6 +1241,18 @@ void stats_dumpstate_stdout( void )
 #define PRINT_WORD( f, s, fld ) \
   fprintf( f, "%lu ", nativeuint( s->fld ) )
 
+#define PRINT_DFIELD( f, s, fld ) \
+  do {                            \
+    fprintf( f, "%s ", #fld );    \
+    PRINT_DWORD( f, s, fld );     \
+  } while (0)
+
+#define PRINT_FIELD( f, s, fld ) \
+  do {                            \
+    fprintf( f, "%s ", #fld );    \
+    PRINT_WORD( f, s, fld );     \
+  } while (0)
+
 static void stats_dump_state_now( FILE *f )
 {
   assert( f != 0 );
@@ -759,36 +1276,46 @@ static void stats_dump_state_now( FILE *f )
   { gc_memstat_t *s = &stats_state.gc_stats;
 
     fprintf( f, "#(gc_memstat_t " );
-    PRINT_DWORD( f, s, allocated );
-    PRINT_DWORD( f, s, reclaimed );
-    PRINT_DWORD( f, s, objects_copied );
-    PRINT_DWORD( f, s, words_copied );
-    PRINT_DWORD( f, s, objects_moved );
-    PRINT_DWORD( f, s, words_moved );
-    PRINT_WORD( f, s, np_k );
-    PRINT_WORD( f, s, np_j );
-    PRINT_WORD( f, s, full_collections );
-    PRINT_WORD( f, s, full_ms_collection );
-    PRINT_WORD( f, s, full_ms_collection_cpu );
-    PRINT_DWORD( f, s, full_objects_marked );
-    PRINT_DWORD( f, s, full_words_marked );
-    PRINT_DWORD( f, s, full_pointers_traced );
+    PRINT_DFIELD( f, s, allocated );
+    PRINT_DFIELD( f, s, reclaimed );
+    PRINT_DFIELD( f, s, objects_copied );
+    PRINT_DFIELD( f, s, words_copied );
+    PRINT_DFIELD( f, s, objects_moved );
+    PRINT_DFIELD( f, s, words_moved );
+    PRINT_FIELD( f, s, np_k );
+    PRINT_FIELD( f, s, np_j );
+    PRINT_FIELD( f, s, full_collections );
+    PRINT_FIELD( f, s, full_ms_collection );
+    PRINT_FIELD( f, s, full_ms_collection_cpu );
+    PRINT_DFIELD( f, s, full_objects_marked );
+    PRINT_DFIELD( f, s, full_words_marked );
+    PRINT_DFIELD( f, s, full_pointers_traced );
     fprintf( f, ") " );
   }
 
   { gclib_memstat_t *s = &stats_state.gclib_stats;
 
     fprintf( f, "#(gclib_memstat_t " );
-    PRINT_WORD( f, s, heap_allocated );
-    PRINT_WORD( f, s, heap_allocated_max );
-    PRINT_WORD( f, s, remset_allocated );
-    PRINT_WORD( f, s, remset_allocated_max );
-    PRINT_WORD( f, s, rts_allocated );
-    PRINT_WORD( f, s, rts_allocated_max );
-    PRINT_WORD( f, s, heap_fragmentation );
-    PRINT_WORD( f, s, heap_fragmentation_max );
-    PRINT_WORD( f, s, mem_allocated );
-    PRINT_WORD( f, s, mem_allocated_max );
+    PRINT_FIELD( f, s, heap_allocated );
+    PRINT_FIELD( f, s, heap_allocated_max );
+    PRINT_FIELD( f, s, heap_allocated_peak );
+    PRINT_FIELD( f, s, remset_allocated );
+    PRINT_FIELD( f, s, remset_allocated_max );
+    PRINT_FIELD( f, s, remset_allocated_peak );
+    PRINT_FIELD( f, s, summ_allocated );
+    PRINT_FIELD( f, s, summ_allocated_max );
+    PRINT_FIELD( f, s, summ_allocated_peak );
+    PRINT_FIELD( f, s, smircy_allocated );
+    PRINT_FIELD( f, s, smircy_allocated_max );
+    PRINT_FIELD( f, s, smircy_allocated_peak );
+    PRINT_FIELD( f, s, rts_allocated );
+    PRINT_FIELD( f, s, rts_allocated_max );
+    PRINT_FIELD( f, s, rts_allocated_peak );
+    PRINT_FIELD( f, s, heap_fragmentation );
+    PRINT_FIELD( f, s, heap_fragmentation_max );
+    PRINT_FIELD( f, s, heap_fragmentation_peak );
+    PRINT_FIELD( f, s, mem_allocated );
+    PRINT_FIELD( f, s, mem_allocated_max );
     fprintf( f, ") " );
   }
 
@@ -813,10 +1340,10 @@ static void stats_dump_state_now( FILE *f )
   { stack_memstat_t *s = &stats_state.stack_stats;
 
     fprintf( f, "#(stack_memstat_t " );
-    PRINT_WORD( f, s, stacks_created );
-    PRINT_DWORD( f, s, words_flushed );
-    PRINT_DWORD( f, s, frames_flushed );
-    PRINT_DWORD( f, s, frames_restored );
+    PRINT_FIELD( f, s, stacks_created );
+    PRINT_DFIELD( f, s, words_flushed );
+    PRINT_DFIELD( f, s, frames_flushed );
+    PRINT_DFIELD( f, s, frames_restored );
     fprintf( f, ") " );
   }
 
@@ -824,12 +1351,12 @@ static void stats_dump_state_now( FILE *f )
   { swb_memstat_t *s = &stats_state.swb_stats;
 
     fprintf( f, "#(swb_memstat_t " );
-    PRINT_WORD( f, s, total_assignments );
-    PRINT_WORD( f, s, array_assignments );
-    PRINT_WORD( f, s, lhs_young_or_remembered );
-    PRINT_WORD( f, s, rhs_constant );
-    PRINT_WORD( f, s, cross_gen_check );
-    PRINT_WORD( f, s, transactions );
+    PRINT_FIELD( f, s, total_assignments );
+    PRINT_FIELD( f, s, array_assignments );
+    PRINT_FIELD( f, s, lhs_young_or_remembered );
+    PRINT_FIELD( f, s, rhs_constant );
+    PRINT_FIELD( f, s, cross_gen_check );
+    PRINT_FIELD( f, s, transactions );
     fprintf( f, ") " );
   }
 #else
@@ -839,42 +1366,214 @@ static void stats_dump_state_now( FILE *f )
   { gc_event_memstat_t *s = &stats_state.gc_event_stats;
   
     fprintf( f, "#(gc_event_memstat_t " );
-    PRINT_DWORD( f, s, gctime );
-    PRINT_DWORD( f, s, promtime );
-    PRINT_DWORD( f, s, free_unused );
-    PRINT_DWORD( f, s, root_scan_gc );
-    PRINT_DWORD( f, s, root_scan_prom );
-    PRINT_DWORD( f, s, los_sweep_gc );
-    PRINT_DWORD( f, s, los_sweep_prom );
-    PRINT_DWORD( f, s, remset_scan_gc );
-    PRINT_DWORD( f, s, remset_scan_prom );
-    PRINT_DWORD( f, s, tospace_scan_gc );
-    PRINT_DWORD( f, s, tospace_scan_prom );
-    PRINT_DWORD( f, s, reset_after_gc );
-    PRINT_DWORD( f, s, decrement_after_gc );
-    PRINT_DWORD( f, s, dof_remset_scan );
-    PRINT_DWORD( f, s, sweep_shadow );
-    PRINT_DWORD( f, s, msgc_mark );
-    PRINT_DWORD( f, s, sweep_dof_sets );
-    PRINT_DWORD( f, s, sweep_remset );
-    PRINT_DWORD( f, s, sweep_los );
-    PRINT_DWORD( f, s, assimilate_prom );
-    PRINT_DWORD( f, s, assimilate_gc );
-    PRINT_WORD( f, s, copied_by_gc );
-    PRINT_WORD( f, s, copied_by_prom );
-    PRINT_WORD( f, s, words_forwarded );
-    PRINT_WORD( f, s, ptrs_forwarded );
-    PRINT_WORD( f, s, gc_barrier_hit );
-    PRINT_WORD( f, s, remset_large_objs_scanned );
-    PRINT_WORD( f, s, remset_large_obj_words_scanned );
+    PRINT_DFIELD( f, s, gctime );
+    PRINT_DFIELD( f, s, promtime );
+    PRINT_DFIELD( f, s, free_unused );
+    PRINT_DFIELD( f, s, root_scan_gc );
+    PRINT_DFIELD( f, s, root_scan_prom );
+    PRINT_DFIELD( f, s, los_sweep_gc );
+    PRINT_DFIELD( f, s, los_sweep_prom );
+    PRINT_DFIELD( f, s, remset_scan_gc );
+    PRINT_DFIELD( f, s, remset_scan_prom );
+    PRINT_DFIELD( f, s, tospace_scan_gc );
+    PRINT_DFIELD( f, s, tospace_scan_prom );
+    PRINT_DFIELD( f, s, reset_after_gc );
+    PRINT_DFIELD( f, s, decrement_after_gc );
+    PRINT_DFIELD( f, s, dof_remset_scan );
+    PRINT_DFIELD( f, s, sweep_shadow );
+    PRINT_DFIELD( f, s, msgc_mark );
+    PRINT_DFIELD( f, s, sweep_dof_sets );
+    PRINT_DFIELD( f, s, sweep_remset );
+    PRINT_DFIELD( f, s, sweep_los );
+    PRINT_DFIELD( f, s, assimilate_prom );
+    PRINT_DFIELD( f, s, assimilate_gc );
+    PRINT_FIELD( f, s, copied_by_gc );
+    PRINT_FIELD( f, s, copied_by_prom );
+    PRINT_FIELD( f, s, words_forwarded );
+    PRINT_FIELD( f, s, ptrs_forwarded );
+    PRINT_FIELD( f, s, gc_barrier_hit );
+    PRINT_FIELD( f, s, remset_large_objs_scanned );
+    PRINT_FIELD( f, s, remset_large_obj_words_scanned );
     /* FIXME: These perhaps belong with the "copied" elements above, but
        I don't want to mess with the order because it'd break working
        code.  Perhaps fix in v0.50, when processing code can distinguish
        between the two layouts.  
        */
-    PRINT_WORD( f, s, moved_by_gc );
-    PRINT_WORD( f, s, moved_by_prom );
+    PRINT_FIELD( f, s, moved_by_gc );
+    PRINT_FIELD( f, s, moved_by_prom );
     fprintf( f, ") " );
+  }
+
+  /* Print minimum mutator utilization information */
+  {
+    /* lives in gc.c */
+    extern void dump_mmu_data( FILE *f );
+    dump_mmu_data( f );
+  }
+
+#define PRINT_HISTOGRAM_ENTRY( prefix, low, mid, hgh, suffix )   \
+  do {                                                           \
+    fprintf( f, "((%s %s) ", #low, #hgh );             \
+    PRINT_WORD( f, s, prefix ## low ## mid ## hgh ## suffix );   \
+    fprintf( f, ") " );                                           \
+  } while (0)
+
+  /* Print pause time histogram data */
+  {
+    gclib_memstat_t *s = &stats_state.gclib_stats;
+    fprintf( f, "#(histograms " );
+    {
+      fprintf( f, "#(collect_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_collect_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_collect_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+
+    {
+      fprintf( f, "#(minorgc_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_minorgc_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_minorgc_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+    {
+      fprintf( f, "#(majorgc_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_majorgc_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_majorgc_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+    {
+      fprintf( f, "#(sumrize_pause " );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   00, _, 10, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   10, _, 20, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   20, _, 30, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   30, _, 40, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   40, _, 50, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   50, _, 60, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   60, _, 70, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   70, _, 80, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   80, _, 90, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,   90, _, 100, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  100, _, 200, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  200, _, 300, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  300, _, 400, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  400, _, 500, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  500, _, 600, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  600, _, 700, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  700, _, 800, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  800, _, 900, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ ,  900, _, 1000, _ms );
+      PRINT_HISTOGRAM_ENTRY( count_sumrize_ , 1000, _, 2000, _ms );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_sumrize_geq_2000_ms );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ") " );
+    }
+    {
+      fprintf( f, "#(minor_runs " );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   00, _, 02, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   02, _, 04, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   04, _, 06, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   06, _, 08, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   08, _, 10, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   10, _, 20, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   20, _, 30, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   30, _, 40, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   40, _, 50, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   50, _, 60, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   60, _, 70, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   70, _, 80, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   80, _, 90, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,   90, _, 100, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  100, _, 200, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  200, _, 300, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  300, _, 400, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  400, _, 500, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  500, _, 600, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  600, _, 700, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  700, _, 800, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  800, _, 900, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ ,  900, _, 1000, _runs );
+      PRINT_HISTOGRAM_ENTRY( count_minor_ , 1000, _, 2000, _runs );
+      { 
+        fprintf( f, "((geq 2000) " );
+        PRINT_WORD( f, s, count_minor_geq_2000_runs );
+        fprintf( f, ")" );
+      }
+      fprintf( f, ")" );
+    }
+
+    fprintf( f, ")" );
   }
   fprintf( f, ")" );
   fflush( f );
@@ -883,37 +1582,37 @@ static void stats_dump_state_now( FILE *f )
 static void dump_gen_stats( FILE *f, gen_memstat_t *s )
 {
   fprintf( f, "#(gen_memstat_t " );
-  PRINT_WORD( f, s, major_id );
-  PRINT_WORD( f, s, minor_id );
-  PRINT_WORD( f, s, target );
-  PRINT_WORD( f, s, allocated );
-  PRINT_WORD( f, s, used );
-  PRINT_WORD( f, s, promotions );
-  PRINT_WORD( f, s, collections );
-  PRINT_WORD( f, s, ms_promotion );
-  PRINT_WORD( f, s, ms_promotion_cpu );
-  PRINT_WORD( f, s, ms_collection );
-  PRINT_WORD( f, s, ms_collection_cpu );
+  PRINT_FIELD( f, s, major_id );
+  PRINT_FIELD( f, s, minor_id );
+  PRINT_FIELD( f, s, target );
+  PRINT_FIELD( f, s, allocated );
+  PRINT_FIELD( f, s, used );
+  PRINT_FIELD( f, s, promotions );
+  PRINT_FIELD( f, s, collections );
+  PRINT_FIELD( f, s, ms_promotion );
+  PRINT_FIELD( f, s, ms_promotion_cpu );
+  PRINT_FIELD( f, s, ms_collection );
+  PRINT_FIELD( f, s, ms_collection_cpu );
   fprintf( f, ") " );
 }
 
 static void dump_remset_stats( FILE *f, remset_memstat_t *s )
 {
   fprintf( f, "#(remset_memstat_t " );
-  PRINT_WORD( f, s, major_id );  
-  PRINT_WORD( f, s, minor_id );
-  PRINT_WORD( f, s, allocated );
-  PRINT_WORD( f, s, max_allocated );
-  PRINT_WORD( f, s, used );
-  PRINT_WORD( f, s, live );
-  PRINT_DWORD( f, s, ssb_recorded );
-  PRINT_DWORD( f, s, recorded );
-  PRINT_DWORD( f, s, objs_scanned );
-  PRINT_DWORD( f, s, words_scanned );
-  PRINT_DWORD( f, s, removed );
-  PRINT_WORD( f, s, cleared );
-  PRINT_WORD( f, s, scanned );
-  PRINT_WORD( f, s, compacted );
+  PRINT_FIELD( f, s, major_id );  
+  PRINT_FIELD( f, s, minor_id );
+  PRINT_FIELD( f, s, allocated );
+  PRINT_FIELD( f, s, max_allocated );
+  PRINT_FIELD( f, s, used );
+  PRINT_FIELD( f, s, live );
+  PRINT_DFIELD( f, s, ssb_recorded );
+  PRINT_DFIELD( f, s, recorded );
+  PRINT_DFIELD( f, s, objs_scanned );
+  PRINT_DFIELD( f, s, words_scanned );
+  PRINT_DFIELD( f, s, removed );
+  PRINT_FIELD( f, s, cleared );
+  PRINT_FIELD( f, s, scanned );
+  PRINT_FIELD( f, s, compacted );
   fprintf( f, ") " );
 }
 

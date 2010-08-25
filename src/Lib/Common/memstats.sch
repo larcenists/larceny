@@ -37,16 +37,18 @@
             (vector-ref r $mstat.r-live)      ; new meaning (but close)
             0                                 ; removed: hash-alloc
             (bignum r $mstat.r-hrec-hi)
-            (bignum r $mstat.r-hrem-hi)
+            (bignum r $mstat.r-hrem-hi)       ;           #5
             (bignum r $mstat.r-hscan-hi)
             (bignum r $mstat.r-wscan-hi)
             (bignum r $mstat.r-ssbrec-hi)
             (vector-ref r $mstat.r-cleared)   ; new field
-            (vector-ref r $mstat.r-scanned)   ; new field
+            (vector-ref r $mstat.r-scanned)   ; new field #10
             (vector-ref r $mstat.r-compacted) ; new field
             (vector-ref r $mstat.r-max-size)  ; new field
             (vector-ref r $mstat.r-major-id)  ; new field
             (vector-ref r $mstat.r-minor-id)  ; new field
+            (vector-ref r $mstat.r-max-hscan) ;           #15
+            (vector-ref r $mstat.r-max-wscan)
             ))
 
   (define (make-generation-stats g)
@@ -119,6 +121,46 @@
             (vector-ref v $mstat.dof-resets)
             (vector-ref v $mstat.dof-repeats)
             0                           ; GC event counters
+            (vector-ref v $mstat.max-cheney-gctime)
+            (vector-ref v $mstat.max-cheney-gctime-cpu) ; # 50
+            (vector-ref v $mstat.max-remset-scan)
+            (vector-ref v $mstat.max-remset-scan-cpu)
+            (vector-ref v $mstat.total-remset-scan)
+            (vector-ref v $mstat.total-remset-scan-cpu)
+            (vector-ref v $mstat.remset-scan-count)
+            (vector-ref v $mstat.max-entries-remset-scan)
+            (bignum     v $mstat.total-entries-remset-scan-hi)
+            (vector-ref v $mstat.max-mark-pause)
+            (vector-ref v $mstat.max-mark-pause-cpu)
+            (vector-ref v $mstat.total-mark-pause)     ;  # 60
+            (vector-ref v $mstat.total-mark-pause-cpu)
+            (vector-ref v $mstat.mark-pause-count)
+            (vector-ref v $mstat.max-minorgc-pause)
+            (vector-ref v $mstat.max-minorgc-pause-cpu)
+            (vector-ref v $mstat.total-minorgc-pause)
+            (vector-ref v $mstat.total-minorgc-pause-cpu)
+            (vector-ref v $mstat.minorgc-pause-count)
+            (vector-ref v $mstat.max-majorgc-pause)
+            (vector-ref v $mstat.max-majorgc-pause-cpu)
+            (vector-ref v $mstat.total-majorgc-pause)   ; # 70
+            (vector-ref v $mstat.total-majorgc-pause-cpu)
+            (vector-ref v $mstat.majorgc-pause-count)
+            (vector-ref v $mstat.max-build-remset-summary)
+            (vector-ref v $mstat.max-build-remset-summary-cpu)
+            (vector-ref v $mstat.total-build-remset-summary)
+            (vector-ref v $mstat.total-build-remset-summary-cpu)
+            (vector-ref v $mstat.build-remset-summary-count)
+            (build-collect-pause-histogram v)
+            (build-minorgc-pause-histogram v)
+            (build-majorgc-pause-histogram v)           ; # 80
+            (build-summarize-pause-histogram v)
+            (build-minorgc-run-length-histogram v)
+            (vector-ref v $mstat.words-summsets)
+            (vector-ref v $mstat.summsets-max)
+            (vector-ref v $mstat.words-smircy)
+            (vector-ref v $mstat.smircy-max)
+            (vector-ref v $mstat.max-mutator-paused)
+            (vector-ref v $mstat.max-mutator-paused-cpu)
             ))
 
   (define (make-gc-event-vector v)
@@ -167,6 +209,141 @@
            g)
         (vector-set! g i (make-generation-stats (vector-ref gens i))))))
 
+  (define (build-collect-pause-histogram v)
+    (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
+      (list->vector
+       (apply append '(collect-pause-histogram)
+              (maybe   0    10 (vector-ref v $mstat.count-collect-00-10))
+              (maybe  10    20 (vector-ref v $mstat.count-collect-10-20))
+              (maybe  20    30 (vector-ref v $mstat.count-collect-20-30))
+              (maybe  30    40 (vector-ref v $mstat.count-collect-30-40))
+              (maybe  40    50 (vector-ref v $mstat.count-collect-40-50))
+              (maybe  50    60 (vector-ref v $mstat.count-collect-50-60))
+              (maybe  60    70 (vector-ref v $mstat.count-collect-60-70))
+              (maybe  70    80 (vector-ref v $mstat.count-collect-70-80))
+              (maybe  80    90 (vector-ref v $mstat.count-collect-80-90))
+              (maybe  90   100 (vector-ref v $mstat.count-collect-90-100))
+              (maybe 100   200 (vector-ref v $mstat.count-collect-100-200))
+              (maybe 200   300 (vector-ref v $mstat.count-collect-200-300))
+              (maybe 300   400 (vector-ref v $mstat.count-collect-300-400))
+              (maybe 400   500 (vector-ref v $mstat.count-collect-400-500))
+              (maybe 500   600 (vector-ref v $mstat.count-collect-500-600))
+              (maybe 600   700 (vector-ref v $mstat.count-collect-600-700))
+              (maybe 700   800 (vector-ref v $mstat.count-collect-700-800))
+              (maybe 800   900 (vector-ref v $mstat.count-collect-800-900))
+              (maybe 900  1000 (vector-ref v $mstat.count-collect-900-1000))
+              (maybe 1000 2000 (vector-ref v $mstat.count-collect-1000-2000))
+              (maybe '>=  2000 (vector-ref v $mstat.count-collect-geq-2000))))))
+
+  (define (build-minorgc-pause-histogram v)
+    (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
+      (list->vector
+       (apply append '(minorgc-pause-histogram)
+              (maybe   0    10 (vector-ref v $mstat.count-minorgc-00-10))
+              (maybe  10    20 (vector-ref v $mstat.count-minorgc-10-20))
+              (maybe  20    30 (vector-ref v $mstat.count-minorgc-20-30))
+              (maybe  30    40 (vector-ref v $mstat.count-minorgc-30-40))
+              (maybe  40    50 (vector-ref v $mstat.count-minorgc-40-50))
+              (maybe  50    60 (vector-ref v $mstat.count-minorgc-50-60))
+              (maybe  60    70 (vector-ref v $mstat.count-minorgc-60-70))
+              (maybe  70    80 (vector-ref v $mstat.count-minorgc-70-80))
+              (maybe  80    90 (vector-ref v $mstat.count-minorgc-80-90))
+              (maybe  90   100 (vector-ref v $mstat.count-minorgc-90-100))
+              (maybe 100   200 (vector-ref v $mstat.count-minorgc-100-200))
+              (maybe 200   300 (vector-ref v $mstat.count-minorgc-200-300))
+              (maybe 300   400 (vector-ref v $mstat.count-minorgc-300-400))
+              (maybe 400   500 (vector-ref v $mstat.count-minorgc-400-500))
+              (maybe 500   600 (vector-ref v $mstat.count-minorgc-500-600))
+              (maybe 600   700 (vector-ref v $mstat.count-minorgc-600-700))
+              (maybe 700   800 (vector-ref v $mstat.count-minorgc-700-800))
+              (maybe 800   900 (vector-ref v $mstat.count-minorgc-800-900))
+              (maybe 900  1000 (vector-ref v $mstat.count-minorgc-900-1000))
+              (maybe 1000 2000 (vector-ref v $mstat.count-minorgc-1000-2000))
+              (maybe '>=  2000 (vector-ref v $mstat.count-minorgc-geq-2000))))))
+
+  (define (build-majorgc-pause-histogram v)
+    (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
+      (list->vector
+       (apply append '(majorgc-pause-histogram)
+              (maybe   0    10 (vector-ref v $mstat.count-majorgc-00-10))
+              (maybe  10    20 (vector-ref v $mstat.count-majorgc-10-20))
+              (maybe  20    30 (vector-ref v $mstat.count-majorgc-20-30))
+              (maybe  30    40 (vector-ref v $mstat.count-majorgc-30-40))
+              (maybe  40    50 (vector-ref v $mstat.count-majorgc-40-50))
+              (maybe  50    60 (vector-ref v $mstat.count-majorgc-50-60))
+              (maybe  60    70 (vector-ref v $mstat.count-majorgc-60-70))
+              (maybe  70    80 (vector-ref v $mstat.count-majorgc-70-80))
+              (maybe  80    90 (vector-ref v $mstat.count-majorgc-80-90))
+              (maybe  90   100 (vector-ref v $mstat.count-majorgc-90-100))
+              (maybe 100   200 (vector-ref v $mstat.count-majorgc-100-200))
+              (maybe 200   300 (vector-ref v $mstat.count-majorgc-200-300))
+              (maybe 300   400 (vector-ref v $mstat.count-majorgc-300-400))
+              (maybe 400   500 (vector-ref v $mstat.count-majorgc-400-500))
+              (maybe 500   600 (vector-ref v $mstat.count-majorgc-500-600))
+              (maybe 600   700 (vector-ref v $mstat.count-majorgc-600-700))
+              (maybe 700   800 (vector-ref v $mstat.count-majorgc-700-800))
+              (maybe 800   900 (vector-ref v $mstat.count-majorgc-800-900))
+              (maybe 900  1000 (vector-ref v $mstat.count-majorgc-900-1000))
+              (maybe 1000 2000 (vector-ref v $mstat.count-majorgc-1000-2000))
+              (maybe '>=  2000 (vector-ref v $mstat.count-majorgc-geq-2000))))))
+
+  (define (build-summarize-pause-histogram v)
+    (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
+      (list->vector
+       (apply append '(summarize-pause-histogram)
+              (maybe   0    10 (vector-ref v $mstat.count-summarize-00-10))
+              (maybe  10    20 (vector-ref v $mstat.count-summarize-10-20))
+              (maybe  20    30 (vector-ref v $mstat.count-summarize-20-30))
+              (maybe  30    40 (vector-ref v $mstat.count-summarize-30-40))
+              (maybe  40    50 (vector-ref v $mstat.count-summarize-40-50))
+              (maybe  50    60 (vector-ref v $mstat.count-summarize-50-60))
+              (maybe  60    70 (vector-ref v $mstat.count-summarize-60-70))
+              (maybe  70    80 (vector-ref v $mstat.count-summarize-70-80))
+              (maybe  80    90 (vector-ref v $mstat.count-summarize-80-90))
+              (maybe  90   100 (vector-ref v $mstat.count-summarize-90-100))
+              (maybe 100   200 (vector-ref v $mstat.count-summarize-100-200))
+              (maybe 200   300 (vector-ref v $mstat.count-summarize-200-300))
+              (maybe 300   400 (vector-ref v $mstat.count-summarize-300-400))
+              (maybe 400   500 (vector-ref v $mstat.count-summarize-400-500))
+              (maybe 500   600 (vector-ref v $mstat.count-summarize-500-600))
+              (maybe 600   700 (vector-ref v $mstat.count-summarize-600-700))
+              (maybe 700   800 (vector-ref v $mstat.count-summarize-700-800))
+              (maybe 800   900 (vector-ref v $mstat.count-summarize-800-900))
+              (maybe 900  1000 (vector-ref v $mstat.count-summarize-900-1000))
+              (maybe 1000 2000 (vector-ref v $mstat.count-summarize-1000-2000))
+              (maybe '>=  2000 (vector-ref v $mstat.count-summarize-geq-2000))))))
+
+  (define (build-minorgc-run-length-histogram v)
+    (let ((maybe (lambda (lo hi val) (if (= val 0) '() (list (list lo hi val))))))
+      (list->vector
+       (apply append '(minorgc-run-length-histogram)
+              (maybe   0     2 (vector-ref v $mstat.count-minor-runs-00-02))
+              (maybe   2     4 (vector-ref v $mstat.count-minor-runs-02-04))
+              (maybe   4     6 (vector-ref v $mstat.count-minor-runs-04-06))
+              (maybe   6     8 (vector-ref v $mstat.count-minor-runs-06-08))
+              (maybe   8    10 (vector-ref v $mstat.count-minor-runs-08-10))
+              (maybe  10    20 (vector-ref v $mstat.count-minor-runs-10-20))
+              (maybe  20    30 (vector-ref v $mstat.count-minor-runs-20-30))
+              (maybe  30    40 (vector-ref v $mstat.count-minor-runs-30-40))
+              (maybe  40    50 (vector-ref v $mstat.count-minor-runs-40-50))
+              (maybe  50    60 (vector-ref v $mstat.count-minor-runs-50-60))
+              (maybe  60    70 (vector-ref v $mstat.count-minor-runs-60-70))
+              (maybe  70    80 (vector-ref v $mstat.count-minor-runs-70-80))
+
+              (maybe  80    90 (vector-ref v $mstat.count-minor-runs-80-90))
+              (maybe  90   100 (vector-ref v $mstat.count-minor-runs-90-100))
+              (maybe 100   200 (vector-ref v $mstat.count-minor-runs-100-200))
+              (maybe 200   300 (vector-ref v $mstat.count-minor-runs-200-300))
+              (maybe 300   400 (vector-ref v $mstat.count-minor-runs-300-400))
+              (maybe 400   500 (vector-ref v $mstat.count-minor-runs-400-500))
+              (maybe 500   600 (vector-ref v $mstat.count-minor-runs-500-600))
+              (maybe 600   700 (vector-ref v $mstat.count-minor-runs-600-700))
+              (maybe 700   800 (vector-ref v $mstat.count-minor-runs-700-800))
+              (maybe 800   900 (vector-ref v $mstat.count-minor-runs-800-900))
+              (maybe 900  1000 (vector-ref v $mstat.count-minor-runs-900-1000))
+              (maybe 1000 2000 (vector-ref v $mstat.count-minor-runs-1000-2000))
+              (maybe '>=  2000 (vector-ref v $mstat.count-minor-runs-geq-2000))))))
+
   ; Fill in some of the removed fields:
   ;   - total elapsed gc+promotion time for slot 3
   ;   - total cpu gc+promotion time for slot 44
@@ -212,6 +389,19 @@
 (define (memstats-gc-copied v) (vector-ref v 2))
 (define (memstats-gc-total-elapsed-time v) (vector-ref v 3))
 (define (memstats-gc-total-cpu-time v) (vector-ref v 44))
+(define (memstats-gc-max-cheney-elapsed-time v) (vector-ref v 49))
+(define (memstats-gc-max-cheney-cpu-time v) (vector-ref v 50))
+(define (memstats-gc-max-truegc-elapsed-time v) (vector-ref v 87))
+(define (memstats-gc-max-truegc-cpu-time v) (vector-ref v 88))
+(define (memstats-gc-max-elapsed-time v) (memstats-gc-max-truegc-elapsed-time v))
+(define (memstats-gc-max-cpu-time v) (memstats-gc-max-truegc-cpu-time v))
+(define (memstats-gc-max-remset-scan-elapsed-time v) (vector-ref v 51))
+(define (memstats-gc-max-remset-scan-cpu-time v) (vector-ref v 52))
+(define (memstats-gc-total-remset-scan-elapsed-time v) (vector-ref v 53))
+(define (memstats-gc-total-remset-scan-cpu-time v) (vector-ref v 54))
+(define (memstats-gc-remset-scan-count v) (vector-ref v 55))
+(define (memstats-gc-max-entries-remset-scan v) (vector-ref v 56))
+(define (memstats-gc-total-entries-remset-scan v) (vector-ref v 57))
 (define (memstats-gc-promotion-elapsed-time v) (vector-ref v 28))
 (define (memstats-gc-promotion-cpu-time v) (vector-ref v 45))
 (define (memstats-heap-allocated-now v) (vector-ref v 13))
@@ -219,6 +409,10 @@
 (define (memstats-heap-live-now v) (vector-ref v 4))
 (define (memstats-remsets-allocated-now v) (vector-ref v 14))
 (define (memstats-remsets-allocated-max v) (vector-ref v 31))
+(define (memstats-summsets-allocated-now v) (vector-ref v 83))
+(define (memstats-summsets-allocated-max v) (vector-ref v 84))
+(define (memstats-marking-allocated-now v) (vector-ref v 85))
+(define (memstats-marking-allocated-max v) (vector-ref v 86))
 (define (memstats-rts-allocated-now v) (vector-ref v 15))
 (define (memstats-rts-allocated-max v) (vector-ref v 32))
 (define (memstats-heap-fragmentation-now v) (vector-ref v 30))
@@ -253,6 +447,13 @@
 (define (memstats-dofgc-resets v) (vector-ref v 46))
 (define (memstats-dofgc-repeats v) (vector-ref v 47))
 (define (memstats-gc-accounting v) (vector-ref v 48))
+
+(define (memstats-mark-elapsed v)      (vector-ref v 60))
+(define (memstats-mark-cpu v)          (vector-ref v 61))
+(define (memstats-mark-count v)        (vector-ref v 62))
+(define (memstats-summarize-elapsed v) (vector-ref v 75))
+(define (memstats-summarize-cpu v)     (vector-ref v 76))
+(define (memstats-summarize-count v)   (vector-ref v 77))
 
 ; Accessors for GC accounting substructure
 
@@ -315,6 +516,8 @@
 (define (memstats-remset-times-cleared v) (vector-ref v 9))
 (define (memstats-remset-times-scanned v) (vector-ref v 10))
 (define (memstats-remset-times-compacted v) (vector-ref v 11))
+(define (memstats-remset-max-scanned v) (vector-ref v 15))
+(define (memstats-remset-max-object-words-scanned v) (vector-ref v 16))
 
 ; Takes a vector as returned from memstats and displays it with useful
 ; labels.
@@ -486,7 +689,10 @@
           (set! gcs (+ gcs (memstats-gen-promotions x)))))
       (mprint "Elapsed GC time: " (memstats-gc-total-elapsed-time v) 
               " ms (CPU: " (memstats-gc-total-cpu-time v)
-              " ms, in " gcs " collections.)")))
+              " ms, in " gcs " collections.)"
+              " Max pause elapsed: " (memstats-gc-max-truegc-elapsed-time v)
+              " Max pause CPU: " (memstats-gc-max-truegc-cpu-time v)
+              )))
 
   (if minimal?
       (print-minimal)
@@ -508,13 +714,40 @@
   (define (mprint . rest)
     (for-each display rest) (newline))
 
-  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu)
+  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu 
+              maxgctime maxgccpu 
+              maxcheneytime maxcheneycpu
+              maxscantime maxscancpu maxscanentries 
+              avgscantime avgscancpu avgscanentries
+              words-mem-max words-heap-max words-remset-max 
+              words-summsets-max words-marking-max
+              words-rts-max words-waste-max
+              marks marktime markcpu 
+              sumzs sumztime sumzcpu
+              )
     (mprint "Words allocated: " allocated)
     (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
 	   " ms (User: " user " ms; System: " system " ms)")
     (mprint "Elapsed GC time: " gctime " ms (CPU: " gccpu 
-            " in " gcs " collections.)"))
+            " in " gcs " collections.)")
+    (mprint "{Max pause elapsed: " maxgctime " ms"
+            ", CPU: " maxgccpu " ms} ")
+    (mprint "{Max cheney elapsed: " maxcheneytime " ms"
+            ", CPU: "maxcheneycpu " ms} ")
+    (mprint "{Max remset scan elapsed: " maxscantime " ms"
+            ", CPU: " maxscancpu " ms, entries: " maxscanentries "} ")
+    (mprint "{Avg remset scan elapsed: " avgscantime " ms"
+            ", CPU: " avgscancpu " ms, entries: " avgscanentries "} ")
+    (mprint "{Max words, Mem: " words-mem-max " Heap: " words-heap-max
+            " Remset: " words-remset-max
+            " Summaries: " words-summsets-max
+            " Marking: " words-marking-max
+            " Rts: " words-rts-max 
+            " Waste: " words-waste-max "}")
+    (mprint "Elapsed mark time: " marktime " (CPU: " markcpu " in " marks " marks.)")
+    (mprint "Elapsed summarization time: " sumztime " (CPU: " sumzcpu " in " sumzs " summarization.)")
+    )
 
   (define (print-stats s1 s2)
     (pr (- (memstats-allocated s2) (memstats-allocated s1))
@@ -525,20 +758,59 @@
 	(let ((gcs0 0)
 	      (gcs1 0))
 	  (do ((i 0 (+ i 1)))
-	      ((= i (vector-length (memstats-generations s1)))
+	      ((= i (vector-length (memstats-generations s2)))
                (- gcs1 gcs0))
-	    (let ((x0 (vector-ref (memstats-generations s1) i))
-		  (x1 (vector-ref (memstats-generations s2) i)))
-	      (set! gcs0 (+ gcs0 
-                            (memstats-gen-collections x0) 
-                            (memstats-gen-promotions x0)))
-	      (set! gcs1 (+ gcs1 
-                            (memstats-gen-collections x1)
-                            (memstats-gen-promotions x1))))))
+	    (cond
+             ((< i (vector-length (memstats-generations s1)))
+              (let ((x0 (vector-ref (memstats-generations s1) i))
+                    (x1 (vector-ref (memstats-generations s2) i)))
+                (set! gcs0 (+ gcs0 
+                              (memstats-gen-collections x0) 
+                              (memstats-gen-promotions x0)))
+                (set! gcs1 (+ gcs1 
+                              (memstats-gen-collections x1)
+                              (memstats-gen-promotions x1)))))
+             (else
+              (let ((x1 (vector-ref (memstats-generations s2) i)))
+                (set! gcs1 (+ gcs1 
+                              (memstats-gen-collections x1)
+                              (memstats-gen-promotions x1))))))))
 	(- (memstats-gc-total-elapsed-time s2) 
            (memstats-gc-total-elapsed-time s1))
         (- (memstats-gc-total-cpu-time s2)
            (memstats-gc-total-cpu-time s1))
+        (memstats-gc-max-truegc-elapsed-time s2)
+        (memstats-gc-max-truegc-cpu-time s2)
+        (memstats-gc-max-cheney-elapsed-time s2)
+        (memstats-gc-max-cheney-cpu-time s2)
+        (memstats-gc-max-remset-scan-elapsed-time s2)
+        (memstats-gc-max-remset-scan-cpu-time s2)
+        (memstats-gc-max-entries-remset-scan s2)
+        (if (zero? (memstats-gc-remset-scan-count s2))
+            0
+            (/ (memstats-gc-total-remset-scan-elapsed-time s2)
+               (memstats-gc-remset-scan-count s2)))
+        (if (zero? (memstats-gc-remset-scan-count s2))
+            0
+            (/ (memstats-gc-total-remset-scan-cpu-time s2)
+               (memstats-gc-remset-scan-count s2)))
+        (if (zero? (memstats-gc-remset-scan-count s2))
+            0
+            (/ (memstats-gc-total-entries-remset-scan s2)
+               (memstats-gc-remset-scan-count s2)))
+        (memstats-mem-allocated-max s2)
+        (memstats-heap-allocated-max s2)
+        (memstats-remsets-allocated-max s2)
+        (memstats-summsets-allocated-max s2)
+        (memstats-marking-allocated-max s2)
+        (memstats-rts-allocated-max s2)
+        (memstats-heap-fragmentation-max s2)
+        (- (memstats-mark-count s2)   (memstats-mark-count s1)) ;; mark related
+        (- (memstats-mark-elapsed s2) (memstats-mark-elapsed s1))
+        (- (memstats-mark-cpu s2)     (memstats-mark-cpu s1))
+        (- (memstats-summarize-count s2)   (memstats-summarize-count s1)) ;; summarization related
+        (- (memstats-summarize-elapsed s2) (memstats-summarize-elapsed s1))
+        (- (memstats-summarize-cpu s2)     (memstats-summarize-cpu s1))
 	))
   
   (let* ((s1 (memstats))

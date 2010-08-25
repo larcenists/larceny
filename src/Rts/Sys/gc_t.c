@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  * 
  * $Id$
  *
@@ -7,6 +7,7 @@
 
 #include "larceny.h"
 #include "gc_t.h"
+#include "gset_t.h"
 
 gc_t 
 *create_gc_t(char *id,
@@ -16,7 +17,6 @@ gc_t
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
 	     void (*make_room)( gc_t *gc ), 
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
-	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),
@@ -35,13 +35,33 @@ gc_t
 	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
 	     word *(*make_handle)( gc_t *gc, word obj ),
 	     void (*free_handle)( gc_t *gc, word *handle ),
+	     gno_state_t (*gno_state)( gc_t *gc, int gno ),
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
-	     void (*enumerate_remsets_older_than)
-	        ( gc_t *gc, int generation,
-		  bool (*f)(word, void*, unsigned * ),
-		  void *data, 
-		  bool enumerate_np_remset )
+	     void (*enumerate_smircy_roots)( gc_t *gc, 
+	                                     void (*f)( word*, void *),
+	                                     void * ),
+	     void (*enumerate_remsets_complement)
+	        ( gc_t *gc, gset_t genset,
+		  bool (*f)(word, void*),
+		  void *data ),
+	     void (*enumerate_remembered_locations)
+	        ( gc_t *gc, gset_t genset,
+	          void (*f)( word, int, void* ), void* ),
+	     void (*enumerate_hdr_address_ranges)
+	        ( gc_t *gc, int gno, 
+	          void (*f)( word *s, word *l, void *d), void *d ),
+	     semispace_t *(*fresh_space)( gc_t *gc ),
+	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
+					 semispace_t *cur ),
+	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
+	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     bool (*is_nonmoving)( gc_t *gc, int gen_no ), 
+	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
+	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
+	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
+	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
+	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
 	     )
 {
   gc_t *gc;
@@ -52,21 +72,29 @@ gc_t
 
   gc->los = 0;
   gc->young_area = 0;
-  gc->ephemeral_area = 0;
-  gc->dynamic_area = 0;
-  gc->static_area = 0;
+  gc->static_area = 0; 
   gc->los = 0;
-  gc->remset = 0;
-  gc->ephemeral_area_count = 0;
-  gc->remset_count = 0;
+  gc->gno_count = 0;
+  gc->smircy = 0;
+  gc->smircy_completion = 0;
   gc->np_remset = -1;
+  gc->scan_update_remset = 0;
+
+  gc->stat_max_entries_remset_scan = 0;
+  gc->stat_total_entries_remset_scan = 0;
+  gc->stat_max_remset_scan       = 0;
+  gc->stat_max_remset_scan_cpu   = 0;
+  gc->stat_total_remset_scan     = 0;
+  gc->stat_total_remset_scan_cpu = 0;
+  gc->stat_remset_scan_count     = 0;
+
+  gc->words_from_nursery_last_gc = 0;
 
   gc->initialize = initialize;
   gc->allocate = allocate;
   gc->allocate_nonmoving = allocate_nonmoving;
   gc->make_room = make_room;
   gc->collect = collect;
-  gc->permute_remembered_sets = permute_remembered_sets;
   gc->set_policy = set_policy;
   gc->data_load_area = data_load_area;
   gc->text_load_area = text_load_area;
@@ -91,8 +119,24 @@ gc_t
   gc->make_handle = make_handle;
   gc->free_handle = free_handle;
   
+  gc->gno_state = gno_state;
+
   gc->enumerate_roots = enumerate_roots;
-  gc->enumerate_remsets_older_than = enumerate_remsets_older_than;
+  gc->enumerate_smircy_roots = enumerate_smircy_roots;
+  gc->enumerate_remsets_complement = enumerate_remsets_complement;
+  gc->enumerate_remembered_locations = enumerate_remembered_locations;
+  gc->enumerate_hdr_address_ranges = enumerate_hdr_address_ranges;
+  gc->fresh_space = fresh_space;
+  gc->find_space = find_space;
+
+  gc->allocated_to_areas = allocated_to_areas;
+  gc->maximum_allotted = maximum_allotted;
+  gc->is_nonmoving = is_nonmoving; 
+  gc->is_address_mapped = is_address_mapped;
+  gc->check_remset_invs = check_remset_invs;
+  gc->points_across = points_across;
+  gc->heap_for_gno = heap_for_gno;
+  gc->region_group_for_gno = region_group_for_gno;
 
   return gc;
 }

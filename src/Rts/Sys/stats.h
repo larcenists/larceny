@@ -18,12 +18,47 @@ struct gclib_stats {
   int heap_limit;		/* 0 or the current heap limit */
   int remset_allocated;		/* words allocated to remembered sets */
   int remset_allocated_max;	/* max of remset_allocated over time */
+  int summ_allocated;		/* words allocated to summary sets */
+  int summ_allocated_max;	/* max of summ_allocated over time */
+  int smircy_allocated;		/* words allocated to marking state */
+  int smircy_allocated_max;	/* max of smircy_allocated over time */
   int rts_allocated;		/* words allocated to run-time systems */
   int rts_allocated_max;	/* max of rts_allocated over time */
   int heap_fragmentation;	/* words of fragmentation in heap areas */
   int heap_fragmentation_max;	/* max of heap_fragmentation over time */
   int mem_allocated;		/* words of allocation: heap+rts+remset+frag */
   int mem_allocated_max;	/* max of mem_allocated over time */
+  int heap_allocated_peak;	/* words allocated to heap areas when mem_allocated_max was last set. */
+  int remset_allocated_peak;	/* words allocated to remembered sets when mem_allocated_max was last set. */
+  int summ_allocated_peak;	/* words allocated to summary sets when mem_allocated_max was last set. */
+  int smircy_allocated_peak;	/* words allocated to marking state when mem_allocated_max was last set. */
+  int rts_allocated_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
+  int heap_fragmentation_peak;	/* words of fragmentation when mem_allocated_max was last set. */
+
+  int max_remset_scan;
+  int max_remset_scan_cpu;
+  int total_remset_scan;
+  int total_remset_scan_cpu;
+  int remset_scan_count;
+  int max_entries_remset_scan;
+  long long total_entries_remset_scan;
+
+  int last_ms_gc_cheney_pause;    /* Time in core gc methods in last gc. */
+  int last_ms_gc_cheney_pause_cpu;
+  int last_gc_pause_ismajor;      /* 1 for major, 0 for minor */
+  int last_ms_remset_sumrize;     /* Time in remset summarizing in last gc. */
+  int last_ms_remset_sumrize_cpu;
+  int last_ms_mark_refinement;    /* Time in remset refinement in last gc. */
+  int last_ms_mark_refinement_cpu;
+  int last_ms_gc_truegc_pause;    /* Total time spent away from the mtuator */
+  int last_ms_gc_truegc_pause_cpu;
+  int length_minor_gc_run;        /* Num of consecutive minor gc's (so far) */
+
+  /* N.B.: both the below measure time mutator is interrupted;
+   * it should include cheney collection time as well as time 
+   * spent maintaining structure internal to the memory manager. */
+  word max_ms_mutator_paused;
+  word max_ms_mutator_paused_cpu;
 };
 
 struct gc_stats {
@@ -50,6 +85,13 @@ struct gc_stats {
   int full_pointers_traced;	/* ditto */
   int full_ms_collection;	/* ditto */
   int full_ms_collection_cpu;	/* ditto */
+
+  /* N.B.: both of the below only measure time spent in the cheney 
+   * semispace collection code, not other time spent in the memory 
+   * management system. */
+  int max_ms_cheney_collection;        /* Max milliseconds collecting in an area */
+  int max_ms_cheney_collection_cpu;    /* ditto, CPU time */
+
 };
 
 struct gen_stats {
@@ -82,6 +124,8 @@ struct remset_stats {
   int cleared;			/* Number of times set was cleared */
   int scanned;			/* Number of times set was scanned */
   int compacted;		/* Number of times set was compacted */
+  int max_objs_scanned;         /* Max entries scanned in any one pass */
+  int max_words_scanned;        /* Max words scanned in any one pass */
 };
 
 struct stack_stats {

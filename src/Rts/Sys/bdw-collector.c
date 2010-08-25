@@ -482,7 +482,6 @@ static gc_t *allocate_area( word *globals )
 		     allocate,
 		     allocate_nonmoving,
 		     collect,
-		     0,		/* permute_remembered_sets */
 		     no_op_warn,     	     /* set_policy */
 		     data_load_area,
 		     text_load_area,

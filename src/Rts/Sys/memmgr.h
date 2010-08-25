@@ -8,6 +8,7 @@
 #ifndef INCLUDED_MEMMGR_H
 #define INCLUDED_MEMMGR_H
 
+#include <stdio.h>
 #include "larceny-types.h"
 #include "gclib.h"
 
@@ -55,6 +56,8 @@ void gc_signal_minor_collection( gc_t *gc );
      already survived a previous collection have not changed.
      */
     
+void gc_dump_mmu_data( gc_t *gc, FILE *f );
+
 /* In nursery.c */
 
 young_heap_t *
@@ -73,21 +76,23 @@ yhsc_data_area( young_heap_t *heap );
      young area.
      */
 
-/* In dof-heap.c */
-
-old_heap_t *
-create_dof_area( int gen_no, int *gen_allocd, gc_t *gc, dof_info_t *info );
-
-void
-dof_gc_parameters( old_heap_t *heap, int *size );
-  /* Given a DOF area, return the generation size.  Assumes all 
-     generations are the same size, which is true for the time being.
-     */
-
 /* In old-heap.c */
 
 old_heap_t *
-create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, bool ephemeral );
+create_sc_area( int gen_no, gc_t *gc, sc_info_t *info, oh_type_t oh_type );
+
+old_heap_t *
+clone_sc_area( old_heap_t *heap, int gen_no );
+  /* Returns a fresh area with generation number gen_no, 
+   * using heap as a basis for assigning all other 
+   * internal properties (such as maximum size).
+   */
+
+semispace_t *
+ohsc_data_area( old_heap_t *heap );
+  /* Returns the current semispace structure for an old area.
+     (It is not necessarily legal to expand the returned space.)
+     */
 
 /* In np-sc-heap.c */
 

@@ -33,6 +33,7 @@ young_heap_t *create_young_heap_t(
    void (*creg_set)( young_heap_t *heap, word k ),
    void (*stack_underflow)( young_heap_t *heap ),
    void (*stack_overflow)( young_heap_t *heap ),
+   bool (*is_address_mapped)( young_heap_t *heap, word *addr ),
    void *data )
 {
   young_heap_t *heap;
@@ -62,6 +63,7 @@ young_heap_t *create_young_heap_t(
   heap->creg_set = creg_set;
   heap->stack_underflow = stack_underflow;
   heap->stack_overflow = stack_overflow;
+  heap->is_address_mapped = is_address_mapped;
   heap->data = data;
 
   return heap;

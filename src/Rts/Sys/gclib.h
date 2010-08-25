@@ -22,6 +22,7 @@
 #define INCLUDED_GCLIB_H
 
 #include "config.h"
+#include "gset_t.h"
 
 /* The attribute GCLIB_LARGE_TABLE may be set in config.h.  This
    attribute is experimental.  If set, then
@@ -78,6 +79,8 @@
 # define MB_FREE           32     /* Memory is on Larceny free list */
 # define MB_LARGE_OBJECT   64     /* Memory is allocated to a large object */
 # define MB_FLONUMS        128    /* Memory is part of a flonum space */
+# define MB_SUMMARY_SETS   256    /* Memory belongs to summarization sets */
+# define MB_SMIRCY_MARK    512     /* Memory belongs to marking state */
 #endif
 
 /* The following values are used in the desc_g array for 
@@ -173,6 +176,25 @@ void gclib_stopcopy_collect( gc_t *gc, semispace_t *tospace );
   /* Garbage collect the generation of 'tospace', copying all live objects
      and all live younger objects into 'tospace', growing 'tospace' as
      necessary.
+     */
+
+void gclib_stopcopy_collect_genset( gc_t *gc, gset_t s, semispace_t *tospace );
+  /* Garbage collect the generation of 'tospace', copying all live objects
+     belonging to 's' into 'tospace', finding new space according to policy
+     implemented by gc's find_space method.
+     */
+
+void gclib_stopcopy_collect_locs( gc_t *gc, gset_t s, semispace_t *tospace );
+  /* Garbage collect the generation of 'tospace', copying all live objects
+     belonging to 's' into 'tospace', finding new space according to policy
+     implemented by gc's find_space method.
+
+     Main differences from gclib_stopcopy_collect_genset:
+     1. Potentially narrows focus on _particular_ locations within
+        remembered objects
+     2. Locations of remembered objects are treated like any other
+        root; there is no special filters applied or information
+        extracted from them.
      */
 
 void gclib_stopcopy_collect_and_scan_static( gc_t *gc, semispace_t *to );

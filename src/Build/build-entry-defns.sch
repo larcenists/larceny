@@ -27,6 +27,8 @@
 ;; something BUILD-EXECUTABLE does?
 
 (define (build-runtime)
+
+  ;; XXX not necessary now that making larceny-runtime-project below ?
   (if (not (file-exists? (param-filename 'rts "Makefile")))
       (build-makefile))
 
@@ -52,9 +54,10 @@
                           (else    "larceny.bin")))
                        )))
 
-    ;; petit-win32.sch actually doesn't pass an arg to make...
-    ;; should I do same?
-
+    (make:make larceny-runtime-project 
+               (param-filename 'rts make-target))
+    ;; petit-win32.sch actually doesn't pass an arg to make... 
+    ;; should I do same? 
     (execute-in-directory (nbuild-parameter 'rts)
                           (string-append (make-command) " " make-target))))
 

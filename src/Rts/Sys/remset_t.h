@@ -16,7 +16,7 @@
 
 #include "config.h"
 #include "larceny-types.h"
-#include "seqbuf_t.h"
+#include "summary_t.h"
 
 struct remset {
   int identity;
@@ -33,19 +33,12 @@ struct remset {
        last time the set was cleared.
        */
 
-  /* For the write barrier. */
-  seqbuf_t *ssb;
-
   void *data;			/* Implementation's data */
 };
 
 remset_t *
 create_remset( int tbl_ent,	   /* Number of entries in hash table */
-	       int pool_ent,       /* Number of entries in initial node pool */
-	       int ssb_ent,        /* Number of entries in SSB */
-	       word **ssb_bot_loc, /* Location of pointer to start of SSB */
-	       word **ssb_top_loc, /* Location of pointer to next free of SSB*/
-	       word **ssb_lim_loc  /* Location of pointer past end of SSB */
+	       int pool_ent        /* Number of entries in initial node pool */
 	       );
   /* Create a remembered set and return a pointer to it.
 
@@ -64,12 +57,20 @@ create_remset( int tbl_ent,	   /* Number of entries in hash table */
      */
 
 remset_t *
+create_summset( int tbl_ent, 
+                int pool_ent );
+  /* Leaking a hack within the summ_matrix module into this interface,
+     where I am using a remset_t to represent the hashtable storing
+     mutator originated modifications to the summary set.
+
+     (By introducing a distinct entry point from create_rmeset, I have
+      a chance to charge the space occupied by these remsets to
+      MB_SUMMARY_SETS instead of MB_REMSET.)
+  */
+
+remset_t *
 create_labelled_remset( int tbl_ent,
 			int pool_ent,
-			int ssb_ent,
-			word **ssb_bot_loc,
-			word **ssb_top_loc,
-			word **ssb_lim_loc,
 			int major_id,
 			int minor_id );
   /* Exactly like create_remset except that the given major and minor ID
@@ -80,19 +81,33 @@ void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
 
-bool rs_compact( remset_t *remset );
-  /* Moves the contents of the set's SSB into the set and clears the SSB.
-     Only entries not already in the set are added to the set, so every
-     element in the SSB is subject to a collision check.
+bool rs_add_elem_new( remset_t *rs, word w );
+  /* Copies w into the remset.rs.
+     w is *not* subject to a collision check.
 
-     Returns TRUE if the remembered set overflowed during the compaction.
+     Returns TRUE if the remset overflowed during the addition.
      */
 
-bool rs_compact_nocheck( remset_t *remset );
-  /* Moves the contents of the set's SSB into the set and clears the SSB.
-     Entries are added to the set without checking for duplicates.
+bool rs_add_elem( remset_t *rs, word w );
+  /* Copies w into the remset.rs.
+     w is subject to a collision check.
 
-     Returns TRUE if the remembered set overflowed during the compaction.
+     Returns TRUE if the remset overflowed during the addition.
+     */
+
+bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top );
+  /* Copies the elements in the buffer [bot,top) into remset[i],
+     where i is the gno for each element.
+     Every element in the buffer is subject to a collision check.
+
+     Returns TRUE if the remset overflowed during the addition.
+     */
+
+bool rs_add_elems_funnel( remset_t *rs, word *bot, word *top );
+  /* Copies the elements in the buffer [bot,top) into rs.
+     Every element in the buffer is subject to a collision check.
+
+     Returns TRUE if the remset overflowed during the addition.
      */
      
 void rs_enumerate( remset_t *remset, 
@@ -109,41 +124,47 @@ void rs_enumerate( remset_t *remset,
      retained in the set, otherwise it is removed.
      */
 
-int  rs_size( remset_t *remset );
-  /* Returns the amount of memory occupied by the remembered set's data
-     structures, including its SSB, in bytes.
-     */
-
 void rs_stats( remset_t *remset );
   /* Add current counters to the global accumulators.
-     */
-
-void rs_assimilate( remset_t *dest, remset_t *src );
-  /* Folds the set 'src' into the set 'dest'.
-     */
-
-void rs_assimilate_and_clear( remset_t *dest, remset_t *src );
-  /* Folds the set 'src' into the set 'dest', and clears 'src'.
      */
 
 bool rs_isremembered( remset_t *rs, word w );
   /* Returns TRUE if the object denoted by w is in the remembered set.
      */
 
-void rs_consistency_check( remset_t *rs, int gen_no );
-  /* Perform a consistency check and print some statistics.  Useful mainly
-     when called from an interactive debugger.  If gen_no >= 0 then a
-     check will be performed that every entry in the set points to a
-     heap page with that generation number, and that it points to
-     an apparently valid object.
-     */
+void rs_init_summary( remset_t *rs, int max_words_per_step, 
+                      /* out parameter */ summary_t *s );
+  /* Exposes iteration over 'rs' via the summary_t abstraction.
+     's' is mutated so that it traverses the elements of 'rs'.
+     If max_words_per_step is positive, then it bounds the number of 
+     words in the range established by each invocation of the 
+     's->next_chunk' method; if max_words_per_step is -1, then no such 
+     bound is imposed (though the summary_t may still choose to choose 
+     its own chunk size).
 
-#if defined(REMSET_PROFILE)
-void rs_print_crossing_stats( remset_t *rs );
-  /* Prints out a bunch of information about the volume of pointers from
-     the remembered set into various generations.
-     */
-#endif
+     WARNING: modification to rs will invalidate the state of s, and 
+     this is unchecked!
+     (Checking this would require tracking summaries within the 
+      remset structure, which (while not patently absurd) would 
+      complicate the protocol for summary allocation and deallocation.)
+
+     NOTE: if all you need is monolithic iteration over the entirety
+     of 'rs' then rs_enumerate could be a better option (for the sake of 
+     code readability if not efficiency).
+     (On the other hand, Lars has old comments in remset.c source 
+      indicating that passing more than one object to the remset scanner 
+      would be an improvement.  The summary_t abstraction is designed 
+      with such iteration in mind, so maybe it is worth trying out in 
+      that context.)
+
+     The two main reasons to use the summary_t abstraction are:
+     - it is decoupled from the choice of representation for the 
+       underlying collection being traversed
+     - it allows for incremental traversal of a remset, as opposed 
+       to the monolithic traversal 
+
+   */
+
 #endif /* INCLUDED_REMSET_T_H */
 
 /* eof */

@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.               -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -10,6 +10,15 @@
 
 #include "config.h"
 #include "larceny-types.h"
+#include "gset_t.h"
+#include "smircy.h"
+
+typedef enum {
+  gno_state_normal,  /* default */
+  gno_state_popular, /* points-into summary overflowed recently */
+  gno_state_polling, /* measuring current points-into state */
+  gno_state_hasbeen /* last measured points-into state was acceptably small */
+} gno_state_t;
 
 struct gc { 
   char *id;
@@ -26,36 +35,65 @@ struct gc {
        or a stop-and-copy heap).
        */
 
-  old_heap_t **ephemeral_area;
-    /* In precise collectors: An array of pointers to ephemeral areas;
-       the number of entries is held in ephemeral_area_count.  May be NULL.
-       */
-
-  old_heap_t *dynamic_area;
-    /* In precise collectors: A pointer to a dynamic area, or NULL.
-       */
-
   static_heap_t *static_area;
     /* In precise collectors: A pointer to a static area, or NULL.
        */
 
-  remset_t **remset;
-    /* In precise collectors: An array of pointers to remembered sets, 
-       or NULL.  Entry 0 in the array is unused.
+  uremset_t *the_remset;
+    /* In precise collectors: A pointer to the unified remset, or NULL. 
        */
 
-  int ephemeral_area_count;
-    /* The number of entries in the ephemeral_area table.
+  smircy_context_t *smircy;
+    /* The current mark/refine context, or NULL if no mark has been
+       initiated since last refinement was completed.
        */
 
-  int remset_count;
-    /* The number of entries in the remset table.
+  void *smircy_completion;
+    /* A completed clone of the smircy object.  (Its a msgc_context_t*)
+       */
+
+  seqbuf_t **ssb;
+    /* ssb[i] is sequential store buffer for region i.
+       The barrier associated with an update to object o (in region j
+       with a reference into region i != j) inserts o into SSB[i].
+       When SSB[i] is full, the SSB processing function determines how
+       to distribute its contents across the remsets and summaries.
+       */
+
+  seqbuf_t *satb_ssb;
+  /* Sequential store buffer for the Yuasa-style write barrier of
+     snapshot-at-the-beginning incremental marking algorithm. */
+
+  int gno_count;
+    /* The number of generations/regions.
        */
 
   int np_remset;
     /* In a non-predictive collector, the index in the remset array of
        the extra non-predictive remembered set, otherwise -1.
        */
+
+  int scan_update_remset;
+    /* 1 iff is a collector where objects may be forwarded into
+       distinct generations and therefore the remembered sets of
+       referring objects must be updated during cheney scan; otherwise 0.
+       (This might be synonymous with the barrier_gc flag in cheney_env_t; 
+       Felix cannot tell from the current codebase.)
+       */
+
+  int stat_max_entries_remset_scan;
+  long long stat_total_entries_remset_scan;
+  int stat_max_remset_scan;
+  int stat_max_remset_scan_cpu;
+  int stat_total_remset_scan;
+  int stat_total_remset_scan_cpu;
+  int stat_remset_scan_count;
+
+  int stat_last_ms_gc_cheney_pause;
+  int stat_last_ms_gc_cheney_pause_cpu;
+  int stat_last_gc_pause_ismajor;
+
+  int words_from_nursery_last_gc;
 
   void *data;
     /* Private data.
@@ -94,12 +132,6 @@ struct gc {
     /* A method that requests that a garbage collection be performed in
        generation `gen', such that at least `bytes_needed' bytes can be
        allocated following the collection.
-       */
-
-  void (*permute_remembered_sets)( gc_t *gc, int permutation[] );
-    /* Permute the remembered sets and pertinent remembered-set system
-       data according to `permutation', where permutation[i] = j means
-       that remembered-set i becomes remembered-set j.
        */
 
   void (*set_policy)( gc_t *gc, int heap, int x, int y );
@@ -168,11 +200,58 @@ struct gc {
 
   /* PRIVATE */
   /* Internal to the collector implementation. */
+  gno_state_t (*gno_state)( gc_t *gc, int gno );
   void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *), void * );
-  void (*enumerate_remsets_older_than)( gc_t *gc, int generation,
-				        bool (*f)(word, void*, unsigned * ),
-				        void *,
-				        bool enumerate_np_remset );
+  void (*enumerate_smircy_roots)( gc_t *gc, void (*f)( word*, void *), void * );
+  void (*enumerate_remsets_complement)( gc_t *gc, gset_t genset,
+				        bool (*f)(word, void*),
+				        void * );
+     /* Invokes f on every word in the remsets in the complement of genset.
+        If f returns TRUE then word argument is retained in the remset 
+        being traversed; otherwise word is removed (see interface for 
+        rs_enumerate() for more info).
+        */
+  void (*enumerate_remembered_locations)( gc_t *gc, gset_t genset, 
+                                          void (*f)( word, int, void* ), void* );
+     /* Invokes f on a superset of locations (each represented as
+      * tagged-word + byte offset) in the remembered set, passing
+      * along the accumulator scan_data.
+      */
+
+  void (*enumerate_hdr_address_ranges)( gc_t *gc, int gno, 
+                                        void (*f)( word *s,word *l,void *d ),
+                                        void *d );
+     /* Invokes f on series of address ranges [s,l) for gno.
+      * Guarantees: 
+      * - Every [s,l) will represent a half-open range [s,l+k) of 
+      *   well-formatted storage (for some k >= 0).
+      * - For every object o in generation/region gno, f will 
+      *   eventually be invoked on a range that covers the start of o.
+      *
+      * Note that the enumeration might include headers (or first
+      * words) of objects (pairs) unreachable from the roots.
+      */
+
+  semispace_t *(*fresh_space)(gc_t *gc);
+     /* Creates a fresh space to copy objects into with a 
+      * distinct generation number.
+      */
+  semispace_t *(*find_space)(gc_t *gc, unsigned bytes_needed, semispace_t *ss);
+     /* modifies: ss
+      * The returned semispace is guaranteed to have sufficient space
+      * to store an object of size bytes_needed.  It will either be ss
+      * or an entirely fresh semispace (but even when it is fresh, it
+      * may share the same gen_no as another semispace).
+      */
+  
+  int (*allocated_to_areas)( gc_t *gc, gset_t gs );
+  int (*maximum_allotted)( gc_t *gc, gset_t gs );
+  bool (*is_nonmoving)( gc_t *gc, int gen_no );
+  bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy );
+  void (*check_remset_invs)( gc_t *gc, word src, word tgt );
+  void (*points_across)( gc_t *gc, word lhs, int offset, word rhs );
+  old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no );
+  region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no );
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -197,14 +276,30 @@ struct gc {
 #define gc_compact_np_ssb( gc )       ((gc)->compact_np_ssb( gc ))
 #define gc_dump_heap( gc, fn, c )     ((gc)->dump_heap( gc, fn, c ))
 #define gc_load_heap( gc, h )         ((gc)->load_heap( gc, h ))
+#define gc_gno_state( gc,n )          ((gc)->gno_state( (gc),(n) ))
 #define gc_enumerate_roots( gc,s,d )  ((gc)->enumerate_roots( gc, s, d ))
+#define gc_enumerate_smircy_roots( gc,s,d ) \
+  ((gc)->enumerate_smircy_roots( (gc),(s),(d) ))
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
-#define gc_permute_remembered_sets( gc, p ) \
-  ((gc)->permute_remembered_sets( (gc), (p) ))
-#define gc_enumerate_remsets_older_than( gc, g, s, d, f ) \
-  ((gc)->enumerate_remsets_older_than( gc, g, s, d, f ))
+#define gc_enumerate_remsets_complement( gc, gset, s, d ) \
+  ((gc)->enumerate_remsets_complement( gc, gset, s, d ))
+#define gc_enumerate_remembered_locations( gc, gset, s, d) \
+  ((gc)->enumerate_remembered_locations( gc, gset, s, d ))
+#define gc_enumerate_hdr_address_ranges( gc, gno, s, d ) \
+  ((gc)->enumerate_hdr_address_ranges( gc, gno, s, d ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
 #define gc_free_handle( gc, h )       ((gc)->free_handle( gc, h ))
+#define gc_find_space( gc, n, ss )    ((gc)->find_space( gc, n, ss ))
+#define gc_fresh_space( gc )          ((gc)->fresh_space( gc ))
+
+#define gc_allocated_to_areas( gc, gs ) ((gc)->allocated_to_areas( gc, gs ))
+#define gc_maximum_allotted( gc, gs )   ((gc)->maximum_allotted( gc, gs ))
+#define gc_is_nonmoving( gc, gno )      ((gc)->is_nonmoving( (gc), (gno) ))
+#define gc_is_address_mapped( gc,a,n )  ((gc)->is_address_mapped( (gc), (a), (n) ))
+#define gc_check_remset_invs( gc,s,t )  ((gc)->check_remset_invs( (gc), (s), (t) ))
+#define gc_points_across( gc,l,o,r )    ((gc)->points_across( (gc), (l), (o), (r) ))
+#define gc_heap_for_gno( gc,gno )       ((gc)->heap_for_gno( (gc), (gno) ))
+#define gc_region_group_for_gno( gc,gno ) ((gc)->region_group_for_gno( (gc), (gno) ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -214,7 +309,6 @@ gc_t
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
 	     void (*make_room)( gc_t *gc ),
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
-	     void (*permute_remembered_sets)( gc_t *gc, int permutation[] ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),
@@ -233,13 +327,33 @@ gc_t
 	     int  (*dump_heap)( gc_t *gc, const char *filename, bool compact ),
 	     word *(*make_handle)( gc_t *gc, word object ),
 	     void (*free_handle)( gc_t *gc, word *handle ),
+	     gno_state_t (*gno_state)( gc_t *gc, int gno ), 
 	     void (*enumerate_roots)( gc_t *gc, void (*f)( word*, void *),
 				     void * ),
-	     void (*enumerate_remsets_older_than)
-	        ( gc_t *gc, int generation,
-		  bool (*f)(word, void*, unsigned * ),
-		  void *data,
-		  bool enumerate_np_remset )
+	     void (*enumerate_smircy_roots)( gc_t *gc, 
+				             void (*f)( word*, void *),
+				             void * ),
+	     void (*enumerate_remsets_complement)
+	        ( gc_t *gc, gset_t genset,
+		  bool (*f)(word, void*),
+		  void *data ),
+	     void (*enumerate_remembered_locations)
+	        ( gc_t *gc, gset_t genset, 
+	          void (*f)( word, int, void* ), void* ),
+	     void (*enumerate_hdr_address_ranges)
+	        ( gc_t *gc, int gno, 
+	          void (*f)( word *s,word *l,void *d), void *d),
+	     semispace_t *(*fresh_space)( gc_t *gc ),
+	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
+					 semispace_t *ss ),
+	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
+	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     bool (*is_nonmoving)( gc_t *gc, int gen_no ),
+	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
+	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
+	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
+	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
+	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );

@@ -27,7 +27,7 @@
  * have a value n-7 <= s <= n.
  *
  * A large object is always on either one of the object_lists or on 
- * the marked list.
+ * the marked list (FSK: that is an *exclusive* or, yes?)
  */
 
 #include "larceny-types.h"
@@ -47,6 +47,16 @@ los_t *create_los( int generations );
      generations > 0
      */
 
+void expand_los_gnos( los_t *los, int fresh_gno );
+  /* Adds a new generation, with unique fresh_gno, to the LOS structure.
+     Objects in los change their gno assignment to accomodate fresh_gno.
+     */
+
+void los_swap_gnos( los_t *los, int gno1, int gno2 );
+  /* Changes the mapping between objects and generation numbers in the 
+     los structure, exchanging gno1 and gno2. 
+     */
+
 los_list_t *create_los_list(void);
   /* Create a free-standing LOS list.
      */
@@ -61,6 +71,14 @@ int los_bytes_used( los_t *los, int gen_no );
      0 <= gen_no < los.generations 
   or gen_no == LOS_MARK1 
   or gen_no == LOS_MARK2
+     */
+
+int los_bytes_used_include_marklists( los_t *los, int gen_no );
+  /* Returns the number of bytes allocated to large objects in generation
+     `gen_no', including objects on the mark lists that belong to `gen_no'
+
+     This function is suited for determining how many bytes are
+     assigned to a generation even when in the *midst* of collection.
      */
 
 word *los_allocate( los_t *los, int nbytes, int gen_no );
@@ -104,6 +122,12 @@ void los_append_and_clear_list( los_t *los, los_list_t *l, int to_gen );
      0 <= to_gen < los.generations
      */
 
+void los_append_and_clear_list_infer_gen( los_t *los, los_list_t *l );
+  /* Distribute the objects in l amongst the object lists of los
+     according to the generation numbers that have been already
+     set on the objects (using los_mark_and_set_generation)
+     */
+
 void los_list_set_gen_no( los_list_t *list, int gen_no );
   /* Set the generation number on the pages occupied by large objects
      in the list to `gen_no'.
@@ -121,11 +145,8 @@ void los_free_list( los_list_t *list );
   /* Free the list.  Does not affect any objects on the list.
      */
 
-void los_permute_object_lists( los_t *los, int permutation[] );
-  /* Permute the object lists according to PERMUTATION, which is an array
-     of length MAX_GENERATION where list[i] is moved to list[permutation[i]].
-     Also sets the generation numbers on all the objects in the lists
-     according to where they are moved.
+bool los_is_address_mapped( los_t *los, word *addr, bool noisy );
+  /* Returns true iff 'addr' is an object in 'los'. 
      */
 
 /* eof */

@@ -164,7 +164,9 @@
     ;(>                  (flonum flonum)             .>:flo:flo)
     ;(>=                 (flonum flonum)             .>=:flo:flo)
      
-    ;(vector-set!:trusted (vector fixnum nonpointer) vector-set!:trusted:imm)
+    ; SATB in RROF has stronger constraint: must ensure value in 
+    ; *overwritten* slot can be omitted from snapshot construction.
+    ;(vector-set!:trusted (vector fixnum nonpointer) vector-set!:trusted:nwb)
     ;(.vector-set!:trusted (vector fixnum nonpointer) .vector-set!:trusted:nwb)
      )))
 

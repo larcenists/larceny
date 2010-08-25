@@ -29,18 +29,44 @@ static word NOWHERE[1];
   } while (0)
 
 static void extend_chunk_array( semispace_t *ss );
+static void extend_chunk_array_to( semispace_t *ss, int n );
 static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes );
 static void free_chunk_memory( semispace_t *ss, int slot );
 static void clear( semispace_t *ss, int i );
 static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk );
 
+#define ATTEMPT_TO_REUSE_SEMISPACES 0
+
+static semispace_t *last_freed = NULL;
 
 semispace_t *create_semispace( int bytes, int gen_no )
 {
   assert( bytes > 0 );
   assert( gen_no >= 0 );
 
+#if ATTEMPT_TO_REUSE_SEMISPACES
+  { 
+    semispace_t *ss = NULL;
+    if (last_freed != NULL) {
+      ss_reset( last_freed );
+      assert( last_freed->current == 0 );
+      if (last_freed->chunks[last_freed->current].bytes >= bytes) {
+        ss = last_freed;
+        last_freed = NULL;
+        ss_reset( ss );
+        ss_set_gen_no( ss, gen_no );
+      }
+    }
+    
+    if (ss == NULL)
+      ss = create_semispace_n( bytes, 1, gen_no );
+    
+    ss_invariants( ss );
+    return ss;
+  }
+#else
   return create_semispace_n( bytes, 1, gen_no );
+#endif
 }
 
 
@@ -212,7 +238,7 @@ void ss_sync( semispace_t *ss )
 }
 
 
-void ss_free( semispace_t *ss )
+static void ss_really_free( semispace_t *ss )
 {
   int i;
 
@@ -230,6 +256,18 @@ void ss_free( semispace_t *ss )
   /* *ss is dead */
 }
 
+void ss_free( semispace_t *ss ) 
+{
+#if ATTEMPT_TO_REUSE_SEMISPACES
+  if (last_freed != NULL) {
+    int i;
+    ss_really_free( last_freed );
+  }
+  last_freed = ss;
+#else
+  ss_really_free( ss );
+#endif
+}
 
 int ss_allocate_and_insert_block( semispace_t *ss, int nbytes )
 {
@@ -395,6 +433,147 @@ void ss_set_gen_no( semispace_t *ss, int gen_no )
   ss_invariants( ss );
 }
 
+static void ss_assimilate_via_move_block( semispace_t *ss_tgt, semispace_t *ss_src ) 
+{
+  int i;
+
+  while (ss_src->current >= 0) {
+    ss_move_block_to_semispace( ss_src, 0, ss_tgt );
+  }
+}
+
+static void ss_assimilate_directly( semispace_t *ss_tgt, semispace_t *ss_src )
+{
+  int i, tgt_slots_avail, src_slots_used;
+
+  assert2(ss_tgt->gen_no == ss_src->gen_no);
+  assert2(ss_tgt->current >= 0);
+
+  src_slots_used = ss_src->current+1;
+  tgt_slots_avail = ss_tgt->n - (ss_tgt->current + 1);
+  if (tgt_slots_avail < src_slots_used) {
+    extend_chunk_array_to( ss_tgt, ss_tgt->n + src_slots_used );
+  }
+  
+  for( i=0; i <= ss_src->current; i++ ) {
+    ss_tgt->current++;
+    ss_tgt->chunks[ss_tgt->current] = ss_src->chunks[i];
+    clear( ss_src, i );
+  }
+
+  assert2(ss_tgt->chunks[ ss_tgt->current ].bytes > 0);
+  ss_src->current = -1;
+
+#ifndef NDEBUG2
+  ss_sync( ss_src );
+  assert2(ss_src->used == 0);
+#endif
+}
+
+void ss_assimilate( semispace_t *ss_tgt, semispace_t *ss_src )
+{
+  ss_invariants( ss_tgt );
+  ss_invariants( ss_src );
+  
+  if (0)
+    ss_assimilate_via_move_block( ss_tgt, ss_src );
+  else
+    ss_assimilate_directly( ss_tgt, ss_src );    
+
+  ss_really_free(ss_src);
+  ss_invariants( ss_tgt );
+}
+
+void* ss_enumerate( semispace_t *ss, 
+                    void *(*visitor)( word *addr, int tag, void *accum ), 
+                    void *accum_init )
+{
+  int i;
+  word *cursor;
+  word *end;
+  void *accum = accum_init;
+
+  for (i = 0; i <= ss->current; i++) {
+    cursor = ss->chunks[i].bot;
+    end    = ss->chunks[i].top;
+    /* scanning code below is based on scan_core macro in cheney.h */
+    assert( !( ((word)cursor) & 7) ); /* cursor is aligned, right? */
+    while (cursor < end) {
+      assert( !( ((word)cursor) & 7) ); /* cursor is still aligned, right? */
+      word w = *cursor;
+      if (ishdr( w )) {
+        word h = header( w );
+        if (h == BV_HDR) {
+          word bytes;
+          accum = visitor( cursor, BVEC_TAG, accum );
+          bytes = roundup4( sizefield( w ));
+          cursor++;         /* header */
+          cursor = (word*)((word)cursor + bytes);
+          if (!(bytes & 4)) cursor++; /* padding */
+        } else {
+          word words;
+          int tag;
+          if (h == VEC_HDR) 
+            tag = VEC_TAG;
+          else if (h == header(PROC_HDR)) 
+            tag = PROC_TAG;
+          else
+            assert(0);
+          accum = visitor( cursor, tag, accum );
+          words = sizefield( w ) >> 2;
+          cursor++;        /* header */
+          cursor += words; /* contents */
+          if (!( sizefield( w ) & 4))
+            cursor++;      /* padding */
+        }
+      } else {
+        accum = visitor( cursor, PAIR_TAG, accum );
+        cursor += 2;
+      }
+    }
+  }
+  return accum;
+}
+
+void ss_enumerate_hdr_ranges( semispace_t *ss,
+                              void (*f)( word* s, word* l, void *d), 
+                              void *d )
+{
+  int i;
+  word *cursor;
+  word *end;
+
+  for (i = 0; i <= ss->current; i++) {
+    cursor = ss->chunks[i].bot;
+    end    = ss->chunks[i].top;
+    if (cursor == end)
+      continue;
+    f(cursor, end, d);
+  }
+}
+
+bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy ) 
+{
+  int i;
+  bool ret = FALSE;
+  for (i=0; i < ss->n; i++ ) {
+    if ((ss->chunks[i].bot <= addr) && (addr < ss->chunks[i].lim)) {
+      if (noisy) 
+        consolemsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
+                    " bot: 0x%08x top: 0x%08x lim: 0x%08x Y",
+                    ss, addr, i,
+                    ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
+      assert( !ret ); ret = TRUE;
+    } else {
+      if (noisy) 
+        consolemsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
+                    " bot: 0x%08x top: 0x%08x lim: 0x%08x N",
+                    ss, addr, i,
+                    ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
+    }
+  }
+  return ret;
+}
 
 /* Finds the first empty slot past ss->current and returns its index,
    extending the chunk array if necessary.
@@ -444,6 +623,11 @@ static void clear( semispace_t *ss, int i )
 static void extend_chunk_array( semispace_t *ss )
 {
   const int n = ss->n*2;
+  extend_chunk_array_to( ss, n );
+}
+
+static void extend_chunk_array_to( semispace_t *ss, int n )
+{
   ss_chunk_t *c;
   int i;
 
@@ -490,6 +674,39 @@ static void free_chunk_memory( semispace_t *ss, int slot )
   gclib_free( c->bot, c->bytes );
   ss->allocated -= c->bytes;
   clear( ss, slot );
+}
+
+static void ss_chunk_check_rep( ss_chunk_t *c, int i ) 
+{
+  word *p;
+  int delta;
+  assert( c->bot <= c->top );
+  assert( c->top <= c->lim );
+  delta = c->lim - c->bot;
+  if( c->bytes != delta*sizeof(word))
+    consolemsg( "i: %d lim: 0x%08x top: 0x%08x bot: 0x%08x delta: %d bytes: %d", 
+                i, c->lim, c->top, c->bot, delta, c->bytes );
+  assert( c->bytes == delta*sizeof(word));
+  for ( p = c->bot; p < c->lim; p++) {
+    *p; /* Attempt dereference to signal segfault if things are bogus. */
+  }
+}
+
+void ss_check_rep( semispace_t *s ) 
+{
+  int i, k;
+  ss_invariants( s );
+  assert( -1 <= s->current );
+  assert( s->current < s->n );
+  assert( s->allocated > 0 || s->current == -1 );
+  assert( s->chunks != NULL );
+  assert( s->chunks[-1].bytes == 0 );
+  for( k = 0; k <= s->current; k++ ) {
+    assert( s->chunks[k].bytes > 0 );
+  }
+  for( i = -1; i < s->n ; i++ ) {
+    ss_chunk_check_rep( &s->chunks[i], i );
+  }
 }
 
 /* eof */

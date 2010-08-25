@@ -736,9 +736,13 @@
     `(targets
       ("compat.date" ,(lambda args #t)))
     `(dependencies
-      ("compat.date" (,(string-append (nbuild-parameter 'compatibility)
-                                      "compat2"
-                                      file-type))))))
+      ("compat.date" ,(map (lambda (basename)
+                             (string-append (nbuild-parameter 'compatibility)
+                                            basename
+                                            file-type))
+                           '("compat2" 
+                             "tobytevector-be" 
+                             "tobytevector-el"))))))
 
 (define compat-project/fasl (make-compat-project ".fasl"))
 (define compat-project/lop (make-compat-project ".lop"))
@@ -904,5 +908,56 @@
     (apply make-dotnetasm rest)
     (apply make-compat rest)
     (compile-file (param-filename 'source "makefile.sch"))))
+
+(define larceny-runtime-project 
+  (let* ((runtime-target-names '("libpetit.lib" 
+                                 "libpetit.a" 
+                                 "larceny.bin" 
+                                 "larceny.bin.exe"))
+         (runtimes (map (lambda (x) (param-filename 'rts x)) 
+                        runtime-target-names))
+         (makefile (param-filename 'rts "Makefile"))
+         (make-templates.sch (param-filename 'rts "make-templates.sch"))
+         (arithmetic.c (param-filename 'rts "Shared" "arithmetic.c"))
+         (create-invoke-make-command
+          (lambda (target-name)
+            (lambda (name dep-files) 
+              (let ((cmd (string-append (make-command) " " target-name)))
+                ;; petit-win32.sch actually doesn't pass an arg to make...
+                ;; should I do same?
+                (execute-in-directory (nbuild-parameter 'rts) cmd)))))
+         (expand-mac-to-c-source
+          (lambda (name dep-files)
+            (expand-file (car dep-files) name)))
+         (create-makefile 
+          (lambda (name dep-files)
+            (compat:load (car dep-files))
+            (build-makefile)))
+         )
+    (make:project 
+     "Larceny Runtime"
+     `(targets ,@(map (lambda (rt) 
+                        `(,(param-filename 'rts rt) 
+                          ,(create-invoke-make-command rt)))
+                      runtime-target-names)
+               (,arithmetic.c ,expand-mac-to-c-source)
+               (,makefile ,create-makefile))
+
+     ;; FSK: Arguably each runtime should depend on all of the C
+     ;; source files, so that invocations of (make:make ...) on the
+     ;; project will invoke the make command whenever a source file
+     ;; changed.  But doing that properly would require encoding a
+     ;; list of the source files in this project description, and
+     ;; keeping it in sync with the generated Makefile, which sounds
+     ;; like a big headache.  So instead, I am leaving the
+     ;; dependencies here alone, and will also change build-runtime
+     ;; (the main entry point from the user perspective) to
+     ;; *unconditionally* invoke the make command (even when the
+     ;; Makefile has itself not changed).  (If the Makefile is written
+     ;; appropriately, this extra invocation will impose no noticeable
+     ;; cost at build time.)
+
+     `(dependencies ,@(map (lambda (rt) `(,rt (,makefile))) runtimes)
+                    (,makefile (,make-templates.sch))))))
 
 ; eof

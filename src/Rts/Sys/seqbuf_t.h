@@ -25,7 +25,7 @@ struct seqbuf {
   void *data;		/* Implementation's data */
 };
 
-typedef int (*seqbuf_processor)(word *bot, word *top, void *sp_data);
+typedef int (*seqbuf_processor)(gc_t *gc, word *bot, word *top, void *sp_data);
 
 /* Constructs a sequential store buffer.
  * 
@@ -48,7 +48,27 @@ create_seqbuf( int num_entries, /* Number of entries in SSB */
 /* Invokes entry_processor callback of the ssb, clears ssb, and
  * returns the entry processor's returned value.
  */
-int process_seqbuf( seqbuf_t *ssb );
+int process_seqbuf( gc_t *gc, seqbuf_t *ssb );
+
+/* Is the ssb clear? */
+bool seqbuf_clearp( seqbuf_t *ssb );
+
+/* Switches in a new set of locations to link with the SSB log.
+ */
+void seqbuf_swap_in_ssb( seqbuf_t *ssb, 
+                         word **bot_loc, word **top_loc, word **lim_loc );
+
+/* Switches in a new sp_data to pass along to the seqbuf_processor. 
+ * Returns previous data value. */
+void* seqbuf_set_sp_data( seqbuf_t *ssb, void *sp_data );
+
+#define SSB_ENQUEUE( gc, ssb, word )        \
+  do { seqbuf_t *ssb_tmp = (ssb);           \
+       **(ssb_tmp->top) = (word);           \
+       (*ssb_tmp->top)++;		    \
+       if (*ssb_tmp->top == *ssb_tmp->lim)  \
+         process_seqbuf( (gc), ssb_tmp );   \
+  } while (0);
 
 #endif /* INCLUDED_SEQBUF_T_H */
 

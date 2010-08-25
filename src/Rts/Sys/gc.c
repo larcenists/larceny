@@ -19,6 +19,7 @@
 #include "static_heap_t.h"
 #include "semispace_t.h"
 #include "heapio.h"
+#include "memmgr.h"
 
 static gc_t *gc;
 static int  generations;
@@ -183,6 +184,13 @@ int reorganize_and_dump_static_heap( const char *filename )
   }
   return 1;
 #endif
+}
+
+/* WARNING: this function is not declared in any header file; every
+ * invocation of it is a hack.  FIXME. */
+void dump_mmu_data( FILE *f )
+{
+  gc_dump_mmu_data( gc, f );
 }
 
 /* eof */

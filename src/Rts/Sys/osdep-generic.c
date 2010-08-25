@@ -466,47 +466,232 @@ void osdep_pollinput( word w_fd )
    easily reaches 10% of the live memory.  The code below should be
    improved to do one of several things:
 
-     - allocate larger blocks then parcel out the blocks to fill 
+     [.] allocate larger blocks then parcel out the blocks to fill 
        requests
 
-     - allocate blocks from malloc with smaller overheads than 4096,
+     [X] allocate blocks from malloc with smaller overheads than 4096,
        eg overhead of powers of 2 starting at 0 bytes, returning the
        first block that can accomodate the required alignment
    */
 
-static void register_pointer( byte *derived, byte *original );
-static byte *find_and_free_pointer( byte *p );
+static int fragmentation = 0;
+
+#define PARCEL_8K_BlOCKS 1
+#define PARCELING_MSGS 0
+
+static void *alloc_aligned( int bytes );
+static void free_aligned( void *p, int bytes );
+static void *alloc_aligned_8k();
+static void free_aligned_8k( void *p );
+
+void *osdep_alloc_aligned( int bytes ) 
+{
+  if (PARCEL_8K_BlOCKS && bytes == 8*KILOBYTE) {
+    return alloc_aligned_8k();
+  } else {
+    return alloc_aligned( bytes );
+  }
+}
+
+void osdep_free_aligned( void *p, int bytes ) 
+{
+  if (PARCEL_8K_BlOCKS && bytes == 8*KILOBYTE) {
+    free_aligned_8k( p );
+  } else {
+    free_aligned( p, bytes );
+  }
+}
+
+#define NUM_8K_BLOCKS_PER_ENTRY 4
+#define ALL_ENTRIES_FILLED_MASK ~(~0<<NUM_8K_BLOCKS_PER_ENTRY)
+struct r8Kentry {
+  byte *start;
+  struct r8Kentry *next;
+  unsigned inuse; /* bitmask of occupied blocks */
+};
+
+static struct {
+  struct r8Kentry *partial;
+  struct r8Kentry *filled;
+} parcels = {0,0};
+
+static int r8Kentry_length( struct r8Kentry *lst ) 
+{
+  int len;
+  len = 0;
+  while (lst != NULL) {
+    len += 1;
+    lst = lst->next;
+  }
+  return len;
+}
+
+static void *alloc_aligned_8k()
+{
+  void *package;
+  if (parcels.partial == NULL) {
+    parcels.partial = 
+      (struct r8Kentry *)must_malloc( sizeof( struct r8Kentry ));
+    package = alloc_aligned( 8*KILOBYTE*NUM_8K_BLOCKS_PER_ENTRY );
+    fragmentation += 8*KILOBYTE*(NUM_8K_BLOCKS_PER_ENTRY - 1);
+    parcels.partial->start = package;
+    parcels.partial->next = NULL;
+    parcels.partial->inuse = (1<<0);
+  } else {
+    int j;
+    for( j=0; j < NUM_8K_BLOCKS_PER_ENTRY; j++ ) {
+      if (! (parcels.partial->inuse & (1<<j))) {
+        package = parcels.partial->start + j*8*KILOBYTE;
+        parcels.partial->inuse |= (1<<j);
+        fragmentation -= 8*KILOBYTE;
+      }
+    }
+  }
+
+  /* at this point, parcels.partial is the block we are allocating
+   * from, and package is the 8K block we are going to return. */
+#if PARCELING_MSGS
+  consolemsg( "alloc_aligned_8k: added %d to bitset %x, "
+              "frag: %d*8K partial: %d filled: %d", 
+              j, parcels.partial->inuse, fragmentation/(8*KILOBYTE),
+              r8Kentry_length( parcels.partial ),
+              r8Kentry_length( parcels.filled ) );
+#endif
+  if ( parcels.partial->inuse == ALL_ENTRIES_FILLED_MASK ) {
+    struct r8Kentry *intransit;
+    intransit = parcels.partial;
+    parcels.partial = parcels.partial->next;
+    intransit->next = parcels.filled;
+    parcels.filled = intransit;
+  }
+  return package;
+}
+
+static void free_aligned_8k( void *p )
+{
+  struct r8Kentry *entries;
+  struct r8Kentry **p_entries;
+  byte *start, *lim;
+  int offs;
+  int len = 0;
+
+  entries = parcels.partial;
+  p_entries = &parcels.partial;
+  while ( entries != NULL ) {
+    start = entries->start;
+    lim = start + 8*KILOBYTE*NUM_8K_BLOCKS_PER_ENTRY;
+    if (start <= (byte*)p && (byte*)p < lim) {
+      goto found_entry;
+    } else {
+      len += 1;
+      p_entries = &entries->next;
+      entries = entries->next;
+    }
+  }
+  entries = parcels.filled;
+  p_entries = &parcels.filled;
+  while ( entries != NULL ) {
+    start = entries->start;
+    lim = start + 8*KILOBYTE*NUM_8K_BLOCKS_PER_ENTRY;
+    if (start <= (byte*)p && (byte*)p < lim) {
+      struct r8Kentry *intransit;
+      intransit = entries;
+      *p_entries = entries->next;
+      intransit->next = parcels.partial;
+      parcels.partial = intransit;
+      p_entries = &parcels.partial;
+      goto found_entry;
+    } else {
+      len += 1;
+      p_entries = &entries->next;
+      entries = entries->next;
+    }
+  }
+ found_entry: 
+  assert2( entries != NULL );
+  assert2( entries->start <= (byte*)p && 
+           (byte*)p < entries->start + 8*KILOBYTE*NUM_8K_BLOCKS_PER_ENTRY);
+  offs = ((byte*)p - entries->start)/(8*KILOBYTE);
+  assert2( 0 <= offs && offs < NUM_8K_BLOCKS_PER_ENTRY );
+  entries->inuse &= ~(1<<offs);
+  if (entries->inuse == 0) {
+    *p_entries = entries->next;
+    fragmentation -= 8*KILOBYTE*(NUM_8K_BLOCKS_PER_ENTRY - 1);
+#if PARCELING_MSGS
+    consolemsg( "alloc_aligned_8k: considered %d; removed %d yielding empty, "
+                "frag: %d*8K partial: %d filled; %d",
+                len, offs, fragmentation/(8*KILOBYTE), 
+                r8Kentry_length( parcels.partial ),
+                r8Kentry_length( parcels.filled ) );
+#endif
+    free_aligned( entries->start, 8*KILOBYTE*NUM_8K_BLOCKS_PER_ENTRY );
+    free( entries );
+  } else {
+    fragmentation += 8*KILOBYTE;
+#if PARCELING_MSGS
+    consolemsg( "alloc_aligned_8k: considered %d; removed %d yielding %x, "
+                "frag: %d*8K partial: %d filled; %d",
+                len, offs, entries->inuse, 
+                fragmentation/(8*KILOBYTE), 
+                r8Kentry_length( parcels.partial ),
+                r8Kentry_length( parcels.filled ) );
+#endif
+  }
+}
+
+static void register_pointer( byte *derived, byte *original, 
+                              int frag);
+static byte *find_and_free_pointer( byte *p, int *frag_recv );
 
 struct regentry {
   byte *original;
   byte *derived;
+  int frag;
 };
 
 static struct regentry *registry = 0;
 static int reg_next = 0;
 static int reg_size = 0;
-static int fragmentation = 0;
 
-void *osdep_alloc_aligned( int bytes )
+static void *alloc_aligned( int bytes )
 {
   byte *p, *q;
-
+  int delta;
 again:
-  p = (byte*)malloc( bytes+4096 );
+  delta = 0;
+ shifted_delta:
+  p = (byte*)malloc( bytes+delta );
   if (p == 0) {
     memfail( MF_MALLOC, "Failed to allocate %d bytes heap memory.", bytes );
     goto again;
   }
   q = (byte*)roundup( (word)p, 4096 );
-  fragmentation += 4096;
-  register_pointer( q, p );
+  if ((q-p) > delta) {
+    free(p);
+    if (delta == 0) {
+      delta = 1;
+    } else {
+      delta = delta << 1;
+    }
+    goto shifted_delta;
+  }
+
+  fragmentation += delta;
+#if 0
+  if (delta != 0) {
+    consolemsg("osdep_alloc_aligned(bytes=%d) added delta=%d (p: 0x%08x q: 0x%08x adj: %d) to total frag=%d",
+               bytes, delta, p, q, q-p, fragmentation);
+  }
+#endif
+  register_pointer( q, p, delta );
   return q;
 }
 
-void osdep_free_aligned( void *p, int bytes )
+static void free_aligned( void *p, int bytes )
 {
-  fragmentation -= 4096;
-  free( find_and_free_pointer( p ) );
+  int frag;
+  free( find_and_free_pointer( p, &frag ) );
+  fragmentation -= frag;
 }
 
 int osdep_fragmentation( void )
@@ -514,7 +699,8 @@ int osdep_fragmentation( void )
   return fragmentation;
 }
 
-static void register_pointer( byte *derived, byte *original )
+static void register_pointer( byte *derived, byte *original,
+                              int frag)
 {
   int i, j;
 
@@ -549,10 +735,11 @@ static void register_pointer( byte *derived, byte *original )
 	
   registry[reg_next].original = original;
   registry[reg_next].derived = derived;
+  registry[reg_next].frag = frag;
   reg_next++;
 }
 
-static byte *find_and_free_pointer( byte *derived )
+static byte *find_and_free_pointer( byte *derived, int *frag_recv )
 {
   int i;
   byte *p;
@@ -564,6 +751,8 @@ static byte *find_and_free_pointer( byte *derived )
 
   p = registry[i].original;
   registry[i].original = registry[i].derived = 0;
+  *frag_recv = registry[i].frag;
+  registry[i].frag = 0;
   return p;
 }
 #endif  /* USE_GENERIC_ALLOCATOR || GENERIC_OS */

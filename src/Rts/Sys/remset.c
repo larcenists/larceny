@@ -56,14 +56,6 @@
  * (an array of two-word structures would have been more natural) is
  * to allow the remembered-set forwarding scanner to scan more than one
  * object at a time, an optimization that is not currently implemented.
- *
- * NOTE 2 The SSB may contain raw pointers (pointers where the tag is #b000).
- * These pointers are placed in the SSB by the large-object allocator in
- * the generational collector; it was either that or requiring every 
- * allocation call to pass a type descriptor.  When compacting the SSB,
- * we must follow the pointer and tag it with a tag that corresponds to the
- * object header (always bytevector, vector, or procedure) before placing 
- * it in the remembered set.
  */
 
 #define GC_INTERNAL
@@ -76,11 +68,15 @@
 #include "remset_t.h"
 #include "gclib.h"
 #include "stats.h"
+#include "gc_t.h"
+#include "summary_t.h"
 
 /* This is an artifact of the low-level implementation of the hash pool;
    see comments above. */
 
 #define WORDS_PER_POOL_ENTRY     2
+
+#define ATTEMPT_TO_REUSE_POOL_SEGMENTS 0
 
 typedef struct pool pool_t;
 typedef struct remset_data remset_data_t;
@@ -101,6 +97,7 @@ struct remset_data {
   int            pool_entries;	/* Number of entries in a pool */
   int            numpools;	/* Number of pools */
   remset_stats_t stats;		/* Remset statistics */
+  unsigned       mem_attribute;	/* Attr identifying which Rts part owns mem */
 };
 
 #define DATA(rs)                ((remset_data_t*)(rs->data))
@@ -109,46 +106,71 @@ struct remset_data {
 
 /* Internal */
 
+static pool_t *recycled_pool = NULL;
+static int recycled_pool_entries_per = -1;
+
 static int identity = 0;
   /* Counter for assigning identity to remembered sets.
      */
 
 static int    ilog2( unsigned n );
-static pool_t *allocate_pool_segment( unsigned entries );
+static pool_t *allocate_pool_segment( unsigned entries, unsigned attr );
 static void   free_pool_segments( pool_t *first, unsigned entries );
-static void ssb_consistency_check( remset_t *rs );
 
-static int ssb_process(word *bot, word *top, void *ep_data);
+static remset_t *
+create_labelled_remset_with_owner_attrib
+  ( int tbl_entries,    /* size of hash table, 0=default */
+    int pool_entries,   /* size of remset, 0 = default */
+    int major_id,       /* for stats */
+    int minor_id,       /* for stats */
+    unsigned owner_attrib
+    );
 
 remset_t *
 create_remset( int tbl_entries,    /* size of hash table, 0 = default */
-	       int pool_entries,   /* size of remset, 0 = default */
-	       int ssb_entries,    /* size of ssb, 0 = default */
-	       word **ssb_bot_loc, /* cell for ssb_bot */
-	       word **ssb_top_loc, /* cell for ssb_top */
-	       word **ssb_lim_loc  /* cell for ssb_lim */
+	       int pool_entries    /* size of remset, 0 = default */
 	      )
 {
   return create_labelled_remset( tbl_entries,
 				 pool_entries,
-				 ssb_entries,
-				 ssb_bot_loc,
-				 ssb_top_loc,
-				 ssb_lim_loc,
 				 ++identity,
 				 0 );
 }
 
 remset_t *
+create_summset( int tbl_entries,    /* size of hash table, 0 = default */
+	        int pool_entries    /* size of remset, 0 = default */
+	      )
+{
+  return create_labelled_remset_with_owner_attrib( tbl_entries,
+						   pool_entries,
+						   ++identity,
+						   0,
+						   MB_SUMMARY_SETS );
+}
+
+remset_t *
 create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 			int pool_entries,   /* size of remset, 0 = default */
-			int ssb_entries,    /* size of ssb, 0 = default */
-			word **ssb_bot_loc, /* cell for ssb_bot */
-			word **ssb_top_loc, /* cell for ssb_top */
-			word **ssb_lim_loc, /* cell for ssb_lim */
 			int major_id,       /* for stats */
 			int minor_id        /* for stats */
 			)
+{
+  return create_labelled_remset_with_owner_attrib( tbl_entries,
+						   pool_entries,
+						   major_id,
+						   minor_id,
+						   MB_REMSET );
+}
+
+static remset_t *
+create_labelled_remset_with_owner_attrib
+  ( int tbl_entries,    /* size of hash table, 0=default */
+    int pool_entries,   /* size of remset, 0 = default */
+    int major_id,       /* for stats */
+    int minor_id,       /* for stats */
+    unsigned owner_attrib
+    )
 {
   word *heapptr;
   remset_t *rs;
@@ -157,21 +179,19 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
 
   assert( tbl_entries >= 0 && (tbl_entries == 0 || ilog2( tbl_entries ) != -1));
   assert( pool_entries >= 0 );
-  assert( ssb_entries >= 0 );
 
   if (pool_entries == 0) pool_entries = DEFAULT_REMSET_POOLSIZE;
   if (tbl_entries == 0) tbl_entries = DEFAULT_REMSET_TBLSIZE;
-  if (ssb_entries == 0) ssb_entries = DEFAULT_SSB_SIZE;
 
-  annoyingmsg( "Allocated remembered set\n  hash=%d ssb=%d pool=%d",
-	       tbl_entries, ssb_entries, pool_entries );
+  annoyingmsg( "Allocated remembered set\n  hash=%d pool=%d",
+	       tbl_entries, pool_entries );
 
   rs   = (remset_t*)must_malloc( sizeof( remset_t ) );
   data = (remset_data_t*)must_malloc( sizeof( remset_data_t ) );
 
   while(1) {
-    heapptr = gclib_alloc_rts( (tbl_entries + ssb_entries)*sizeof(word), 
-			       MB_REMSET );
+    heapptr = gclib_alloc_rts( tbl_entries*sizeof(word), 
+			       owner_attrib );
     if (heapptr != 0) break;
     memfail( MF_RTS, "Can't allocate table and SSB for remembered set." );
   }
@@ -181,20 +201,17 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   heapptr += tbl_entries;
   data->tbl_lim = heapptr;
 
-  /* SSB */
-  rs->ssb = create_seqbuf( ssb_entries, 
-			   ssb_bot_loc, ssb_top_loc, ssb_lim_loc, 
-			   ssb_process, rs ); 
-
   /* Node pool */
-  p = allocate_pool_segment( pool_entries );
+  p = allocate_pool_segment( pool_entries, data->mem_attribute );
   data->first_pool = data->curr_pool = p;
+  assert( data->curr_pool != 0 );
   data->numpools = 1;
 
   /* Misc */
   memset( &data->stats, 0, sizeof( data->stats ));
   data->pool_entries = pool_entries;
   data->self = stats_new_remembered_set( major_id, minor_id );
+  data->mem_attribute = owner_attrib;
 
   rs->live = 0;
   rs->has_overflowed = FALSE;
@@ -205,20 +222,13 @@ create_labelled_remset( int tbl_entries,    /* size of hash table, 0=default */
   return rs;
 }
 
-static int ssb_process( word *bot, word *top, void *ep_data ) {
-  return rs_compact( (remset_t*)ep_data );
-}
-
-void rs_clear( remset_t *rs )
+static void rs_clear_opt( remset_t *rs, bool use_recycle_pool )
 {
   remset_data_t *data = DATA(rs);
   word *p;
   int i;
 
   supremely_annoyingmsg( "REMSET @0x%p: clear", (void*)rs );
-
-  /* Clear SSB */
-  *rs->ssb->top = *rs->ssb->bot;
 
   /* Clear hash table */
   for ( p=data->tbl_bot, i=data->tbl_lim-data->tbl_bot ; i > 0 ; p++, i-- )
@@ -227,7 +237,14 @@ void rs_clear( remset_t *rs )
   /* Clear pools */
   data->first_pool->top = data->first_pool->bot;
   data->curr_pool = data->first_pool;
-  free_pool_segments( data->first_pool->next, data->pool_entries );
+  if (use_recycle_pool) {
+    assert( recycled_pool == NULL );
+    assert( recycled_pool_entries_per <= 0 );
+    recycled_pool = data->first_pool->next;
+    recycled_pool_entries_per = data->pool_entries;
+  } else {
+    free_pool_segments( data->first_pool->next, data->pool_entries );
+  }
   data->first_pool->next = 0;
 
   rs->has_overflowed = FALSE;
@@ -236,22 +253,22 @@ void rs_clear( remset_t *rs )
   data->stats.cleared++;
 }
 
-static word retagptr( word w ) 
+void rs_clear( remset_t *rs ) 
 {
-  if (tagof(w) == 0) {
-    switch (header(*(word*)w)) {
-    case VEC_HDR :
-      return (word)tagptr( w, VEC_TAG );
-    case BV_HDR : 
-      return 0; /* signal that entry should be removed! */
-    case PROC_HDR :
-      return (word)tagptr( w, PROC_TAG );
-    default:
-      panic_abort( "remset.c: word is nonptr." );
-    }
-  } else {
-    return w;
-  }
+  rs_clear_opt( rs, FALSE );
+}
+
+void rs_recycle( remset_t *rs ) 
+{
+  rs_clear_opt( rs, TRUE );
+}
+
+void rs_empty_recycling() 
+{
+  assert( recycled_pool_entries_per > 0 );
+  free_pool_segments( recycled_pool, recycled_pool_entries_per );
+  recycled_pool = NULL;
+  recycled_pool_entries_per = -1;
 }
 
 static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop ) 
@@ -264,120 +281,149 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   
   rs->has_overflowed = TRUE;
   if (DATA(rs)->curr_pool->next == 0) {
-    DATA(rs)->curr_pool->next = allocate_pool_segment( DATA(rs)->pool_entries );
+    
+    if ( recycled_pool == NULL ) {
+      DATA(rs)->curr_pool->next = 
+        allocate_pool_segment( DATA(rs)->pool_entries, 
+                               DATA(rs)->mem_attribute );
+    } else {
+      pool_t* p = recycled_pool;
+      p->top = p->bot;
+      p->next = 0;
+      DATA(rs)->curr_pool->next = p;
+      recycled_pool = p->next;
+    }
     DATA(rs)->numpools++;
   }
   DATA(rs)->curr_pool = DATA(rs)->curr_pool->next;
+  assert( DATA(rs)->curr_pool != 0 );
 }
 
-bool rs_compact( remset_t *rs )
+bool rs_add_elem_new( remset_t *rs, word w ) 
 {
-  word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
-  unsigned recorded;
+  word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
+  bool overflowed = FALSE;
   remset_data_t *data = DATA(rs);
 
-  assert( WORDS_PER_POOL_ENTRY == 2 );
+  assert2(! rs_isremembered( rs, w ));
 
-  supremely_annoyingmsg( "REMSET @0x%p: compact", (void*)rs );
-  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
-
-  p = *rs->ssb->bot;
-  q = *rs->ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
   tblsize = data->tbl_lim - tbl;
   mask = tblsize-1;
-  recorded = 0;
 
-  /* (The scan is down for historical reasons that no longer apply.) */
+  h = hash_object( w, mask );
 
-  while (q > p) {
-    q--;
-    w = *q;
-    w = retagptr(w);           /* See NOTE 2 above. */
-    if (!w) 
-      continue;                /* Remove the entry! */
-    h = hash_object( w, mask );
-    b = (word*)tbl[ h ];
-    while (b != 0 && *b != w) 
-      b = (word*)*(b+1);
-    if (b == 0) {
-      if (pooltop == poollim) {
-	handle_overflow( rs, recorded, pooltop );
-	recorded = 0;
-	pooltop = data->curr_pool->top;
-	poollim = data->curr_pool->lim;
-      }
-      *pooltop = w;
-      *(pooltop+1) = tbl[h];
-      tbl[h] = (word)pooltop;
-      pooltop += 2;
-      recorded++;
-    }
+  if (pooltop == poollim) {
+    handle_overflow( rs, 0, pooltop );
+    pooltop = data->curr_pool->top;
+    poollim = data->curr_pool->lim;
+    overflowed = TRUE;
   }
-
-  data->stats.recorded += recorded;
-  rs->live += recorded;
+  *pooltop = w;
+  *(pooltop+1) = tbl[h];
+  tbl[h] = (word)pooltop;
+  pooltop += 2;
   data->curr_pool->top = pooltop;
-  *rs->ssb->top = *rs->ssb->bot;
-  data->stats.compacted++;
+  data->curr_pool->lim = poollim;
+  data->stats.recorded += 1;
+  rs->live += 1;
 
-  supremely_annoyingmsg( "REMSET @0x%x: Added %u elements (total %u). oflo=%d",
-                         (word)rs, recorded, rs->live, rs->has_overflowed);
-
-  return rs->has_overflowed;
+  return overflowed;
 }
 
-bool rs_compact_nocheck( remset_t *rs )
+/* Adds w to remset rs.  Returns true if rs overflowed when inserting w. */
+bool rs_add_elem( remset_t *rs, word w ) 
 {
-  word *p, *q, mask, *tbl, w, *pooltop, *poollim, tblsize, h;
-  unsigned recorded;
+  word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
+  bool overflowed = FALSE;
   remset_data_t *data = DATA(rs);
-
-  assert( WORDS_PER_POOL_ENTRY == 2 );
-
-  supremely_annoyingmsg( "REMSET @0x%p: fast compact", (void*)rs );
-  data->stats.ssb_recorded += *rs->ssb->top - *rs->ssb->bot;
-
-  p = *rs->ssb->bot;
-  q = *rs->ssb->top;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;
   tblsize = data->tbl_lim - tbl;
   mask = tblsize-1;
-  recorded = 0;
 
-  /* (The scan is down for historical reasons that no longer apply.) */
-
-  while (q > p) {
-    q--;
-    w = *q;
-    w = retagptr(w);           /* See NOTE 2 above. */
-    if (!w) 
-      continue;                /* Remove the entry! */
-    h = hash_object( w, mask );
+  h = hash_object( w, mask );
+  b = (word*)tbl[ h ];
+  while (b != 0 && *b != w) 
+    b = (word*)*(b+1);
+  if (b == 0) {
     if (pooltop == poollim) {
-      handle_overflow( rs, recorded, pooltop );
-      recorded = 0;
+      handle_overflow( rs, 0, pooltop );
       pooltop = data->curr_pool->top;
       poollim = data->curr_pool->lim;
+      overflowed = TRUE;
     }
     *pooltop = w;
     *(pooltop+1) = tbl[h];
     tbl[h] = (word)pooltop;
     pooltop += 2;
-    recorded++;
+    data->curr_pool->top = pooltop;
+    data->curr_pool->lim = poollim;
+    data->stats.recorded += 1;
+    rs->live += 1;
   }
 
-  data->stats.recorded += recorded;
-  rs->live += recorded;
-  data->curr_pool->top = pooltop;
-  *rs->ssb->top = *rs->ssb->bot;
-  data->stats.compacted++;
+  return overflowed;
+}
 
-  return rs->has_overflowed;
+bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top ) 
+{
+  word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
+  remset_t *rs;
+  int gno;
+  bool added_word; 
+  bool overflowed = FALSE;
+
+  assert( WORDS_PER_POOL_ENTRY == 2 );
+
+  p = bot;
+  q = top;
+
+  /* (The scan is down for historical reasons that no longer apply.) */
+
+  while (q > p) {
+    q--;
+    w = *q;
+    if ( is_fixnum(w) ) {
+      /* fixnums in SSB log indicate which field was written to. */
+      continue;
+    }
+    gno = gen_of(w);
+    rs = remset[gno];
+    overflowed |= rs_add_elem( rs, w );
+  }
+
+  return overflowed;
+}
+
+bool rs_add_elems_funnel( remset_t *rs, word *bot, word *top ) 
+{
+  word *p, *q, mask, *tbl, w, *b, *pooltop, *poollim, tblsize, h;
+  int gno;
+  bool added_word; 
+  bool overflowed = FALSE;
+
+  assert( WORDS_PER_POOL_ENTRY == 2 );
+
+  p = bot;
+  q = top;
+
+  /* (The scan is down for historical reasons that no longer apply.) */
+
+  while (q > p) {
+    q--;
+    w = *q;
+    if ( is_fixnum(w) ) {
+      /* fixnums in SSB log indicate which field was written to. */
+      continue;
+    }
+    overflowed |= rs_add_elem( rs, w );
+  }
+
+  return overflowed;
 }
 
 /* FIXME: Worth optimizing!  Pass more than one object to the scanner. */
@@ -396,9 +442,6 @@ void rs_enumerate( remset_t *rs,
 
   supremely_annoyingmsg( "REMSET @0x%p: scan", (void*)rs );
 
-  if ( *rs->ssb->top != *rs->ssb->bot )
-    rs_compact( rs );
-
   ps = DATA(rs)->first_pool;
   while (1) {
     p = ps->bot;
@@ -407,8 +450,13 @@ void rs_enumerate( remset_t *rs,
     while (p < q) {
       if (*p != 0) {
 #if !GCLIB_LARGE_TABLE		/* These attributes not defined then */
-	assert2( (attr_of(*p) & (MB_ALLOCATED|MB_HEAP_MEMORY)) ==
-		 (MB_ALLOCATED|MB_HEAP_MEMORY) );
+#ifndef NDEBUG2
+	if ( (attr_of(*p) & (MB_ALLOCATED|MB_HEAP_MEMORY)) !=
+	     (MB_ALLOCATED|MB_HEAP_MEMORY) ) {
+	  assert2(attr_of(*p) & MB_ALLOCATED);
+	  assert2(attr_of(*p) & MB_HEAP_MEMORY);
+	}
+#endif 
 #endif
 	if (!scanner( *p, data, &word_count )) {
 	  /* Clear the slot by setting the pointer to 0. */
@@ -423,7 +471,11 @@ void rs_enumerate( remset_t *rs,
     ps = ps->next;
   }
   DATA(rs)->stats.objs_scanned += scanned;
+  DATA(rs)->stats.max_objs_scanned = 
+    max( DATA(rs)->stats.max_objs_scanned, scanned );
   DATA(rs)->stats.words_scanned += word_count;
+  DATA(rs)->stats.max_words_scanned =
+    max( DATA(rs)->stats.max_words_scanned, word_count );
   DATA(rs)->stats.removed += removed_count;
   rs->live -= removed_count;
   DATA(rs)->stats.scanned++;
@@ -432,106 +484,21 @@ void rs_enumerate( remset_t *rs,
 			 DATA(rs)->stats.removed );
 }
 
-/* Optimize: can _copy_ r2 into r1 if r1 is empty */
-void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
-{
-  pool_t *ps;
-  word *p, *q, *top, *lim;
-
-  assert( WORDS_PER_POOL_ENTRY == 2 );
-  supremely_annoyingmsg( "REMSET @0x%x assimilate @0x%x.", 
-			 (word)r1, (word)r2 );
-
-  rs_compact( r2 );
-  ps = DATA(r2)->first_pool;
-  top = *r1->ssb->top;
-  lim = *r1->ssb->lim;
-  while (1) {
-    p = ps->bot;
-    q = ps->top;
-    while (p < q) {
-      if (*p != 0) {
-	*top++ = *p;
-	if (top == lim) {
-	  *r1->ssb->top = top;
-	  rs_compact( r1 );
-	  top = *r1->ssb->top;
-	}
-      }
-      p += 2;
-    }
-    if (ps == DATA(r2)->curr_pool) break;
-    ps = ps->next;
-  }
-  *r1->ssb->top = top;
-  rs_compact( r1 );
-}
-
-void rs_assimilate_and_clear( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
-{
-  int hashsize;
-  
-  assert( WORDS_PER_POOL_ENTRY == 2 );
-
-  rs_compact( r1 );
-  rs_compact( r2 );
-
-  /* Use the straightforward code if destination is nonempty or
-     if the source is fairly empty, to avoid the expense of copying
-     the hash table when it won't pay off.  
-     */
-  hashsize = DATA(r2)->tbl_lim-DATA(r2)->tbl_bot;
-  if (r1->live > 0 || r2->live * 0.10 < hashsize)
-    rs_assimilate( r1, r2 );
-  else if (r2->live > 0) {
-    /* r1 is empty, but r2 is not, so just copy the hash table and move the
-       memory blocks.
-       */
-    /* Copy the hash table bits */
-    remset_data_t *data1 = DATA(r1);
-    remset_data_t *data2 = DATA(r2);
-    
-    memcpy( data1->tbl_bot, 
-	    data2->tbl_bot, 
-	    sizeof(word)*(data1->tbl_lim - data1->tbl_bot) );
-    free_pool_segments( data1->first_pool, data1->pool_entries );
-    data1->first_pool = data2->first_pool;
-    data1->curr_pool = data2->curr_pool;
-    data1->numpools = data2->numpools;
-    data2->first_pool = allocate_pool_segment( data1->pool_entries );
-    data2->curr_pool = data2->first_pool;
-    data2->numpools = 1;
-  }
-  rs_clear( r2 );		/* Clear hash table, free extra nodes */
-}
-
-int rs_size( remset_t *rs )
-{
-  remset_data_t *data = DATA(rs);
-  
-  return (  data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY
-          + data->tbl_lim - data->tbl_bot
-	  + *rs->ssb->lim - *rs->ssb->bot ) * sizeof(word);
-}
-
 void rs_stats( remset_t *rs )
 {
   remset_data_t *data = DATA(rs);
 
   data->stats.allocated = 
     (data->tbl_lim - data->tbl_bot) +
-    (*rs->ssb->lim - *rs->ssb->bot) +
     (data->pool_entries*data->numpools*WORDS_PER_POOL_ENTRY);
 
   data->stats.used =
     (data->tbl_lim - data->tbl_bot) +
-    (*rs->ssb->lim - *rs->ssb->bot) +
     data->pool_entries*(data->numpools-1)*WORDS_PER_POOL_ENTRY +
     (data->curr_pool->top - data->curr_pool->bot);
 
   data->stats.live = 
     (data->tbl_lim - data->tbl_bot) +
-    (*rs->ssb->lim - *rs->ssb->bot) +
     rs->live;
 
   stats_add_remset_stats( data->self, &data->stats );
@@ -544,9 +511,6 @@ bool rs_isremembered( remset_t *rs, word w )
   remset_data_t *data = DATA(rs);
 
   assert( WORDS_PER_POOL_ENTRY == 2 );
-
-  /* Clear SSB first */
-  rs_compact( rs );
 
   /* Search hash table */
   tbl = data->tbl_bot;
@@ -561,80 +525,64 @@ bool rs_isremembered( remset_t *rs, word w )
   return b != 0;
 }
 
-void rs_consistency_check( remset_t *rs, int gen_no )
+static bool rs_pool_next_chunk( summary_t *this, word **start, word **lim, 
+                                bool *duplicate_entries ) 
 {
-  word *p, *q, *t, obj;
-  int i, pi, qi;
-  int removed_nodes = 0, empty_buckets = 0, actual_nodes = 0;
-
-  assert( WORDS_PER_POOL_ENTRY == 2 );
-
-  ssb_consistency_check( rs );
-
-  for ( t=DATA(rs)->tbl_bot, i=0 ; t < DATA(rs)->tbl_lim ; t++, i++ ) {
-    p = (word*)*t;
-    pi = 0;
-    if (p == 0) empty_buckets++;
-    while (p != 0) {
-      if (*p == 0) 
-	removed_nodes++; 
-      else {
-	actual_nodes++;
-	q = (word*)*(p+1);
-	qi = pi+1;
-	while (q != 0) {
-	  if (*p == *q) 
-	    consolemsg( "Chain %d: duplicate value (%d,%d): %lx", 
-		       i, pi, qi, *p );
-	  qi++;
-	  q = (word*)*(q+1);
-	}
-	obj = *p;
-	if (gen_no >= 0) {
-	  if (gen_of(obj) != gen_no) {
-	    consolemsg( "Remset contains ptr to wrong gen: "
-			"0x%08x, gen=%d, want=%d",
-			obj, gen_of( obj ), gen_no );
-	    conditional_abort();
-	  }
-#if !GCLIB_LARGE_TABLE
-	  if ((attr_of(obj) & (MB_ALLOCATED|MB_HEAP_MEMORY)) !=
-	      (MB_ALLOCATED|MB_HEAP_MEMORY)) {
-	    consolemsg( "Remset entry points to page with bogus attributes: "
-			"0x%08x, 0x%08x",
-			obj, attr_of(obj) );
-	    conditional_abort();
-	  }
-#endif
-	}
-	gclib_check_object( obj );
-      }
-      pi++;
-      p = (word*)*(p+1);
-    }
-  }
-#if 0
-  consolemsg( "Total buckets: %d", DATA(rs)->tbl_lim - DATA(rs)->tbl_bot );
-  consolemsg( "Empty buckets: %d", empty_buckets );
-  consolemsg( "Non-null entries: %d", actual_nodes );
-  consolemsg( "Null entries: %d", removed_nodes );
-#endif
-}
-
-static void ssb_consistency_check( remset_t *rs )
-{
+  pool_t *ps;
   word *p, *q;
+  p = (word*) this->cursor1;
+  q = (word*) this->cursor2;
 
-  p = *rs->ssb->bot;
-  q = *rs->ssb->top;
+  if (p < q) {
+    assert( WORDS_PER_POOL_ENTRY == 2 );
+    *start = p;
+    *lim = p+1;
+    *duplicate_entries = FALSE;
 
-  while (p < q) {
-    gclib_check_object( *p );
-    p++;
+    /* set up next step of iteration */
+    p += 2;
+    this->cursor1 = p;
+    /* if p has reached q, then move on to the next pool segment. */
+    if (!(p < q)) {
+      ps = (pool_t*) this->cursor3;
+      while (ps != NULL) {
+        p = ps->bot;
+        q = ps->top;
+        ps = ps->next;
+        if (p < q) {
+          this->cursor1 = p;
+          this->cursor2 = q;
+          this->cursor3 = ps;
+          break;
+        }
+      }
+    }
+    return TRUE;
+  } else {
+    return FALSE;
   }
 }
 
-static pool_t *allocate_pool_segment( unsigned pool_entries )
+void rs_init_summary( remset_t *rs, int max_words_per_step, 
+                      /* out parameter */ summary_t *s )
+{
+  assert( max_words_per_step == -1 ); /* no support for incremental yet */
+  summary_init( s, rs->live, &rs_pool_next_chunk );
+  pool_t *ps = DATA(rs)->first_pool;
+  word *p, *q;
+  while (ps != NULL) {
+    p = ps->bot;
+    q = ps->top;
+    ps = ps->next;
+    if (p < q) 
+      break;
+  }
+  s->cursor1 = p;
+  s->cursor2 = q;
+  s->cursor3 = ps;
+}
+
+static pool_t *allocate_pool_segment( unsigned pool_entries, unsigned attr )
 {
   pool_t *p;
   word *heapptr;
@@ -643,7 +591,7 @@ static pool_t *allocate_pool_segment( unsigned pool_entries )
 
   while (1) {
     heapptr = gclib_alloc_rts( pool_entries*WORDS_PER_POOL_ENTRY*sizeof(word), 
-			       MB_REMSET );
+			       attr );
     if (heapptr != 0) break;
     memfail( MF_RTS, "Can't allocate remset hash pool." );
   }
@@ -685,6 +633,53 @@ static int ilog2( unsigned n )
   return -1;
 }
 
+void rs_describe_self( remset_t *rs ) 
+{
+  word *tbl, *b, mask, h; 
+  int tblsize, count, maxcount, sum_count, sum_sqrcount, num_nonzero, i;
+  remset_data_t *data = DATA(rs);
+
+#define HIST_LEN 500
+  int counthist[HIST_LEN];
+
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize-1;
+  h = 0;
+  consolemsg("TBL%d tblsize: %d", rs->identity, tblsize);
+
+  maxcount = -1;
+  sum_count = 0;
+  num_nonzero = 0;
+  for( i = 0; i < HIST_LEN; i++ ) {
+    counthist[i] = 0;
+  }
+  while ( h < tblsize ) {
+    count = 0;
+    b = (word*)tbl[ h ];
+    while ( b != NULL ) {
+      count++;
+      b = (word*)*(b+1);
+    }
+    sum_count += count;
+    sum_sqrcount += (count*count);
+    if (count > 0) {
+      assert( count < HIST_LEN );
+      counthist[count] += 1;
+      num_nonzero += 1;
+    }
+    if (count > maxcount)
+      maxcount = count;
+    h++;
+  }
+  consolemsg("tblsize: %d entries: %d sum_count: %d mean: %d max: %d\n", 
+             tblsize, num_nonzero, sum_count, sum_count/num_nonzero, maxcount);
+  for( i = 0; i < HIST_LEN; i++ ) {
+    if (counthist[i] != 0)
+      consolemsg("  #%d : %d", i, counthist[i]);
+  }
+}
+
 #if defined(REMSET_PROFILE)
 /* utility fn for remset_crossing_stats */
 
@@ -712,33 +707,6 @@ static bool remset_crossing_fn( word w, void *data, unsigned *ignored )
     hardconsolemsg( "remset_crossing_fn: ouch!!" );
 
   return TRUE;
-}
-
-/* Examine each remembered object and count pointers from those objects
- * into each younger generation, finally producing a listing of how
- * many pointers point into which generation
- *
- * WARNING! Compacts the remset before start; this may affect the
- *          subsequent execution behavior.
- *
- * WARNING! Uses enumerate_remset, so it will skew the scanned statistics 
- *          for the remset.
- */
-void rs_print_crossing_stats( remset_t *rs )
-{
-  unsigned genv[ MAX_GENERATIONS  ];
-  int i, j;
-
-  memset( genv, 0, sizeof(genv) );
-
-  rs_compact( rs );
-  rs_enumerate( rs, remset_crossing_fn, genv );
-
-  for ( i=GENERATIONS-1 ; i >= 0 ; i-- ) /* find highest nonzero entry */
-    if (genv[i] > 0) break;
-
-  for ( j=0 ; j <= i ; j++ )	         /* print stats */
-    consolemsg( "gen=%d: %u pointers", j, genv[j] );
 }
 
 #endif

@@ -254,8 +254,19 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   assert( free_current_chunk( heap ) >= request_bytes );
 
   /* More statistics */
-  data->gen_stats.ms_collection += stats_stop_timer( timer1 );
-  data->gen_stats.ms_collection_cpu += stats_stop_timer( timer2 );
+  {
+    int ms = stats_stop_timer( timer1 );
+    int ms_cpu = stats_stop_timer( timer2 );
+    data->gen_stats.ms_collection += ms;
+    data->gen_stats.ms_collection_cpu += ms_cpu;
+    heap->collector->stat_last_ms_gc_cheney_pause = ms;
+    heap->collector->stat_last_ms_gc_cheney_pause_cpu = ms_cpu;
+    heap->collector->stat_last_gc_pause_ismajor = 1;
+    data->gc_stats.max_ms_cheney_collection = 
+      max( data->gc_stats.max_ms_cheney_collection, ms );
+    data->gc_stats.max_ms_cheney_collection_cpu = 
+      max( data->gc_stats.max_ms_cheney_collection_cpu, ms_cpu );
+  }
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
                used_space( heap ) );
@@ -509,6 +520,11 @@ static int used_space( young_heap_t *heap )
          los_bytes_used( heap->collector->los, 0 );
 }
 
+static bool is_address_mapped( young_heap_t *heap, word *addr ) 
+{
+  return ss_is_address_mapped( DATA(heap)->current_space, addr, FALSE );
+}
+
 static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
 {
   young_heap_t *heap;
@@ -534,6 +550,7 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
                               creg_set,
                               stack_underflow,
                               stack_overflow,
+                              is_address_mapped,
                               data );
   heap->collector = gc;
 

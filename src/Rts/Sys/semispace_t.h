@@ -23,7 +23,7 @@
  * An ss_chunk_t `c' = s.chunks[i] where -1 <= i < s.n has invariants:
  *   c.bot <= c.top <= c.lim
  *   c.bot <= p < c.lim are dereferencable addresses
- *   c.bytes = (c.lim - c.top) * sizeof(word)
+ *   c.bytes = (c.lim - c.bot) * sizeof(word)
  */
 
 #ifndef INCLUDED_SEMISPACE_T_H
@@ -164,6 +164,39 @@ void ss_set_gen_no( semispace_t *ss, int gen_no );
 
      gen_no >= 0
      */
+
+void ss_assimilate( semispace_t *ss_tgt, semispace_t *ss_src );
+    /* requires: ss_src->gen_no matches ss_tgt->gen_no.
+       Moves all chunks in ss_src into ss_tgt; invalidates ss_src.
+       */
+
+void* ss_enumerate( semispace_t *ss, 
+                    void *(*visitor)( word *addr, int tag, void *accum ), 
+                    void *accum_init );
+  /* Invokes visitor on each object allocated in the semispace.
+     This might include objects unreachable from the roots.
+     */
+
+void ss_enumerate_hdr_ranges( semispace_t *ss,
+                              void (*f)( word* s, word* l, void *d), 
+                              void *d );
+     /* Invokes f on series of address ranges [s,l) for ss.
+      * Guarantees: 
+      * - Every [s,l) will represent a half-open range [s,l+k) of 
+      *   well-formatted storage (for some k >= 0).
+      * - For every object o in ss, f will 
+      *   eventually be invoked on a range that covers the start of o.
+      *
+      * Note that the enumeration might include headers (or first
+      * words) of objects (pairs) unreachable from the roots.
+      */
+
+bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy );
+  /* Returns true iff 'addr' is an object in 'ss'.
+     */
+
+void ss_check_rep( semispace_t *ss );
+  /* Signals error if ss does not satisfy internal invariants. */
 
 #endif  /* INCLUDED_SEMISPACE_T_H */
 

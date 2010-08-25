@@ -19,8 +19,10 @@
 ;;; for correct operation.  The amount of assembler in this file
 ;;; is not an indication of the required porting effort.
 	
-%define OPTIMIZE_MILLICODE
-
+%define OPTIMIZE_MILLICODE 1
+%define OPTIMIZE_BARRIER 1
+%define SSB_ENQUEUE_OFFSET_AS_FIXNUM 1
+	
 ;;; Assertion checking is turned on:
 
 %define CHECK_ASSERTIONS
@@ -274,10 +276,53 @@ PUBLIC i386_restore_continuation
 	MCg	mc_restore_continuation
 	
 PUBLIC i386_full_barrier
-%ifdef OPTIMIZE_MILLICODE
+%if OPTIMIZE_MILLICODE && OPTIMIZE_BARRIER
+	cmp dword[GLOBALS+G_CONCURRENT_MARK], 0 ; If concurrent mark off
+	je	Lfullgenbarrier			;   skip to gen barrier
+	mov	[GLOBALS+G_WBVALUE], SECOND	; Free up working registers
+	mov	TEMP, [GLOBALS+G_THIRD]		; globals[G_THIRD] holds tgt slot
+	mov	TEMP, [TEMP]			; TEMP := *slot
+	test	TEMP, 1				; If *slot is not ptr
+	jz	LfullgenbarrierRestoreSecond	;   skip to gen barrier
+	mov	[GLOBALS+G_REG1], REG1		; Free up working registers
+	mov	REG1, [GLOBALS+G_GENV]		; Map page -> generation
+	sub	TEMP, [EXTNAME(gclib_pagebase)]	; Load
+	shr	TEMP, 12			;   generation number
+	shl	TEMP, 2				;     (using byte offset)
+	mov	TEMP, [REG1+TEMP]		;       for *slot
+	cmp	TEMP, 0				; If gno = 0
+	je	LfullgenbarrierRestoreBothRegs	;   skip to gen barrier
+	mov	TEMP, RESULT			; TEMP := lhs
+	sub	TEMP, [EXTNAME(gclib_pagebase)]	; Load
+	shr	TEMP, 12			;   generation number
+	shl	TEMP, 2				;     (using byte offset)
+	mov	TEMP, [REG1+TEMP]		;       for lhs
+	cmp	TEMP, 0				; If gno == 0
+	jne	Lsatbbarrier			;   skip satb to gen barrier
+LfullgenbarrierRestoreBothRegs:
+	mov	REG1, [GLOBALS+G_REG1]		; restore orig REG1
+LfullgenbarrierRestoreSecond:
+	mov 	SECOND, [GLOBALS+G_WBVALUE]
+Lfullgenbarrier:				;
 	test	SECOND, 1			; If rhs is ptr
 	jnz	EXTNAME(i386_partial_barrier)	;   enter the barrier
 	ret					; Otherwise return
+Lsatbbarrier:					;
+	mov	TEMP, [GLOBALS+G_THIRD]		; globals[G_THIRD] holds tgt slot
+	mov	TEMP, [TEMP]			; oldval = *slot
+	mov	REG1, [GLOBALS+G_SATBTOPV]	; ptr to SATB SSB
+	mov	REG1, [REG1]			; SATB SSB top
+	mov	[REG1], TEMP			; 
+	mov	TEMP, [GLOBALS+G_SATBTOPV]	; 
+	add	REG1, 4				; Move SATB SSB ptr
+	mov	[TEMP], REG1			; store moved ptr
+	mov	TEMP, [GLOBALS+G_SATBLIMV]	; ptr to SATB SSB limit ptr
+	mov	TEMP, [TEMP]			; the limit ptr
+	cmp	REG1, TEMP			; if ptr!=limit
+	jne	LfullgenbarrierRestoreBothRegs	;   then no overflow, so done
+	mov	REG1, [GLOBALS+G_REG1]		;
+	mov	[GLOBALS+G_WBDEST], RESULT
+	MC2g_wb	mc_compact_satb_ssb_and_genb
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT
 	mov	[GLOBALS+G_WBVALUE], SECOND
@@ -285,7 +330,7 @@ PUBLIC i386_full_barrier
 %endif ; OPTIMIZE_MILLICODE
 	
 PUBLIC i386_partial_barrier
-%ifdef OPTIMIZE_MILLICODE
+%if OPTIMIZE_MILLICODE && OPTIMIZE_BARRIER
   %ifdef GCLIB_LARGE_TABLE
     %error Optimized write barrier does not work with "GCLIB_LARGE_TABLE" yet
   %endif
@@ -306,15 +351,42 @@ Lpb1:	mov	[GLOBALS+G_WBDEST], RESULT	; Save state and
 	mov	SECOND, [REG1+SECOND]		;       for rhs
 	cmp	RESULT, SECOND			; Only store lhs in SSB
 	jg	Lpb3				;   if gen(lhs) > gen(rhs)
+	jl	Lpb4				;   (or more complex non-gen logic)
 Lpb2:	mov	RESULT, [GLOBALS+G_WBDEST]	; Restore
 	mov	SECOND, [GLOBALS+G_WBVALUE]	;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	ret					;       return to Scheme
-Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
+Lpb4:	cmp	dword [GLOBALS+G_FILTER_REMSET_GEN_ORDER], 0
+	jne	Lpb2 		                ; filter when generational
+	cmp	dword [GLOBALS+G_FILTER_REMSET_LHS_NUM], RESULT
+	je	Lpb2		                ; filter lhs nursery
+	cmp	dword [GLOBALS+G_FILTER_REMSET_RHS_NUM], SECOND
+	je	Lpb2		                ; filter rhs static area
+Lpb3:	mov	RESULT, SECOND			; Preserve gen(rhs)
+	shl	RESULT, 2			; Gen(rhs) as byte offset
 	mov	REG1, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	mov	SECOND, [GLOBALS+G_WBDEST]	; The value to store (lhs)
 	mov	REG1, [REG1+RESULT]		; The correct SSB ptr
 	mov	[REG1], SECOND			; Store lhs
+%if SSB_ENQUEUE_OFFSET_AS_FIXNUM
+	add	REG1, 4				; Move SSB ptr
+	and	SECOND, ~TAGMASK		; ptrof(lhs)
+	sub	SECOND, [GLOBALS+G_THIRD]	;  THIRD holds dest's offset
+	neg	SECOND				;   = offset - ptrof(lhs)
+	mov	[REG1], SECOND
+	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
+	add	REG1, 4				; Move SSB ptr
+	mov	[SECOND+RESULT], REG1		; Store moved ptr
+	mov	SECOND, [GLOBALS+G_SSBLIMV]	; Array of SSB limit ptrs
+	add	REG1, 4				;  SSB needs +1 slot (offset)
+	mov	SECOND, [SECOND+RESULT]		; The correct limit ptr
+	cmp	REG1, SECOND			; If ptr < limit
+	jl	Lpb2				;   then no overflow, so done
+	xor	RESULT, RESULT			; Clear
+	xor	SECOND, SECOND			;   state
+	mov	REG1, [GLOBALS+G_REG1]		;     and
+	MCg_wb	mc_compact_ssbs			;       handle overflow
+%else  ; SSB_ENQUEUE_OFFSET_AS_FIXNUM
 	mov	SECOND, [GLOBALS+G_SSBTOPV]	; Array of ptrs into SSBs
 	add	REG1, 4				; Move SSB ptr
 	mov	[SECOND+RESULT], REG1		; Store moved ptr
@@ -326,6 +398,7 @@ Lpb3:	shl	RESULT, 2			; Gen(lhs) as byte offset
 	xor	SECOND, SECOND			;   state
 	mov	REG1, [GLOBALS+G_REG1]		;     and
 	MCg_wb	mc_compact_ssbs			;       handle overflow
+%endif
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT	; Save 
 	mov	[GLOBALS+G_WBVALUE], SECOND	;   state

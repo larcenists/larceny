@@ -15,6 +15,7 @@
 #include "stats.h"
 #include "gc_t.h"
 #include "remset_t.h"
+#include "uremset_t.h"
 
 typedef struct static_data static_data_t;
 
@@ -87,8 +88,8 @@ static void stats( static_heap_t *heap )
   }
 
   stats_add_gen_stats( DATA(heap)->self, &s );
-  if (heap->collector->remset_count > DATA(heap)->gen_no)
-    rs_stats( heap->collector->remset[ DATA(heap)->gen_no ] );
+  if (heap->collector->gno_count > DATA(heap)->gen_no)
+    urs_checkpoint_stats( heap->collector->the_remset, DATA(heap)->gen_no );
 }
 
 static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
@@ -116,6 +117,18 @@ static word *text_load_area( static_heap_t *heap, int nbytes )
   return allocate_chunk( &heap->text_area, nbytes, DATA(heap)->gen_no );
 }
 
+static bool is_address_mapped( static_heap_t *heap, word *addr, bool noisy )
+{
+  bool ret = FALSE;
+  if (heap->data_area && ss_is_address_mapped( heap->data_area, addr, noisy ) ) {
+    assert(!ret); ret = TRUE;
+  }
+  if (heap->text_area && ss_is_address_mapped( heap->text_area, addr, noisy ) ) {
+    assert(!ret); ret = TRUE;
+  }
+  return ret;
+}
+
 static_heap_t *create_static_area( int gen_no, gc_t *gc )
 {
   static_heap_t *heap;
@@ -141,6 +154,7 @@ static_heap_t *create_static_area( int gen_no, gc_t *gc )
   heap->reorganize = reorganize;
   heap->load_prepare = 0;
   heap->load_data = 0;
+  heap->is_address_mapped = is_address_mapped;
 
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;

@@ -197,7 +197,8 @@ static void collect( young_heap_t *heap, int nbytes, int request )
     }
   }
 #endif
-  gc_collect( heap->collector, data->gen_no+1, 0, GCTYPE_PROMOTE );
+  /* Why did Lars pass 0 instead of nbytes below? */
+  gc_collect( heap->collector, data->gen_no, 0, GCTYPE_EVACUATE );
   data->nbytes_wanted = nbytes;  /* For use in after_collection() */
 }
 
@@ -300,7 +301,7 @@ static void flush_stack( young_heap_t *heap )
    */
 static void stack_overflow( young_heap_t *heap )
 {
-  gc_collect( heap->collector, 0, 0, GCTYPE_PROMOTE );
+  gc_collect( heap->collector, 0, 0, GCTYPE_EVACUATE );
 }
 
 static void stack_underflow( young_heap_t *heap )
@@ -340,7 +341,12 @@ static void collect_if_no_room( young_heap_t *heap, int room )
 {
   room = roundup_balign( room );
   if (free_space( heap ) < room)
-    gc_collect( heap->collector, 0, room, GCTYPE_PROMOTE );
+    gc_collect( heap->collector, 0, room, GCTYPE_EVACUATE );
+}
+
+static bool is_address_mapped( young_heap_t *h, word *addr ) 
+{
+  return ((DATA(h)->heapbot <= addr) && (addr < DATA(h)->heaplim));
 }
 
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
@@ -368,6 +374,7 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 			      creg_set,
 			      stack_underflow,
 			      stack_overflow,
+			      is_address_mapped,
 			      data );
   heap->collector = gc;
 

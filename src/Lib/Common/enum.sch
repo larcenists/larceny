@@ -15,7 +15,7 @@
 ;
 ; Finite sets of symbols, and their use as enumeration types.
 ;
-; $Id$
+; $Id: enum.sch 5093 2007-11-06 23:33:06Z will $
 ;
 ; R6RS reference implementation, modified for Larceny by removing
 ; the define-enumeration syntax, tests, and library wrapper.

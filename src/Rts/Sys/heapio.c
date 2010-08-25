@@ -455,6 +455,8 @@ static int
 load_text( heapio_t *h, word *text_base, int count )
 {
   word n;
+  supremely_annoyingmsg("heapio load_text( h, 0x%08x, %d )", 
+			text_base, count);
 
   n = fread( (char*)text_base, sizeof( word ), count, h->fp );
   if (n < count)
@@ -467,6 +469,8 @@ load_data( heapio_t *h, word *text_base, word *data_base, int count )
 {
   word *p, w;
   int i;
+  supremely_annoyingmsg("heapio load_data( h, 0x%08x, [0x%08x,0x%08x), %d )", 
+			text_base, data_base, data_base+count, count);
 
   if (fread( (char*)data_base, sizeof( word ), count, h->fp ) < count)
     return HEAPIO_CANTREAD;

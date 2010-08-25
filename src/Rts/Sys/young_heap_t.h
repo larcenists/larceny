@@ -112,9 +112,9 @@ struct young_heap {
 
   word *(*data_load_area)( young_heap_t *heap, int nbytes );
      /* A method that allocates a block of at least `nbytes'
-	consecutive bytes, suitable for loading data into.  A pointer
-	to the first word of the block is returned.  No garbage 
-	collection will be triggered.
+	consecutive bytes, suitable for loading data into.
+	Returns NULL or a pointer to the first word of the 
+	block.  No garbage collection will be triggered.
 
 	nbytes > 0
 	*/
@@ -144,6 +144,10 @@ struct young_heap {
   void (*stack_overflow)( young_heap_t *heap );
      /* Spills a full stack cache to the heap.
 	*/
+
+  bool (*is_address_mapped)( young_heap_t *heap, word *addr );
+     /* Returns true iff 'addr' is an object in 'heap'. 
+        */
 };
 
 
@@ -174,6 +178,7 @@ young_heap_t *create_young_heap_t(
    void (*creg_set)( young_heap_t *heap, word k ),
    void (*stack_underflow)( young_heap_t *heap ),
    void (*stack_overflow)( young_heap_t *heap ),
+   bool (*is_address_mapped)( young_heap_t *heap, word *addr ),
    void *data
 );
 
@@ -192,6 +197,7 @@ young_heap_t *create_young_heap_t(
 #define yh_creg_set( h, k )        ((h)->creg_set( (h), (k) ))
 #define yh_stack_underflow( h )    ((h)->stack_underflow( (h) ))
 #define yh_stack_overflow( h )     ((h)->stack_overflow( (h) ))
+#define yh_is_address_mapped(h,a)  ((h)->is_address_mapped( (h), (a) ))
 
 #endif   /* INCLUDED_YOUNG_HEAP_T_H */
 

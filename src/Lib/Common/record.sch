@@ -1,6 +1,6 @@
 ; Copyright 1998 Lars T Hansen.
 ;
-; $Id$
+; $Id: record.sch 5090 2007-11-06 02:49:12Z will $
 ;
 ; Record Package.
 ;

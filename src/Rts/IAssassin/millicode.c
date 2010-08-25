@@ -1,4 +1,4 @@
-/* Copyright 1998 Lars T Hansen.
+/* Copyright 1998 Lars T Hansen.              -*- indent-tabs-mode: nil -*-
  *
  * $Id: millicode.c 2543 2005-07-20 21:54:03Z pnkfelix $
  *
@@ -6,6 +6,11 @@
  */
 
 #define NOGLOBALS
+
+#define MORECORE_ALWAYS_COLLECTS 0
+
+#define SSB_ENQUEUE_LOUDLY 0
+#define SSB_ENQUEUE_OFFSET_AS_FIXNUM 1
 
 #include "larceny.h"            /* Includes config.h also */
 #include "gc.h"
@@ -17,6 +22,8 @@
 #include "petit-machine.h"      /* XXX for LASTREG and NREGS XXX */
 #include "signals.h"
 #include "assert.h"
+#include "young_heap_t.h"       /* For yh_make_room() */
+#include "seqbuf_t.h"           /* For SSB_ENQUEUE */
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
@@ -543,20 +550,74 @@ void EXPORT mc_partial_barrier( word *globals )
 
   gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
   gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
-  if (gl <= gr) return;  
-  
+  if (gl == gr) return;
+  if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl <= gr) return;  
+  if (globals[ G_FILTER_REMSET_RHS_NUM ] == gr) return;
+  if (globals[ G_FILTER_REMSET_LHS_NUM ] == gl) return;
+
   ssbtopv = (word**)globals[ G_SSBTOPV ];
   ssblimv = (word**)globals[ G_SSBLIMV ];
-  *ssbtopv[gl] = lhs;
-  ssbtopv[gl] = ssbtopv[gl]+1;
-  if (ssbtopv[gl] == ssblimv[gl]) 
+
+  /* XXX should we track the most recent entry and filter repeats? */
+  if (SSB_ENQUEUE_LOUDLY)
+    if (*(ssbtopv[gr]-1) != lhs) 
+      consolemsg("gbuf enq: 0x%08x (%d)", lhs, gen_of(lhs));
+  *ssbtopv[gr] = lhs;
+  assert( tagof(lhs) != 0 );
+#if SSB_ENQUEUE_OFFSET_AS_FIXNUM
+  assert( is_fixnum( ((word)globals[G_THIRD] - (word)ptrof(lhs)) ));
+  *(ssbtopv[gr]+1) = ((word)globals[G_THIRD] - (word)ptrof(lhs));
+  ssbtopv[gr] = (ssbtopv[gr])+2;
+  if (ssbtopv[gr]+1 >= ssblimv[gr]) 
     gc_compact_all_ssbs( the_gc(globals) );
+#else
+  ssbtopv[gr] = (ssbtopv[gr])+1;
+  if (ssbtopv[gr] == ssblimv[gr]) 
+    gc_compact_all_ssbs( the_gc(globals) );
+#endif
+}
+
+static void satb_enqueue( word *globals, word ptr, word parent_ptr ) 
+{
+  gc_t *gc = the_gc(globals);
+  if (SSB_ENQUEUE_LOUDLY) 
+    consolemsg("satb enq: 0x%08x (%d)", ptr, gen_of(ptr));
+  SSB_ENQUEUE( gc, gc->satb_ssb, ptr );
+}
+
+void EXPORT mc_satb_barrier( word *globals )
+{
+  word rTmp = *(word*)globals[ G_THIRD ];
+  word result = (word)globals[ G_RESULT ];
+  if (globals[ G_CONCURRENT_MARK ] && isptr(rTmp) &&
+      (gen_of(rTmp) != 0) && (gen_of(result) != 0)) {
+    satb_enqueue( globals, rTmp, result );
+  }
+}
+
+static void mc_gen_barrier( word *globals )
+{
+  if (isptr( globals[ G_SECOND ] ))
+    mc_partial_barrier( globals );
+}
+
+void EXPORT mc_compact_satb_ssb_and_genb( word *globals )
+{
+  gc_t *gc = the_gc(globals);
+  seqbuf_t *ssb = gc->satb_ssb;
+
+  assert( *ssb->top == *ssb->lim );
+
+  if (*ssb->top == *ssb->lim)
+    process_seqbuf( (gc), ssb );
+
+  mc_gen_barrier( globals );
 }
 
 void EXPORT mc_full_barrier( word *globals )
 {
-  if (isptr( globals[ G_SECOND ] ))
-    mc_partial_barrier( globals );
+  mc_satb_barrier( globals );
+  mc_gen_barrier( globals );
 }
 
 /* Stack underflow handler. */

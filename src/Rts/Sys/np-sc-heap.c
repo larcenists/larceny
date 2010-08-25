@@ -35,6 +35,7 @@
 #include "memmgr.h"
 #include "gc.h"
 #include "gclib.h"
+#include "gset_t.h"
 #include "los_t.h"
 #include "gc_t.h"
 #include "young_heap_t.h"
@@ -42,7 +43,9 @@
 #include "semispace_t.h"
 #include "stats.h"
 #include "remset_t.h"
+#include "remset_np_t.h"
 #include "static_heap_t.h"
+#include "uremset_t.h"
 
 enum action { PROMOTE_TO_OLD, PROMOTE_TO_BOTH, PROMOTE_TO_YOUNG, COLLECT };
 
@@ -254,10 +257,8 @@ static enum action decision( old_heap_t *heap )
   npsc_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
   int X, No, Ny, i, max_fragmentation, large_live;
-
-  X = gc->young_area->allocated;
-  for ( i=0 ; i < gc->ephemeral_area_count ; i++ )
-    X += gc->ephemeral_area[i]->allocated;
+  
+  X = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
 
   /* Max fragmentation in the data promoted in depends on the amount being
      promoted, the maximum small object size, and the allocation area chunk 
@@ -346,6 +347,22 @@ static bool run_phase_detector( old_heap_t *heap )
   return TRUE;
 }
 
+static int np_rslive( old_heap_t *heap ) 
+{
+  return urs_live_count( heap->collector->the_remset, 
+                         heap->collector->np_remset );
+}
+static int old_rslive( old_heap_t *heap )
+{
+  return urs_live_count( heap->collector->the_remset, 
+                         DATA(heap)->old->gen_no );
+}
+static int young_rslive( old_heap_t *heap ) 
+{
+  return urs_live_count( heap->collector->the_remset, 
+                         DATA(heap)->young->gen_no );
+}
+
 static void update_phase_data( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
@@ -356,8 +373,7 @@ static void update_phase_data( old_heap_t *heap )
   assert( effective_j >= 0 );
 
   i = data->phase_idx;
-  data->phase_buf[i].remset_size = 
-    heap->collector->remset[ heap->collector->np_remset ]->live;
+  data->phase_buf[i].remset_size = np_rslive( heap );
   data->phase_buf[i].j = effective_j;
   data->phase_idx = (data->phase_idx+1) % PHASE_BUFSIZ;
 }
@@ -373,7 +389,7 @@ static bool check_for_remset_overflow( old_heap_t *heap )
 
   used = used_in_space( data->young );
   size = data->j * data->stepsize;
-  entries = heap->collector->remset[ heap->collector->np_remset ]->live;
+  entries = np_rslive( heap );
 
   /* `occ' is the inverse of the heap occupancy.
      If occ is large (heap nearly empty), then do not try to adjust.
@@ -430,9 +446,9 @@ static void adjust_j( old_heap_t *heap )
      because adjust_j() can be called while there's still live 
      data in the ephemeral area.
      */
-  rs_assimilate_and_clear( heap->collector->remset[ data->gen_no ], 
-                           heap->collector->remset[ data->gen_no+1 ] );
-  rs_clear( heap->collector->remset[ heap->collector->np_remset ] );
+  urs_assimilate_and_clear( heap->collector->the_remset, 
+                            data->gen_no, data->gen_no+1 );
+  urs_clear( heap->collector->the_remset, heap->collector->np_remset );
 
   data->j -= n+1;
   assert( data->j >= 0 );
@@ -458,7 +474,7 @@ static void perform_promote_to_old( old_heap_t *heap )
   old_los_before_gc = los_bytes_used( gc->los, data->gen_no );
 
   gclib_stopcopy_promote_into( heap->collector, data->old );
-  rs_clear( heap->collector->remset[ data->gen_no ] );
+  urs_clear( heap->collector->the_remset, data->gen_no );
 
   ss_sync( data->old );
   data->gc_stats.words_copied += 
@@ -525,9 +541,10 @@ static void perform_promote_to_both( old_heap_t *heap )
   assert( used_in_space( data->old ) <= (data->k - data->j)*data->stepsize );
   assert( used_in_space( data->young ) <= data->j*data->stepsize );
 
-  rs_clear( heap->collector->remset[ data->gen_no ] );
-  rs_assimilate_and_clear( heap->collector->remset[heap->collector->np_remset],
-                           heap->collector->remset[ data->gen_no+1 ] );
+  urs_clear( heap->collector->the_remset, data->gen_no );
+  urs_assimilate_and_clear( heap->collector->the_remset,
+                            heap->collector->np_remset, 
+                            data->gen_no+1 );
 
   /* Must update stats before changing j */
   ss_sync( data->old );
@@ -575,9 +592,9 @@ static void perform_collect( old_heap_t *heap )
   young_los_before_gc = los_bytes_used( los, data->gen_no+1 );
 
   gclib_stopcopy_collect_np( gc, data->young );
-  rs_clear( gc->remset[ data->gen_no ] );
-  rs_clear( gc->remset[ data->gen_no+1 ] );
-  rs_clear( gc->remset[ gc->np_remset ] );
+  urs_clear( gc->the_remset, data->gen_no );
+  urs_clear( gc->the_remset, data->gen_no+1 );
+  urs_clear( gc->the_remset, gc->np_remset );
 
   /* Manipulate the semispaces: young becomes old, old is deallocated */
   ss_free( data->old );
@@ -702,7 +719,7 @@ static void stats( old_heap_t *heap )
   data->gen_stats_old.used = bytes2words( data->old->used + live_los );
   stats_add_gen_stats( data->self_old, &data->gen_stats_old );
   memset( &data->gen_stats_old, 0, sizeof( gen_stats_t ) );
-  rs_stats( heap->collector->remset[ data->gen_no ] );
+  urs_checkpoint_stats( heap->collector->the_remset, data->gen_no );
 
   live_los = los_bytes_used( heap->collector->los, data->gen_no+1 );
   data->gen_stats_young.target = bytes2words( data->stepsize * data->j );
@@ -711,8 +728,8 @@ static void stats( old_heap_t *heap )
   data->gen_stats_young.used = bytes2words( data->young->used + live_los );
   stats_add_gen_stats( data->self_young, &data->gen_stats_young );
   memset( &data->gen_stats_young, 0, sizeof( gen_stats_t ) );
-  rs_stats( heap->collector->remset[ data->gen_no + 1] );
-  rs_stats( heap->collector->remset[ heap->collector->np_remset ] );
+  urs_checkpoint_stats( heap->collector->the_remset, data->gen_no + 1 );
+  urs_checkpoint_stats( heap->collector->the_remset, heap->collector->np_remset );
 
   data->gc_stats.np_j = data->j;
   data->gc_stats.np_k = data->k;
@@ -742,14 +759,14 @@ static void after_collection( old_heap_t *heap )
                "Remset live=%d",
                data->old->gen_no,
                data->stepsize * (data->k - data->j), used_old( heap ),
-               gc->remset[ data->old->gen_no ]->live );
+               old_rslive( heap ));
   annoyingmsg( "  Generation %d (non-predictive young):  Size=%d, Live=%d, "
                "Remset live=%d",
                data->young->gen_no,
                data->stepsize * data->j, used_young( heap ),
-               gc->remset[ data->young->gen_no ]->live );
+               young_rslive( heap ));
   annoyingmsg( "  Non-predictive parameters: k=%d, j=%d, Remset live=%d",
-               data->k, data->j, gc->remset[ gc->np_remset ]->live );
+               data->k, data->j, np_rslive( heap ));
 }
 
 static void set_policy( old_heap_t *heap, int op, int value )
@@ -840,6 +857,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
                             HEAPCODE_OLD_2SPACE_NP,
                             0,               /* initialize */
                             collect,
+                            0,               /* FIXME: collect_into */
                             before_collection,
                             after_collection,
                             stats,
@@ -847,6 +865,12 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc )
                             0,               /* FIXME: load_prepare */
                             0,               /* FIXME: load_data */
                             set_policy,
+                            0,               /* FIXME? set_gen_no */
+                            0,               /* FIXME? current_space */
+                            0,               /* FIXME assimilate */
+                            0,               /* FIXME enumerate */
+                            0,               /* FIXME is_address_mapped */
+                            0,               /* FIXME synchronize */
                             data
                            );
   heap->collector = gc;
