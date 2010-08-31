@@ -69,7 +69,8 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 97;
-char *larceny_version_qualifier = " \"Funny in the Head\"";
+/* char *larceny_version_qualifier = " \"Funny in the Head\""; */
+char *larceny_version_qualifier = "+ (new heap format)";
 
 char *date = DATE " " TIME;
 char *user = USER;

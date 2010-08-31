@@ -22,7 +22,10 @@
 #define INCLUDED_GCLIB_H
 
 #include "config.h"
+
+#ifndef ASSEMBLER
 #include "gset_t.h"
+#endif /* not ASSEMBLER */
 
 /* The attribute GCLIB_LARGE_TABLE may be set in config.h.  This
    attribute is experimental.  If set, then

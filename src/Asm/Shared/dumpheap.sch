@@ -41,7 +41,7 @@
   (make-twobit-flag 'generate-global-symbols))
 (generate-global-symbols #t)
 
-(define heap.version-number 9)          ; Heap version number
+(define heap.version-number 10)          ; Heap version number
 
 (define (build-heap-image output-file input-files)
 
