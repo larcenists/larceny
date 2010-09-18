@@ -154,6 +154,17 @@
 		 (date->time-utc (make-date 0 1 0 0 1 1 1999 0))))
     (fail "Date-UTC Conversions"))
 
+(or (and (= 1230768032
+            (time-second
+             (date->time-tai (make-date 0 59 59 23 31 12 2008 0))))
+         (= 1230768033
+            (time-second
+             (date->time-tai (make-date 0 60 59 23 31 12 2008 0))))
+         (= 1230768034
+            (time-second
+             (date->time-tai (make-date 0 0 0 0 1 1 2009 0)))))
+    (fail "Leap seconds (as of January 1, 2009)"))
+
 (or (let ((ct-utc (make-time time-utc 6320000 1045944859))
 	  (ct-tai (make-time time-tai 6320000 1045944891))
 	  (cd (make-date 6320000 19 14 15 22 2 2003 -18000)))
