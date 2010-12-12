@@ -103,6 +103,7 @@ void summary_enumerate_dispatch( summary_t *summary,
 {
   word *p, *q;
   unsigned word_count = 0;
+  assert2( ! summary->enumerate_locations_not_objects );
   while( summary_next_chunk( summary, &p, &q ) ) {
     while (p < q) {
       if (*p != 0) {
