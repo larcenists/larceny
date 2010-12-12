@@ -9,20 +9,6 @@
       (loop (+ i 1) (run))
       result)))
 
-(define (run-benchmark name count ok? run-maker . args)
-  (newline)
-  (display "--------------------------------------------------------")
-  (newline)
-  (let* ((run (apply run-maker args))
-         (result (time (run-bench name count ok? run))))
-    (if (not (ok? result))
-      (begin
-        (display "*** wrong result ***")
-        (newline)
-        (display "*** got: ")
-        (write result)
-        (newline)))))
-
 (define (fatal-error . args)
   (apply error #f args))
 
@@ -922,12 +908,12 @@
                                   "," (number->string ptrMutRate)
                                   "," (number->string steps))
 		   1
-		   (lambda (result) #t)
 		   (lambda ()
                      (lambda ()
                        (do ((step 0 (+ step 1)))
                            ((>= step steps))
-                         (doStep MEG)))))
+                         (doStep MEG))))
+		   (lambda (result) #t))
 
     (checkTrees)
 
