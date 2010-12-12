@@ -3,7 +3,7 @@
 #ifndef INCLUDED_SUMMARY_T_H
 #define INCLUDED_SUMMARY_T_H
 
-#define USE_OBJ_OFFS_REP_FOR_LOC_T 1
+#define USE_OBJ_OFFS_REP_FOR_LOC_T 0
 
 #if USE_OBJ_OFFS_REP_FOR_LOC_T
 struct loc {
