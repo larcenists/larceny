@@ -1022,20 +1022,47 @@ static bool lsscan_summary_sound( loc_t loc, void *my_data )
 {
   struct lsscan_summary_sound_data *data;
   msgc_context_t *msgc;
+  word *slot;
+  word val;
+  bool bad_condition;
   data = (struct lsscan_summary_sound_data*)my_data;
   msgc = data->msgc;
   assert( gen_of(loc.obj) != data->rgn_next );
 
-  if (! msgc_object_marked_p( msgc, loc.obj )) {
-    consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) "
-                 "marked {N, rs: %s, smircy: %s}", 
-                 loc.obj, gen_of(loc.obj), 
+  slot = loc_to_slot(loc);
+  val = *slot;
+  bad_condition = (isptr(val) 
+                   && (! msgc_object_marked_p( msgc, val ))
+                   /* nursery objects get a pass b/c smircy cant filter them;
+                    * its float, but some float is inevitable. */
+                   && (gen_of(val) != 0));
+  if (bad_condition) {
+    consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) -> 0x%08x (%d) "
+                 "marked {obj->slot:N obj:%s, rs: %s, smircy obj->slot:%s obj:%s}", 
+                 loc.obj, gen_of(loc.obj), val, gen_of(val), 
+                 msgc_object_marked_p( msgc, loc.obj )?"Y":"N", 
                  urs_isremembered( data->gc->the_remset, loc.obj )?"Y":"N",
+                 ((data->gc->smircy == NULL)?"n/a":
+                  (smircy_object_marked_p( data->gc->smircy,     val )?"Y  ":"N  ")),
                  ((data->gc->smircy == NULL)?"n/a":
                   (smircy_object_marked_p( data->gc->smircy, loc.obj )?"Y  ":"N  "))
                  );
   }
-  assert( msgc_object_marked_p( msgc, loc.obj ));
+  assert( ! bad_condition );
+  return TRUE;
+}
+
+struct push_remset_entry_if_in_smircy_data {
+  gc_t *gc;
+  msgc_context_t *msgc;
+};
+
+static bool push_remset_entry_if_in_smircy( word obj, void *my_data )
+{
+  struct push_remset_entry_if_in_smircy_data *data =
+    (struct push_remset_entry_if_in_smircy_data*)my_data;
+  if (smircy_object_marked_p( data->gc->smircy, obj ))
+    msgc_push_object( data->msgc, obj );
   return TRUE;
 }
 
@@ -1044,8 +1071,11 @@ static void assert_summary_as_ls_sound( gc_t *gc,
 {
   msgc_context_t *msgc;
   int ignm, ignt, ignw;
-  if (gc->smircy != NULL) {
-    msgc = smircy_clone_begin( gc->smircy, FALSE );
+
+    /* note from Wed Jan 20 13:06:59 EST 2010
+     * These are some notes on the use of (clone of) gc->smircy 
+     * as msgc_context, and which mark traversal I should use.
+     * They are out of date and perhaps useless now. */
     /* WANT to use msgc_mark_objects_from_roots_and_remsets as given
      * below (rather than msgc_mark_objects_from_nil) because smircy
      * is snapshot of the past that may not have objects that ARE in
@@ -1061,10 +1091,24 @@ static void assert_summary_as_ls_sound( gc_t *gc,
      *  note that it is indicating the exact *reverse* of the
      *  reasoning employed in the comment immediately above.)
      */
+
+  if (gc->smircy != NULL && smircy_in_refinement_stage_p( gc->smircy )) {
+    msgc = smircy_clone_begin( gc->smircy, FALSE );
+    {
+      int i;
+      struct push_remset_entry_if_in_smircy_data data;
+      data.gc = gc;
+      data.msgc = msgc;
+      for( i = 1; i < gc->gno_count; i++ ) {
+        urs_enumerate_gno( gc->the_remset, TRUE, i, 
+                           push_remset_entry_if_in_smircy, &data );
+      }
+    }
+    msgc_mark_objects_from_roots( msgc, &ignw, &ignt, &ignw );
   } else {
     msgc = msgc_begin( gc );
+    msgc_mark_objects_from_roots_and_remsets( msgc, &ignw, &ignt, &ignw );
   }
-  msgc_mark_objects_from_roots_and_remsets( msgc, &ignw, &ignt, &ignw );
   { 
     struct lsscan_summary_sound_data data;
     data.msgc = msgc;
