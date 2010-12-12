@@ -199,9 +199,10 @@
                #f))
           ((null? (cdr p)) entry)
           (else 
-           (extract-path.combine (extract-path (car entry) (cdr p))
-                                 (extract-path (cdr entry) (cdr p))
-                                 )))))
+           (let ((entry-list (if (vector? entry) (vector->list entry) entry)))
+             (extract-path.combine (extract-path (car entry-list) (cdr p))
+                                   (extract-path (cdr entry-list) (cdr p))
+                                   ))))))
 
 ;; first-satisfying : (Any -> Boolean : X) Sexp -> Maybe[X]
 (define (first-satisfying pred? sexp)
