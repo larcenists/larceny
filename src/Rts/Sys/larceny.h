@@ -358,6 +358,9 @@ extern int memfail( int code, char *fmt, ... );
 #define debug2msg  1?(void)0:(void)
 #endif
 
+/* self-initialize so that GCC -Wuninitialized does not complain. */
+#define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name
+
 #endif /* if INCLUDED_LARCENY_H */
 
 /* eof */

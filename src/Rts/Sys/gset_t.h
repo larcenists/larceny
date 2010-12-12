@@ -21,13 +21,16 @@ typedef struct { gset_tag_t tag; int g1; int g2; int g3; int g4; } gset_t;
  * (the two ranges of gs_twrng must not overlap; should be assert2'ing this)
  */
 static gset_t gset_null(void) { 
-  gset_t g; g.tag = gs_nil; return g; 
+  LARCENY_DECLARE_UNINITIALIZED(gset_t,g); 
+  g.tag = gs_nil; return g; 
 }
 static gset_t gset_singleton( int g1 ) { 
-  gset_t g; g.tag = gs_singleton; g.g1 = g1; return g; 
+  LARCENY_DECLARE_UNINITIALIZED(gset_t,g); 
+  g.tag = gs_singleton; g.g1 = g1; return g; 
 }
 static gset_t gset_range( int g1, int g2 ) {
-  gset_t g; g.tag = gs_range; g.g1 = g1; g.g2 = g2; return g; 
+  LARCENY_DECLARE_UNINITIALIZED(gset_t, g); 
+  g.tag = gs_range; g.g1 = g1; g.g2 = g2; return g; 
 }
 static gset_t gset_younger_than( int g2 ) { return gset_range( 0, g2 ); }
 static bool gset_singleton_memberp( int gno, gset_t gs ) {
@@ -48,7 +51,7 @@ static bool gset_memberp( int gno, gset_t gs ) {
   case gs_range:     return gset_range_memberp( gno, gs );
   case gs_twrng:     return gset_twrng_memberp( gno, gs );
   }
-  assert2(0);
+  assert2(0); return 0;
 }
 static bool gset_emptyp( gset_t gs ) {
   switch (gs.tag) {
@@ -73,7 +76,7 @@ static bool gset_max_elem( gset_t gs ) {
   case gs_twrng:     return max( gs.g2-1, gs.g4-1 );
   case gs_nil:       break; /* assert fail */
   }
-  assert2(0);
+  assert2(0); return 0;
 }
 static bool gset_last_elem( gset_t gs ) {
   switch (gs.tag) {
@@ -82,7 +85,7 @@ static bool gset_last_elem( gset_t gs ) {
   case gs_twrng:     return gs.g4-1;
   case gs_nil:       break; /* assert fail */
   }
-  assert2(0);
+  assert2(0); return 0;
 }
 static bool gset_first_elem( gset_t gs ) {
   switch (gs.tag) {
@@ -91,7 +94,7 @@ static bool gset_first_elem( gset_t gs ) {
   case gs_twrng:     return gs.g1;
   case gs_nil:       break; /* assert fail */
   }
-  assert2(0);
+  assert2(0); return 0;
 }
 static int gset_singleton_min_elem_greater_than( gset_t gs, int gno ) {
   if (gs.g1 > gno) return gs.g1; else return 0;
