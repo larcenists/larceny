@@ -174,6 +174,19 @@ struct gc_data {
   /* parse the above name as ``promotions since the beginning of the
      last completed snapshot at the time when this cycle itself
      began.'' */
+
+  struct {
+    int rrof_ssb_flushes;
+    long long rrof_ssb_entries_flushed_total;
+    int rrof_ssb_entries_flushed_this_cycle;
+    int rrof_ssb_max_entries_flushed_any_cycle;
+    int satb_ssb_flushes;
+    long long satb_ssb_entries_flushed_total;
+    int satb_ssb_entries_flushed_this_cycle;
+    int satb_ssb_max_entries_flushed_any_cycle;
+    int words_promoted_this_cycle;
+    int max_words_promoted_any_cycle;
+  } mutator_effort;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))

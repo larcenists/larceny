@@ -557,6 +557,10 @@ static void update_promotion_counts( gc_t *gc, int words_promoted )
   DATA(gc)->since_cycle_began.words_promoted               += words_promoted;
   DATA(gc)->since_finished_snapshot_at_time_cycle_began_began
     .words_promoted += words_promoted;
+  DATA(gc)->mutator_effort.words_promoted_this_cycle += words_promoted;
+  DATA(gc)->mutator_effort.max_words_promoted_any_cycle =
+    max( DATA(gc)->mutator_effort.max_words_promoted_any_cycle,
+         DATA(gc)->mutator_effort.words_promoted_this_cycle );
 
   DATA(gc)->since_finished_snapshot_began.count_promotions   += 1;
   DATA(gc)->since_developing_snapshot_began.count_promotions += 1;
@@ -727,6 +731,10 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 4)) {
     initialize_summaries( gc, FALSE );
   }
+
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this_cycle = 0;
 }
 
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
@@ -2606,9 +2614,65 @@ static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
   urs_add_elems( gc->the_remset, bot, top );
 }
 
+static int calc_cN( gc_t *gc )
+{
+  double F_1 = DATA(gc)->rrof_sumz_params.budget_inv;
+  double F_2 = DATA(gc)->rrof_sumz_params.coverage_inv;
+  int    F_3 = DATA(gc)->rrof_sumz_params.max_retries;
+  double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
+
+  double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
+  int N = /* FIXME should be incrementally calculated via collection delta */
+    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
+    / sizeof(word);
+  int retval;
+
+  assert( c > 0.0 );
+
+  N = max( N, 5*MEGABYTE );
+
+  retval = (int)(c * ((double)N));
+  if (retval <= 0 ) {
+    consolemsg("c:%g * N:%d yields nonneg.", c, N );
+  }
+  assert( retval > 0 );
+  return retval;
+}
+
+
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
-  if (0) 
-    consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x )", bot, top );
+  DATA(gc)->mutator_effort.satb_ssb_flushes += 1;
+  DATA(gc)->mutator_effort.satb_ssb_flushes += 1;
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_total += (top - bot);
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle += (top - bot);
+  DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any_cycle = 
+    max( DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any_cycle,
+         DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle );
+  if (bot != top) {
+    int cN = calc_cN(gc);
+    int effort = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this_cycle);
+
+    if (effort > cN) {
+      consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d ent:%lld,%d<=%d %d<=%d %d%s%d summ:%d.%d.%d/%d", 
+                  bot, top,
+                  nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
+                  DATA(gc)->mutator_effort.satb_ssb_flushes,
+                  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_total,
+                  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle,
+                  DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this_cycle,
+                  DATA(gc)->mutator_effort.max_words_promoted_any_cycle,
+                  effort, 
+                  (effort <= cN)?" <= ":" >> ", 
+                  cN, 
+                  (DATA(gc)->summaries != NULL)?sm_cycle_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_scan_count_curr_pass( DATA(gc)->summaries ):0,
+                  DATA(gc)->region_count );
+    }
+  }
   if (gc->smircy != NULL) {
     if (! smircy_stack_empty_p( gc->smircy )) {
       smircy_push_elems( gc->smircy, bot, top );
@@ -2622,6 +2686,38 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   int retval = 0;
   int g_rhs;
   word *p, *q, w;
+
+  DATA(gc)->mutator_effort.rrof_ssb_flushes += 1;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_total += (top - bot);
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle += (top - bot);
+  DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle = 
+    max( DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle,
+         DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle );
+  if (bot != top) {
+    int cN = calc_cN( gc );
+    int effort = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this_cycle);
+
+    if (effort > cN) {
+      consolemsg( "ssb_process_rrof( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d ent:%lld,%d<=%d %d<=%d %d%s%d summ:%d.%d.%d/%d", 
+                  bot, top,
+                  nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
+                  DATA(gc)->mutator_effort.rrof_ssb_flushes,
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_total,
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle,
+                  DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this_cycle,
+                  DATA(gc)->mutator_effort.max_words_promoted_any_cycle,
+                  effort, 
+                  (effort <= cN)?" <= ":" >> ", 
+                  cN, 
+                  (DATA(gc)->summaries != NULL)?sm_cycle_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_scan_count_curr_pass( DATA(gc)->summaries ):0,
+                  DATA(gc)->ephemeral_area_count );
+    }
+  }
   retval |= urs_add_elems( gc->the_remset, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
@@ -3049,6 +3145,18 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->rrof_words_per_region_max = 0;
   data->rrof_words_per_region_min = -1;
+
+  data->mutator_effort.rrof_ssb_flushes = 0;
+  data->mutator_effort.rrof_ssb_entries_flushed_total = 0;
+  data->mutator_effort.rrof_ssb_entries_flushed_this_cycle = 0;
+  data->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle = 0;
+  data->mutator_effort.satb_ssb_flushes = 0;
+  data->mutator_effort.satb_ssb_entries_flushed_total = 0;
+  data->mutator_effort.satb_ssb_entries_flushed_this_cycle = 0;
+  data->mutator_effort.satb_ssb_max_entries_flushed_any_cycle = 0;
+  data->mutator_effort.words_promoted_this_cycle = 0;
+  data->mutator_effort.max_words_promoted_any_cycle = 0;
+
 
 #if GATHER_MMU_DATA
   if (info->mmu_buf_size >= 0) { 

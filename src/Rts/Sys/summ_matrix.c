@@ -243,6 +243,10 @@ struct summ_matrix_data {
   summary_t mutrems_summary;
   summary_t summcol_summary_locs;
   summary_t summcol_summary_objs;
+
+  int cycle_count; /* number of cycles over program run */
+  int pass_count; /* number of scans over whole heap */
+  int curr_pass_units_count; /* num rgns via current pass (ie partial scan). */
 };
 
 #define DATA(sm)                ((summ_matrix_data_t*)(sm->data))
@@ -845,6 +849,10 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   data->col_inprogress_lim = -1;
 
   data->row_cache.last_cell_valid = FALSE;
+
+  data->cycle_count = 0;
+  data->pass_count = 0;
+  data->curr_pass_units_count = 0;
 
   sm->collector = gc;
   sm->data = data;
@@ -2117,6 +2125,9 @@ static int sm_build_summaries_by_scanning( summ_matrix_t *summ,
     }
   }
 
+  assert(finis_remset >= start_remset);
+  DATA(summ)->curr_pass_units_count += (finis_remset - start_remset);
+
   return nontrivial_scans;
 }
 
@@ -2232,6 +2243,9 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
       switch_some_to_summarizing( summ, coverage );
 
       DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
+
+      DATA(summ)->pass_count += 1;
+      DATA(summ)->curr_pass_units_count = 0;
     }
   }
 }
@@ -3110,6 +3124,9 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
                             rgn_next, about_to_major, dA );
   /* a small hack to ensure rs_cursor is always past any newly added areas */
   sm_build_summaries_just_static_area( summ, rgn_next, region_count );
+
+  DATA(summ)->cycle_count += 1;
+  DATA(summ)->curr_pass_units_count = 0;
 }
 
 static void sm_ensure_available( summ_matrix_t *summ, int gno,
@@ -3701,6 +3718,10 @@ EXPORT void sm_after_collection( summ_matrix_t *summ )
   assert_no_forwarded_objects( DATA(summ)->nursery_remset );
   check_rep_2( summ );
 }
+
+EXPORT int sm_cycle_count( summ_matrix_t *summ ) { return DATA(summ)->cycle_count; }
+EXPORT int sm_pass_count( summ_matrix_t *summ ) { return DATA(summ)->pass_count; }
+EXPORT int sm_scan_count_curr_pass( summ_matrix_t *summ ) { return DATA(summ)->curr_pass_units_count; }
 
 struct check_cells_against_rs_data {
   summ_matrix_t *summ;

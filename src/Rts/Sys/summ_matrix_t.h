@@ -183,6 +183,10 @@ void sm_nursery_summary_enumerate( summ_matrix_t *summ,
                                    bool (*scanner)(word loc, void *data, unsigned *stats),
                                    void *data );
 
+int sm_cycle_count( summ_matrix_t *summ );
+int sm_pass_count( summ_matrix_t *summ );
+int sm_scan_count_curr_pass( summ_matrix_t *summ );
+
 /* below refactored from memmgr.c */
 
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
