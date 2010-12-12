@@ -2272,6 +2272,17 @@ static void check_if_refining_is_now_done( summ_matrix_t *summ )
   }
 }
 
+static int calc_summarization_coverage( summ_matrix_t *summ,
+                                             int region_count )
+{
+  int coverage;
+  coverage = 
+    max(1,(int)floor(((double)(region_count
+                               - region_group_count( region_group_unfilled )))
+                     * DATA(summ)->coverage));
+  return coverage;
+}
+
 static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
                                                    int region_count ) 
 {
@@ -2351,12 +2362,11 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 
       dbmsg( "count:%d did not meet goal:%d.", count, goal);
 
-      coverage = 
-        (int)ceil(((double)region_count) * DATA(summ)->coverage);
+      coverage = calc_summarization_coverage( summ, region_count );
       assert( coverage > 0 );
 
       /* XXX this might be worth turning on. */
-#if 0
+#if 1
       region_group_enq_all( region_group_summzing, region_group_wait_w_sum );
 #endif
       switch_some_to_summarizing( summ, coverage );
@@ -3082,7 +3092,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
 {
   int coverage, budget;
 
-  coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
+  coverage = calc_summarization_coverage( summ, region_count );
   budget = 
     region_group_count( region_group_wait_w_sum ) +
     region_group_count( region_group_wait_nosum );
@@ -3092,7 +3102,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
         rgn_next, region_count, 
         DATA(summ)->coverage, coverage, budget );
 
-  assert2( region_group_count( region_group_summzing ) == 0 );
+  assert( region_group_count( region_group_summzing ) == 0 );
   switch_some_to_summarizing( summ, coverage );
 
   sm_build_summaries_setup( summ, budget, region_count, 
