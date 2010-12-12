@@ -202,7 +202,7 @@ create_labelled_remset_with_owner_attrib
   data->tbl_lim = heapptr;
 
   /* Node pool */
-  p = allocate_pool_segment( pool_entries, data->mem_attribute );
+  p = allocate_pool_segment( pool_entries, data->mem_attribute ); /* XXX */
   data->first_pool = data->curr_pool = p;
   assert( data->curr_pool != 0 );
   data->numpools = 1;
