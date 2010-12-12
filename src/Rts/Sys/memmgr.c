@@ -532,7 +532,7 @@ static bool scan_refine_remset( word loc, void *data )
 static void refine_remsets_via_marksweep( gc_t *gc )
 {
   /* use mark/sweep system to refine the remembered set. */
-  urs_enumerate( gc->the_remset, scan_refine_remset, gc->smircy );
+  urs_enumerate( gc->the_remset, FALSE, scan_refine_remset, gc->smircy );
 }
 
 static void zeroed_promotion_counts( gc_t* gc ) 
@@ -1865,9 +1865,9 @@ enumerate_remsets_complement( gc_t *gc,
   }
 
   if (DATA(gc)->enumerate_major_with_minor_remsets) {
-    urs_enumerate_complement( gc->the_remset, gset, f, fdata );
+    urs_enumerate_complement( gc->the_remset, TRUE, gset, f, fdata );
   } else {
-    urs_enumerate_minor_complement( gc->the_remset, gset, f, fdata );
+    urs_enumerate_minor_complement( gc->the_remset, TRUE, gset, f, fdata );
   }
 }
 

@@ -100,6 +100,7 @@ static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
   return my_data->scanner( loc, my_data->scanner_data );
 }
 static void enumerate_gno( uremset_t *urs, 
+                           bool incl_tag, 
                            int gno, 
                            bool (*scanner)(word loc, void *data), 
                            void *data )
@@ -114,7 +115,9 @@ static void enumerate_gno( uremset_t *urs,
   rs_enumerate( DATA(urs)->major_remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
 }
-static void enumerate_allbutgno( uremset_t *urs, int gno, 
+static void enumerate_allbutgno( uremset_t *urs, 
+                                 bool incl_tag, 
+                                 int gno, 
                                  bool (*scanner)(word loc, void *data), 
                                  void *data )
 {
@@ -136,7 +139,9 @@ static void enumerate_allbutgno( uremset_t *urs, int gno,
     }
   }
 }
-static void enumerate_older( uremset_t *urs, int gno, 
+static void enumerate_older( uremset_t *urs, 
+                             bool incl_tag, 
+                             int gno, 
                              bool (*scanner)(word loc, void *data), 
                              void *data )
 {
@@ -157,6 +162,7 @@ static void enumerate_older( uremset_t *urs, int gno,
   }
 }
 static void enumerate_minor_complement( uremset_t *urs, 
+                                        bool incl_tag, 
                                         gset_t gset, 
                                         bool (*scanner)(word loc, void *data), 
                                         void *data )
@@ -178,6 +184,7 @@ static void enumerate_minor_complement( uremset_t *urs,
   }
 }
 static void enumerate_complement( uremset_t *urs, 
+                                  bool incl_tag, 
                                   gset_t gset, 
                                   bool (*scanner)(word loc, 
                                                   void *data), 
@@ -203,6 +210,7 @@ static void enumerate_complement( uremset_t *urs,
 }
 
 static void          enumerate( uremset_t *urs, 
+                                bool incl_tag, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {

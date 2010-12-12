@@ -86,6 +86,7 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
   }
 }
 static void enumerate_gno( uremset_t *urs, 
+                           bool incl_tag, 
                            int gno,
                            bool (*scanner)(word loc, void *data), 
                            void *data )
@@ -95,6 +96,7 @@ static void enumerate_gno( uremset_t *urs,
 }
 
 static void enumerate_minor_complement( uremset_t *urs, 
+                                        bool incl_tag, 
                                         gset_t gset, 
                                         bool (*scanner)(word loc, void *data), 
                                         void *data )
@@ -116,6 +118,7 @@ static void enumerate_minor_complement( uremset_t *urs,
   }
 }
 static void enumerate_complement( uremset_t *urs, 
+                                  bool incl_tag, 
                                   gset_t gset, 
                                   bool (*scanner)(word loc, 
                                                   void *data), 
@@ -159,6 +162,7 @@ static void enumerate_complement( uremset_t *urs,
   }
 }
 static void          enumerate( uremset_t *urs, 
+                                bool incl_tag, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {

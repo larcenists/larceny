@@ -42,21 +42,24 @@ struct uremset {
   bool             (*add_elem)( uremset_t *urs, word w );
   bool            (*add_elems)( uremset_t *urs, word *bot, word *top );
 
-  void        (*enumerate_gno)( uremset_t *urs, int gno, 
+  void        (*enumerate_gno)( uremset_t *urs, bool incl_tag, int gno, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data );
     /* Enumerates all objects in generation (region) gno 
      * that (may) have region-crossing references.
+     *
+     * If incl_tag is set, then loc will be a tagged word (otherwise
+     * its tag may be stripped).
      */
 
-  void  (*enumerate_allbutgno)( uremset_t *urs, int gno, 
+  void  (*enumerate_allbutgno)( uremset_t *urs, bool incl_tag, int gno, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data );
     /* Enumerates all objects in generations (regions) *other than* gno
      * that (may) have region-crossing references.
      */
 
-  void      (*enumerate_older)( uremset_t *urs, int gno, 
+  void      (*enumerate_older)( uremset_t *urs, bool incl_tag, int gno, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data );
     /* Enumerates all objects in generations >= gno 
@@ -65,7 +68,7 @@ struct uremset {
      * (Note that gno *is* included in the enumeration.)
      */
 
-  void            (*enumerate)( uremset_t *urs, 
+  void            (*enumerate)( uremset_t *urs, bool incl_tag, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data );
     /* Enumerates all objects that (may) have region-crossing references.
@@ -85,7 +88,7 @@ struct uremset {
 
   /* XXX deprecated methods follow. */
 
-  void (*enumerate_minor_complement)( uremset_t *urs, 
+  void (*enumerate_minor_complement)( uremset_t *urs, bool incl_tag, 
                                       gset_t genset, 
                                       bool (*scanner)(word loc, void *data), 
                                       void *data );
@@ -98,7 +101,7 @@ struct uremset {
      *  enumeration.)
      */
 
-  void (*enumerate_complement)( uremset_t *urs, 
+  void (*enumerate_complement)( uremset_t *urs, bool incl_tag, 
                                 gset_t genset, 
                                 bool (*scanner)(word loc, 
                                                 void *data), 
@@ -129,14 +132,15 @@ struct uremset {
 #define urs_add_elem_new( r,w )        ((r)->add_elem_new( (r),(w) ))
 #define urs_add_elem( r,w )            ((r)->add_elem( (r),(w) ))
 #define urs_add_elems( r,b,t )         ((r)->add_elems( (r),(b),(t) ))
-#define urs_enumerate_gno( r,g,s,d )   ((r)->enumerate_gno( (r),(g),(s),(d) ))
-#define urs_enumerate_allbutgno( r,g,s,d ) \
-  ((r)->enumerate_allbutgno( (r),(g),(s),(d) ))
-#define urs_enumerate_complement( r,g,s,d ) \
-  ((r)->enumerate_complement( (r),(g),(s),(d) ))
-#define urs_enumerate_minor_complement( r,g,s,d ) \
-  ((r)->enumerate_minor_complement( (r),(g),(s),(d) ))
-#define urs_enumerate( r,s,d )         ((r)->enumerate( (r),(s),(d) ))
+#define urs_enumerate_gno( r,i,g,s,d ) \
+  ((r)->enumerate_gno( (r),(i),(g),(s),(d) ))
+#define urs_enumerate_allbutgno( r,i,g,s,d )    \
+  ((r)->enumerate_allbutgno( (r),(i),(g),(s),(d) ))
+#define urs_enumerate_complement( r,i,g,s,d )           \
+  ((r)->enumerate_complement( (r),(i),(g),(s),(d) ))
+#define urs_enumerate_minor_complement( r,i,g,s,d )     \
+  ((r)->enumerate_minor_complement( (r),(i),(g),(s),(d) ))
+#define urs_enumerate( r,i,s,d )         ((r)->enumerate( (r),(i),(s),(d) ))
 #define urs_isremembered( r,w )        ((r)->is_remembered( (r),(w) ))
 #define urs_init_summary( r,g,m,s )    ((r)->init_summary( (r),(g),(m),(s) ))
 #define urs_checkpoint_stats( r,g )    ((r)->checkpoint_stats( (r),(g) ))
@@ -157,31 +161,37 @@ uremset_t
                                                       word *bot, 
                                                       word *top ), 
                   void              (*enumerate_gno)( uremset_t *urs, 
+                                                      bool incl_tag, 
                                                       int gno, 
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 
                   void        (*enumerate_allbutgno)( uremset_t *urs, 
+                                                      bool incl_tag, 
                                                       int gno, 
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 
                   void            (*enumerate_older)( uremset_t *urs, 
+                                                      bool incl_tag, 
                                                       int gno, 
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 
                   void (*enumerate_minor_complement)( uremset_t *urs, 
+                                                      bool incl_tag, 
                                                       gset_t genset, 
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 
                   void       (*enumerate_complement)( uremset_t *urs, 
+                                                      bool incl_tag, 
                                                       gset_t genset, 
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 
                   void                  (*enumerate)( uremset_t *urs, 
+                                                      bool incl_tag, 
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 

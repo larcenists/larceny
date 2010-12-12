@@ -1270,7 +1270,6 @@ bool smircy_object_marked_p( smircy_context_t *context, word obj )
   highest_heap_address = context->highest_heap_address;
   bitmap = context->bitmap;
 
-  assert2( isptr( obj ));
   if ( lowest_heap_address <= ptrof( obj ) &&
        ptrof( obj ) < highest_heap_address ) {
     bit_idx = (obj - (word)lowest_heap_address) >> BIT_IDX_SHIFT;

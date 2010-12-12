@@ -2125,7 +2125,7 @@ static int sm_build_summaries_by_scanning( summ_matrix_t *summ,
     dbmsg("enum remsets of %d, live %d", i, 
           urs_live_count( summ->collector->the_remset, i ));
     p_remsum->skip_these = NULL;
-    urs_enumerate_gno( summ->collector->the_remset, i, 
+    urs_enumerate_gno( summ->collector->the_remset, TRUE, i, 
                        scan_object_for_remset_summary, 
                        (void*) p_remsum );
     
