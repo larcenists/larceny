@@ -1426,6 +1426,8 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
 
+    /* XXX experiment: only smircy_step on minor collections */
+#if 0
     SUMMMTX_VERIFICATION_POINT(gc);
 
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
@@ -1437,7 +1439,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
 
     SUMMMTX_VERIFICATION_POINT(gc);
-
+#endif
     
   } else {
 
