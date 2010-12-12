@@ -62,6 +62,7 @@ static bool       add_elem_new( uremset_t *urs, word w )
   /* (could/should assert2 non-membership here) */
   DATA(urs)->live_count[gen_of(w)] += 1;
   extbmp_add_elem( DATA(urs)->remset, strip_tag(w) );
+  return FALSE; /* extbmp does not tell us whether it overflowed. */
 }
 static bool          add_elems( uremset_t *urs, word *bot, word *top )
 {
@@ -84,6 +85,7 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
         DATA(urs)->live_count[ gen_of(w) ] += 1;
     }
   }
+  return FALSE; /* extbmp does not tell us whether it overflowed. */
 }
 static void enumerate_gno( uremset_t *urs, 
                            bool incl_tag, 
