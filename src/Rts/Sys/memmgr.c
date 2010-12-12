@@ -2133,7 +2133,9 @@ static int compact_all_ssbs( gc_t *gc )
   int overflowed, i;
   word *bot, *top;
   int cN, mut_effort_full,  mut_effort_sumz;
+  bool force_progress;
 
+  force_progress = FALSE;
   if (DATA(gc)->mut_activity_bounded) {
     cN = calc_cN( gc );
     mut_effort_full = 
@@ -2142,6 +2144,9 @@ static int compact_all_ssbs( gc_t *gc )
     mut_effort_sumz = 
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+    if (mut_effort_sumz > cN) {
+      force_progress = TRUE;
+    }
   }
 
   overflowed = 0;
@@ -2151,8 +2156,7 @@ static int compact_all_ssbs( gc_t *gc )
     overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
   }
 
-  if (DATA(gc)->mut_activity_bounded &&
-      mut_effort_sumz > cN) {
+  if (force_progress) {
     force_collector_to_make_progress( gc );
   }
 
@@ -2707,6 +2711,7 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
 static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
   urs_add_elems( gc->the_remset, bot, top );
+  return 0; /* urs_add_elems doesn't currently provide an interesting result */
 }
 
 static int calc_cN( gc_t *gc )
