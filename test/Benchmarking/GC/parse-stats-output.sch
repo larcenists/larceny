@@ -6,12 +6,71 @@
 ;; stats-read : -> Sexp
 
 '(define stats-data 
-  (let ((pat "logs.Argus/*thesis10-log.*Feb10*.log"))
-    (gather-statsfiles (failsafe-list-directory pat))))
+  (let* ((pat "logs.Argus/*thesis10-log.*Feb1{6,7}*.log")
+         (files (failsafe-list-directory pat))
+         (files (sort files string<=?)))
+    (gather-statsfiles files)))
+'(define filename+command-description
+   (map (lambda (sd) (list (extract-path sd '(filename)) 
+                           (extract-path sd '(command-description))))
+        stats-data))
+
+;; alternative construction once you know what filenames and "keys"
+;; (e.g. GC configuration names) you want in the data set.
+'(define stats-data
+   (apply gather-statsfiles (unzip filename+keys-feb17-10)))
+
+;; A RtcfgKey is a Symbol (e.g. for a GC configuration key)
+;; A BmarkKey is a Symbol (e.g. for a benchmark name
+(define (plot-stats-data/stacked-bars dataset rt-keys bmark-keys rt+bmark->dataline)
+  ...)
+
+(define filename+keys-feb17-00
+  '(("logs.Argus/bench-thesis10-log.2010Feb17-at-00-26-48.log" dflt)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-00-35-55.log" dflt-nurs1meg)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-00-45-02.log" scpy)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-00-55-14.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-01-13-27.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-01-34-35.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-01-58-03.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-02-22-18.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-02-52-18.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0)))
+
+(define filename+keys-feb17-10
+  '(("logs.Argus/bench-thesis10-log.2010Feb17-at-10-29-59.log" dflt)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-10-39-05.log" dflt-nurs1meg)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-10-48-12.log" scpy)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-10-58-24.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-11-16-45.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-11-37-56.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-12-01-16.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-12-25-51.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-12-56-07.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0)))
+
+(define filename+keys-feb17-13
+  '(("logs.Argus/bench-thesis10-log.2010Feb17-at-14-16-39.log" dflt-mmu)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-14-25-47.log" dflt-nurs1meg-mmu)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-14-34-55.log" scpy-mmu)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-14-45-06.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0-mmu)
+    ("logs.Argus/bench-thesis10-log.2010Feb17-at-21-52-36.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0-mmu)
+    ("logs.Argus/bench-thesis10-log.2010Feb18-at-07-37-54.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0-mmu)))
+
+;; A Nelof[X] is one of:
+;; -- (cons X '())
+;; -- (cons X Nelof[X])
+
+;; unzip : Neiof[(list X Y ...)] -> (list Nelof[X] Nelof[Y] ...)
+;; e.g. (unzip '((1 2 3) (4 5 6) (7 8 9))) ==> ((1 4 7) (2 5 8) (3 6 9))
+(define (unzip l)
+  (let loop ((res (map list (car l)))
+             (l (cdr l)))
+    (if (null? l)
+        (map reverse res)
+        (loop (map cons (car l) res) (cdr l)))))
 
 (define (failsafe-list-directory dir-pat)
   (let ((tmp-file (make-temporary-file)))
-    (system (string-append "ls -tr " dir-pat " > " tmp-file))
+    (system (string-append "ls " dir-pat " > " tmp-file))
     (let ((listing
            (call-with-input-file tmp-file
              (lambda (in)
@@ -96,37 +155,70 @@
           (else #f))))
 
 ;; extract-path : Dataset (cons Symbol [Listof Symbol]) -> Maybe[Entry]
-(define (extract-path s p)
-  (define (extract s k)
-    (cond ((pair? s)
-           (if (eq? k (car s))
-               s
-               (let ((a (extract (car s) k))
-                     (d (extract (cdr s) k)))
-                 (cond ((and (not a) (not d)) #f)
-                       ((not d) a)
-                       ((not a) d)
-                       ((and (pair? d) (symbol? (car d)))
-                        (cons a (cons d '())))
-                       (else (cons a d))))))
+;; e.g.
+'(extract-path '(z (a (b 3) (c 4)) (d (b 5))) '(d))   ; ==> (d (b 5))
+'(extract-path '(z (a (b 3) (c 4)) (d (b 5))) '(b))   ; ==> ((b 3) (b 5))
+'(extract-path '(z (a (b 3) (c 4)) (d (b 5))) '(a b)) ; ==> (b 3)
+'(extract-path '(z (a (b 3) (c 4)) (d (b 5))) '(a c)) ; ==> (c 4)
+
+  (define (extract-path.combine a d)
+    (cond ((and (not a) (not d)) #f)
+          ((not d) a)
+          ((not a) d)
+          ((and (pair? d) (symbol? (car d)))
+           (cons a (cons d '())))
+          (else (cons a d))))
+
+  (define (extract-path.extract s k)
+    (let extract ((s s) (k k))
+      (cond ((pair? s)
+             (if (eq? k (car s))
+                 s
+                 (let ((a (extract (car s) k))
+                       (d (extract (cdr s) k)))
+                   (extract-path.combine a d))))
           ((vector? s)
            (let ((r (extract (vector->list s) k)))
              (if (list? r)
                  (list->vector r)
                  r)))
           (else
-           #f)))
-  (let ((entry (extract s (car p))))
+           #f))))
+
+(define (extract-path s p)
+
+  (let* ((extract extract-path.extract)
+         (entry (extract s (car p))))
     (cond ((not entry) 
            (if (list? s) 
-               (let ((results (map (lambda (x) (extract-path x p)) s)))
-                 (if (null? (cdr results))
-                     (car results)
-                     results))
+               (let* ((results (map (lambda (x) (extract-path x p)) s))
+                      (results (filter values results)))
+                 (cond ((null? results) #f)
+                       ((null? (cdr results)) (car results))
+                       (else results)))
                #f))
           ((null? (cdr p)) entry)
           (else 
-           (extract-path (cadr entry) (cdr p))))))
+           (extract-path.combine (extract-path (car entry) (cdr p))
+                                 (extract-path (cdr entry) (cdr p))
+                                 )))))
+
+;; first-satisfying : (Any -> Boolean : X) Sexp -> Maybe[X]
+(define (first-satisfying pred? sexp)
+  (let first ((sexp sexp))
+    (cond
+     ((pred? sexp) sexp)
+     ((pair? sexp) (or (first (car sexp)) (first (cdr sexp))))
+     ((vector? sexp) (first (vector->list sexp)))
+     (else #f))))
+
+;; first-number : Sexp -> Maybe[Number]
+(define (first-number sexp) 
+  (first-satisfying number? sexp))
+
+;; first-string : Sexp -> Maybe[String]
+(define (first-string sexp)
+  (first-satisfying string? sexp))
 
 ;; print-header-line : -> void
 ;; print-bench-line : Dataset -> void
