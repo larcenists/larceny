@@ -60,6 +60,7 @@ static bool gset_emptyp( gset_t gs ) {
   case gs_range: return (gs.g1 >= gs.g2);
   case gs_twrng: return ((gs.g1 > gs.g2) && (gs.g3 > gs.g4));
   }
+  assert2(0);
 }
 static int gset_count( gset_t gs ) {
   switch (gs.tag) {
@@ -68,6 +69,7 @@ static int gset_count( gset_t gs ) {
   case gs_range: return max(0,(gs.g2 - gs.g1));
   case gs_twrng: return (max(0,(gs.g2 - gs.g1)) + max(0,(gs.g4 - gs.g3)));
   }
+  assert2(0);
 }
 static bool gset_max_elem( gset_t gs ) {
   switch (gs.tag) {
@@ -118,6 +120,7 @@ static int gset_min_elem_greater_than( gset_t gs, int gno ) {
   case gs_range: return gset_range_min_elem_greater_than( gs, gno );
   case gs_twrng: return gset_twrng_min_elem_greater_than( gs, gno );
   }
+  assert2(0);
 }
 static gset_t gset_remove( int gno, gset_t gs ) {
   gset_t rtn;
