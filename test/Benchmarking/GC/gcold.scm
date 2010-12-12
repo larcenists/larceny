@@ -2,13 +2,6 @@
 (define-syntax if-fixflo (syntax-rules () ((if-fixflo yes no) no)))
 ;------------------------------------------------------------------------------
 
-(define (run-bench name count ok? run)
-  (display name) (newline)
-  (let loop ((i 0) (result (list 'undefined)))
-    (if (< i count)
-      (loop (+ i 1) (run))
-      result)))
-
 (define (fatal-error . args)
   (apply error #f args))
 
@@ -908,11 +901,10 @@
                                   "," (number->string ptrMutRate)
                                   "," (number->string steps))
 		   1
-		   (lambda ()
-                     (lambda ()
-                       (do ((step 0 (+ step 1)))
-                           ((>= step steps))
-                         (doStep MEG))))
+                   (lambda ()
+                     (do ((step 0 (+ step 1)))
+                         ((>= step steps))
+                       (doStep MEG)))
 		   (lambda (result) #t))
 
     (checkTrees)
