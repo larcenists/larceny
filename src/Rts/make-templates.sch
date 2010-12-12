@@ -198,7 +198,16 @@ ASFLAGS+=-f elf -g -DLINUX"))
 CC=gcc
 DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -fno-stack-protector -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+WARNINGS=-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-label
+CFLAGS+=-c -fno-stack-protector -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
+default_target: larceny.bin
+smoke-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.smoke10.sh 
+quick-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.quick.sh 
+
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX"))
