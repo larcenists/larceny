@@ -479,6 +479,7 @@ parse_options( int argc, char **argv, opt_t *o )
   double refine_factor = 0.0;
   double sumz_budget = 0.0;
   double sumz_coverage = 0.0;
+  int sumz_retries;
 #if defined( BDW_GC )
   double load_factor = 0.0;                   /* Ignore it. */
 #else
@@ -569,6 +570,10 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (doublearg( "-sumzcoverage", &argc, &argv, &sumz_coverage)) {
       o->gc_info.has_sumzcoverage = TRUE;
       o->gc_info.sumzcoverage_inv = sumz_coverage;
+    }
+    else if (numbarg( "-sumzretries", &argc, &argv, &sumz_retries )) {
+      o->gc_info.has_sumz_retries = TRUE;
+      o->gc_info.max_sumz_retries = sumz_retries;
     }
     else if (doublearg( "-popularity", &argc, &argv, &popular_factor)) {
       o->gc_info.has_popularity_factor = TRUE;
