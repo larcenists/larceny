@@ -30,6 +30,7 @@ static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
 static void msvfy_set_object_visitor( msgc_context_t *c, 
                                       void* (*visitor)( word obj, 
                                                         word src,
+                                                        int offset, 
                                                         void *data ), 
                                       void *data ) {
   msgc_set_object_visitor( c, visitor, data );
@@ -43,7 +44,7 @@ static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
   msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
 }
 
-static void* verify_remsets_msgc_fcn( word obj, word src, void *data ) 
+static void* verify_remsets_msgc_fcn( word obj, word src, int offset, void *data ) 
 {
   int src_gen, obj_gen;
   gc_t *gc = (gc_t*)data;

@@ -54,7 +54,7 @@ struct msgc_context {
   int          marked;          /* Objects marked */
   int          words_marked;    /* Words marked */
 
-  void* (*object_visitor)( word obj, word src, void *data );
+  void* (*object_visitor)( word obj, word src, int offset, void *data );
   void *object_visitor_data;
 
   bool (*stop_when)( word obj, word src, void *data );
@@ -268,12 +268,14 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
 #endif
 
 #if 1
-#define PUSH( context, obj, src )                               \
+#define PUSH( context, obj, src, word_offset )                  \
   do { word TMP = obj;                                          \
+       assert((word_offset < 0)                                     \
+              || (ptrof(src)[word_offset] == obj));                 \
        if ((context)->object_visitor != NULL) {                     \
          (context)->object_visitor_data =                           \
            (context)->object_visitor                                \
-                      ( obj, src, (context)->object_visitor_data ); \
+           ( obj, src, word_offset*sizeof(word), (context)->object_visitor_data ); \
        }                                                            \
        if ((context)->stop_when != NULL && !((context)->signal_stop)) { \
          if ((context)->stop_when(obj,src,(context)->stop_when_data)) { \
@@ -296,13 +298,14 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
        *((context)->los_stack.stkp++) = obj;                            \
   } while(0)
 #else
-static void PUSH( msgc_context_t *context, word obj, word src ) {
+static void PUSH( msgc_context_t *context, word obj, word src, int word_offset ) {
   word TMP = obj;
+  assert((word_offset < 0) || (ptrof(src)[word_offset] == obj));
   assert2_basic_invs( context, src, obj );
   if ((context)->object_visitor != NULL) {                     
     (context)->object_visitor_data =                           
       (context)->object_visitor                                
-      ( obj, src, (context)->object_visitor_data ); 
+      ( obj, src, word_offset*sizeof(word), (context)->object_visitor_data ); 
   }                                                            
   if (((context)->stop_when != NULL) && !((context)->signal_stop)) {
     if ((context)->stop_when(obj, src, (context)->stop_when_data)) {
@@ -342,7 +345,7 @@ static bool fill_from_los_stack( msgc_context_t *context )
   k = min( n-next, LARGE_OBJECT_LIMIT );
   assert2_los_addresses_mapped( context, obj, k, next );
   for ( i=0 ; i < k ; i++ )
-    PUSH( context, vector_ref( obj, i+next ), obj );
+    PUSH( context, vector_ref( obj, i+next ), obj, i+next+1 );
   if (next+k < n)
     LOS_PUSH( context, next+k, obj );
   return TRUE;
@@ -350,8 +353,8 @@ static bool fill_from_los_stack( msgc_context_t *context )
 
 static int push_pair_constiuents( msgc_context_t *context, word w ) 
 {
-  PUSH( context, pair_cdr( w ), w ); /* Do the CDR last */
-  PUSH( context, pair_car( w ), w ); /* Do the CAR first */
+  PUSH( context, pair_cdr( w ), w, 1 ); /* Do the CDR last */
+  PUSH( context, pair_car( w ), w, 0 ); /* Do the CAR first */
   return 2;
 }
 
@@ -371,7 +374,7 @@ static int push_constituents( msgc_context_t *context, word w )
     else {
       assert2_object_contents_mapped( context, w, n );
       for ( i=0 ; i < n ; i++ ) {
-        PUSH( context, vector_ref( w, i ), w );
+        PUSH( context, vector_ref( w, i ), w, i+1 );
       }
     }
     return n+1;
@@ -465,7 +468,7 @@ static void mark_from_stack( msgc_context_t *context )
 static void push_root( word *loc, void *data )
 {
   assert2_root_address_mapped( (msgc_context_t*)data, loc );
-  PUSH( (msgc_context_t*)data, *loc, ROOT_FIXNUM_SENTINEL );
+  PUSH( (msgc_context_t*)data, *loc, ROOT_FIXNUM_SENTINEL, -1 );
 }
 
 bool msgc_object_in_domain( msgc_context_t *context, word obj )
@@ -537,7 +540,7 @@ void msgc_unmark_object( msgc_context_t *context, word obj )
 
 void msgc_push_object( msgc_context_t *context, word obj ) 
 {
-  PUSH( context, obj, OBJ_FIXNUM_SENTINEL );
+  PUSH( context, obj, OBJ_FIXNUM_SENTINEL, -1 );
 }
 
 void msgc_push_constituents( msgc_context_t *context, word obj )
@@ -618,7 +621,7 @@ msgc_mark_objects_from_roots( msgc_context_t *context,
 static int pushing_entries_from_remset = 0;
 static bool push_remset_entry( word obj, void* data )
 {
-  PUSH( (msgc_context_t*)data, obj, pushing_entries_from_remset << 8 );
+  PUSH( (msgc_context_t*)data, obj, pushing_entries_from_remset << 8, -1 );
   mark_from_stack( (msgc_context_t*)data );
   return TRUE;
 }
@@ -728,6 +731,7 @@ void msgc_assert_conservative_approximation( msgc_context_t *context )
 void msgc_set_object_visitor( msgc_context_t *context,
                               void* (*visitor)( word obj, 
                                                 word src, 
+                                                int offset,
                                                 void *data ),
                               void *visit_data ) 
 {

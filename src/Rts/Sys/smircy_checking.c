@@ -395,7 +395,7 @@ static void smircy_complete( smircy_context_t *context )
 #endif
 }
 
-static void *visit_make_clone_mark( word obj, word src, void *data ) 
+static void *visit_make_clone_mark( word obj, word src, int offset, void *data ) 
 {
   if (isptr(obj))
     consolemsg("visit_make_clone_mark( "
@@ -437,7 +437,7 @@ static bool smircy_is_marked_via_completion( smircy_context_t *context, word obj
   return rtn;
 }
 
-void *visit_check_clone_mark( word obj, word src, void *data ) 
+void *visit_check_clone_mark( word obj, word src, int offset, void *data ) 
 {
   msgc_context_t *clone = (msgc_context_t*)data;
 

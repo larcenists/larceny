@@ -971,7 +971,8 @@ struct msgc_visit_check_summary_data {
   remset_t *summary_as_rs;
 };
 
-static void* msgc_visit_check_summary( word obj, word src, void *my_data )
+static void* msgc_visit_check_summary( word obj, word src, int offset, 
+                                       void *my_data )
 {
   struct msgc_visit_check_summary_data *data;
   data = (struct msgc_visit_check_summary_data*)my_data;
