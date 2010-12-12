@@ -19,6 +19,7 @@ const char *larceny_gc_technology = "precise";
 #include "young_heap_t.h"
 #include "old_heap_t.h"
 #include "static_heap_t.h"
+#include "locset_t.h"
 #include "remset_t.h"
 #include "los_t.h"
 #include "semispace_t.h"
@@ -972,7 +973,7 @@ static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns,
 struct msgc_visit_check_summary_data {
   gc_t *gc;
   int rgn_next;
-  remset_t *summary_as_rs;
+  locset_t *summary_as_ls;
 };
 
 static void* msgc_visit_check_summary( word obj, word src, int offset, 
@@ -986,45 +987,57 @@ static void* msgc_visit_check_summary( word obj, word src, int offset,
     if ((obj_gno == data->rgn_next) && 
         (src_gno != obj_gno) &&
         (src_gno != 0)) {
-      assert( rs_isremembered( data->summary_as_rs, src ));
+      assert( ls_ismember_loc( data->summary_as_ls, 
+                               make_loc( src, offset )));
     }
   }
   return my_data;
 }
 
-static void assert_summary_as_rs_complete( gc_t *gc, 
+static void assert_summary_as_ls_complete( gc_t *gc, 
                                            int rgn_next, 
-                                           remset_t *summary_as_rs )
+                                           locset_t *summary_as_ls )
 {
   msgc_context_t *msgc;
   int ignm, ignt, ignw;
   struct msgc_visit_check_summary_data data;
   data.gc = gc;
   data.rgn_next = rgn_next;
-  data.summary_as_rs = summary_as_rs;
+  data.summary_as_ls = summary_as_ls;
 
   msgc = msgc_begin( gc );
   msgc_set_object_visitor( msgc, msgc_visit_check_summary, &data );
   msgc_mark_objects_from_roots( msgc, &ignw, &ignt, &ignw );
   msgc_end( msgc );
 }
-struct rsscan_summary_sound_data {
+struct lsscan_summary_sound_data {
   msgc_context_t *msgc;
   int rgn_next;
+  gc_t *gc;
 };
-static bool rsscan_summary_sound( word loc, void *my_data, unsigned *stats )
+static bool lsscan_summary_sound( loc_t loc, void *my_data )
 {
-  struct rsscan_summary_sound_data *data;
+  struct lsscan_summary_sound_data *data;
   msgc_context_t *msgc;
-  data = (struct rsscan_summary_sound_data*)my_data;
+  data = (struct lsscan_summary_sound_data*)my_data;
   msgc = data->msgc;
-  assert( gen_of(loc) != data->rgn_next );
-  assert( msgc_object_marked_p( msgc, loc ));
+  assert( gen_of(loc.obj) != data->rgn_next );
+
+  if (! msgc_object_marked_p( msgc, loc.obj )) {
+    consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) "
+                 "marked {N, rs: %s, smircy: %s}", 
+                 loc.obj, gen_of(loc.obj), 
+                 urs_isremembered( data->gc->the_remset, loc.obj )?"Y":"N",
+                 ((data->gc->smircy == NULL)?"n/a":
+                  (smircy_object_marked_p( data->gc->smircy, loc.obj )?"Y  ":"N  "))
+                 );
+  }
+  assert( msgc_object_marked_p( msgc, loc.obj ));
   return TRUE;
 }
 
-static void assert_summary_as_rs_sound( gc_t *gc,
-                                        int rgn_next, remset_t *summary_as_rs )
+static void assert_summary_as_ls_sound( gc_t *gc,
+                                        int rgn_next, locset_t *summary_as_ls )
 {
   msgc_context_t *msgc;
   int ignm, ignt, ignw;
@@ -1034,58 +1047,70 @@ static void assert_summary_as_rs_sound( gc_t *gc,
      * below (rather than msgc_mark_objects_from_nil) because smircy
      * is snapshot of the past that may not have objects that ARE in
      * the heap NOW. */
+    /* note from Tue Jan 12 23:45:55 EST 2010
+     * (reasoning immediately above sounds bogus to me; objects are
+     *  marked when allocated, so why is it not safe to do
+     *  msgc_mark_objects_from_nil?  A better reason is that the
+     *  summaries hold imprecise data that the snapshot does not have;
+     *  that is, the data in the remset is actually *older* than the
+     *  snapshot, and that outdated-ness can propogate into the
+     *  summary itself.  This reasoning sounds more plausible to me;
+     *  note that it is indicating the exact *reverse* of the
+     *  reasoning employed in the comment immediately above.)
+     */
   } else {
     msgc = msgc_begin( gc );
   }
   msgc_mark_objects_from_roots_and_remsets( msgc, &ignw, &ignt, &ignw );
   { 
-    struct rsscan_summary_sound_data data;
+    struct lsscan_summary_sound_data data;
     data.msgc = msgc;
     data.rgn_next = rgn_next;
-    rs_enumerate( summary_as_rs, rsscan_summary_sound, (void*)&data );
+    data.gc = gc;
+    ls_enumerate_locs( summary_as_ls, lsscan_summary_sound, (void*)&data );
   }
   msgc_end( msgc );
 }
-struct summaryscan_buildup_rs_data {
-  remset_t *target_rs;
+struct summaryscan_buildup_ls_data {
+  locset_t *target_ls;
   int rgn_next;
 };
-static void summaryscan_buildup_rs( word obj, int offset, void *my_data ) 
+static void summaryscan_buildup_ls( word obj, int offset, void *my_data ) 
 { 
-  struct summaryscan_buildup_rs_data *data;
-  remset_t *target_rs;
+  struct summaryscan_buildup_ls_data *data;
+  locset_t *target_ls;
   static word last_obj = 0x0;
   static int last_offset = 0x0;
-  data = (struct summaryscan_buildup_rs_data*)my_data;
-  target_rs = (remset_t*)data->target_rs;
+  data = (struct summaryscan_buildup_ls_data*)my_data;
+  target_ls = data->target_ls;
 
   assert( gen_of(obj) != data->rgn_next );
-  rs_add_elem( target_rs, obj );
+  ls_add_obj_offset( target_ls, obj, offset );
   last_obj = obj;
   last_offset = offset;
 }
 
 static void assert_summary_sanity( gc_t *gc, int rgn_next )
 {
-  static remset_t *summary_as_rs;
-  if (summary_as_rs == NULL) {
-    summary_as_rs = create_remset( 0, 0 );
+  static locset_t *summary_as_ls;
+  if (summary_as_ls == NULL) {
+    summary_as_ls = create_locset( 0, 0 );
   }
-  rs_clear( summary_as_rs );
+  ls_clear( summary_as_ls );
   { 
-    struct summaryscan_buildup_rs_data data;
-    data.target_rs = summary_as_rs;
+    struct summaryscan_buildup_ls_data data;
+    data.target_ls = summary_as_ls;
     data.rgn_next = rgn_next;
-    summary_enumerate_locs2( &DATA(gc)->summary, summaryscan_buildup_rs, &data );
+    summary_enumerate_locs2( &DATA(gc)->summary, summaryscan_buildup_ls, &data );
     summary_dispose( &DATA(gc)->summary );
   }
 
-  consolemsg( "using summary_as_rs for rgn_next=%d, live: %d",
-              rgn_next, summary_as_rs->live );
-  assert_summary_as_rs_complete( gc, rgn_next, summary_as_rs );
-  assert_summary_as_rs_sound( gc, rgn_next, summary_as_rs );
+  consolemsg( "using summary_as_ls for rgn_next=%d, live: %d",
+              rgn_next, summary_as_ls->live );
+  assert_summary_as_ls_complete( gc, rgn_next, summary_as_ls );
+  assert_summary_as_ls_sound( gc, rgn_next, summary_as_ls );
 
-  rs_init_summary( summary_as_rs, -1, &DATA(gc)->summary );
+  ls_init_summary( summary_as_ls, -1, &DATA(gc)->summary );
 }
 
 /* returns TRUE iff the collection took place.  If FALSE, reselect
@@ -1167,6 +1192,11 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     SMIRCY_VERIFICATION_POINT(gc);
     SUMMMTX_VERIFICATION_POINT(gc);
 
+    if (USE_ORACLE_TO_CHECK_SUMMARY_SANITY &&
+        summarization_active_rgn_next) {
+      assert_summary_sanity( gc, rgn_next );
+    }
+
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL)) {
       gc->smircy_completion = smircy_clone_begin( gc->smircy, FALSE );
       msgc_mark_objects_from_nil( gc->smircy_completion );
@@ -1178,10 +1208,6 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     }
 
-    if (USE_ORACLE_TO_CHECK_SUMMARY_SANITY &&
-        summarization_active_rgn_next) {
-      assert_summary_sanity( gc, rgn_next );
-    }
     if (summarization_active_rgn_next) {
       DATA(gc)->use_summary_instead_of_remsets = TRUE;
     } else {
