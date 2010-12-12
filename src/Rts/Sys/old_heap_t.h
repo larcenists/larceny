@@ -189,9 +189,6 @@ old_heap_t *create_old_heap_t(
   void *data
 );
 
-extern
-void oh_switch_group( old_heap_t *heap, region_group_t group );
-
 #define oh_initialize( oh )        ((oh)->initialize( oh ))
 #define oh_collect( oh,r )         ((oh)->collect( oh,r ))
 #define oh_collect_into( oh,r,to ) ((oh)->collect_into( oh,r,to ))
