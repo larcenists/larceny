@@ -3239,8 +3239,8 @@ static bool coheres_with_snapshot( summ_matrix_t *summ,
   bool already_filtered_during_construction;
   already_filtered_during_construction = 
     (! col->construction_predates_snapshot);
-  return (already_filtered_during_construction ||
-          (isptr(w) &&
+
+  return ((isptr(w) &&
            ((gen_of(w) == 0) ||
             smircy_object_marked_p( summ->collector->smircy, w ))));
 }
@@ -3293,9 +3293,14 @@ static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
   bool alive_in_snapshot;
 
   slot = loc_to_slot( l );
-  alive_in_snapshot = loc_alive_in_snapshot( summ, col, l );
+  alive_in_snapshot = 
+    ((summ->collector->smircy == NULL)
+     || ( ! smircy_in_refinement_stage_p( summ->collector->smircy ))
+     || loc_alive_in_snapshot( summ, col, l ));
 
-  return (! ls_ismember( mut_rs, slot )) && alive_in_snapshot;
+  return ((! ls_ismember( mut_rs, slot ))
+          && (! ls_ismember( nur_rs, slot )) /* to avoid repeat traversal */
+          && alive_in_snapshot);
 }
 
 static bool filter_gen( summary_t *s, word w )
@@ -3365,13 +3370,22 @@ struct rs_scan_filter_entries {
   int next_gen;
   locset_t *sum_mut;
 };
-static bool lsscan_filter_entries( word *loc, void *my_data )
+static bool lsscan_filter_entries( loc_t loc, void *my_data )
 {
   struct rs_scan_filter_entries *data;
   bool ret;
+  word *slot;
+  gc_t *gc;
+
+  slot = loc_to_slot(loc);
   data = (struct rs_scan_filter_entries*)my_data;
-  ret = ((gen_of(loc) != data->next_gen) 
-          && ! ls_ismember( data->sum_mut, loc ));
+
+  /* XXX cannot generally refer to loc.obj; 
+   * future plan: try removing first conjunct below 
+   * (which should be a sound transformation) */
+  ret = ((gen_of(loc.obj) != data->next_gen) 
+         && ! ls_ismember( data->sum_mut, slot ));
+
   return ret;
 }
 
@@ -3437,23 +3451,28 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
       data.summ     = summ;
       data.next_gen = next_summ_idx;
       data.sum_mut  = col->sum_mutator;
-      ls_enumerate( DATA(summ)->nursery_locset, 
-                    lsscan_filter_entries, 
-                    &data );
-
+      /* XXX should be able to compose these two by passing the filter
+       * into ls_init_summary as part of the summary traversal
+       * initiation.  Oh except that lsscan_filter_entries is closed
+       * over data which is scoped locally. */
+      ls_enumerate_locs( DATA(summ)->nursery_locset, 
+                         lsscan_filter_entries, 
+                         &data );
       ls_init_summary( DATA(summ)->nursery_locset, -1, 
                        &DATA(summ)->nursery_summary );
     }
 #endif
 
     {
-      if (col->construction_predates_snapshot) {
+      if ( (summ->collector->smircy != NULL) 
+           && smircy_in_refinement_stage_p( summ->collector->smircy )
+             /* the construction_predates_snapshot flag is meant to be
+              * a performance optimization; it should be sound to
+              * apply this filter ignoring that flag. */
+           && (TRUE || col->construction_predates_snapshot)) {
         struct mut_filter_snapshot_data data;
         data.summ = summ;
         data.col = col;
-        assert( summ->collector->smircy != NULL );
-        assert( smircy_in_refinement_stage_p( summ->collector->smircy ));
-
         ls_enumerate_locs( col->sum_mutator, 
                            mut_filter_snapshot, &data );
       }
