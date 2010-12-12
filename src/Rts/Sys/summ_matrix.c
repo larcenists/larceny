@@ -156,6 +156,7 @@ struct summ_col {
   bool overly_popular;
   bool construction_inprogress;
   bool construction_complete;
+  bool construction_predates_snapshot;
 
   remset_t *sum_mutator; /* objects inserted via write-barrier */
   /* XXX [pnkfelix] Tue Jan 6 16:20:31 EST 2009
@@ -247,6 +248,23 @@ struct summ_matrix_data {
   int cycle_count; /* number of cycles over program run */
   int pass_count; /* number of scans over whole heap */
   int curr_pass_units_count; /* num rgns via current pass (ie partial scan). */
+
+  struct {
+    bool      active;
+    int       summaries_left_to_process;
+    bool      finished_remset_pass_since_start;
+
+    /* Idea: can discard smircy snapshot after we have both:
+     *   - finished one pass over the rememmbered set since the 
+     *     snapshot was completed, and
+     *   - finished with all summaries present or in-progress at time
+     *     snapshot was completed
+     * 
+     * The first condition is flagged via
+     * finished_remset_pass_since_start; the second condition is
+     * flagged with summaries_left_to_process reaches zero.
+     */
+  } refining;
 };
 
 #define DATA(sm)                ((summ_matrix_data_t*)(sm->data))
@@ -560,6 +578,7 @@ static summ_col_t* alloc_col( int target_gno )
   col->overly_popular = FALSE;
   col->construction_inprogress = FALSE;
   col->construction_complete = FALSE;
+  col->construction_predates_snapshot = FALSE;
   col->sum_mutator = NULL; /* Pooled remsets */
   assert( col->cell_bot->next_col == col->cell_top );
   return col;
@@ -1871,6 +1890,15 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
 
   static const bool instrumented = FALSE;
 
+  {
+    gc_t *gc = remsum->summ->collector;
+    if (gc->smircy != NULL && 
+        smircy_in_refinement_stage_p( gc->smircy ) &&
+        ! smircy_object_marked_p( gc->smircy, ptr )) {
+      return FALSE; /* smircy wants us to remove ptr from the remembered set. */
+    }
+  }
+
   if (remsum->skip_these != NULL 
       && rs_isremembered( remsum->skip_these, ptr )) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2184,12 +2212,63 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
   }
 }
 
+void sm_start_refinement( summ_matrix_t *summ ) 
+{
+  assert( summ->collector->smircy != NULL );
+  assert( smircy_in_construction_stage_p( summ->collector->smircy ));
+
+  smircy_enter_refinement_stage( summ->collector->smircy );
+
+  DATA(summ)->refining.finished_remset_pass_since_start = FALSE;
+  { int count = 0;
+    int i;
+    old_heap_t *oh; 
+
+    oh = region_group_first_heap( region_group_summzing );
+    while (oh != NULL) {
+      i = oh_current_space( oh )->gen_no;
+      DATA(summ)->cols[i]->construction_predates_snapshot = TRUE;
+      oh = region_group_next_heap( oh );
+      count += 1;
+    }
+
+    oh = region_group_first_heap( region_group_wait_w_sum );
+    while (oh != NULL) {
+      i = oh_current_space( oh )->gen_no;
+      DATA(summ)->cols[i]->construction_predates_snapshot = TRUE;
+      oh = region_group_next_heap( oh );
+      count += 1;
+    }
+
+    DATA(summ)->refining.summaries_left_to_process = count;
+
+    annoyingmsg("sm_start_refinement left_to_process: %d", count);
+  }
+  DATA(summ)->refining.active = TRUE;
+
+}
+
+static void check_if_refining_is_now_done( summ_matrix_t *summ ) 
+{
+  assert( DATA(summ)->refining.active );
+  if ( DATA(summ)->refining.finished_remset_pass_since_start &&
+       DATA(summ)->refining.summaries_left_to_process == 0) {
+    DATA(summ)->refining.active = FALSE;
+    smircy_exit_refinement_stage( summ->collector->smircy );
+  }
+}
+
 static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
                                                    int region_count ) 
 {
   dbmsg("sm_build_summaries_iteration_complete"
              "( summ, region_count=%d );",
              region_count );
+
+  if (DATA(summ)->refining.active) {
+    DATA(summ)->refining.finished_remset_pass_since_start = TRUE;
+    check_if_refining_is_now_done( summ );
+  }
 
   /* Update construction complete fields for all 
    * elements of region_group_summzing */
@@ -2271,6 +2350,7 @@ static void sm_clear_col( summ_matrix_t *summ, int i )
   }
 
   DATA(summ)->cols[i]->construction_complete = FALSE;
+  DATA(summ)->cols[i]->construction_predates_snapshot = FALSE;
 }
 
 static void sm_build_summaries_partial_n( summ_matrix_t *summ, 
@@ -2928,6 +3008,13 @@ static void clear_col_cells( summ_matrix_t *summ, int col_idx )
     }
     assert( (sent->next_col == sent) && (sent->prev_col == sent) );
   }
+
+  if (col->construction_predates_snapshot) {
+    col->construction_predates_snapshot = FALSE;
+    DATA(summ)->refining.summaries_left_to_process -= 1;
+    assert( DATA(summ)->refining.summaries_left_to_process >= 0 );
+    check_if_refining_is_now_done( summ );
+  }
 }
 
 static void clear_col_mutator_rs( summ_matrix_t *summ, int col_idx ) 
@@ -3357,13 +3444,21 @@ EXPORT void sm_init_summary_from_nursery_alone( summ_matrix_t *summ,
   check_rep_1( summ );
 }
 
+static bool coheres_with_snapshot( summ_matrix_t *summ, 
+                                   summ_col_t *col, word w )
+{
+  return (! col->construction_predates_snapshot ||
+          smircy_object_marked_p( summ->collector->smircy, w )) ;
+}
+
 static bool filter_mutated_elems( summary_t *s, word w )
 {
   summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
   remset_t      *nur_rs = DATA(summ)->nursery_remset;
   remset_t      *mut_rs = col->sum_mutator;
-  return ! rs_isremembered( mut_rs, w );
+  return ! rs_isremembered( mut_rs, w ) &&
+    coheres_with_snapshot( summ, col, w);
 }
 static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
 {
@@ -3371,7 +3466,8 @@ static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
   remset_t      *nur_rs = DATA(summ)->nursery_remset;
   remset_t      *mut_rs = col->sum_mutator;
-  return ! rs_isremembered( mut_rs, l.obj );
+  return ! rs_isremembered( mut_rs, l.obj ) &&
+    coheres_with_snapshot( summ, col, l.obj );
 }
 static bool filter_gen( summary_t *s, word w )
 {
@@ -3453,6 +3549,12 @@ static bool rsscan_filter_entries( word loc, void *my_data, unsigned *stats )
   return ret;
 }
 
+static bool mut_filter_snapshot( word loc, void *my_data, unsigned *stats )
+{
+  smircy_context_t *smircy = (smircy_context_t*)my_data;
+  return smircy_object_marked_p( smircy, loc );
+}
+
 /* 
  * XXX
  * 
@@ -3503,6 +3605,14 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
 #endif
 
     {
+      if (col->construction_predates_snapshot) {
+        assert( summ->collector->smircy != NULL );
+        assert( smircy_in_refinement_stage_p( summ->collector->smircy ));
+
+        rs_enumerate( col->sum_mutator, 
+                      mut_filter_snapshot, summ->collector->smircy );
+      }
+
       rs_init_summary( col->sum_mutator, -1,
                        &DATA(summ)->mutrems_summary );
     }

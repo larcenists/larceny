@@ -942,6 +942,8 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
   context->total_marked = 0;
   context->total_words_marked = 0;
 
+  context->stage = smircy_construction_stage;
+
   dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
          num_rgns, context->bitmap );
 
@@ -1804,6 +1806,22 @@ void smircy_check_rep( smircy_context_t *context )
       }
     }
   }
+}
+
+bool smircy_in_construction_stage_p( smircy_context_t *context ) {
+  return (context->stage == smircy_construction_stage);
+}
+void smircy_enter_refinement_stage( smircy_context_t *context ) {
+  context->stage = smircy_refinement_stage;
+}
+bool smircy_in_refinement_stage_p( smircy_context_t *context ) {
+  return (context->stage == smircy_refinement_stage);
+}
+void smircy_exit_refinement_stage( smircy_context_t *context ) {
+  context->stage = smircy_completed_stage;
+}
+bool smircy_in_completed_stage_p( smircy_context_t *context ) {
+  return (context->stage == smircy_completed_stage);
 }
 
 /* eof */

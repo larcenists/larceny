@@ -27,6 +27,12 @@ void smircy_progress( smircy_context_t *context,
 
 bool smircy_stack_empty_p( smircy_context_t *context );
 
+bool smircy_in_construction_stage_p( smircy_context_t *context );
+void smircy_enter_refinement_stage( smircy_context_t *context );
+bool smircy_in_refinement_stage_p( smircy_context_t *context );
+void smircy_exit_refinement_stage( smircy_context_t *context );
+bool smircy_in_completed_stage_p( smircy_context_t *context );
+
 bool smircy_object_marked_p( smircy_context_t *context, word obj );
 
 void smircy_when_object_forwarded( smircy_context_t *context, 

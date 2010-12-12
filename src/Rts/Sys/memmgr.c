@@ -461,6 +461,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
 #define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
+#define INCREMENTAL_REFINE_DURING_SUMZ 1
 
 #define REMSET_VERIFICATION_POINT( gc )         \
   do {                                          \
@@ -839,6 +840,34 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   SUMMMTX_VERIFICATION_POINT(gc);
 }
 
+static void initiate_refinement_during_summarization( gc_t *gc )
+{
+  sm_start_refinement( DATA(gc)->summaries );
+}
+
+static void initiate_refinement( gc_t *gc )
+{
+  if (DATA(gc)->summaries != NULL) {
+    if (smircy_in_construction_stage_p( gc->smircy )) {
+      initiate_refinement_during_summarization( gc );
+    } else {
+      assert( smircy_in_refinement_stage_p( gc->smircy ));
+    }
+  } else {
+    refine_metadata_via_marksweep( gc );
+  }
+}
+
+static void incremental_refinement_has_completed( gc_t *gc )
+{
+
+  reset_countdown_to_next_refine( gc ); /* XXX still necessary/meaningful? */
+
+  smircy_end( gc->smircy );
+  gc->smircy = NULL;
+  DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
+}
+
 typedef enum { 
   smircy_step_dont_refine, smircy_step_can_refine, smircy_step_must_refine
 } smircy_step_finish_mode_t;
@@ -851,6 +880,11 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   REMSET_VERIFICATION_POINT(gc);
   NURS_SUMMARY_VERIFICATION_POINT(gc);
   SMIRCY_VERIFICATION_POINT(gc);
+
+  if (gc->smircy != NULL 
+      && smircy_in_completed_stage_p( gc->smircy )) {
+    incremental_refinement_has_completed( gc );
+  }
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
   start_timers( &timer1, &timer2 );
@@ -894,7 +928,11 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
   start_timers( &timer1, &timer2 );
+#if INCREMENTAL_REFINE_DURING_SUMZ
+    initiate_refinement( gc );
+#else
     refine_metadata_via_marksweep( gc );
+#endif
   stop_refinem_timers( gc, &timer1, &timer2 );
     if (DATA(gc)->print_float_stats_each_refine && 
         ! DATA(gc)->print_float_stats_each_major)

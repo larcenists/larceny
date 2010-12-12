@@ -202,6 +202,8 @@ void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int offset, int g_rhs );
 
+void sm_start_refinement( summ_matrix_t *summ );
+
 #endif /* INCLUDED_SUMM_MATRIX_T_H */
 
 /* eof */
