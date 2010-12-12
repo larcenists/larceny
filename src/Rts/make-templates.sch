@@ -545,6 +545,8 @@ HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
 LOCSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/summary_t.h Sys/locset_t.h
 LOS_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/los_t.h
 MEMMGR_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/memmgr.h
+MEMMGR_FLT_H=Sys/memmgr_flt.h Sys/memmgr_internal.h
+MEMMGR_VFY_H=Sys/memmgr_vfy.h Sys/memmgr_internal.h
 MSGC_CORE_H=$(INC_ROOT)/Sys/larceny-types.h Sys/msgc-core.h
 OLD_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/old_heap_t.h
 REMSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h $(SEQBUF_T_H) Sys/remset_t.h
@@ -634,14 +636,14 @@ Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) Sys/gset_t.h $(GCL
 	$(OLD_HEAP_T_H) $(REMSET_T_H) Sys/region_group_t.h \\
 	$(SEMISPACE_T_H) $(SMIRCY_H) \\
 	$(STACK_H) $(MSGC_CORE_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H) \\
-	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h \\
+	$(SUMM_MATRIX_T_H) Sys/summary_t.h $(MEMGR_FLT_H) $(MEMMGR_VFY_H) \\
 	$(UREMSET_T_H) $(UREMSET_ARRAY_T_H)
 Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(GCLIB_H) $(MSGC_CORE_H) \\
-	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/summary_t.h $(MEMMGR_FLT_H)
 Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(GCLIB_H) $(MSGC_CORE_H) Sys/summary_t.h \\
-	$(SUMM_MATRIX_T_H) Sys/seqbuf_t.h Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/seqbuf_t.h $(MEMMGR_VFY_H)
 Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\

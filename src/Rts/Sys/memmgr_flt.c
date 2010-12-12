@@ -19,6 +19,8 @@
 #include "summ_matrix_t.h"
 
 #include "stats.h"
+
+#include "memmgr_flt.h"
 #include "memmgr_internal.h"
 
 static bool msfloat_object_marked_p( msgc_context_t *c, word x ) {

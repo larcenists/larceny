@@ -40,6 +40,8 @@ const char *larceny_gc_technology = "precise";
 #include "uremset_extbmp_t.h"
 #include "math.h"
 
+#include "memmgr_flt.h"
+#include "memmgr_vfy.h"
 #include "memmgr_internal.h"
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
