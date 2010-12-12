@@ -542,6 +542,7 @@ static void smircy_start( gc_t *gc )
 
   DATA(gc)->since_developing_snapshot_began.words_promoted = 0;
   DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
+  DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle += 1;
 }
 
 static bool scan_refine_remset( word loc, void *data )
@@ -710,6 +711,17 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     DATA(gc)->last_live_words;
   DATA(gc)->since_finished_snapshot_at_time_cycle_began_began =
     DATA(gc)->since_finished_snapshot_began;
+
+  /* If we completed a mark cycle in the last full cycles, then sticking
+     to minor collections is working so far; stick with it.  Otherwise
+     allow smircy steps during major collections for (just) next full cycle.
+  */
+  DATA(gc)->rrof_smircy_step_on_minor_collections_alone = 
+    ( ! ((DATA(gc)->region_count >= 2) &&
+         (DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle == 0)));
+
+  DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle = 0;
+  DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle = 0;
 
 #if SYNC_REFINEMENT_RROF_CYCLE
   if (gc->smircy == NULL)
@@ -926,6 +938,9 @@ static void incremental_refinement_has_completed( gc_t *gc )
 
   reset_countdown_to_next_refine( gc ); /* XXX still necessary/meaningful? */
 
+  if (DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle > 0)
+    DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle += 1;
+
   smircy_end( gc->smircy );
   gc->smircy = NULL;
   assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
@@ -965,7 +980,9 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
   {
     int promoted = gc->words_from_nursery_last_gc;
-    int bound = ((double)promoted / (DATA(gc)->rrof_refinement_factor));
+    int bound = (((double)gc->young_area->maximum / sizeof(word))
+                 / (DATA(gc)->rrof_refinement_factor));
+    bound /= (1 + DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle);
     smircy_progress( gc->smircy, bound, bound, -1, 
                      &marked_recv, &traced_recv, &words_marked_recv );
   }
@@ -1426,20 +1443,20 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
 
-    /* XXX experiment: only smircy_step on minor collections */
-#if 0
-    SUMMMTX_VERIFICATION_POINT(gc);
+    if (! DATA(gc)->rrof_smircy_step_on_minor_collections_alone) {
+      SUMMMTX_VERIFICATION_POINT(gc);
 
-    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
-    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
-                       DONT_USE_REFINEMENT_COUNTDOWN ||
-                       (DATA(gc)->rrof_refine_mark_countdown > 0))
-                      ? smircy_step_can_refine
-                      : smircy_step_must_refine ));
-    gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
+      gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
+      smircy_step( gc, 
+                   ((SYNC_REFINEMENT_RROF_CYCLE || 
+                     DONT_USE_REFINEMENT_COUNTDOWN ||
+                     (DATA(gc)->rrof_refine_mark_countdown > 0))
+                    ? smircy_step_can_refine
+                    : smircy_step_must_refine ));
+      gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
 
-    SUMMMTX_VERIFICATION_POINT(gc);
-#endif
+      SUMMMTX_VERIFICATION_POINT(gc);
+    }
     
   } else {
 
@@ -3646,6 +3663,10 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_prefer_big_summ = info->rrof_prefer_big_summ;
   data->rrof_prefer_lil_summ = info->rrof_prefer_lil_summ;
   data->rrof_prefer_lat_summ = info->rrof_prefer_lat_summ;
+
+  data->rrof_smircy_step_on_minor_collections_alone = TRUE;
+  data->rrof_mark_cycles_begun_in_this_full_cycle = 0;
+  data->rrof_mark_cycles_run_in_this_full_cycle = 0;
 
   ret = 
     create_gc_t( "*invalid*",

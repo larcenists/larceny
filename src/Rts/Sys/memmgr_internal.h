@@ -198,6 +198,10 @@ struct gc_data {
 
   int oracle_countdown;
   int oracle_pointsrun;
+
+  int rrof_mark_cycles_begun_in_this_full_cycle;
+  int rrof_mark_cycles_run_in_this_full_cycle;
+  bool rrof_smircy_step_on_minor_collections_alone;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))
