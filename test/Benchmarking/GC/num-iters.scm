@@ -56,7 +56,7 @@
 (define scheme-iters    20000)
 (define simplex-iters  100000)
 (define slatex-iters      100)
-
+(define compiler-iters    300)
 
 ; New benchmarks
 (define parsing-iters    1000)
