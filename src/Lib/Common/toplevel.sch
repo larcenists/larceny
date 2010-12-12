@@ -1423,6 +1423,14 @@
                     memstats-mem-allocated-now)
   (environment-set! larc 'memstats-mem-allocated-max
                     memstats-mem-allocated-max)
+  (environment-set! larc 'memstats-gc-all-major-faults-during-gcs
+                    memstats-gc-all-major-faults-during-gcs)
+  (environment-set! larc 'memstats-gc-all-minor-faults-during-gcs
+                    memstats-gc-all-minor-faults-during-gcs)
+  (environment-set! larc 'memstats-gc-major-faults-during-max-truegc-pause
+                    memstats-gc-major-faults-during-max-truegc-pause)
+  (environment-set! larc 'memstats-gc-minor-faults-during-max-truegc-pause
+                    memstats-gc-minor-faults-during-max-truegc-pause)
   (environment-set! larc 'memstats-generations memstats-generations)
   (environment-set! larc 'memstats-remsets memstats-remsets)
   (environment-set! larc 'memstats-frames-flushed memstats-frames-flushed)

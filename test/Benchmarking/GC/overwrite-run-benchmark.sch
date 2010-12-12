@@ -19,7 +19,11 @@
 ;;   memstats-gc-total-remset-scan-cpu-time 
 ;;   memstats-gc-total-entries-remset-scan
 ;;   memstats-gc-remset-scan-count
-;;
+;; 
+;; memstats-gc-all-major-faults-during-gcs
+;; memstats-gc-all-minor-faults-during-gcs
+;; memstats-gc-major-faults-during-max-truegc-pause
+;; memstats-gc-minor-faults-during-max-truegc-pause
 
 (define *last-stashed-stats* #f)
 
@@ -51,7 +55,17 @@
       user-time:      ,(memstats-user-time s)
       system-time:    ,(memstats-system-time s)
       gc-total-time:  (elapsed ,(memstats-gc-total-elapsed-time s)
-                       cpu     ,(memstats-gc-total-cpu-time s))
+                       cpu     ,(memstats-gc-total-cpu-time s)
+                       faults-major ,(memstats-gc-all-major-faults-during-gcs s)
+                       faults-minor ,(memstats-gc-all-minor-faults-during-gcs s)
+                       count
+                       ,(let ((gcs 0))
+                          (do ((i 0 (+ i 1)))
+                              ((= i (vector-length (memstats-generations s))))
+                            (let ((x (vector-ref (memstats-generations s) i)))
+                              (set! gcs (+ gcs (memstats-gen-collections x)))
+                              (set! gcs (+ gcs (memstats-gen-promotions x)))))
+                          gcs))
       mark-time:      (elapsed ,(memstats-mark-elapsed s)
                        cpu     ,(memstats-mark-cpu s)
                        count   ,(memstats-mark-count s))
@@ -62,7 +76,9 @@
   (define (trackmax-stats s)
     `(gc-max-pause:
       (elapsed ,(memstats-gc-max-truegc-elapsed-time s)
-       cpu     ,(memstats-gc-max-truegc-cpu-time s))
+       cpu     ,(memstats-gc-max-truegc-cpu-time s)
+       faults-major ,(memstats-gc-major-faults-during-max-truegc-pause s)
+       faults-minor ,(memstats-gc-minor-faults-during-max-truegc-pause s))
       gc-max-cheney:
       (elapsed ,(memstats-gc-max-cheney-elapsed-time s)
        cpu     ,(memstats-gc-max-cheney-cpu-time s))
@@ -115,7 +131,7 @@
       (lambda (ignore-return-val stashed-stats)
         (if (not (ok? result))
             (error "Benchmark program returned wrong result: " result))
-        (set! *last-stashed-stats* stashed-stats)
+        (set! *last-stashed-stats* (cons (list 'name: name) stashed-stats))
         stashed-stats))))
 
 (define run-with-stats/stashing
