@@ -744,7 +744,13 @@ static void rrof_completed_summarization_cycle( gc_t *gc )
       words = gc_heap_for_gno( gc, gno )->incoming_words.summarizer;
       mega_words = words / MILLION;
       mega_words_remainder =  (words % MILLION) / (MILLION / 100);
-      fprintf( stdout, "%2d.%02d ", mega_words, mega_words_remainder );
+      if (words == 0) {
+        fprintf( stdout, "    0%s ", 
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      } else {
+        fprintf( stdout, "%2d.%02d%s ", mega_words, mega_words_remainder,
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      }
     }
     fprintf( stdout, "\n" );
     fflush( stdout );
@@ -883,7 +889,13 @@ static void incremental_refinement_has_completed( gc_t *gc )
       words = gc_heap_for_gno( gc, gno )->incoming_words.marker;
       mega_words = words / MILLION;
       mega_words_remainder = (words % MILLION) / (MILLION / 100);
-      fprintf( stdout, "%2d.%02d ", mega_words, mega_words_remainder );
+      if (words == 0) {
+        fprintf( stdout, "    0%s ", 
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      } else {
+        fprintf( stdout, "%2d.%02d%s ", mega_words, mega_words_remainder,
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      }
     }
     fprintf( stdout, "\n" );
     fflush( stdout );
