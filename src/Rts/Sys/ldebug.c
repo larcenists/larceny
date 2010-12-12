@@ -284,7 +284,7 @@ static void examine( char *cmdl )
     unsigned char *p = (unsigned char *) loc;
 
     while (count--) {
-      printf( "%08x    %u\n", p, *p );
+      printf( "%08x    %u\n", (unsigned int)p, *p );
       p++;
     }
   }
@@ -336,7 +336,7 @@ static void examine( char *cmdl )
     word *p = (word *) ptrof( loc );
 
     while (count--) {
-      printf( "%08x    %08x\n", p,  *p );
+      printf( "%08x    %08x\n", (unsigned int)p,  *p );
       p++;
     }
   }
@@ -468,10 +468,10 @@ static void dumpregs( void )
           globals[ G_CONT ] );
 
   printf( "STKP=0x%08lx STKBOT=0x%08lx EBOT=0x%08lx ETOP=0x%08lx\n",
-	  globals[ G_STKP ],
-	  globals[ G_STKBOT ],
-	  globals[ G_EBOT ],
-          globals[ G_ETOP ] );
+	  (long unsigned int)globals[ G_STKP ],
+	  (long unsigned int)globals[ G_STKBOT ],
+	  (long unsigned int)globals[ G_EBOT ],
+          (long unsigned int)globals[ G_ETOP ] );
 }
 
 static void dumpglob( void )
