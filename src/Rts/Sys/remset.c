@@ -570,6 +570,8 @@ void rs_init_summary( remset_t *rs, int max_words_per_step,
   summary_init( s, rs->live, &rs_pool_next_chunk );
   pool_t *ps = DATA(rs)->first_pool;
   word *p, *q;
+  p = NULL;
+  q = NULL;
   while (ps != NULL) {
     p = ps->bot;
     q = ps->top;
