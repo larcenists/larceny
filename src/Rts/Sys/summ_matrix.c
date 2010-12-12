@@ -2110,7 +2110,7 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
 EXPORT void sm_start_refinement( summ_matrix_t *summ ) 
 {
 
-  consolemsg( "sm_start_refinement( summ )" );
+  dbmsg( "sm_start_refinement( summ )" );
 
   assert( summ->collector->smircy != NULL );
   assert( smircy_in_construction_stage_p( summ->collector->smircy ));
@@ -3039,7 +3039,7 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
   check_rep_1( summ );
 
 
-  consolemsg("sm_fold_in_nursery_and_init_summary"
+  dbmsg("sm_fold_in_nursery_and_init_summary"
              "( summ, next_summ_idx: %d, summary )"
              " construction_predates_snapshot: %s", 
              next_summ_idx, 
