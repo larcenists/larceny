@@ -458,7 +458,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 /* The number represents how many cycles per expansion. (first guess is 1) */
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
 #define USE_ORACLE_TO_VERIFY_REMSETS 1
-#define USE_ORACLE_TO_VERIFY_SUMMARIES 0
+#define USE_ORACLE_TO_VERIFY_SUMMARIES 1
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
 #define USE_ORACLE_TO_VERIFY_FWDFREE 1
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
@@ -793,6 +793,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   int dA;
   bool completed_cycle;
 
+  REMSET_VERIFICATION_POINT(gc);
   SUMMMTX_VERIFICATION_POINT(gc);
 
   assert( DATA(gc)->summaries != NULL );

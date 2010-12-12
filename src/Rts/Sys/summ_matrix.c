@@ -1541,6 +1541,26 @@ static void cell_enq_loc( summ_matrix_t *summ, summ_cell_t *cell, loc_t loc )
 static void clear_col_cells( summ_matrix_t *summ, int col_idx );
 static void clear_col_mutator_rs( summ_matrix_t *summ, int col_idx );
 
+static bool col_contains_loc( summ_matrix_t *summ, summ_col_t *col, loc_t loc )
+{
+  summ_cell_t *cell, *sent;
+  cell = col->cell_top;
+  sent = cell;
+  do {
+    locs_pool_t *locs;
+    for( locs = cell->locations; locs != NULL; locs = locs->next ) {
+      loc_t *lptr;
+      for( lptr = locs->bot; lptr < locs->top; lptr++ ) {
+        loc_t l = *lptr;
+        if (l.obj == loc.obj && l.offset == loc.offset)
+          return TRUE;
+      }
+    }
+    cell = cell->next_col;
+  } while (cell != sent);
+
+  return FALSE;
+}
 static bool col_contains_ptr( summ_matrix_t *summ, summ_col_t *col, word ptr )
 {
   summ_cell_t *cell, *sent;
@@ -1703,13 +1723,21 @@ static void add_loc_to_sum_array( summ_matrix_t *summ,
   int pop_limit = DATA(summ)->popularity_limit;
   summ_col_t *col = DATA(summ)->cols[tgt_gen];
 
+  assert2( src_gen != tgt_gen );
+  assert2( gen_of( loc.obj ) == src_gen );
+  assert2( urs_isremembered( summ->collector->the_remset, loc.obj ));
+
   if (col_words(col) <= pop_limit) {
     summ_cell_t *cell = summ_cell( summ, src_gen, tgt_gen );
     if (cell == NULL) { 
       /* do nothing */
     } else {
 #if ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ
-      /* XXX add check here for _loc_ in cell's col */
+        if (col_contains_loc(summ, col, loc)) {
+          consolemsg("add_loc_to_sum_array fail 0x%08x[%d] (%3d, %3d) words: %d",
+                     loc.obj, loc.offset, src_gen, tgt_gen, col_words(col));
+        }
+        assert( ! col_contains_loc(summ, col, loc) );
 #endif
 
       cell_enq_loc( summ, cell, loc );
@@ -2084,6 +2112,7 @@ static void wait_to_setup_next_wave( summ_matrix_t *summ );
 static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
 {
   dbmsg("switch_some_to_summarizing(summ, coverage=%d)", coverage);
+  assert( region_group_count( region_group_summzing ) == 0);
 #if 0
   /* It may be the "right thing" to wait until enough regions
    * are actually filled to start a summarization cycle
@@ -2114,10 +2143,16 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
                     region_group_count( region_group_summzing ),
                     region_group_count( region_group_filled ),
                     region_group_count( region_group_popular ) );
+
+        /* XXX should above be consolemsg rather than annoyingmsg ??? */
+
         break; /* nothing left to summarize! */
       }
     }
+    dbmsg( "switch_some_to_summarizing : %d ", oh_current_space(oh)->gen_no );
     region_group_enq( oh, oh->group, region_group_summzing );
+    assert2( col_words( DATA(summ)->cols
+                        [ oh_current_space( oh )->gen_no ] ) == 0 );
     coverage--;
   }
 }
@@ -2380,9 +2415,374 @@ static void console_printgset( char *prefix, gset_t g )
    } else { assert(0); }
 }
 
+struct verify_summaries_msgc_fcn_data {
+  summ_matrix_t *summ;
+  locset_t **summaries;
+};
+
+static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset, 
+                                        void *my_data )
+{
+  struct verify_summaries_msgc_fcn_data *data =
+    (struct verify_summaries_msgc_fcn_data*)my_data;
+  summ_matrix_t *summ = data->summ;
+  locset_t **summaries = data->summaries;
+  int src_gen, tgt_gen;
+
+  assert2( (byte_offset % sizeof(word)) == 0 );
+
+  if (isptr(src) && isptr(obj) &&
+      ((src_gen = gen_of(src)) != (tgt_gen = gen_of(obj))) &&
+      ! gc_is_nonmoving( summ->collector, tgt_gen )) {
+
+    assert( src_gen >= 0 );
+    if (src_gen > 0) {
+      assert( *summ->collector->ssb[src_gen]->bot == *summ->collector->ssb[src_gen]->top );
+      assert( *summ->collector->ssb[tgt_gen]->bot == *summ->collector->ssb[tgt_gen]->top );
+      if (region_summarized( summ, tgt_gen ) &&
+          ! DATA(summ)->cols[tgt_gen]->overly_popular) {
+        loc_t loc;
+        loc.obj = src;
+        loc.offset = byte_offset;
+        assert2( byte_offset < 0 || ((byte_offset % sizeof(word)) == 0));
+        if ( ((summaries[ tgt_gen ] == NULL ) )) {
+          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+                     tgt_gen, src, src_gen, obj, tgt_gen );
+        } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
+          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
+                    tgt_gen, loc.obj, loc.offset, src_gen, obj, tgt_gen );
+        }
+        assert( summaries[ tgt_gen ] != NULL );
+        assert( ls_ismember_loc( summaries[ tgt_gen ], loc ));
+      }
+
+      /* XXX when introducing incremental sumz, more (and semi-tricky) logic goes here
+       * to validate in-progress summarization. */
+      if (region_summarizing_goal( summ, tgt_gen ) &&
+          ! DATA(summ)->cols[tgt_gen]->overly_popular &&
+          ( DATA(summ)->summarizing.complete 
+            || ( ! region_summarizing_curr( summ, tgt_gen ))
+            || gen_of(src) >= DATA(summ)->summarizing.cursor )) {
+        loc_t loc;
+        loc.obj = src;
+        loc.offset = byte_offset;
+        if ( ((summaries[ tgt_gen ] == NULL ) )) {
+          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+                     tgt_gen, src, src_gen, obj, tgt_gen );
+        } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
+          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
+                    tgt_gen, loc.obj, loc.offset, src_gen, obj, tgt_gen );
+        }
+        assert( summaries[ tgt_gen ] != NULL );
+        assert( ls_ismember_loc( summaries[ tgt_gen ], loc ));
+      }
+
+    }
+  }
+
+  return data;
+}
+
+struct verify_summaries_locset_fcn_data {
+  gc_t *gc;
+  msgc_context_t *conserv_context;
+  msgc_context_t *aggress_context;
+  int summary_for_region; 
+  summ_col_t *col;
+  summ_matrix_t *summ;
+};
+
+static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
+  return msgc_object_marked_p( c, x );
+}
+static void msvfy_set_object_visitor( msgc_context_t *c, 
+                                      void* (*visitor)( word obj, 
+                                                        word src,
+                                                        int offset, 
+                                                        void *data ), 
+                                      void *data ) {
+  msgc_set_object_visitor( c, visitor, data );
+}
+static void msvfy_mark_objects_from_roots( msgc_context_t *c ) {
+  int marked, traced, words_marked;
+  msgc_mark_objects_from_roots( c, &marked, &traced, &words_marked );
+}
+static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
+  int m, t, wm;
+  msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
+}
+
+static bool verify_summaries_locset_fcn( loc_t loc, void *the_data )
+{
+  struct verify_summaries_locset_fcn_data *data;
+  data = (struct verify_summaries_locset_fcn_data*)the_data;
+  word obj = loc.obj;
+
+  /* filtering out loc's that are not marked in smircy when we find
+   * data->col->construction_predates_snapshot */
+  if (data->col->construction_predates_snapshot) {
+    assert( data->summ->collector->smircy != NULL );
+  }
+  if (data->col->construction_predates_snapshot 
+      && ! smircy_object_marked_p( data->summ->collector->smircy, 
+                                   loc.obj )) {
+
+    /* do nothing (and exit early); the out-dated object is not
+     * considered part of the summary and will (or at least should) be
+     * filtered out. */
+#if 0
+    consolemsg( "verify summ rems, SKIP 0x%08x (%d)", 
+                loc.obj, gen_of(loc.obj) );
+#endif
+    return TRUE;
+  }
+
+  /* Any object in a summary should be reachable from the 
+   * union of roots+remsets */
+
+  if ( msvfy_object_marked_p( data->conserv_context, obj ) &&
+       ( gen_of(obj) != data->summary_for_region )) {
+  } else {
+    consolemsg(  "VERIFY SUMM REMS 0x%08x (%d) "
+                 "marked {agg: %s, con: %s, rs[%d]: %s, smircy: %s}", 
+                 obj, gen_of(obj), 
+                 msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 
+                 msvfy_object_marked_p( data->conserv_context, obj )?"Y":"N",
+                 gen_of(obj),
+                 urs_isremembered( data->gc->the_remset, obj )?"Y":"N",
+                 ((data->gc->smircy == NULL)?"n/a":
+                  (smircy_object_marked_p( data->gc->smircy, obj )?"Y  ":"N  "))
+                 );
+  }
+
+  assert( msvfy_object_marked_p( data->conserv_context, obj ));
+  assert( gen_of(obj) != data->summary_for_region );
+  return TRUE;
+}
+
+struct scan_check_nursery_ls_data {
+  summ_matrix_t  *summ;
+  msgc_context_t *conserv_context;
+  msgc_context_t *aggress_context;
+};
+
+static bool scan_check_nursery_ls( loc_t loc, void *my_data )
+{
+  struct scan_check_nursery_ls_data *data;
+  data = (struct scan_check_nursery_ls_data*)my_data;
+
+  assert( msvfy_object_marked_p( data->conserv_context, loc.obj ));
+  return TRUE;
+}
+
+static void fold_col_into_locset( summ_matrix_t *summ, int i, locset_t *ls ) 
+{
+  summ_col_t *col;
+
+  assert( ls->live == 0 );
+
+  col = DATA(summ)->cols[i];
+  { /* enumerate objects */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      objs_pool_t *objs = curr->objects;
+      assert( objs == NULL ); /* XXX workaround */
+      curr = curr->next_col;
+    }
+  }
+
+  { /* enumerate locations */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      locs_pool_t *locs = curr->locations;
+      while (locs != NULL) {
+        loc_t *p = locs->bot;
+        loc_t *top = locs->top;
+        while( p < top ) {
+          loc_t l;
+          l = *p;
+          if (! loc_clear_p( l )) {
+
+            /* note that l.obj may already be present in ls,
+               but l should not. */
+            assert( ! ls_ismember_loc( ls, l ));
+            assert( ! ls_ismember( ls, loc_to_slot(l) ));
+
+            ls_add_obj_offset( ls, l.obj, l.offset );
+          }
+          p++;
+        }
+        locs = locs->next;
+      }
+      curr = curr->next_col;
+    }
+  }
+
+  if (col->sum_mutator != NULL) {
+    ls_copy_all_from( ls, col->sum_mutator );
+  }
+}
+
+static 
+void check_col_on_own_vfy_sm_ls( summ_matrix_t *summ,
+                                 int col_idx, 
+                                 struct verify_summaries_locset_fcn_data *data)
+{
+  summ_col_t *col;
+
+  col = DATA(summ)->cols[col_idx];
+  data->col = col;
+
+  { /* enumerate objects */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      objs_pool_t *objs = curr->objects;
+      assert( objs == NULL );
+      curr = curr->next_col;
+    }
+  }
+
+  { /* enumerate locations */
+    /* (note that this approach leads to an *over*-approximation of
+     *  the true content of the summary)
+     */
+    /* (I should probably add a representation for set-of-locations
+     *  and use that as the basis of the construction instead of the
+     *  hack of using a remset for each column.)
+     */
+    summ_cell_t *sent = col->cell_top;
+    summ_cell_t *curr = sent->next_col;
+    while (curr != sent) {
+      locs_pool_t *locs = curr->locations;
+      while (locs != NULL) {
+        loc_t *p = locs->bot;
+        loc_t *top = locs->top;
+        while( p < top ) {
+          if (p->obj != 0x0) {
+            verify_summaries_locset_fcn( *p, data );
+          }
+          p++;
+        }
+        locs = locs->next;
+      }
+      curr = curr->next_col;
+    }
+  }
+
+  if (col->sum_mutator != NULL) {
+    ls_enumerate_locs( col->sum_mutator, verify_summaries_locset_fcn, data );
+  }
+}
+
+
 EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
 {
-  return;
+  msgc_context_t *conserv_context;
+  msgc_context_t *aggress_context;
+  int marked, traced, words_marked;
+  locset_t **summaries;
+
+  check_rep_1( summ );
+
+  /* set up simpler summary abstract representation */
+  {
+    int i;
+    summaries = 
+      must_malloc( DATA(summ)->num_cols * sizeof(remset_t*));
+    for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
+      summaries[i] = grab_from_locset_pool();
+      verifymsg("col[i=%d]:words{sm:%d,wb:%d,gc:%d,sc:%d}", 
+                 i, 
+                 DATA(summ)->cols[i]->summarize_word_count,
+                 DATA(summ)->cols[i]->writebarr_word_count,
+                 DATA(summ)->cols[i]->collector_word_count,
+                 DATA(summ)->cols[i]->summacopy_word_count );
+      fold_col_into_locset( summ, i, summaries[i] );
+      verifymsg("summaries[i=%d]->live: %d", i, summaries[i]->live);
+    }
+  }
+
+  {
+    struct verify_summaries_msgc_fcn_data data;
+    data.summ = summ;
+    data.summaries = summaries;
+
+    conserv_context = msgc_begin( summ->collector );
+    msvfy_set_object_visitor( conserv_context, 
+                              verify_summaries_msgc_fcn, 
+                              &data );
+    /* (useful to have a pre-pass over reachable(roots) so that the
+       stack trace tells you whether a problem is due solely to a
+       reference chain that somehow involves remembered sets.) */
+    msvfy_mark_objects_from_roots( conserv_context );
+    /* Summaries are based on (conservative) info in remsets; 
+       therefore they may have references to "dead" objects 
+       that would not be identified as such if we used 
+       only msgc_mark_objects_from_roots
+    */
+    msvfy_mark_objects_from_roots_and_remsets( conserv_context );
+
+    /* a postpass over the summaries to make sure that their contents
+       are sane.
+    */
+    {
+      struct verify_summaries_locset_fcn_data data;
+      int i;
+      msgc_context_t *aggress_context;
+      aggress_context = msgc_begin( summ->collector );
+      msvfy_mark_objects_from_roots( aggress_context );
+      data.conserv_context = conserv_context;
+      data.aggress_context = aggress_context;
+      data.gc = summ->collector;
+      data.summ = summ;
+
+      for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
+        data.summary_for_region = i;
+        data.col = DATA(summ)->cols[i];
+        check_col_on_own_vfy_sm_ls( summ, i, &data );
+      }
+
+      for (i = 0; i < summ->collector->gno_count; i++) {
+        if (region_summarized( summ, i )){
+          verifymsg("sanity check summary[i=%d] live: %d", 
+                     i, summaries[i]->live);
+          data.summary_for_region = i;
+          data.col = DATA(summ)->cols[i];
+          ls_enumerate_locs( summaries[i], 
+                             verify_summaries_locset_fcn,
+                             &data );
+        }
+      }
+
+      {
+        struct scan_check_nursery_ls_data data;
+        data.summ = summ;
+        data.conserv_context = conserv_context;
+        data.aggress_context = aggress_context;
+        ls_enumerate_locs( DATA(summ)->nursery_locset,
+                           scan_check_nursery_ls,
+                           &data );
+      }
+
+      msgc_end( aggress_context );
+    }
+    msgc_end( conserv_context );
+  }
+
+  /* clean up */
+  {
+    int i;
+    for (i = 1; i < DATA(summ)->num_cols; i++) {
+      ls_clear( summaries[i] );
+      return_to_locset_pool( summaries[i] );
+    }
+    free( summaries );
+  }
+
+  check_rep_1( summ );
 }
 
 /* XXX
@@ -2611,6 +3011,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
         rgn_next, region_count, 
         DATA(summ)->coverage, coverage, budget );
 
+  assert2( region_group_count( region_group_summzing ) == 0 );
   switch_some_to_summarizing( summ, coverage );
 
   sm_build_summaries_setup( summ, budget, region_count, 
@@ -2724,6 +3125,8 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
 {
   check_rep_1( summ );
 
+  dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ) ", rgn_next );
+
   DATA(summ)->row_cache.last_cell_valid = FALSE;
 
   /* clear contribution of rgn_next to all columns. */
@@ -2783,6 +3186,7 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
             dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ): "
                        "filter sum_mutator[col=%d] live: %d",
                        rgn_next, i, col->sum_mutator->live );
+            /* XXX fixme use ls_enumerate_locs insted */
             ls_enumerate( col->sum_mutator,
                           filter_objects_from_sum_remset,
                           &data );
@@ -2790,6 +3194,7 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
                        "post filter sum_mu[col=%d] live: %d",
                        rgn_next, i, col->sum_mutator->live );
           } else {
+            /* XXX fixme use ls_enumerate_locs insted (and also, WTF?)*/
             ls_enumerate( col->sum_mutator,
                           filter_objects_from_sum_remset,
                           &data );
