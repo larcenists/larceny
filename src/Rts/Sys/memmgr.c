@@ -1022,7 +1022,10 @@ static void initialize_summaries( gc_t *gc, bool about_to_major )
                         DATA(gc)->rrof_sumz_params.popularity_factor,
                         DATA(gc)->rrof_sumz_params.popularity_limit_words, 
                         about_to_major,
-                        DATA(gc)->rrof_next_region );
+                        DATA(gc)->rrof_next_region,
+                        DATA(gc)->rrof_sumz_params.coverage_inv,
+                        DATA(gc)->rrof_sumz_params.budget_inv,
+                        DATA(gc)->rrof_sumz_params.max_retries );
 }
 
 static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )

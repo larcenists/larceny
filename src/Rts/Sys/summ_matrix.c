@@ -170,6 +170,9 @@ struct summ_col {
 };
 
 struct summ_matrix_data {
+  double F_1;
+  double F_2;
+  int    F_3;
   double coverage;
   double goal;
   double p;
@@ -775,7 +778,8 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
 EXPORT summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
                     double c, double g, double p, int popularity_limit, 
-                    bool about_to_major, int rgn_next )
+                    bool about_to_major, int rgn_next,
+                    double F_1, double F_2, int F_3 )
 {
   summ_matrix_t *sm; 
   summ_matrix_data_t *data;
@@ -795,6 +799,9 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   sm = (summ_matrix_t*)must_malloc( sizeof( summ_matrix_t ));
   data = (summ_matrix_data_t*)must_malloc( sizeof( summ_matrix_data_t ));
 
+  data->F_1 = F_1;
+  data->F_2 = F_2;
+  data->F_3 = F_3;
   data->coverage = c;
   data->goal = g;
   data->p = p;

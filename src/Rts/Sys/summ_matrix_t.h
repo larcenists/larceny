@@ -68,7 +68,8 @@ struct summ_matrix {
 summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
                     double c, double g, double p, int popularity_limit,
-                    bool about_to_major, int rgn_next );
+                    bool about_to_major, int rgn_next,
+                    double F_1, double F_2, int F_3 );
 
 void sm_expand_gnos( summ_matrix_t *summ, int fresh_gno );
 
