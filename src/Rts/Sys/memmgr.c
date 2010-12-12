@@ -2595,6 +2595,8 @@ static int allocated_to_areas( gc_t *gc, gset_t gs )
     for (i = gs.g1; i < gs.g2; i++) 
       sum += allocated_to_area( gc, i );
     return sum;
+  case gs_nil:   return 0;
+  case gs_twrng: assert(0); /* not implemented yet */
   }
   assert(0);
 }
@@ -2610,6 +2612,8 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
     for (i = gs.g1; i < gs.g2; i++) 
       sum += maximum_allotted_to_area( gc, i );
     return sum;
+  case gs_nil:   return 0;
+  case gs_twrng: assert(0); /* not implemented yet */
   }
   assert(0);
 }
