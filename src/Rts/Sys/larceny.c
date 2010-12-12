@@ -482,6 +482,7 @@ parse_options( int argc, char **argv, opt_t *o )
   int mark_period;
   int oracle_countdown;
   double popular_factor = 0.0;
+  double infamy_factor = 0.0;
   double refine_factor = 0.0;
   double sumz_budget = 0.0;
   double sumz_coverage = 0.0;
@@ -587,6 +588,10 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (doublearg( "-popularity", &argc, &argv, &popular_factor)) {
       o->gc_info.has_popularity_factor = TRUE;
       o->gc_info.popularity_factor = popular_factor;
+    }
+    else if (doublearg( "-infamy", &argc, &argv, &infamy_factor)) {
+      o->gc_info.has_infamy_factor = TRUE;
+      o->gc_info.infamy_factor = infamy_factor;
     }
     else if (hstrcmp( *argv, "-print_float_stats_cycle" ) == 0)
       o->gc_info.print_float_stats_cycle = TRUE;
