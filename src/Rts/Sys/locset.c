@@ -474,7 +474,10 @@ static pool_t *allocate_pool_segment( unsigned pool_entries, unsigned attr )
   }
 
   p->bot = p->top = heapptr;
-  p->lim = ((byte*)heapptr) + pool_entries*sizeof(ent_t);
+
+  /* XXX really felix?  is ptr arith that hard to grok? */
+  p->lim = (ent_t*)(((byte*)heapptr) + pool_entries*sizeof(ent_t)); 
+
   p->next = 0;
 
   if (0) consolemsg( "allocate_pool_segment(%u, attr) "
