@@ -11,9 +11,15 @@ fi
 DATE=`date +"%Y%b%d-at-%H-%M-%S"`
 
 if [ -z $1 ] ; then
-    OUTPUT=bench-auto-log.$DATE.log
+    OUTPUT=bench-smoke10-log.$DATE.log
+    HUMAN_OUTPUT=bench-smoke10-std.$DATE.log
 else 
     OUTPUT=$1
+    if [ -z $2 ] ; then 
+        HUMAN_OUTPUT=bench-smoke10-std.$DATE.log
+    else
+        HUMAN_OUTPUT=$2
+    fi
 fi
 
 TMPOUTPUT=tmp.$OUTPUT
@@ -27,7 +33,7 @@ f( ) {
   fi
 }
 
-echo "\"running LARCENY=${LARCENY} and sending stat sexps to $OUTPUT\""
+echo "\"running LARCENY=${LARCENY} and sending stat sexps to $OUTPUT\"" | tee $HUMAN_OUTPUT
 echo "\"running LARCENY=${LARCENY} and sending stat sexps to $OUTPUT\"" > $OUTPUT
 echo "\"$DATE\""                                                       >> $OUTPUT
 
@@ -68,7 +74,7 @@ AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
 g( ) {
     echo "($2 $1"  >> $OUTPUT
     echo "(begin $1 (values))" ${AFTER_BENCH} | \
-        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl
+        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl | tee -a $HUMAN_OUTPUT
     cat $TMPOUTPUT >> $OUTPUT
     echo ") "      >> $OUTPUT
     echo           >> $OUTPUT

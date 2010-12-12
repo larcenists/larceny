@@ -11,9 +11,15 @@ fi
 DATE=`date +"%Y%b%d-at-%H-%M-%S"`
 
 if [ -z $1 ] ; then
-    OUTPUT=bench-auto-log.$DATE.log
+    OUTPUT=bench-thesis10-log.$DATE.log
+    HUMAN_OUTPUT=bench-thesis10-std.$DATE.log
 else 
     OUTPUT=$1
+    if [ -z $2 ] ; then 
+        HUMAN_OUTPUT=bench-thesis10-std.$DATE.log
+    else
+        HUMAN_OUTPUT=$2
+    fi
 fi
 
 TMPOUTPUT=tmp.$OUTPUT
@@ -27,7 +33,7 @@ f( ) {
   fi
 }
 
-echo "\"running LARCENY=${LARCENY} and sending stat sexps to $OUTPUT\""
+echo "\"running LARCENY=${LARCENY} and sending stat sexps to $OUTPUT\"" | tee $HUMAN_OUTPUT
 echo "\"running LARCENY=${LARCENY} and sending stat sexps to $OUTPUT\"" > $OUTPUT
 echo "\"$DATE\""                                                       >> $OUTPUT
 
@@ -52,6 +58,7 @@ f( ) {
 }
 f overwrite-run-benchmark; 
 f earley; f gcbench; f nboyer; f sboyer; f perm; f twobit; f gcold;
+f queue3;
 
 AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
                (lambda (p)                          \
@@ -68,7 +75,7 @@ AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
 g( ) {
     echo "($2 $1"  >> $OUTPUT
     echo "(begin $1 (values))" ${AFTER_BENCH} | \
-        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl
+        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl | tee -a $HUMAN_OUTPUT
     cat $TMPOUTPUT >> $OUTPUT
     echo ") "      >> $OUTPUT
     echo           >> $OUTPUT
@@ -93,4 +100,7 @@ g '(twobit-benchmark (quote long) 5)' twobit
 
 g '(GCOld 100 0 1  0    800)' gcold
 g '(GCOld 100 0 1  1000 800)' gcold
+
+g '(queue-benchmark 1000 1000000 50)' queue3
+g '(pueue-benchmark 1000 1000000 50 50)' pueue3
 
