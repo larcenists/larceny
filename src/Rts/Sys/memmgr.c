@@ -1468,13 +1468,15 @@ static void rrof_gc_policy( gc_t *gc,
     (((long long)(majors_total+1) * A_this) > ((long long)(majors_sofar+1) * A_target));
 
   if (calculate_loudly) {
+#define FMT "% 3lldM"
+    long long div = 1000 * 1000;
     consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-                "N_old:% 6lldK, N:% 6dK, P_old:% 6lldK, A_this:% 6lldK "
-                "A_target:% 6lldK = max(5M,min(% 6lldK,% 6lldK)) => will says: %s",
+                "N_old:" FMT ", N:" FMT ", P_old:" FMT ", A_this:" FMT " "
+                "A_target:" FMT " = max(5M,min(" FMT "," FMT ")) => will says: %s",
                 majors_sofar, majors_total, 
-                N_old/1000, N/1000, P_old/1000, A_this/1000, 
-                A_target/1000, A_target_1/1000, A_target_2/1000, 
-                will_says_should_major?"major":"minor");
+                N_old/div, N/div, P_old/div, A_this/div, 
+                A_target/div, A_target_1/div, A_target_2/div, 
+                will_says_should_major?"MAJOR":"mnr");
   }
 
   assert( !will_says_should_major || 
@@ -1497,7 +1499,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
        + region_group_count( region_group_wait_w_sum ) 
        + region_group_count( region_group_filled ) /* XXX */) 
       > 0) {
-    rrof_gc_policy( gc, &will_says_should_major, FALSE );
+    rrof_gc_policy( gc, &will_says_should_major, DATA(gc)->summaries != NULL );
   } else {
     will_says_should_major = FALSE;
   }
