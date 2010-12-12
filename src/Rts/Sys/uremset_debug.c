@@ -144,6 +144,14 @@ static bool      is_remembered( uremset_t *urs, word w )
 {
   return urs_isremembered( DATA(urs)->backing_urs, w );
 }
+static void              clear_minor( uremset_t *urs ) 
+{
+  urs_clear_minor( DATA(urs)->backing_urs );
+}
+static void copy_minor_to_major( uremset_t *urs ) 
+{
+  urs_copy_minor_to_major( DATA(urs)->backing_urs );
+}
 
 static void       init_summary( uremset_t *urs, 
                                 int gno, 
@@ -178,6 +186,8 @@ uremset_t *alloc_uremset_debug( uremset_t *backing_urs )
                            enumerate_gno,
                            enumerate_allbutgno, 
                            enumerate_older, 
+                           clear_minor, 
+                           copy_minor_to_major, 
                            enumerate_minor_complement, 
                            enumerate_complement, 
                            enumerate,

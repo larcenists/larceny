@@ -40,6 +40,8 @@ uremset_t
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ),
+                  void                (*clear_minor)( uremset_t *urs ),
+                  void        (*copy_minor_to_major)( uremset_t *urs ),
                   void (*enumerate_minor_complement)( uremset_t *urs, 
                                                       bool incl_tag, 
                                                       gset_t genset, 
@@ -84,6 +86,8 @@ uremset_t
   urs->enumerate_gno              = enumerate_gno;
   urs->enumerate_allbutgno        = enumerate_allbutgno;
   urs->enumerate_older            = enumerate_older;
+  urs->clear_minor                = clear_minor;
+  urs->copy_minor_to_major        = copy_minor_to_major;
   urs->enumerate_minor_complement = enumerate_minor_complement;
   urs->enumerate_complement       = enumerate_complement;
   urs->enumerate                  = enumerate;

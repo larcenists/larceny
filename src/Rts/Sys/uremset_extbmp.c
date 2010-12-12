@@ -60,6 +60,13 @@ static void              clear( uremset_t *urs, int gno )
   extbmp_clear_members_in( DATA(urs)->minor_remset, gno );
   extbmp_clear_members_in( DATA(urs)->remset, gno );
 }
+
+static void              clear_minor( uremset_t *urs )
+{
+  int i;
+  for ( i = 1 ; i < urs->collector->gno_count; i++ )
+    extbmp_clear_members_in( DATA(urs)->minor_remset, i );
+}
 static bool       add_elem_new( uremset_t *urs, word w )
 {
   /* (could/should assert2 non-membership here) */
@@ -105,6 +112,14 @@ static bool copy_over_to( word loc, void *data )
   extbmp_t *that = (extbmp_t*)data;
   extbmp_add_elem( that, loc );
   return TRUE;
+}
+
+static void copy_minor_to_major( uremset_t *urs ) 
+{
+  extbmp_enumerate( DATA(urs)->minor_remset, 
+                    FALSE, 
+                    copy_over_to, 
+                    DATA(urs)->remset );
 }
 
 struct wrap_scan_propogating_deletes_to_minor_data {
@@ -160,20 +175,9 @@ static void enumerate_minor_complement( uremset_t *urs,
   int i;
   int rs_count; 
 
-  rs_count = urs->collector->gno_count;
 
-  /* See general notes on this strange control flow (and state)
-   * written in comments with enumerate_complement below. */
-  if (urs->collector->static_area != NULL) {
-    extbmp_enumerate_in( DATA(urs)->minor_remset, incl_tag, 
-                         rs_count-1, scanner, data );
-  }
-  for( i=1; i < rs_count-1; i++) {
-    if (! gset_memberp( i, gset )) {
-      extbmp_enumerate_in( DATA(urs)->minor_remset, 
-                           incl_tag, i, scanner, data );
-    }
-  }
+  assert( (gset.tag == gs_singleton) && gset_memberp( 0, gset ) );
+  extbmp_enumerate( DATA(urs)->minor_remset, incl_tag, scanner, data );
 }
 static void enumerate_complement( uremset_t *urs, 
                                   bool incl_tag, 
@@ -266,6 +270,8 @@ uremset_t *alloc_uremset_extbmp( gc_t *gc, gc_param_t *info )
                            enumerate_gno,
                            0 /*enumerate_allbutgno*/, 
                            0 /*enumerate_older*/, 
+                           clear_minor, 
+                           copy_minor_to_major, 
                            enumerate_minor_complement, 
                            enumerate_complement, 
                            enumerate,

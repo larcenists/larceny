@@ -88,6 +88,13 @@ struct uremset {
 
   /* XXX deprecated methods follow. */
 
+  void (*clear_minor)( uremset_t *urs );
+    /* Clears all objects in the minor part.
+     * (That is, the objects added via add_elems method but not
+     *  add_elem_new or add_elem.)
+     */
+  void (*copy_minor_to_major)( uremset_t *urs );
+    /* Copies whatever remains in the minor part to the major part. */
   void (*enumerate_minor_complement)( uremset_t *urs, bool incl_tag, 
                                       gset_t genset, 
                                       bool (*scanner)(word loc, void *data), 
@@ -127,6 +134,8 @@ struct uremset {
 
 #define urs_expand_remset_gnos( r,g )  ((r)->expand_remset_gnos( (r),(g) ))
 #define urs_clear( r,g )               ((r)->clear( (r),(g) ))
+#define urs_clear_minor( r )           ((r)->clear_minor( (r) ))
+#define urs_copy_minor_to_major( r )   ((r)->copy_minor_to_major( (r) ))
 #define urs_assimilate_and_clear( r,g1,g2 ) \
   ((r)->assimilate_and_clear( (r),(g1),(g2) ))
 #define urs_add_elem_new( r,w )        ((r)->add_elem_new( (r),(w) ))
@@ -178,6 +187,8 @@ uremset_t
                                                       bool (*scanner)(word loc, 
                                                                       void *data), 
                                                       void *data ), 
+                  void                (*clear_minor)( uremset_t *urs ),
+                  void        (*copy_minor_to_major)( uremset_t *urs ),
                   void (*enumerate_minor_complement)( uremset_t *urs, 
                                                       bool incl_tag, 
                                                       gset_t genset, 

@@ -70,6 +70,31 @@ static void              clear( uremset_t *urs, int gno )
   rs_clear( DATA(urs)->remset[ gno ] );
   rs_clear( DATA(urs)->major_remset[ gno ] );
 }
+static void              clear_minor( uremset_t *urs )
+{
+  int i;
+  for( i=1; i < DATA(urs)->remset_count; i++) {
+    rs_clear( DATA(urs)->remset[ i ] );
+  }
+}
+
+static bool copy_over_to( word loc, void *data, unsigned *stats )
+{
+  remset_t *that = (remset_t*)data;
+  rs_add_elem( that, loc );
+  return TRUE;
+}
+
+static void copy_minor_to_major( uremset_t *urs ) 
+{
+  int i;
+  for( i=1; i < DATA(urs)->remset_count; i++) {
+    rs_enumerate( DATA(urs)->remset[ i ], 
+                  copy_over_to, 
+                  DATA(urs)->major_remset[ i ] );
+  }
+}
+
 static bool       add_elem_new( uremset_t *urs, word w )
 {
   return rs_add_elem_new( DATA(urs)->major_remset[ gen_of(w) ], w );
@@ -342,6 +367,8 @@ uremset_t *alloc_uremset_array( gc_t *gc, gc_param_t *info )
                            enumerate_gno,
                            enumerate_allbutgno, 
                            enumerate_older, 
+                           clear_minor, 
+                           copy_minor_to_major, 
                            enumerate_minor_complement, 
                            enumerate_complement, 
                            enumerate,
