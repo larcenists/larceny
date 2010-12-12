@@ -34,6 +34,29 @@
                              (lambda (key) (rt-or-bmark-key->name cp-stats-data key))))
            (split bmark-keys-set5 5))
 
+'(map (lambda (bmarks) 
+        (let ((handle-max-pause-specially
+               ;; (dont want auto-scale to accentuate small max pauses.)
+               (let* ((rt-keys some-rt-keys)
+                      (bmark-keys bmarks)
+                      (max-value 
+                       (foldr max 0 (map (lambda (bmark) 
+                                           (foldr max 0 (map (lambda (rt) 
+                                                               (extract-max-pause stats-data rt bmark)) 
+                                                             rt-keys))) 
+                                         bmark-keys))))
+                 (if (> max-value 900)
+                     '*
+                     1000))))
+          (plot-pause-and-time-and-mem-stats-data/stacked-bars
+           stats-data some-rt-keys bmarks stats-data-key->name 
+           '* '* handle-max-pause-specially)))
+      (list bmark-keys-set1a bmark-keys-set1b
+            bmark-keys-set2a bmark-keys-set2b
+            bmark-keys-set3
+            bmark-keys-set4))
+
+
 '(for-each (lambda (bmark-keys)
              (plot-mem-stats-data/stacked-bars stats-data 
                                                some-rt-keys 
@@ -131,12 +154,12 @@
     (rrof-n4m8                                         "Rgn nurs=4M r=8M")
     (rrof-n1m8                                         "Rgn nurs=1M r=8M")
     (rrof-n1m4                                         "Rgn nurs=1M r=4M")
-    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0  "Rgn 221 pop 8")
-    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0  "Rgn 122 pop 6")
-    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0  "Rgn 232 pop 4")
-    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0  "Rgn 221 pop 8 no infamy")
-    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0  "Rgn 122 pop 6 no infamy")
-    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0  "Rgn 232 pop 4 no infamy")))
+    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0  "Rgn 221 S=8 Inf")
+    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0  "Rgn 122 S=6 Inf")
+    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0  "Rgn 232 S=4 Inf")
+    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0  "Rgn 221 S=8")
+    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0  "Rgn 122 S=6")
+    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0  "Rgn 232 S=4")))
 
 (define some-rt-keys
   '(scpy 
@@ -164,13 +187,23 @@
   '(bm-20earley:10 bm-20earley:13 bm-gcbench:5:20))
 
 
-(define bmark-keys-set1 
+(define bmark-keys-set1a
   '(bm-20earley:10 bm-20earley:13 bm-gcbench:5:20
+                                                 ))
+(define bmark-keys-set1b
+  '(
     bm-5nboyer:5 bm-5nboyer:6 bm-5sboyer:6))
+(define bmark-keys-set1 
+  (append bmark-keys-set1a bmark-keys-set1b))
 
-(define bmark-keys-set2
+(define bmark-keys-set2a
   '(bm-200perm9:10:1 bm-400perm9:20:1 bm-5twobit:long 
+                                                     ))
+(define bmark-keys-set2b
+  '(
     bm-gcold:100:0:1:0:800 bm-gcold:100:0:1:1000:800))
+(define bmark-keys-set2
+  (append bmark-keys-set2a bmark-keys-set2b))
 
 (define bmark-keys-set3
   '(bm-queue1000:1000000:50 bm-pueue1000:1000000:50:50))
