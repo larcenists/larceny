@@ -1537,6 +1537,10 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
   int other_idx = (-to_idx)+1;
   int nursery_allocated = (gc->young_area->allocated +
                            los_bytes_used( gc->los, 0 ));
+  int nursery_alloc_roundup;
+  int fragmentation_allowance;
+  int rgn_allocated;
+  int rgn_avail;
   bool data_may_stay_in_one_region, data_stays_in_one_region;
 
   assert2( other_idx == 0 || other_idx == 1 );
@@ -1552,15 +1556,24 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
          DATA(gc)->ephemeral_area[ to_idx ]->allocated)
         > nursery_allocated));
   if (data_may_stay_in_one_region) {
+    int max_num_gc_chunks;
     oh_synchronize( DATA(gc)->ephemeral_area[ other_idx ] );
     oh_synchronize( DATA(gc)->ephemeral_area[ to_idx ] );
 
+    rgn_allocated = (DATA(gc)->ephemeral_area[ to_idx ]->allocated 
+                     + los_bytes_used( gc->los, to_idx+1 ));
+    rgn_avail = (DATA(gc)->ephemeral_area[ to_idx ]->maximum
+                 - rgn_allocated);
+    max_num_gc_chunks = quotient2( rgn_avail, GC_CHUNK_SIZE )+1;
+    fragmentation_allowance = max_num_gc_chunks * GC_LARGE_OBJECT_LIMIT;
+    nursery_alloc_roundup = 
+      (quotient2( nursery_allocated + fragmentation_allowance, 
+                  GC_CHUNK_SIZE )) * GC_CHUNK_SIZE;
     data_stays_in_one_region
       =  ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
           && 
-          ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
-            DATA(gc)->ephemeral_area[ to_idx ]->allocated)
-           > nursery_allocated));
+          ((DATA(gc)->ephemeral_area[ to_idx ]->maximum - rgn_allocated)
+           > nursery_alloc_roundup));
   }
 
   return data_stays_in_one_region;
@@ -2921,6 +2934,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     region_group_enq( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
                       grp, region_group_filled );
   }
+
+  assert( gc->scan_update_remset );
 
   to_rgn_new = find_appropriate_to( gc );
 
