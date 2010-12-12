@@ -45,6 +45,14 @@
 #define MAX_WORD( src, target, field ) \
   target->field = max(target->field, fixnum( src->field ))
 
+#define IFGT_UPD_WORD( src, target, cmp_field, tgt_field, newint )      \
+  do {                                                                  \
+    if (fixnum(src->cmp_field) > target->cmp_field) {                   \
+      target->tgt_field = fixnum( newint );                             \
+    }                                                                   \
+  } while (0)
+
+
 /* Put a 58-bit int into two fixnum fields */
 #define PUTBIG_DWORD( src, target, field )				\
   do { target->PASTE(field,_lo) = fixnum( src->field & FIXNUM_MASK );	\
@@ -139,6 +147,10 @@ struct gclib_memstat {
 
   word max_ms_mutator_paused;
   word max_ms_mutator_paused_cpu;
+  word major_faults_during_max_ms_mutator_paused;
+  word minor_faults_during_max_ms_mutator_paused;
+  word major_faults_during_all_mutator_pauses;
+  word minor_faults_during_all_mutator_pauses;
   
   word count_collect_00_10_ms;
   word count_collect_10_20_ms;
@@ -669,12 +681,25 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   {
     word ms     = stats->last_ms_gc_truegc_pause;
     word ms_cpu = stats->last_ms_gc_truegc_pause_cpu;
+    int major_faults = stats->last_major_page_faults;
+    int minor_faults = stats->last_minor_page_faults;
     stats->max_ms_mutator_paused = 
       max( ms, stats->max_ms_mutator_paused );
     stats->max_ms_mutator_paused_cpu = 
       max( ms_cpu, stats->max_ms_mutator_paused_cpu );
+    IFGT_UPD_WORD( stats, s, max_ms_mutator_paused, 
+                   major_faults_during_max_ms_mutator_paused, 
+                   major_faults );
+    IFGT_UPD_WORD( stats, s, max_ms_mutator_paused, 
+                   minor_faults_during_max_ms_mutator_paused, 
+                   minor_faults );
     MAX_WORD( stats, s, max_ms_mutator_paused );
     MAX_WORD( stats, s, max_ms_mutator_paused_cpu );
+
+    stats->major_faults_during_all_mutator_pauses = major_faults;
+    stats->minor_faults_during_all_mutator_pauses = minor_faults;
+    ADD_WORD( stats, s, major_faults_during_all_mutator_pauses );
+    ADD_WORD( stats, s, minor_faults_during_all_mutator_pauses );
   }
 }
 
@@ -1108,6 +1133,14 @@ static void fill_main_entries( word *vp )
   vp[ STAT_MAX_CHENEY_GCTIME_CPU ] = gc->max_ms_cheney_collection_cpu;
   vp[ STAT_MAX_MUTATOR_PAUSED ]     = gclib->max_ms_mutator_paused;
   vp[ STAT_MAX_MUTATOR_PAUSED_CPU ] = gclib->max_ms_mutator_paused_cpu;
+  vp[ STAT_MAJOR_FAULTS_DURING_MAX_MUTATOR_PAUSE ]
+    = gclib->major_faults_during_max_ms_mutator_paused;
+  vp[ STAT_MINOR_FAULTS_DURING_MAX_MUTATOR_PAUSE ]
+    = gclib->minor_faults_during_max_ms_mutator_paused;
+  vp[ STAT_MAJOR_FAULTS_DURING_ALL_MUTATOR_PAUSES ]
+    = gclib->major_faults_during_all_mutator_pauses;
+  vp[ STAT_MINOR_FAULTS_DURING_ALL_MUTATOR_PAUSES ]
+    = gclib->minor_faults_during_all_mutator_pauses;
 
   /* stack */
   vp[ STAT_STK_CREATED ]   = stack->stacks_created;

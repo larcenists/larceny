@@ -145,6 +145,8 @@ struct gc_data {
   stats_id_t pause_timer_cpu;
   int last_pause_elapsed;
   int last_pause_cpu;
+  unsigned major_page_fault_count_at_gc_start;
+  unsigned minor_page_fault_count_at_gc_start;
 
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;

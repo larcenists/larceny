@@ -52,8 +52,10 @@ struct gclib_stats {
   int last_ms_smircy_mark_cpu;
   int last_ms_smircy_refine;    /* Time in remset refinement in last gc. */
   int last_ms_smircy_refine_cpu;
-  int last_ms_gc_truegc_pause;    /* Total time spent away from the mtuator */
+  int last_ms_gc_truegc_pause;    /* Total time away from mutator in last gc. */
   int last_ms_gc_truegc_pause_cpu;
+  int last_major_page_faults;     /* Total major faults during last gc. */
+  int last_minor_page_faults;     /* Total minor faults during last gc. */
   int length_minor_gc_run;        /* Num of consecutive minor gc's (so far) */
 
   /* N.B.: both the below measure time mutator is interrupted;
@@ -67,6 +69,10 @@ struct gclib_stats {
   word max_smircy_mark_pause_cpu;
   word max_smircy_refine_pause;
   word max_smircy_refine_pause_cpu;
+  word major_faults_during_max_ms_mutator_paused;
+  word minor_faults_during_max_ms_mutator_paused;
+  word major_faults_during_all_mutator_pauses;
+  word minor_faults_during_all_mutator_pauses;
 };
 
 struct gc_stats {

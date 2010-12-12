@@ -1879,6 +1879,9 @@ static void before_collection( gc_t *gc )
   DATA(gc)->stat_last_ms_smircy_refine = -1;
   DATA(gc)->stat_last_ms_smircy_refine_cpu = -1;
 
+  osdep_pagefaults( &DATA(gc)->major_page_fault_count_at_gc_start,
+                    &DATA(gc)->minor_page_fault_count_at_gc_start );
+
   /* assume it does not roll over until we discover otherwise */
   DATA(gc)->rrof_last_gc_rolled_cycle = FALSE;
 
@@ -2251,6 +2254,18 @@ static void stats_following_gc( gc_t *gc )
     DATA(gc)->stat_last_ms_smircy_refine;
   stats_gclib.last_ms_smircy_refine_cpu = 
     DATA(gc)->stat_last_ms_smircy_refine_cpu;
+
+  {
+    unsigned major, minor;
+    osdep_pagefaults( &major, &minor );
+    stats_gclib.last_major_page_faults = 
+      (major - DATA(gc)->major_page_fault_count_at_gc_start);
+    stats_gclib.last_minor_page_faults = 
+      (minor - DATA(gc)->minor_page_fault_count_at_gc_start);
+    assert( stats_gclib.last_major_page_faults >= 0 );
+    assert( stats_gclib.last_minor_page_faults >= 0 );
+  }
+
   stats_add_gclib_stats( &stats_gclib );
 
   stats_dumpstate();		/* Dumps stats state if dumping is on */

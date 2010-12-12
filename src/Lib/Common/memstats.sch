@@ -167,6 +167,10 @@
             (vector-ref v $mstat.max-mark-pause-cpu)
             (vector-ref v $mstat.max-refine-remset)
             (vector-ref v $mstat.max-refine-remset-cpu)
+            (vector-ref v $mstat.major-faults-during-max-mutator-pause)
+            (vector-ref v $mstat.minor-faults-during-max-mutator-pause)
+            (vector-ref v $mstat.major-faults-during-all-mutator-pauses)
+            (vector-ref v $mstat.minor-faults-during-all-mutator-pauses)
             ))
 
   (define (make-gc-event-vector v)
@@ -405,6 +409,10 @@
 (define (memstats-gc-max-smircy-refine-cpu-time v) (vector-ref v 94))
 (define (memstats-gc-max-truegc-elapsed-time v) (vector-ref v 87))
 (define (memstats-gc-max-truegc-cpu-time v) (vector-ref v 88))
+(define (memstats-gc-major-faults-during-max-truegc-pause v) (vector-ref v 95))
+(define (memstats-gc-minor-faults-during-max-truegc-pause v) (vector-ref v 96))
+(define (memstats-gc-all-major-faults-during-gcs v) (vector-ref v 97))
+(define (memstats-gc-all-minor-faults-during-gcs v) (vector-ref v 98))
 (define (memstats-gc-max-elapsed-time v) (memstats-gc-max-truegc-elapsed-time v))
 (define (memstats-gc-max-cpu-time v) (memstats-gc-max-truegc-cpu-time v))
 (define (memstats-gc-max-remset-scan-elapsed-time v) (vector-ref v 51))
@@ -727,7 +735,11 @@
     (for-each display rest) (newline))
 
   (define (pr allocated reclaimed elapsed user system gcs gctime gccpu 
+              all-major-faults-during-gcs
+              all-minor-faults-during-gcs
               maxgctime maxgccpu 
+              major-faults-during-maxgcpause
+              minor-faults-during-maxgcpause
               maxcheneytime maxcheneycpu
               maxsumztime maxsumzcpu
               maxmarktime maxmarkcpu maxrefntime maxrefncpu
@@ -744,9 +756,14 @@
     (mprint "Elapsed time...: " elapsed
 	   " ms (User: " user " ms; System: " system " ms)")
     (mprint "Elapsed GC time: " gctime " ms (CPU: " gccpu 
+            " faults major: " all-major-faults-during-gcs
+            " faults minor: " all-minor-faults-during-gcs 
             " in " gcs " collections.)")
     (mprint "{Max pause elapsed: " maxgctime " ms"
-            ", CPU: " maxgccpu " ms} ")
+            ", CPU: " maxgccpu " ms"
+            ", faults major: " major-faults-during-maxgcpause 
+            ", faults minor: " minor-faults-during-maxgcpause
+            " } ")
     (mprint "{Max cheney elapsed: " maxcheneytime " ms"
             ", CPU: "maxcheneycpu " ms} ")
     (mprint "{Max sumz elapsed: " maxsumztime " ms"
@@ -799,8 +816,12 @@
            (memstats-gc-total-elapsed-time s1))
         (- (memstats-gc-total-cpu-time s2)
            (memstats-gc-total-cpu-time s1))
+        (memstats-gc-all-major-faults-during-gcs s2)
+        (memstats-gc-all-minor-faults-during-gcs s2)
         (memstats-gc-max-truegc-elapsed-time s2)
         (memstats-gc-max-truegc-cpu-time s2)
+        (memstats-gc-major-faults-during-max-truegc-pause s2)
+        (memstats-gc-minor-faults-during-max-truegc-pause s2)
         (memstats-gc-max-cheney-elapsed-time s2)
         (memstats-gc-max-cheney-cpu-time s2)
         (memstats-gc-max-summar-elapsed-time s2)
