@@ -56,9 +56,9 @@ ALL_CP_BENCHMARKS="ack array1 boyer browse cat compiler conform cpstak ctak \
     sboyer scheme simplex slatex smlboyer string sum sum1 sumfp sumloop \
     tail tak takl tfib trav1 trav2 triangl wc"
 
-SOME_CP_BENCHMARKS="ack array1 boyer browse cat compiler conform cpstak ctak"
+SOME_CP_BENCHMARKS="ack array1 cat"
 
-for bmark in $SOME_CP_BENCHMARKS ; do echo $bmark; bm $bmark ; done
+for bmark in $ALL_CP_BENCHMARKS ; do echo $bmark; bm $bmark ; done
 
 $LARCENY -- parse-stats-output.sch            \
     -e "(process-and-print-log \"$OUTPUT\" )" \
