@@ -842,6 +842,13 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
 static void initiate_refinement_during_summarization( gc_t *gc )
 {
+  { 
+    /* marking is done; the snapshot object graph will remain fixed
+     * until we dispose of it (newly allocated objects will still be
+     * added to it; this just avoids cost of SATB write barrier). */
+    DATA(gc)->globals[G_CONCURRENT_MARK] = 0; 
+  }
+
   sm_start_refinement( DATA(gc)->summaries );
 }
 
@@ -865,7 +872,7 @@ static void incremental_refinement_has_completed( gc_t *gc )
 
   smircy_end( gc->smircy );
   gc->smircy = NULL;
-  DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
+  assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
 }
 
 typedef enum { 
