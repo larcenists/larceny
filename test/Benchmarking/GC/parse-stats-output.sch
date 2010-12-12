@@ -84,15 +84,17 @@
             bmark-keys-set4))
 
 
-'(for-each (lambda (bmark-keys)
-             (plot-mem-stats-data/stacked-bars stats-data 
-                                               some-rt-keys 
-                                               bmark-keys
-                                               stats-data-key->name))
-           (list bmark-keys-set1
-                 bmark-keys-set2
-                 bmark-keys-set3
-                 bmark-keys-set4))
+'(map (lambda (bmark-keys)
+        (plot-pause-and-time-and-mem-stats-data/stacked-bars
+         stats-data 
+         some-rt-keys 
+         bmark-keys
+         stats-data-key->name '* '* '*))
+      (list '(bm-20earley:10   bm-20earley:13   bm-gcbench:5:20)
+            '(bm-5nboyer:5     bm-5nboyer:6     bm-5sboyer:6)
+            '(bm-200perm9:10:1 bm-400perm9:20:1 bm-5twobit:long)
+            '(bm-gcold:100:0:1:0:800 bm-gcold:100:0:1:1000:800)
+            bmark-keys-set3))
 
 '(for-each (lambda (bmark-keys)
              (plot-time-stats-data/stacked-bars stats-data 
@@ -196,12 +198,13 @@
 (define some-rt-keys
   '(scpy 
     dflt 
-    rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0
-    rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0
-    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0
     rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0
     rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0
-    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0))
+    rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0
+    ))
 
 (define cp-rt-keys
   '(scpy gen-n4m8 gen-n1m8 rrof-n4m8 rrof-n1m8 rrof-n1m4))
