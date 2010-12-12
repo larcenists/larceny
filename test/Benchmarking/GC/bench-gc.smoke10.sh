@@ -101,6 +101,6 @@ g '(twobit-benchmark (quote long) 5)' twobit
 g '(GCOld 100 0 1  0    800)' gcold
 g '(GCOld 100 0 1  1000 800)' gcold
 
-g '(queue-benchmark 1000 1000000 20)' queue3
-g '(pueue-benchmark 1000 1000000 20 50)' pueue3
+g '(queue-benchmark  100 1000000 20)' queue3
+g '(pueue-benchmark  100 1000000 20 50)' pueue3
 
