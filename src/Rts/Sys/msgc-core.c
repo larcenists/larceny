@@ -275,7 +275,7 @@ static void assert2_root_address_mapped( msgc_context_t *context, word *loc )
        if ((context)->object_visitor != NULL) {                     \
          (context)->object_visitor_data =                           \
            (context)->object_visitor                                \
-           ( obj, src, word_offset*sizeof(word), (context)->object_visitor_data ); \
+           ( obj, src, (word_offset)*sizeof(word), (context)->object_visitor_data ); \
        }                                                            \
        if ((context)->stop_when != NULL && !((context)->signal_stop)) { \
          if ((context)->stop_when(obj,src,(context)->stop_when_data)) { \
