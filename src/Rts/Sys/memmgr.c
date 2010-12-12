@@ -1051,6 +1051,10 @@ static void initialize_summaries( gc_t *gc, bool about_to_major )
                         DATA(gc)->rrof_sumz_params.coverage_inv,
                         DATA(gc)->rrof_sumz_params.budget_inv,
                         DATA(gc)->rrof_sumz_params.max_retries );
+
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
 }
 
 static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
@@ -1439,12 +1443,16 @@ static bool collect_rgnl_majorgc( gc_t *gc,
      * have a _precise_ measure of the amount of live storage.  We can
      * use that measure to guide the allocation policy.
      */
-    if (DATA(gc)->region_count == 2) {
-      int other_rgn = (-rgn_to)+1;
-      assert( (other_rgn + rgn_to) == 1 );
-      if (DATA(gc)->ephemeral_area[other_rgn - 1]->allocated == 0) {
+    if (DATA(gc)->region_count == 2 &&
+        DATA(gc)->ephemeral_area_count == 2) {
+      int to_idx = rgn_to - 1;
+      int other_idx = (-to_idx)+1;
+      assert( to_idx == 0 || to_idx == 1 );
+      assert( other_idx == 0 || other_idx == 1 );
+      assert( (other_idx + to_idx) == 1 );
+      if (DATA(gc)->ephemeral_area[other_idx]->allocated == 0) {
         int live_words = 
-          DATA(gc)->ephemeral_area[rgn_to]->allocated / sizeof(word);
+          DATA(gc)->ephemeral_area[to_idx]->allocated / sizeof(word);
         DATA(gc)->last_live_words = live_words;
         DATA(gc)->max_live_words = 
           max( DATA(gc)->max_live_words, live_words );
@@ -1499,6 +1507,56 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   return TRUE;
 }
 
+static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx ) 
+{
+  /* HACK.  At start, we have two regions that we treat as alternate
+   * targets for promotions out of the nursery during minor gc's, and
+   * the to/from semispaces during major gc's.  This means that we
+   * often are just promoting data out of the nursery into one region
+   * while the other region lies entirely empty and will *remain*
+   * entirely empty even after the promotion is complete.
+   *
+   * When that arises, we do not need to spend any time in cheney loop
+   * maintaining the remembered set.
+   * 
+   * (If incremental marking is not in progress, that means we do not
+   * need to spend any time in the cheney loop maintaining *any* of
+   * the regional meta-data; but toggling that overhead is already
+   * handled within code of cheney itself.) 
+   */
+
+  int other_idx = (-to_idx)+1;
+  int nursery_allocated = (gc->young_area->allocated +
+                           los_bytes_used( gc->los, 0 ));
+  bool data_may_stay_in_one_region, data_stays_in_one_region;
+
+  assert2( other_idx == 0 || other_idx == 1 );
+  assert2( to_idx    == 0 || to_idx    == 1 );
+  assert2( (other_idx + to_idx) == 1 );
+
+  /* heuristic check; sync; final check with sync'd version */
+  data_stays_in_one_region = FALSE;
+  data_may_stay_in_one_region
+    = ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
+       && 
+       ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
+         DATA(gc)->ephemeral_area[ to_idx ]->allocated)
+        > nursery_allocated));
+  if (data_may_stay_in_one_region) {
+    oh_synchronize( DATA(gc)->ephemeral_area[ other_idx ] );
+    oh_synchronize( DATA(gc)->ephemeral_area[ to_idx ] );
+
+    data_stays_in_one_region
+      =  ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
+          && 
+          ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
+            DATA(gc)->ephemeral_area[ to_idx ]->allocated)
+           > nursery_allocated));
+  }
+
+  return data_stays_in_one_region;
+}
+
 static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
 {
   bool summarization_active;
@@ -1535,33 +1593,11 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   }
 
 #if 1
-  /* HACK.  At start, we have two regions that we treat as alternate
-   * targets for promotions out of the nursery during minor gc's, and
-   * the to/from semispaces during major gc's.  This means that we
-   * often are just promoting data out of the nursery into one region
-   * while the other region lies entirely empty and will *remain*
-   * entirely empty even after the promotion is complete.
-   *
-   * When that arises, we do not need to spend any time in cheney loop
-   * maintaining the remembered set.
-   * 
-   * (If incremental marking is not in progress, that means we do not
-   * need to spend any time in the cheney loop maintaining *any* of
-   * the regional meta-data; but toggling that overhead is already
-   * handled within code of cheney itself.) 
-   */
   if (DATA(gc)->region_count == 2) {
     int to_idx = rgn_to - 1;
-    int other_idx = (-to_idx)+1;
     assert2( rgn_to == 1 || rgn_to == 2 );
-    assert2( other_idx == 0 || other_idx == 1 );
-    assert2( to_idx    == 0 || to_idx    == 1 );
-    assert2( (other_idx + to_idx) == 1 );
-    if ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
-        && 
-        ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
-          DATA(gc)->ephemeral_area[ to_idx ]->allocated)
-         < gc->young_area->allocated)) {
+
+    if (data_definitely_stays_in_one_region( gc, to_idx )) {
       gc->scan_update_remset = FALSE;
     }
   }
@@ -1572,32 +1608,8 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
   gc->scan_update_remset = TRUE; /* undo hack above */
 
-#if 1
-  /* HACK.  In usual case, we cannot always clear the minor remset,
-   * because it may hold objects with inter-region references that
-   * need to be remembered.
-   * 
-   * (XXX a good future project would be to detect such objects when
-   *  scanning them and enforce an invariant that promotes them to the
-   *  major remset; that would hopefully enable clearing the minor
-   *  remset after all collections.)
-   * 
-   * But, at start we have two regions and one is empty.  If that is
-   * still the case after a collection, we can safely clear the part
-   * of the remembered set for that region.  (That part will have
-   * nothing in its major portion, but may be non-empty in its minor
-   * portion; that's the whole point of this hack!)
-   */
-  if (DATA(gc)->region_count == 2 &&
-      DATA(gc)->rrof_to_region == rgn_to) {
-    int to_idx = rgn_to - 1;
-    int other_idx = (-to_idx)+1;
-    assert2( (other_idx + to_idx) == 1 );
-    if (DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0) {
-      urs_clear( gc->the_remset, rgn_to );
-    }
-  }
-#endif
+  urs_copy_minor_to_major( gc->the_remset );
+  urs_clear_minor( gc->the_remset );
 
   if (summarization_active) {
     int i;
@@ -1653,6 +1665,7 @@ static int find_appropriate_to( gc_t *gc )
   }
   first_unfilled = region_group_first_heap( region_group_unfilled );
   if (first_unfilled == NULL) {
+    assert( gc->scan_update_remset );
     add_region_to_expand_heap( gc, 0 );
     first_unfilled = region_group_first_heap( region_group_unfilled );
     assert( first_unfilled != NULL );
@@ -1822,13 +1835,30 @@ static void rrof_gc_policy( gc_t *gc,
   if (calculate_loudly) {
 #define FMT "% 3lldM"
     long long div = 1000 * 1000;
-    consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-                "N_old:" FMT ", N:" FMT ", P_old:" FMT ", A_this:" FMT " "
-                "A_target:" FMT " = max(5M,min(" FMT "," FMT ")) => will says: %s",
+
+    char *(*n)( region_group_t grp );
+    int   (*c)( region_group_t grp );
+    n = &region_group_name;
+    c = &region_group_count;
+
+    consolemsg( "majs{cur:% 3d tot:% 3d} "
+                "Nold:" FMT " N:" FMT " Pold:" FMT " A:" FMT " "
+                "Atgt:" FMT "=max(5,min(" FMT "," FMT "))" 
+                " => %s "
+                " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
                 majors_sofar, majors_total, 
                 N_old/div, N/div, P_old/div, A_this/div, 
-                A_target/div, A_target_1/div, A_target_2/div, 
-                will_says_should_major?"MAJOR":"mnr");
+                A_target/div, A_target_1/div, A_target_2/div,
+                will_says_should_major?"MAJ":"mnr",
+                n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                n( region_group_unfilled   ), c( region_group_unfilled ),
+                n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                n( region_group_summzing   ), c( region_group_summzing ),
+                n( region_group_filled     ), c( region_group_filled ), 
+                n( region_group_risingstar ), c( region_group_risingstar ),
+                n( region_group_infamous   ), c( region_group_infamous ),
+                n( region_group_hasbeen    ), c( region_group_hasbeen ) );
   }
 
   assert( !will_says_should_major || 
@@ -2501,7 +2531,7 @@ static int compact_all_ssbs( gc_t *gc )
   bool force_progress;
 
   force_progress = FALSE;
-  if (DATA(gc)->mut_activity_bounded) {
+  if (DATA(gc)->mut_activity_bounded && DATA(gc)->summaries != NULL) {
     cN = calc_cN( gc );
     mut_effort_full = 
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
@@ -3139,13 +3169,15 @@ static void update_rrof_flush_counts( gc_t *gc, int entries_flushed )
   p->rrof_ssb_flushes += 1;
   p->rrof_ssb_entries_flushed_total += entries_flushed;
   p->rrof_ssb_entries_flushed_this.full_cycle += entries_flushed;
-  p->rrof_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
-  p->rrof_ssb_max_entries_flushed_any.full_cycle
-    = max( p->rrof_ssb_entries_flushed_this.full_cycle, 
-           p->rrof_ssb_max_entries_flushed_any.full_cycle);
-  p->rrof_ssb_max_entries_flushed_any.sumz_cycle
-    = max( p->rrof_ssb_entries_flushed_this.sumz_cycle, 
-           p->rrof_ssb_max_entries_flushed_any.sumz_cycle);
+  if (DATA(gc)->summaries != NULL) {
+    p->rrof_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
+    p->rrof_ssb_max_entries_flushed_any.full_cycle
+      = max( p->rrof_ssb_entries_flushed_this.full_cycle, 
+             p->rrof_ssb_max_entries_flushed_any.full_cycle);
+    p->rrof_ssb_max_entries_flushed_any.sumz_cycle
+      = max( p->rrof_ssb_entries_flushed_this.sumz_cycle, 
+             p->rrof_ssb_max_entries_flushed_any.sumz_cycle);
+  }
 }
 
 static void update_satb_flush_counts( gc_t *gc, int entries_flushed ) 
@@ -3154,19 +3186,22 @@ static void update_satb_flush_counts( gc_t *gc, int entries_flushed )
   p->satb_ssb_flushes += 1;
   p->satb_ssb_entries_flushed_total += entries_flushed;
   p->satb_ssb_entries_flushed_this.full_cycle += entries_flushed;
-  p->satb_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
-  p->satb_ssb_max_entries_flushed_any.full_cycle
-    = max( p->satb_ssb_entries_flushed_this.full_cycle, 
-           p->satb_ssb_max_entries_flushed_any.full_cycle);
-  p->satb_ssb_max_entries_flushed_any.sumz_cycle
-    = max( p->satb_ssb_entries_flushed_this.sumz_cycle, 
-           p->satb_ssb_max_entries_flushed_any.sumz_cycle);
+
+  if (DATA(gc)->summaries != NULL) {
+    p->satb_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
+    p->satb_ssb_max_entries_flushed_any.full_cycle
+      = max( p->satb_ssb_entries_flushed_this.full_cycle, 
+             p->satb_ssb_max_entries_flushed_any.full_cycle);
+    p->satb_ssb_max_entries_flushed_any.sumz_cycle
+      = max( p->satb_ssb_entries_flushed_this.sumz_cycle, 
+             p->satb_ssb_max_entries_flushed_any.sumz_cycle);
+  }
 }
 
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
   update_satb_flush_counts( gc, (top - bot) );
   if (bot != top) {
-    int cN = calc_cN(gc);
+    int cN;
     int mut_effort_full = 
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
        DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
@@ -3174,7 +3209,9 @@ static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
 
-    if (mut_effort_sumz > cN) {
+    if ( DATA(gc)->region_count > 2) 
+      cN = calc_cN( gc ); /* delay (expensive?) valuation */
+    if ( DATA(gc)->region_count > 2 && mut_effort_sumz > cN ) {
 #if 0
       consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
                   bot, top,
