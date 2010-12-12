@@ -1918,6 +1918,11 @@ static void bump_incoming_words( summ_matrix_t *summ, int gen )
   if ((gen != 0) && gen != gc->static_area->data_area->gen_no) {
     heap = gc_heap_for_gno( gc, gen );
     heap->incoming_words.summarizer += 1;
+
+    assert2( (heap->group != region_group_summzing)
+             || (heap->incoming_words.summarizer 
+                 == DATA(summ)->cols[gen]->summarize_word_count) );
+
     gc_check_rise_to_infamy( gc, heap, heap->incoming_words.summarizer );
   }
 }
@@ -1969,8 +1974,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
                                   gen, loc, mygen, incr_ctxt_sm );
           }
         }
+        bump_incoming_words( remsum->summ, gen ); 
       }
-      bump_incoming_words( remsum->summ, gen ); 
     }
     ++loc;
     /* handle cdr */
@@ -1996,8 +2001,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
                                   gen, loc, mygen, incr_ctxt_sm );
           }
         }
+        bump_incoming_words( remsum->summ, gen );
       }
-      bump_incoming_words( remsum->summ, gen );
     }
     scanned = 2;
   } else { /* vector or procedure */
@@ -2031,8 +2036,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
             add_loc_to_sum_array( remsum->summ, 
                                   gen, loc, mygen, incr_ctxt_sm );
           }
+          bump_incoming_words( remsum->summ, gen );
         }
-        bump_incoming_words( remsum->summ, gen );
       }
     }
   }
