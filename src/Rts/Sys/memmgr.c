@@ -614,44 +614,6 @@ static void reset_countdown_to_next_refine( gc_t *gc )
   
 }
 
-static void refine_metadata_via_marksweep( gc_t *gc ) 
-{
-  smircy_context_t *context;
-  int marked=0, traced=0, words_marked=0; 
-  context = gc->smircy;
-#if 1
-  assert2( smircy_stack_empty_p( context ));
-#else
-  smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
-  assert( (marked == 0) && (traced == 0) && (words_marked == 0) );
-#endif
-
-#if PRINT_SNAPSHOT_INFO_TO_CONSOLE
-  consolemsg( "% 31s"
-              " snapshot_live:% 5dM peak_snapshot:% 5dM "
-              " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK)", 
-              "refine_metadata_via_marksweep", 
-              DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
-              DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_finished_snapshot_began*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_developing_snapshot_began*sizeof(word)/MEGABYTE,
-              quotient2(DATA(gc)->words_promoted_since_finished_snapshot_completed*sizeof(word),
-                        DATA(gc)->count_promotions_since_finished_snapshot_completed)/KILOBYTE, 
-              quotient2(DATA(gc)->words_promoted_since_developing_snapshot_began*sizeof(word),
-                        DATA(gc)->count_promotions_since_developing_snapshot_began)/KILOBYTE);
-#endif
-
-  refine_remsets_via_marksweep( gc );
-  if (DATA(gc)->summaries != NULL) {
-    sm_refine_summaries_via_marksweep( DATA(gc)->summaries );
-  }
-  reset_countdown_to_next_refine( gc );
-
-  smircy_end( context );
-  gc->smircy = NULL;
-  DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
-}
-
 static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
 {
   semispace_t *ss = gc_fresh_space(gc);
@@ -861,7 +823,8 @@ static void initiate_refinement( gc_t *gc )
       assert( smircy_in_refinement_stage_p( gc->smircy ));
     }
   } else {
-    refine_metadata_via_marksweep( gc );
+    refine_remsets_via_marksweep( gc );
+    reset_countdown_to_next_refine( gc );
   }
 }
 
@@ -938,7 +901,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 #if INCREMENTAL_REFINE_DURING_SUMZ
     initiate_refinement( gc );
 #else
-    refine_metadata_via_marksweep( gc );
+#error bring back  refine_metadata_via_marksweep(..)
 #endif
   stop_refinem_timers( gc, &timer1, &timer2 );
     if (DATA(gc)->print_float_stats_each_refine && 

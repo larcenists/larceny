@@ -195,7 +195,6 @@ int sm_scan_count_curr_pass( summ_matrix_t *summ );
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
                                   word *bot, word *top, int g_rhs );
 void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
-void sm_refine_summaries_via_marksweep( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
 void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count );

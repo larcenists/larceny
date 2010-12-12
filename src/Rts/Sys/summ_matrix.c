@@ -286,28 +286,6 @@ static int calc_goal( summ_matrix_t *summ, int region_count )
   return max(1,(int)floor(((double)region_count) * DATA(summ)->goal));
 }
 
-static bool rsenum_assert_memberp( word loc, void *data, unsigned *stats) 
-{
-  remset_t *other = (remset_t*) data;
-  assert( other != NULL );
-  assert( rs_isremembered(other, loc) );
-  return TRUE; /* don't remove the object! */
-}
-
-static bool rsenum_add_elem( word loc, void *data, unsigned *stats )
-{
-  remset_t *other = (remset_t*) data;
-  rs_add_elem( other, loc );
-  return TRUE;
-}
-
-static void assert_subseteq( remset_t* a, remset_t *b )
-{
-  if (a != NULL) {
-    rs_enumerate( a, rsenum_assert_memberp, b );
-  }
-}
-
 static objs_pool_t *alloc_objpool_segment( unsigned entries_per_pool_segment )
 {
   objs_pool_t *p;
@@ -1317,7 +1295,6 @@ EXPORT void sm_clear_nursery_summary( summ_matrix_t *summ )
 typedef struct remset_summary_data remset_summary_data_t;
 struct remset_summary_data {
   summ_matrix_t *summ;
-  remset_t *skip_these; /* if non-null, don't traverse words in this remset */
   int count_objects_visited;
   int count_objects_added;
   int words_added;
@@ -1791,15 +1768,15 @@ static void add_loc_to_sum_array( summ_matrix_t *summ,
 
 static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w ) 
 {
-  remset_t *rs; 
+  remset_t *ls; 
   /* XXX TODO: filter addition to count words and wave-off when
    * summary has become over-populated. */ 
-  rs = DATA(summ)->cols[ g_rhs ]->sum_mutator;
-  if (rs == NULL) {
-    rs = grab_from_remset_pool();
-    DATA(summ)->cols[ g_rhs ]->sum_mutator = rs;
+  ls = DATA(summ)->cols[ g_rhs ]->sum_mutator;
+  if (ls == NULL) {
+    ls = grab_from_remset_pool();
+    DATA(summ)->cols[ g_rhs ]->sum_mutator = ls;
   }
-  rs_add_elem( rs, w );
+  rs_add_elem( ls, w );
 }
 
 static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
@@ -1897,15 +1874,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         ! smircy_object_marked_p( gc->smircy, ptr )) {
       return FALSE; /* smircy wants us to remove ptr from the remembered set. */
     }
-  }
-
-  if (remsum->skip_these != NULL 
-      && rs_isremembered( remsum->skip_these, ptr )) {
-#if SUMMARIZE_KILLS_RS_ENTRIES
-    /* its in the other set, so we can remove it from this one. */
-    keep_in_remembered_set = FALSE;
-#endif
-    goto end;
   }
 
   if (tagof( ptr ) == PAIR_TAG) {
@@ -2017,17 +1985,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
 #else
   return TRUE; /* don't remove entries from the remembered set we are summarizing! */  
 #endif
-}
-
-static bool rsenum_assert_not_memberp( word loc, void *data, unsigned *stats )
-{
-  remset_t *other = (remset_t*) data;
-  assert( ! rs_isremembered(other, loc) );
-  return TRUE; /* don't remove the object! */
-}
-static void assert_disjoint( remset_t *ra, remset_t *rb ) {
-  rs_enumerate( ra, rsenum_assert_not_memberp, rb );
-  rs_enumerate( rb, rsenum_assert_not_memberp, ra );
 }
 
 static bool prev_summarized_p( summ_matrix_t *summ, int rgn ) 
@@ -2152,7 +2109,6 @@ static int sm_build_summaries_by_scanning( summ_matrix_t *summ,
     /* enumerating all *rows*; thus this is the pROWduction loop. */
     dbmsg("enum remsets of %d, live %d", i, 
           urs_live_count( summ->collector->the_remset, i ));
-    p_remsum->skip_these = NULL;
     urs_enumerate_gno( summ->collector->the_remset, TRUE, i, 
                        scan_object_for_remset_summary, 
                        (void*) p_remsum );
@@ -2369,7 +2325,6 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
 
  again:
   remsum.summ = summ;
-  remsum.skip_these = NULL;
   remsum.count_objects_visited = 0;
   remsum.count_objects_added = 0;
   remsum.words_added = 0;
@@ -2442,7 +2397,6 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
   goal = (int)ceil(((double)region_count) * DATA(summ)->goal);
 
   remsum.summ = summ;
-  remsum.skip_these = NULL;
   remsum.count_objects_visited = 0;
   remsum.count_objects_added = 0;
   remsum.words_added = 0;
@@ -2469,438 +2423,9 @@ static void console_printgset( char *prefix, gset_t g )
    } else { assert(0); }
 }
 
-struct verify_summaries_msgc_fcn_data {
-  summ_matrix_t *summ;
-  remset_t **summaries;
-};
-
-static void* verify_summaries_msgc_fcn( word obj, word src, void *my_data )
-{
-  struct verify_summaries_msgc_fcn_data *data =
-    (struct verify_summaries_msgc_fcn_data*)my_data;
-  summ_matrix_t *summ = data->summ;
-  remset_t **summaries = data->summaries;
-  int src_gen, tgt_gen;
-
-  if (isptr(src) && isptr(obj) &&
-      ((src_gen = gen_of(src)) != (tgt_gen = gen_of(obj))) &&
-      ! gc_is_nonmoving( summ->collector, tgt_gen )) {
-
-    assert( src_gen >= 0 );
-    if (src_gen > 0) {
-      assert( *summ->collector->ssb[src_gen]->bot == *summ->collector->ssb[src_gen]->top );
-      assert( *summ->collector->ssb[tgt_gen]->bot == *summ->collector->ssb[tgt_gen]->top );
-      if (region_summarized( summ, tgt_gen ) &&
-          ! DATA(summ)->cols[tgt_gen]->overly_popular) {
-        if ( ((summaries[ tgt_gen ] == NULL ) )) {
-          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
-                     tgt_gen, src, src_gen, obj, tgt_gen );
-        } else if ( ! rs_isremembered( summaries[ tgt_gen ], src )) {
-          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
-                     tgt_gen, src, src_gen, obj, tgt_gen );
-        }
-        assert( summaries[ tgt_gen ] != NULL );
-        assert( rs_isremembered( summaries[ tgt_gen ], src ));
-      }
-
-      /* XXX when introducing incremental sumz, more (and semi-tricky) logic goes here
-       * to validate in-progress summarization. */
-      if (region_summarizing_goal( summ, tgt_gen ) &&
-          ! DATA(summ)->cols[tgt_gen]->overly_popular &&
-          ( DATA(summ)->summarizing.complete 
-            || ( ! region_summarizing_curr( summ, tgt_gen ))
-            || gen_of(src) >= DATA(summ)->summarizing.rs_cursor )) {
-        if ( ((summaries[ tgt_gen ] == NULL ) )) {
-          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
-                     tgt_gen, src, src_gen, obj, tgt_gen );
-        } else if ( ! rs_isremembered( summaries[ tgt_gen ], src )) {
-          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
-                     tgt_gen, src, src_gen, obj, tgt_gen );
-        }
-        assert( summaries[ tgt_gen ] != NULL );
-        assert( rs_isremembered( summaries[ tgt_gen ], src ));
-      }
-
-    }
-  }
-
-  return data;
-}
-
-struct verify_summaries_remset_fcn_data {
-  msgc_context_t *conserv_context;
-  msgc_context_t *aggress_context;
-  int summary_for_region; 
-};
-
-static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
-  return msgc_object_marked_p( c, x );
-}
-static void msvfy_set_object_visitor( msgc_context_t *c, 
-                                      void* (*visitor)( word obj, 
-                                                        word src,
-                                                        void *data ), 
-                                      void *data ) {
-  msgc_set_object_visitor( c, visitor, data );
-}
-static void msvfy_mark_objects_from_roots( msgc_context_t *c ) {
-  int marked, traced, words_marked;
-  msgc_mark_objects_from_roots( c, &marked, &traced, &words_marked );
-}
-static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
-  int m, t, wm;
-  msgc_mark_objects_from_roots_and_remsets( c, &m, &t, &wm );
-}
-
-static bool verify_summaries_remset_fcn( word obj, 
-					 void *the_data, unsigned *stats )
-{
-  struct verify_summaries_remset_fcn_data *data;
-  data = (struct verify_summaries_remset_fcn_data*)the_data;
-  /* Any object in a summary should be reachable from the 
-   * union of roots+remsets */
-  if ( msvfy_object_marked_p( data->conserv_context, obj ) &&
-       ( gen_of(obj) != data->summary_for_region )) {
-  } else {
-    consolemsg(  "VERIFY SUMM REMS 0x%08x (%d) marked {agg: %s, con: %s}", 
-                 obj, gen_of(obj), 
-                 msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 
-                 msvfy_object_marked_p( data->conserv_context, obj )?"Y":"N" );
-  }
-
-  assert( msvfy_object_marked_p( data->conserv_context, obj ));
-  assert( gen_of(obj) != data->summary_for_region );
-  return TRUE;
-}
-
-struct rsscan_check_nursery_rs_data {
-  summ_matrix_t  *summ;
-  msgc_context_t *conserv_context;
-  msgc_context_t *aggress_context;
-};
-
-static bool rsscan_check_nursery_rs( word loc, void *my_data, unsigned *stats )
-{
-  struct rsscan_check_nursery_rs_data *data;
-  data = (struct rsscan_check_nursery_rs_data*)my_data;
-
-  assert( msvfy_object_marked_p( data->conserv_context, loc ));
-  return TRUE;
-}
-
-static bool rsscan_add_loc( word loc, void *data, unsigned *stats ) 
-{
-  remset_t *rs = (remset_t*)data;
-  rs_add_elem( rs, loc );
-  return TRUE;
-}
-
-static void fold_col_into_remset( summ_matrix_t *summ, int i, remset_t *rs ) 
-{
-  summ_col_t *col;
-
-  assert( rs->live == 0 );
-
-  col = DATA(summ)->cols[i];
-  { /* enumerate objects */
-    summ_cell_t *sent = col->cell_top;
-    summ_cell_t *curr = sent->next_col;
-    while (curr != sent) {
-      objs_pool_t *objs = curr->objects;
-      while (objs != NULL) {
-        word *p = objs->bot;
-        word *top = objs->top;
-        while( p < top ) {
-          if (*p != 0x0) {
-            assert( urs_isremembered( summ->collector->the_remset, *p ));
-            assert( ! rs_isremembered( rs, *p ));
-            rs_add_elem( rs, *p );
-          }
-          p++;
-        }
-        objs = objs->next;
-      }
-      curr = curr->next_col;
-    }
-  }
-
-  { /* enumerate locations */
-    /* (note that this approach leads to an *over*-approximation of
-     *  the true content of the summary)
-     */
-    /* (I should probably add a representation for set-of-locations
-     *  and use that as the basis of the construction instead of the
-     *  hack of using a remset for each column.)
-     */
-    summ_cell_t *sent = col->cell_top;
-    summ_cell_t *curr = sent->next_col;
-    while (curr != sent) {
-      locs_pool_t *locs = curr->locations;
-      while (locs != NULL) {
-        loc_t *p = locs->bot;
-        loc_t *top = locs->top;
-        while( p < top ) {
-          if (p->obj != 0x0) {
-            /* note that p->obj may already be present in rs */
-            /* assert( ! rs_isremembered( rs, p->obj )); */
-            rs_add_elem( rs, p->obj );
-          }
-          p++;
-        }
-        locs = locs->next;
-      }
-      curr = curr->next_col;
-    }
-  }
-
-  if (col->sum_mutator != NULL) {
-    rs_enumerate( col->sum_mutator, rsscan_add_loc, rs );
-  }
-}
-
-static 
-void check_col_on_own_vfy_sm_rs( summ_matrix_t *summ,
-                                 int col_idx, 
-                                 struct verify_summaries_remset_fcn_data *data)
-{
-  summ_col_t *col;
-  unsigned ign_stats;
-
-  col = DATA(summ)->cols[col_idx];
-
-  { /* enumerate objects */
-    summ_cell_t *sent = col->cell_top;
-    summ_cell_t *curr = sent->next_col;
-    while (curr != sent) {
-      objs_pool_t *objs = curr->objects;
-      while (objs != NULL) {
-        word *p = objs->bot;
-        word *top = objs->top;
-        while( p < top ) {
-          if (*p != 0x0) {
-            verify_summaries_remset_fcn( *p, data, &ign_stats);
-          }
-          p++;
-        }
-        objs = objs->next;
-      }
-      curr = curr->next_col;
-    }
-  }
-
-  { /* enumerate locations */
-    /* (note that this approach leads to an *over*-approximation of
-     *  the true content of the summary)
-     */
-    /* (I should probably add a representation for set-of-locations
-     *  and use that as the basis of the construction instead of the
-     *  hack of using a remset for each column.)
-     */
-    summ_cell_t *sent = col->cell_top;
-    summ_cell_t *curr = sent->next_col;
-    while (curr != sent) {
-      locs_pool_t *locs = curr->locations;
-      while (locs != NULL) {
-        loc_t *p = locs->bot;
-        loc_t *top = locs->top;
-        while( p < top ) {
-          if (p->obj != 0x0) {
-            verify_summaries_remset_fcn( p->obj, data, &ign_stats);
-          }
-          p++;
-        }
-        locs = locs->next;
-      }
-      curr = curr->next_col;
-    }
-  }
-
-  if (col->sum_mutator != NULL) {
-    rs_enumerate( col->sum_mutator, verify_summaries_remset_fcn, data );
-  }
-}
-
-
 EXPORT void sm_verify_summaries_via_oracle( summ_matrix_t *summ )
 {
-  msgc_context_t *conserv_context;
-  msgc_context_t *aggress_context;
-  int marked, traced, words_marked;
-  remset_t **summaries;
-
-  check_rep_1( summ );
-
-  /* set up simpler summary abstract representation */
-  {
-    int i;
-    summaries = 
-      must_malloc( DATA(summ)->num_cols * sizeof(remset_t*));
-    for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
-      summaries[i] = grab_from_remset_pool();
-      verifymsg("col[i=%d]:words{sm:%d,wb:%d,gc:%d,sc:%d}", 
-                 i, 
-                 DATA(summ)->cols[i]->summarize_word_count,
-                 DATA(summ)->cols[i]->writebarr_word_count,
-                 DATA(summ)->cols[i]->collector_word_count,
-                 DATA(summ)->cols[i]->summacopy_word_count );
-      fold_col_into_remset( summ, i, summaries[i] );
-      verifymsg("summaries[i=%d]->live: %d", i, summaries[i]->live);
-    }
-  }
-
-  {
-    struct verify_summaries_msgc_fcn_data data;
-    data.summ = summ;
-    data.summaries = summaries;
-
-    conserv_context = msgc_begin( summ->collector );
-    msvfy_set_object_visitor( conserv_context, 
-                              verify_summaries_msgc_fcn, 
-                              &data );
-    /* (useful to have a pre-pass over reachable(roots) so that the
-       stack trace tells you whether a problem is due solely to a
-       reference chain that somehow involves remembered sets.) */
-    msvfy_mark_objects_from_roots( conserv_context );
-    /* Summaries are based on (conservative) info in remsets; 
-       therefore they may have references to "dead" objects 
-       that would not be identified as such if we used 
-       only msgc_mark_objects_from_roots
-    */
-    msvfy_mark_objects_from_roots_and_remsets( conserv_context );
-
-    /* a postpass over the summaries to make sure that their contents
-       are sane.
-    */
-    {
-      struct verify_summaries_remset_fcn_data data;
-      int i;
-      msgc_context_t *aggress_context;
-      aggress_context = msgc_begin( summ->collector );
-      msvfy_mark_objects_from_roots( aggress_context );
-      data.conserv_context = conserv_context;
-      data.aggress_context = aggress_context;
-
-      for ( i = 1; i < DATA(summ)->num_cols; i++ ) {
-        data.summary_for_region = i;
-        check_col_on_own_vfy_sm_rs( summ, i, &data );
-      }
-
-      for (i = 0; i < summ->collector->gno_count; i++) {
-        if (region_summarized( summ, i )){
-          verifymsg("sanity check summary[i=%d] live: %d", 
-                     i, summaries[i]->live);
-          data.summary_for_region = i;
-          rs_enumerate( summaries[i], 
-                        verify_summaries_remset_fcn,
-                        &data );
-        }
-      }
-
-      {
-        struct rsscan_check_nursery_rs_data data;
-        data.summ = summ;
-        data.conserv_context = conserv_context;
-        data.aggress_context = aggress_context;
-        rs_enumerate( DATA(summ)->nursery_remset,
-                      rsscan_check_nursery_rs,
-                      &data );
-      }
-
-      msgc_end( aggress_context );
-    }
-    msgc_end( conserv_context );
-  }
-
-  /* clean up */
-  {
-    int i;
-    for (i = 1; i < DATA(summ)->num_cols; i++) {
-      rs_clear( summaries[i] );
-      return_to_remset_pool( summaries[i] );
-    }
-    free( summaries );
-  }
-
-  check_rep_1( summ );
-}
-
-static bool scan_refine_remset( word loc, void *data, unsigned *stats )
-{
-  smircy_context_t *context = (smircy_context_t*)data;
-  if (smircy_object_marked_p( context, loc )) {
-    return TRUE;
-  } else {
-    return FALSE;
-  }
-}
-
-/* This will need to traverse both the array and the hashset structures.
- * But it should be relatively straight-forward.
- * XXX 
- *
- * (I think the choice between row- or col- based iteration does not
- *  matter here; no matter what, we need to refine all cells and sets
- *  in the summary structure.)
- */
-EXPORT void sm_refine_summaries_via_marksweep( summ_matrix_t *summ ) 
-{
-  smircy_context_t *context;
-
-  check_rep_1( summ );
-
-  context = summ->collector->smircy;
-
-  /* refine cells-rep based on smircy state */
-  {
-    int i;
-    for (i = 0; i < DATA(summ)->num_cols; i++) {
-      summ_col_t *col = DATA(summ)->cols[i];
-
-      summ_cell_t *sent = col->cell_top;
-      summ_cell_t *cell = sent->next_col;
-      while ( cell != sent ) {
-
-        { /* refine object pools */ 
-          objs_pool_t *objects;
-          for( objects = cell->objects; 
-               objects != NULL; 
-               objects = objects->next ) {
-            word *wptr;
-            for ( wptr = objects->bot; wptr < objects->top; wptr++ ) {
-              if (*wptr == 0x0) {
-                /* entry already clear */
-              } else if (! smircy_object_marked_p( context, *wptr )) {
-                *wptr = 0x0; /* clear entry */
-              }
-            }
-          }
-        }
-
-        { /* refine location pools */
-          locs_pool_t *locations;
-          for( locations = cell->locations;
-               locations != NULL;
-               locations = locations->next ) {
-            loc_t *loc;
-            for ( loc = locations->bot; loc < locations->top; loc++ ) {
-              if (loc->obj == 0x0) {
-                /* entry already clear */
-              } else if (! smircy_object_marked_p( context, loc->obj )) {
-                loc->obj = 0x0; /* clear entry */
-              }
-            }
-          }
-        }
-        cell = cell->next_col;
-      }
-
-      if (col->sum_mutator != NULL) {
-        rs_enumerate( col->sum_mutator, scan_refine_remset, context );
-      }
-    }
-  }
-
-  check_rep_1( summ );
+  return;
 }
 
 /* XXX
@@ -3842,101 +3367,8 @@ EXPORT int sm_cycle_count( summ_matrix_t *summ ) { return DATA(summ)->cycle_coun
 EXPORT int sm_pass_count( summ_matrix_t *summ ) { return DATA(summ)->pass_count; }
 EXPORT int sm_scan_count_curr_pass( summ_matrix_t *summ ) { return DATA(summ)->curr_pass_units_count; }
 
-struct check_cells_against_rs_data {
-  summ_matrix_t *summ;
-  summ_col_t *col;
-  int col_idx;
-};
-
-static bool rsscan_check_cells_against_rs( word loc, void *my_data, unsigned *stats )
-{
-  struct check_cells_against_rs_data *data;
-  data = (struct check_cells_against_rs_data*)my_data;
-  assert( gen_of(loc) != data->col_idx );
-  return TRUE;
-}
-
-/* INV: forall i in [1..num_cols) :
- *       union( cols[i]->cell_top{->next_col}*->objects, cols[i]->sum_mutator )
- *      ==
- *       remset_summaries[i]->sum_remset
- */
-static void check_cells_against_rs( summ_matrix_t *summ ) 
-{
-  int i;
-  remset_t *cell_rs; /* remset_t-based copy of cells in column */
-
-  cell_rs = grab_from_remset_pool();
-  for( i = 1; i < DATA(summ)->num_cols; i++ ) {
-    /* build up cell_rs for cols[i] */
-    summ_col_t *col;
-    summ_cell_t *cell, *sent;
-    col = DATA(summ)->cols[i];
-    cell = col->cell_top;
-    sent = cell;
-    do {
-      objs_pool_t *objs;
-      for( objs = cell->objects; objs != NULL; objs = objs->next ) {
-        word *wptr;
-        for( wptr = objs->bot; wptr < objs->top; wptr++ ) {
-          rs_add_elem( cell_rs, *wptr );
-        }
-      }
-      cell = cell->next_col;
-    } while (cell != sent);
-    /* need to add in mutator actions */
-    if (col->sum_mutator != NULL)
-      rs_enumerate( col->sum_mutator, rsenum_add_elem, cell_rs );
-
-    /* At this point, cell_rs is a remset_t representation of the 
-     * summary for col. */
-    {
-      struct check_cells_against_rs_data data;
-      data.summ = summ;
-      data.col = col;
-      data.col_idx = i;
-      rs_enumerate( cell_rs, rsscan_check_cells_against_rs, (void*)&data );
-    }
-
-    /* clean up */
-    rs_clear(cell_rs);
-  }
-  return_to_remset_pool( cell_rs );
-}
-
-static void check_row_consistency( summ_matrix_t *sm, summ_row_t *row, int i )
-{
-  summ_cell_t *sent = row->cell_lft;
-  summ_cell_t *cell = sent;
-  do {
-    assert( cell->source_gno == i );
-    cell = cell->next_row;
-  } while ( cell != sent );
-}
-
-static void check_col_consistency( summ_matrix_t *sm, summ_col_t *col, int i )
-{
-  summ_cell_t *sent = col->cell_top;
-  summ_cell_t *cell = sent;
-  do {
-    assert( cell->target_gno == i );
-    cell = cell->next_col;
-  } while ( cell != sent );
-}
-
-static void check_matrix_consistency( summ_matrix_t *sm )
-{
-  int i;
-  for (i = 0; i < DATA(sm)->num_rows; i++)
-    check_row_consistency( sm, DATA(sm)->rows[i], i );
-  for (i = 0; i < DATA(sm)->num_cols; i++)
-    check_col_consistency( sm, DATA(sm)->cols[i], i );
-}
-
 static void check_rep( summ_matrix_t *summ ) {
   assert( summ != NULL );
-  check_matrix_consistency( summ );
-  check_cells_against_rs( summ );
 }
 
 /* eof */
