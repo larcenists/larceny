@@ -18,7 +18,7 @@
 '(for-each (lambda (bmarks) (plot-time-stats-data/stacked-bars 
                              cp-stats-data cp-rt-keys bmarks 
                              (lambda (key) (rt-or-bmark-key->name cp-stats-data key))))
-           (split bmark-keys-set5 8))
+           (split bmark-keys-set5 5))
 
 '(for-each (lambda (bmark-keys)
              (plot-mem-stats-data/stacked-bars stats-data 
