@@ -974,6 +974,8 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   }
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
+  if (DATA(gc)->region_count <= 2)
+    return;
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     smircy_start( gc );
