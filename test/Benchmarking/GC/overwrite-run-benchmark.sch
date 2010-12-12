@@ -107,7 +107,30 @@
          (s2 (memstats)))
     (values r (stashed-stats s1 s2))))
 
-(define (run-benchmark name iterations thunk ok?)
+;; run-benchmark : String Nat (X -> Boolean) (A ... -> (-> X)) A ... -> unspec
+;; run-benchmark : String Nat (-> X)         (X ->Boolean)           -> unspec
+;; This is meant to handle both the Larceny run-benchmark interface
+;; and the Feeley (CrossPlatform) run-benchmark interface.  Its a
+;; little tricky in the case when args is null, because in that case I
+;; need to detect if f2 is the predicate and f1 the thunk, or f1 is
+;; the predicate and f2 is the thunk-creating thunk.
+
+(define (run-benchmark name iterations f1 f2 . args)
+  (define (exact=? n1 n2) (and (exact? n1) (exact? n2) (= n1 n2)))
+  (cond
+   ((not (null? args))
+    (run-benchmark/core name iterations (apply f2 args) f1)) ;; Feeley
+   ((or (exact=? 0 (procedure-arity f2))
+        (exact=? 1 (procedure-arity f1)))
+    (run-benchmark/core name iterations (f2) f1)) ;; Feeley
+   ((or (exact=? 0 (procedure-arity f1))
+        (exact=? 1 (procedure-arity f2)))
+    (run-benchmark/core name iterations f1 f2)) ;; Larceny
+   (else
+    (display "cannot infer which run-benchmark; assuming Larceny") (newline)
+    (run-benchmark/core name iterations f1 f2))))
+
+(define (run-benchmark/core name iterations thunk ok?)
 
   (define (loop n last-result)
     (if (zero? n)
@@ -139,4 +162,15 @@
     (lambda (thunk)
       (run-with-stats/stashing* (lambda () (run-with-stats thunk))))))
 
-
+(define (dump-stashed-and-current-stats output-file)
+  (call-with-output-file output-file
+    (lambda (p)
+      (load "parse-stats-output.sch")
+      (let ((f (lambda (s x)
+                 (display   "    " p)
+                 (write (list s x) p)
+                 (newline p))))
+        (f 'last-stashed-stats
+           *last-stashed-stats*)
+        (f 'stats-dump
+           (stats-read))))))
