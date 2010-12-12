@@ -16,6 +16,8 @@
    (1980 24)
    (1985 10)))
 
+(define (iota n) (let loop ((c 0)) (if (= c n) '() (cons c (loop (+ c 1))))))
+
 ;; Illustration of index keyword (34.1.5 from gnuplot-4.2.3 manual)
 (gnuplot
  (lambda (file) `((plot ,file index 2 : 4 
