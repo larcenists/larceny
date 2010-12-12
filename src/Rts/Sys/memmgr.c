@@ -876,6 +876,9 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   assert( DATA(gc)->summaries != NULL );
   ne_rgn_count = nonempty_region_count( gc );
   if (sm_progress_would_no_op( DATA(gc)->summaries, ne_rgn_count )) {
+    DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
+    DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+    DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
     return;
   }
 
@@ -1911,14 +1914,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
        + region_group_count( region_group_wait_w_sum ) 
        + region_group_count( region_group_filled ) /* XXX */) 
       > 0) {
-    if (DATA(gc)->mutator_effort.forcing_collector_to_progress) {
-      if (verbose) {
-        consolemsg("%s mutator effort forcing gc => felix says: MAJOR", prefix);
-      }
-      felix_says_should_major = TRUE;
-    } else {
-      rrof_gc_policy( gc, &felix_says_should_major, verbose );
-    }
+    rrof_gc_policy( gc, &felix_says_should_major, verbose );
   } else {
     felix_says_should_major = FALSE;
   }
@@ -3288,15 +3284,21 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
 
   update_rrof_flush_counts( gc, (top - bot) );
   if (bot != top) {
-    int cN = calc_cN( gc );
-    int mut_effort_full = 
-      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
-       DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
-    int mut_effort_sumz = 
-      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
-       DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
-
-    if (mut_effort_sumz > cN) {
+    int cN;
+    int mut_effort_full, mut_effort_sumz;
+    if (DATA(gc)->mut_activity_bounded
+        && DATA(gc)->summaries != NULL) {
+      cN = calc_cN( gc );
+      mut_effort_full = 
+        (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+         DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+      mut_effort_sumz = 
+        (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+         DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+    }
+    if (DATA(gc)->mut_activity_bounded 
+        && DATA(gc)->summaries != NULL
+        && mut_effort_sumz > cN) {
 #if 0
       consolemsg( "ssb_process_rrof( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
                   bot, top,
