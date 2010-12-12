@@ -12,12 +12,29 @@
 
 '(define stats-data
    (apply gather-statsfiles (unzip filename+keys-feb24-00)))
+'(define cp-stats-data
+   (apply gather-statsfiles (unzip filename+keys-feb24-11)))
+
+'(for-each (lambda (bmarks) (plot-time-stats-data/stacked-bars 
+                             cp-stats-data cp-rt-keys bmarks 
+                             (lambda (key) (rt-or-bmark-key->name cp-stats-data key))))
+           (split bmark-keys-set5 8))
 
 '(for-each (lambda (bmark-keys)
              (plot-mem-stats-data/stacked-bars stats-data 
                                                some-rt-keys 
                                                bmark-keys
                                                stats-data-key->name))
+           (list bmark-keys-set1
+                 bmark-keys-set2
+                 bmark-keys-set3
+                 bmark-keys-set4))
+
+'(for-each (lambda (bmark-keys)
+             (plot-time-stats-data/stacked-bars stats-data 
+                                                some-rt-keys 
+                                                bmark-keys
+                                                stats-data-key->name))
            (list bmark-keys-set1
                  bmark-keys-set2
                  bmark-keys-set3
@@ -58,6 +75,24 @@
       ("maxmem" ,max-mem)
       )))
 
+;; Sexp Symbol Symbol -> StackableStats
+(define (extract-time-stats dataset rt-key bmark-key)
+  (let* ((extract-time (lambda (final-key) 
+                        (first-number
+                         (extract-path dataset 
+                                       `(,rt-key ,bmark-key 
+                                         last-stashed-stats ,final-key)))))
+         (elapsed   (extract-time 'elapsed-time:))
+         (cheney  (extract-time 'gc-total-time:))
+         (summarize (extract-time 'summarize-time:))
+         (marker    (extract-time 'mark-time:))
+         (mutator   (- elapsed (+ cheney summarize marker))))
+    `(("mutator"   ,mutator)
+      ("cheney"    ,cheney)
+      ("summarize" ,summarize)
+      ("marker"    ,marker)
+      ("total"     ,elapsed))))
+
 ;; bar-stackify-stats : StackableStats Listof[String] -> Listof[Number]
 (define (bar-stackify-stats ss box-names)
   (let loop ((accum 0)
@@ -77,6 +112,11 @@
   '((scpy                                              "Stop+Copy")
     (dflt                                              "Gen")
     (dflt-nurs1meg                                     "Gen nurs=1M")
+    (gen-n4m8                                          "Gen nurs=4M")
+    (gen-n1m8                                          "Gen nurs=1M")
+    (rrof-n4m8                                         "Rgn nurs=4M r=8M")
+    (rrof-n1m8                                         "Rgn nurs=1M r=8M")
+    (rrof-n1m4                                         "Rgn nurs=1M r=4M")
     (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0  "Rgn 221 pop 8")
     (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0  "Rgn 122 pop 6")
     (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0  "Rgn 232 pop 4")
@@ -93,6 +133,9 @@
     rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0
     rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0
     rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0))
+
+(define cp-rt-keys
+  '(scpy gen-n4m8 rrof-n4m8 gen-n1m8 rrof-n1m8 rrof-n1m4))
 
 (define some-bmark-keys+names
   (append
@@ -120,11 +163,20 @@
 (define bmark-keys-set4
   '(bm-graphs7 bm-parsing:nboyer.sch:1000 bm-dynamic bm-paraffins))
 
+(define bmark-keys-set5
+  '(ack array1 boyer browse cat compiler conform cpstak ctak 
+    dderiv deriv destruc diviter divrec dynamic earley fft fib fibc fibfp fpsum 
+    graphs lattice matrix maze mazefun mbrot nbody nboyer nqueens ntakl nucleic 
+    paraffins parsing perm9 peval pi pnpoly primes puzzle quicksort ray 
+    sboyer scheme simplex slatex #|smlboyer|# string sum sum1 sumfp sumloop 
+    tail tak takl #|tfib|# trav1 trav2 triangl wc))
+
 (define all-bmark-keys
   (append bmark-keys-set1
           bmark-keys-set2
           bmark-keys-set3
-          bmark-keys-set4))
+          bmark-keys-set4
+          bmark-keys-set5))
 
 (define (rt-or-bmark-key->name dataset key)
   (cadr (or (assq key rt-keys+names)
@@ -144,9 +196,11 @@
 ;; A BmarkKey is a Symbol (e.g. for a benchmark name
 ;; A LoR is a Listof[RtcfgKey]
 ;; A LoB is a Listof[BmarkKey]
-;; plot-mem-stats-data/stacked-bars : Sexp LoR LoB (Symbol -> String) -> unspec
+;; plot-mem-stats-data/stacked-bars  : Sexp LoR LoB (Symbol -> String) -> unspec
+;; plot-time-stats-data/stacked-bars : Sexp LoR LoB (Symbol -> String) -> unspec
 
-(define (plot-mem-stats-data/stacked-bars.bmark-key->line dataset 
+(define (plot-xxx-stats-data/stacked-bars.bmark-key->line extract-xxx-stats
+                                                          dataset 
                                                           rt-keys 
                                                           key->name
                                                           mem-box-names
@@ -154,31 +208,46 @@
   (cons (key->name bmark-key)
         (map (lambda (rt-key)
                (cons (key->name rt-key)
-                     (bar-stackify-stats (extract-mem-stats dataset
+                     (bar-stackify-stats (extract-xxx-stats dataset
                                                             rt-key
                                                             bmark-key)
                                          mem-box-names)))
              rt-keys)))
 
-(define (plot-mem-stats-data/stacked-bars.bmark-keys->lines dataset
+(define (plot-xxx-stats-data/stacked-bars.bmark-keys->lines extract-xxx-stats
+                                                            dataset
                                                             rt-keys
                                                             bmark-keys
                                                             key->name
                                                             mem-box-names)
   (let ((bmark-key->line
          (lambda (bmark-key)
-           (plot-mem-stats-data/stacked-bars.bmark-key->line 
+           (plot-xxx-stats-data/stacked-bars.bmark-key->line 
+            extract-xxx-stats
             dataset rt-keys key->name mem-box-names bmark-key))))
     (map bmark-key->line bmark-keys)))
 
 (define (plot-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
   (let ((mem-box-names '("rts" "heap" "remset" "summ" "marker")))
     (apply plot-stacked-bars mem-box-names
-           (plot-mem-stats-data/stacked-bars.bmark-keys->lines dataset 
-                                                               rt-keys 
-                                                               bmark-keys 
-                                                               key->name 
-                                                               mem-box-names))))
+           (plot-xxx-stats-data/stacked-bars.bmark-keys->lines
+            extract-mem-stats
+            dataset 
+            rt-keys 
+            bmark-keys 
+            key->name 
+            mem-box-names))))
+
+(define (plot-time-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
+  (let ((time-box-names '("mutator" "cheney" "summarize" "marker")))
+    (apply plot-stacked-bars time-box-names
+           (plot-xxx-stats-data/stacked-bars.bmark-keys->lines
+            extract-time-stats
+            dataset 
+            rt-keys 
+            bmark-keys 
+            key->name 
+            time-box-names))))
 
 (define filename+keys-feb17-00
   '(("logs.Argus/bench-thesis10-log.2010Feb17-at-00-26-48.log" dflt)
@@ -233,6 +302,14 @@
     ("logs.Argus/bench-thesis10-log.2010Feb24-at-07-26-47.log" rrof-nurs4meg-rgn8meg-sumz221-pop8-infm0-refn1.0)
     ("logs.Argus/bench-thesis10-log.2010Feb24-at-07-50-34.log" rrof-nurs4meg-rgn8meg-sumz1~2-pop6-infm0-refn1.0)
     ("logs.Argus/bench-thesis10-log.2010Feb24-at-08-22-00.log" rrof-nurs4meg-rgn8meg-sumz232-pop4-infm0-refn1.0)))
+
+(define filename+keys-feb24-11
+  '(("logs.Argus/bench-crossplat-log.2010Feb24-at-11-39-44.log" scpy)
+    ("logs.Argus/bench-crossplat-log.2010Feb24-at-11-47-28.log" gen-n4m8)
+    ("logs.Argus/bench-crossplat-log.2010Feb24-at-11-53-18.log" rrof-n4m8)
+    ("logs.Argus/bench-crossplat-log.2010Feb24-at-11-59-16.log" gen-n1m8)
+    ("logs.Argus/bench-crossplat-log.2010Feb24-at-12-05-21.log" rrof-n1m8)
+    ("logs.Argus/bench-crossplat-log.2010Feb24-at-12-11-36.log" rrof-n1m4)))
 
 ;; A Nelof[X] is one of:
 ;; -- (cons X '())
@@ -653,3 +730,12 @@
             (smircy_allocated_max   markstate)
             (rts_allocated_max      runtime)
             (heap_fragmentation_max waste)))))
+
+(define (take l n) (if (zero? n) '() (if (null? l) '() (cons (car l) (take (cdr l) (- n 1))))))
+(define (drop l n) (if (zero? n) l (if (null? l) '() (drop (cdr l) (- n 1)))))
+(define (split l n) 
+  (let ((first (take l n))
+        (rest  (drop l n)))
+    (if (null? rest)
+        (list first)
+        (cons first (split rest n)))))
