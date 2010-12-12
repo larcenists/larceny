@@ -529,6 +529,7 @@ static void smircy_start( gc_t *gc )
   }
   gc->smircy = smircy_begin_opt( gc, gc->gno_count, 
                                  DATA(gc)->rrof_alloc_mark_bmp_once );
+  assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
   { int i; 
     for ( i = 0; i < DATA(gc)->ephemeral_area_count; i++ )
@@ -906,6 +907,7 @@ static void initiate_refinement( gc_t *gc )
       initiate_refinement_during_summarization( gc );
     } else {
       assert( smircy_in_refinement_stage_p( gc->smircy ));
+      assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
     }
   } else {
     refine_remsets_via_marksweep( gc );
