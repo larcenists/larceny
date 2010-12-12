@@ -54,11 +54,14 @@ f( ) {
      echo "You need to build $1.fasl before running this script" >&2
      echo "One way is to run the Scheme program "                >&2
      echo "compile-files.sch in this directory."                 >&2
+     exit 1666
   fi
 }
 f overwrite-run-benchmark; 
 f earley; f gcbench; f nboyer; f sboyer; f perm; f twobit; f gcold;
-f queue3;
+f queue3; f pueue3;
+f graphs; 
+f num-iters; f parsing; f dynamic; f paraffins;
 
 AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
                (lambda (p)                          \
@@ -75,7 +78,7 @@ AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
 g( ) {
     echo "($2 $1"  >> $OUTPUT
     echo "(begin $1 (values))" ${AFTER_BENCH} | \
-        ${LARCENY} -- overwrite-run-benchmark.fasl $2.fasl | tee -a $HUMAN_OUTPUT
+        ${LARCENY} -- overwrite-run-benchmark.fasl num-iters.fasl  $2.fasl | tee -a $HUMAN_OUTPUT
     cat $TMPOUTPUT >> $OUTPUT
     echo ") "      >> $OUTPUT
     echo           >> $OUTPUT
@@ -103,6 +106,12 @@ g '(GCOld 100 0 1  1000 800)' gcold
 
 g '(queue-benchmark 1000 1000000 50)' queue3
 g '(pueue-benchmark 1000 1000000 50 50)' pueue3
+
+g '(graphs-benchmark)'  graphs
+
+g '(parsing-benchmark)' parsing
+g '(dynamic-benchmark)' dynamic
+g '(paraffins-benchmark)' paraffins
 
 $LARCENY -- parse-stats-output.sch            \
     -e "(process-and-print-log \"$OUTPUT\" )" \

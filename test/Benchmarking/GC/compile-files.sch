@@ -1,7 +1,6 @@
 ;; format is either a Filename, or a (Filename . [List RequireSym])
 (define benchmarks 
   '("overwrite-run-benchmark.sch"
-    "dynamic.sch"
     "earley.sch"
     "graphs.sch"
     "perm.sch"
@@ -15,6 +14,11 @@
     ;; "softscheme.sch" 
     "queue3.sch"
     "pueue3.sch"
+    "graphs.sch"
+    "num-iters.scm"
+    "parsing.scm"
+    "dynamic.scm"
+    "paraffins.scm"
     ))
 
 (for-each (lambda (x) 
