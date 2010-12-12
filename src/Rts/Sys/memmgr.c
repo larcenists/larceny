@@ -2054,10 +2054,39 @@ static void stats_following_gc( gc_t *gc )
   stats_dumpstate();		/* Dumps stats state if dumping is on */
 }
 
+static void force_collector_to_make_progress( gc_t *gc )
+{
+  word *globals = DATA(gc)->globals;
+  word *p;
+  int nbytes;
+  word *lim;
+  p = (word*)globals[ G_ETOP ];
+  lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
+  nbytes = (lim-p)*sizeof(word);
+
+  if (nbytes > 0) {
+    consolemsg( "force_collector_to_make_progress"
+                " p:0x%08x lim:0x%08x nbytes:%d",
+                p, lim, nbytes );
+
+    *p = mkheader( nbytes-sizeof(word),BIGNUM_HDR);
+    if (p+1 < lim)
+      *(p+1) =  0xBACDBACD;
+    globals[ G_ETOP ] += nbytes;
+  }
+}
+
+static int calc_cN( gc_t *gc );
+
 static int compact_all_ssbs( gc_t *gc )
 {
   int overflowed, i;
   word *bot, *top;
+
+  int cN = calc_cN( gc );
+  int effort = 
+    (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle + 
+     DATA(gc)->mutator_effort.words_promoted_this_cycle);
 
   overflowed = 0;
   for (i = 0; i < gc->gno_count; i++) {
@@ -2065,6 +2094,11 @@ static int compact_all_ssbs( gc_t *gc )
     top = *gc->ssb[i]->top;
     overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
   }
+
+  if (effort > cN) {
+    force_collector_to_make_progress( gc );
+  }
+
   return overflowed;
 }
 
