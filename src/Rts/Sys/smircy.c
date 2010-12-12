@@ -99,6 +99,7 @@
 #include "gclib.h"
 #include "locset_t.h"
 #include "old_heap_t.h"
+#include "region_group_t.h"
 #include "remset_t.h"
 #include "semispace_t.h"
 #include "smircy.h"
@@ -958,6 +959,15 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
   context->total_words_marked = 0;
 
   context->stage = smircy_construction_stage;
+
+  /* all hasbeen regions can now be reclassified as polling */
+  {
+    old_heap_t *h = region_group_first_heap( region_group_hasbeen );
+    while (h != NULL) {
+      region_group_enq( h, region_group_hasbeen, region_group_advertised );
+      h = region_group_next_heap( h );
+    }
+  }
 
   dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
          num_rgns, context->bitmap );
@@ -1848,6 +1858,18 @@ bool smircy_in_construction_stage_p( smircy_context_t *context ) {
   return (context->stage == smircy_construction_stage);
 }
 void smircy_enter_refinement_stage( smircy_context_t *context ) {
+  assert2( context->stage == smircy_construction_stage );
+  assert2( smircy_stack_empty_p( context ));
+
+  /* all advertised regions can now be reclassified as filled */
+  {
+    old_heap_t *h = region_group_first_heap( region_group_advertised );
+    while (h != NULL) {
+      region_group_enq( h, region_group_advertised, region_group_filled );
+      h = region_group_next_heap( h );
+    }
+  }
+
   context->stage = smircy_refinement_stage;
 }
 bool smircy_in_refinement_stage_p( smircy_context_t *context ) {

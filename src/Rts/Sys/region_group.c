@@ -41,7 +41,8 @@ char *region_group_name( region_group_t grp )
 #endif
   case region_group_risingstar: return "p";
   case region_group_infamous:   return "q";
-  case region_group_hasbeen:    return "r";
+  case region_group_hasbeen:    return "h";
+  case region_group_advertised: return "a";
 
   default: assert(0); return NULL;
   }

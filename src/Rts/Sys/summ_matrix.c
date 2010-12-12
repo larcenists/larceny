@@ -2256,15 +2256,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
     check_if_refining_is_now_done( summ );
   }
 
-  /* all hasbeen regions can now be reclassified as filled */
-  {
-    old_heap_t *h = region_group_first_heap( region_group_hasbeen );
-    while (h != NULL) {
-      region_group_enq( h, region_group_hasbeen, region_group_filled );
-      h = region_group_next_heap( h );
-    }
-  }
-  /* now it is sound to reclassify infamous regions as hasbeens */
+  /* infamous regions can drop to hasbeens */
   {
     old_heap_t *h = region_group_first_heap( region_group_infamous );
     while (h != NULL) {

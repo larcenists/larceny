@@ -67,7 +67,8 @@ typedef enum {
   region_group_filled,     /* processed to-spaces */
   region_group_risingstar, /* skipped from-spaces, remember incoming refs */
   region_group_infamous,   /* ", remset discards incoming refs */
-  region_group_hasbeen,    /* ", remset under reconstruction */
+  region_group_hasbeen,    /* ", desires remset reconstruction */
+  region_group_advertised, /* ", remset under reconstruction */
   region_group_limit_elem
 } region_group_t;
 
