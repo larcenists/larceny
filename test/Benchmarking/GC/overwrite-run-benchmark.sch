@@ -66,10 +66,20 @@
       gc-max-cheney:
       (elapsed ,(memstats-gc-max-cheney-elapsed-time s)
        cpu     ,(memstats-gc-max-cheney-cpu-time s))
+      gc-max-summar:
+      (elapsed ,(memstats-gc-max-summar-elapsed-time s)
+       cpu     ,(memstats-gc-max-summar-cpu-time s))
+      gc-max-smircy-mark:
+      (elapsed ,(memstats-gc-max-smircy-mark-elapsed-time s)
+       cpu     ,(memstats-gc-max-smircy-mark-cpu-time s))
+      gc-max-smircy-refine:
+      (elapsed ,(memstats-gc-max-smircy-refine-elapsed-time s)
+       cpu     ,(memstats-gc-max-smircy-refine-cpu-time s))
       gc-max-remset-scan:
       (elapsed ,(memstats-gc-max-remset-scan-elapsed-time s)
        cpu     ,(memstats-gc-max-remset-scan-cpu-time s)
-       entries ,(memstats-gc-max-entries-remset-scan s))))
+       entries ,(memstats-gc-max-entries-remset-scan s))
+      ))
 
   (define (stashed-stats s1 s2)
     (list (tree-diff (totalled-stats s2)
