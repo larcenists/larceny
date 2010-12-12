@@ -11,6 +11,8 @@
 
 (define (run-benchmark name count ok? run-maker . args)
   (newline)
+  (display "--------------------------------------------------------")
+  (newline)
   (let* ((run (apply run-maker args))
          (result (time (run-bench name count ok? run))))
     (if (not (ok? result))
