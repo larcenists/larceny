@@ -457,10 +457,10 @@ static int next_rgn( int rgn, int num_rgns ) {
 
 /* The number represents how many cycles per expansion. (first guess is 1) */
 #define WEIGH_PREV_ESTIMATE_LOADCALC 0
-#define USE_ORACLE_TO_VERIFY_REMSETS 1
-#define USE_ORACLE_TO_VERIFY_SUMMARIES 1
+#define USE_ORACLE_TO_VERIFY_REMSETS 0
+#define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
-#define USE_ORACLE_TO_VERIFY_FWDFREE 1
+#define USE_ORACLE_TO_VERIFY_FWDFREE 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
 #define SYNC_REFINEMENT_RROF_CYCLE 1
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
@@ -2742,6 +2742,8 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
   DATA(gc)->dynamic_max = info->sc_info.dynamic_max;
   DATA(gc)->dynamic_min = info->sc_info.dynamic_min;
+  DATA(gc)->remset_undirected = FALSE;
+  DATA(gc)->mut_activity_bounded = FALSE;
 
   strcpy( buf, "S+C " );
 
@@ -2951,6 +2953,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->is_partitioned_system = 1;
   data->use_np_collector = info->use_non_predictive_collector;
   data->remset_undirected = FALSE;
+  data->mut_activity_bounded = FALSE;
   size = 0;
 
   strcpy( buf, "GEN " );
