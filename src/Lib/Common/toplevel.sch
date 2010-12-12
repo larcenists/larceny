@@ -1356,6 +1356,18 @@
                     memstats-gc-max-cheney-elapsed-time)
   (environment-set! larc 'memstats-gc-max-cheney-cpu-time
                     memstats-gc-max-cheney-cpu-time)
+  (environment-set! larc 'memstats-gc-max-summar-elapsed-time
+                    memstats-gc-max-summar-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-summar-cpu-time
+                    memstats-gc-max-summar-cpu-time)
+  (environment-set! larc 'memstats-gc-max-smircy-mark-elapsed-time
+                    memstats-gc-max-smircy-mark-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-smircy-mark-cpu-time
+                    memstats-gc-max-smircy-mark-cpu-time)
+  (environment-set! larc 'memstats-gc-max-smircy-refine-elapsed-time
+                    memstats-gc-max-smircy-refine-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-smircy-refine-cpu-time
+                    memstats-gc-max-smircy-refine-cpu-time)
   (environment-set! larc 'memstats-gc-max-truegc-elapsed-time
                     memstats-gc-max-truegc-elapsed-time)
   (environment-set! larc 'memstats-gc-max-truegc-cpu-time
