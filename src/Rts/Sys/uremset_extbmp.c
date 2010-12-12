@@ -87,14 +87,56 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
   }
   return FALSE; /* extbmp does not tell us whether it overflowed. */
 }
+
+static bool copy_over_to( word loc, void *data ) 
+{
+  extbmp_t *that = (extbmp_t*)data;
+  extbmp_add_elem( that, loc );
+  return TRUE;
+}
+
+struct wrap_scan_propogating_deletes_to_minor_data {
+  uremset_t *urs;
+  bool (*underlying_scanner)(word loc, void *data);
+  void *underlying_data;
+};
+static bool wrap_scan_propogating_deletes_to_minor( word loc, void *my_data )
+{
+  struct wrap_scan_propogating_deletes_to_minor_data *data;
+  bool rtn;
+  bool (*underlying_scanner)(word, void *);
+  void *underlying_data;
+  uremset_t *urs;
+  data = (struct wrap_scan_propogating_deletes_to_minor_data*)my_data;
+
+  underlying_scanner = data->underlying_scanner;
+  underlying_data    = data->underlying_data;
+  urs                = data->urs;
+
+  rtn = underlying_scanner( loc, underlying_data );
+  if (! rtn) {
+    extbmp_del_elem( DATA(urs)->minor_remset, loc );
+  }
+  return rtn;
+}
+
 static void enumerate_gno( uremset_t *urs, 
                            bool incl_tag, 
                            int gno,
                            bool (*scanner)(word loc, void *data), 
                            void *data )
 {
-  extbmp_enumerate_in( DATA(urs)->minor_remset, incl_tag, gno, scanner, data );
-  extbmp_enumerate_in( DATA(urs)->remset, incl_tag, gno, scanner, data );
+  struct wrap_scan_propogating_deletes_to_minor_data wrapper_data;
+
+  /* Copy minor to major so scanner encounters objects at most once */
+  extbmp_enumerate_in( DATA(urs)->minor_remset, FALSE, gno, copy_over_to, DATA(urs)->remset );
+
+  wrapper_data.urs = urs;
+  wrapper_data.underlying_scanner = scanner;
+  wrapper_data.underlying_data = data;
+  extbmp_enumerate_in( DATA(urs)->remset, incl_tag, gno, 
+                       wrap_scan_propogating_deletes_to_minor, 
+                       &wrapper_data );
 }
 
 static void enumerate_minor_complement( uremset_t *urs, 
@@ -150,22 +192,11 @@ static void enumerate_complement( uremset_t *urs,
     int static_area_gno;
 
     static_area_gno = urs->collector->gno_count-1;
-    extbmp_enumerate_in( DATA(urs)->minor_remset, incl_tag, 
-                         static_area_gno, scanner, data );
-    /* Same comments as in main loop below apply here. */
-    static_area_gno = urs->collector->gno_count-1;
-    extbmp_enumerate_in( DATA(urs)->remset, incl_tag,
-                         static_area_gno, scanner, data );
+    enumerate_gno( urs, incl_tag, static_area_gno, scanner, data );
   }
   for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
-      extbmp_enumerate_in( DATA(urs)->minor_remset, 
-                           incl_tag, i, scanner, data );
-      /* XXX: I may need to filter out members of minor_remset because
-       * some components like summ_matrix assume that the enumerate
-       * does not duplicate entries... */
-      extbmp_enumerate_in( DATA(urs)->remset, 
-                           incl_tag, i, scanner, data );
+      enumerate_gno( urs, incl_tag, i, scanner, data );
     }
   }
 }
@@ -174,8 +205,16 @@ static void          enumerate( uremset_t *urs,
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {
-  extbmp_enumerate( DATA(urs)->minor_remset, incl_tag, scanner, data );
-  extbmp_enumerate( DATA(urs)->remset, incl_tag, scanner, data );
+  struct wrap_scan_propogating_deletes_to_minor_data wrapper_data;
+
+  extbmp_enumerate( DATA(urs)->minor_remset, FALSE, copy_over_to, DATA(urs)->remset );
+
+  wrapper_data.urs = urs;
+  wrapper_data.underlying_scanner = scanner;
+  wrapper_data.underlying_data = data;
+  extbmp_enumerate( DATA(urs)->remset, incl_tag, 
+                    wrap_scan_propogating_deletes_to_minor, 
+                    &wrapper_data );
 }
 static bool      is_remembered( uremset_t *urs, word w )
 {
