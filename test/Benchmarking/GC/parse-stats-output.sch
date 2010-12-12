@@ -31,7 +31,9 @@
               gnuplot/keep-files
               (lambda files
                 `((set title ,(rt-or-bmark-key->name dataset bmark))
-                  (set yrange \[ 0 : 1 \])
+                  ;; (set yrange \[ 0 : 0.5 \])
+                  ;; (set yrange \[ 0 : 1.0 \])
+                  (set logscale x)
                   (plot ,(list->vector (map (lambda (f n i) `(,f with linespoints title ,n linestyle ,i))
                                             files
                                             names
