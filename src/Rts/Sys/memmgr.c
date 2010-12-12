@@ -2242,17 +2242,23 @@ static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
 static void enumerate_remembered_locations( gc_t *gc, gset_t genset, 
                                             void (*f)(loc_t loc, 
                                                       void *scan_data), 
-                                            void *scan_data )
+                                            void *scan_data,
+                                            bool (*g)(word obj, void *data),
+                                            void *g_scan_data )
 {
   if ( DATA(gc)->use_summary_instead_of_remsets) {
     summary_enumerate_locs2( &DATA(gc)->summary, f, scan_data );
   } else {
+#if 0
     struct apply_f_to_remset_obj_entry_data remsets_data;
     remsets_data.f = f;
     remsets_data.scan_data = scan_data;
     gc_enumerate_remsets_complement( gc, genset, 
                                      apply_f_to_remset_obj_entry, 
                                      (void*) &remsets_data );
+#else
+    gc_enumerate_remsets_complement( gc, genset, g, g_scan_data );
+#endif
   }
 }
 

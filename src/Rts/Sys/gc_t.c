@@ -47,7 +47,8 @@ gc_t
 		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset,
-	          void (*f)( loc_t, void* ), void* ),
+	          void (*f)( loc_t, void* ), void*fd,
+	          bool (*g)( word, void* ), void*gd),
 	     void (*enumerate_hdr_address_ranges)
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s, word *l, void *d), void *d ),

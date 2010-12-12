@@ -651,7 +651,9 @@ void oldspace_copy_using_locations( cheney_env_t *e )
     objects_scanned = 0;
 
     gc_enumerate_remembered_locations
-      ( e->gc, e->forw_gset, remset_loc_scanner_oflo, (void*)e );
+      ( e->gc, e->forw_gset, 
+        remset_loc_scanner_oflo, (void*)e,
+        e->scan_from_remsets, (void*)e );
 
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );

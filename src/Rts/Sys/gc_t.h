@@ -213,10 +213,15 @@ struct gc {
         rs_enumerate() for more info).
         */
   void (*enumerate_remembered_locations)( gc_t *gc, gset_t genset, 
-                                          void (*f)( loc_t, void* ), void* );
+                                          void (*f)( loc_t, void* ), void*fd,
+                                          bool (*g)( word, void* ), void*gd );
      /* Invokes f on a superset of locations (each represented as
       * tagged-word + byte offset) in the remembered set, passing
       * along the accumulator scan_data.
+      * OR 
+      * Invokes enumerate_remsets_complement( gc, genset, g, gd )
+      *
+      * (Its the receivers choice.)
       */
 
   void (*enumerate_hdr_address_ranges)( gc_t *gc, int gno, 
@@ -286,8 +291,8 @@ struct gc {
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
 #define gc_enumerate_remsets_complement( gc, gset, s, d ) \
   ((gc)->enumerate_remsets_complement( gc, gset, s, d ))
-#define gc_enumerate_remembered_locations( gc, gset, s, d) \
-  ((gc)->enumerate_remembered_locations( gc, gset, s, d ))
+#define gc_enumerate_remembered_locations( gc, gset, s, d, s2, d2) \
+  ((gc)->enumerate_remembered_locations( gc, gset, s, d, s2, d2 ))
 #define gc_enumerate_hdr_address_ranges( gc, gno, s, d ) \
   ((gc)->enumerate_hdr_address_ranges( gc, gno, s, d ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
@@ -353,7 +358,8 @@ gc_t
 		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset, 
-	          void (*f)( loc_t, void* ), void* ),
+	          void (*f)( loc_t, void* ), void*fd,
+	          bool (*g)( word, void* ), void*gd),
 	     void (*enumerate_hdr_address_ranges)
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s,word *l,void *d), void *d),
