@@ -82,7 +82,7 @@
      (lambda (data-file) 
        `((set style fill pattern 1 border)
          (set xrange \[ 0 : ,count \] )
-         (set yrange \[ 0 : * \] )
+         ;;(set yrange \[ 0 : * \] )
          (set boxwidth ,box-width)
          (set xtics rotate (,(list->vector xtics)))
          ,@(map (lambda (data-name index) 
