@@ -434,8 +434,8 @@ extbmp_t *create_extensible_bitmap_params( gc_t *gc, gc_param_t *info,
   }
   ebmp->leaf_count = 0;
 
-  consolemsg( "ebmp{gc,leaf_words=%d,entries_per_inode=%d,depth=%d,tree} max_leaves:%d",
-              ebmp->leaf_words, ebmp->entries_per_inode, ebmp->depth, max_leaves );
+  annoyingmsg( "ebmp{gc,leaf_words=%d,entries_per_inode=%d,depth=%d,tree} max_leaves:%d",
+               ebmp->leaf_words, ebmp->entries_per_inode, ebmp->depth, max_leaves );
   return ebmp;
 }
 
