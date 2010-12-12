@@ -1581,7 +1581,7 @@ static void col_print_ptr( summ_matrix_t *summ, summ_col_t *col )
 }
 
 static void oflo_check_word( summ_matrix_t *summ, 
-                             int tgno, word w, summ_col_t *col );
+                             int tgno, summ_col_t *col );
 
 static void oflo_check_loc( summ_matrix_t *summ, 
                             int tgno, loc_t loc, summ_col_t *col );
@@ -1598,16 +1598,16 @@ static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
   }
 
   incr_words( col, word_count );
-  oflo_check_word( summ, tgno, w, col );
+  oflo_check_word( summ, tgno, col );
 } 
 
 static void oflo_check_word( summ_matrix_t *summ, 
-                             int tgno, word w, summ_col_t *col )
+                             int tgno, summ_col_t *col )
 {
   int pop_limit = DATA(summ)->popularity_limit;
   if (col_words(col) > pop_limit) {
-    dbmsg( "cellsumm for rgn %d overflowed on 0x%08x (%d): %d max %d",
-           tgno, w, gen_of(w), col_words(col), pop_limit );
+    dbmsg( "cellsumm for rgn %d overflowed: %d max %d",
+           tgno, col_words(col), pop_limit );
     col->overly_popular = TRUE;
     { 
       old_heap_t *heap; 
@@ -1626,7 +1626,7 @@ static void oflo_check_word( summ_matrix_t *summ,
 static void oflo_check_loc( summ_matrix_t *summ, 
                             int tgno, loc_t loc, summ_col_t *col )
 {
-  oflo_check_word( summ, tgno, loc.obj, col );
+  oflo_check_word( summ, tgno, col );
 }
 
 /* Let A be summ[tgt_gen].cell[src_gen].objects.
