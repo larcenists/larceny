@@ -1550,12 +1550,16 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
    * handled within code of cheney itself.) 
    */
   if (DATA(gc)->region_count == 2) {
-    int other_rgn = (-rgn_to)+1;
-    assert( (other_rgn + rgn_to) == 1 );
-    if ((DATA(gc)->ephemeral_area[ other_rgn-1 ]->allocated == 0)
+    int to_idx = rgn_to - 1;
+    int other_idx = (-to_idx)+1;
+    assert2( rgn_to == 1 || rgn_to == 2 );
+    assert2( other_idx == 0 || other_idx == 1 );
+    assert2( to_idx    == 0 || to_idx    == 1 );
+    assert2( (other_idx + to_idx) == 2 );
+    if ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
         && 
-        ((DATA(gc)->ephemeral_area[ rgn_to-1 ]->maximum -
-          DATA(gc)->ephemeral_area[ rgn_to-1 ]->allocated)
+        ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
+          DATA(gc)->ephemeral_area[ to_idx ]->allocated)
          < gc->young_area->allocated)) {
       gc->scan_update_remset = FALSE;
     }
@@ -1565,6 +1569,31 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
   gc->scan_update_remset = TRUE; /* undo hack above */
+
+  /* HACK.  In usual case, we cannot always clear the minor remset,
+   * because it may hold objects with inter-region references that
+   * need to be remembered.
+   * 
+   * (XXX a good future project would be to detect such objects when
+   *  scanning them and enforce an invariant that promotes them to the
+   *  major remset; that would hopefully enable clearing the minor
+   *  remset after all collections.)
+   * 
+   * But, at start we have two regions and one is empty.  If that is
+   * still the case after a collection, we can safely clear the part
+   * of the remembered set for that region.  (That part will have
+   * nothing in its major portion, but may be non-empty in its minor
+   * portion; that's the whole point of this hack!)
+   */
+  if (DATA(gc)->region_count == 2 &&
+      DATA(gc)->rrof_to_region == rgn_to) {
+    int to_idx = rgn_to - 1;
+    int other_idx = (-to_idx)+1;
+    assert2( (other_rgn + rgn_to) == 2 );
+    if (DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0) {
+      urs_clear( gc->the_remset, rgn_to );
+    }
+  }
 
   if (summarization_active) {
     int i;
