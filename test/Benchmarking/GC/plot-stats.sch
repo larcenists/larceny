@@ -6,10 +6,13 @@
 (define (show-example)
   (plot-stacked-bars 
    '("barf" "foo" "woof")
-   '(("a1" 10 12 13) ("a2" 15 16 17) ("a3" 17 17 18) ("a4" 19 20 21)
-     ("a5" 30 31 32) ("a6" 19 20 21))
-   '(("b1" 20 22 23) ("b2" 25 26 27) ("b3" 27 27 28))
-   '(("c1" 15 18 22) ("c2" 24 25 28) ("c3" 37 37 38)  ("c4" 30 32))
+   '("grOUP AAAAAAAAAAAAAAAAA" 
+     ("a1" 10 12 13) ("a2" 15 16 17) ("a3" 17 17 18) ("a4" 19 20 21)
+     ;;("a5" 30 31 32) ("a6" 19 20 21) ("a7" 17) ("a8" 18) ("a9" 19)
+     ;;("aA" 20) ("aB" 21) ("aC" 22) ("aD" 23) ("aE" 24) ("aF" 25)
+     )
+   '("GrouP B" ("b1" 20 22 23) ("b2" 25 26 27) ("b3" 27 27 28))
+   '("group C" ("c1" 15 18 22) ("c2" 24 25 28) ("c3" 37 37 38)  ("c4" 30 32))
    ))
 
 ;; An L[i,X] is a Listof[X] of length i.
@@ -37,9 +40,11 @@
                   numbers)
             x-tics)))
   (let* ((count (length data-args))
-         (max-group-width (+ 2 (apply max (map length data-args))))
+         (data-names (map car data-args))
+         (data-vals (map cdr data-args))
+         (max-group-width (+ 2 (apply max (map length data-vals))))
          (data-and-xtics 
-          (map massage-data-arg data-args (iota count)))
+          (map massage-data-arg data-vals (iota count)))
          (data-vals (apply append (map car data-and-xtics)))
          (xtics (apply append (map cadr data-and-xtics)))
          (box-width (inexact (min 0.5 (/ 1 max-group-width)))))
@@ -50,6 +55,11 @@
          (set yrange \[ 0 : * \] )
          (set boxwidth ,box-width)
          (set xtics rotate (,(list->vector xtics)))
+         ,@(map (lambda (data-name index) 
+                  `(set label ,data-name at #((first ,(+ index 0.5))
+                                              (screen 0.0125))))
+                data-names
+                (iota (length data-names)))
          (plot ,(list->vector 
                  (map (lambda (bar-name i) 
                         `(,data-file
