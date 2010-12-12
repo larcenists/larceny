@@ -303,6 +303,8 @@ void ls_init_summary( locset_t *ls, int max_words_per_step,
   summary_init_locs_dispose( s, ls->live, &ls_pool_next_chunk_locs, NULL, NULL );
   pool_t *ps = DATA(ls)->first_pool;
   ent_t *p, *q;
+  p = NULL;
+  q = NULL;
   while (ps != NULL) {
     p = ps->bot;
     q = ps->top;
