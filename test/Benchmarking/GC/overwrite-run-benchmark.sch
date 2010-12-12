@@ -23,6 +23,11 @@
 
 (define *last-stashed-stats* #f)
 
+(error-handler 
+ (lambda l 
+   (decode-error l)
+   (display "bench DIED!") (newline) (exit 118)))
+
 ;; tree-diff : [F number] [F Number] -> [F Number]
 (define (tree-diff t2-orig t1-orig)
   (let rec ((t2 t2-orig) (t1 t1-orig))
