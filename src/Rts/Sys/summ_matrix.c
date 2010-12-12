@@ -935,6 +935,9 @@ EXPORT void sm_expand_gnos( summ_matrix_t *summ, int fresh_gno )
 
   sm_expand_summary_gnos( summ, fresh_gno );
 
+  free( DATA(summ)->rows );
+  free( DATA(summ)->cols );
+
   DATA(summ)->num_rows = new_num_rows;
   DATA(summ)->num_cols = new_num_cols;
   DATA(summ)->rows = new_rows;
