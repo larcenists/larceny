@@ -1026,7 +1026,7 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count )
 }
 
 
-EXPORT void sm_construction_progress( summ_matrix_t *summ, 
+EXPORT bool sm_construction_progress( summ_matrix_t *summ, 
                                       int* word_countdown,
                                       int* object_countdown,
                                       int rgn_next,
@@ -1036,6 +1036,8 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 {
   /* (must be kept in sync with sm_progress_would_no_op above) */
   int start, coverage;
+
+  bool completed_cycle = FALSE;
 
   dbmsg("sm_construction_progress"
         "( summ, rgn_next=%d, ne_rgn_count=%d, about_to_major=%s, dA=%d );",
@@ -1124,11 +1126,16 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
 
     if ( shall_we_progress ) {
       /* make progress on next wave. */
+      assert( ! DATA(summ)->summarizing.complete );
       sm_build_summaries_partial( summ, rgn_next, ne_rgn_count, about_to_major );
+      if (DATA(summ)->summarizing.complete) {
+        completed_cycle = TRUE;
+      }
     }
 
   } else {
     /* next wave complete; shift if appropriate. */
+    completed_cycle = TRUE;
     if ( region_group_count( region_group_wait_w_sum ) == 0 ) {
       sm_ensure_available( summ, rgn_next, ne_rgn_count, about_to_major, 
                            alloc_per_majgc );
@@ -1146,6 +1153,8 @@ EXPORT void sm_construction_progress( summ_matrix_t *summ,
   }
 
   check_rep_1( summ );
+
+  return completed_cycle;
 }
 
 EXPORT void sm_enumerate_row( summ_matrix_t *summ,

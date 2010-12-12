@@ -80,12 +80,15 @@ bool sm_progress_would_no_op( summ_matrix_t *summ, int ne_rgn_count );
   /* Returns TRUE implies an invocation of sm_construction_progress
      would just return without any useful internal progress. */
 
-void sm_construction_progress( summ_matrix_t *summ, 
+bool sm_construction_progress( summ_matrix_t *summ, 
                                int* word_countdown, int* object_countdown, 
                                int rgn_next, int ne_rgn_count, 
                                bool about_to_major, 
                                int allocation_per_majgc );
-  /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) */
+  /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) 
+   *
+   * returns true iff completed a summarization cycle during 
+   * this progress step.*/
 
 void sm_enumerate_row( summ_matrix_t *summ,
                        int row_gno, 
