@@ -100,11 +100,16 @@
      data-vals
      xtics)))
 
+(define (plot-mmu.build-gnuplot-args . args)
+  (list (lambda files
+          `((plot ,(list->vector (map (lambda (file) `(,file with lines))
+                                      files)))))
+        (map render-mmu args)))
 (define (plot-mmu . args)
-  (gnuplot (lambda files
-             `((plot ,(list->vector (map (lambda (file) `(,file with lines))
-                                         files)))))
-           (apply render-mmu args)))
+  (let* ((gnuplot-args (apply plot-mmu.build-gnuplot-args args))
+         (dat->script (list-ref gnuplot-args 0))
+         (data-values (list-ref gnuplot-args 1)))
+    (apply gnuplot/keep-files dat->script data-values)))
 
 ;; A RenderedMMU is Listof[(list Nat Nat Nat Nat Nat Nat Nat)]
 ;; Each entry is (Window MinMut MaxMgr MaxMinor MaxMajor MaxSumz MaxRefine)
