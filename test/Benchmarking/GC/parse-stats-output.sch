@@ -91,12 +91,20 @@
     (mark-ms   (last-stashed-stats mark-time:      elapsed))
     (sumz-ms   (last-stashed-stats summarize-time: elapsed)) 
 
+    (heap-peak (stats-dump heap_allocated_peak))
+    (rem-peak (stats-dump remset_allocated_peak))
+    (sumz-peak (stats-dump summ_allocated_peak))
+    (mark-peak (stats-dump smircy_allocated_peak))
+    (rts-peak  (stats-dump rts_allocated_peak))
+    (frag-peak (stats-dump heap_fragmentation_peak))
+
     (heap-maxw (stats-dump heap_allocated_max))
     (rem-maxw  (stats-dump remset_allocated_max))
     (sumz-maxw (stats-dump summ_allocated_max))
     (mark-maxw (stats-dump smircy_allocated_max))
     (rts-maxw  (stats-dump rts_allocated_max))
-    (frag-maxw (stats-dump heap_fragmentation_max))))
+    (frag-maxw (stats-dump heap_fragmentation_max))
+    ))
 
 (define (header-line-list)
   (define (header-convert-char c)
