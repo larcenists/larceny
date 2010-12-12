@@ -1431,6 +1431,24 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
     rrof_completed_major_collection( gc );
 
+    /* At start, we have two regions that act as to/from semispaces
+     * during major gc's.  If we still have only two regions at the
+     * end of a major gc, then one will be empty and the other will
+     * have a _precise_ measure of the amount of live storage.  We can
+     * use that measure to guide the allocation policy.
+     */
+    if (DATA(gc)->region_count == 2) {
+      int other_rgn = (-rgn_to)+1;
+      assert( (other_rgn + rgn_to) == 1 );
+      if (DATA(gc)->ephemeral_area[other_rgn - 1]->allocated == 0) {
+        int live_words = 
+          DATA(gc)->ephemeral_area[rgn_to]->allocated / sizeof(word);
+        DATA(gc)->last_live_words = live_words;
+        DATA(gc)->max_live_words = 
+          max( DATA(gc)->max_live_words, live_words );
+      }
+    }
+
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     collect_rgnl_clear_summary( gc, rgn_next );
     {
@@ -1513,9 +1531,38 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
             || (grp == region_group_wait_nosum) /* XXX */
             || (grp == region_group_wait_w_sum) /* XXX */ );
   }
+
+  /* HACK.  At start, we have two regions that we treat as alternate
+   * targets for promotions out of the nursery during minor gc's, and
+   * the to/from semispaces during major gc's.  This means that we
+   * often are just promoting data out of the nursery into one region
+   * while the other region lies entirely empty and will *remain*
+   * entirely empty even after the promotion is complete.
+   *
+   * When that arises, we do not need to spend any time in cheney loop
+   * maintaining the remembered set.
+   * 
+   * (If incremental marking is not in progress, that means we do not
+   * need to spend any time in the cheney loop maintaining *any* of
+   * the regional meta-data; but toggling that overhead is already
+   * handled within code of cheney itself.) 
+   */
+  if (DATA(gc)->region_count == 2) {
+    int other_rgn = (-rgn_to)+1;
+    assert( (other_rgn + rgn_to) == 1 );
+    if ((DATA(gc)->ephemeral_area[ other_rgn-1 ]->allocated == 0)
+        && 
+        ((DATA(gc)->ephemeral_area[ rgn_to-1 ]->maximum -
+          DATA(gc)->ephemeral_area[ rgn_to-1 ]->allocated)
+         < gc->young_area->allocated)) {
+      gc->scan_update_remset = FALSE;
+    }
+  }
+
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
+  gc->scan_update_remset = TRUE; /* undo hack above */
 
   if (summarization_active) {
     int i;
