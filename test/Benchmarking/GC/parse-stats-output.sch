@@ -17,15 +17,28 @@
 '(define cp-stats-data
    (apply gather-statsfiles (unzip filename+keys-feb24-11)))
 
-'((lambda (bmark)
-    (apply plot-mmu (map (lambda (rt-key) 
-                           (extract-path mmu-stats-data `(,rt-key ,bmark gc_mmu_log_t)))
-                         '(scpy-mmu 
-                           dflt-mmu 
-                           rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0-mmu
-                           rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0-mmu
-                           rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0-mmu))))
-  'bm-20earley:13)
+'(plot-mmu-for-stats-data mmu-stats-data mmu-rt-keys (take mmu-bmark-keys 5))
+
+(define (plot-mmu-for-stats-data dataset rt-keys bmarks)
+  (let ((plot-mmu-for-bmark
+         (lambda (bmark)
+           (let* ((rt-key->name (lambda (rt-key) (rt-or-bmark-key->name dataset rt-key)))
+                  (rt-key->rendered-mmu
+                   (lambda (rt-key) (render-mmu (extract-path dataset `(,rt-key ,bmark gc_mmu_log_t)))))
+                  (names (map rt-key->name rt-keys))
+                  (mmu-renderings (map rt-key->rendered-mmu rt-keys)))
+             (apply
+              gnuplot/keep-files
+              (lambda files
+                `((set title ,(rt-or-bmark-key->name dataset bmark))
+                  (set yrange \[ 0 : 1 \])
+                  (plot ,(list->vector (map (lambda (f n i) `(,f with linespoints title ,n linestyle ,i))
+                                            files
+                                            names
+                                            (map (lambda (i) (+ 1 i))(iota (length files)))
+                                            )))))
+              mmu-renderings)))))
+    (map plot-mmu-for-bmark bmarks)))
 
 '(map (lambda (bmarks) (plot-pause-and-time-and-mem-stats-data/stacked-bars
                         cp-stats-data cp-rt-keys bmarks
@@ -159,7 +172,9 @@
 
 (define rt-keys+names
   '((scpy                                              "Stop+Copy")
+    (scpy-mmu                                          "Stop+Copy")
     (dflt                                              "Gen")
+    (dflt-mmu                                          "Gen")
     (dflt-nurs1meg                                     "Gen nurs=1M")
     (gen-n4m8                                          "Gen nurs=4M")
     (gen-n1m8                                          "Gen nurs=1M")
@@ -169,6 +184,9 @@
     (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0  "Rgn 221 S=8 Inf")
     (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0  "Rgn 122 S=6 Inf")
     (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0  "Rgn 232 S=4 Inf")
+    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0-mmu  "Rgn 221 S=8 Inf")
+    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0-mmu  "Rgn 122 S=6 Inf")
+    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0-mmu  "Rgn 232 S=4 Inf")
     (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0  "Rgn 221 S=8")
     (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0  "Rgn 122 S=6")
     (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0  "Rgn 232 S=4")))
@@ -230,6 +248,45 @@
     paraffins parsing perm9 peval pi pnpoly primes puzzle quicksort ray 
     sboyer scheme simplex slatex #|smlboyer|# string sum sum1 sumfp sumloop 
     tail tak takl #|tfib|# trav1 trav2 triangl wc))
+
+(define mmu-rt-keys 
+  '(scpy-mmu 
+    dflt-mmu 
+    rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0-mmu
+    rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0-mmu
+    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0-mmu))
+
+;; XXX this should suffice, but there are missing benchmarks in the current collection of data...
+(define mmu-bmark-keys.v0
+  (append bmark-keys-set1
+          bmark-keys-set2
+          bmark-keys-set3
+          bmark-keys-set4))
+
+(define mmu-bmark-keys.v0
+  (append bmark-keys-set1
+          bmark-keys-set2
+          bmark-keys-set3
+          bmark-keys-set4))
+(define mmu-bmark-keys
+  '(bm-20earley:10
+    bm-20earley:13
+    bm-gcbench:5:20
+    bm-5nboyer:5
+    bm-5nboyer:6
+    bm-5sboyer:6
+    bm-200perm9:10:1
+    bm-400perm9:20:1
+    bm-5twobit:long
+    ;; bm-gcold:100:0:1:0:800
+    ;; bm-gcold:100:0:1:1000:800
+    bm-queue1000:1000000:50
+    bm-pueue1000:1000000:50:50
+    ;; bm-graphs7
+    bm-parsing:nboyer.sch:1000
+    bm-dynamic
+    bm-paraffins))
+
 
 (define all-bmark-keys
   (append bmark-keys-set1
