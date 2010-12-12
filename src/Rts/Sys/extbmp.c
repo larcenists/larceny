@@ -109,8 +109,8 @@
  *
  */
 
-static const int DEFAULT_LEAF_BYTES = 4096;
-static const int DEFAULT_ENTRIES_PER_INODE = 128; /* branching factor */
+static const int DEFAULT_LEAF_BYTES = (8*4096);
+static const int DEFAULT_ENTRIES_PER_INODE = 46; /* branching factor */
 
 /* default leaves large; allocate individually */
 static const int DEFAULT_LEAF_POOL_SIZE  = 1;  /*  1 element  = 4KB */
