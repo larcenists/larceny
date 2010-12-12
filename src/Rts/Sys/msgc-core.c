@@ -658,7 +658,7 @@ msgc_mark_objects_from_roots_and_remsets( msgc_context_t *context,
     int i;
     for( i = 1; i < context->gc->gno_count; i++ ) {
       pushing_entries_from_remset = i;
-      urs_enumerate_gno( context->gc->the_remset, i, 
+      urs_enumerate_gno( context->gc->the_remset, TRUE, i, 
                          push_remset_entry, context );
     }
   }

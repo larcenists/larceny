@@ -22,20 +22,28 @@ void extbmp_clear_members_in( extbmp_t *ebmp, int gno );
 int  extbmp_count_members_in( extbmp_t *ebmp, int gno );
   /* cardinality(ebmp & addresses(gno)) */
 
-void extbmp_enumerate( extbmp_t *ebmp, 
+void extbmp_enumerate( extbmp_t *ebmp,
+                       bool incl_tag, 
                        bool (*scanner)(word loc, void *data), 
                        void *data );
   /* for each w in ebmp 
    *   invoke scanner( w, data )
    *   if scanner returns FALSE, ebmp := ebmp \ { w }
+   *
+   * If incl_tag TRUE, then w arg to scanner will be tagged; 
+   * o/w tag might be stripped
    */
 
 void extbmp_enumerate_in( extbmp_t *ebmp, 
+                          bool incl_tag, 
                           int gno, 
                           bool (*scanner)(word loc, void *data), 
                           void *data );
   /* for each w in (ebmp & addresses(gno))
    *   invoke scanner( w, data )
    *   if scanner returns FALSE, ebmp := ebmp \ { w }
+   * 
+   * If incl_tag TRUE, then w arg to scanner will be tagged; 
+   * o/w tag might be stripped
    */
 

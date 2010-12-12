@@ -614,7 +614,7 @@ void extbmp_clear_members_in( extbmp_t *ebmp, int gno )
 { /* ebmp := ebmp \ addresses(gno) */
   /* stupid simple but slow impl */
   dbmsg("extbmp_clear_members_in( ebmp, gno=%d )", gno );
-  extbmp_enumerate_in( ebmp, gno, scan_clear_always, NULL );
+  extbmp_enumerate_in( ebmp, FALSE, gno, scan_clear_always, NULL );
 }
 
 static bool scan_accum_count( word loc, void *data )
@@ -629,7 +629,7 @@ int  extbmp_count_members_in( extbmp_t *ebmp, int gno )
   int accum;
   /* stupid simple but slow impl */
   accum = 0;
-  extbmp_enumerate_in( ebmp, gno, scan_accum_count, &accum );
+  extbmp_enumerate_in( ebmp, FALSE, gno, scan_accum_count, &accum );
   return accum;
 }
 
@@ -852,6 +852,7 @@ static void tnode_enumerate_slow_but_certain
 
 /* Returns TRUE implies node post-enumeration is clear[ed] (ie all zero bits). */
 static bool tnode_enumerate( extbmp_t *ebmp,
+                             bool incl_tag, 
                              int gno, 
                              bool ignore_gno, 
                              bool gno_is_static_area, 
@@ -865,8 +866,7 @@ static bool tnode_enumerate( extbmp_t *ebmp,
 {
   if (depth == 0) {
     return
-      tnode_enum_leaf( ebmp, gno, ignore_gno, gno_is_static_area, 
-                       TRUE, 
+      tnode_enum_leaf( ebmp, gno, ignore_gno, gno_is_static_area, incl_tag, 
                        &tree->leaf, 
                        first_addr_for_node, 
                        first_enum_addr, limit_enum_addr, 
@@ -952,7 +952,7 @@ static bool tnode_enumerate( extbmp_t *ebmp,
                       inode->addresses_per_child, gno );
         }
         subtree_is_empty =
-          tnode_enumerate( ebmp, gno, ignore_gno, gno_is_static_area, 
+          tnode_enumerate( ebmp, incl_tag, gno, ignore_gno, gno_is_static_area, 
                            inode->nodes[i], depth-1, 
                            (first_addr_for_node + 
                             i * inode->addresses_per_child),
@@ -979,6 +979,7 @@ static bool tnode_enumerate( extbmp_t *ebmp,
 
 struct apply_scan_hdr_address_range_data {
   extbmp_t *ebmp;
+  bool incl_tag;
   int  gno;
   bool gno_is_for_static_area; 
   bool (*scanner)(word loc, void *data);
@@ -989,6 +990,7 @@ static void apply_scan_hdr_address_range( word *s, word *l, void *d)
   struct apply_scan_hdr_address_range_data *apply_data;
   apply_data = (struct apply_scan_hdr_address_range_data*)d;
   tnode_enumerate( apply_data->ebmp, 
+                   apply_data->incl_tag, 
                    apply_data->gno, FALSE,
                    apply_data->gno_is_for_static_area, 
                    apply_data->ebmp->tree, apply_data->ebmp->depth,
@@ -997,6 +999,7 @@ static void apply_scan_hdr_address_range( word *s, word *l, void *d)
 }
 
 static void tnode_enumerate_in( extbmp_t *ebmp,
+                                bool incl_tag, 
                                 int gno, 
                                 bool gno_is_static_area, 
                                 bool (*scanner)(word loc, void *data), 
@@ -1004,6 +1007,7 @@ static void tnode_enumerate_in( extbmp_t *ebmp,
 {
   struct apply_scan_hdr_address_range_data apply_data;
   apply_data.ebmp    = ebmp;
+  apply_data.incl_tag = incl_tag;
   apply_data.gno     = gno;
   apply_data.gno_is_for_static_area = gno_is_static_area;
   apply_data.scanner = scanner;
@@ -1021,26 +1025,28 @@ static void tnode_enumerate_in_slow(
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {
-  tnode_enumerate( ebmp, gno, FALSE, gno_is_static_area, 
+  tnode_enumerate( ebmp, TRUE, gno, FALSE, gno_is_static_area, 
                    ebmp->tree, ebmp->depth, 
                    0, 0, 0xFFFFFFFF,
                    scanner, data );
 }
 
 static void tnode_enumerate_all( extbmp_t *ebmp,
+                                 bool incl_tag, 
                                  tnode_t *tree, 
                                  int depth, 
                                  word first_addr_for_node, 
                                  bool (*scanner)(word loc, void *data), 
                                  void *data )
 {
-  tnode_enumerate( ebmp, -66, TRUE, FALSE, 
+  tnode_enumerate( ebmp, incl_tag, -66, TRUE, FALSE, 
                    tree, depth, 
                    first_addr_for_node, 0, 0xFFFFFFFF, 
                    scanner, data );
 }
 
 void extbmp_enumerate( extbmp_t *ebmp, 
+                       bool incl_tag, 
                        bool (*scanner)(word loc, void *data), 
                        void *data )
 {
@@ -1050,11 +1056,13 @@ void extbmp_enumerate( extbmp_t *ebmp,
    */
   /* stupid and slow impl */
   tnode_enumerate_all( ebmp,
+                       incl_tag, 
                        ebmp->tree, ebmp->depth, 0, 
                        scanner, data );
 }
 
 void extbmp_enumerate_in( extbmp_t *ebmp, 
+                          bool incl_tag, 
                           int gno, 
                           bool (*scanner)(word loc, void *data), 
                           void *data )
@@ -1067,5 +1075,5 @@ void extbmp_enumerate_in( extbmp_t *ebmp,
    *   invoke scanner( w, data )
    *   if scanner returns FALSE, ebmp := ebmp \ { w }
    */
-  tnode_enumerate_in( ebmp, gno, gno_is_for_static_area, scanner, data );
+  tnode_enumerate_in( ebmp, incl_tag, gno, gno_is_for_static_area, scanner, data );
 }

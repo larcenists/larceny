@@ -91,8 +91,8 @@ static void enumerate_gno( uremset_t *urs,
                            bool (*scanner)(word loc, void *data), 
                            void *data )
 {
-  extbmp_enumerate_in( DATA(urs)->minor_remset, gno, scanner, data );
-  extbmp_enumerate_in( DATA(urs)->remset, gno, scanner, data );
+  extbmp_enumerate_in( DATA(urs)->minor_remset, incl_tag, gno, scanner, data );
+  extbmp_enumerate_in( DATA(urs)->remset, incl_tag, gno, scanner, data );
 }
 
 static void enumerate_minor_complement( uremset_t *urs, 
@@ -109,11 +109,13 @@ static void enumerate_minor_complement( uremset_t *urs,
   /* See general notes on this strange control flow (and state)
    * written in comments with enumerate_complement below. */
   if (urs->collector->static_area != NULL) {
-    extbmp_enumerate_in( DATA(urs)->minor_remset, rs_count-1, scanner, data );
+    extbmp_enumerate_in( DATA(urs)->minor_remset, incl_tag, 
+                         rs_count-1, scanner, data );
   }
   for( i=1; i < rs_count-1; i++) {
     if (! gset_memberp( i, gset )) {
-      extbmp_enumerate_in( DATA(urs)->minor_remset, i, scanner, data );
+      extbmp_enumerate_in( DATA(urs)->minor_remset, 
+                           incl_tag, i, scanner, data );
     }
   }
 }
@@ -146,18 +148,22 @@ static void enumerate_complement( uremset_t *urs,
     int static_area_gno;
 
     static_area_gno = urs->collector->gno_count-1;
-    extbmp_enumerate_in( DATA(urs)->minor_remset, static_area_gno, scanner, data );
+    extbmp_enumerate_in( DATA(urs)->minor_remset, incl_tag, 
+                         static_area_gno, scanner, data );
     /* Same comments as in main loop below apply here. */
     static_area_gno = urs->collector->gno_count-1;
-    extbmp_enumerate_in( DATA(urs)->remset, static_area_gno, scanner, data );
+    extbmp_enumerate_in( DATA(urs)->remset, incl_tag,
+                         static_area_gno, scanner, data );
   }
   for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
-      extbmp_enumerate_in( DATA(urs)->minor_remset, i, scanner, data );
+      extbmp_enumerate_in( DATA(urs)->minor_remset, 
+                           incl_tag, i, scanner, data );
       /* XXX: I may need to filter out members of minor_remset because
        * some components like summ_matrix assume that the enumerate
        * does not duplicate entries... */
-      extbmp_enumerate_in( DATA(urs)->remset, i, scanner, data );
+      extbmp_enumerate_in( DATA(urs)->remset, 
+                           incl_tag, i, scanner, data );
     }
   }
 }
@@ -166,8 +172,8 @@ static void          enumerate( uremset_t *urs,
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {
-  extbmp_enumerate( DATA(urs)->minor_remset, scanner, data );
-  extbmp_enumerate( DATA(urs)->remset, scanner, data );
+  extbmp_enumerate( DATA(urs)->minor_remset, incl_tag, scanner, data );
+  extbmp_enumerate( DATA(urs)->remset, incl_tag, scanner, data );
 }
 static bool      is_remembered( uremset_t *urs, word w )
 {
