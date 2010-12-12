@@ -1081,7 +1081,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
          * 6110, set shall_we_progress to TRUE here. */
 
       } else {
-        consolemsg("summ_matrix.c: had to step summarization "
+        consolemsg("summ_matrix.c: had to summarize "
                    "during major gc pause to meet budget");
         shall_we_progress = TRUE;
       }
@@ -1197,14 +1197,14 @@ EXPORT bool sm_is_rgn_summarized( summ_matrix_t *summ, int gno )
   region_group_t grp; 
   check_rep_1( summ );
   grp = gc_region_group_for_gno( summ->collector, gno );
-  return (grp == region_group_wait_w_sum || grp == region_group_popular);
+  return (grp == region_group_wait_w_sum || sm_is_rgn_summary_over_pop( summ, gno ));
 }
 EXPORT bool sm_will_rgn_be_summarized_next( summ_matrix_t *summ, int gno )
 {
   region_group_t grp;
   check_rep_1( summ );
   grp = gc_region_group_for_gno( summ->collector, gno );
-  return (grp == region_group_summzing || grp == region_group_popular);
+  return (grp == region_group_summzing || sm_is_rgn_summary_over_pop( summ, gno ));
 }
 EXPORT bool sm_is_rgn_summarized_next( summ_matrix_t *summ, int gno ) 
 {
@@ -1214,7 +1214,7 @@ EXPORT bool sm_is_rgn_summarized_next( summ_matrix_t *summ, int gno )
   grp = gc_region_group_for_gno( summ->collector, gno );
   check_rep_1( summ );
   rtn = DATA(summ)->summarizing.complete &&
-    (grp == region_group_summzing || grp == region_group_popular);
+    (grp == region_group_summzing || sm_is_rgn_summary_over_pop( summ, gno ));
   return rtn;
 }
 EXPORT bool sm_is_rgn_summary_avail_next( summ_matrix_t *summ, int gno )
@@ -1233,7 +1233,9 @@ EXPORT bool sm_is_rgn_summary_over_pop( summ_matrix_t *summ, int gno )
   region_group_t grp;
   check_rep_1( summ );
   grp = gc_region_group_for_gno( summ->collector, gno );
-  return (grp == region_group_popular);
+  return (grp == region_group_risingstar 
+          || grp == region_group_infamous 
+          || grp == region_group_hasbeen);
 }
 
 EXPORT bool sm_has_valid_summaries( summ_matrix_t *summ )
@@ -1639,7 +1641,7 @@ static void oflo_check_word( summ_matrix_t *summ,
       grp = heap->group; 
       assert( grp == region_group_summzing || grp == region_group_wait_w_sum );
       /* Q: do we want to allow waiting to shift to popular? */
-      region_group_enq( heap, grp, region_group_popular );
+      region_group_enq( heap, grp, region_group_risingstar );
     }
     clear_col_cells( summ, tgno );
     clear_col_mutator_rs( summ, tgno );
@@ -2162,22 +2164,25 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
   while (coverage > 0) {
     old_heap_t *oh = region_group_first_heap( region_group_filled );
     if (oh == NULL) {
-      oh = region_group_first_heap( region_group_popular );
+      oh = region_group_first_heap( region_group_risingstar );
       if (oh == NULL) {
-        annoyingmsg("summ_matrix.c: ran out of regions to summarize:"
+        char *(*n)( region_group_t grp );
+        int   (*c)( region_group_t grp );
+        n = &region_group_name;
+        c = &region_group_count;
+        consolemsg( "summ_matrix.c: ran out of regions to summarize:"
                     " coverage: %3d "
-                    " nonrrof: %3d unfilled: %3d wait: %3d"
-                    " summ: %3d filled: %3d pop: %3d",
+                    " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
                     coverage, 
-                    region_group_count( region_group_nonrrof ),
-                    region_group_count( region_group_unfilled ),
-                    region_group_count( region_group_wait_w_sum ) + 
-                    region_group_count( region_group_wait_nosum ),
-                    region_group_count( region_group_summzing ),
-                    region_group_count( region_group_filled ),
-                    region_group_count( region_group_popular ) );
-
-        /* XXX should above be consolemsg rather than annoyingmsg ??? */
+                    n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                    n( region_group_unfilled   ), c( region_group_unfilled ),
+                    n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                    n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                    n( region_group_summzing   ), c( region_group_summzing ),
+                    n( region_group_filled     ), c( region_group_filled ), 
+                    n( region_group_risingstar ), c( region_group_risingstar ),
+                    n( region_group_infamous   ), c( region_group_infamous ),
+                    n( region_group_hasbeen    ), c( region_group_hasbeen ) );
 
         break; /* nothing left to summarize! */
       }
@@ -3078,27 +3083,27 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
   } else if ( sm_is_rgn_summarized_next( summ, gno )) {
     advance_to_next_summary_set( summ, gno, region_count, about_to_major, dA );
   } else {
-    char *(*f)(region_group_t grp);
-    int (*g)(region_group_t grp);
-    f = region_group_name;
-    g = region_group_count;
-    consolemsg("region_group_counts");
-    consolemsg("%s:%d %s:%d %s:%d %s:%d %s:%d %s:%d %s:%d",
-               f( region_group_nonrrof ),    g( region_group_nonrrof ),
-               f( region_group_unfilled ),   g( region_group_unfilled ),
-               f( region_group_wait_w_sum ), g( region_group_wait_w_sum ),
-               f( region_group_wait_nosum ), g( region_group_wait_nosum ),
-               f( region_group_summzing ),   g( region_group_summzing ),
-               f( region_group_filled ),     g( region_group_filled ),
-               f( region_group_popular ),    g( region_group_popular ));
-
+    char *(*n)( region_group_t grp );
+    int   (*c)( region_group_t grp );
+    n = &region_group_name;
+    c = &region_group_count;
     consolemsg("failure sm_ensure_available"
                "( summ, gno=%d, region_count=%d, about_to_major=%s, dA=%d )"
                " region_group_of(gno):%s"
+               " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d"
                , 
                gno, region_count, (about_to_major?"TRUE":"FALSE"), dA,
                region_group_name
-               ( region_group_of( gc_heap_for_gno( summ->collector, gno ))) );
+               ( region_group_of( gc_heap_for_gno( summ->collector, gno ))),
+               n( region_group_nonrrof    ), c( region_group_nonrrof ),
+               n( region_group_unfilled   ), c( region_group_unfilled ),
+               n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+               n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+               n( region_group_summzing   ), c( region_group_summzing ),
+               n( region_group_filled     ), c( region_group_filled ), 
+               n( region_group_risingstar ), c( region_group_risingstar ),
+               n( region_group_infamous   ), c( region_group_infamous ),
+               n( region_group_hasbeen    ), c( region_group_hasbeen ) );
 
     assert( FALSE );
   }

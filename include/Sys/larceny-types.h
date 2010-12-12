@@ -65,7 +65,9 @@ typedef enum {
   region_group_wait_w_sum, /* ibid, with a constructed summary */
   region_group_summzing,   /* enqueued to be from-space candidates */
   region_group_filled,     /* processed to-spaces */
-  region_group_popular,    /* skipped from-spaces */
+  region_group_risingstar, /* skipped from-spaces, remember incoming refs */
+  region_group_infamous,   /* ", remset discards incoming refs */
+  region_group_hasbeen,    /* ", remset under reconstruction */
   region_group_limit_elem
 } region_group_t;
 

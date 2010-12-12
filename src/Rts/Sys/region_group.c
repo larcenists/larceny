@@ -35,7 +35,14 @@ char *region_group_name( region_group_t grp )
   case region_group_wait_nosum: return "W";
   case region_group_summzing:   return "s";
   case region_group_filled:     return "f";
+
+#if 0
   case region_group_popular:    return "p";
+#endif
+  case region_group_risingstar: return "p";
+  case region_group_infamous:   return "q";
+  case region_group_hasbeen:    return "r";
+
   default: assert(0); return NULL;
   }
 }
