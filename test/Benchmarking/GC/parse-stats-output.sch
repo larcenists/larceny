@@ -343,7 +343,7 @@
     (cond ((vector?   x) (vector-ref x 1))
           ((list?     x) (list-ref x 1))))
   (define (extracted-second path)
-    (second (extract-path s path)))
+    (first-number (second (extract-path s path))))
   (map extracted-second (map cadr headers/paths)))
 
 (define (print-header-line)
