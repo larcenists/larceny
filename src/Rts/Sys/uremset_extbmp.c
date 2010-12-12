@@ -64,6 +64,15 @@ static bool       add_elem_new( uremset_t *urs, word w )
   extbmp_add_elem( DATA(urs)->remset, strip_tag(w) );
   return FALSE; /* extbmp does not tell us whether it overflowed. */
 }
+static bool       add_elem( uremset_t *urs, word w )
+{
+  bool present;
+  present =
+    extbmp_add_elem( DATA(urs)->remset, strip_tag(w) );
+  if (! present)
+    DATA(urs)->live_count[gen_of(w)] += 1;
+  return FALSE; /* extbmp does not tell us whether it overflowed. */
+}
 static bool          add_elems( uremset_t *urs, word *bot, word *top )
 {
   word *p, *q, w;
@@ -249,7 +258,7 @@ uremset_t *alloc_uremset_extbmp( gc_t *gc, gc_param_t *info )
                            clear,
                            0 /*assimilate_and_clear*/, 
                            add_elem_new,
-                           0 /* add_elem */,
+                           add_elem, 
                            add_elems, 
                            enumerate_gno,
                            0 /*enumerate_allbutgno*/, 
