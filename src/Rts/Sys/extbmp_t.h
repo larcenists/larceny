@@ -13,6 +13,10 @@ bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w );
   /* ebmp := ebmp U { untagged_w }.
    * Returns TRUE iff untagged_w was already in ebmp. */
 
+void extbmp_del_elem( extbmp_t *ebmp, word untagged_w );
+  /* ebmp := ebmp \ { untagged_w }. 
+   * Does not require untagged_w was originally in ebmp. */
+
 bool extbmp_is_member( extbmp_t *ebmp, word untagged_w );
   /* untagged_w in ebmp ? */
 
