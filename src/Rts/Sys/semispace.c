@@ -607,7 +607,7 @@ static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk )
   assert( ss->n > empty && ss->chunks[empty].bytes == 0);
   assert( chunk == 0 ||
           *chunk == -1 || 
-          *chunk > ss->current && ss->chunks[*chunk].bytes >= bytes );
+          (*chunk > ss->current && ss->chunks[*chunk].bytes >= bytes) );
 
   return empty;
 }

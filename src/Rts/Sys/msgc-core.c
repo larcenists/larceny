@@ -441,11 +441,12 @@ static void mark_from_stack( msgc_context_t *context )
   while (! context->signal_stop) {
     /* Pop */
     if (context->stack.stkp == context->stack.stkbot)  /* Stack underflow */
-      if (!pop_segment( &context->stack )) 
+      if (!pop_segment( &context->stack )) {
         if (fill_from_los_stack( context ))
           continue;
         else
           break;
+      }
     w = *--context->stack.stkp;
     traced++;
 
