@@ -15,10 +15,12 @@
 '(define cp-stats-data
    (apply gather-statsfiles (unzip filename+keys-feb24-11)))
 
-'(map (lambda (bmarks) (plot-time-and-mem-stats-data/stacked-bars
+'(map (lambda (bmarks) (plot-pause-and-time-and-mem-stats-data/stacked-bars
                         cp-stats-data cp-rt-keys bmarks
-                        (lambda (key) 
-                          (rt-or-bmark-key->name cp-stats-data key))))
+                        (lambda (key) (rt-or-bmark-key->name cp-stats-data key)) 
+                        '*       ;; max time
+                        16000000 ;; max words.  Range good for all but parsing and perm9
+                        50))     ;; max pause; '* denotes "infer" for max range.
       (split bmark-keys-set5 5))
 
 '(map (lambda (bmarks) (plot-pause-stats-data/stacked-bars
@@ -268,15 +270,18 @@
 (define (extract-max-pause dataset rt-key bmark-key)
   (first-number (extract-path dataset (list rt-key bmark-key 'gc-max-pause: 'elapsed))))
 
+(define (build-pause-stats-data-args dataset rt-keys bmark-keys key->name)
+  (map (lambda (bmark)
+         (cons (key->name bmark) 
+               (map (lambda (rt) (list (key->name rt) 
+                                       (extract-max-pause dataset rt bmark)))
+                    rt-keys))) bmark-keys))
+
 (define (plot-pause-stats-data/stacked-bars dataset rt-keys bmark-keys key->name max-range)
   (let* ((l (apply 
              plot-stacked-bars.build-gnuplot-args
              '("max pause")
-             (map (lambda (bmark)
-                    (cons (key->name bmark) 
-                          (map (lambda (rt) (list (key->name rt) 
-                                                  (extract-max-pause dataset rt bmark)))
-                               rt-keys))) bmark-keys)))
+             (build-pause-stats-data-args dataset rt-keys bmark-keys key->name)))
          (dat-file->script (list-ref l 0))
          (data-values      (list-ref l 1)))
     (gnuplot 
@@ -285,10 +290,16 @@
          ,@(dat-file->script f)))
      data-values)))
 
-(define (plot-time-and-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
+(define (plot-pause-and-time-and-mem-stats-data/stacked-bars dataset
+                                                             rt-keys
+                                                             bmark-keys
+                                                             key->name
+                                                             max-time-range
+                                                             max-mem-range
+                                                             max-pause-range)
   (let* ((keys->lines plot-xxx-stats-data/stacked-bars.bmark-keys->lines)
          (replace-first-with-empty (lambda (x) (cons "" (cdr x))))
-         (drop-names (lambda (x) (cons ""(map replace-first-with-empty (cdr x)))))
+         (drop-names (lambda (x) (cons "" (map replace-first-with-empty (cdr x)))))
          (convert-and-build
           (lambda (maybe-drop-names)
             (lambda (extract-xxx-stats xxx-box-names)
@@ -298,30 +309,50 @@
                           (keys->lines extract-xxx-stats dataset
                                        rt-keys bmark-keys 
                                        key->name xxx-box-names))))))
+         (pause-plot-args (apply plot-stacked-bars.build-gnuplot-args
+                                 '("max pause")
+                                 (map drop-names (build-pause-stats-data-args dataset 
+                                                                              rt-keys
+                                                                              bmark-keys
+                                                                              key->name))))
          (time-plot-args ((convert-and-build values) 
                           extract-time-stats *time-box-names*))
          (mem-plot-args  ((convert-and-build drop-names) 
                           extract-mem-stats  *mem-box-names*))
+         (make-pause (list-ref pause-plot-args 0))
+         (pause-vals (list-ref pause-plot-args 1))
          (make-time (list-ref time-plot-args 0))
          (time-vals (list-ref time-plot-args 1))
          (make-mem  (list-ref mem-plot-args 0))
          (mem-vals  (list-ref mem-plot-args 1)))
     (gnuplot/keep-files
-     (lambda (file-1 file-2) (let ((split 0.4))
-                               `((set multiplot)
-                                 (set key outside)
-                                 (set lmargin 8)
-                                 (set rmargin 15)
-                                 (set size   #(1.0 ,split))
-                                 (set origin #(0.0 ,(- 1.0 split)))
-                                 (set title "Peak memory usage (in words)")
-                                 ,@(make-mem  file-1)
-                                 (set size #(1.0 ,(- 1.0 split)))
-                                 (set origin #(0.0 0.0))
-                                 (set title "Elapsed time (in milliseconds)")
-                                 ,@(make-time file-2)
-                                 (unset multiplot))))
-     mem-vals time-vals)))
+     (lambda (file-1 file-2 file-3) 
+       (let ((split-1 0.18)
+             (split-2 0.50)) `((set multiplot)
+                              (set key outside)
+                              (set lmargin 8)
+                              (set rmargin 15)
+                              (set size   #(1.0 ,split-1))
+                              (set origin #(0.0 ,(- 1.0 split-1)))
+                              (set yrange \[ 0 : ,max-pause-range \] )
+                              (set tmargin 1)
+                              (set title "Max pause (in milliseconds)" offset #(0 -1))
+
+                              ,@(make-pause file-1)
+                              (set yrange \[ 0 : ,max-mem-range \] )
+                              (set size   #(1.0 ,(- split-2 split-1)))
+                              (set origin #(0.0 ,(- 1.0 split-2)))
+                              (set tmargin 1)
+                              (set title "Peak memory usage (in words)" offset #(0 -1))
+                              ,@(make-mem  file-2)
+                              (set yrange \[ 0 : ,max-time-range \] )
+                              (set size #(1.0 ,(- 1.0 split-2)))
+                              (set origin #(0.0 0.0))
+                              (set tmargin 1)
+                              (set title "Elapsed time (in milliseconds)" offset #(0 -1))
+                              ,@(make-time file-3)
+                              (unset multiplot))))
+     pause-vals mem-vals time-vals)))
 
 (define filename+keys-feb17-00
   '(("logs.Argus/bench-thesis10-log.2010Feb17-at-00-26-48.log" dflt)
