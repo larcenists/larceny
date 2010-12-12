@@ -3237,7 +3237,37 @@ static bool coheres_with_snapshot( summ_matrix_t *summ,
   already_filtered_during_construction = 
     (! col->construction_predates_snapshot);
   return (already_filtered_during_construction ||
-          smircy_object_marked_p( summ->collector->smircy, w ));
+          (isptr(w) &&
+           ((gen_of(w) == 0) ||
+            smircy_object_marked_p( summ->collector->smircy, w ))));
+}
+
+static bool loc_alive_in_snapshot( summ_matrix_t *summ,
+                                   summ_col_t *col,
+                                   loc_t l )
+{
+  word *slot, val;
+  bool alive_in_snapshot;
+
+  slot = loc_to_slot( l );
+
+  /* A vital assertion!  I have been working under the assumption that
+   *       if l.obj is live in the snapshot 
+   *     then *loc_to_slot(l) is live in the snapshot
+   * (and thus inspecting *loc_to_slot(l) suffices in determining if
+   *  the location l should be removed during late refinement)
+   *
+   * but, that claim is not as trivial as I had once thought.
+   */
+  assert2( ! isptr(*slot) ||
+           ! (coheres_with_snapshot( summ, col, l.obj )
+              &&
+              ! coheres_with_snapshot( summ, col, *slot )));
+
+  val = *slot; 
+  alive_in_snapshot = isptr(val) && coheres_with_snapshot( summ, col, val );
+
+  return alive_in_snapshot;
 }
 
 static bool filter_mutated_elems( summary_t *s, word w )
@@ -3248,27 +3278,21 @@ static bool filter_mutated_elems( summary_t *s, word w )
   locset_t      *mut_rs = col->sum_mutator;
   assert(0);
 }
+
 static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
 {
   summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
   locset_t      *nur_rs = DATA(summ)->nursery_locset;
   locset_t      *mut_rs = col->sum_mutator;
-  word          *slot;
+  word          *slot, val;
 
   bool alive_in_snapshot;
 
   slot = loc_to_slot( l );
+  alive_in_snapshot = loc_alive_in_snapshot( summ, col, l );
 
-  alive_in_snapshot = coheres_with_snapshot( summ, col, *slot );
-
-#if 0
-  if (! alive_in_snapshot && col->construction_predates_snapshot) {
-    consolemsg("snapshot kills: 0x%08x", *slot);
-  }
-#endif
-
-  return (! ls_ismember( mut_rs, loc_to_slot(l) )) && alive_in_snapshot;
+  return (! ls_ismember( mut_rs, slot )) && alive_in_snapshot;
 }
 
 static bool filter_gen( summary_t *s, word w )
@@ -3345,17 +3369,22 @@ static bool lsscan_filter_entries( word *loc, void *my_data )
   data = (struct rs_scan_filter_entries*)my_data;
   ret = ((gen_of(loc) != data->next_gen) 
           && ! ls_ismember( data->sum_mut, loc ));
-  dbmsg( "rsscan_filter_entries(loc=0x%08x (%d),data{next_gen=%d},stats)"
-              " => %s",
-              loc, gen_of(loc), data->next_gen, ret?"TRUE":"FALSE" );
   return ret;
 }
 
-static bool mut_filter_snapshot( word *loc, void *my_data )
+struct mut_filter_snapshot_data {
+  summ_matrix_t *summ;
+  summ_col_t *col;
+};
+static bool mut_filter_snapshot( loc_t l, void *my_data )
 {
-  smircy_context_t *smircy = (smircy_context_t*)my_data;
-  word val = *loc;
-  return (! isptr(val)) || smircy_object_marked_p( smircy, val );
+  struct mut_filter_snapshot_data *data
+    = (struct mut_filter_snapshot_data*)my_data;
+  summ_matrix_t *summ = data->summ;
+  summ_col_t *col = data->col;
+  word *slot, val;
+
+  return loc_alive_in_snapshot( summ, col, l );
 }
 
 /* 
@@ -3416,11 +3445,14 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
 
     {
       if (col->construction_predates_snapshot) {
+        struct mut_filter_snapshot_data data;
+        data.summ = summ;
+        data.col = col;
         assert( summ->collector->smircy != NULL );
         assert( smircy_in_refinement_stage_p( summ->collector->smircy ));
 
-        ls_enumerate( col->sum_mutator, 
-                      mut_filter_snapshot, summ->collector->smircy );
+        ls_enumerate_locs( col->sum_mutator, 
+                           mut_filter_snapshot, &data );
       }
 
       ls_init_summary( col->sum_mutator, -1,
