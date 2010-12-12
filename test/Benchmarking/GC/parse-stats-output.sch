@@ -20,10 +20,66 @@
 '(define stats-data
    (apply gather-statsfiles (unzip filename+keys-feb17-10)))
 
+;; A StackableStats is a Listof[(list String Maybe[Number])]
+
+;; Sexp Symbol Symbol -> StackableStats
+(define (extract-mem-stats dataset rt-key bmark-key)
+  (let* ((extract-mem (lambda (final-key) 
+                        (first-number
+                         (extract-path dataset 
+                                       `(,rt-key ,bmark-key 
+                                         gclib_memstat_t ,final-key)))))
+         (max-mem     (extract-mem 'mem_allocated_max))
+         (peak-heap   (extract-mem 'heap_allocated_peak))
+         (peak-remset (extract-mem 'remset_allocated_peak))
+         (peak-sumz   (extract-mem 'summ_allocated_peak))
+         (peak-smircy (extract-mem 'smircy_allocated_peak))
+         (peak-rts    (extract-mem 'rts_allocated_peak)))
+    `(("rts"    ,peak-rts)
+      ("heap"   ,peak-heap)
+      ("remset" ,peak-remset)
+      ("summ"   ,peak-sumz)
+      ("marker" ,peak-smircy)
+      ("maxmem" ,max-mem)
+      )))
+
+;; bar-stackify-stats : StackableStats Listof[String] -> Listof[Number]
+(define (bar-stackify-stats ss box-names)
+  (let loop ((accum 0)
+             (l '())
+             (box-names box-names))
+    (if (null? box-names)
+        (reverse l)
+        (let ((accum* (+ accum (cadr (assoc (car box-names) ss)))))
+          (loop accum* (cons accum* l) (cdr box-names))))))
+
+'(bar-stackify-stats 
+  (extract-mem-stats stats-data 
+                     'rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0 'twobit)
+  '("rts" "heap" "remset" "summ" "marker"))
+
+'(plot-mem-stats-data/stacked-bars 
+  stats-data
+  '(scpy dflt rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0) ; rt-keys
+  '(twobit sboyer paraffins)                                    ; bmark-keys
+  symbol->string)                                               ; key->name
+
 ;; A RtcfgKey is a Symbol (e.g. for a GC configuration key)
 ;; A BmarkKey is a Symbol (e.g. for a benchmark name
-(define (plot-stats-data/stacked-bars dataset rt-keys bmark-keys rt+bmark->dataline)
-  ...)
+;; A LoR is a Listof[RtcfgKey]
+;; A LoB is a Listof[BmarkKey]
+;; plot-mem-stats-data/stacked-bars : Sexp LoR LoB (Symbol -> String) -> unspec
+(define (plot-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
+  (let ((mem-box-names '("rts" "heap" "remset" "summ" "marker")))
+    (define (bmark-key->line bmark-key)
+      (cons (key->name bmark-key)
+            (map (lambda (rt-key)
+                   (cons (key->name rt-key)
+                         (bar-stackify-stats (extract-mem-stats dataset rt-key bmark-key)
+                                             mem-box-names)))
+                 rt-keys)))
+
+    (apply plot-stacked-bars mem-box-names (map bmark-key->line bmark-keys))))
 
 (define filename+keys-feb17-00
   '(("logs.Argus/bench-thesis10-log.2010Feb17-at-00-26-48.log" dflt)
