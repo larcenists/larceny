@@ -458,6 +458,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_VERIFY_REMSETS 1
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
+#define USE_ORACLE_TO_VERIFY_FWDFREE 1
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
 #define SYNC_REFINEMENT_RROF_CYCLE 1
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
@@ -503,6 +504,9 @@ static int next_rgn( int rgn, int num_rgns ) {
 
 #define SMIRCY_VERIFICATION_POINT( gc )         \
   GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_SMIRCY, verify_smircy_via_oracle )
+
+#define FWDFREE_VERIFICATION_POINT( gc )         \
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_FWDFREE, verify_fwdfree_via_oracle )
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
@@ -3259,6 +3263,13 @@ region_group_t region_group_for_gno(gc_t *gc, int gen_no ) {
   }
 }
 
+static void check_invariants_between_fwd_and_free( gc_t *gc, int gen_no )
+{
+  verify_fwdfree_via_oracle_gen_no = gen_no;
+  FWDFREE_VERIFICATION_POINT( gc );
+  return;
+}
+
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
@@ -3414,7 +3425,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 my_check_remset_invs,
 		 points_across_callback,
 		 heap_for_gno, 
-		 region_group_for_gno
+		 region_group_for_gno,
+		 check_invariants_between_fwd_and_free
 		 );
   ret->scan_update_remset = info->is_regional_system;
 

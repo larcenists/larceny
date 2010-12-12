@@ -236,6 +236,8 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
                                  to );
     gc_phase_shift( heap->collector, gc_log_phase_majorgc, gc_log_phase_misc_memmgr );
 
+    gc_check_invariants_between_fwd_and_free( heap->collector, rgn_idx );
+
     /* can two below be re-ordered? */
     ss_free( from );
     ss_sync( to );

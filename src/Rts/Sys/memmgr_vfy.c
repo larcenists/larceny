@@ -171,3 +171,112 @@ void verify_smircy_via_oracle( gc_t *gc )
     smircy_assert_conservative_approximation( (gc)->smircy );   \
   }
 }
+
+struct stop_on_obj_data {
+  word obj;
+  word src;
+};
+
+static bool stop_on_obj( word obj, word src, void *my_data )
+{
+  struct stop_on_obj_data *data;
+
+  data = (struct stop_on_obj_data*)my_data;
+  if ( obj == data->obj ) {
+    data->src = src;
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
+static bool 
+print_path_to( gc_t *gc, word obj, bool via_roots_alone ) 
+{
+  msgc_context_t *context; 
+  word tgt;
+  bool new_tgt;
+  int ign;
+  bool found_tgt;
+  struct stop_on_obj_data data;
+
+  found_tgt = FALSE;
+  new_tgt = TRUE;
+  data.obj = obj;
+  data.src = 0x0;
+
+  while (new_tgt) {
+    assert( isptr( data.obj ));
+    new_tgt = FALSE;
+    context = msgc_begin( gc );
+    msgc_set_stop_when( context, stop_on_obj, &data );
+    if (via_roots_alone) {
+      msgc_mark_objects_from_roots( context, &ign, &ign, &ign );
+    } else {
+      msgc_mark_objects_from_roots_and_remsets( context, &ign, &ign, &ign );
+    }
+    if (data.src != 0x0) {
+      found_tgt = TRUE;
+      if (isptr(data.src)) {
+        consolemsg( "obj: 0x%08x (%d) <-- src: 0x%08x (%d)", 
+                    data.obj, gen_of(data.obj), data.src, gen_of(data.src) );
+      } else {
+        consolemsg( "obj: 0x%08x (%d) <-- src: 0x%08x     ", 
+                    data.obj, gen_of(data.obj), data.src );
+      }
+      if (isptr(data.src)) {
+        new_tgt = TRUE;
+        data.obj = data.src;
+        data.src = 0x0;
+      }
+    }
+    msgc_end( context );
+  }
+
+  return found_tgt;
+}
+
+static void check_valid_object( gc_t *gc, word obj, int bad_gno )
+{
+  bool found_it;
+  if ( gen_of(obj) == bad_gno ) {
+    consolemsg("invalid object reached: 0x%08x (%d)", obj, gen_of(obj));
+    found_it = print_path_to( gc, obj, TRUE );
+    if (! found_it) {
+      consolemsg("not reachable from roots: 0x%08x (%d)", obj, gen_of(obj));
+      found_it = print_path_to( gc, obj, FALSE );
+    }
+  }
+  assert( gen_of(obj) != bad_gno );
+}
+
+int verify_fwdfree_via_oracle_gen_no; 
+static void* verify_fwdfree_msgc_fcn( word obj, word src, int offset, void *data ) 
+{
+  gc_t *gc = (gc_t*)data;
+
+  if (isptr(src)) {
+    check_valid_object( gc, src, 0 );
+    check_valid_object( gc, src, verify_fwdfree_via_oracle_gen_no );
+  }
+  if (isptr(obj)) {
+    check_valid_object( gc, obj, 0 );
+    check_valid_object( gc, obj, verify_fwdfree_via_oracle_gen_no );
+  }
+  return data;
+}
+
+void verify_fwdfree_via_oracle( gc_t * gc ) 
+{
+  msgc_context_t *context;
+
+  context = msgc_begin( gc );
+  msvfy_set_object_visitor( context, verify_fwdfree_msgc_fcn, gc );
+  msvfy_mark_objects_from_roots( context );
+  msgc_end( context );
+
+  context = msgc_begin( gc );
+  msvfy_set_object_visitor( context, verify_fwdfree_msgc_fcn, gc );
+  msvfy_mark_objects_from_roots_and_remsets( context );
+  msgc_end( context );
+}

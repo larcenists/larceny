@@ -252,6 +252,8 @@ struct gc {
   void (*points_across)( gc_t *gc, word lhs, int offset, word rhs );
   old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no );
   region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no );
+
+  void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no );
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -300,6 +302,9 @@ struct gc {
 #define gc_points_across( gc,l,o,r )    ((gc)->points_across( (gc), (l), (o), (r) ))
 #define gc_heap_for_gno( gc,gno )       ((gc)->heap_for_gno( (gc), (gno) ))
 #define gc_region_group_for_gno( gc,gno ) ((gc)->region_group_for_gno( (gc), (gno) ))
+
+#define gc_check_invariants_between_fwd_and_free( gc, from_gno )        \
+  ((gc)->check_invariants_between_fwd_and_free( (gc), (from_gno) ))
 
 gc_t 
 *create_gc_t(char *id,
@@ -353,7 +358,8 @@ gc_t
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
 	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
 	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
-	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
+	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no ),
+	     void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );
