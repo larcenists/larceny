@@ -294,6 +294,9 @@ int panic_exit( const char *fmt, ... )
   return 0;
 }
 
+#ifdef __GNUC__
+extern int panic_abort( const char *fmt, ... ) __attribute__ ((__noreturn__));
+#endif
 int panic_abort( const char *fmt, ... )
 {
   static int in_panic = 0;
@@ -309,7 +312,9 @@ int panic_abort( const char *fmt, ... )
   in_panic = 1;
   abort();
   /* Never returns. Return type is 'int' to facilitate an idiom. */
+#ifndef __GNUC__
   return 0;
+#endif
 }
 
 void annoyingmsg( const char *fmt, ... )
