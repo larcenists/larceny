@@ -107,11 +107,17 @@ struct gclib_memstat {
   word max_entries_remset_scan;
   DWORD( total_entries_remset_scan );
 
-  word max_mark_pause;
-  word max_mark_pause_cpu;
-  word total_mark_pause;
-  word total_mark_pause_cpu;
-  word mark_pause_count;
+  word max_smircy_mark_pause;
+  word max_smircy_mark_pause_cpu;
+  word total_smircy_mark_pause;
+  word total_smircy_mark_pause_cpu;
+  word smircy_mark_pause_count;
+
+  word max_smircy_refine_pause;
+  word max_smircy_refine_pause_cpu;
+  word total_smircy_refine_pause;
+  word total_smircy_refine_pause_cpu;
+  word smircy_refine_pause_count;
 
   word max_ms_minor;
   word max_ms_minor_cpu;
@@ -624,18 +630,31 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
     s->total_build_remset_summary     += fixnum( ms );
     s->total_build_remset_summary_cpu += fixnum( ms_cpu );
   }
-  if (stats->last_ms_mark_refinement < 0) {
+  if (stats->last_ms_smircy_mark < 0) {
   } else {
-    word ms     = fixnum( stats->last_ms_mark_refinement );
-    word ms_cpu = fixnum( stats->last_ms_mark_refinement_cpu );
+    word ms     = fixnum( stats->last_ms_smircy_mark );
+    word ms_cpu = fixnum( stats->last_ms_smircy_mark_cpu );
 
-    s->max_mark_pause        = max( ms, s->max_mark_pause );
-    s->max_mark_pause_cpu    = max( ms_cpu, s->max_mark_pause_cpu );
-    MAX_WORD( stats, s, max_mark_pause );
-    MAX_WORD( stats, s, max_mark_pause_cpu );
-    s->mark_pause_count     += fixnum(1);
-    s->total_mark_pause     += ms;
-    s->total_mark_pause_cpu += ms_cpu;
+    s->max_smircy_mark_pause        = max( ms, s->max_smircy_mark_pause );
+    s->max_smircy_mark_pause_cpu    = max( ms_cpu, s->max_smircy_mark_pause_cpu );
+    MAX_WORD( stats, s, max_smircy_mark_pause );
+    MAX_WORD( stats, s, max_smircy_mark_pause_cpu );
+    s->smircy_mark_pause_count     += fixnum(1);
+    s->total_smircy_mark_pause     += ms;
+    s->total_smircy_mark_pause_cpu += ms_cpu;
+  }
+  if (stats->last_ms_smircy_refine < 0) {
+  } else {
+    word ms     = fixnum( stats->last_ms_smircy_refine );
+    word ms_cpu = fixnum( stats->last_ms_smircy_refine_cpu );
+
+    s->max_smircy_refine_pause        = max( ms, s->max_smircy_refine_pause );
+    s->max_smircy_refine_pause_cpu    = max( ms_cpu, s->max_smircy_refine_pause_cpu );
+    MAX_WORD( stats, s, max_smircy_refine_pause );
+    MAX_WORD( stats, s, max_smircy_refine_pause_cpu );
+    s->smircy_refine_pause_count     += fixnum(1);
+    s->total_smircy_refine_pause     += ms;
+    s->total_smircy_refine_pause_cpu += ms_cpu;
   }
 
   {
@@ -880,11 +899,17 @@ static void fill_main_entries( word *vp )
   vp[ STAT_TOTAL_REMSET_SCAN_CPU ] = gclib->total_remset_scan_cpu;
   vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
 
-  vp[ STAT_MAX_MARK_PAUSE ]          = gclib->max_mark_pause;
-  vp[ STAT_MAX_MARK_PAUSE_CPU ]      = gclib->max_mark_pause_cpu;
-  vp[ STAT_TOTAL_MARK_PAUSE ]        = gclib->total_mark_pause;
-  vp[ STAT_TOTAL_MARK_PAUSE_CPU ]    = gclib->total_mark_pause_cpu;
-  vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->mark_pause_count;
+  vp[ STAT_MAX_MARK_PAUSE ]          = gclib->max_smircy_mark_pause;
+  vp[ STAT_MAX_MARK_PAUSE_CPU ]      = gclib->max_smircy_mark_pause_cpu;
+  vp[ STAT_TOTAL_MARK_PAUSE ]        = gclib->total_smircy_mark_pause;
+  vp[ STAT_TOTAL_MARK_PAUSE_CPU ]    = gclib->total_smircy_mark_pause_cpu;
+  vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->smircy_mark_pause_count;
+
+  vp[ STAT_MAX_REFINE_REMSET ]          = gclib->max_smircy_refine_pause;
+  vp[ STAT_MAX_REFINE_REMSET_CPU ]      = gclib->max_smircy_refine_pause_cpu;
+  vp[ STAT_TOTAL_REFINE_REMSET ]        = gclib->total_smircy_refine_pause;
+  vp[ STAT_TOTAL_REFINE_REMSET_CPU ]    = gclib->total_smircy_refine_pause_cpu;
+  vp[ STAT_REFINE_REMSET_COUNT ]        = gclib->smircy_refine_pause_count;
 
   vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
   STAT_PUT_DWORD( vp, 

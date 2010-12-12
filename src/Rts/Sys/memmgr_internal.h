@@ -148,8 +148,10 @@ struct gc_data {
 
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;
-  int stat_last_ms_mark_refinement;
-  int stat_last_ms_mark_refinement_cpu;
+  int stat_last_ms_smircy_mark;
+  int stat_last_ms_smircy_mark_cpu;
+  int stat_last_ms_smircy_refine;
+  int stat_last_ms_smircy_refine_cpu;
   int stat_length_minor_gc_run;
 
   bool print_float_stats_each_cycle;

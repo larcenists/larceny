@@ -48,8 +48,10 @@ struct gclib_stats {
   int last_gc_pause_ismajor;      /* 1 for major, 0 for minor */
   int last_ms_remset_sumrize;     /* Time in remset summarizing in last gc. */
   int last_ms_remset_sumrize_cpu;
-  int last_ms_mark_refinement;    /* Time in remset refinement in last gc. */
-  int last_ms_mark_refinement_cpu;
+  int last_ms_smircy_mark;    /* Time building mark bitmap in last gc. */
+  int last_ms_smircy_mark_cpu;
+  int last_ms_smircy_refine;    /* Time in remset refinement in last gc. */
+  int last_ms_smircy_refine_cpu;
   int last_ms_gc_truegc_pause;    /* Total time spent away from the mtuator */
   int last_ms_gc_truegc_pause_cpu;
   int length_minor_gc_run;        /* Num of consecutive minor gc's (so far) */
@@ -61,8 +63,10 @@ struct gclib_stats {
   word max_ms_mutator_paused_cpu;
   word max_build_remset_summary;
   word max_build_remset_summary_cpu;
-  word max_mark_pause;
-  word max_mark_pause_cpu;
+  word max_smircy_mark_pause;
+  word max_smircy_mark_pause_cpu;
+  word max_smircy_refine_pause;
+  word max_smircy_refine_pause_cpu;
 };
 
 struct gc_stats {

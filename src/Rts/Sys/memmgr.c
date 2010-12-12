@@ -766,6 +766,17 @@ static void stop_sumrize_timers( gc_t *gc,
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = ms_cpu;
 }
 
+static void stop_markm_timers( gc_t *gc, 
+				 stats_id_t *timer1, stats_id_t *timer2 )
+{
+  int ms, ms_cpu;
+  ms     = stats_stop_timer( *timer1 );
+  ms_cpu = stats_stop_timer( *timer2 );
+  
+  DATA(gc)->stat_last_ms_smircy_mark     = ms;
+  DATA(gc)->stat_last_ms_smircy_mark_cpu = ms_cpu;
+}
+
 static void stop_refinem_timers( gc_t *gc, 
 				 stats_id_t *timer1, stats_id_t *timer2 )
 {
@@ -773,8 +784,8 @@ static void stop_refinem_timers( gc_t *gc,
   ms     = stats_stop_timer( *timer1 );
   ms_cpu = stats_stop_timer( *timer2 );
   
-  DATA(gc)->stat_last_ms_mark_refinement     = ms;
-  DATA(gc)->stat_last_ms_mark_refinement_cpu = ms_cpu;
+  DATA(gc)->stat_last_ms_smircy_refine     = ms;
+  DATA(gc)->stat_last_ms_smircy_refine_cpu = ms_cpu;
 }
 
 static void handle_secondary_space( gc_t *gc ) 
@@ -875,18 +886,21 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
       DATA(gc)->since_developing_snapshot_began;
   }
 
+  stop_markm_timers( gc, &timer1, &timer2 );
+
   if ((finish_mode == smircy_step_must_refine) 
       || ((finish_mode == smircy_step_can_refine) 
           && smircy_stack_empty_p( gc->smircy ))) {
     if (DATA(gc)->print_float_stats_each_refine)
       print_float_stats( "prefin", gc );
+  start_timers( &timer1, &timer2 );
     refine_metadata_via_marksweep( gc );
+  stop_refinem_timers( gc, &timer1, &timer2 );
     if (DATA(gc)->print_float_stats_each_refine && 
         ! DATA(gc)->print_float_stats_each_major)
       print_float_stats( "pstfin", gc );
   }
 
-  stop_refinem_timers( gc, &timer1, &timer2 );
 
   REMSET_VERIFICATION_POINT(gc);
   NURS_SUMMARY_VERIFICATION_POINT(gc);
@@ -1686,8 +1700,10 @@ static void before_collection( gc_t *gc )
   gc->stat_last_gc_pause_ismajor = -1;
   DATA(gc)->stat_last_ms_remset_sumrize = -1;
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
-  DATA(gc)->stat_last_ms_mark_refinement = -1;
-  DATA(gc)->stat_last_ms_mark_refinement_cpu = -1;
+  DATA(gc)->stat_last_ms_smircy_mark = -1;
+  DATA(gc)->stat_last_ms_smircy_mark_cpu = -1;
+  DATA(gc)->stat_last_ms_smircy_refine = -1;
+  DATA(gc)->stat_last_ms_smircy_refine_cpu = -1;
 
   /* assume it does not roll over until we discover otherwise */
   DATA(gc)->rrof_last_gc_rolled_cycle = FALSE;
@@ -2063,10 +2079,14 @@ static void stats_following_gc( gc_t *gc )
     DATA(gc)->stat_last_ms_remset_sumrize;
   stats_gclib.last_ms_remset_sumrize_cpu = 
     DATA(gc)->stat_last_ms_remset_sumrize_cpu;
-  stats_gclib.last_ms_mark_refinement     = 
-    DATA(gc)->stat_last_ms_mark_refinement;
-  stats_gclib.last_ms_mark_refinement_cpu = 
-    DATA(gc)->stat_last_ms_mark_refinement_cpu;
+  stats_gclib.last_ms_smircy_mark     = 
+    DATA(gc)->stat_last_ms_smircy_mark;
+  stats_gclib.last_ms_smircy_mark_cpu = 
+    DATA(gc)->stat_last_ms_smircy_mark_cpu;
+  stats_gclib.last_ms_smircy_refine     = 
+    DATA(gc)->stat_last_ms_smircy_refine;
+  stats_gclib.last_ms_smircy_refine_cpu = 
+    DATA(gc)->stat_last_ms_smircy_refine_cpu;
   stats_add_gclib_stats( &stats_gclib );
 
   stats_dumpstate();		/* Dumps stats state if dumping is on */
