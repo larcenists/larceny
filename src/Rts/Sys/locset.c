@@ -14,9 +14,9 @@
  * ever followed through on the optimization to scan more than one
  * object at a time, documented in comments at top of remset.c).
  */
+#include "larceny.h"
 #include "locset_t.h"
 
-#include "larceny.h"
 #include "gclib.h"
 
 typedef struct pool pool_t;
@@ -26,7 +26,7 @@ typedef struct locset_data locset_data_t;
 /* consider adding some preprocessor magic to allow easy switching
  * between explicit <obj+offset> storage and direct slot storage... */
 struct ent { 
-  word  *loc;
+  loc_t  loc;
   ent_t *next;
 };
 
@@ -78,6 +78,9 @@ create_locset_with_owner_attrib( int tbl_entries, int pool_entries,
   assert( tbl_entries >= 0 && (tbl_entries == 0 || ilog2( tbl_entries ) != -1));
   assert( pool_entries >= 0 );
 
+  if (pool_entries == 0) pool_entries = DEFAULT_LOCSET_POOLSIZE;
+  if (tbl_entries == 0) tbl_entries = DEFAULT_LOCSET_TBLSIZE;
+
   ls   = (locset_t*)must_malloc( sizeof( locset_t ) );
   data = (locset_data_t*)must_malloc( sizeof( locset_data_t ) );
 
@@ -126,24 +129,77 @@ void ls_clear( locset_t *ls )
   data->numpools = 1;
 }
 
-void ls_add_obj_offset( locset_t *ls, word *w, int offset)
+void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
 {
-  ls_add_wordptr( ls, (word*)((char*)w+offset) );
+  word *w = (word*)((char*)ptrof(objptr)+offset);
+
+  bool overflowed;
+  word mask;
+  ent_t **tbl;
+  ent_t *b;
+  ent_t *pooltop, *poollim;
+  int tblsize;
+  word h;
+  locset_data_t *data = DATA(ls);
+
+  loc_t loc;
+
+  loc.obj = objptr;
+  loc.offset = offset;
+
+  overflowed = FALSE;
+  pooltop = data->curr_pool->top;
+  poollim = data->curr_pool->lim;
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize - 1;
+
+  h = hash_object( (word)w, mask );
+  b = tbl[ h ];
+  while (b != NULL && loc_to_slot(b->loc) != w)
+    b = b->next;
+
+  if (b == NULL) {
+    if (pooltop == poollim) {
+      handle_overflow( ls, pooltop );
+      pooltop = data->curr_pool->top;
+      poollim = data->curr_pool->lim;
+      overflowed = TRUE;
+    }
+    pooltop->loc = loc;
+    pooltop->next = tbl[h];
+    tbl[h] = pooltop;
+    pooltop += 1;
+    data->curr_pool->top = pooltop;
+    data->curr_pool->lim = poollim;
+    ls->live += 1;
+  } else {
+    /* already present in table; do nothing */
+  }
 }
 
 void ls_add_nonpair( locset_t *ls, word *loc )
 {
+  assert(0);
+#if 0
   ls_add_wordptr( ls, loc );
+#endif
 }
 
 void ls_add_paircar( locset_t *ls, word *loc )
 {
+  assert(0);
+#if 0
   ls_add_wordptr( ls, &loc[0] ); /* &car */
+#endif
 }
 
 void ls_add_paircdr( locset_t *ls, word *loc )
 {
+  assert(0);
+#if 0
   ls_add_wordptr( ls, &loc[1] ); /* &cdr */
+#endif
 }
 
 bool ls_ismember( locset_t *ls, word *loc )
@@ -162,7 +218,7 @@ bool ls_ismember( locset_t *ls, word *loc )
 
   h = hash_object( (word)loc, mask );
   b = tbl[ h ];
-  while (b != NULL && b->loc != loc) 
+  while (b != NULL && loc_to_slot(b->loc) != loc) 
     b = b->next;
 
   return (b != NULL);
@@ -182,9 +238,9 @@ void ls_enumerate( locset_t *ls,
     p = ps->bot;
     q = ps->top;
     while (p < q) {
-      if (p->loc != NULL) {
-        if (! scanner( p->loc, data )) {
-          p->loc = NULL;
+      if (! loc_clear_p( p->loc )) {
+        if (! scanner( loc_to_slot(p->loc), data )) {
+          clear_loc( &p->loc );
           removed_count += 1;
         }
       }
@@ -201,17 +257,89 @@ void ls_enumerate( locset_t *ls,
                          (word)ls, removed_count );
 }
 
+static bool ls_pool_next_chunk_locs( summary_t *this, loc_t **start, loc_t **lim,
+                                     bool *duplicate_entries )
+{
+  pool_t *ps;
+  ent_t *p, *q;
+
+  p = (ent_t*) this->cursor1;
+  q = (ent_t*) this->cursor2;
+
+  if (p < q) {
+    loc_t *one_loc_addr = &p->loc;
+    *start = one_loc_addr;
+    *lim   = one_loc_addr+1; /* a limit, not a loc */
+    *duplicate_entries = FALSE;
+
+    /* set up next step of iteration */
+    p++;
+    this->cursor1 = p;
+    /* if p has reached q, then move on to the next pool segment. */
+    if (!(p < q)) {
+      ps = (pool_t*) this->cursor3;
+      while (ps != NULL) {
+        p = ps->bot;
+        q = ps->top;
+        ps = ps->next;
+        if (p < q) {
+          this->cursor1 = p;
+          this->cursor2 = q;
+          this->cursor3 = ps;
+          break;
+        }
+      }
+    }
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
 void ls_init_summary( locset_t *ls, int max_words_per_step,
                       /* out parameter */ summary_t *s )
 {
-  assert(0);
+  assert( max_words_per_step == -1 ); /* no support for incremental yet */
+  summary_init_locs_dispose( s, ls->live, &ls_pool_next_chunk_locs, NULL, NULL );
+  pool_t *ps = DATA(ls)->first_pool;
+  ent_t *p, *q;
+  while (ps != NULL) {
+    p = ps->bot;
+    q = ps->top;
+    ps = ps->next;
+    if (p < q)
+      break;
+  }
+  s->cursor1 = p;
+  s->cursor2 = q;
+  s->cursor3 = ps;
 }
 
 void ls_add_elems_funnel( locset_t *ls, word *bot, word *top )
 {
-  assert(0);
+  word *p, *q, w1, w2;
+
+  /* format of SSB log is a series of word pair obj/offset entries. */
+  assert( ((top - bot) % 2) == 0 );
+
+  p = bot;
+  q = top;
+  while (p < q) {
+    w1 = *p;
+    p++;
+    w2 = *p;
+    p++;
+
+    assert( is_ptr( w1 ));
+    assert( is_fixnum( w2 ));
+
+    /* fixnum representation corresponds to a byte-offset from object start, 
+     * because its tag is two low-order zero bits. */
+    ls_add_obj_offset( ls, w1, (int) w2 );
+  }
 }
 
+#if 0
 /* Adds w to locset ls.  Returns true if ls overflowed when inserting w. */
 void ls_add_wordptr( locset_t *ls, word *w )
 {
@@ -233,7 +361,7 @@ void ls_add_wordptr( locset_t *ls, word *w )
 
   h = hash_object( (word)w, mask );
   b = tbl[ h ];
-  while (b != NULL && b->loc != w)
+  while (b != NULL && loc_to_slot(b->loc) != w)
     b = b->next;
 
   if (b == NULL) {
@@ -254,6 +382,7 @@ void ls_add_wordptr( locset_t *ls, word *w )
     /* already present in table; do nothing */
   }
 }
+#endif 
 
 static pool_t *allocate_pool_segment( unsigned pool_entries, unsigned attr )
 {

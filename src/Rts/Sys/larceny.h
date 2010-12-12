@@ -321,6 +321,9 @@ extern int memfail( int code, char *fmt, ... );
 #define DEFAULT_REMSET_TBLSIZE   16384     /* 16K elements = 64KB */
 #define DEFAULT_SSB_SIZE         16384     /* 16K elements = 64KB */
 
+#define DEFAULT_LOCSET_TBLSIZE   16384
+#define DEFAULT_LOCSET_POOLSIZE   1024
+
 /* Selectors for getheaplimit/setheaplimit */
 #define HL_TBOT 0
 #define HL_TTOP 1

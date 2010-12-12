@@ -3,8 +3,6 @@
 #ifndef INCLUDED_SUMMARY_T_H
 #define INCLUDED_SUMMARY_T_H
 
-#include "larceny-types.h"
-
 struct loc {
   word obj;
   int  offset; /* measured in bytes */
@@ -21,6 +19,16 @@ static loc_t make_loc( word obj, int offset )
   loc.obj = obj;
   loc.offset = offset;
   return loc;
+}
+
+static void clear_loc( loc_t *loc )
+{
+  loc->obj = 0x0;
+}
+
+static bool loc_clear_p(loc_t loc ) 
+{
+  return (loc.obj == 0x0);
 }
 
 static word* loc_to_slot( loc_t l ) 

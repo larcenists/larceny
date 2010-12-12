@@ -75,8 +75,8 @@ create_locset( int tbl_ent,        /* Number of entries in hash table */
 void ls_clear( locset_t *locset );
   /* Clears the location set. */
 
-void ls_add_obj_offset( locset_t *ls, word *w, int offset);
-  /* Copies slot for w[offset] into ls. */
+void ls_add_obj_offset( locset_t *ls, word w, int offset);
+  /* Copies slot for w.offset into ls. */
 
 void ls_add_nonpair( locset_t *ls, word *loc );
 void ls_add_paircar( locset_t *ls, word *loc );
@@ -113,7 +113,6 @@ void ls_init_summary( locset_t *ls, int max_words_per_step,
    */
 
 void ls_add_elems_funnel( locset_t *ls, word *bot, word *top );
-void ls_add_wordptr( locset_t *ls, word *w );
   /* (placeholders) */
 
 #endif /* INCLUDED_LOCSET_T_H */
