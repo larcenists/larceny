@@ -916,12 +916,16 @@ static void initiate_refinement( gc_t *gc )
 {
   if (DATA(gc)->summaries != NULL) {
     if (smircy_in_construction_stage_p( gc->smircy )) {
+      if (DATA(gc)->print_float_stats_each_refine)
+        print_float_stats( "prefin", gc );
       initiate_refinement_during_summarization( gc );
     } else {
       assert( smircy_in_refinement_stage_p( gc->smircy ));
       assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
     }
   } else {
+    if (DATA(gc)->print_float_stats_each_refine)
+      print_float_stats( "prefin", gc );
     refine_remsets_via_marksweep( gc );
     reset_countdown_to_next_refine( gc );
   }
@@ -940,6 +944,11 @@ static void incremental_refinement_has_completed( gc_t *gc )
 
   if (DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle > 0)
     DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle += 1;
+
+  if (DATA(gc)->print_float_stats_each_refine && 
+      ! DATA(gc)->print_float_stats_each_major)
+    print_float_stats( "pstfin", gc );
+
 
   smircy_end( gc->smircy );
   gc->smircy = NULL;
@@ -1005,8 +1014,6 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   if ((finish_mode == smircy_step_must_refine) 
       || ((finish_mode == smircy_step_can_refine) 
           && smircy_stack_empty_p( gc->smircy ))) {
-    if (DATA(gc)->print_float_stats_each_refine)
-      print_float_stats( "prefin", gc );
   start_timers( &timer1, &timer2 );
 #if INCREMENTAL_REFINE_DURING_SUMZ
     initiate_refinement( gc );
@@ -1014,9 +1021,6 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 #error bring back  refine_metadata_via_marksweep(..)
 #endif
   stop_refinem_timers( gc, &timer1, &timer2 );
-    if (DATA(gc)->print_float_stats_each_refine && 
-        ! DATA(gc)->print_float_stats_each_major)
-      print_float_stats( "pstfin", gc );
   }
 
 
