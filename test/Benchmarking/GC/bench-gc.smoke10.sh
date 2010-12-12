@@ -58,7 +58,7 @@ f( ) {
 }
 f overwrite-run-benchmark; 
 f earley; f gcbench; f nboyer; f sboyer; f perm; f twobit; f gcold;
-f queue; f pueue;
+f queue3; f pueue3;
 
 AFTER_BENCH="(call-with-output-file \"$TMPOUTPUT\"  \
                (lambda (p)                          \
