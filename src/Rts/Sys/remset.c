@@ -299,6 +299,28 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   assert( DATA(rs)->curr_pool != 0 );
 }
 
+void rs_del_elem( remset_t *rs, word w ) 
+{
+  word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
+  bool overflowed = FALSE;
+  remset_data_t *data = DATA(rs);
+  pooltop = data->curr_pool->top;
+  poollim = data->curr_pool->lim;
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize-1;
+
+  h = hash_object( w, mask );
+  b = (word*)tbl[ h ];
+  while (b != 0 && *b != w) {
+    b = (word*)*(b+1);
+  }
+  if (b != 0) {
+    *b = (word)(word*)0;
+    rs->live -= 1;
+  }
+}
+
 bool rs_add_elem_new( remset_t *rs, word w ) 
 {
   word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
