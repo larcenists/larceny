@@ -537,6 +537,8 @@ parse_options( int argc, char **argv, opt_t *o )
             if (o->size[i-1] == 0) o->size[i-1] = val;
       } else if (o->gc_info.is_regional_system) {
         o->size[loc] = val;
+      } else if (o->gc_info.is_stopcopy_system) {
+        o->size[loc] = val;
       }
     }
     else if (numbarg( "-mmusize", &argc, &argv, &mmu_size)) {
