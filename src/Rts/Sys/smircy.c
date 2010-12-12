@@ -815,7 +815,11 @@ static void push( smircy_context_t *context, word obj, word src )
     if (isptr(src) 
         && (gen_of(obj) != 0)
         && (gen_of(obj) != context->gc->static_area->data_area->gen_no)) {
-      gc_heap_for_gno( context->gc, gen_of(obj))->incoming_words.marker += 1;
+      old_heap_t *heap = gc_heap_for_gno( context->gc, gen_of(obj));
+      heap->incoming_words.marker += 1;
+      gc_check_rise_to_infamy( context->gc, 
+                               heap, 
+                               heap->incoming_words.marker );
     }
 
 #if MARK_ON_PUSH

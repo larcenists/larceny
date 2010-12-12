@@ -81,6 +81,7 @@ struct gc_data {
     /* limits size of summaries */
     double popularity_factor; /* Will calls this S. */
     int popularity_limit_words; 
+    double infamy_factor;
 
     double coverage_inv;
     /* denoted by C in comments below; Will calls this F1 */

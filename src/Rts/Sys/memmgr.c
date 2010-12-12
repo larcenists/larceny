@@ -515,6 +515,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
 static const double default_popularity_factor = 8.0;
+static const double default_infamy_factor = 10000.0;
 static const double default_sumz_budget_inv = 2.0;
 static const double default_sumz_coverage_inv = 3.0;
 static const int    default_sumz_max_retries  = 1;
@@ -1869,6 +1870,37 @@ void gc_signal_minor_collection( gc_t *gc ) {
 
   DATA(gc)->globals[ G_MAJORGC_CNT ] -= fixnum(1);
 
+}
+
+void gc_check_rise_to_infamy( gc_t *gc,
+                              old_heap_t *heap, 
+                              int incoming_words_estimate )
+{
+  int max_infamous = (DATA(gc)->region_count 
+                      / (DATA(gc)->rrof_sumz_params.popularity_factor 
+                         * DATA(gc)->rrof_sumz_params.infamy_factor ));
+  int infamy_threshold = 
+    (DATA(gc)->rrof_sumz_params.popularity_limit_words 
+     * DATA(gc)->rrof_sumz_params.infamy_factor);
+  if (region_group_count( region_group_infamous )+1 > max_infamous) {
+    /* disallow #infamous regions overflow, no matter what */
+    return;
+  }
+  if (incoming_words_estimate > infamy_threshold) {
+    assert2( (heap->group == region_group_risingstar)
+             || (heap->group == region_group_hasbeen ));
+    region_group_enq( heap, heap->group, region_group_infamous );
+  }
+}
+
+void gc_check_infamy_drop_to_hasbeen( gc_t *gc, 
+                                      old_heap_t *heap, 
+                                      int incoming_words_estimate )
+{
+  if (incoming_words_estimate 
+      < DATA(gc)->rrof_sumz_params.popularity_limit_words) {
+    region_group_enq( heap, region_group_infamous, region_group_hasbeen );
+  }
 }
 
 static void before_collection( gc_t *gc )
@@ -3237,6 +3269,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
     int words;
     double popular_factor;
+    double infamy_factor;
     assert( e > 0 );
     data->region_count = e;
     data->fixed_ephemeral_area = FALSE;
@@ -3245,11 +3278,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     popular_factor = (info->has_popularity_factor 
                       ? info->popularity_factor
                       : default_popularity_factor);
+    infamy_factor = (info->has_infamy_factor 
+                     ? info->infamy_factor
+                     : default_infamy_factor );
     data->rrof_sumz_params.popularity_factor = popular_factor;
     data->rrof_sumz_params.popularity_limit_words =
       (info->ephemeral_info[ e-1 ].size_bytes
        * popular_factor / sizeof(word));
     assert( data->rrof_sumz_params.popularity_limit_words > 0 );
+    data->rrof_sumz_params.infamy_factor = infamy_factor;
     data->rrof_sumz_params.budget_inv = 
       (info->has_sumzbudget
        ? info->sumzbudget_inv

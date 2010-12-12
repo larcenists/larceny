@@ -307,6 +307,14 @@ struct gc {
 #define gc_check_invariants_between_fwd_and_free( gc, from_gno )        \
   ((gc)->check_invariants_between_fwd_and_free( (gc), (from_gno) ))
 
+extern void gc_check_rise_to_infamy( gc_t *gc, 
+                                     old_heap_t *heap, 
+                                     int incoming_words_estimate );
+
+extern void gc_check_infamy_drop_to_hasbeen( gc_t *gc, 
+                                             old_heap_t *heap, 
+                                             int incoming_words_estimate );
+
 gc_t 
 *create_gc_t(char *id,
 	     void *data,

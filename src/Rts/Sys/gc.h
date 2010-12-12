@@ -77,6 +77,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   int  mark_period;		       /* In the regional system. */
   bool   has_popularity_factor;	       /* In the regional system. */
   double popularity_factor;	       /* In the regional system. */
+  bool   has_infamy_factor;	       /* In the regional system. */
+  double infamy_factor;		       /* In the regional system. */
   bool   has_refine_factor;	       /* In the regional system. */
   double refinement_factor;	       /* In the regional system. */
   bool   alloc_mark_bmp_once;	       /* In the regional system. */
