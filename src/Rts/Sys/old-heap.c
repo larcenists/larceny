@@ -28,6 +28,7 @@
 #include "old_heap_t.h"
 #include "static_heap_t.h"
 #include "semispace_t.h"
+#include "seqbuf_t.h"
 #include "los_t.h"
 #include "gclib.h"
 #include "remset_t.h"

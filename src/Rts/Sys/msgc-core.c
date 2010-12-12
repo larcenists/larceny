@@ -18,6 +18,7 @@
 #include "msgc-core.h"
 #include "young_heap_t.h" /* for yh_is_address_mapped */
 #include "static_heap_t.h" /* for sh_is_address_mapped */
+#include "remset_t.h"
 #include "uremset_t.h"
 
 #define LARGE_OBJECT_LIMIT 1024 /* elements */

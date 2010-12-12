@@ -255,6 +255,9 @@ int strncasecmp( const char *s1, const char *s2, size_t n );
 #if !defined(DEBIAN_STRDUP_WEIRDNESS)
 char *strdup( const char * );
 #endif
+#if !defined(HAVE_HRTIME_T)
+hrtime_t gethrtime( void );
+#endif
 
 /* Target-specific */
 /* NOTE!  For the time being, the SPARC version uses a global

@@ -97,6 +97,8 @@
 #include "larceny.h"
 #include "gc_t.h"
 #include "gclib.h"
+#include "locset_t.h"
+#include "remset_t.h"
 #include "smircy.h"
 
 #include "smircy_internal.h"
