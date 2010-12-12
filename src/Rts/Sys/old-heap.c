@@ -614,10 +614,24 @@ static word *data_load_area( old_heap_t *heap, int nbytes )
 
 /* Internal */
 
+static int static_used( old_heap_t *heap )
+{
+  static_heap_t *s = heap->collector->static_area;  /* may be NULL */
+
+  /* Including the static area inflates the estimate of actual live
+   * storage.  (That is not totally inappropriate, because the
+   * stopcopy collector does incur the cost of scanning the static
+   * area on every collection.)  We do *not* scan the text portion of
+   * the static area, which takes up the majority of the static area
+   * (at least on x86), and so we can avoid the over-inflation of the
+   * live estimate by not including the text area's bytes.
+   */
+  return (s ? s->data_area->allocated : 0);
+}
+
 static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
 {
-  static_heap_t *s = heap->collector->static_area;
-  int S = (s ? s->allocated : 0);
+  int S = static_used( heap );
   double L = DATA(heap)->load_factor;
   int upper_limit = DATA(heap)->upper_limit;
   int lower_limit = DATA(heap)->lower_limit;
