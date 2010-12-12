@@ -547,11 +547,9 @@ void init_env( cheney_env_t *e, gc_t *gc,
 
 static signed objects_scanned;
 
-static void remset_loc_scanner_oflo( word obj, int offset, void *data ) {
-  word *addr;
-  assert( (offset % sizeof(word)) == 0 );
-  addr = (word*)(((byte*)ptrof(obj))+offset);
-  root_scanner_oflo( addr, data );
+static void remset_loc_scanner_oflo( loc_t loc, void *data ) {
+  assert_loc_ok( loc );
+  root_scanner_oflo( loc_to_slot(loc), data );
 }
 
 void oldspace_copy( cheney_env_t *e )

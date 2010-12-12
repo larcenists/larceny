@@ -1041,15 +1041,16 @@ static bool lsscan_summary_sound( loc_t loc, void *my_data )
                     * its float, but some float is inevitable. */
                    && (gen_of(val) != 0));
   if (bad_condition) {
+    word loc_obj = loc_to_obj(loc);
     consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) -> 0x%08x (%d) "
                  "marked {obj->slot:N obj:%s, rs: %s, smircy obj->slot:%s obj:%s}", 
-                 loc.obj, gen_of(loc.obj), val, gen_of(val), 
-                 msgc_object_marked_p( msgc, loc.obj )?"Y":"N", 
-                 urs_isremembered( data->gc->the_remset, loc.obj )?"Y":"N",
+                 loc_obj, gen_of(loc_obj), val, gen_of(val), 
+                 msgc_object_marked_p( msgc, loc_obj )?"Y":"N", 
+                 urs_isremembered( data->gc->the_remset, loc_obj )?"Y":"N",
                  ((data->gc->smircy == NULL)?"n/a":
                   (smircy_object_marked_p( data->gc->smircy,     val )?"Y  ":"N  ")),
                  ((data->gc->smircy == NULL)?"n/a":
-                  (smircy_object_marked_p( data->gc->smircy, loc.obj )?"Y  ":"N  "))
+                  (smircy_object_marked_p( data->gc->smircy, loc_obj )?"Y  ":"N  "))
                  );
   }
   assert( ! bad_condition );
@@ -1126,8 +1127,10 @@ struct summaryscan_buildup_ls_data {
   locset_t *target_ls;
   int rgn_next;
 };
-static void summaryscan_buildup_ls( word obj, int offset, void *my_data ) 
+static void summaryscan_buildup_ls( loc_t loc, void *my_data ) 
 { 
+  word obj   = loc_to_obj(loc);
+  int offset = loc_to_offset(loc);
   struct summaryscan_buildup_ls_data *data;
   locset_t *target_ls;
   static word last_obj = 0x0;
@@ -1983,7 +1986,7 @@ enumerate_remsets_complement( gc_t *gc,
 }
 
 struct apply_f_to_summary_loc_entry_data {
-  void (*f)( word obj, int offset, void *scan_data );
+  void (*f)( loc_t loc, void *scan_data );
   void *scan_data;
 };
 
@@ -2026,8 +2029,7 @@ static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
 }
 
 static void enumerate_remembered_locations( gc_t *gc, gset_t genset, 
-                                            void (*f)(word addr, 
-                                                      int offset, 
+                                            void (*f)(loc_t loc, 
                                                       void *scan_data), 
                                             void *scan_data )
 {

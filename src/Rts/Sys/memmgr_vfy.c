@@ -112,7 +112,7 @@ static bool verify_nursery_traverse_rs( loc_t loc, void *d )
 {
   struct verify_remsets_traverse_rs_data *data;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( urs_isremembered( data->gc->the_remset, loc.obj ));
+  assert( urs_isremembered( data->gc->the_remset, loc_to_obj(loc) ));
   return TRUE;
 }
 

@@ -212,7 +212,7 @@ struct gc {
         rs_enumerate() for more info).
         */
   void (*enumerate_remembered_locations)( gc_t *gc, gset_t genset, 
-                                          void (*f)( word, int, void* ), void* );
+                                          void (*f)( loc_t, void* ), void* );
      /* Invokes f on a superset of locations (each represented as
       * tagged-word + byte offset) in the remembered set, passing
       * along the accumulator scan_data.
@@ -344,7 +344,7 @@ gc_t
 		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset, 
-	          void (*f)( word, int, void* ), void* ),
+	          void (*f)( loc_t, void* ), void* ),
 	     void (*enumerate_hdr_address_ranges)
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s,word *l,void *d), void *d),
