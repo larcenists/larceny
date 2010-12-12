@@ -233,8 +233,8 @@ struct summ_matrix_data {
 
     bool   waiting;   /* TRUE only if currently delaying next round of summz */
     bool   complete;  /* TRUE only if done with current round of sumz. */
-    int    rs_cursor; /* start remset for next sm_build_summaries_partial() */
-    int    rs_num; /* #remsets to scan in each sm_build_summaries_partial() */
+    int    cursor; /* start remset for next sm_build_summaries_partial() */
+    int    num; /* #remsets to scan in each sm_build_summaries_partial() */
 
   } summarizing;
 
@@ -865,8 +865,8 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
 
     DATA(sm)->summarizing.goal = goal;
     DATA(sm)->summarizing.complete = FALSE;
-    DATA(sm)->summarizing.rs_cursor = gc->gno_count;
-    DATA(sm)->summarizing.rs_num = gc->gno_count;
+    DATA(sm)->summarizing.cursor = gc->gno_count;
+    DATA(sm)->summarizing.num = gc->gno_count;
   }
 
   sm_build_remset_summaries( sm, initial_num_rgns, rgn_next,
@@ -1040,16 +1040,16 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
         "( summ, rgn_next=%d, ne_rgn_count=%d, about_to_major=%s, dA=%d );",
         rgn_next, ne_rgn_count, about_to_major?"TRUE":"FALSE", alloc_per_majgc );
   dbmsg( "sm_construction_progress: "
-              "goal: %d complete: %s rs_cursor: %d rs_num: %d",
+              "goal: %d complete: %s cursor: %d num: %d",
               DATA(summ)->summarizing.goal,
               DATA(summ)->summarizing.complete ? "TRUE":"FALSE",
-              DATA(summ)->summarizing.rs_cursor, 
-              DATA(summ)->summarizing.rs_num );
+              DATA(summ)->summarizing.cursor, 
+              DATA(summ)->summarizing.num );
 
   check_rep_1( summ );
 
   assert( DATA(summ)->summarizing.waiting || 
-          (DATA(summ)->summarizing.rs_num > 0) );
+          (DATA(summ)->summarizing.num > 0) );
 
   if ( DATA(summ)->summarizing.waiting ) {
     int goal_budget = calc_goal( summ, ne_rgn_count );
@@ -1080,7 +1080,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     bool shall_we_progress;
 
     assert2( ! DATA(summ)->summarizing.waiting );
-    assert2( DATA(summ)->summarizing.rs_num > 0 );
+    assert2( DATA(summ)->summarizing.num > 0 );
 
     if (! about_to_major ) {
       shall_we_progress = TRUE; /* yes, lets! */
@@ -1090,15 +1090,15 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
       fuel =
         region_group_count( region_group_wait_nosum ) +
         region_group_count( region_group_wait_w_sum );
-      capability = DATA(summ)->summarizing.rs_num * fuel;
-      required = DATA(summ)->summarizing.rs_cursor;
+      capability = DATA(summ)->summarizing.num * fuel;
+      required = DATA(summ)->summarizing.cursor;
 
 #if CONSERVATIVE_REGION_COUNT
       assert( capability >= required );
 #endif
 
       /* the major collection itself will use one unit of fuel. */
-      capability = DATA(summ)->summarizing.rs_num * (fuel - 1);
+      capability = DATA(summ)->summarizing.num * (fuel - 1);
 
       /* XXX Hmm these calculations are now bogus because the required
        * value is too conservative; doesnt filter out empty remembered
@@ -1109,7 +1109,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 
         /* XXX but should we be eager beavers?  Perhaps invoking
          * sm_build_summaries_partial_n with a smaller count than
-         * summarizing.rs_num?
+         * summarizing.num?
          * 
          * In any case, to bring back behavior from circa SVN revision
          * 6110, set shall_we_progress to TRUE here. */
@@ -2046,7 +2046,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
 
     dbmsg("sm_build_summaries_setup"
           "( summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%d, dA=%d )"
-          " W=%d dA/R=%d ==> rs_num=%d ",
+          " W=%d dA/R=%d ==> num=%d ",
           majors, ne_rgn_count, rgn_next, about_to_major, dA, 
           W, dA_over_R, num_under_construction );
 
@@ -2057,8 +2057,8 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   DATA(summ)->summarizing.goal = goal;
   DATA(summ)->summarizing.waiting = FALSE;
   DATA(summ)->summarizing.complete = FALSE;
-  DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
-  DATA(summ)->summarizing.rs_num = num_under_construction;
+  DATA(summ)->summarizing.cursor = summ->collector->gno_count;
+  DATA(summ)->summarizing.num = num_under_construction;
 
   /* Optimistically assume that summarization will succeed for all
    * elems of genset; if one of them overflows, it will be
@@ -2286,7 +2286,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 
       switch_some_to_summarizing( summ, coverage );
 
-      DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
+      DATA(summ)->summarizing.cursor = summ->collector->gno_count;
 
       DATA(summ)->pass_count += 1;
       DATA(summ)->curr_pass_units_count = 0;
@@ -2312,7 +2312,7 @@ static void sm_clear_col( summ_matrix_t *summ, int i )
 static void sm_build_summaries_partial_n( summ_matrix_t *summ, 
                                          int rgn_next,
                                          int region_count,
-                                         int rs_num )
+                                         int num )
 {
   remset_summary_data_t remsum;
   int gno_count;
@@ -2333,8 +2333,8 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
   /* Construct
    *   { x | x in summarizing range | x has reference into [fst,lim) }
    */
-  finis = DATA(summ)->summarizing.rs_cursor;
-  start = max( finis-rs_num, 1 );
+  finis = DATA(summ)->summarizing.cursor;
+  start = max( finis-num, 1 );
   assert2( start < finis );
 
   nontrivial_scans =
@@ -2342,23 +2342,23 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
 
   if (start == 1) {
     sm_build_summaries_iteration_complete( summ, region_count );
-    DATA(summ)->summarizing.rs_cursor = gno_count; /* or 1? or 0? */
+    DATA(summ)->summarizing.cursor = gno_count; /* or 1? or 0? */
   } else {
-    /* set up rs_cursor for next invocation. */
+    /* set up cursor for next invocation. */
     assert2( finis <= gno_count );
     assert2( start > 1 );
-    DATA(summ)->summarizing.rs_cursor = start;
-    if (nontrivial_scans < rs_num) {
+    DATA(summ)->summarizing.cursor = start;
+    if (nontrivial_scans < num) {
       dbmsg("sm_build_summaries_partial_n does a loop"
-            " rs_num:%d nontrivial_scans:%d", 
-            rs_num, nontrivial_scans );
+            " num:%d nontrivial_scans:%d", 
+            num, nontrivial_scans );
 
       /* selects between explicit/implicit tail-call */
 #if 0
       sm_build_summaries_partial_n( summ, rgn_next, region_count, 
-                                    (rs_num - nontrivial_scans) );
+                                    (num - nontrivial_scans) );
 #else
-      rs_num = (rs_num - nontrivial_scans);
+      num = (num - nontrivial_scans);
       goto again;
 #endif
 
@@ -2372,7 +2372,7 @@ static void sm_build_summaries_partial( summ_matrix_t *summ,
                                         bool about_to_major )
 {
   sm_build_summaries_partial_n( summ, rgn_next, region_count,
-                                DATA(summ)->summarizing.rs_num );
+                                DATA(summ)->summarizing.num );
 }
  
 static void sm_build_summaries_just_static_area( summ_matrix_t *summ,
@@ -2554,32 +2554,32 @@ static void clear_col_mutator_rs( summ_matrix_t *summ, int col_idx )
   }
 }
 
-struct rs_scan_add_word_to_rs_data {
+struct scan_add_word_data {
   summ_matrix_t *summ;
-  remset_t      *rs_to;
+  remset_t      *to;
   int            to_gen;
 };
 
-static bool rs_scan_add_word_to_rs( word loc, void *my_data, unsigned *stats )
+static bool scan_add_word( word loc, void *my_data, unsigned *stats )
 {
-  struct rs_scan_add_word_to_rs_data *data = 
-    (struct rs_scan_add_word_to_rs_data *) my_data;
+  struct scan_add_word_data *data = 
+    (struct scan_add_word_data *) my_data;
   if (gen_of(loc) != data->to_gen) {
-    rs_add_elem( data->rs_to, loc );
+    rs_add_elem( data->to, loc );
     DATA(data->summ)->cols[data->to_gen]->summacopy_word_count += 1;
   }
   return TRUE; /* don't remove element from scanned remset */
 }
 
 static bool rsenum_fold_from_nursery_minorgc( word ptr, void *my_data, unsigned *count ) {
-  struct rs_scan_add_word_to_rs_data *data;
-  data = (struct rs_scan_add_word_to_rs_data*)my_data;
+  struct scan_add_word_data *data;
+  data = (struct scan_add_word_data*)my_data;
   if (gen_of(ptr) == 2) {
     dbmsg("rsenum_fold_from_nursery_minorgc( ptr=0x%08x (%d), data{to_gen:%d}, count )",
                ptr, gen_of(ptr), data->to_gen);
   }
   if (gen_of(ptr) != data->to_gen && gen_of(ptr) != 0) {
-    rs_add_elem( data->rs_to, ptr );
+    rs_add_elem( data->to, ptr );
     DATA(data->summ)->cols[data->to_gen]->summacopy_word_count += 1;
   }
   return TRUE; 
@@ -2587,7 +2587,7 @@ static bool rsenum_fold_from_nursery_minorgc( word ptr, void *my_data, unsigned 
 
 EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
 {
-  struct rs_scan_add_word_to_rs_data scan_data;
+  struct scan_add_word_data scan_data;
   check_rep_1( summ );
 
   if ( region_summarized( summ, rgn_to ) 
@@ -2635,10 +2635,10 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
 
     if (col_next->sum_mutator != NULL) {
       scan_data.summ = summ;
-      scan_data.rs_to = col_to->sum_mutator;
+      scan_data.to = col_to->sum_mutator;
       scan_data.to_gen = rgn_to;
       rs_enumerate( col_next->sum_mutator, 
-                    rs_scan_add_word_to_rs, 
+                    scan_add_word, 
                     &scan_data );
     }
   } else if ( (region_summarized( summ, rgn_to )
@@ -2650,7 +2650,7 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
       col_to->sum_mutator = grab_from_remset_pool();
     }
     scan_data.summ   = summ;
-    scan_data.rs_to  = col_to->sum_mutator;
+    scan_data.to  = col_to->sum_mutator;
     scan_data.to_gen = rgn_to;
     rs_enumerate( DATA(summ)->nursery_remset,
                   rsenum_fold_from_nursery_minorgc,
@@ -2682,8 +2682,8 @@ static void wait_to_setup_next_wave( summ_matrix_t *summ )
   DATA(summ)->summarizing.waiting = TRUE;
   DATA(summ)->summarizing.goal = 0;
   DATA(summ)->summarizing.complete = TRUE;
-  DATA(summ)->summarizing.rs_cursor = summ->collector->gno_count;
-  DATA(summ)->summarizing.rs_num = 0;
+  DATA(summ)->summarizing.cursor = summ->collector->gno_count;
+  DATA(summ)->summarizing.num = 0;
 }
 
 static void advance_to_next_summary_set( summ_matrix_t *summ,
@@ -3238,7 +3238,7 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
   {
     /* the incremental remset scan has "already passed" fresh_gno */
     assert( DATA(summ)->summarizing.complete || 
-            DATA(summ)->summarizing.rs_cursor <= fresh_gno );
+            DATA(summ)->summarizing.cursor <= fresh_gno );
   }
 
   /* even though inserting the fresh gno will not upset the 
@@ -3258,8 +3258,8 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
   if (! DATA(summ)->summarizing.complete) {
     int fuel, capability, required;
     fuel = region_group_count( region_group_wait_w_sum );
-    capability = DATA(summ)->summarizing.rs_num * fuel;
-    required = DATA(summ)->summarizing.rs_cursor;
+    capability = DATA(summ)->summarizing.num * fuel;
+    required = DATA(summ)->summarizing.cursor;
 
     assert( capability >= required );
   }
@@ -3330,12 +3330,12 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ,
    *
    * (And maybe this still not quite right, since progress invocations can lead to 
    *  a summarizing.curr_genset that is complete... but I think in that situation
-   *  the rs_cursor should be past the gno_count...)
+   *  the cursor should be past the gno_count...)
    */
   if ( region_summarized( summ, g_rhs )
        || ( region_summarizing_curr( summ, g_rhs )
             && (DATA(summ)->summarizing.complete || 
-                gen_of(lhs) >= DATA(summ)->summarizing.rs_cursor ))
+                gen_of(lhs) >= DATA(summ)->summarizing.cursor ))
        || ( region_summarizing_goal( summ, g_rhs )
             && ! region_summarizing_curr( summ, g_rhs ))
        ) {
