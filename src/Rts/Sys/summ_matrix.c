@@ -1913,7 +1913,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         annoyingmsg("scan_object_for_remset_summary "
                     "pair 0x%08x (%d) car: 0x%08d (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
-      bump_incoming_words( remsum->summ, gen ); 
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
         if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1930,6 +1929,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
           }
         }
       }
+      bump_incoming_words( remsum->summ, gen ); 
     }
     ++loc;
     /* handle cdr */
@@ -1940,7 +1940,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         annoyingmsg("scan_object_for_remset_summary "
                     "pair 0x%08x (%d) cdr: 0x%08d (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
-      bump_incoming_words( remsum->summ, gen );
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
         if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1957,6 +1956,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
           }
         }
       }
+      bump_incoming_words( remsum->summ, gen );
     }
     scanned = 2;
   } else { /* vector or procedure */
@@ -1976,7 +1976,6 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
           annoyingmsg("scan_object_for_remset_summary "
                       "vecproc 0x%08x (%d) : 0x%08x (%d)", 
                       ptr, gen_of(ptr), *loc, gen);
-        bump_incoming_words( remsum->summ, gen );
         if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
           if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1992,6 +1991,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
                                   gen, loc, mygen, incr_ctxt_sm );
           }
         }
+        bump_incoming_words( remsum->summ, gen );
       }
     }
   }
