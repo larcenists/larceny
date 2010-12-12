@@ -961,13 +961,7 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
   context->stage = smircy_construction_stage;
 
   /* all hasbeen regions can now be reclassified as polling */
-  {
-    old_heap_t *h = region_group_first_heap( region_group_hasbeen );
-    while (h != NULL) {
-      region_group_enq( h, region_group_hasbeen, region_group_advertised );
-      h = region_group_next_heap( h );
-    }
-  }
+  region_group_enq_all( region_group_hasbeen, region_group_advertised );
 
   dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
          num_rgns, context->bitmap );
@@ -1862,13 +1856,7 @@ void smircy_enter_refinement_stage( smircy_context_t *context ) {
   assert2( smircy_stack_empty_p( context ));
 
   /* all advertised regions can now be reclassified as filled */
-  {
-    old_heap_t *h = region_group_first_heap( region_group_advertised );
-    while (h != NULL) {
-      region_group_enq( h, region_group_advertised, region_group_filled );
-      h = region_group_next_heap( h );
-    }
-  }
+  region_group_enq_all( region_group_advertised, region_group_filled );
 
   context->stage = smircy_refinement_stage;
 }
