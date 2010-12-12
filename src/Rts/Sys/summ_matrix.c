@@ -3109,7 +3109,8 @@ static bool filter_objects_from_sum_remset( word *slot,
    * from R in the summary for R; summaries contain only objects
    * *outside* of R. */
   assert( data->col_idx != gen_of(slot));
-
+  /* XXX cannot generally compute gen_of(slot); could do
+   * gen_of(loc.obj), but that has other problems. */
   if (gen_of(slot) == data->gen) {
     return FALSE;
   } else {
@@ -3383,7 +3384,7 @@ static bool lsscan_filter_entries( loc_t loc, void *my_data )
   /* XXX cannot generally refer to loc.obj; 
    * future plan: try removing first conjunct below 
    * (which should be a sound transformation) */
-  ret = ((gen_of(loc.obj) != data->next_gen) 
+  ret = (TRUE /* (gen_of(loc.obj) != data->next_gen)  */
          && ! ls_ismember( data->sum_mut, slot ));
 
   return ret;

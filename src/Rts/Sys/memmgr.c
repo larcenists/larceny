@@ -1027,7 +1027,11 @@ static bool lsscan_summary_sound( loc_t loc, void *my_data )
   bool bad_condition;
   data = (struct lsscan_summary_sound_data*)my_data;
   msgc = data->msgc;
+
+  /* cannot generally assert this; removed filter from summ_matrix */
+#if 0
   assert( gen_of(loc.obj) != data->rgn_next );
+#endif
 
   slot = loc_to_slot(loc);
   val = *slot;
@@ -1131,7 +1135,11 @@ static void summaryscan_buildup_ls( word obj, int offset, void *my_data )
   data = (struct summaryscan_buildup_ls_data*)my_data;
   target_ls = data->target_ls;
 
+  /* cannot generally assert this; removed filter from summ_matrix */
+#if 0
   assert( gen_of(obj) != data->rgn_next );
+#endif
+
   ls_add_obj_offset( target_ls, obj, offset );
   last_obj = obj;
   last_offset = offset;
