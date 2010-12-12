@@ -196,8 +196,6 @@ struct summ_matrix_data {
     summ_cell_t **table; /* maps src_gno -> cell or NULL */
     int table_len; /* may be redundant, given gensets below... */
 
-    int last_src_gno;
-    int last_tgt_gno;
     summ_cell_t* last_cell;
     bool last_cell_valid;
   } row_cache;
@@ -1408,9 +1406,9 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
   assert( src_gno < DATA(summ)->num_rows );
   assert( tgt_gno < DATA(summ)->num_cols );
 
-  if ( DATA(summ)->row_cache.last_src_gno == src_gno &&
-       DATA(summ)->row_cache.last_tgt_gno == tgt_gno &&
-       DATA(summ)->row_cache.last_cell_valid ) {
+  if ( DATA(summ)->row_cache.last_cell_valid && 
+       DATA(summ)->row_cache.last_cell->source_gno == src_gno &&
+       DATA(summ)->row_cache.last_cell->target_gno == tgt_gno ) {
     return DATA(summ)->row_cache.last_cell;
   }
 
@@ -1458,8 +1456,6 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
     assert( col->cell_bot->next_col == col->cell_top );
   }
 
-  DATA(summ)->row_cache.last_src_gno = src_gno;
-  DATA(summ)->row_cache.last_tgt_gno = tgt_gno;
   DATA(summ)->row_cache.last_cell = row_cell;
   DATA(summ)->row_cache.last_cell_valid = TRUE;
   return row_cell;
