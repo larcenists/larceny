@@ -221,7 +221,7 @@ struct summ_matrix_data {
   } row_cache;
 
   /* refactoring */
-  int       remset_summaries_count;
+  int       summaries_count;
   int       popularity_limit;   /* Maximum summary size allowed (in words) */
 
   struct {
@@ -749,14 +749,14 @@ static summ_cell_t *scan_col_for_cell( summ_col_t *col, int src_gno,
 static void  create_refactored_from_memmgr( summ_matrix_t *sm,
                                             int popularity_limit )
 {
-  DATA(sm)->remset_summaries_count = 0;
+  DATA(sm)->summaries_count = 0;
 
   /* data->summaries->region_count = data->region_count; */
   DATA(sm)->popularity_limit = popularity_limit;
 
   int len = sm->collector->gno_count+1;
   int i;
-  DATA(sm)->remset_summaries_count = len;
+  DATA(sm)->summaries_count = len;
   DATA(sm)->nursery_remset = create_summset( 0, 0 );
 }
 
@@ -3248,9 +3248,9 @@ static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno )
      regions
   */
   {
-    int len = DATA(summ)->remset_summaries_count+1;
+    int len = DATA(summ)->summaries_count+1;
     int i;
-    DATA(summ)->remset_summaries_count = len;
+    DATA(summ)->summaries_count = len;
   }
 
 #if CONSERVATIVE_REGION_COUNT
