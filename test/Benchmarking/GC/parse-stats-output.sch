@@ -12,8 +12,20 @@
 
 '(define stats-data
    (apply gather-statsfiles (unzip filename+keys-feb24-00)))
+'(define mmu-stats-data
+   (apply gather-statsfiles (unzip filename+keys-feb17-13)))
 '(define cp-stats-data
    (apply gather-statsfiles (unzip filename+keys-feb24-11)))
+
+'((lambda (bmark)
+    (apply plot-mmu (map (lambda (rt-key) 
+                           (extract-path mmu-stats-data `(,rt-key ,bmark gc_mmu_log_t)))
+                         '(scpy-mmu 
+                           dflt-mmu 
+                           rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0-mmu
+                           rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0-mmu
+                           rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0-mmu))))
+  'bm-20earley:13)
 
 '(map (lambda (bmarks) (plot-pause-and-time-and-mem-stats-data/stacked-bars
                         cp-stats-data cp-rt-keys bmarks
