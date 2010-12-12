@@ -11,11 +11,13 @@
 (define (graphs-benchmark . rest)
   (let ((N (if (null? rest) 7 (car rest))))
     (run-benchmark (string-append "graphs" (number->string N))
+                   1
                    (lambda ()
                      (fold-over-rdg N
                                     2 
                                     cons
-                                    '())))))
+                                    '()))
+                   (lambda (result) #t))))
 
 ; End of new code.
 
@@ -45,7 +47,7 @@
 ; 		(begin e-first
 ; 		    e-rest ...)))))
 
-(define assert
+'(define assert
   (lambda (test . info)
     #f))
 
