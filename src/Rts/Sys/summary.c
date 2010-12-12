@@ -166,6 +166,7 @@ void summary_enumerate_locs_dispatch( summary_t *summary,
 {
   if (! summary->enumerate_locations_not_objects) {
     struct apply_f_to_summary_obj_entry_data summary_data;
+    assert2( summary->filter_loc == NULL );
     summary_data.f = scanner;
     summary_data.scan_data = data;
     summary_enumerate( summary, 
@@ -174,6 +175,7 @@ void summary_enumerate_locs_dispatch( summary_t *summary,
   } else {
     loc_t *p, *q;
     bool ign_all_unseen;
+    assert2( summary->filter == NULL );
     while( summary_next_chunk_enum_locs( summary, &p, &q, &ign_all_unseen )) {
       while (p < q) {
         if (p->obj != 0) {
@@ -253,6 +255,7 @@ void summary_enumerate_locs2_dispatch( summary_t *summary,
 {
   if (! summary->enumerate_locations_not_objects) {
     struct apply_f_to_summary_obj_entry2_data summary_data;
+    assert2( summary->filter_loc == NULL );
     summary_data.f = scanner;
     summary_data.scan_data = data;
     summary_enumerate( summary, 
@@ -261,6 +264,7 @@ void summary_enumerate_locs2_dispatch( summary_t *summary,
   } else {
     loc_t *p, *q;
     bool ign_all_unseen;
+    assert2( summary->filter == NULL );
     while( summary_next_chunk_enum_locs( summary, &p, &q, &ign_all_unseen )) {
       while (p < q) {
         if (p->obj != 0) {
