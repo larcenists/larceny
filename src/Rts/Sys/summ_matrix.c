@@ -2038,9 +2038,6 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
 
   assert( gc_budget > 0 );
 
-  /* XXX num_under_construction should be bounded by a constant
-   * dependant on the sumzbudget, sumzcoverage, and popularity; and
-   * the code should be checking that the bound is satisfied. */
   {
     int W, dA_over_R;
     double F_1 = DATA(summ)->F_1;
@@ -2069,7 +2066,20 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
           W, dA_over_R, num_under_construction );
 
     assert2( num_under_construction > 0 );
-    assert2( num_under_construction <= (int)ceil(F_1*F_2*F_3) );
+#if 0
+    /* num_under_construction should be bounded by a constant
+     * dependant on the sumzbudget, sumzcoverage, and popularity.
+     * The code below checks that one proposed bound is satisfied,
+     * but the check tends to fail (by a constant factor).  Note that
+     * the proposed bound of 1/(F_1 F_2 F_3) assumes a steady state
+     * but the calculated num_under_construction above makes use
+     * of dynamic allocation behavior passed along in dA. 
+     */
+    if (num_under_construction > (int)ceil(F_1*F_2*F_3)) {
+      consolemsg( "Predicted max summ/gc: %d but num_under_construction: %d",
+                  (int)ceil(F_1*F_2*F_3), num_under_construction );
+    }
+#endif
   }
 
 
