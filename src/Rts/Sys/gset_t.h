@@ -71,6 +71,7 @@ static bool gset_max_elem( gset_t gs ) {
   case gs_singleton: return gs.g1;
   case gs_range:     return gs.g2-1;
   case gs_twrng:     return max( gs.g2-1, gs.g4-1 );
+  case gs_nil:       break; /* assert fail */
   }
   assert2(0);
 }
@@ -79,6 +80,7 @@ static bool gset_last_elem( gset_t gs ) {
   case gs_singleton: return gs.g1;
   case gs_range:     return gs.g2-1;
   case gs_twrng:     return gs.g4-1;
+  case gs_nil:       break; /* assert fail */
   }
   assert2(0);
 }
@@ -87,6 +89,7 @@ static bool gset_first_elem( gset_t gs ) {
   case gs_singleton: return gs.g1;
   case gs_range:     return gs.g1;
   case gs_twrng:     return gs.g1;
+  case gs_nil:       break; /* assert fail */
   }
   assert2(0);
 }
