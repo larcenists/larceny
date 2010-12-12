@@ -3341,7 +3341,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       if (max_utilized_regions > 1.0) {
         consolemsg("Invalid parameter selection; need"
                    " 1/S + F_3/F_1 + 1/(F_1 F_2 F_3) = "
-                   " 1/%g + %d/%g  + 1/(%g %g %g) <= 1"
+                   " 1/%g + %d/%g  + 1/(%g %g %d) <= 1"
                    ,   S,  F_3, F_1, F_1, F_2, F_3);
       }
       assert( max_utilized_regions <= 1.0 );
