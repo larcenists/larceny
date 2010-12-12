@@ -608,25 +608,31 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
     s->total_ms_minor     += fixnum( ms_minor );
     s->total_ms_minor_cpu += fixnum( ms_minor_cpu );
   }
-  if (stats->last_ms_remset_sumrize == -1) {
+  if (stats->last_ms_remset_sumrize < 0) {
   } else {
-    word ms     = stats->last_ms_remset_sumrize;
-    word ms_cpu = stats->last_ms_remset_sumrize_cpu;
+    word ms     = (word)stats->last_ms_remset_sumrize;
+    word ms_cpu = (word)stats->last_ms_remset_sumrize_cpu;
+
     RANGECASES( s->count_sumrize_, _ms, ms );
     s->max_build_remset_summary        = max( fixnum(ms), 
                                               s->max_build_remset_summary);
     s->max_build_remset_summary_cpu    = max( fixnum(ms_cpu), 
                                               s->max_build_remset_summary_cpu);
+    MAX_WORD( stats, s, max_build_remset_summary );
+    MAX_WORD( stats, s, max_build_remset_summary_cpu );
     s->build_remset_summary_count     += fixnum(1);
     s->total_build_remset_summary     += fixnum( ms );
     s->total_build_remset_summary_cpu += fixnum( ms_cpu );
   }
-  if (stats->last_ms_mark_refinement == -1) {
+  if (stats->last_ms_mark_refinement < 0) {
   } else {
     word ms     = fixnum( stats->last_ms_mark_refinement );
     word ms_cpu = fixnum( stats->last_ms_mark_refinement_cpu );
+
     s->max_mark_pause        = max( ms, s->max_mark_pause );
     s->max_mark_pause_cpu    = max( ms_cpu, s->max_mark_pause_cpu );
+    MAX_WORD( stats, s, max_mark_pause );
+    MAX_WORD( stats, s, max_mark_pause_cpu );
     s->mark_pause_count     += fixnum(1);
     s->total_mark_pause     += ms;
     s->total_mark_pause_cpu += ms_cpu;

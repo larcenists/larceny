@@ -161,6 +161,10 @@
             (vector-ref v $mstat.smircy-max)
             (vector-ref v $mstat.max-mutator-paused)
             (vector-ref v $mstat.max-mutator-paused-cpu)
+            (vector-ref v $mstat.max-build-remset-summary)
+            (vector-ref v $mstat.max-build-remset-summary-cpu) ; # 90
+            (vector-ref v $mstat.max-mark-pause)
+            (vector-ref v $mstat.max-mark-pause-cpu)
             ))
 
   (define (make-gc-event-vector v)
@@ -391,6 +395,10 @@
 (define (memstats-gc-total-cpu-time v) (vector-ref v 44))
 (define (memstats-gc-max-cheney-elapsed-time v) (vector-ref v 49))
 (define (memstats-gc-max-cheney-cpu-time v) (vector-ref v 50))
+(define (memstats-gc-max-summar-elapsed-time v) (vector-ref v 89))
+(define (memstats-gc-max-summar-cpu-time v) (vector-ref v 90))
+(define (memstats-gc-max-smircy-elapsed-time v) (vector-ref v 91))
+(define (memstats-gc-max-smircy-cpu-time v) (vector-ref v 92))
 (define (memstats-gc-max-truegc-elapsed-time v) (vector-ref v 87))
 (define (memstats-gc-max-truegc-cpu-time v) (vector-ref v 88))
 (define (memstats-gc-max-elapsed-time v) (memstats-gc-max-truegc-elapsed-time v))
@@ -717,6 +725,8 @@
   (define (pr allocated reclaimed elapsed user system gcs gctime gccpu 
               maxgctime maxgccpu 
               maxcheneytime maxcheneycpu
+              maxsumztime maxsumzcpu
+              maxmkrftime maxmkrfcpu
               maxscantime maxscancpu maxscanentries 
               avgscantime avgscancpu avgscanentries
               words-mem-max words-heap-max words-remset-max 
@@ -735,6 +745,10 @@
             ", CPU: " maxgccpu " ms} ")
     (mprint "{Max cheney elapsed: " maxcheneytime " ms"
             ", CPU: "maxcheneycpu " ms} ")
+    (mprint "{Max sumz elapsed: " maxsumztime " ms"
+            ", CPU: "maxsumzcpu " ms} ")
+    (mprint "{Max mkrf elapsed: " maxmkrftime " ms"
+            ", CPU: "maxmkrfcpu " ms} ")
     (mprint "{Max remset scan elapsed: " maxscantime " ms"
             ", CPU: " maxscancpu " ms, entries: " maxscanentries "} ")
     (mprint "{Avg remset scan elapsed: " avgscantime " ms"
@@ -783,6 +797,10 @@
         (memstats-gc-max-truegc-cpu-time s2)
         (memstats-gc-max-cheney-elapsed-time s2)
         (memstats-gc-max-cheney-cpu-time s2)
+        (memstats-gc-max-summar-elapsed-time s2)
+        (memstats-gc-max-summar-cpu-time s2)
+        (memstats-gc-max-smircy-elapsed-time s2)
+        (memstats-gc-max-smircy-cpu-time s2)
         (memstats-gc-max-remset-scan-elapsed-time s2)
         (memstats-gc-max-remset-scan-cpu-time s2)
         (memstats-gc-max-entries-remset-scan s2)

@@ -59,6 +59,10 @@ struct gclib_stats {
    * spent maintaining structure internal to the memory manager. */
   word max_ms_mutator_paused;
   word max_ms_mutator_paused_cpu;
+  word max_build_remset_summary;
+  word max_build_remset_summary_cpu;
+  word max_mark_pause;
+  word max_mark_pause_cpu;
 };
 
 struct gc_stats {
