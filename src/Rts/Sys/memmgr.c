@@ -2829,6 +2829,7 @@ static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
 
     if (mut_effort_sumz > cN) {
+#if 0
       consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
                   bot, top,
                   nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
@@ -2845,6 +2846,7 @@ static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
                   (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
                   (DATA(gc)->summaries != NULL)?sm_scan_count_curr_pass( DATA(gc)->summaries ):0,
                   DATA(gc)->region_count );
+#endif
     }
   }
   if (gc->smircy != NULL) {
@@ -2882,6 +2884,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
 
     if (mut_effort_sumz > cN) {
+#if 0
       consolemsg( "ssb_process_rrof( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
                   bot, top,
                   nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
@@ -2898,6 +2901,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
                   (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
                   (DATA(gc)->summaries != NULL)?sm_scan_count_curr_pass( DATA(gc)->summaries ):0,
                   DATA(gc)->ephemeral_area_count );
+#endif
     }
   }
   retval |= urs_add_elems( gc->the_remset, bot, top );
