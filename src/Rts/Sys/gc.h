@@ -119,6 +119,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool rrof_prefer_big_summ;
   bool rrof_prefer_lil_summ;
   bool rrof_prefer_lat_summ;
+
+  int oracle_countdown;         /* 0 => none; 1 => oracle; o/w countdown */
 };
 
 /* In memmgr.c */

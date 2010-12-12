@@ -16,6 +16,8 @@
 #include "summ_matrix_t.h"
 #include "seqbuf_t.h"
 
+#include "smircy_checking.h"
+
 #include "stats.h"
 #include "uremset_t.h"
 
@@ -157,6 +159,14 @@ void verify_nursery_summary_via_oracle( gc_t *gc )
 void verify_summaries_via_oracle( gc_t *gc ) 
 {
   assert(! DATA(gc)->use_summary_instead_of_remsets );
-  sm_verify_summaries_via_oracle( DATA(gc)->summaries );
+  if (DATA(gc)->summaries != NULL) {
+    sm_verify_summaries_via_oracle( DATA(gc)->summaries );
+  }
 }
 
+void verify_smircy_via_oracle( gc_t *gc ) 
+{
+  if ((gc)->smircy != NULL) {
+    smircy_assert_conservative_approximation( (gc)->smircy );   \
+  }
+}

@@ -465,30 +465,44 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
 #define INCREMENTAL_REFINE_DURING_SUMZ 1
 
-#define REMSET_VERIFICATION_POINT( gc )         \
-  do {                                          \
-    if (USE_ORACLE_TO_VERIFY_REMSETS)           \
-      verify_remsets_via_oracle( gc );          \
+#if 0
+/* (The essential idea illustrating the interface) */
+#define GENERIC_VERIFICATION_POINT( gc, PRED, fcn ) \
+  do { if (PRED) fcn(gc); } while (0)
+#else
+/* (The more general approach allowing one to skip early checks) */
+#define GENERIC_VERIFICATION_POINT( gc, PRED, verify_fcn )       \
+  do {                                                           \
+    if ((PRED) && (DATA(gc)->oracle_countdown > 0)) {            \
+      if (DATA(gc)->oracle_countdown == 1) {                     \
+        verify_fcn( gc );                                        \
+        DATA(gc)->oracle_pointsrun += 1;                         \
+        if ((DATA(gc)->oracle_pointsrun % 10) == 9) {          \
+          unsigned ms;                                           \
+          ms = osdep_realclock();                                \
+          consolemsg("oracle_pointsrun: %d clock: %d.%d secs",   \
+                     DATA(gc)->oracle_pointsrun,                 \
+                     (ms/1000),                                  \
+                     ((ms%1000)/100));                           \
+        }                                                        \
+      } else {                                                   \
+        DATA(gc)->oracle_countdown -= 1;                         \
+      }                                                          \
+    }                                                            \
   } while (0)
+#endif
+
+#define REMSET_VERIFICATION_POINT( gc )         \
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_REMSETS, verify_remsets_via_oracle)
 
 #define NURS_SUMMARY_VERIFICATION_POINT( gc )   \
-  do {                                          \
-    if (USE_ORACLE_TO_VERIFY_REMSETS)           \
-      verify_nursery_summary_via_oracle( gc );  \
-  } while (0)
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_REMSETS, verify_nursery_summary_via_oracle )
 
 #define SUMMMTX_VERIFICATION_POINT( gc )        \
-  do {                                          \
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES &&       \
-        (DATA(gc)->summaries != NULL))          \
-      verify_summaries_via_oracle( gc );        \
-  } while (0)
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_SUMMARIES, verify_summaries_via_oracle )
 
-#define SMIRCY_VERIFICATION_POINT( gc )                         \
-  do {                                                          \
-    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc)->smircy != NULL)    \
-      smircy_assert_conservative_approximation( (gc)->smircy ); \
-  } while (0)
+#define SMIRCY_VERIFICATION_POINT( gc )         \
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_SMIRCY, verify_smircy_via_oracle )
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
@@ -3186,6 +3200,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
   }
   data->rrof_alloc_mark_bmp_once = info->alloc_mark_bmp_once;
+
+  data->oracle_countdown = info->oracle_countdown;
 
   data->print_float_stats_each_cycle  = info->print_float_stats_cycle;
   data->print_float_stats_each_major  = info->print_float_stats_major;

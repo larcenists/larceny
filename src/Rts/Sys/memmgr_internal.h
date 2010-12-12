@@ -192,6 +192,9 @@ struct gc_data {
     struct {int full_cycle; int sumz_cycle;} words_promoted_this;
     struct {int full_cycle; int sumz_cycle;} max_words_promoted_any;
   } mutator_effort;
+
+  int oracle_countdown;
+  int oracle_pointsrun;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))

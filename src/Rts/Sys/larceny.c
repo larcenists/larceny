@@ -480,6 +480,7 @@ parse_options( int argc, char **argv, opt_t *o )
   int i, loc, prev_size, areas = DEFAULT_AREAS;
   int mmu_size;
   int mark_period;
+  int oracle_countdown;
   double popular_factor = 0.0;
   double refine_factor = 0.0;
   double sumz_budget = 0.0;
@@ -517,6 +518,9 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dont_shrink_heap = 1;
     else if (hstrcmp( *argv, "-oracle" ) == 0)
       o->gc_info.use_oracle_to_update_remsets = 1;
+    else if (numbarg( "-oracle_countdown", &argc, &argv, &oracle_countdown )) {
+      o->gc_info.oracle_countdown = oracle_countdown;
+    } 
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1 && ! o->gc_info.is_regional_system) {
         /* Maybe we shouldn't be inferring this anymore */
