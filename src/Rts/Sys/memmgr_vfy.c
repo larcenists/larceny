@@ -66,16 +66,6 @@ static void* verify_remsets_msgc_fcn( word obj, word src, void *data )
     if (src_gen > 0) {
       assert( *gc->ssb[src_gen]->bot == *gc->ssb[src_gen]->top );
       assert( *gc->ssb[obj_gen]->bot == *gc->ssb[obj_gen]->top );
-      if (obj_gen == 0) {
-        if (! ((DATA(gc)->summaries == NULL) ||
-               sm_nursery_summary_contains( DATA(gc)->summaries, src ))) {
-          consolemsg(" src: 0x%08x (%d) points to obj: 0x%08x (%d),"
-                     " but not in nursery remset of summaries.",
-                     src, src_gen, obj, obj_gen);
-        }
-        assert( (DATA(gc)->summaries == NULL) ||
-                sm_nursery_summary_contains( DATA(gc)->summaries, src ));
-      }
       if (!urs_isremembered( gc->the_remset, src )) {
 	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
 		    " but not in remset ",
@@ -102,20 +92,20 @@ struct verify_remsets_traverse_rs_data {
 };
 /* verify that (X in remset R implies X in reachable(roots+remsets));
  * (may be silly to check, except when R = nursery_remset...) */
-static bool verify_remsets_traverse_rs( word obj, void *d, unsigned *stats )
+static bool verify_remsets_traverse_rs( word *loc, void *d )
 {
   struct verify_remsets_traverse_rs_data *data;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( msvfy_object_marked_p( data->conserv_context, obj ));
+  assert( msvfy_object_marked_p( data->conserv_context, *loc ));
   return TRUE;
 }
 /* verify that (X in R implies X in minor_remset for X);
  * another invariant for R = nursery_remset. */
-static bool verify_nursery_traverse_rs( word obj, void *d, unsigned *stats )
+static bool verify_nursery_traverse_rs( word *loc, void *d )
 {
   struct verify_remsets_traverse_rs_data *data;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( urs_isremembered( data->gc->the_remset, obj ));
+  assert(0);
   return TRUE;
 }
 

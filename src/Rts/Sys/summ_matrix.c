@@ -41,6 +41,7 @@
 #include "msgc-core.h"
 #include "gc_t.h"
 #include "gset_t.h"
+#include "locset_t.h"
 #include "old_heap_t.h"
 #include "region_group_t.h"
 #include "seqbuf_t.h"
@@ -110,7 +111,7 @@ struct summ_cell {
   int dbg_id;             /* uid (for debug output) */
 };
 static int summ_cell_next_dbg_id = 101;
-static int next_dbg_id() {
+static int next_dbg_id(void) {
   int ret = summ_cell_next_dbg_id;
   summ_cell_next_dbg_id += 1;
   return ret;
@@ -134,7 +135,7 @@ struct summ_col {
   bool construction_complete;
   bool construction_predates_snapshot;
 
-  remset_t *sum_mutator; /* objects inserted via write-barrier */
+  locset_t *sum_mutator; /* objects inserted via write-barrier */
   /* XXX [pnkfelix] Tue Jan 6 16:20:31 EST 2009
    * Why is sum_mutator maintained per-column rather than globally? 
    * 
@@ -214,7 +215,7 @@ struct summ_matrix_data {
 
   } summarizing;
 
-  remset_t *nursery_remset;     /* Points-into remset for the nursery. */
+  locset_t *nursery_locset;     /* Points-into remset for the nursery. */
 
   summary_t nursery_summary;
   summary_t mutrems_summary;
@@ -393,7 +394,7 @@ static void print_cell( summ_cell_t *cell )
          cell->prev_col->dbg_id, 
          cell->next_col->dbg_id);
 }
-static void print_skip_cell() 
+static void print_skip_cell(void) 
 {
   printf(cell_templ, "");
 }
@@ -721,7 +722,7 @@ static void  create_refactored_from_memmgr( summ_matrix_t *sm,
   int len = sm->collector->gno_count+1;
   int i;
   DATA(sm)->summaries_count = len;
-  DATA(sm)->nursery_remset = create_summset( 0, 0 );
+  DATA(sm)->nursery_locset = create_locset( 0, 0 );
 }
 
 static void check_rep( summ_matrix_t *summ );
@@ -1242,14 +1243,14 @@ EXPORT bool sm_has_valid_summaries( summ_matrix_t *summ )
 EXPORT void sm_push_nursery_summary( summ_matrix_t *summ, smircy_context_t *smircy )
 {
   check_rep_1( summ );
-  smircy_push_remset( smircy, DATA(summ)->nursery_remset );
+  smircy_push_locset( smircy, DATA(summ)->nursery_locset );
   check_rep_1( summ );
 }
 EXPORT void sm_clear_nursery_summary( summ_matrix_t *summ )
 {
   check_rep_1( summ );
   dbmsg("sm_clear_nursery_summary( summ )");
-  rs_clear( DATA(summ)->nursery_remset );
+  ls_clear( DATA(summ)->nursery_locset );
   check_rep_1( summ );
 }
 
@@ -1264,18 +1265,18 @@ struct remset_summary_data {
 };
 
 static struct {
-  remset_t **elem;
+  locset_t **elem;
   int len;
-} remset_pool = { NULL, 0 };
+} locset_pool = { NULL, 0 };
 
-static remset_t* grab_from_remset_pool() 
+static locset_t* grab_from_locset_pool(void) 
 {
   { int i; 
-    for (i = 0; i < remset_pool.len; i++) {
-      if (remset_pool.elem[i] != NULL) {
-        remset_t *rtn;
-        rtn = remset_pool.elem[i];
-        remset_pool.elem[i] = NULL;
+    for (i = 0; i < locset_pool.len; i++) {
+      if (locset_pool.elem[i] != NULL) {
+        locset_t *rtn;
+        rtn = locset_pool.elem[i];
+        locset_pool.elem[i] = NULL;
         assert2(rtn->live == 0);
         return rtn;
       }
@@ -1284,29 +1285,29 @@ static remset_t* grab_from_remset_pool()
   /* if we get here, then all remsets are in use and we need to expand
    * the pool. */
   {
-    int newlen = remset_pool.len + 1;
-    remset_t **elem = (remset_t**)must_malloc(newlen*sizeof(remset_t*));
-    free(remset_pool.elem);
-    remset_pool.elem = elem;
-    remset_pool.len = newlen;
+    int newlen = locset_pool.len + 1;
+    locset_t **elem = (locset_t**)must_malloc(newlen*sizeof(locset_t*));
+    free(locset_pool.elem);
+    locset_pool.elem = elem;
+    locset_pool.len = newlen;
     /* we do not store the new remset in the pool yet; that will
      * happen when it is freed. */
-    memset(elem, 0, newlen*sizeof(remset_t*));
-    return create_summset( 0, 0 );
+    memset(elem, 0, newlen*sizeof(locset_t*));
+    return create_locset( 0, 0 );
   }
 }
 
-static void return_to_remset_pool( remset_t *rs ) 
+static void return_to_locset_pool( locset_t *ls ) 
 {
   int i;
-  assert2(rs->live == 0);
-  for (i = 0; i < remset_pool.len; i++) {
-    if (remset_pool.elem[i] == NULL) {
-      remset_pool.elem[i] = rs;
+  assert2(ls->live == 0);
+  for (i = 0; i < locset_pool.len; i++) {
+    if (locset_pool.elem[i] == NULL) {
+      locset_pool.elem[i] = ls;
       return;
     }
   }
-  assertmsg("no NULL entries in a pool of length %d", remset_pool.len);
+  assertmsg("no NULL entries in a pool of length %d", locset_pool.len);
   assert(0); /* (should never get here) */
 }
 
@@ -1718,24 +1719,28 @@ static void add_loc_to_sum_array( summ_matrix_t *summ,
   }
 }
 
-
-static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w ) 
+static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
 {
-  remset_t *ls; 
+  locset_t *ls; 
   /* XXX TODO: filter addition to count words and wave-off when
    * summary has become over-populated. */ 
   ls = DATA(summ)->cols[ g_rhs ]->sum_mutator;
   if (ls == NULL) {
-    ls = grab_from_remset_pool();
+    ls = grab_from_locset_pool();
     DATA(summ)->cols[ g_rhs ]->sum_mutator = ls;
   }
-  rs_add_elem( ls, w );
-}
 
-static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
-{
-  /* XXX FIXME XXX */
-  add_object_to_mut_rs( summ, g_rhs, loc.obj );
+  {
+    word *slot;
+    slot = loc_to_slot(loc);
+    if (! is_pair( loc.obj )) {
+      ls_add_nonpair( ls, slot );
+    } else if (loc.offset == 0) {
+      ls_add_paircar( ls, slot );
+    } else {
+      ls_add_paircdr( ls, slot );
+    }
+  }
 }
 
 static bool region_summarized( summ_matrix_t *summ, int gno );
@@ -1757,7 +1762,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
   pop_limit = DATA(summ)->popularity_limit;
   col = DATA(summ)->cols[g_rhs];
 
-  rs_add_elems_funnel( DATA(summ)->nursery_remset, bot, top );
+  ls_add_elems_funnel( DATA(summ)->nursery_locset, bot, top );
 
   if ( region_summarized( summ, g_rhs ) || 
        region_summarizing_goal( summ, g_rhs )) {
@@ -1791,10 +1796,14 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
           incr_size_and_oflo_check( summ, g_rhs, w, col_incr_once_wb );
         }
       } else {
+#if 1
+        assert(0);
+#else
         if (col_words(col) <= pop_limit) {
           add_object_to_mut_rs( summ, g_rhs, w );
           incr_size_and_oflo_check( summ, g_rhs, w, col_incr_twice_wb );
         }
+#endif
       }
     }
   }
@@ -1854,6 +1863,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
     /* handle cdr */
     if (isptr(*loc)) {
       int gen = gen_of(*loc);
+      assert( gen >= 0 );
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
                     "pair 0x%08x (%d) cdr: 0x%08d (%d)", 
@@ -2488,118 +2498,47 @@ static void clear_col_mutator_rs( summ_matrix_t *summ, int col_idx )
 {
   int rgn_next = col_idx;
   summ_col_t *col = DATA(summ)->cols[ rgn_next ];
-  remset_t *rs = col->sum_mutator;
-  if (rs != NULL) {
-    rs_clear( rs );
-    return_to_remset_pool( rs );
+  locset_t *ls = col->sum_mutator;
+  if (ls != NULL) {
+    ls_clear( ls );
+    return_to_locset_pool( ls );
     col->sum_mutator = NULL;
   }
 }
 
+
 struct scan_add_word_data {
   summ_matrix_t *summ;
-  remset_t      *to;
+  locset_t      *to;
   int            to_gen;
 };
 
-static bool scan_add_word( word loc, void *my_data, unsigned *stats )
-{
-  struct scan_add_word_data *data = 
-    (struct scan_add_word_data *) my_data;
-  if (gen_of(loc) != data->to_gen) {
-    rs_add_elem( data->to, loc );
-    DATA(data->summ)->cols[data->to_gen]->summacopy_word_count += 1;
-  }
-  return TRUE; /* don't remove element from scanned remset */
-}
-
-static bool rsenum_fold_from_nursery_minorgc( word ptr, void *my_data, unsigned *count ) {
-  struct scan_add_word_data *data;
-  data = (struct scan_add_word_data*)my_data;
-  if (gen_of(ptr) == 2) {
-    dbmsg("rsenum_fold_from_nursery_minorgc( ptr=0x%08x (%d), data{to_gen:%d}, count )",
-               ptr, gen_of(ptr), data->to_gen);
-  }
-  if (gen_of(ptr) != data->to_gen && gen_of(ptr) != 0) {
-    rs_add_elem( data->to, ptr );
-    DATA(data->summ)->cols[data->to_gen]->summacopy_word_count += 1;
-  }
-  return TRUE; 
-}
-
 EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
 {
-  struct scan_add_word_data scan_data;
-  check_rep_1( summ );
+  if (region_summarized( summ, rgn_to ) 
+      || region_summarizing_goal( summ, rgn_to )) {
+    assert(0);
 
-  if ( region_summarized( summ, rgn_to ) 
-       || region_summarizing_goal( summ, rgn_to )) {
-    dbmsg("sm_copy_summary_to( summ, rgn_next=%d, rgn_to=%d );",
-               rgn_next, rgn_to );
+    /* rgn_next == 0 implies minor gc; copy nursery summary to rgn_to,
+       but hopefully none of that is actually necessary. */
   }
+}
 
-  if ( (region_summarized( summ, rgn_to )
-        || region_summarizing_goal( summ, rgn_to )) &&
-       (rgn_next > 0) ) {
-    summ_col_t *col_next, *col_to;
-    summ_cell_t *sent, *cell;
-    col_next = DATA(summ)->cols[rgn_next];
-    col_to   = DATA(summ)->cols[rgn_to];
-
-    assert(0); /* below has not been updated to account for locations field */
-
-    if (col_to->overly_popular) 
-      return;
-
-    if ( col_to->sum_mutator == NULL ) {
-      col_to->sum_mutator = grab_from_remset_pool();
+static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset ) 
+{
+  int i, s, e, count;
+  s = gset_min_elem_greater_than( gset, 0 );
+  e = gset_max_elem( gset );
+  assert( s > 0 );
+  count = 0;
+  for (i = s; i <= e; i++) {
+    if ( gset_memberp( i, gset ) &&
+         ! DATA(summ)->cols[i]->overly_popular &&
+         DATA(summ)->cols[i]->construction_complete ) {
+      count += 1;
     }
-    sent = col_next->cell_top;
-    cell = sent->next_col;
-    while (cell != sent) {
-      objs_pool_t *objects;
-      for (objects = cell->objects; objects != NULL; objects = objects->next) {
-        word *wptr, w;
-        for ( wptr = objects->bot; wptr < objects->top; wptr++ ) {
-          w = *wptr;
-          if (w == 0x0) {
-            /* cleared entry; skip. */
-          } else {
-            if (gen_of(w) != rgn_to) {
-              rs_add_elem( col_to->sum_mutator, w );
-              col_to->summacopy_word_count += 1;
-            }
-          }
-        }
-      }
-      cell = cell->next_col;
-    }
-
-    if (col_next->sum_mutator != NULL) {
-      scan_data.summ = summ;
-      scan_data.to = col_to->sum_mutator;
-      scan_data.to_gen = rgn_to;
-      rs_enumerate( col_next->sum_mutator, 
-                    scan_add_word, 
-                    &scan_data );
-    }
-  } else if ( (region_summarized( summ, rgn_to )
-               || region_summarizing_goal( summ, rgn_to )) &&
-              (rgn_next == 0) ) {
-    summ_col_t *col_to;
-    col_to = DATA(summ)->cols[ rgn_to ];
-    if ( col_to->sum_mutator == NULL ) {
-      col_to->sum_mutator = grab_from_remset_pool();
-    }
-    scan_data.summ   = summ;
-    scan_data.to  = col_to->sum_mutator;
-    scan_data.to_gen = rgn_to;
-    rs_enumerate( DATA(summ)->nursery_remset,
-                  rsenum_fold_from_nursery_minorgc,
-                  &scan_data );
   }
-
-  check_rep_1( summ );
+  return count;
 }
 
 static void wait_to_setup_next_wave( summ_matrix_t *summ )
@@ -2751,20 +2690,18 @@ struct filter_objects_from_sum_remset_data {
   int gen; /* collected gen */
   int col_idx; /* col index of mutator remset */
 };
-static bool filter_objects_from_sum_remset( word ptr, 
-                                            void *the_data, 
-                                            unsigned *count )
+static bool filter_objects_from_sum_remset( word *slot, 
+                                            void *the_data )
 {
   struct filter_objects_from_sum_remset_data *data;
   data = (struct filter_objects_from_sum_remset_data *)the_data;
 
-  assert(isptr(ptr));
   /* When collecting region R, we should never encounter an object
    * from R in the summary for R; summaries contain only objects
    * *outside* of R. */
-  assert( data->col_idx != gen_of(ptr));
+  assert( data->col_idx != gen_of(slot));
 
-  if (gen_of(ptr) == data->gen) {
+  if (gen_of(slot) == data->gen) {
     return FALSE;
   } else {
     return TRUE;
@@ -2841,14 +2778,14 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
             dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ): "
                        "filter sum_mutator[col=%d] live: %d",
                        rgn_next, i, col->sum_mutator->live );
-            rs_enumerate( col->sum_mutator,
+            ls_enumerate( col->sum_mutator,
                           filter_objects_from_sum_remset,
                           &data );
             dbmsg("sm_clear_contribution_to_summaries( summ, rgn_next=%d ): "
                        "post filter sum_mu[col=%d] live: %d",
                        rgn_next, i, col->sum_mutator->live );
           } else {
-            rs_enumerate( col->sum_mutator,
+            ls_enumerate( col->sum_mutator,
                           filter_objects_from_sum_remset,
                           &data );
           }
@@ -2866,22 +2803,6 @@ static bool rsenum_filter_tgt_gen( word ptr, void *my_data, unsigned *count )
   return (gen_of(ptr) != tgt_gen);
 }
 
-static bool rsenum_assert_not_forwarded( word object, void *data, unsigned *stats )
-{
-#define FORWARD_HDR 0xFFFFFFFE /* XXX eek!  Factor from cheney.h elsewhere! */
-  if ( *ptrof(object) == FORWARD_HDR ) {
-    assertmsg( " eek object 0x%08x (%d) has been forwarded but is in nurs rs.", 
-                object, gen_of(object) );
-  }
-  assert( *ptrof(object) != FORWARD_HDR );
-  return TRUE;
-}
-
-static void assert_no_forwarded_objects( remset_t *rs )
-{
-  rs_enumerate( rs, rsenum_assert_not_forwarded, 0x0 );
-}
-
 /* 
  * This should be fine as long as I continue using a remset_t to
  * represent the nursery summary.  (The only change I anticipate to
@@ -2892,8 +2813,10 @@ EXPORT void sm_init_summary_from_nursery_alone( summ_matrix_t *summ,
                                          summary_t *summary ) 
 {
   check_rep_1( summ );
-  assert_no_forwarded_objects( DATA(summ)->nursery_remset );
-  rs_init_summary( DATA(summ)->nursery_remset, -1, summary);
+#if 0
+  assert_no_forwarded_objects( DATA(summ)->nursery_locset );
+#endif
+  ls_init_summary( DATA(summ)->nursery_locset, -1, summary);
   check_rep_1( summ );
 }
 
@@ -2911,18 +2834,16 @@ static bool filter_mutated_elems( summary_t *s, word w )
 {
   summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
-  remset_t      *nur_rs = DATA(summ)->nursery_remset;
-  remset_t      *mut_rs = col->sum_mutator;
+  locset_t      *nur_rs = DATA(summ)->nursery_locset;
+  locset_t      *mut_rs = col->sum_mutator;
   assert(0);
-  return ! rs_isremembered( mut_rs, w ) &&
-    coheres_with_snapshot( summ, col, w);
 }
 static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
 {
   summ_matrix_t *summ   = (summ_matrix_t*) s->cursor1;
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
-  remset_t      *nur_rs = DATA(summ)->nursery_remset;
-  remset_t      *mut_rs = col->sum_mutator;
+  locset_t      *nur_rs = DATA(summ)->nursery_locset;
+  locset_t      *mut_rs = col->sum_mutator;
   word          *slot;
 
   bool alive_in_snapshot;
@@ -2937,7 +2858,7 @@ static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
   }
 #endif
 
-  return (! rs_isremembered( mut_rs, l.obj )) && alive_in_snapshot;
+  return (! ls_ismember( mut_rs, loc_to_slot(l) )) && alive_in_snapshot;
 }
 
 static bool filter_gen( summary_t *s, word w )
@@ -3005,25 +2926,26 @@ static bool filter_icursor1( summary_t *this, word w ) {
 struct rs_scan_filter_entries {
   summ_matrix_t *summ;
   int next_gen;
-  remset_t *sum_mut;
+  locset_t *sum_mut;
 };
-static bool rsscan_filter_entries( word loc, void *my_data, unsigned *stats )
+static bool lsscan_filter_entries( word *loc, void *my_data )
 {
   struct rs_scan_filter_entries *data;
   bool ret;
   data = (struct rs_scan_filter_entries*)my_data;
   ret = ((gen_of(loc) != data->next_gen) 
-          && ! rs_isremembered( data->sum_mut, loc ));
+          && ! ls_ismember( data->sum_mut, loc ));
   dbmsg( "rsscan_filter_entries(loc=0x%08x (%d),data{next_gen=%d},stats)"
               " => %s",
               loc, gen_of(loc), data->next_gen, ret?"TRUE":"FALSE" );
   return ret;
 }
 
-static bool mut_filter_snapshot( word loc, void *my_data, unsigned *stats )
+static bool mut_filter_snapshot( word *loc, void *my_data )
 {
   smircy_context_t *smircy = (smircy_context_t*)my_data;
-  return smircy_object_marked_p( smircy, loc );
+  word val = *loc;
+  return (! isptr(val)) || smircy_object_marked_p( smircy, val );
 }
 
 /* 
@@ -3054,7 +2976,7 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
     if (col->sum_mutator == NULL) {
       /* XXX consider delaying this until its actually 
        * needed within rs_scan_add_word_to_rs */
-      col->sum_mutator = grab_from_remset_pool();
+      col->sum_mutator = grab_from_locset_pool();
     }
 #if 0
     {
@@ -3063,7 +2985,7 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
       data.summ   = summ;
       data.to_gen = next_summ_idx;
       data.rs_to  = col->sum_mutator;
-      rs_enumerate( DATA(summ)->nursery_remset, 
+      rs_enumerate( DATA(summ)->nursery_locset, 
                     rs_scan_add_word_to_rs, 
                     &data );
     }
@@ -3073,11 +2995,11 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
       data.summ     = summ;
       data.next_gen = next_summ_idx;
       data.sum_mut  = col->sum_mutator;
-      rs_enumerate( DATA(summ)->nursery_remset, 
-                    rsscan_filter_entries, 
+      ls_enumerate( DATA(summ)->nursery_locset, 
+                    lsscan_filter_entries, 
                     &data );
 
-      rs_init_summary( DATA(summ)->nursery_remset, -1, 
+      ls_init_summary( DATA(summ)->nursery_locset, -1, 
                        &DATA(summ)->nursery_summary );
     }
 #endif
@@ -3087,11 +3009,11 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
         assert( summ->collector->smircy != NULL );
         assert( smircy_in_refinement_stage_p( summ->collector->smircy ));
 
-        rs_enumerate( col->sum_mutator, 
+        ls_enumerate( col->sum_mutator, 
                       mut_filter_snapshot, summ->collector->smircy );
       }
 
-      rs_init_summary( col->sum_mutator, -1,
+      ls_init_summary( col->sum_mutator, -1,
                        &DATA(summ)->mutrems_summary );
     }
 
@@ -3150,22 +3072,12 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
   check_rep_1( summ );
 }
 
-EXPORT bool sm_nursery_summary_contains( summ_matrix_t *summ, word obj ) 
-{
-  check_rep_3( summ );
-  /* XXX the return statement below was missing for quite a while. 
-   * Double-check calling-context; see if this invocation is really necessary.
-   * (It probably was artificially doing the right thing; yay C...)
-   */
-  return rs_isremembered( DATA(summ)->nursery_remset, obj );
-}
-
 EXPORT void sm_nursery_summary_enumerate( summ_matrix_t *summ, 
-                                   bool (*scanner)(word loc, void *data, unsigned *stats),
-                                   void *data )
+                                          bool (*scanner)(word *loc, void *data),
+                                          void *data )
 {
   check_rep_1( summ );
-  rs_enumerate( DATA(summ)->nursery_remset, scanner, data );
+  ls_enumerate( DATA(summ)->nursery_locset, scanner, data );
   check_rep_1( summ );
 }
 
@@ -3305,14 +3217,18 @@ EXPORT void sm_points_across_callback( summ_matrix_t *summ,
 EXPORT void sm_before_collection( summ_matrix_t *summ )
 {
   if (0) print_matrix( "sm_before_collection", summ );
-  assert_no_forwarded_objects( DATA(summ)->nursery_remset );
+#if 0
+  assert_no_forwarded_objects( DATA(summ)->nursery_locset );
+#endif
   check_rep_2( summ );
 }
 
 EXPORT void sm_after_collection( summ_matrix_t *summ )
 {
   if (0) print_matrix( "sm_after_collection", summ );
-  assert_no_forwarded_objects( DATA(summ)->nursery_remset );
+#if 0
+  assert_no_forwarded_objects( DATA(summ)->nursery_locset );
+#endif
   check_rep_2( summ );
 }
 

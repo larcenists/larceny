@@ -1321,11 +1321,12 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
 
   if (summarization_active) {
     int i;
+    /* is this loop *really* necessary?  Why does rgn_to even have a summary? */
     for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
       if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
         oh_synchronize( DATA(gc)->ephemeral_area[i] );
         gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
-        sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to );
+        sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to ); /* XXX */
         gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
       }
     }

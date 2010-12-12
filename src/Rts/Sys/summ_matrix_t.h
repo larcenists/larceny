@@ -183,7 +183,7 @@ void sm_init_summary_from_nursery_alone( summ_matrix_t *summ,
                                          summary_t *summary );
 bool sm_nursery_summary_contains( summ_matrix_t *summ, word obj );
 void sm_nursery_summary_enumerate( summ_matrix_t *summ, 
-                                   bool (*scanner)(word loc, void *data, unsigned *stats),
+                                   bool (*scanner)(word *loc, void *data),
                                    void *data );
 
 int sm_cycle_count( summ_matrix_t *summ );
@@ -196,7 +196,6 @@ void sm_add_ssb_elems_to_summary( summ_matrix_t *summ,
                                   word *bot, word *top, int g_rhs );
 void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
-void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int offset, int g_rhs );
