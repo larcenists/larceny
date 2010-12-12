@@ -92,6 +92,8 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
 
 struct apply_scanner_to_rs_data {
   bool (*scanner)( word loc, void *data );
+  remset_t *filter_these; /* If not NULL then skip these during enumeration */
+  remset_t *mirror_these; /* If not NULL then propogate deletes here during enumeration */
   void *scanner_data;
 };
 static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
@@ -99,7 +101,17 @@ static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
   struct apply_scanner_to_rs_data *my_data = 
     (struct apply_scanner_to_rs_data*)data;
 
-  return my_data->scanner( loc, my_data->scanner_data );
+  if ((my_data->filter_these != NULL) 
+      && rs_isremembered( my_data->filter_these, loc )) {
+    return TRUE; /* skip */
+  } else {
+    bool keep_elem; 
+    keep_elem = my_data->scanner( loc, my_data->scanner_data );
+    if (! keep_elem && (my_data->mirror_these != NULL)) {
+      rs_del_elem( my_data->mirror_these, loc );
+    }
+    return keep_elem;
+  }
 }
 static void enumerate_gno( uremset_t *urs, 
                            bool incl_tag, 
@@ -112,8 +124,12 @@ static void enumerate_gno( uremset_t *urs,
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
 
+  wrapper_data.filter_these = DATA(urs)->major_remset[ gno ];
+  wrapper_data.mirror_these = NULL;
   rs_enumerate( DATA(urs)->remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
+  wrapper_data.filter_these = NULL;
+  wrapper_data.mirror_these = DATA(urs)->remset[ gno ];
   rs_enumerate( DATA(urs)->major_remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
 }
@@ -174,7 +190,9 @@ static void enumerate_minor_complement( uremset_t *urs,
   int rs_count;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
-
+  wrapper_data.filter_these = NULL;
+  wrapper_data.mirror_these = NULL;
+  
   rs_count = DATA(urs)->remset_count;
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
@@ -200,11 +218,12 @@ static void enumerate_complement( uremset_t *urs,
 
   for( i = 1; i < ecount; i++ ) {
     if (! gset_memberp( i, gset )) {
+      wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
+      wrapper_data.mirror_these = NULL;
       rs_enumerate( DATA(urs)->remset[i], 
                     apply_scanner_to_rs, &wrapper_data);
-      /* XXX: I may need to filter out members of gc->remset[i] 
-       * because some components like summ_matrix assume that
-       * the enumerate does not duplicate entries... */
+      wrapper_data.filter_these = NULL;
+      wrapper_data.mirror_these = DATA(urs)->remset[ i ];
       rs_enumerate( DATA(urs)->major_remset[i], 
                     apply_scanner_to_rs, &wrapper_data);
     }
@@ -224,8 +243,12 @@ static void          enumerate( uremset_t *urs,
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=1; i < DATA(urs)->remset_count; i++) {
+    wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
+    wrapper_data.mirror_these = NULL;
     rs_enumerate( DATA(urs)->remset[ i ], 
                   apply_scanner_to_rs, &wrapper_data );
+    wrapper_data.filter_these = NULL;
+    wrapper_data.mirror_these = DATA(urs)->remset[ i ];
     rs_enumerate( DATA(urs)->major_remset[ i ], 
                   apply_scanner_to_rs, &wrapper_data );
   }
