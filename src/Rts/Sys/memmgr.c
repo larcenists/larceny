@@ -465,6 +465,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define SYNC_REFINEMENT_RROF_CYCLE 1
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
+#define PRINT_INCOMING_REFS_INFO_TO_CONSOLE 0
 #define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
 #define USE_URS_WRAPPER_TO_CHECK_REMSET_SANITY 0
 #define INCREMENTAL_REFINE_DURING_SUMZ 1
@@ -732,6 +733,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->mutator_effort.words_promoted_this.full_cycle = 0;
 }
 
+#if PRINT_INCOMING_REFS_INFO_TO_CONSOLE
 static void print_incoming_summarizer( gc_t *gc, char *prefix ) 
 {
     int gno, words, mega_words, mega_words_remainder;
@@ -777,14 +779,17 @@ static void print_incoming_marker( gc_t * gc, char *prefix )
     fprintf( stdout, "\n" );
     fflush( stdout );
 }
+#endif
 
 static void rrof_completed_summarization_cycle( gc_t *gc ) 
 {
 
-  { int gno, words, mega_words, mega_words_remainder;
+#if PRINT_INCOMING_REFS_INFO_TO_CONSOLE
+  { 
     print_incoming_summarizer( gc, "sumz" );
     print_incoming_marker(     gc, "    " );
   }
+#endif
   DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
   DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
   DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
@@ -909,11 +914,12 @@ static void initiate_refinement( gc_t *gc )
 
 static void incremental_refinement_has_completed( gc_t *gc )
 {
-  { int gno, words, mega_words, mega_words_remainder;
-    int MILLION = 1000000;
+#if PRINT_INCOMING_REFS_INFO_TO_CONSOLE
+  { 
     print_incoming_summarizer( gc, "    " );
     print_incoming_marker(     gc, "mark" );
   }
+#endif
 
   reset_countdown_to_next_refine( gc ); /* XXX still necessary/meaningful? */
 
