@@ -11,7 +11,7 @@ fi
 DATE=`date +"%Y%b%d-at-%H-%M-%S"`
 
 if [ -z $1 ] ; then
-    OUTPUT=bench-auto-log.$DATE.log
+    OUTPUT=bench-scheme09-log.$DATE.log
 else 
     OUTPUT=$1
 fi
