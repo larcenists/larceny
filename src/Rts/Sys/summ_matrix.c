@@ -2276,6 +2276,9 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
         (int)ceil(((double)region_count) * DATA(summ)->coverage);
       assert( coverage > 0 );
 
+#if 0
+      region_group_enq_all( region_group_summzing, region_group_wait_w_sum );
+#endif
       switch_some_to_summarizing( summ, coverage );
 
       DATA(summ)->summarizing.cursor = summ->collector->gno_count;
