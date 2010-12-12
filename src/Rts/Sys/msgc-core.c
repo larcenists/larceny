@@ -511,7 +511,7 @@ void msgc_mark_range( msgc_context_t *context, void *bot, void *lim )
     context->bitmap[ word_idx_hi ] = ~0;
   else
     context->bitmap[ word_idx_hi ] |= 
-      ~0 << (bit_idx_hi & BIT_IN_WORD_MASK)+1 ^ ~0;
+      ((~0 << ((bit_idx_hi & BIT_IN_WORD_MASK)+1)) ^ ~0);
 }
 
 void msgc_mark_object( msgc_context_t *context, word obj )
