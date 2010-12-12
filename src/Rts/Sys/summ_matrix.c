@@ -254,6 +254,14 @@ static int calc_goal( summ_matrix_t *summ, int region_count )
   return max(1,(int)floor(((double)region_count) * DATA(summ)->goal));
 }
 
+static int calc_coverage( summ_matrix_t *summ, int region_count )
+{
+  int coverage;
+  coverage = 
+    max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
+  return coverage;
+}
+
 static objs_pool_t *alloc_objpool_segment( unsigned entries_per_pool_segment )
 {
   objs_pool_t *p;
@@ -1010,6 +1018,7 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count )
 
   if ( DATA(summ)->summarizing.waiting ) {
     int goal_budget = calc_goal( summ, ne_rgn_count );
+    int coverage = calc_coverage( summ, ne_rgn_count );
     int max_pop = quotient2( ne_rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_nosum ) +
@@ -1019,7 +1028,7 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count )
 
     if ( usable - max_pop > goal_budget ) {
       return TRUE;
-    } else if (filled < goal_budget) {
+    } else if (filled < coverage) {
       return TRUE;
     } else {
       return FALSE;
@@ -1066,6 +1075,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 
   if ( DATA(summ)->summarizing.waiting ) {
     int goal_budget = calc_goal( summ, ne_rgn_count );
+    int coverage = calc_coverage( summ, ne_rgn_count );
     int max_pop = quotient2( ne_rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_w_sum ) +
@@ -1073,10 +1083,12 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     int filled  =
       region_group_count( region_group_filled );
 
+    assert2( coverage >= goal_budget );
+
     if ( usable-max_pop > goal_budget ) {
       /* continue waiting to setup next wave */
       return FALSE;
-    } else if (filled < goal_budget) {
+    } else if (filled < coverage) {
       /* continue allocating more storage before setup of next wave */
       return FALSE;
     } else {
@@ -1128,8 +1140,23 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
          * 6110, set shall_we_progress to TRUE here. */
 
       } else {
+        char *(*n)( region_group_t grp );
+        int   (*c)( region_group_t grp );
+        n = &region_group_name;
+        c = &region_group_count;
         consolemsg("summ_matrix.c: had to summarize "
-                   "during major gc pause to meet budget");
+                   "during major gc pause to meet budget"
+                   "                    "
+                   " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d",
+                   n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                   n( region_group_unfilled   ), c( region_group_unfilled ),
+                   n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                   n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                   n( region_group_summzing   ), c( region_group_summzing ),
+                   n( region_group_filled     ), c( region_group_filled ), 
+                   n( region_group_risingstar ), c( region_group_risingstar ),
+                   n( region_group_infamous   ), c( region_group_infamous ),
+                   n( region_group_hasbeen    ), c( region_group_hasbeen ) );
         shall_we_progress = TRUE;
       }
     }
@@ -1918,10 +1945,6 @@ static void bump_incoming_words( summ_matrix_t *summ, int gen )
     heap = gc_heap_for_gno( gc, gen );
     heap->incoming_words.summarizer += 1;
 
-    assert2( (heap->group != region_group_summzing)
-             || (heap->incoming_words.summarizer 
-                 == DATA(summ)->cols[gen]->summarize_word_count) );
-
     gc_check_rise_to_infamy( gc, heap, heap->incoming_words.summarizer );
   }
 }
@@ -2096,17 +2119,15 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
 
   {
     int W;
-#if CONSERVATIVE_REGION_COUNT
-    N_over_R = summ->collector->gno_count;
-    U = region_group_count( region_group_unfilled );
-#endif
+    int N_over_R = summ->collector->gno_count;
+    int U = region_group_count( region_group_unfilled );
     W = region_group_count( region_group_wait_w_sum ) +
       region_group_count( region_group_wait_nosum );
     if (! about_to_major)
       W = W+1;
     dA_over_R = dA;
     num_under_construction = 
-      (quotient2( ne_rgn_count*F_3, W ) + dA_over_R );
+      (quotient2( (N_over_R - U+1)*F_3, W ) + dA_over_R );
 #if 0
     num_under_construction = 
       quotient2( summ->collector->gno_count, gc_budget );
@@ -2167,6 +2188,10 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
       case gno_state_normal:
         DATA(summ)->cols[i]->overly_popular = FALSE;
         col_reset_words( DATA(summ)->cols[i] );
+        {
+          old_heap_t *heap = gc_heap_for_gno( summ->collector, i );
+          assert( heap->incoming_words.summarizer == 0 );
+        }
         /* XXX kill below after shifting to cells rep */
         break;
 
@@ -2216,7 +2241,9 @@ static int sm_build_summaries_by_scanning( summ_matrix_t *summ,
 static void sm_clear_col( summ_matrix_t *summ, int i );
 static void wait_to_setup_next_wave( summ_matrix_t *summ );
 
-static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
+static void switch_some_to_summarizing( summ_matrix_t *summ, 
+                                        int coverage,
+                                        int region_count )
 {
   int coverage_orig;
   { gc_t *gc;
@@ -2420,7 +2447,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 #if 1
       region_group_enq_all( region_group_summzing, region_group_wait_w_sum );
 #endif
-      switch_some_to_summarizing( summ, coverage );
+      switch_some_to_summarizing( summ, coverage, region_count );
 
       DATA(summ)->summarizing.cursor = summ->collector->gno_count;
 
@@ -2440,6 +2467,11 @@ static void sm_clear_col( summ_matrix_t *summ, int i )
     clear_col_mutator_rs( summ, i );
 
     col_reset_words( DATA(summ)->cols[i] );
+  }
+
+  { 
+    old_heap_t *heap = gc_heap_for_gno( summ->collector, i );
+    heap->incoming_words.summarizer = 0;
   }
 
   DATA(summ)->cols[i]->construction_complete = FALSE;
@@ -3145,7 +3177,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
 {
   int coverage, budget;
 
-  coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
+  coverage = calc_coverage( summ, region_count );
   budget = 
     region_group_count( region_group_wait_w_sum ) +
     region_group_count( region_group_wait_nosum );
@@ -3156,7 +3188,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
         DATA(summ)->coverage, coverage, budget );
 
   assert( region_group_count( region_group_summzing ) == 0 );
-  switch_some_to_summarizing( summ, coverage );
+  switch_some_to_summarizing( summ, coverage, region_count );
 
   sm_build_summaries_setup( summ, budget, region_count, 
                             rgn_next, about_to_major, dA );
