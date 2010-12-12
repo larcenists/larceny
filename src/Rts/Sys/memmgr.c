@@ -1607,6 +1607,11 @@ static int find_appropriate_next( gc_t *gc )
   }
   if (first_waiting == NULL) {
     old_heap_t *first_filled;
+    if (DATA(gc)->summaries != NULL) {
+      consolemsg( "ran out of ready-and-waiting "
+                  "summarized regions to collect!  "
+                  "Are parameter choices sane?");
+    }
     assert( DATA(gc)->summaries == NULL );
     first_filled = region_group_first_heap( region_group_filled );
     assert( first_filled != NULL );
@@ -2945,7 +2950,7 @@ static int calc_cN( gc_t *gc )
     / sizeof(word);
   int retval;
 
-  assert( c > 0.0 );
+  assert2( c > 0.0 );
 
   N = max( N, 5*MEGABYTE );
 
@@ -3308,6 +3313,21 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       (info->has_sumz_retries
        ? info->max_sumz_retries
        : default_sumz_max_retries);
+
+    {
+      double F_1 = DATA(gc)->rrof_sumz_params.budget_inv;
+      double F_2 = DATA(gc)->rrof_sumz_params.coverage_inv;
+      int    F_3 = DATA(gc)->rrof_sumz_params.max_retries;
+      double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
+      double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
+      if (c <= 0.0) {
+        consolemsg("c:%g must be positive; "
+                   "c = (F_2*F_3 - 1)/(F_1*F_2)*S-1.0 "
+                   """= (%g*%d - 1)/(%g*%g)*%g-1.0",
+                   c,   F_2, F_3,   F_1, F_2, S);
+      }
+      assert( c > 0.0 );
+    }
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
