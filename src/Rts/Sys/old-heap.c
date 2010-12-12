@@ -779,6 +779,9 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   heap->prev_in_group = NULL;
   heap->next_in_group = NULL;
 
+  heap->incoming_words.summarizer = 0;
+  heap->incoming_words.marker = 0;
+
   return heap;
 }
 

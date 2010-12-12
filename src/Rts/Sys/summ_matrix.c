@@ -47,6 +47,7 @@
 #include "seqbuf_t.h"
 #include "semispace_t.h"
 #include "smircy.h"
+#include "static_heap_t.h"
 #include "summary_t.h"
 #include "uremset_t.h"
 
@@ -1882,6 +1883,11 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         annoyingmsg("scan_object_for_remset_summary "
                     "pair 0x%08x (%d) car: 0x%08d (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
+      { gc_t *gc = remsum->summ->collector;
+        if ((gen != 0) && gen != gc->static_area->data_area->gen_no) {
+          gc_heap_for_gno( gc, gen )->incoming_words.summarizer += 1;
+        }
+      }
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
         if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1908,6 +1914,11 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         annoyingmsg("scan_object_for_remset_summary "
                     "pair 0x%08x (%d) cdr: 0x%08d (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
+      { gc_t *gc = remsum->summ->collector;
+        if ((gen != 0) && gen != gc->static_area->data_area->gen_no) {
+          gc_heap_for_gno( gc, gen )->incoming_words.summarizer += 1;
+        }
+      }
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
         if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -1943,6 +1954,11 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
           annoyingmsg("scan_object_for_remset_summary "
                       "vecproc 0x%08x (%d) : 0x%08x (%d)", 
                       ptr, gen_of(ptr), *loc, gen);
+        { gc_t *gc = remsum->summ->collector;
+          if ((gen != 0) && gen != gc->static_area->data_area->gen_no) {
+            gc_heap_for_gno( gc, gen )->incoming_words.summarizer += 1;
+          }
+        }
         if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
           if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
@@ -3008,6 +3024,16 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
                              int dA )
 {
   int coverage, budget;
+
+  { gc_t *gc;
+    int gno; 
+    gc = summ->collector;
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno != gc->static_area->data_area->gen_no) {
+        gc_heap_for_gno( gc, gno )->incoming_words.summarizer = 0;
+      }
+    }
+  }
 
   coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
   budget = 

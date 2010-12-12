@@ -52,6 +52,11 @@ struct old_heap {
   old_heap_t *prev_in_group;
   old_heap_t *next_in_group;
 
+  struct {
+    int summarizer;
+    int marker;
+  } incoming_words;
+
   void *data;
      /* Data private to the heap implementation.
 	*/

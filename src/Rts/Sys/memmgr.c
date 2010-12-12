@@ -528,6 +528,10 @@ static void smircy_start( gc_t *gc )
   gc->smircy = smircy_begin_opt( gc, gc->gno_count, 
                                  DATA(gc)->rrof_alloc_mark_bmp_once );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
+  { int i; 
+    for ( i = 0; i < DATA(gc)->ephemeral_area_count; i++ )
+      DATA(gc)->ephemeral_area[i]->incoming_words.marker = 0; 
+  }
   smircy_push_roots( gc->smircy );
   if (DATA(gc)->summaries != NULL) {
     sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
@@ -730,6 +734,22 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
 static void rrof_completed_summarization_cycle( gc_t *gc ) 
 {
+
+  { int gno, words, mega_words, mega_words_remainder;
+    int MILLION = 1000000;
+    fprintf( stdout, "incoming summarizer " );
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno == gc->static_area->data_area->gen_no)
+        continue;
+      words = gc_heap_for_gno( gc, gno )->incoming_words.summarizer;
+      mega_words = words / MILLION;
+      mega_words_remainder =  (words % MILLION) / (MILLION / 100);
+      fprintf( stdout, "%2d.%02d ", mega_words, mega_words_remainder );
+    }
+    fprintf( stdout, "\n" );
+    fflush( stdout );
+  }
+
   DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
   DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
   DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
@@ -854,6 +874,20 @@ static void initiate_refinement( gc_t *gc )
 
 static void incremental_refinement_has_completed( gc_t *gc )
 {
+  { int gno, words, mega_words, mega_words_remainder;
+    int MILLION = 1000000;
+    fprintf( stdout, "incoming marker     " );
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno == gc->static_area->data_area->gen_no)
+        continue;
+      words = gc_heap_for_gno( gc, gno )->incoming_words.marker;
+      mega_words = words / MILLION;
+      mega_words_remainder = (words % MILLION) / (MILLION / 100);
+      fprintf( stdout, "%2d.%02d ", mega_words, mega_words_remainder );
+    }
+    fprintf( stdout, "\n" );
+    fflush( stdout );
+  }
 
   reset_countdown_to_next_refine( gc ); /* XXX still necessary/meaningful? */
 

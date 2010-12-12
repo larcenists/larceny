@@ -98,8 +98,11 @@
 #include "gc_t.h"
 #include "gclib.h"
 #include "locset_t.h"
+#include "old_heap_t.h"
 #include "remset_t.h"
+#include "semispace_t.h"
 #include "smircy.h"
+#include "static_heap_t.h"
 
 #include "smircy_internal.h"
 
@@ -808,6 +811,12 @@ static void push( smircy_context_t *context, word obj, word src )
   bool already_marked;
 
   if (isptr(obj)) {
+
+    if (isptr(src) 
+        && (gen_of(obj) != 0)
+        && (gen_of(obj) != context->gc->static_area->data_area->gen_no)) {
+      gc_heap_for_gno( context->gc, gen_of(obj))->incoming_words.marker += 1;
+    }
 
 #if MARK_ON_PUSH
     already_marked = mark_object( context, obj );
