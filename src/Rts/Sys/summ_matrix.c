@@ -2031,7 +2031,10 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   int num_under_construction;
   int goal;
   int gc_budget; 
-
+  double F_1 = DATA(summ)->F_1;
+  double F_2 = DATA(summ)->F_2;
+  int F_3 = DATA(summ)->F_3;
+  int dA_over_R;
   goal = calc_goal( summ, ne_rgn_count );
 
   /* genset_next does not actually go up to coverage
@@ -2047,10 +2050,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   assert( gc_budget > 0 );
 
   {
-    int W, dA_over_R;
-    double F_1 = DATA(summ)->F_1;
-    double F_2 = DATA(summ)->F_2;
-    double F_3 = DATA(summ)->F_3;
+    int W;
 #if CONSERVATIVE_REGION_COUNT
     N_over_R = summ->collector->gno_count;
     U = region_group_count( region_group_unfilled );
@@ -2061,7 +2061,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
       W = W+1;
     dA_over_R = dA;
     num_under_construction = 
-      (quotient2( ne_rgn_count, W ) + dA_over_R );
+      (quotient2( ne_rgn_count*F_3, W ) + dA_over_R );
 #if 0
     num_under_construction = 
       quotient2( summ->collector->gno_count, gc_budget );
@@ -2093,10 +2093,9 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
   dbmsg
     ("sm_build_summaries_setup"
      "(summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%s )"
-     " goal:%d num_under_construction:%d",
+     " goal:%d num_under_construction:%d (F_1*F_2*F_3+dA/R): %d",
      majors, ne_rgn_count, rgn_next, about_to_major?"TRUE":"FALSE", 
-     goal, num_under_construction
-     );
+      goal, num_under_construction, ((int)ceil(F_1*F_2*F_3) + dA_over_R));
 
 
   DATA(summ)->summarizing.goal = goal;
@@ -2286,15 +2285,6 @@ static void check_if_refining_is_now_done( summ_matrix_t *summ )
   }
 }
 
-static int calc_summarization_coverage( summ_matrix_t *summ,
-                                             int region_count )
-{
-  int coverage;
-  coverage = 
-    max(1,(int)floor(((double)(region_count)) * DATA(summ)->coverage));
-  return coverage;
-}
-
 static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
                                                    int region_count ) 
 {
@@ -2377,7 +2367,8 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
                   "count:%d did not meet goal:%d.", 
                   region_count, count, goal);
 
-      coverage = calc_summarization_coverage( summ, region_count );
+      coverage = 
+        (int)ceil(((double)region_count) * DATA(summ)->coverage);
       assert( coverage > 0 );
 
       /* XXX this might be worth turning on. */
@@ -3108,7 +3099,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
 {
   int coverage, budget;
 
-  coverage = calc_summarization_coverage( summ, region_count );
+  coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
   budget = 
     region_group_count( region_group_wait_w_sum ) +
     region_group_count( region_group_wait_nosum );
