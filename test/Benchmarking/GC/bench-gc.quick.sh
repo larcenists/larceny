@@ -82,3 +82,7 @@ g( ) {
 # g '(earley-benchmark 13 20)' earley
 # g '(nboyer-benchmark 5 5)'   nboyer
 g '(MpermNKL-benchmark 200 9 10  1)' perm
+
+$LARCENY -- parse-stats-output.sch            \
+    -e "(process-and-print-log \"$OUTPUT\" )" \
+    -e "(exit)"

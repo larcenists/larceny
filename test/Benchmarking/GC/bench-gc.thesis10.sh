@@ -104,3 +104,6 @@ g '(GCOld 100 0 1  1000 800)' gcold
 g '(queue-benchmark 1000 1000000 50)' queue3
 g '(pueue-benchmark 1000 1000000 50 50)' pueue3
 
+$LARCENY -- parse-stats-output.sch            \
+    -e "(process-and-print-log \"$OUTPUT\" )" \
+    -e "(exit)"
