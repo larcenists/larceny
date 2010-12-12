@@ -1,4 +1,4 @@
-(error-handler 
+'(error-handler 
  (lambda l 
    ; (decode-error l)
    (display "parse-stats-output DIED!") (newline) (exit 118)))
@@ -63,11 +63,30 @@
                      'rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0 'twobit)
   '("rts" "heap" "remset" "summ" "marker"))
 
-'(plot-mem-stats-data/stacked-bars 
-  stats-data
-  '(scpy dflt rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0) ; rt-keys
-  '(twobit sboyer paraffins)                                    ; bmark-keys
-  symbol->string)                                               ; key->name
+(define rt-keys+names
+  '((scpy                                              "Stop+Copy")
+    (dflt                                              "Gen")
+    (dflt-nurs1meg                                     "Gen nurs=1M")
+    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0  "Rgn 221 pop 8")
+    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0  "Rgn 122 pop 6")
+    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0  "Rgn 232 pop 4")
+    (rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0  "Rgn 221 pop 8 no infamy")
+    (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0  "Rgn 122 pop 6 no infamy")
+    (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0  "Rgn 232 pop 4 no infamy")))
+
+(define bmark-keys+names
+  '((twobit     "twobit:long") 
+    (sboyer     "sboyer:6") 
+    (paraffins  "paraffins")))
+
+(define (rt-or-bmark-key->name key)
+  (cadr (or (assq key rt-keys+names)
+            (assq key bmark-keys+names))))
+
+'(plot-mem-stats-data/stacked-bars stats-data
+                                   (map car rt-keys+names)
+                                   (map car bmark-keys+names)
+                                   rt-or-bmark-key->name)
 
 ;; A RtcfgKey is a Symbol (e.g. for a GC configuration key)
 ;; A BmarkKey is a Symbol (e.g. for a benchmark name
