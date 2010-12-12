@@ -554,6 +554,25 @@ bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
   return retval;
 }
 
+void extbmp_del_elem( extbmp_t *ebmp, word untagged_w ) 
+{
+  leaf_t *leaf;
+  word first;
+  bool found;
+  unsigned int bit_idx, word_idx, bit_in_word;
+  found = find_leaf_or_fail( ebmp, untagged_w, &leaf, &first );
+
+  if (found) {
+    bit_idx     = (untagged_w - first) >> BIT_IDX_SHIFT;
+    word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
+    bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+
+    if (leaf->bitmap[ word_idx ] & bit_in_word) {
+      leaf->bitmap[ word_idx ] &= ~bit_in_word;
+    }
+  }
+}
+
 bool extbmp_is_member( extbmp_t *ebmp, word untagged_w )
 { /* untagged_w in ebmp ? */
   leaf_t *leaf;
