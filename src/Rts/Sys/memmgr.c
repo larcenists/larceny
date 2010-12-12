@@ -1499,7 +1499,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
        + region_group_count( region_group_wait_w_sum ) 
        + region_group_count( region_group_filled ) /* XXX */) 
       > 0) {
-    rrof_gc_policy( gc, &will_says_should_major, DATA(gc)->summaries != NULL );
+    rrof_gc_policy( gc, &will_says_should_major, FALSE );
   } else {
     will_says_should_major = FALSE;
   }
