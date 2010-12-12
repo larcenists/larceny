@@ -11,6 +11,23 @@ struct loc {
                /* (happens to match tagged fixnum word-count, for now) */
 };
 
+static loc_t make_loc( word obj, int offset ) 
+{
+  loc_t loc;
+
+  /* offset is in bytes */
+  assert((offset % sizeof(word)) == 0);
+
+  loc.obj = obj;
+  loc.offset = offset;
+  return loc;
+}
+
+static word* loc_to_slot( loc_t l ) 
+{
+  return (word*)(((byte*)ptrof(l.obj))+l.offset);
+}
+
 struct summary {
   int entries;
     /* Count of entries in summary.

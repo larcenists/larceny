@@ -64,39 +64,15 @@
 #define ADD_TO_SUMAR_ASSERTS_UNIQ_ENQ 0
 #define POOL_ENQUEUE_ASSERTS_UNIQ_ENQ 0
 
-/* Since each pair has at _most_ two locations holding region-crossing
- * pointers, it does not make much sense in practice to waste one
- * (relatively large) location entry to represent the contribution of
- * a slot in a pair (especially since if both slots cross, then an
- * explicit pair of location entries is massive compared to the pair
- * itself).
- * 
- * So I am keeping the object pool code alive, and am planning to
- * allow one to use it to represent (imprecisely) the region-crossing
- * pointers of pairs by listing just the pairs themselves.
- * 
- * (I should eventually generalize this to also allow locations of
- *  _small_ vectorlikes to be stored in the same manner; perhaps
- *  it should also be further generalized to allow locations 
- *  towards the beginning of large vectorlikes.)
- *
- * However, enqueuing the fields of pairs as individual locations is a
- * sensible way to stress-test the summarization code, so that is why
- * this flag is here.
- */
-#define POOL_ENQUEUE_PAIRS_AS_OBJECTS 0
-
-/* Adding locations can be approximated by adding whole objects and
- * then "forgetting" the extra overhead that scanning a whole object
- * entails.  This may be useful for debugging, or at least to roll the
- * system back to earlier behavior, so I am making it easy to toggle
- * back and forth for the short term.
- */
-#define ADDLOC_DELEGATES_TO_ADDOBJECT 0
-
 #define SUMMARIZE_KILLS_RS_ENTRIES 0
 
 #define CONSERVATIVE_REGION_COUNT 0
+
+/* cyclic FSM: sched -> doing -> finis -> sched */
+/* synchronized with smircy: build -> refine -> done -> build */
+typedef enum { 
+  sched_refn, doing_refn, finis_refn 
+} sumz_refn_t;
 
 typedef struct locs_pool locs_pool_t;
 typedef struct objs_pool objs_pool_t;
@@ -268,18 +244,6 @@ struct summ_matrix_data {
 };
 
 #define DATA(sm)                ((summ_matrix_data_t*)(sm->data))
-
-static loc_t make_loc( word obj, int offset ) 
-{
-  loc_t loc;
-
-  /* offset is in bytes */
-  assert((offset % sizeof(word)) == 0);
-
-  loc.obj = obj;
-  loc.offset = offset;
-  return loc;
-}
 
 static int calc_goal( summ_matrix_t *summ, int region_count ) 
 { 
@@ -983,7 +947,6 @@ static void console_printgset( char *prefix, gset_t g );
 static void sm_ensure_available( summ_matrix_t *summ, int gno,
                                  int ne_rgn_count, bool about_to_major, int dA );
 
-static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset );
 static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
                              int ne_rgn_count, bool about_to_major, int dA );
 
@@ -1736,15 +1699,6 @@ static void add_loc_to_sum_array( summ_matrix_t *summ,
                                   int tgt_gen, loc_t loc, int src_gen, 
                                   incr_ctxt_t incr_ctxt )
 {
-#if ADDLOC_DELEGATES_TO_ADDOBJECT
-  void (*col_incr_w)(summ_col_t *c, int dw);
-  switch (incr_ctxt) {
-  case incr_ctxt_sm: col_incr_w = col_incr_twice_sm; break;
-  case incr_ctxt_wb: col_incr_w = col_incr_twice_wb; break;
-  case incr_ctxt_gc: col_incr_w = col_incr_twice_gc; break;
-  } 
-  add_object_to_sum_array( summ, tgt_gen, loc.obj, src_gen, col_incr_w );
-#else
   int pop_limit = DATA(summ)->popularity_limit;
   summ_col_t *col = DATA(summ)->cols[tgt_gen];
 
@@ -1762,7 +1716,6 @@ static void add_loc_to_sum_array( summ_matrix_t *summ,
       oflo_check_loc( summ, tgt_gen, loc, col );
     }
   }
-#endif
 }
 
 
@@ -1781,12 +1734,8 @@ static void add_object_to_mut_rs( summ_matrix_t *summ, int g_rhs, word w )
 
 static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
 {
-#if ADDLOC_DELEGATES_TO_ADDOBJECT
-  add_object_to_mut_rs( summ, g_rhs, loc.obj );
-#else
   /* XXX FIXME XXX */
   add_object_to_mut_rs( summ, g_rhs, loc.obj );
-#endif
 }
 
 static bool region_summarized( summ_matrix_t *summ, int gno );
@@ -1893,16 +1842,11 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         if ( gc_region_group_for_gno( remsum->summ->collector, gen )
              == region_group_summzing ) {
           do_enqueue = TRUE;
-#if POOL_ENQUEUE_PAIRS_AS_OBJECTS
-          add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_twice_sm );
-#else
           { loc_t loc;
             loc = make_loc( ptr, 0 );
             add_loc_to_sum_array( remsum->summ, 
                                   gen, loc, mygen, incr_ctxt_sm );
           }
-#endif
         }
       }
     }
@@ -1923,16 +1867,11 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         if ( gc_region_group_for_gno( remsum->summ->collector, gen )
              == region_group_summzing ) {
           do_enqueue = TRUE;
-#if POOL_ENQUEUE_PAIRS_AS_OBJECTS
-          add_object_to_sum_array( remsum->summ, gen, ptr, mygen,
-                                   col_incr_twice_sm );
-#else
           { loc_t loc;
             loc = make_loc( ptr, sizeof(word)); /* offset is in bytes */
             add_loc_to_sum_array( remsum->summ, 
                                   gen, loc, mygen, incr_ctxt_sm );
           }
-#endif
         }
       }
     }
@@ -2168,8 +2107,11 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
   }
 }
 
-void sm_start_refinement( summ_matrix_t *summ ) 
+EXPORT void sm_start_refinement( summ_matrix_t *summ ) 
 {
+
+  consolemsg( "sm_start_refinement( summ )" );
+
   assert( summ->collector->smircy != NULL );
   assert( smircy_in_construction_stage_p( summ->collector->smircy ));
 
@@ -2660,23 +2602,6 @@ EXPORT void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to )
   check_rep_1( summ );
 }
 
-static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset ) 
-{
-  int i, s, e, count;
-  s = gset_min_elem_greater_than( gset, 0 );
-  e = gset_max_elem( gset );
-  assert( s > 0 );
-  count = 0;
-  for (i = s; i <= e; i++) {
-    if ( gset_memberp( i, gset ) &&
-         ! DATA(summ)->cols[i]->overly_popular &&
-         DATA(summ)->cols[i]->construction_complete ) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
 static void wait_to_setup_next_wave( summ_matrix_t *summ )
 {
   DATA(summ)->summarizing.waiting = TRUE;
@@ -2703,6 +2628,7 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
   /* 1. Free state associated with prev wave. */
   /* XXX the summaries are freed as they are consued; I do not think 
    * anything is necessary here... */
+  assert2( region_group_count(region_group_wait_w_sum) == 0 );
 
   /* 2. Deploy next wave; prev := next */
   budget = region_group_count( region_group_summzing );
@@ -2712,6 +2638,8 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
   }
   assert2( budget > 0 );
   region_group_enq_all( region_group_summzing, region_group_wait_w_sum );
+
+  assert2( region_group_count(region_group_summzing) == 0 );
 
   goal_budget = calc_goal( summ, region_count );
 
@@ -2972,8 +2900,11 @@ EXPORT void sm_init_summary_from_nursery_alone( summ_matrix_t *summ,
 static bool coheres_with_snapshot( summ_matrix_t *summ, 
                                    summ_col_t *col, word w )
 {
-  return (! col->construction_predates_snapshot ||
-          smircy_object_marked_p( summ->collector->smircy, w )) ;
+  bool already_filtered_during_construction;
+  already_filtered_during_construction = 
+    (! col->construction_predates_snapshot);
+  return (already_filtered_during_construction ||
+          smircy_object_marked_p( summ->collector->smircy, w ));
 }
 
 static bool filter_mutated_elems( summary_t *s, word w )
@@ -2982,6 +2913,7 @@ static bool filter_mutated_elems( summary_t *s, word w )
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
   remset_t      *nur_rs = DATA(summ)->nursery_remset;
   remset_t      *mut_rs = col->sum_mutator;
+  assert(0);
   return ! rs_isremembered( mut_rs, w ) &&
     coheres_with_snapshot( summ, col, w);
 }
@@ -2991,9 +2923,23 @@ static bool filter_mutated_elem_locs( summary_t *s, loc_t l )
   summ_col_t    *col    = (summ_col_t*) s->cursor2;
   remset_t      *nur_rs = DATA(summ)->nursery_remset;
   remset_t      *mut_rs = col->sum_mutator;
-  return ! rs_isremembered( mut_rs, l.obj ) &&
-    coheres_with_snapshot( summ, col, l.obj );
+  word          *slot;
+
+  bool alive_in_snapshot;
+
+  slot = loc_to_slot( l );
+
+  alive_in_snapshot = coheres_with_snapshot( summ, col, *slot );
+
+#if 0
+  if (! alive_in_snapshot && col->construction_predates_snapshot) {
+    consolemsg("snapshot kills: 0x%08x", *slot);
+  }
+#endif
+
+  return (! rs_isremembered( mut_rs, l.obj )) && alive_in_snapshot;
 }
+
 static bool filter_gen( summary_t *s, word w )
 {
   bool ret = (gen_of(w) != s->icursor2);
@@ -3092,6 +3038,13 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
 {
   check_rep_1( summ );
 
+
+  consolemsg("sm_fold_in_nursery_and_init_summary"
+             "( summ, next_summ_idx: %d, summary )"
+             " construction_predates_snapshot: %s", 
+             next_summ_idx, 
+             (DATA(summ)->cols[ next_summ_idx ]->construction_predates_snapshot
+              ? "T" : "F") );
 
   {
     summ_col_t *col;
