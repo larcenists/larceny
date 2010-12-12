@@ -26,6 +26,8 @@ void extbmp_clear_members_in( extbmp_t *ebmp, int gno );
 int  extbmp_count_members_in( extbmp_t *ebmp, int gno );
   /* cardinality(ebmp & addresses(gno)) */
 
+void extbmp_expand_remset_gnos( extbmp_t *ebmp, int fresh_gno );
+
 void extbmp_enumerate( extbmp_t *ebmp,
                        bool incl_tag, 
                        bool (*scanner)(word loc, void *data), 

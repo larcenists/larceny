@@ -40,6 +40,9 @@ static void expand_remset_gnos( uremset_t *urs, int fresh_gno )
   int new_count_len = DATA(urs)->live_count_len + 1;
   int* new_count = (int*)must_malloc( sizeof( int )*new_count_len );
 
+  extbmp_expand_remset_gnos( DATA(urs)->minor_remset, fresh_gno );
+  extbmp_expand_remset_gnos( DATA(urs)->remset, fresh_gno );
+
   for( i = 0; i < fresh_gno; i++ ) {
     new_count[i] = DATA(urs)->live_count[i];
   }
