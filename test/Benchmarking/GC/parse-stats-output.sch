@@ -1,5 +1,43 @@
 (require "Experimental/temp-files")
 
+;; entrypoints of note:
+;; gather-statsfile : Listof[FilenameString] -> Sexp
+;; 
+;; stats-read : -> Sexp
+
+'(define stats-data 
+  (let ((pat "logs.Argus/*thesis10-log.*Feb10*.log"))
+    (gather-statsfiles (failsafe-list-directory pat))))
+
+(define (failsafe-list-directory dir-pat)
+  (let ((tmp-file (make-temporary-file)))
+    (system (string-append "ls -tr " dir-pat " > " tmp-file))
+    (let ((listing
+           (call-with-input-file tmp-file
+             (lambda (in)
+               (do ((x (read-line in) (read-line in))
+                    (l '() (cons x l)))
+                   ((eof-object? x) (reverse l)))))))
+      (delete-file tmp-file)
+      listing)))
+
+;; gather-statsfiles : Listof[FilenameString] -> Sexp
+;; gather-statsfiles : Listof[FilenameString] Listof[Symbol] -> Sexp
+(define (gather-statsfiles filenames . opt-args)
+  (define (p filename key) 
+    (statsfile-fold 
+     filename (lambda (cmd-desc date-and-time sexps)
+                (list key 
+                      `(filename            ,filename)
+                      `(command-description ,cmd-desc)
+                      `(date-and-time  ,date-and-time)
+                      `(benchmarks             ,sexps)))))
+  (let ((keys (if (not (null? opt-args)) 
+                  (car opt-args)
+                  (map string->symbol filenames))))
+    (map p filenames keys)))
+
+
 (define (stats-read)
   (let ((f (make-temporary-file "larcenystats~a")))
     (stats-dump-on f)
@@ -8,6 +46,17 @@
     (let ((v (call-with-input-file f read)))
       (delete-file f)
       v)))
+
+;; statsfile-fold : FilenameString (String String Listof[Sexp] -> X) -> X
+(define (statsfile-fold filename p)
+  (call-with-input-file filename
+    (lambda (in)
+      (let* ((line-0 (read in))
+             (line-1 (read in))
+             (sexps  (do ((x (read in) (read in))
+                          (l '() (cons x l)))
+                         ((eof-object? x) (reverse l)))))
+        (p line-0 line-1 sexps)))))
 
 ;; An Entry is one of:
 ;; - (vector Symbol X_1 .. X_n)
@@ -57,6 +106,8 @@
                  (cond ((and (not a) (not d)) #f)
                        ((not d) a)
                        ((not a) d)
+                       ((and (pair? d) (symbol? (car d)))
+                        (cons a (cons d '())))
                        (else (cons a d))))))
           ((vector? s)
            (let ((r (extract (vector->list s) k)))
