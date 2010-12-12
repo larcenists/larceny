@@ -700,6 +700,9 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
   if (DATA(gc)->region_count < 2) {
     int live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
+    if (gc->static_area != NULL) {
+      live_words += (gc->static_area->data_area->allocated / sizeof(word));
+    }
     DATA(gc)->last_live_words = live_words;
     DATA(gc)->max_live_words = max( DATA(gc)->max_live_words, live_words );
     zeroed_promotion_counts( gc );
@@ -1453,6 +1456,9 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       if (DATA(gc)->ephemeral_area[other_idx]->allocated == 0) {
         int live_words = 
           DATA(gc)->ephemeral_area[to_idx]->allocated / sizeof(word);
+        if (gc->static_area != NULL) {
+          live_words += (gc->static_area->data_area->allocated / sizeof(word));
+        }
         DATA(gc)->last_live_words = live_words;
         DATA(gc)->max_live_words = 
           max( DATA(gc)->max_live_words, live_words );
@@ -1833,7 +1839,7 @@ static void rrof_gc_policy( gc_t *gc,
     (((long long)(majors_total+1) * A_this) > ((long long)(majors_sofar+1) * A_target));
 
   if (calculate_loudly) {
-#define FMT "% 3lldM"
+#define FMT "% 3lld"
     long long div = 1000 * 1000;
 
     char *(*n)( region_group_t grp );
@@ -1890,23 +1896,37 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   int rgn_to;
   int num_rgns = DATA(gc)->region_count;
 
-  bool will_says_should_major;
+  bool felix_says_should_major;
+  bool verbose = FALSE;
+  char *prefix = ("                                             "
+                  "                                             ");
 
-  if (two_regions_one_filled_p( gc )) {
-    will_says_should_major = TRUE;
+  if ((DATA(gc)->rrof_cycle_majors_sofar == 0)
+      && two_regions_one_filled_p( gc )) {
+    if (verbose) {
+      consolemsg("%s    two_regions_one_filled => felix says: MAJOR", prefix);
+    }
+    felix_says_should_major = TRUE;
   } else if ((region_group_count( region_group_wait_nosum ) 
        + region_group_count( region_group_wait_w_sum ) 
        + region_group_count( region_group_filled ) /* XXX */) 
       > 0) {
-    rrof_gc_policy( gc, &will_says_should_major, FALSE );
+    if (DATA(gc)->mutator_effort.forcing_collector_to_progress) {
+      if (verbose) {
+        consolemsg("%s mutator effort forcing gc => felix says: MAJOR", prefix);
+      }
+      felix_says_should_major = TRUE;
+    } else {
+      rrof_gc_policy( gc, &felix_says_should_major, verbose );
+    }
   } else {
-    will_says_should_major = FALSE;
+    felix_says_should_major = FALSE;
   }
 
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
  collect_evacuate_nursery:
-  if (will_says_should_major) {
+  if (felix_says_should_major) {
     bool didit;
     int rgn_next; 
     rgn_to = find_appropriate_to( gc );
@@ -1919,7 +1939,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
     didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
     if (! didit) 
       goto collect_evacuate_nursery;
-  } else { /* ! will_says_should_major */
+  } else { /* ! felix_says_should_major */
     rgn_to = find_appropriate_to( gc );
     DATA(gc)->rrof_to_region = rgn_to;
     collect_rgnl_minorgc( gc, rgn_to );
@@ -2137,6 +2157,8 @@ static void after_collection( gc_t *gc )
   int e;
 
   DATA(gc)->generations = DATA(gc)->generations_after_gc;
+
+  DATA(gc)->mutator_effort.forcing_collector_to_progress = FALSE;
 
   if (DATA(gc)->summaries != NULL)
     sm_after_collection( DATA(gc)->summaries );
@@ -2519,6 +2541,8 @@ static void force_collector_to_make_progress( gc_t *gc )
       *(p+1) =  0xBACDBACD;
     globals[ G_ETOP ] += nbytes;
   }
+
+  DATA(gc)->mutator_effort.forcing_collector_to_progress = TRUE;
 }
 
 static int calc_cN( gc_t *gc );
@@ -2540,6 +2564,10 @@ static int compact_all_ssbs( gc_t *gc )
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
     if (mut_effort_sumz > cN) {
+      consolemsg( "compact_all_ssbs force_progress because mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
+                  mut_effort_sumz, 
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle, DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  cN, DATA(gc)->max_live_words );
       force_progress = TRUE;
     }
   }
@@ -3161,6 +3189,8 @@ static void zero_all_mutator_effort( gc_data_t *data ) {
   p->words_promoted_this.sumz_cycle = 0;
   p->max_words_promoted_any.full_cycle = 0;
   p->max_words_promoted_any.sumz_cycle = 0;
+
+  p->forcing_collector_to_progress = FALSE;
 }
 
 static void update_rrof_flush_counts( gc_t *gc, int entries_flushed ) 

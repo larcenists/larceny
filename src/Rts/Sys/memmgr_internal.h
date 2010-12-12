@@ -194,6 +194,8 @@ struct gc_data {
 
     struct {int full_cycle; int sumz_cycle;} words_promoted_this;
     struct {int full_cycle; int sumz_cycle;} max_words_promoted_any;
+
+    bool forcing_collector_to_progress;
   } mutator_effort;
 
   int oracle_countdown;
