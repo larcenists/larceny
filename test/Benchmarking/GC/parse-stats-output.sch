@@ -46,6 +46,155 @@
            => car)
           (else #f))))
 
+;; extract-path : Dataset (cons Symbol [Listof Symbol]) -> Maybe[Entry]
+(define (extract-path s p)
+  (define (extract s k)
+    (cond ((pair? s)
+           (if (eq? k (car s))
+               s
+               (let ((a (extract (car s) k))
+                     (d (extract (cdr s) k)))
+                 (cond ((and (not a) (not d)) #f)
+                       ((not d) a)
+                       ((not a) d)
+                       (else (cons a d))))))
+          ((vector? s)
+           (let ((r (extract (vector->list s) k)))
+             (if (list? r)
+                 (list->vector r)
+                 r)))
+          (else
+           #f)))
+  (let ((entry (extract s (car p))))
+    (cond ((not entry) 
+           (if (list? s) 
+               (let ((results (map (lambda (x) (extract-path x p)) s)))
+                 (if (null? (cdr results))
+                     (car results)
+                     results))
+               #f))
+          ((null? (cdr p)) entry)
+          (else 
+           (extract-path (cadr entry) (cdr p))))))
+
+;; print-header-line : -> void
+;; print-bench-line : Dataset -> void
+;; process-and-print-log : Filename -> void
+(define headers/paths
+  '((benchmark (last-stashed-stats name:))
+    (tot-ms    (last-stashed-stats elapsed-time:))
+    (cheney-ms (last-stashed-stats gc-total-time:  elapsed))
+    (mark-ms   (last-stashed-stats mark-time:      elapsed))
+    (sumz-ms   (last-stashed-stats summarize-time: elapsed)) 
+    (max-pause (last-stashed-stats gc-max-pause:   elapsed))
+    (tot-maxw  (stats-dump mem_allocated_max))
+    (heap-maxw (stats-dump heap_allocated_max))
+    (rem-maxw  (stats-dump remset_allocated_max))
+    (sumz-maxw (stats-dump summ_allocated_max))
+    (mark-maxw (stats-dump smircy_allocated_max))
+    (rts-maxw  (stats-dump rts_allocated_max))
+    (frag-maxw (stats-dump heap_fragmentation_max))))
+
+(define (header-line-list)
+  (define (header-convert-char c)
+    (if (char=? c #\-) #\_ (char-upcase c)))
+  (define (header-symbol->string x)
+    (list->string (map header-convert-char 
+                       (string->list (symbol->string x)))))
+  (map header-symbol->string (map car headers/paths)))
+
+(define (bench-line-list s)
+  (define (second x)
+    (cond ((vector?   x) (vector-ref x 1))
+          ((list?     x) (list-ref x 1))))
+  (define (extracted-second path)
+    (second (extract-path s path)))
+  (map extracted-second (map cadr headers/paths)))
+
+(define (print-header-line)
+  (define (pr x) (write x) (display ",\t"))
+  (for-each pr (header-line-list)))
+
+(define (print-bench-line s)
+  (define (pr x) (write x) (display ",\t"))
+  (for-each pr (bench-line-list s)))
+
+(define (process-log f)
+  (call-with-input-file f
+    (lambda (in)
+      (let* ((line-0 (read in))
+             (line-1 (read in)))
+        `((,line-1 ,line-0)
+          ,(header-line-list)
+          ,@(do ((x (read in) (read in))
+                 (l '() (cons (bench-line-list x) l)))
+                ((eof-object? x) (reverse l))))))))
+;; A DataElem is one of:
+;; -- String
+;; -- Number
+;; -- #f
+
+;; A DataMatrix is a [Listof [Listof DataElem]]
+
+;; build-list : Nat (Nat -> X) -> [Listof X]
+(define (build-list n f)
+  (do ((i 0 (+ i 1))
+       (l '() (cons (f i) l)))
+      ((= i n) (reverse l))))
+
+;; elem->string : DataElem -> String
+;; converts elem to a string fit for passing to display 
+(define (elem->string x)
+  (cond ((string? x) (call-with-output-string (lambda (o) (write x o))))
+        ((number? x) (call-with-output-string 
+                      (lambda (o) 
+                        (write (if (not (integer? x)) (exact->inexact x) x) 
+                               o))))
+        ((not x)     "")))
+
+;; elem-written-width : DataElem -> Nat
+(define (elem-written-width x)
+  (string-length (elem->string x)))
+
+;; elem-print : DataElem -> void
+(define (elem-print x . args)
+  (apply display (elem->string x) args))
+
+;; print-elem-padded-to : DataElem Nat -> void
+(define (print-elem-padded-to x w . args)
+  (apply display (make-string (max 0 (- w (elem-written-width x))) #\space) args)
+  (apply elem-print x args))
+
+;; print-matrix-csv/normalized : DataMatrix -> void
+;; prints dm in comma separated format with spacing to make columns line up.
+(define (print-matrix-csv/normalized dm)
+  (define (matrix-row dm i) (list-ref dm i))
+  (define (matrix-col dm j) 
+    (define (jth-of-row row) (if (< j (length row)) (list-ref row j) #f))
+    (map jth-of-row dm))
+  (define (matrix-row-count dm) (length dm))
+  (define (matrix-col-count dm) (apply max (map length dm)))
+  (let* ((num-cols (matrix-col-count dm))
+         (col-widths 
+          (build-list num-cols
+                      (lambda (j) 
+                        (let* ((col (matrix-col dm j))
+                               (elem-widths (map elem-written-width col)))
+                          (apply max elem-widths))))))
+    (for-each 
+     (lambda (row) 
+       (for-each (lambda (col-elem elem-width) 
+                   (print-elem-padded-to col-elem elem-width)
+                   (display ", "))
+                 row col-widths)
+       (newline))
+     dm)))
+
+(define (process-and-print-log f)
+  (let ((processed (process-log f)))
+    (print-matrix-csv/normalized (list (car processed)))
+    (print-matrix-csv/normalized (cdr processed))))
+
 ;; extract-sublist : Listof[Any] Symbol -> Maybe[Listof[Any]]
 ;; extracts all non-symbol values immediately following k in l, or #f if none
 (define extract-sublist 
