@@ -491,14 +491,27 @@ static void update_windows_drop_outdated( gc_mmu_log_t *log,
 {
   struct event_window *w;
   int i;
-  int choose_new_first = -1;
+  int choose_new_first = -2;
   int new_idx;
+
   for ( i = 0; i < log->windows.len; i++ ) {
     w = &log->windows.array[i];
+
+    if (w->window_start_real.buf_idx < 0) {
+      assert( log->buffer.first == 0 );
+      choose_new_first = -1;
+    }
+    if (w->window_start_cpu.buf_idx < 0) {
+      assert( log->buffer.first == 0 );
+      choose_new_first = -1;
+    }
+
     new_idx = update_window_drop_outdated( log, w, incoming, 
                                            elapsed_real, elapsed_cpu );
-    if (choose_new_first < 0)
+    if (choose_new_first < -1)
       choose_new_first = new_idx;
+    else if (choose_new_first == -1) 
+      /* no-op */;
     else
       choose_new_first = buf_min( log, choose_new_first, new_idx );
   }
@@ -507,7 +520,12 @@ static void update_windows_drop_outdated( gc_mmu_log_t *log,
   consolemsg("pre(first): %d post(first): %d", 
              log->buffer.first, choose_new_first);
 #endif
-  log->buffer.first = choose_new_first;
+  if (choose_new_first == -1) {
+    assert( log->buffer.first == 0 );
+    /* means leave it unchanged */
+  } else {
+    log->buffer.first = choose_new_first;
+  }
 }
 
 static void update_phase_stats_add( gc_mmu_log_t *log,
