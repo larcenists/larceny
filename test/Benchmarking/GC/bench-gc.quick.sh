@@ -80,5 +80,5 @@ g( ) {
 # g '(pueue-benchmark 1000 1000000 50 50)' pueue3
 # g '(earley-benchmark 10 20)' earley
 # g '(earley-benchmark 13 20)' earley
+# g '(nboyer-benchmark 5 5)'   nboyer
 g '(MpermNKL-benchmark 200 9 10  1)' perm
-g '(nboyer-benchmark 5 5)'   nboyer
