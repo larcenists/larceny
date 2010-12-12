@@ -413,7 +413,7 @@ PRECISE_GC_OBJECTS=\\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
 	Sys/extbmp.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\
-	Sys/gc_mmu_log.$(O) \\
+	Sys/gc_mmu_log.$(O) Sys/locset.$(O) \\
 	Sys/memmgr.$(O) Sys/memmgr_vfy.$(O) Sys/memmgr_flt.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
@@ -542,6 +542,7 @@ GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/gc
 GC_T_H=Sys/gset_t.h Sys/gc_t.h
 GC_MMU_LOG_H=Sys/gc_mmu_log.h
 HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
+LOCSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/summary_t.h Sys/locset_t.h
 LOS_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/los_t.h
 MEMMGR_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/memmgr.h
 MSGC_CORE_H=$(INC_ROOT)/Sys/larceny-types.h Sys/msgc-core.h
