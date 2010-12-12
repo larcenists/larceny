@@ -2939,8 +2939,8 @@ static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
 
 static int calc_cN( gc_t *gc )
 {
-  double F_1 = DATA(gc)->rrof_sumz_params.budget_inv;
-  double F_2 = DATA(gc)->rrof_sumz_params.coverage_inv;
+  double F_1 = DATA(gc)->rrof_sumz_params.coverage_inv;
+  double F_2 = DATA(gc)->rrof_sumz_params.budget_inv;
   int    F_3 = DATA(gc)->rrof_sumz_params.max_retries;
   double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
 
@@ -3315,11 +3315,12 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
        : default_sumz_max_retries);
 
     {
-      double F_1 = DATA(gc)->rrof_sumz_params.budget_inv;
-      double F_2 = DATA(gc)->rrof_sumz_params.coverage_inv;
+      double F_1 = DATA(gc)->rrof_sumz_params.coverage_inv;
+      double F_2 = DATA(gc)->rrof_sumz_params.budget_inv;
       int    F_3 = DATA(gc)->rrof_sumz_params.max_retries;
       double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
       double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
+      double max_utilized_regions;
       if (c <= 0.0) {
         consolemsg("c:%g must be positive; "
                    "c = (F_2*F_3 - 1)/(F_1*F_2)*S-1.0 "
@@ -3327,6 +3328,18 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
                    c,   F_2, F_3,   F_1, F_2, S);
       }
       assert( c > 0.0 );
+
+      max_utilized_regions =
+        (1.0 / S 
+         + ((double)F_3)/F_1 
+         + 1.0/(F_1*F_2*((double)F_3)));
+      if (max_utilized_regions > 1.0) {
+        consolemsg("Invalid parameter selection; need"
+                   " 1/S + F_3/F_1 + 1/(F_1 F_2 F_3) = "
+                   " 1/%g + %d/%g  + 1/(%g %g %g) <= 1"
+                   ,   S,  F_3, F_1, F_1, F_2, F_3);
+      }
+      assert( max_utilized_regions <= 1.0 );
     }
 
     for ( i = 0; i < e; i++ ) {
