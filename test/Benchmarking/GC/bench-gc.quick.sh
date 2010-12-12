@@ -76,6 +76,7 @@ g( ) {
 }
 
 # g '(sboyer-benchmark 6 5)'   sboyer
-g '(twobit-benchmark (quote long) 5)' twobit
+# g '(twobit-benchmark (quote long) 5)' twobit
 # g '(pueue-benchmark 1000 1000000 50 50)' pueue3
 # g '(earley-benchmark 10 20)' earley
+g '(MpermNKL-benchmark 200 9 10  1)' perm
