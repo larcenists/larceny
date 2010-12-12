@@ -86,7 +86,7 @@
          (set boxwidth ,box-width)
          (set xtics rotate (,(list->vector xtics)))
          ,@(map (lambda (data-name index) 
-                  `(set label ,data-name at #((first ,(+ index 0.5))
+                  `(set label ,data-name at #((first ,(+ index 0.4))
                                               (screen 0.0125))))
                 data-names
                 (iota (length data-names)))
