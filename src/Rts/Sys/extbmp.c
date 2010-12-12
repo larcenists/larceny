@@ -109,7 +109,7 @@
  *
  */
 
-static const int DEFAULT_LEAF_BYTES = 128;
+static const int DEFAULT_LEAF_BYTES = 4096;
 static const int DEFAULT_ENTRIES_PER_INODE = 128; /* branching factor */
 
 /* default leaves large; allocate individually */
