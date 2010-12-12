@@ -1886,9 +1886,13 @@ void gc_check_rise_to_infamy( gc_t *gc,
     /* disallow #infamous regions overflow, no matter what */
     return;
   }
-  if (incoming_words_estimate > infamy_threshold) {
-    assert2( (heap->group == region_group_risingstar)
-             || (heap->group == region_group_hasbeen ));
+  if (incoming_words_estimate > infamy_threshold &&
+      heap->group != region_group_infamous) {
+
+    /* One might think that heap must be in one of the popular groups;
+     * but that is NOT true because we can shift regions not under-going
+     * summarization into the infamous set. 
+     */
     region_group_enq( heap, heap->group, region_group_infamous );
   }
 }
@@ -2831,9 +2835,14 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
 
 static bool is_nonmoving( gc_t *gc, int gen_no ) 
 {
+  region_group_t grp;
   if (gen_no == DATA(gc)->static_generation)
     return TRUE;
   
+  grp = gc_region_group_for_gno( gc, gen_no );
+  if ((grp == region_group_infamous) || (grp == region_group_hasbeen) )
+    return TRUE;
+
   return FALSE;
 }
 

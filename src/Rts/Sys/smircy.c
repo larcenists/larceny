@@ -104,6 +104,7 @@
 #include "semispace_t.h"
 #include "smircy.h"
 #include "static_heap_t.h"
+#include "uremset_t.h"
 
 #include "smircy_internal.h"
 
@@ -818,6 +819,14 @@ static void push( smircy_context_t *context, word obj, word src )
         && (gen_of(obj) != context->gc->static_area->data_area->gen_no)) {
       old_heap_t *heap = gc_heap_for_gno( context->gc, gen_of(obj));
       heap->incoming_words.marker += 1;
+
+      /* rebuild remset for advertised regions. */
+      assert2( gen_of(src) != 0 );
+      if ((gen_of(obj) != gen_of(src))
+          && (heap->group == region_group_advertised)) {
+        urs_add_elem( context->gc->the_remset, src );
+      }
+
       gc_check_rise_to_infamy( context->gc, 
                                heap, 
                                heap->incoming_words.marker );
