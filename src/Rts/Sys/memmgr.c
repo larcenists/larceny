@@ -1757,6 +1757,21 @@ static void rrof_gc_policy( gc_t *gc,
   *will_says_should_major_recv = will_says_should_major;
 }
 
+static bool two_regions_one_filled_p( gc_t *gc )
+{
+  if ((DATA(gc)->region_count == 2) &&
+      (DATA(gc)->ephemeral_area[0]->group == region_group_filled) && 
+      (DATA(gc)->ephemeral_area[1]->group == region_group_unfilled)) {
+    return TRUE;
+  } else if ((DATA(gc)->region_count == 2) &&
+             (DATA(gc)->ephemeral_area[1]->group == region_group_filled) && 
+             (DATA(gc)->ephemeral_area[0]->group == region_group_unfilled)) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
 static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
 {
   /* only forward data out of the nursery, if possible */
@@ -1765,7 +1780,9 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
 
   bool will_says_should_major;
 
-  if ((region_group_count( region_group_wait_nosum ) 
+  if (two_regions_one_filled_p( gc )) {
+    will_says_should_major = TRUE;
+  } else if ((region_group_count( region_group_wait_nosum ) 
        + region_group_count( region_group_wait_w_sum ) 
        + region_group_count( region_group_filled ) /* XXX */) 
       > 0) {
