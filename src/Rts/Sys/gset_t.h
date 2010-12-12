@@ -20,7 +20,7 @@ typedef struct { gset_tag_t tag; int g1; int g2; int g3; int g4; } gset_t;
  *
  * (the two ranges of gs_twrng must not overlap; should be assert2'ing this)
  */
-static gset_t gset_null() { 
+static gset_t gset_null(void) { 
   gset_t g; g.tag = gs_nil; return g; 
 }
 static gset_t gset_singleton( int g1 ) { 

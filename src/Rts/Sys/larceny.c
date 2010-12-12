@@ -49,7 +49,7 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
-static void print_banner() {
+static void print_banner(void) {
 #ifndef PETIT_LARCENY
   consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
               larceny_system_name,
