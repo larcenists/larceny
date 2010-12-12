@@ -52,8 +52,7 @@
 #include "uremset_t.h"
 
 #define DEFAULT_OBJS_POOL_SIZE 2048 /* 2K elements = 8KB */
-#define DEFAULT_LOCS_POOL_SIZE 1024 /* 1K elements = 8KB */
-
+#define DEFAULT_LOCS_POOL_SIZE 2048 /* 2K elements = 8KB */
 #define EXPORT
 
 /* As this gets larger, more check_rep calls are included.
