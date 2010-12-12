@@ -47,6 +47,7 @@
 #include "seqbuf_t.h"
 #include "semispace_t.h"
 #include "smircy.h"
+#include "summary_t.h"
 #include "uremset_t.h"
 
 #define DEFAULT_OBJS_POOL_SIZE 2048 /* 2K elements = 8KB */
@@ -1552,7 +1553,7 @@ static bool col_contains_loc( summ_matrix_t *summ, summ_col_t *col, loc_t loc )
       loc_t *lptr;
       for( lptr = locs->bot; lptr < locs->top; lptr++ ) {
         loc_t l = *lptr;
-        if (l.obj == loc.obj && l.offset == loc.offset)
+        if (loc_equal_p(l, loc))
           return TRUE;
       }
     }
@@ -1724,8 +1725,10 @@ static void add_loc_to_sum_array( summ_matrix_t *summ,
   summ_col_t *col = DATA(summ)->cols[tgt_gen];
 
   assert2( src_gen != tgt_gen );
-  assert2( gen_of( loc.obj ) == src_gen );
-  assert2( urs_isremembered( summ->collector->the_remset, loc.obj ));
+#if 0
+  assert2( gen_of( loc_to_obj(loc) ) == src_gen );
+  assert2( urs_isremembered( summ->collector->the_remset, loc_to_obj(loc) ));
+#endif
 
   if (col_words(col) <= pop_limit) {
     summ_cell_t *cell = summ_cell( summ, src_gen, tgt_gen );
@@ -1759,6 +1762,7 @@ static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
   }
 
   {
+#if 0
     word *slot;
     slot = loc_to_slot(loc);
     if (! is_pair( loc.obj )) {
@@ -1768,6 +1772,9 @@ static void add_location_to_mut_rs( summ_matrix_t *summ, int g_rhs, loc_t loc )
     } else {
       ls_add_paircdr( ls, slot );
     }
+#else
+    ls_add_loc( ls, loc );
+#endif
   }
 }
 
@@ -2445,15 +2452,14 @@ static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset,
       if (region_summarized( summ, tgt_gen ) &&
           ! DATA(summ)->cols[tgt_gen]->overly_popular) {
         loc_t loc;
-        loc.obj = src;
-        loc.offset = byte_offset;
+        loc = make_loc( src, byte_offset );
         assert2( byte_offset < 0 || ((byte_offset % sizeof(word)) == 0));
         if ( ((summaries[ tgt_gen ] == NULL ) )) {
           assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
           assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
-                    tgt_gen, loc.obj, loc.offset, src_gen, obj, tgt_gen );
+                    tgt_gen, src, byte_offset, src_gen, obj, tgt_gen );
         }
         assert( summaries[ tgt_gen ] != NULL );
         assert( ls_ismember_loc( summaries[ tgt_gen ], loc ));
@@ -2467,14 +2473,13 @@ static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset,
             || ( ! region_summarizing_curr( summ, tgt_gen ))
             || gen_of(src) >= DATA(summ)->summarizing.cursor )) {
         loc_t loc;
-        loc.obj = src;
-        loc.offset = byte_offset;
+        loc = make_loc( src, byte_offset );
         if ( ((summaries[ tgt_gen ] == NULL ) )) {
           assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
           assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
-                    tgt_gen, loc.obj, loc.offset, src_gen, obj, tgt_gen );
+                    tgt_gen, src, byte_offset, src_gen, obj, tgt_gen );
         }
         assert( summaries[ tgt_gen ] != NULL );
         assert( ls_ismember_loc( summaries[ tgt_gen ], loc ));
@@ -2519,7 +2524,7 @@ static bool verify_summaries_locset_fcn( loc_t loc, void *the_data )
 {
   struct verify_summaries_locset_fcn_data *data;
   data = (struct verify_summaries_locset_fcn_data*)the_data;
-  word obj = loc.obj;
+  word obj = loc_to_obj(loc);
 
   /* filtering out loc's that are not marked in smircy when we find
    * data->col->construction_predates_snapshot */
@@ -2528,7 +2533,7 @@ static bool verify_summaries_locset_fcn( loc_t loc, void *the_data )
   }
   if (data->col->construction_predates_snapshot 
       && ! smircy_object_marked_p( data->summ->collector->smircy, 
-                                   loc.obj )) {
+                                   loc_to_obj(loc) )) {
 
     /* do nothing (and exit early); the out-dated object is not
      * considered part of the summary and will (or at least should) be
@@ -2574,7 +2579,7 @@ static bool scan_check_nursery_ls( loc_t loc, void *my_data )
   struct scan_check_nursery_ls_data *data;
   data = (struct scan_check_nursery_ls_data*)my_data;
 
-  assert( msvfy_object_marked_p( data->conserv_context, loc.obj ));
+  assert( msvfy_object_marked_p( data->conserv_context, loc_to_obj(loc) ));
   return TRUE;
 }
 
@@ -2613,7 +2618,7 @@ static void fold_col_into_locset( summ_matrix_t *summ, int i, locset_t *ls )
             assert( ! ls_ismember_loc( ls, l ));
             assert( ! ls_ismember( ls, loc_to_slot(l) ));
 
-            ls_add_obj_offset( ls, l.obj, l.offset );
+            ls_add_loc( ls, l );
           }
           p++;
         }
@@ -2664,7 +2669,7 @@ void check_col_on_own_vfy_sm_ls( summ_matrix_t *summ,
         loc_t *p = locs->bot;
         loc_t *top = locs->top;
         while( p < top ) {
-          if (p->obj != 0x0) {
+          if (loc_clear_p(*p) != 0x0) {
             verify_summaries_locset_fcn( *p, data );
           }
           p++;
@@ -3263,10 +3268,12 @@ static bool loc_alive_in_snapshot( summ_matrix_t *summ,
    *
    * but, that claim is not as trivial as I had once thought.
    */
+#if 0 /* loc_to_obj unsupported :( */
   assert2( ! isptr(*slot) ||
-           ! (coheres_with_snapshot( summ, col, l.obj )
+           ! (coheres_with_snapshot( summ, col, loc_to_obj(l) )
               &&
               ! coheres_with_snapshot( summ, col, *slot )));
+#endif
 
   val = *slot; 
   alive_in_snapshot = isptr(val) && coheres_with_snapshot( summ, col, val );

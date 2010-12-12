@@ -12,6 +12,10 @@ struct loc {
                /* (happens to match tagged fixnum word-count, for now) */
 };
 
+static bool loc_equal_p( loc_t loc1, loc_t loc2 )
+{
+  return (loc1.obj == loc2.obj) && (loc1.offset == loc2.offset);
+}
 static void assert_loc_ok( loc_t loc )
 {
   /* offset is in bytes */
@@ -56,6 +60,11 @@ static int loc_to_offset( loc_t loc )
 struct loc {
   word *slot;
 };
+
+static bool loc_equal_p( loc_t loc1, loc_t loc2 )
+{
+  return (loc1.slot == loc2.slot);
+}
 
 static void assert_loc_ok( loc_t loc )
 {

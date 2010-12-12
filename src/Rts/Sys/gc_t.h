@@ -12,6 +12,7 @@
 #include "larceny-types.h"
 #include "gset_t.h"
 #include "smircy.h"
+#include "summary_t.h" /* for loc_t definition */
 
 typedef enum {
   gno_state_normal,  /* default */

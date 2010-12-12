@@ -1985,30 +1985,25 @@ enumerate_remsets_complement( gc_t *gc,
   }
 }
 
-struct apply_f_to_summary_loc_entry_data {
+struct apply_f_to_remset_obj_entry_data {
   void (*f)( loc_t loc, void *scan_data );
   void *scan_data;
 };
 
-struct apply_f_to_summary_obj_entry_data {
-  void (*f)( word obj, int offset, void *scan_data );
-  void *scan_data;
-};
-
-static void apply_f_to_summary_obj_entry( word obj, void *data_orig )
+static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
 {
   word *w;
-  struct apply_f_to_summary_obj_entry_data *data;
+  struct apply_f_to_remset_obj_entry_data *data;
   void *scan_data;
-  data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
-  void (*f)( word obj, int offset, void *scan_data );
+  data = (struct apply_f_to_remset_obj_entry_data*)data_orig;
+  void (*f)( loc_t loc, void *scan_data );
 
   scan_data = data->scan_data;
   f         = data->f;
   w = ptrof(obj);
   if (tagof(obj) == PAIR_TAG) {
-    f( obj, 0, scan_data );
-    f( obj, sizeof(word), scan_data );
+    f( make_loc(obj, 0), scan_data );
+    f( make_loc(obj, sizeof(word)), scan_data );
   } else {
     word words; 
     int offset;
@@ -2017,14 +2012,10 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig )
     offset = 0;
     while (words--) {
       offset += sizeof(word);
-      f( obj, offset, scan_data );
+      f( make_loc(obj, offset), scan_data );
     }
   }
-}
 
-static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
-{
-  apply_f_to_summary_obj_entry( obj, data_orig );
   return TRUE;
 }
 
@@ -2036,7 +2027,7 @@ static void enumerate_remembered_locations( gc_t *gc, gset_t genset,
   if ( DATA(gc)->use_summary_instead_of_remsets) {
     summary_enumerate_locs2( &DATA(gc)->summary, f, scan_data );
   } else {
-    struct apply_f_to_summary_loc_entry_data remsets_data;
+    struct apply_f_to_remset_obj_entry_data remsets_data;
     remsets_data.f = f;
     remsets_data.scan_data = scan_data;
     gc_enumerate_remsets_complement( gc, genset, 

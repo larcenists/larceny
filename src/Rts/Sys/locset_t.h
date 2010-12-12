@@ -77,6 +77,9 @@ void ls_clear( locset_t *locset );
 
 void ls_add_obj_offset( locset_t *ls, word w, int offset);
   /* Copies slot for w.offset into ls. */
+void ls_add_loc( locset_t *ls, loc_t loc );
+  /* Copies loc into ls.  Note that this method potentially keeps us
+   * from reconstructing <obj,offset> pair (see trio below). */
 
 void ls_add_nonpair( locset_t *ls, word *loc );
 void ls_add_paircar( locset_t *ls, word *loc );

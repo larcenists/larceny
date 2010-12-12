@@ -129,6 +129,8 @@ void ls_clear( locset_t *ls )
   data->numpools = 1;
 }
 
+void ls_add_loc( locset_t *ls, loc_t loc );
+
 void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
 {
   word *w = (word*)((char*)ptrof(objptr)+offset);
@@ -146,10 +148,25 @@ void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
 
   assert( (offset % sizeof(word)) == 0 );
 
-  loc.obj = objptr;
-  loc.offset = offset;
+  loc = make_loc( objptr, offset );
   assert2( w == loc_to_slot(loc ));
 
+  ls_add_loc( ls, loc );
+}
+
+void ls_add_loc( locset_t *ls, loc_t loc ) 
+{
+  word *w = loc_to_slot(loc);
+
+  bool overflowed;
+  word mask;
+  ent_t **tbl;
+  ent_t *b;
+  ent_t *pooltop, *poollim;
+  int tblsize;
+  word h;
+  locset_data_t *data = DATA(ls);
+  
   overflowed = FALSE;
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
@@ -207,6 +224,8 @@ void ls_add_nonpair( locset_t *ls, word *ptr )
 {
   word *hdr_search;
   loc_t loc;
+  word obj;
+  int offset;
 
   hdr_search = ptr;
   do {
@@ -216,10 +235,11 @@ void ls_add_nonpair( locset_t *ls, word *ptr )
     }
   } while (1);
 
-  loc = make_loc(retagptr((word)hdr_search),
-                 ((byte*)ptr) - ((byte*)hdr_search));
+  obj = retagptr((word)hdr_search);
+  offset = ((byte*)ptr) - ((byte*)hdr_search);
+  loc = make_loc( obj, offset );
   assert( loc_to_slot(loc) == ptr );
-  ls_add_obj_offset( ls, loc.obj, loc.offset );
+  ls_add_obj_offset( ls, obj, offset );
 }
 
 void ls_add_paircar( locset_t *ls, word *loc )
@@ -248,9 +268,7 @@ bool ls_ismember_loc( locset_t *ls, loc_t loc )
 
   h = hash_object( (word)loc_to_slot(loc), mask );
   b = tbl[ h ];
-  while (b != NULL 
-         && ! (b->loc.obj == loc.obj 
-               && b->loc.offset == loc.offset))
+  while (b != NULL && ! (loc_equal_p( b->loc, loc )))
     b = b->next;
 
   return (b != NULL);
@@ -347,7 +365,7 @@ void ls_enumerate_locs( locset_t *ls,
 static bool scan_add_loc( loc_t loc, void *data ) 
 {
   locset_t *ls = (locset_t*)data;
-  ls_add_obj_offset( ls, loc.obj, loc.offset );
+  ls_add_loc( ls, loc );
   return TRUE;
 }
 
