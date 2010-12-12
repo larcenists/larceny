@@ -216,7 +216,39 @@ static void enumerate_complement( uremset_t *urs,
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
 
-  for( i = 1; i < ecount; i++ ) {
+  /* Handle static area (aka highest numbered) first, so that we 
+   * worry less about scanner's asynchronous gno_count
+   * modifications (aka region allocations) messing things up.
+   * Conceptually, the for loop now goes:
+   * 
+   *    [ecount-1, 1, 2, 3, ..., ecount-2].
+   *
+   * Note that such modifications can still happen during any
+   * invocation of scanner, which is why we need to re-establish
+   * static_area_gno in between the two enumerate invocations below.
+   * (This ugliness has crept elsewhere: the static area's gno is also
+   * handled specially within extbmp_enumerate_in itself.)
+   */
+  if (urs->collector->static_area != NULL) {
+    /* Deliberately not re-using ecount, because we want it to retain
+     * its original value during the for loop below. */
+    int static_area_gno;
+
+    static_area_gno = urs->collector->gno_count-1;
+    i = static_area_gno;
+    wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
+    wrapper_data.mirror_these = NULL;
+    rs_enumerate( DATA(urs)->remset[i], 
+                  apply_scanner_to_rs, &wrapper_data );
+
+    static_area_gno = urs->collector->gno_count-1;
+    i = static_area_gno;
+    wrapper_data.filter_these = NULL;
+    wrapper_data.mirror_these = DATA(urs)->remset[ i ];
+    rs_enumerate( DATA(urs)->major_remset[i], 
+                  apply_scanner_to_rs, &wrapper_data);
+  }
+  for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
       wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
       wrapper_data.mirror_these = NULL;
