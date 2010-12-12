@@ -21,6 +21,12 @@
                           (rt-or-bmark-key->name cp-stats-data key))))
       (split bmark-keys-set5 5))
 
+'(map (lambda (bmarks) (plot-pause-stats-data/stacked-bars
+                        cp-stats-data cp-rt-keys bmarks
+                        (lambda (key) (rt-or-bmark-key->name cp-stats-data key)) 
+                        50)) ;; max pause we expect (to render all consistently)
+      (split bmark-keys-set5 5))
+
 '(for-each (lambda (bmarks) (plot-time-stats-data/stacked-bars 
                              cp-stats-data cp-rt-keys bmarks 
                              (lambda (key) (rt-or-bmark-key->name cp-stats-data key))))
@@ -258,6 +264,26 @@
             bmark-keys 
             key->name 
             time-box-names))))
+
+(define (extract-max-pause dataset rt-key bmark-key)
+  (first-number (extract-path dataset (list rt-key bmark-key 'gc-max-pause: 'elapsed))))
+
+(define (plot-pause-stats-data/stacked-bars dataset rt-keys bmark-keys key->name max-range)
+  (let* ((l (apply 
+             plot-stacked-bars.build-gnuplot-args
+             '("max pause")
+             (map (lambda (bmark)
+                    (cons (key->name bmark) 
+                          (map (lambda (rt) (list (key->name rt) 
+                                                  (extract-max-pause dataset rt bmark)))
+                               rt-keys))) bmark-keys)))
+         (dat-file->script (list-ref l 0))
+         (data-values      (list-ref l 1)))
+    (gnuplot 
+     (lambda (f) 
+       `((set yrange \[ 0 : ,max-range \] )
+         ,@(dat-file->script f)))
+     data-values)))
 
 (define (plot-time-and-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
   (let* ((keys->lines plot-xxx-stats-data/stacked-bars.bmark-keys->lines)
