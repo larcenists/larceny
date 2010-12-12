@@ -1265,12 +1265,13 @@ void stats_dumpstate_stdout( void )
   stats_dump_state_now( stdout );
 }
 
-#define PRINT_DWORD( f, s, fld ) \
-  fprintf( f, "%lu %lu ", \
-           nativeuint( s->PASTE(fld,_hi) ), nativeuint( s->PASTE(fld,_lo) ) )
+#define PRINT_DWORD( f, s, fld )                                \
+  fprintf( f, "%lu %lu ",                                       \
+           (long unsigned int)nativeuint( s->PASTE(fld,_hi) ),  \
+           (long unsigned int)nativeuint( s->PASTE(fld,_lo) ) )
 
 #define PRINT_WORD( f, s, fld ) \
-  fprintf( f, "%lu ", nativeuint( s->fld ) )
+  fprintf( f, "%lu ", (long unsigned int)nativeuint( s->fld ) )
 
 #define PRINT_DFIELD( f, s, fld ) \
   do {                            \
