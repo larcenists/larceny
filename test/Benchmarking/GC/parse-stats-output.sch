@@ -60,7 +60,7 @@
 
 '(bar-stackify-stats 
   (extract-mem-stats stats-data 
-                     'rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0 'twobit)
+                     'rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0 'bm-5twobit:long)
   '("rts" "heap" "remset" "summ" "marker"))
 
 (define rt-keys+names
@@ -74,36 +74,88 @@
     (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0  "Rgn 122 pop 6 no infamy")
     (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0  "Rgn 232 pop 4 no infamy")))
 
-(define bmark-keys+names
-  '((twobit     "twobit:long") 
-    (sboyer     "sboyer:6") 
-    (paraffins  "paraffins")))
+(define some-bmark-keys+names
+  (append
+   '((bm-5twobit:long     "5twobit:long") 
+     (bm-5sboyer:6        "5sboyer:6") 
+     (bm-paraffins        "paraffins")
+     (bm-parsing:nboyer.sch:1000 "parsing") ;; (illustrates how to override name)
+     )))
 
-(define (rt-or-bmark-key->name key)
+(define some-bmark-keys
+  '(bm-20earley:10 bm-20earley:13 bm-gcbench:5:20))
+
+
+(define bmark-keys-set1 
+  '(bm-20earley:10 bm-20earley:13 bm-gcbench:5:20
+    bm-5nboyer:5 bm-5nboyer:6 bm-5sboyer:6))
+
+(define bmark-keys-set2
+  '(bm-200perm9:10:1 bm-400perm9:20:1 bm-5twobit:long 
+    bm-gcold:100:0:1:0:800 bm-gcold:100:0:1:1000:800))
+
+(define bmark-keys-set3
+  '(bm-queue1000:1000000:50 bm-pueue1000:1000000:50:50))
+
+(define bmark-keys-set4
+  '(bm-graphs7 bm-parsing:nboyer.sch:1000 bm-dynamic bm-paraffins))
+
+(define all-bmark-keys
+  (append bmark-keys-set1
+          bmark-keys-set2
+          bmark-keys-set3
+          bmark-keys-set4))
+
+(define (rt-or-bmark-key->name dataset key)
   (cadr (or (assq key rt-keys+names)
-            (assq key bmark-keys+names))))
+            (assq key some-bmark-keys+names)
+            (list key (first-string (extract-path dataset (list key 'name:)))))))
 
-'(plot-mem-stats-data/stacked-bars stats-data
-                                   (map car rt-keys+names)
-                                   (map car bmark-keys+names)
-                                   rt-or-bmark-key->name)
+'(plot-mem-stats-data/stacked-bars 
+  stats-data
+  (map car rt-keys+names)
+  bmark-keys-set3
+  (lambda (key) (rt-or-bmark-key->name stats-data key)))
 
 ;; A RtcfgKey is a Symbol (e.g. for a GC configuration key)
 ;; A BmarkKey is a Symbol (e.g. for a benchmark name
 ;; A LoR is a Listof[RtcfgKey]
 ;; A LoB is a Listof[BmarkKey]
 ;; plot-mem-stats-data/stacked-bars : Sexp LoR LoB (Symbol -> String) -> unspec
+
+(define (plot-mem-stats-data/stacked-bars.bmark-key->line dataset 
+                                                          rt-keys 
+                                                          key->name
+                                                          mem-box-names
+                                                          bmark-key)
+  (cons (key->name bmark-key)
+        (map (lambda (rt-key)
+               (cons (key->name rt-key)
+                     (bar-stackify-stats (extract-mem-stats dataset
+                                                            rt-key
+                                                            bmark-key)
+                                         mem-box-names)))
+             rt-keys)))
+
+(define (plot-mem-stats-data/stacked-bars.bmark-keys->lines dataset
+                                                            rt-keys
+                                                            bmark-keys
+                                                            key->name
+                                                            mem-box-names)
+  (let ((bmark-key->line
+         (lambda (bmark-key)
+           (plot-mem-stats-data/stacked-bars.bmark-key->line 
+            dataset rt-keys key->name mem-box-names bmark-key))))
+    (map bmark-key->line bmark-keys)))
+
 (define (plot-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
   (let ((mem-box-names '("rts" "heap" "remset" "summ" "marker")))
-    (define (bmark-key->line bmark-key)
-      (cons (key->name bmark-key)
-            (map (lambda (rt-key)
-                   (cons (key->name rt-key)
-                         (bar-stackify-stats (extract-mem-stats dataset rt-key bmark-key)
-                                             mem-box-names)))
-                 rt-keys)))
-
-    (apply plot-stacked-bars mem-box-names (map bmark-key->line bmark-keys))))
+    (apply plot-stacked-bars mem-box-names
+           (plot-mem-stats-data/stacked-bars.bmark-keys->lines dataset 
+                                                               rt-keys 
+                                                               bmark-keys 
+                                                               key->name 
+                                                               mem-box-names))))
 
 (define filename+keys-feb17-00
   '(("logs.Argus/bench-thesis10-log.2010Feb17-at-00-26-48.log" dflt)
