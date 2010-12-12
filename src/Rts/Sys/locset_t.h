@@ -1,4 +1,4 @@
-/* Copyright 2009 Felix S Klock II
+/* Copyright 2010 Felix S Klock II.              -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -88,6 +88,7 @@ void ls_add_paircdr( locset_t *ls, word *loc );
    * tracking non-pair-slots, pair-cars, and pair-cdrs separately.
    */
 
+bool ls_ismember_loc( locset_t *ls, loc_t loc );
 bool ls_ismember( locset_t *ls, word *loc );
   /* Is slot corresponding to memory address loc in ls?
    */

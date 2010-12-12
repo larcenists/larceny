@@ -1,4 +1,4 @@
-/* Copyright 2009 Felix S Klock II.
+/* Copyright 2010 Felix S Klock II.              -*- indent-tabs-mode: nil -*-
  *
  * $Id$
  *
@@ -148,6 +148,7 @@ void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
 
   loc.obj = objptr;
   loc.offset = offset;
+  assert2( w == loc_to_slot(loc ));
 
   overflowed = FALSE;
   pooltop = data->curr_pool->top;
@@ -229,6 +230,30 @@ void ls_add_paircar( locset_t *ls, word *loc )
 void ls_add_paircdr( locset_t *ls, word *loc )
 {
   ls_add_obj_offset( ls, tagptr((word)(loc-1), PAIR_TAG), sizeof(word) ); /* &cdr */
+}
+
+bool ls_ismember_loc( locset_t *ls, loc_t loc )
+{
+  word mask;
+  ent_t **tbl;
+  ent_t *b;
+  int tblsize;
+  word h;
+  locset_data_t *data = DATA(ls);
+
+  /* Search hash table */
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize - 1;
+
+  h = hash_object( (word)loc_to_slot(loc), mask );
+  b = tbl[ h ];
+  while (b != NULL 
+         && ! (b->loc.obj == loc.obj 
+               && b->loc.offset == loc.offset))
+    b = b->next;
+
+  return (b != NULL);
 }
 
 bool ls_ismember( locset_t *ls, word *loc )
