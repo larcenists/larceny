@@ -1433,7 +1433,7 @@ static void rrof_calc_target_allocation( gc_t *gc,
     / sizeof(word);
 
   long long A_target_1a = (long long)(L_hard*P_old);
-  long long A_target_1b = quotient2( A_target_1a, ((int)F_2) * F_3 ) - 1;
+  long long A_target_1b = quotient2( A_target_1a, ((int)(F_2 * (double)F_3)) ) - 1;
   long long A_target_1  = quotient2( A_target_1b, 2);
   long long A_target_2 = ((L_soft*P_old)-N_old);
   long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
