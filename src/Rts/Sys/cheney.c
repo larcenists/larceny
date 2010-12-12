@@ -549,6 +549,7 @@ static signed objects_scanned;
 
 static void remset_loc_scanner_oflo( loc_t loc, void *data ) {
   assert_loc_ok( loc );
+  objects_scanned++; /* a tiny lie, but better than leaving it at 0 */
   root_scanner_oflo( loc_to_slot(loc), data );
 }
 
