@@ -38,6 +38,7 @@ const char *larceny_gc_technology = "precise";
 #include "seqbuf_t.h"
 #include "uremset_t.h"
 #include "uremset_array_t.h"
+#include "uremset_debug_t.h"
 #include "uremset_extbmp_t.h"
 #include "math.h"
 
@@ -465,6 +466,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
 #define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
+#define USE_URS_WRAPPER_TO_CHECK_REMSET_SANITY 0
 #define INCREMENTAL_REFINE_DURING_SUMZ 1
 
 #if 0
@@ -3189,6 +3191,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     } else {
       gc->the_remset = alloc_uremset_extbmp( gc, info );
     }
+#if USE_URS_WRAPPER_TO_CHECK_REMSET_SANITY
+    gc->the_remset = alloc_uremset_debug( gc->the_remset );
+#endif
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
