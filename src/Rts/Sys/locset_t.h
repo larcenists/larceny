@@ -92,6 +92,9 @@ bool ls_ismember( locset_t *ls, word *loc );
   /* Is slot corresponding to memory address loc in ls?
    */
 
+void ls_copy_all_from( locset_t *ls, locset_t *source );
+  /* Add all locs from source into ls. 
+   */
 
 void ls_enumerate_locs( locset_t *ls, 
                         bool (*scanner)(loc_t loc, void *data ),

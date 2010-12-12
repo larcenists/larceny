@@ -319,6 +319,18 @@ void ls_enumerate_locs( locset_t *ls,
                          (word)ls, removed_count );
 }
 
+static bool scan_add_loc( loc_t loc, void *data ) 
+{
+  locset_t *ls = (locset_t*)data;
+  ls_add_obj_offset( ls, loc.obj, loc.offset );
+  return TRUE;
+}
+
+void ls_copy_all_from( locset_t *ls, locset_t *source ) 
+{
+  ls_enumerate_locs( source, scan_add_loc, ls );
+}
+
 static bool ls_pool_next_chunk_locs( summary_t *this, loc_t **start, loc_t **lim,
                                      bool *duplicate_entries )
 {
