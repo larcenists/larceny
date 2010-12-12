@@ -15,6 +15,12 @@
 '(define cp-stats-data
    (apply gather-statsfiles (unzip filename+keys-feb24-11)))
 
+'(map (lambda (bmarks) (plot-time-and-mem-stats-data/stacked-bars
+                        cp-stats-data cp-rt-keys bmarks
+                        (lambda (key) 
+                          (rt-or-bmark-key->name cp-stats-data key))))
+      (split bmark-keys-set5 5))
+
 '(for-each (lambda (bmarks) (plot-time-stats-data/stacked-bars 
                              cp-stats-data cp-rt-keys bmarks 
                              (lambda (key) (rt-or-bmark-key->name cp-stats-data key))))
@@ -135,7 +141,7 @@
     rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0))
 
 (define cp-rt-keys
-  '(scpy gen-n4m8 rrof-n4m8 gen-n1m8 rrof-n1m8 rrof-n1m4))
+  '(scpy gen-n4m8 gen-n1m8 rrof-n4m8 rrof-n1m8 rrof-n1m4))
 
 (define some-bmark-keys+names
   (append
@@ -143,6 +149,7 @@
      (bm-5sboyer:6        "5sboyer:6") 
      (bm-paraffins        "paraffins")
      (bm-parsing:nboyer.sch:1000 "parsing") ;; (illustrates how to override name)
+     (parsing             "parsing:test.sch:1000")
      )))
 
 (define some-bmark-keys
@@ -227,8 +234,11 @@
             dataset rt-keys key->name mem-box-names bmark-key))))
     (map bmark-key->line bmark-keys)))
 
+(define *mem-box-names*  '("rts" "heap" "remset" "summ" "marker"))
+(define *time-box-names* '("mutator" "cheney" "summarize" "marker"))
+
 (define (plot-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
-  (let ((mem-box-names '("rts" "heap" "remset" "summ" "marker")))
+  (let ((mem-box-names *mem-box-names*))
     (apply plot-stacked-bars mem-box-names
            (plot-xxx-stats-data/stacked-bars.bmark-keys->lines
             extract-mem-stats
@@ -239,7 +249,7 @@
             mem-box-names))))
 
 (define (plot-time-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
-  (let ((time-box-names '("mutator" "cheney" "summarize" "marker")))
+  (let ((time-box-names *time-box-names*))
     (apply plot-stacked-bars time-box-names
            (plot-xxx-stats-data/stacked-bars.bmark-keys->lines
             extract-time-stats
@@ -248,6 +258,44 @@
             bmark-keys 
             key->name 
             time-box-names))))
+
+(define (plot-time-and-mem-stats-data/stacked-bars dataset rt-keys bmark-keys key->name)
+  (let* ((keys->lines plot-xxx-stats-data/stacked-bars.bmark-keys->lines)
+         (replace-first-with-empty (lambda (x) (cons "" (cdr x))))
+         (drop-names (lambda (x) (cons ""(map replace-first-with-empty (cdr x)))))
+         (convert-and-build
+          (lambda (maybe-drop-names)
+            (lambda (extract-xxx-stats xxx-box-names)
+              (apply plot-stacked-bars.build-gnuplot-args 
+                     xxx-box-names 
+                     (map maybe-drop-names
+                          (keys->lines extract-xxx-stats dataset
+                                       rt-keys bmark-keys 
+                                       key->name xxx-box-names))))))
+         (time-plot-args ((convert-and-build values) 
+                          extract-time-stats *time-box-names*))
+         (mem-plot-args  ((convert-and-build drop-names) 
+                          extract-mem-stats  *mem-box-names*))
+         (make-time (list-ref time-plot-args 0))
+         (time-vals (list-ref time-plot-args 1))
+         (make-mem  (list-ref mem-plot-args 0))
+         (mem-vals  (list-ref mem-plot-args 1)))
+    (gnuplot/keep-files
+     (lambda (file-1 file-2) (let ((split 0.4))
+                               `((set multiplot)
+                                 (set key outside)
+                                 (set lmargin 8)
+                                 (set rmargin 15)
+                                 (set size   #(1.0 ,split))
+                                 (set origin #(0.0 ,(- 1.0 split)))
+                                 (set title "Peak memory usage (in words)")
+                                 ,@(make-mem  file-1)
+                                 (set size #(1.0 ,(- 1.0 split)))
+                                 (set origin #(0.0 0.0))
+                                 (set title "Elapsed time (in milliseconds)")
+                                 ,@(make-time file-2)
+                                 (unset multiplot))))
+     mem-vals time-vals)))
 
 (define filename+keys-feb17-00
   '(("logs.Argus/bench-thesis10-log.2010Feb17-at-00-26-48.log" dflt)
