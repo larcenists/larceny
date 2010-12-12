@@ -557,10 +557,15 @@ static void update_promotion_counts( gc_t *gc, int words_promoted )
   DATA(gc)->since_cycle_began.words_promoted               += words_promoted;
   DATA(gc)->since_finished_snapshot_at_time_cycle_began_began
     .words_promoted += words_promoted;
-  DATA(gc)->mutator_effort.words_promoted_this_cycle += words_promoted;
-  DATA(gc)->mutator_effort.max_words_promoted_any_cycle =
-    max( DATA(gc)->mutator_effort.max_words_promoted_any_cycle,
-         DATA(gc)->mutator_effort.words_promoted_this_cycle );
+
+  DATA(gc)->mutator_effort.words_promoted_this.full_cycle += words_promoted;
+  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle += words_promoted;
+  DATA(gc)->mutator_effort.max_words_promoted_any.full_cycle =
+    max( DATA(gc)->mutator_effort.max_words_promoted_any.full_cycle,
+         DATA(gc)->mutator_effort.words_promoted_this.full_cycle );
+  DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle =
+    max( DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle,
+         DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle );
 
   DATA(gc)->since_finished_snapshot_began.count_promotions   += 1;
   DATA(gc)->since_developing_snapshot_began.count_promotions += 1;
@@ -732,9 +737,16 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     initialize_summaries( gc, FALSE );
   }
 
-  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle = 0;
-  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle = 0;
-  DATA(gc)->mutator_effort.words_promoted_this_cycle = 0;
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.full_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this.full_cycle = 0;
+}
+
+static void rrof_completed_summarization_cycle( gc_t *gc ) 
+{
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
 }
 
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
@@ -782,6 +794,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   int word_countdown = -1, object_countdown = -1;
   int ne_rgn_count;
   int dA;
+  bool completed_cycle;
 
   SUMMMTX_VERIFICATION_POINT(gc);
 
@@ -797,15 +810,20 @@ static void summarization_step( gc_t *gc, bool about_to_major )
                  (DATA(gc)->rrof_words_per_region_min 
                   * DATA(gc)->rrof_cycle_majors_total));
 
-  sm_construction_progress( DATA(gc)->summaries, 
-                            &word_countdown,
-                            &object_countdown, 
-                            DATA(gc)->rrof_next_region, 
-                            ne_rgn_count, 
-                            about_to_major,
-                            dA );
+  completed_cycle =
+    sm_construction_progress( DATA(gc)->summaries, 
+                              &word_countdown,
+                              &object_countdown, 
+                              DATA(gc)->rrof_next_region, 
+                              ne_rgn_count, 
+                              about_to_major,
+                              dA );
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
+
+  if (completed_cycle) {
+    rrof_completed_summarization_cycle( gc );
+  }
 
   SUMMMTX_VERIFICATION_POINT(gc);
 }
@@ -2084,11 +2102,17 @@ static int compact_all_ssbs( gc_t *gc )
 {
   int overflowed, i;
   word *bot, *top;
+  int cN, mut_effort_full,  mut_effort_sumz;
 
-  int cN = calc_cN( gc );
-  int effort = 
-    (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle + 
-     DATA(gc)->mutator_effort.words_promoted_this_cycle);
+  if (DATA(gc)->mut_activity_bounded) {
+    cN = calc_cN( gc );
+    mut_effort_full = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+    mut_effort_sumz = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+  }
 
   overflowed = 0;
   for (i = 0; i < gc->gno_count; i++) {
@@ -2097,7 +2121,8 @@ static int compact_all_ssbs( gc_t *gc )
     overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
   }
 
-  if (effort > cN) {
+  if (DATA(gc)->mut_activity_bounded &&
+      mut_effort_sumz > cN) {
     force_collector_to_make_progress( gc );
   }
 
@@ -2675,33 +2700,81 @@ static int calc_cN( gc_t *gc )
   return retval;
 }
 
+static void zero_all_mutator_effort( gc_data_t *data ) {
+  struct mutator_effort *p = &data->mutator_effort;
+  p->rrof_ssb_flushes = 0;
+  p->rrof_ssb_entries_flushed_total = 0;
+  p->rrof_ssb_entries_flushed_this.full_cycle = 0;
+  p->rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+  p->rrof_ssb_max_entries_flushed_any.full_cycle = 0;
+  p->rrof_ssb_max_entries_flushed_any.sumz_cycle = 0;
+
+  p->satb_ssb_flushes = 0;
+  p->satb_ssb_entries_flushed_total = 0;
+  p->satb_ssb_entries_flushed_this.full_cycle = 0;
+  p->satb_ssb_entries_flushed_this.sumz_cycle = 0;
+  p->satb_ssb_max_entries_flushed_any.full_cycle = 0;
+  p->satb_ssb_max_entries_flushed_any.sumz_cycle = 0;
+
+  p->words_promoted_this.full_cycle = 0;
+  p->words_promoted_this.sumz_cycle = 0;
+  p->max_words_promoted_any.full_cycle = 0;
+  p->max_words_promoted_any.sumz_cycle = 0;
+}
+
+static void update_rrof_flush_counts( gc_t *gc, int entries_flushed ) 
+{
+  struct mutator_effort *p = &(DATA(gc)->mutator_effort);
+  p->rrof_ssb_flushes += 1;
+  p->rrof_ssb_entries_flushed_total += entries_flushed;
+  p->rrof_ssb_entries_flushed_this.full_cycle += entries_flushed;
+  p->rrof_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
+  p->rrof_ssb_max_entries_flushed_any.full_cycle
+    = max( p->rrof_ssb_entries_flushed_this.full_cycle, 
+           p->rrof_ssb_max_entries_flushed_any.full_cycle);
+  p->rrof_ssb_max_entries_flushed_any.sumz_cycle
+    = max( p->rrof_ssb_entries_flushed_this.sumz_cycle, 
+           p->rrof_ssb_max_entries_flushed_any.sumz_cycle);
+}
+
+static void update_satb_flush_counts( gc_t *gc, int entries_flushed ) 
+{
+  struct mutator_effort *p = &(DATA(gc)->mutator_effort);
+  p->satb_ssb_flushes += 1;
+  p->satb_ssb_entries_flushed_total += entries_flushed;
+  p->satb_ssb_entries_flushed_this.full_cycle += entries_flushed;
+  p->satb_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
+  p->satb_ssb_max_entries_flushed_any.full_cycle
+    = max( p->satb_ssb_entries_flushed_this.full_cycle, 
+           p->satb_ssb_max_entries_flushed_any.full_cycle);
+  p->satb_ssb_max_entries_flushed_any.sumz_cycle
+    = max( p->satb_ssb_entries_flushed_this.sumz_cycle, 
+           p->satb_ssb_max_entries_flushed_any.sumz_cycle);
+}
 
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
-  DATA(gc)->mutator_effort.satb_ssb_flushes += 1;
-  DATA(gc)->mutator_effort.satb_ssb_flushes += 1;
-  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_total += (top - bot);
-  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle += (top - bot);
-  DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any_cycle = 
-    max( DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any_cycle,
-         DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle );
+  update_satb_flush_counts( gc, (top - bot) );
   if (bot != top) {
     int cN = calc_cN(gc);
-    int effort = 
-      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle + 
-       DATA(gc)->mutator_effort.words_promoted_this_cycle);
+    int mut_effort_full = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+    int mut_effort_sumz = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
 
-    if (effort > cN) {
-      consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d ent:%lld,%d<=%d %d<=%d %d%s%d summ:%d.%d.%d/%d", 
+    if (mut_effort_sumz > cN) {
+      consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
                   bot, top,
                   nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
                   DATA(gc)->mutator_effort.satb_ssb_flushes,
                   DATA(gc)->mutator_effort.satb_ssb_entries_flushed_total,
-                  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this_cycle,
-                  DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any_cycle,
-                  DATA(gc)->mutator_effort.words_promoted_this_cycle,
-                  DATA(gc)->mutator_effort.max_words_promoted_any_cycle,
-                  effort, 
-                  (effort <= cN)?" <= ":" >> ", 
+                  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any.sumz_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle,
+                  mut_effort_sumz, 
+                  (mut_effort_sumz <= cN)?" <= ":" >> ", 
                   cN, 
                   (DATA(gc)->summaries != NULL)?sm_cycle_count( DATA(gc)->summaries ):0,
                   (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
@@ -2723,30 +2796,38 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   int g_rhs;
   word *p, *q, w;
 
-  DATA(gc)->mutator_effort.rrof_ssb_flushes += 1;
-  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_total += (top - bot);
-  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle += (top - bot);
-  DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle = 
-    max( DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle,
-         DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle );
+  /* XXX this is not really right; there may be duplicate entries in
+   * the SSB, and in principle we are supposed to only count the
+   * number of distinct locations assigned.
+   * 
+   * But I do not carry enough information around to know about all
+   * duplicate entries... at best for now I can count locations added
+   * for a *subset* of the regions (via the summary set addittions)
+   * and/or I can count the *objects* added to the remembered set...
+   */
+
+  update_rrof_flush_counts( gc, (top - bot) );
   if (bot != top) {
     int cN = calc_cN( gc );
-    int effort = 
-      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle + 
-       DATA(gc)->mutator_effort.words_promoted_this_cycle);
+    int mut_effort_full = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+    int mut_effort_sumz = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
 
-    if (effort > cN) {
-      consolemsg( "ssb_process_rrof( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d ent:%lld,%d<=%d %d<=%d %d%s%d summ:%d.%d.%d/%d", 
+    if (mut_effort_sumz > cN) {
+      consolemsg( "ssb_process_rrof( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
                   bot, top,
                   nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
                   DATA(gc)->mutator_effort.rrof_ssb_flushes,
                   DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_total,
-                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this_cycle,
-                  DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle,
-                  DATA(gc)->mutator_effort.words_promoted_this_cycle,
-                  DATA(gc)->mutator_effort.max_words_promoted_any_cycle,
-                  effort, 
-                  (effort <= cN)?" <= ":" >> ", 
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any.sumz_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle,
+                  mut_effort_sumz, 
+                  (mut_effort_sumz <= cN)?" <= ":" >> ", 
                   cN, 
                   (DATA(gc)->summaries != NULL)?sm_cycle_count( DATA(gc)->summaries ):0,
                   (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
@@ -2911,6 +2992,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   assert( ! info->use_non_predictive_collector );
   data->use_np_collector = 0; /* RROF is not ROF. */
   data->remset_undirected = TRUE;
+  data->mut_activity_bounded = TRUE;
   size = 0;
 
   strcpy( buf, "RGN " );
@@ -3182,17 +3264,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_words_per_region_max = 0;
   data->rrof_words_per_region_min = -1;
 
-  data->mutator_effort.rrof_ssb_flushes = 0;
-  data->mutator_effort.rrof_ssb_entries_flushed_total = 0;
-  data->mutator_effort.rrof_ssb_entries_flushed_this_cycle = 0;
-  data->mutator_effort.rrof_ssb_max_entries_flushed_any_cycle = 0;
-  data->mutator_effort.satb_ssb_flushes = 0;
-  data->mutator_effort.satb_ssb_entries_flushed_total = 0;
-  data->mutator_effort.satb_ssb_entries_flushed_this_cycle = 0;
-  data->mutator_effort.satb_ssb_max_entries_flushed_any_cycle = 0;
-  data->mutator_effort.words_promoted_this_cycle = 0;
-  data->mutator_effort.max_words_promoted_any_cycle = 0;
-
+  zero_all_mutator_effort( data );
 
 #if GATHER_MMU_DATA
   if (info->mmu_buf_size >= 0) { 

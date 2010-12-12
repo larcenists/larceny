@@ -18,6 +18,7 @@ struct gc_data {
   bool shrink_heap;		/* True if heap can be shrunk */
   bool fixed_ephemeral_area;    /* True iff ephemeral_area_count is invariant */
   bool remset_undirected;       /* Regional (vs gen'l directed remsets) */
+  bool mut_activity_bounded;    /* True for RROF alone (for now). */
 
   int  dynamic_min;		/* 0 or lower limit of expandable area */
   int  dynamic_max;		/* 0 or upper limit of expandable area */
@@ -175,17 +176,19 @@ struct gc_data {
      last completed snapshot at the time when this cycle itself
      began.'' */
 
-  struct {
+  struct mutator_effort {
     int rrof_ssb_flushes;
     long long rrof_ssb_entries_flushed_total;
-    int rrof_ssb_entries_flushed_this_cycle;
-    int rrof_ssb_max_entries_flushed_any_cycle;
+    struct {int full_cycle; int sumz_cycle;} rrof_ssb_entries_flushed_this;
+    struct {int full_cycle; int sumz_cycle;} rrof_ssb_max_entries_flushed_any;
+
     int satb_ssb_flushes;
     long long satb_ssb_entries_flushed_total;
-    int satb_ssb_entries_flushed_this_cycle;
-    int satb_ssb_max_entries_flushed_any_cycle;
-    int words_promoted_this_cycle;
-    int max_words_promoted_any_cycle;
+    struct {int full_cycle; int sumz_cycle;} satb_ssb_entries_flushed_this;
+    struct {int full_cycle; int sumz_cycle;} satb_ssb_max_entries_flushed_any;
+
+    struct {int full_cycle; int sumz_cycle;} words_promoted_this;
+    struct {int full_cycle; int sumz_cycle;} max_words_promoted_any;
   } mutator_effort;
 };
 
