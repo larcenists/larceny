@@ -1,3 +1,8 @@
+(error-handler 
+ (lambda l 
+   ; (decode-error l)
+   (display "parse-stats-output DIED!") (newline) (exit 118)))
+
 (require "Experimental/temp-files")
 
 ;; entrypoints of note:
