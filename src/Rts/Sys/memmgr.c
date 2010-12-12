@@ -1534,6 +1534,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
             || (grp == region_group_wait_w_sum) /* XXX */ );
   }
 
+#if 1
   /* HACK.  At start, we have two regions that we treat as alternate
    * targets for promotions out of the nursery during minor gc's, and
    * the to/from semispaces during major gc's.  This means that we
@@ -1555,7 +1556,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
     assert2( rgn_to == 1 || rgn_to == 2 );
     assert2( other_idx == 0 || other_idx == 1 );
     assert2( to_idx    == 0 || to_idx    == 1 );
-    assert2( (other_idx + to_idx) == 2 );
+    assert2( (other_idx + to_idx) == 1 );
     if ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
         && 
         ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
@@ -1564,12 +1565,14 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
       gc->scan_update_remset = FALSE;
     }
   }
+#endif
 
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
   gc->scan_update_remset = TRUE; /* undo hack above */
 
+#if 1
   /* HACK.  In usual case, we cannot always clear the minor remset,
    * because it may hold objects with inter-region references that
    * need to be remembered.
@@ -1589,11 +1592,12 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
       DATA(gc)->rrof_to_region == rgn_to) {
     int to_idx = rgn_to - 1;
     int other_idx = (-to_idx)+1;
-    assert2( (other_rgn + rgn_to) == 2 );
+    assert2( (other_idx + to_idx) == 1 );
     if (DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0) {
       urs_clear( gc->the_remset, rgn_to );
     }
   }
+#endif
 
   if (summarization_active) {
     int i;
