@@ -10,5 +10,5 @@
   (run-benchmark
     "fpsum"
     fpsum-iters
-    (lambda () (run))
-    (lambda (result) (equal? result 500000500000.))))
+    (lambda (result) (equal? result 500000500000.))
+    (lambda () (lambda () (run)))))

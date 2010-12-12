@@ -82,7 +82,6 @@
   (run-benchmark
     "quicksort30"
     quicksort-iters
-    quicksort-benchmark
     (lambda (v)
       (call-with-current-continuation
         (lambda (return)
@@ -91,4 +90,5 @@
                #t)
               (if (not (<= (vector-ref v (- i 1))
                            (vector-ref v i)))
-                  (return #f))))))))
+                  (return #f))))))
+    (lambda () quicksort-benchmark)))
