@@ -308,13 +308,18 @@ static summ_cell_t* make_cell( int source_gno, int target_gno ) {
   return e;
 }
 
-static void free_cell( summ_cell_t *e, 
+static void free_cell( summ_matrix_t *summ,
+                       summ_cell_t *e, 
                        int entries_per_objs_pool_segment,
                        int entries_per_locs_pool_segment ) 
 {
   dbmsg("   free_cell( id:%d src: %d tgt: %d, entries: %d %d )",
         e->dbg_id, e->source_gno, e->target_gno, 
         entries_per_objs_pool_segment, entries_per_locs_pool_segment );
+
+  if (DATA(summ)->row_cache.table[ e->target_gno ] == e) {
+    DATA(summ)->row_cache.table[ e->target_gno ] = NULL;
+  }
 
   {
     objs_pool_t *p; 
@@ -874,7 +879,7 @@ static void sm_expand_rowcache_gnos( summ_matrix_t *summ,
   summ_cell_t **new_table;
   new_table = 
     (summ_cell_t **)must_malloc( sizeof(summ_cell_t *) * (new_num_rows+1) );
-  for ( i=0; i<new_num_rows; i++ ) {
+  for ( i=0; i<(new_num_rows+1); i++ ) {
     new_table[i] = NULL;
   }
 
@@ -2996,7 +3001,7 @@ static void clear_col_cells( summ_matrix_t *summ, int col_idx )
   int rgn_next = col_idx;
   summ_col_t *col = DATA(summ)->cols[ rgn_next ];
 
-  DATA(summ)->row_cache.last_cell_valid = FALSE;
+  DATA(summ)->row_cache.last_cell_valid = FALSE; /* (free_cell does .table) */
 
   /* clear contribution from summarization */
   {
@@ -3017,7 +3022,8 @@ static void clear_col_cells( summ_matrix_t *summ, int col_idx )
         DATA(summ)->rows[ cell->source_gno ]->cell_rgt = cell->prev_row;
       }
       assert_unreachable( summ, cell ); /* XXX expensive */
-      free_cell( cell, 
+      free_cell( summ,
+                 cell, 
                  DATA(summ)->entries_per_objs_pool_segment,
                  DATA(summ)->entries_per_locs_pool_segment );
       cell = next;
@@ -3295,7 +3301,8 @@ EXPORT void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_nex
           pool_count_locations( cell->locations );
       }
       assert_unreachable( summ, cell ); /* XXX expensive */
-      free_cell( cell, 
+      free_cell( summ,
+                 cell, 
                  DATA(summ)->entries_per_objs_pool_segment,
                  DATA(summ)->entries_per_locs_pool_segment );
       cell = next;
