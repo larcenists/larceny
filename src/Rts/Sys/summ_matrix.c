@@ -843,6 +843,12 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
     DATA(sm)->summarizing.num = gc->gno_count;
   }
 
+  {
+    DATA(sm)->refining.active = FALSE;
+    DATA(sm)->refining.summaries_left_to_process = 0;
+    DATA(sm)->refining.finished_remset_pass_since_start = FALSE;
+  }
+
   sm_build_remset_summaries( sm, initial_num_rgns, rgn_next,
                              about_to_major );
 
