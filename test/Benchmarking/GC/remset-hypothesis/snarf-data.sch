@@ -305,8 +305,8 @@
                           (,source every ,period
                                    title ,title 
                                    with points linecolor ,color pointtype ,pointtype pointsize 1.0))))
-            (rs-code  1) (lh-code  4) (wh-code  6) ; pointtype codes.
-            (rs-color 1) (lh-color 1) (wh-color 1)
+            (rs-code  1) (lh-code  4) (wh-code  8) ; pointtype codes.
+            (rs-color 1) (lh-color 2) (wh-color 3)
             ;; use primes to avoid overlapping point annotations
             ;; (2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97 
             ;;  101 103 107 109 113 127 131 137 139 149 151 157 163 167 173 179 181 191 193 197 199)
