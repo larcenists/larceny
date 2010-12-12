@@ -2134,6 +2134,16 @@ static void wait_to_setup_next_wave( summ_matrix_t *summ );
 
 static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
 {
+  { gc_t *gc;
+    int gno; 
+    gc = summ->collector;
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno != gc->static_area->data_area->gen_no) {
+        gc_heap_for_gno( gc, gno )->incoming_words.summarizer = 0;
+      }
+    }
+  }
+
   dbmsg("switch_some_to_summarizing(summ, coverage=%d)", coverage);
   assert( region_group_count( region_group_summzing ) == 0);
 #if 0
@@ -2299,6 +2309,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
         (int)ceil(((double)region_count) * DATA(summ)->coverage);
       assert( coverage > 0 );
 
+      /* XXX this might be worth turning on. */
 #if 0
       region_group_enq_all( region_group_summzing, region_group_wait_w_sum );
 #endif
@@ -3024,16 +3035,6 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
                              int dA )
 {
   int coverage, budget;
-
-  { gc_t *gc;
-    int gno; 
-    gc = summ->collector;
-    for ( gno = 1; gno < gc->gno_count; gno++ ) {
-      if (gno != gc->static_area->data_area->gen_no) {
-        gc_heap_for_gno( gc, gno )->incoming_words.summarizer = 0;
-      }
-    }
-  }
 
   coverage = max(1,(int)floor(((double)region_count) * DATA(summ)->coverage));
   budget = 
