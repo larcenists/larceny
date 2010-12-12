@@ -1645,6 +1645,7 @@ static void oflo_check_word( summ_matrix_t *summ,
     }
     clear_col_cells( summ, tgno );
     clear_col_mutator_rs( summ, tgno );
+    col_reset_words( DATA(summ)->cols[tgno] ); /* XXX recent add; is it ok? */
   }
 }
 
@@ -2188,9 +2189,9 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
       }
     }
     dbmsg( "switch_some_to_summarizing : %d ", oh_current_space(oh)->gen_no );
-    region_group_enq( oh, oh->group, region_group_summzing );
     assert2( col_words( DATA(summ)->cols
                         [ oh_current_space( oh )->gen_no ] ) == 0 );
+    region_group_enq( oh, oh->group, region_group_summzing );
     coverage--;
   }
 }
@@ -2260,6 +2261,8 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
   {
     old_heap_t *h = region_group_first_heap( region_group_infamous );
     while (h != NULL) {
+      assert2( col_words( DATA(summ)->cols
+                          [ oh_current_space(h)->gen_no ] ) == 0 );
       gc_check_infamy_drop_to_hasbeen( summ->collector, 
                                        h,
                                        h->incoming_words.summarizer );
