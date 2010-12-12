@@ -590,8 +590,12 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.popularity_factor = popular_factor;
     }
     else if (doublearg( "-infamy", &argc, &argv, &infamy_factor)) {
-      o->gc_info.has_infamy_factor = TRUE;
-      o->gc_info.infamy_factor = infamy_factor;
+      if (infamy_factor == 0) {
+        o->gc_info.has_infamy_factor = FALSE;
+      } else {
+        o->gc_info.has_infamy_factor = TRUE;
+        o->gc_info.infamy_factor = infamy_factor;
+      }
     }
     else if (hstrcmp( *argv, "-print_float_stats_cycle" ) == 0)
       o->gc_info.print_float_stats_cycle = TRUE;
