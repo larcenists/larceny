@@ -10,6 +10,21 @@
 ;; 
 ;; stats-read : -> Sexp
 
+'(define stats-data
+   (apply gather-statsfiles (unzip filename+keys-feb24-00)))
+
+'(for-each (lambda (bmark-keys)
+             (plot-mem-stats-data/stacked-bars stats-data 
+                                               some-rt-keys 
+                                               bmark-keys
+                                               stats-data-key->name))
+           (list bmark-keys-set1
+                 bmark-keys-set2
+                 bmark-keys-set3
+                 bmark-keys-set4))
+
+;; alternative construction if you do not know what filenames and
+;; "keys" (e.g. GC configuration names) you want in the data set.
 '(define stats-data 
   (let* ((pat "logs.Argus/*thesis10-log.*Feb1{6,7}*.log")
          (files (failsafe-list-directory pat))
@@ -19,11 +34,6 @@
    (map (lambda (sd) (list (extract-path sd '(filename)) 
                            (extract-path sd '(command-description))))
         stats-data))
-
-;; alternative construction once you know what filenames and "keys"
-;; (e.g. GC configuration names) you want in the data set.
-'(define stats-data
-   (apply gather-statsfiles (unzip filename+keys-feb17-10)))
 
 ;; A StackableStats is a Listof[(list String Maybe[Number])]
 
@@ -74,6 +84,16 @@
     (rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0  "Rgn 122 pop 6 no infamy")
     (rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0  "Rgn 232 pop 4 no infamy")))
 
+(define some-rt-keys
+  '(scpy 
+    dflt 
+    rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0
+    rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0))
+
 (define some-bmark-keys+names
   (append
    '((bm-5twobit:long     "5twobit:long") 
@@ -111,11 +131,14 @@
             (assq key some-bmark-keys+names)
             (list key (first-string (extract-path dataset (list key 'name:)))))))
 
-'(plot-mem-stats-data/stacked-bars 
-  stats-data
-  (map car rt-keys+names)
-  bmark-keys-set3
+(define stats-data-key->name
   (lambda (key) (rt-or-bmark-key->name stats-data key)))
+
+'(plot-mem-stats-data/stacked-bars stats-data
+                                   some-rt-keys
+                                   bmark-keys-set4
+                                   stats-data-key->name)
+
 
 ;; A RtcfgKey is a Symbol (e.g. for a GC configuration key)
 ;; A BmarkKey is a Symbol (e.g. for a benchmark name
@@ -186,6 +209,30 @@
     ("logs.Argus/bench-thesis10-log.2010Feb17-at-14-45-06.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0-mmu)
     ("logs.Argus/bench-thesis10-log.2010Feb17-at-21-52-36.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0-mmu)
     ("logs.Argus/bench-thesis10-log.2010Feb18-at-07-37-54.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0-mmu)))
+
+(define filename+keys-feb24-00
+  '(("logs.Argus/bench-thesis10-log.2010Feb24-at-00-47-17.log" dflt)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-00-56-44.log" scpy)
+
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-01-08-01.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-01-27-19.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-01-49-09.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-02-13-14.log" rrof-nurs1meg-rgn8meg-sumz221-pop8-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-02-33-18.log" rrof-nurs1meg-rgn8meg-sumz1~2-pop6-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-02-56-12.log" rrof-nurs1meg-rgn8meg-sumz232-pop4-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-03-21-27.log" rrof-nurs4meg-rgn8meg-sumz221-pop8-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-03-40-09.log" rrof-nurs4meg-rgn8meg-sumz1~2-pop6-infm1-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-04-00-59.log" rrof-nurs4meg-rgn8meg-sumz232-pop4-infm1-refn1.0)
+
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-04-22-50.log" rrof-nurs1meg-rgn4meg-sumz221-pop8-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-04-48-20.log" rrof-nurs1meg-rgn4meg-sumz1~2-pop6-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-05-19-05.log" rrof-nurs1meg-rgn4meg-sumz232-pop4-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-05-55-01.log" rrof-nurs1meg-rgn8meg-sumz221-pop8-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-06-20-15.log" rrof-nurs1meg-rgn8meg-sumz1~2-pop6-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-06-50-48.log" rrof-nurs1meg-rgn8meg-sumz232-pop4-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-07-26-47.log" rrof-nurs4meg-rgn8meg-sumz221-pop8-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-07-50-34.log" rrof-nurs4meg-rgn8meg-sumz1~2-pop6-infm0-refn1.0)
+    ("logs.Argus/bench-thesis10-log.2010Feb24-at-08-22-00.log" rrof-nurs4meg-rgn8meg-sumz232-pop4-infm0-refn1.0)))
 
 ;; A Nelof[X] is one of:
 ;; -- (cons X '())
