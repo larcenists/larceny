@@ -548,7 +548,7 @@ realclean: clean
 BARRIER_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/barrier.h
 CHENEY_H=Sys/gset_t.h Sys/cheney.h
 GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/gclib.h
-GC_T_H=Sys/gset_t.h Sys/gc_t.h
+GC_T_H=Sys/gset_t.h Sys/gc_t.h Sys/summary_t.h
 GC_MMU_LOG_H=Sys/gc_mmu_log.h
 HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
 LOCSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/summary_t.h Sys/locset_t.h
@@ -639,6 +639,7 @@ Sys/gc_t.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h
 Sys/heapio.$(O): $(LARCENY_H) $(HEAPIO_H) $(SEMISPACE_T_H) $(GCLIB_H)
 Sys/larceny.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(STATS_H) $(YOUNG_HEAP_T_H)
 Sys/ldebug.$(O): $(LARCENY_H)
+Sys/locset.$(O): $(LARCENY_H) $(LOCSET_T_H) $(GCLIB_H) 
 Sys/los.$(O): $(LARCENY_H) $(GCLIB_H) $(LOS_T_H)
 Sys/malloc.$(O): $(LARCENY_H)
 Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
@@ -691,8 +692,8 @@ Sys/stats.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
 Sys/summ_matrix.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h \\
-	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H) \\
-	$(UREMSET_T_H)
+	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) Sys/summary_t.h \\
+	$(SUMM_MATRIX_T_H) $(UREMSET_T_H)
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  $(GC_T_H) $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)
