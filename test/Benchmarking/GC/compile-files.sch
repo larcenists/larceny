@@ -13,6 +13,8 @@
     "twobit-smaller.sch"
     ;; I can't get this working, even with directions in its comments.
     ;; "softscheme.sch" 
+    "queue3.sch"
+    "pueue3.sch"
     ))
 
 (for-each (lambda (x) 
