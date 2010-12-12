@@ -82,12 +82,15 @@
 ;; process-and-print-log : Filename -> void
 (define headers/paths
   '((benchmark (last-stashed-stats name:))
+
+    (max-pause (last-stashed-stats gc-max-pause:   elapsed))
     (tot-ms    (last-stashed-stats elapsed-time:))
+    (tot-maxw  (stats-dump mem_allocated_max))
+
     (cheney-ms (last-stashed-stats gc-total-time:  elapsed))
     (mark-ms   (last-stashed-stats mark-time:      elapsed))
     (sumz-ms   (last-stashed-stats summarize-time: elapsed)) 
-    (max-pause (last-stashed-stats gc-max-pause:   elapsed))
-    (tot-maxw  (stats-dump mem_allocated_max))
+
     (heap-maxw (stats-dump heap_allocated_max))
     (rem-maxw  (stats-dump remset_allocated_max))
     (sumz-maxw (stats-dump summ_allocated_max))
