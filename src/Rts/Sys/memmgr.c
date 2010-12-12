@@ -1341,7 +1341,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   handle_secondary_space( gc );
   update_promotion_counts( gc, gc->words_from_nursery_last_gc );
 
-  DATA(gc)->total_heap_words_allocated != gc->words_from_nursery_last_gc;
+  DATA(gc)->total_heap_words_allocated += gc->words_from_nursery_last_gc;
   if (summarization_active) { /* ????   what??? */
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
     smircy_step( gc, smircy_step_can_refine );
