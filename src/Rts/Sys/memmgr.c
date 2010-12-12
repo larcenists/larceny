@@ -732,12 +732,11 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->mutator_effort.words_promoted_this.full_cycle = 0;
 }
 
-static void rrof_completed_summarization_cycle( gc_t *gc ) 
+static void print_incoming_summarizer( gc_t *gc, char *prefix ) 
 {
-
-  { int gno, words, mega_words, mega_words_remainder;
+    int gno, words, mega_words, mega_words_remainder;
     int MILLION = 1000000;
-    fprintf( stdout, "incoming summarizer " );
+    fprintf( stdout, "%s incoming summarizer ", prefix );
     for ( gno = 1; gno < gc->gno_count; gno++ ) {
       if (gno == gc->static_area->data_area->gen_no)
         continue;
@@ -754,8 +753,38 @@ static void rrof_completed_summarization_cycle( gc_t *gc )
     }
     fprintf( stdout, "\n" );
     fflush( stdout );
-  }
+}
 
+static void print_incoming_marker( gc_t * gc, char *prefix ) 
+{
+    int gno, words, mega_words, mega_words_remainder;
+    int MILLION = 1000000;
+    fprintf( stdout, "%s incoming marker     ", prefix );
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno == gc->static_area->data_area->gen_no)
+        continue;
+      words = gc_heap_for_gno( gc, gno )->incoming_words.marker;
+      mega_words = words / MILLION;
+      mega_words_remainder = (words % MILLION) / (MILLION / 100);
+      if (words == 0) {
+        fprintf( stdout, "    0%s ", 
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      } else {
+        fprintf( stdout, "%2d.%02d%s ", mega_words, mega_words_remainder,
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      }
+    }
+    fprintf( stdout, "\n" );
+    fflush( stdout );
+}
+
+static void rrof_completed_summarization_cycle( gc_t *gc ) 
+{
+
+  { int gno, words, mega_words, mega_words_remainder;
+    print_incoming_summarizer( gc, "sumz" );
+    print_incoming_marker(     gc, "    " );
+  }
   DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
   DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
   DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
@@ -882,23 +911,8 @@ static void incremental_refinement_has_completed( gc_t *gc )
 {
   { int gno, words, mega_words, mega_words_remainder;
     int MILLION = 1000000;
-    fprintf( stdout, "incoming marker     " );
-    for ( gno = 1; gno < gc->gno_count; gno++ ) {
-      if (gno == gc->static_area->data_area->gen_no)
-        continue;
-      words = gc_heap_for_gno( gc, gno )->incoming_words.marker;
-      mega_words = words / MILLION;
-      mega_words_remainder = (words % MILLION) / (MILLION / 100);
-      if (words == 0) {
-        fprintf( stdout, "    0%s ", 
-                 region_group_name( gc_region_group_for_gno( gc, gno )));
-      } else {
-        fprintf( stdout, "%2d.%02d%s ", mega_words, mega_words_remainder,
-                 region_group_name( gc_region_group_for_gno( gc, gno )));
-      }
-    }
-    fprintf( stdout, "\n" );
-    fflush( stdout );
+    print_incoming_summarizer( gc, "    " );
+    print_incoming_marker(     gc, "mark" );
   }
 
   reset_countdown_to_next_refine( gc ); /* XXX still necessary/meaningful? */
