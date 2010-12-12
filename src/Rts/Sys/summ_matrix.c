@@ -2043,6 +2043,9 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
    * the code should be checking that the bound is satisfied. */
   {
     int W, dA_over_R;
+    double F_1 = DATA(summ)->F_1;
+    double F_2 = DATA(summ)->F_2;
+    double F_3 = DATA(summ)->F_3;
 #if CONSERVATIVE_REGION_COUNT
     N_over_R = summ->collector->gno_count;
     U = region_group_count( region_group_unfilled );
