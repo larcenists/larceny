@@ -735,7 +735,7 @@ void* msgc_get_object_visitor_data( msgc_context_t *context )
   return context->object_visitor_data;
 }
 
-word 
+void 
 msgc_set_stop_when( msgc_context_t *context,
                     bool (*pred)( word obj, word src, void *data ),
                     void *data )

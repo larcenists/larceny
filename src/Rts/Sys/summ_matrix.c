@@ -1025,10 +1025,10 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 
     if ( usable-max_pop > goal_budget ) {
       /* continue waiting to setup next wave */
-      return;
+      return FALSE;
     } else if (filled < goal_budget) {
       /* continue allocating more storage before setup of next wave */
-      return;
+      return FALSE;
     } else {
       DATA(summ)->summarizing.waiting = FALSE;
       setup_next_wave( summ, rgn_next, ne_rgn_count, about_to_major, 

@@ -40,10 +40,10 @@ void smircy_when_object_forwarded( smircy_context_t *context,
                                    word obj_orig, int gen_orig,
                                    word obj_new, int gen_new );
 
-void *smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
-                                     int rgn, 
-                                     void (*visit)(word *w, void *data),
-                                     void *orig_data );
+void smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
+                                    int rgn, 
+                                    void (*visit)(word *w, void *data),
+                                    void *orig_data );
 
 void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn );
   /* Iteratively marks all objects on stack for rgn and pushes their

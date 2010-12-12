@@ -1340,10 +1340,10 @@ static void forcibly_push( smircy_context_t *context, word w, word src )
   unmark_object( context, w );
   push( context, w, src );
 }
-void *smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
-                                     int rgn, 
-                                     void (*visit)(word *w, void *data),
-                                     void *orig_data )
+void smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
+                                    int rgn, 
+                                    void (*visit)(word *w, void *data),
+                                    void *orig_data )
 {
   obj_stack_entry_t     *obj_entry;
   obj_stack_entry_t     *obj_entry_next;

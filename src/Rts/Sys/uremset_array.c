@@ -72,7 +72,7 @@ static void              clear( uremset_t *urs, int gno )
 }
 static bool       add_elem_new( uremset_t *urs, word w )
 {
-  rs_add_elem_new( DATA(urs)->major_remset[ gen_of(w) ], w );
+  return rs_add_elem_new( DATA(urs)->major_remset[ gen_of(w) ], w );
 }
 static bool           add_elem( uremset_t *urs, word w )
 {
@@ -84,7 +84,9 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
   if (bot != top) {
     annoyingmsg("urs_add_elems rs[]=0x%08x bot=0x%08x top=0x%08x",
                 DATA(urs)->remset, bot, top );
-    rs_add_elems_distribute( DATA(urs)->remset, bot, top );
+    return rs_add_elems_distribute( DATA(urs)->remset, bot, top );
+  } else {
+    return FALSE;
   }
 }
 
