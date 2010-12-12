@@ -85,6 +85,8 @@ struct gc_data {
     /* denoted by C in comments below; Will calls this F1 */
     double budget_inv;
     /* denoted by B in comments below; Will calls this F2 */
+    int max_retries;
+    /* Will calls this F3; XXX still needs documentation in code */
 
     /* In RROF collector, (1/C)*(N/R) is number of summaries that we
        will try to construct ("summary coverage") during each heap 

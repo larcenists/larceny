@@ -492,6 +492,7 @@ static int next_rgn( int rgn, int num_rgns ) {
 static const double default_popularity_factor = 8.0;
 static const double default_sumz_budget_inv = 2.0;
 static const double default_sumz_coverage_inv = 3.0;
+static const int    default_sumz_max_retries  = 1;
 
 static void smircy_start( gc_t *gc ) 
 {
@@ -1426,7 +1427,7 @@ static void rrof_calc_target_allocation( gc_t *gc,
   long long P_old  = DATA(gc)->max_live_words;
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
-  int F_3    = 2; /* XXX FIXME see Will for calculation of F_3 */
+  int F_3    = DATA(gc)->rrof_sumz_params.max_retries;
   int N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
     / sizeof(word);
@@ -2820,6 +2821,10 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       (info->has_sumzcoverage
        ? info->sumzcoverage_inv
        : default_sumz_coverage_inv);
+    data->rrof_sumz_params.max_retries =
+      (info->has_sumz_retries
+       ? info->max_sumz_retries
+       : default_sumz_max_retries);
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
