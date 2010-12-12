@@ -183,7 +183,7 @@ void sm_init_summary_from_nursery_alone( summ_matrix_t *summ,
                                          summary_t *summary );
 bool sm_nursery_summary_contains( summ_matrix_t *summ, word obj );
 void sm_nursery_summary_enumerate( summ_matrix_t *summ, 
-                                   bool (*scanner)(word *loc, void *data),
+                                   bool (*scanner)(loc_t loc, void *data),
                                    void *data );
 
 int sm_cycle_count( summ_matrix_t *summ );

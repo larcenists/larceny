@@ -75,4 +75,5 @@ g( ) {
     rm $TMPOUTPUT
 }
 
-g '(nboyer-benchmark 5 5)'   nboyer
+# g '(sboyer-benchmark 6 5)'   sboyer
+g '(twobit-benchmark (quote long) 5)' twobit

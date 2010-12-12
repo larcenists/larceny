@@ -467,7 +467,7 @@ stats_id_t stats_start_timer( stats_timer_t type )
 int stats_stop_timer( stats_id_t timer )
 {
   int then;
-
+  int retval;
   assert( 0 <= timer && 
 	  timer < MAX_TIMERS && 
 	  stats_state.timers[timer].used != 0 );
@@ -477,13 +477,22 @@ int stats_stop_timer( stats_id_t timer )
   stats_state.timers[timer].used = 0;
   switch (stats_state.timers[timer].type) {
     case TIMER_ELAPSED :
-      return osdep_realclock() - then;
+      retval = (osdep_realclock() - then);
+      break;
     case TIMER_CPU :
-      return osdep_cpuclock() - then;
+      retval = (osdep_cpuclock() - then);
+      break;
     default :
       assert(0);
       return 0;
   }
+#if 0
+  assert( retval >= 0 );
+#else
+  if (retval < 0) 
+    retval = INT_MAX;
+#endif
+  return retval;
 }
 
 void stats_add_gclib_stats( gclib_stats_t *stats )

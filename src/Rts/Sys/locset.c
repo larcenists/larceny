@@ -144,6 +144,8 @@ void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
 
   loc_t loc;
 
+  assert( (offset % sizeof(word)) == 0 );
+
   loc.obj = objptr;
   loc.offset = offset;
 
@@ -155,6 +157,7 @@ void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
   mask = tblsize - 1;
 
   h = hash_object( (word)w, mask );
+  if (0) consolemsg("ls_add_obj_offset hash_object(w=0x%08x, tblsize-1=%d) => %d", w, mask, h);
   b = tbl[ h ];
   while (b != NULL && loc_to_slot(b->loc) != w)
     b = b->next;
@@ -165,6 +168,9 @@ void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
       pooltop = data->curr_pool->top;
       poollim = data->curr_pool->lim;
       overflowed = TRUE;
+      if (0) consolemsg("ls_add_obj_offset insert overflow; pooltop: 0x%08x poollim: 0x%08x", pooltop, poollim);
+    } else {
+      if (0) consolemsg("ls_add_obj_offset insert withroom; pooltop: 0x%08x poollim: 0x%08x", pooltop, poollim);
     }
     pooltop->loc = loc;
     pooltop->next = tbl[h];
@@ -178,28 +184,51 @@ void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
   }
 }
 
-void ls_add_nonpair( locset_t *ls, word *loc )
+static word retagptr( word w ) 
 {
-  assert(0);
-#if 0
-  ls_add_wordptr( ls, loc );
-#endif
+  if (tagof(w) == 0) {
+    switch (header(*(word*)w)) {
+    case VEC_HDR :
+      return (word)tagptr( w, VEC_TAG );
+    case BV_HDR : 
+      return 0; /* signal that entry should be removed! */
+    case PROC_HDR :
+      return (word)tagptr( w, PROC_TAG );
+    default:
+      panic_abort( "remset.c: word is nonptr." );
+    }
+  } else {
+    return w;
+  }
+}
+
+void ls_add_nonpair( locset_t *ls, word *ptr )
+{
+  word *hdr_search;
+  loc_t loc;
+
+  hdr_search = ptr;
+  do {
+    hdr_search -= 1;
+    if (ishdr(*hdr_search)) {
+      break;
+    }
+  } while (1);
+
+  loc = make_loc(retagptr((word)hdr_search),
+                 ((byte*)ptr) - ((byte*)hdr_search));
+  assert( loc_to_slot(loc) == ptr );
+  ls_add_obj_offset( ls, loc.obj, loc.offset );
 }
 
 void ls_add_paircar( locset_t *ls, word *loc )
 {
-  assert(0);
-#if 0
-  ls_add_wordptr( ls, &loc[0] ); /* &car */
-#endif
+  ls_add_obj_offset( ls, tagptr((word)loc, PAIR_TAG), 0 ); /* &car */
 }
 
 void ls_add_paircdr( locset_t *ls, word *loc )
 {
-  assert(0);
-#if 0
-  ls_add_wordptr( ls, &loc[1] ); /* &cdr */
-#endif
+  ls_add_obj_offset( ls, tagptr((word)(loc-1), PAIR_TAG), sizeof(word) ); /* &cdr */
 }
 
 bool ls_ismember( locset_t *ls, word *loc )
@@ -240,6 +269,39 @@ void ls_enumerate( locset_t *ls,
     while (p < q) {
       if (! loc_clear_p( p->loc )) {
         if (! scanner( loc_to_slot(p->loc), data )) {
+          clear_loc( &p->loc );
+          removed_count += 1;
+        }
+      }
+      p += 1;
+    }
+    if (ps == DATA(ls)->curr_pool)
+      break;
+
+    ps = ps->next;
+  }
+
+  ls->live -= removed_count;
+  supremely_annoyingmsg( "LOCSET @0x%x: removed %d elements.", 
+                         (word)ls, removed_count );
+}
+
+void ls_enumerate_locs( locset_t *ls, 
+                        bool (*scanner)(loc_t loc, void *data ),
+                        void *data )
+{
+  pool_t *ps;
+  ent_t *p, *q;
+  unsigned removed_count;
+
+  removed_count = 0;
+  ps = DATA(ls)->first_pool;
+  while (1) {
+    p = ps->bot;
+    q = ps->top;
+    while (p < q) {
+      if (! loc_clear_p( p->loc )) {
+        if (! scanner( p->loc, data )) {
           clear_loc( &p->loc );
           removed_count += 1;
         }
@@ -400,8 +462,12 @@ static pool_t *allocate_pool_segment( unsigned pool_entries, unsigned attr )
   }
 
   p->bot = p->top = heapptr;
-  p->lim = heapptr + pool_entries*sizeof(ent_t);
+  p->lim = ((byte*)heapptr) + pool_entries*sizeof(ent_t);
   p->next = 0;
+
+  if (0) consolemsg( "allocate_pool_segment(%u, attr) "
+              "=> 0x%08x{bot: 0x%08x, top: 0x%08x, lim: 0x%08x}",
+              pool_entries, p, p->bot, p->top, p->lim );
 
   return p;
 }
@@ -411,6 +477,11 @@ static void   free_pool_segments( pool_t *first, unsigned pool_entries )
   pool_t *tmp;
 
   while (first) {
+    { pool_t *p = first;
+      if (0) consolemsg( "free_pool_segments free"
+                  " 0x%08x{bot: 0x%08x, top: 0x%08x, lim: 0x%08x}",
+                  p, p->bot, p->top, p->lim ); }
+
     gclib_free( first->bot, pool_entries*sizeof(ent_t) );
     tmp = first;
     first = first->next;

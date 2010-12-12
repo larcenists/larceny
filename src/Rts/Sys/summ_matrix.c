@@ -1770,41 +1770,46 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
     q = top; 
     while (q > p) {
       q--;
+      w2 = *q;
+      assert(is_fixnum(w2));
+      assert( 1 == ((top - q) % 2));
+      assert(q > p);
+      q--;
       w = *q;
-      if (is_fixnum(w)) {
-        assert( q > p );
-        w2 = w;
-        q--;
-        w = *q;
-      } else {
-        w2 = w; /* *any* non-fixnum for w2 will do. */
+      assert((is_fixnum(w2)) && (! is_fixnum(w)));
+      assert( 0 == ((top - q) % 2));
+    }
+    p = bot; 
+    q = top; 
+    assert( 0 == ((top - q) % 2));
+    while (q > p) {
+      assert( 0 == ((top - q) % 2));
+      q--;
+      assert( 1 == ((top - q) % 2));
+      w = *q;
+      if (! is_fixnum(w)) {
+        consolemsg("non-fixnum: 0x%08x at q: 0x%08x p: 0x%08x (q-p):%d (top-q):%d", w, q, p, (q-p), (top-q));
       }
+      assert( 1 == ((top - q) % 2));
+      assert(is_fixnum(w));
 
+      assert( q > p );
+      w2 = w;
+      q--; 
+      assert( 0 == ((top - q) % 2));
+      w = *q;
+
+      assert(is_fixnum(w2));
       assert( ! is_fixnum(w) );
       assert( is_ptr(w) );
 
-      if (is_fixnum(w2)) {
-#if 0
-        consolemsg("w=0x%08x w2=0x%08x typetag(w,w2)=(%d,%d)", 
-                   w, w2, typetag(w), typetag(w2));
-#endif
-        q--;
-        if (col_words(col) <= pop_limit) {
-          loc_t loc;
-          loc = make_loc( w, w2 );
-          add_location_to_mut_rs( summ, g_rhs, loc );
-          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_once_wb );
-        }
-      } else {
-#if 1
-        assert(0);
-#else
-        if (col_words(col) <= pop_limit) {
-          add_object_to_mut_rs( summ, g_rhs, w );
-          incr_size_and_oflo_check( summ, g_rhs, w, col_incr_twice_wb );
-        }
-#endif
+      if (col_words(col) <= pop_limit) {
+        loc_t loc;
+        loc = make_loc( w, w2 );
+        add_location_to_mut_rs( summ, g_rhs, loc );
+        incr_size_and_oflo_check( summ, g_rhs, w, col_incr_once_wb );
       }
+      assert( 0 == ((top - q) % 2));
     }
   }
 
@@ -3073,11 +3078,11 @@ EXPORT void sm_fold_in_nursery_and_init_summary( summ_matrix_t *summ,
 }
 
 EXPORT void sm_nursery_summary_enumerate( summ_matrix_t *summ, 
-                                          bool (*scanner)(word *loc, void *data),
+                                          bool (*scanner)(loc_t loc, void *data),
                                           void *data )
 {
   check_rep_1( summ );
-  ls_enumerate( DATA(summ)->nursery_locset, scanner, data );
+  ls_enumerate_locs( DATA(summ)->nursery_locset, scanner, data );
   check_rep_1( summ );
 }
 

@@ -93,6 +93,9 @@ bool ls_ismember( locset_t *ls, word *loc );
    */
 
 
+void ls_enumerate_locs( locset_t *ls, 
+                        bool (*scanner)(loc_t loc, void *data ),
+                        void *data );
 void ls_enumerate( locset_t *ls, 
                    bool (*scanner)(word *loc, void *data ),
                    void *data );

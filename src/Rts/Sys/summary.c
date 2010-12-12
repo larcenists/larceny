@@ -268,6 +268,7 @@ void summary_enumerate_locs2_dispatch( summary_t *summary,
             p++;
             continue;
           }
+          assert( (p->offset % sizeof(word)) == 0 );
           scanner( p->obj, p->offset, data );
         }
         p++;

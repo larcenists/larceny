@@ -92,20 +92,24 @@ struct verify_remsets_traverse_rs_data {
 };
 /* verify that (X in remset R implies X in reachable(roots+remsets));
  * (may be silly to check, except when R = nursery_remset...) */
-static bool verify_remsets_traverse_rs( word *loc, void *d )
+static bool verify_remsets_traverse_rs( loc_t loc, void *d )
 {
   struct verify_remsets_traverse_rs_data *data;
+  word *slot;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert( msvfy_object_marked_p( data->conserv_context, *loc ));
+  slot = loc_to_slot(loc);
+  if (isptr(*slot)) {
+    assert( msvfy_object_marked_p( data->conserv_context, *slot));
+  }
   return TRUE;
 }
 /* verify that (X in R implies X in minor_remset for X);
  * another invariant for R = nursery_remset. */
-static bool verify_nursery_traverse_rs( word *loc, void *d )
+static bool verify_nursery_traverse_rs( loc_t loc, void *d )
 {
   struct verify_remsets_traverse_rs_data *data;
   data = (struct verify_remsets_traverse_rs_data*)d;
-  assert(0);
+  assert( urs_isremembered( data->gc->the_remset, loc.obj ));
   return TRUE;
 }
 
