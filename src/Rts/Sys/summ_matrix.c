@@ -818,6 +818,15 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   data->col_inprogress_first = -1;
   data->col_inprogress_lim = -1;
 
+  data->row_cache.table = 
+    (summ_cell_t **)must_malloc( sizeof(summ_cell_t *) * (num_rows+1) );
+  { 
+    int i;
+    for (i = 0; i < (num_rows+1); i++) {
+      data->row_cache.table[i] = NULL;
+    }
+  }
+  data->row_cache.table_len = num_rows+1;
   data->row_cache.last_cell_valid = FALSE;
 
   data->cycle_count = 0;
@@ -855,6 +864,23 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   check_rep_1(sm);
 
   return sm;
+}
+
+static void sm_expand_rowcache_gnos( summ_matrix_t *summ, 
+                                     int fresh_gno, 
+                                     int new_num_rows )
+{
+  int i;
+  summ_cell_t **new_table;
+  new_table = 
+    (summ_cell_t **)must_malloc( sizeof(summ_cell_t *) * (new_num_rows+1) );
+  for ( i=0; i<new_num_rows; i++ ) {
+    new_table[i] = NULL;
+  }
+
+  free( DATA(summ)->row_cache.table );
+  DATA(summ)->row_cache.table = new_table;
+  DATA(summ)->row_cache.table_len = new_num_rows+1;
 }
 
 static void sm_expand_summary_gnos( summ_matrix_t *summ, int fresh_gno );
@@ -932,6 +958,7 @@ EXPORT void sm_expand_gnos( summ_matrix_t *summ, int fresh_gno )
   }
 
   sm_expand_summary_gnos( summ, fresh_gno );
+  sm_expand_rowcache_gnos( summ, fresh_gno, new_num_rows );
 
   free( DATA(summ)->rows );
   free( DATA(summ)->cols );
@@ -1412,6 +1439,15 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
     return DATA(summ)->row_cache.last_cell;
   }
 
+  assert( tgt_gno < DATA(summ)->row_cache.table_len );
+  if ( DATA(summ)->row_cache.table[ tgt_gno ] != NULL &&
+       DATA(summ)->row_cache.table[ tgt_gno ]->source_gno == src_gno ) {
+    assert( DATA(summ)->row_cache.table[ tgt_gno ]->target_gno == tgt_gno );
+    DATA(summ)->row_cache.last_cell = DATA(summ)->row_cache.table[ tgt_gno ];
+    DATA(summ)->row_cache.last_cell_valid = TRUE;
+    return DATA(summ)->row_cache.last_cell;
+  }
+
   row = DATA(summ)->rows[src_gno];
   col = DATA(summ)->cols[tgt_gno];
   assert( row != NULL );
@@ -1458,6 +1494,7 @@ static summ_cell_t* summ_cell( summ_matrix_t *summ, int src_gno, int tgt_gno )
 
   DATA(summ)->row_cache.last_cell = row_cell;
   DATA(summ)->row_cache.last_cell_valid = TRUE;
+  DATA(summ)->row_cache.table[ tgt_gno ] = row_cell;
   return row_cell;
 }
 
