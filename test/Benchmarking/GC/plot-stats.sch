@@ -15,12 +15,41 @@
    '("group C" ("c1" 15 18 22) ("c2" 24  0 28) ("c3" 37 37 40)  ("c4" 30 1))
    ))
 
+(define (show-example2)
+  (let* ((plot-1 (plot-stacked-bars.build-gnuplot-args 
+                  '("bar" "foo" "woo")
+                  '("" ("a1" 10 12 13) ("a2" 10 11 12))
+                  '("" ("b1"  5  7  9) ("b2"  5  6  7))))
+         (plot-2 (plot-stacked-bars.build-gnuplot-args 
+                  '("wuz" "zup")
+                  '("group 1" ("c1" 20 2200) ("c2" 200 3900))
+                  '("group 2" ("d1" 100 1500) ("d2" 100 170))))
+         (make-1 (list-ref plot-1 0))
+         (vals-1 (list-ref plot-1 1))
+         (make-2 (list-ref plot-2 0))
+         (vals-2 (list-ref plot-2 1)))
+    (gnuplot/keep-files 
+     (lambda (file-1 file-2) `((set multiplot layout #(2 1))
+                               ,@(make-1 file-1)
+                               ,@(make-2 file-2)
+                               (unset multiplot)))
+     vals-1 vals-2)))
+
+
 ;; An L[i,X] is a Listof[X] of length i.
 
 ;; plot-stacked-bars
 ;;     : L[k,String] Listof[(cons String L[k,Number])] ... -> unspecified
 ;; renders each arg of form ((a1 .. a_k) (b1 .. b_k) ...)
 (define (plot-stacked-bars bar-names . data-args)
+  (let* ((args (apply plot-stacked-bars.build-gnuplot-args bar-names data-args))
+         (make-gnuplot-script (list-ref args 0))
+         (data-vals           (list-ref args 1))
+         (xtics               (list-ref args 2)))
+    (gnuplot/keep-files make-gnuplot-script data-vals)
+    xtics))
+
+(define (plot-stacked-bars.build-gnuplot-args bar-names . data-args)
   (define (massage-data-arg data bar-x-coord)
     (let* ((entries (append ; '(("")) ;; shifts bars over within group
                             data))
@@ -48,7 +77,8 @@
          (data-vals (apply append (map car data-and-xtics)))
          (xtics (apply append (map cadr data-and-xtics)))
          (box-width (inexact (min 0.5 (/ 1 max-group-width)))))
-    (gnuplot/keep-files
+    ;; return list: (data-file->gnuplot-script data-vals xtics)
+    (list
      (lambda (data-file) 
        `((set style fill pattern 1 border)
          (set xrange \[ 0 : ,count \] )
@@ -67,9 +97,8 @@
                           title ,bar-name))
                       (reverse bar-names)
                       (reverse (iota (length bar-names))))))))
-     data-vals)
-    xtics))
-
+     data-vals
+     xtics)))
 
 (define (plot-mmu . args)
   (gnuplot (lambda files
