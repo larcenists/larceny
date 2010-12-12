@@ -2065,9 +2065,11 @@ static void force_collector_to_make_progress( gc_t *gc )
   nbytes = (lim-p)*sizeof(word);
 
   if (nbytes > 0) {
+#if 0
     consolemsg( "force_collector_to_make_progress"
                 " p:0x%08x lim:0x%08x nbytes:%d",
                 p, lim, nbytes );
+#endif
 
     *p = mkheader( nbytes-sizeof(word),BIGNUM_HDR);
     if (p+1 < lim)
