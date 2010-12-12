@@ -230,6 +230,7 @@ struct summ_matrix_data {
   int cycle_count; /* number of cycles over program run */
   int pass_count; /* number of scans over whole heap */
   int curr_pass_units_count; /* num rgns via current pass (ie partial scan). */
+  int curr_cycle_pass_count; /* num pass in current cycle */
 
   struct {
     bool      active;
@@ -824,6 +825,7 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   data->cycle_count = 0;
   data->pass_count = 0;
   data->curr_pass_units_count = 0;
+  data->curr_cycle_pass_count = 0;
 
   sm->collector = gc;
   sm->data = data;
@@ -2072,7 +2074,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
           W, dA_over_R, num_under_construction );
 
     assert2( num_under_construction > 0 );
-#if 0
+#if 1
     /* num_under_construction should be bounded by a constant
      * dependant on the sumzbudget, sumzcoverage, and popularity.
      * The code below checks that one proposed bound is satisfied,
@@ -2081,12 +2083,20 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
      * but the calculated num_under_construction above makes use
      * of dynamic allocation behavior passed along in dA. 
      */
-    if (num_under_construction > (int)ceil(F_1*F_2*F_3)) {
-      consolemsg( "Predicted max summ/gc: %d but num_under_construction: %d",
-                  (int)ceil(F_1*F_2*F_3), num_under_construction );
+    if (num_under_construction > ((int)ceil(F_1*F_2*F_3) + dA_over_R)) {
+      consolemsg( "Predicted max summ/gc: %d+%d but num_under_construction: %d",
+                  (int)ceil(F_1*F_2*F_3), dA_over_R, num_under_construction );
     }
 #endif
   }
+
+  dbmsg
+    ("sm_build_summaries_setup"
+     "(summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%s )"
+     " goal:%d num_under_construction:%d",
+     majors, ne_rgn_count, rgn_next, about_to_major?"TRUE":"FALSE", 
+     goal, num_under_construction
+     );
 
 
   DATA(summ)->summarizing.goal = goal;
@@ -2164,6 +2174,7 @@ static void wait_to_setup_next_wave( summ_matrix_t *summ );
 
 static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
 {
+  int coverage_orig;
   { gc_t *gc;
     int gno; 
     gc = summ->collector;
@@ -2189,6 +2200,7 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
   if (region_group_count( region_group_filled ) < coverage )
     return;
 #endif
+  coverage_orig = coverage;
   while (coverage > 0) {
     old_heap_t *oh = region_group_first_heap( region_group_filled );
     if (oh == NULL) {
@@ -2199,9 +2211,11 @@ static void switch_some_to_summarizing( summ_matrix_t *summ, int coverage )
         n = &region_group_name;
         c = &region_group_count;
         consolemsg( "summ_matrix.c: ran out of regions to summarize:"
-                    " coverage: %3d "
+                    " coverage: %3d coverage_orig: %3d"
+                    " cycle_count: %d curr_cycle_pass_count: %d"
                     " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
-                    coverage, 
+                    coverage, coverage_orig, 
+                    DATA(summ)->cycle_count, DATA(summ)->curr_cycle_pass_count, 
                     n( region_group_nonrrof    ), c( region_group_nonrrof ),
                     n( region_group_unfilled   ), c( region_group_unfilled ),
                     n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
@@ -2277,9 +2291,7 @@ static int calc_summarization_coverage( summ_matrix_t *summ,
 {
   int coverage;
   coverage = 
-    max(1,(int)floor(((double)(region_count
-                               - region_group_count( region_group_unfilled )))
-                     * DATA(summ)->coverage));
+    max(1,(int)floor(((double)(region_count)) * DATA(summ)->coverage));
   return coverage;
 }
 
@@ -2350,8 +2362,9 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 
     /* see note above about count potentially passing budget */
     if (total_count >= goal ) {
-      dbmsg( "total_count:%d (adding count:%d) meets goal:%d.", 
-             total_count, count, goal );
+      dbmsg( "sm_build_summaries_iteration_complete( summ, region_count=%d ) "
+                  "total_count:%d (adding count:%d) meets goal:%d.", 
+                  region_count, total_count, count, goal );
       DATA(summ)->summarizing.complete = TRUE;
       region_group_enq_all( region_group_summzing, region_group_wait_w_sum );
       wait_to_setup_next_wave( summ );
@@ -2360,7 +2373,9 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
       int start, upto;
       int coverage;
 
-      dbmsg( "count:%d did not meet goal:%d.", count, goal);
+      dbmsg( "sm_build_summaries_iteration_complete( summ, region_count=%d ) "
+                  "count:%d did not meet goal:%d.", 
+                  region_count, count, goal);
 
       coverage = calc_summarization_coverage( summ, region_count );
       assert( coverage > 0 );
@@ -2375,6 +2390,7 @@ static void sm_build_summaries_iteration_complete( summ_matrix_t *summ,
 
       DATA(summ)->pass_count += 1;
       DATA(summ)->curr_pass_units_count = 0;
+      DATA(summ)->curr_cycle_pass_count += 1;
     }
   }
 }
@@ -3112,6 +3128,7 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
 
   DATA(summ)->cycle_count += 1;
   DATA(summ)->curr_pass_units_count = 0;
+  DATA(summ)->curr_cycle_pass_count = 0;
 }
 
 static void sm_ensure_available( summ_matrix_t *summ, int gno,

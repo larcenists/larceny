@@ -1615,9 +1615,25 @@ static int find_appropriate_next( gc_t *gc )
   if (first_waiting == NULL) {
     old_heap_t *first_filled;
     if (DATA(gc)->summaries != NULL) {
+        char *(*n)( region_group_t grp );
+        int   (*c)( region_group_t grp );
+        n = &region_group_name;
+        c = &region_group_count;
+
       consolemsg( "ran out of ready-and-waiting "
                   "summarized regions to collect!  "
-                  "Are parameter choices sane?");
+                  "Are parameter choices sane?"
+                  " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
+                  n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                  n( region_group_unfilled   ), c( region_group_unfilled ),
+                  n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                  n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                  n( region_group_summzing   ), c( region_group_summzing ),
+                  n( region_group_filled     ), c( region_group_filled ), 
+                  n( region_group_risingstar ), c( region_group_risingstar ),
+                  n( region_group_infamous   ), c( region_group_infamous ),
+                  n( region_group_hasbeen    ), c( region_group_hasbeen ) );
+
     }
     assert( DATA(gc)->summaries == NULL );
     first_filled = region_group_first_heap( region_group_filled );
