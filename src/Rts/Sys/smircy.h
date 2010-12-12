@@ -18,6 +18,7 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
 void smircy_push_roots( smircy_context_t *context );
 
 void smircy_push_remset( smircy_context_t *context, remset_t *rs );
+void smircy_push_locset( smircy_context_t *context, locset_t *rs );
 
 void smircy_push_elems( smircy_context_t *context, word *bot, word *top );
 

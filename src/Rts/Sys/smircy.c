@@ -985,11 +985,32 @@ static bool push_remset_entry( word obj, void *data, unsigned *stats )
   return TRUE;
 }
 
+static bool push_locset_entry( word *loc, void *data ) 
+{
+  smircy_context_t *context = (smircy_context_t*)data;
+  word obj = *loc;
+  if (isptr(obj)) {
+    dbmsg("smircy push_locset_entry( 0x%08x -> 0x%08x (%d), context )", 
+          loc, obj, gen_of(obj));
+  }
+  push( context, obj, 0x0 );
+  return TRUE;
+}
+
 void smircy_push_remset( smircy_context_t *context, remset_t *rs ) 
 {
   CHECK_REP( context );
 
   rs_enumerate( rs, push_remset_entry, context );
+
+  CHECK_REP( context );
+}
+
+void smircy_push_locset( smircy_context_t *context, locset_t *ls )
+{
+  CHECK_REP( context );
+
+  ls_enumerate( ls, push_locset_entry, context );
 
   CHECK_REP( context );
 }
