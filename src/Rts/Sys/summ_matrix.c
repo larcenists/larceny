@@ -2066,6 +2066,7 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
           W, dA_over_R, num_under_construction );
 
     assert2( num_under_construction > 0 );
+    assert2( num_under_construction <= (int)ceil(F_1*F_2*F_3) );
   }
 
 
