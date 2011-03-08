@@ -280,7 +280,16 @@ function cmdsetstatus {
     MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
 }
 
+# Until we again have a functioning CDASH, cdash_submit is useless
+# and its error messages just clutter up the build.*.log files.
+
 function cdash_submit {
+echo "omitting call to cdash_submit"
+}
+
+# This is the original cdash_submit
+
+function cdash_submit_original {
     # Curl does not seem to return an error exit code on the 403 and 405 
     # responses that I am intermittently receiving from CDash.  So I 
     # grep -v for that output and rely on that to set the status bit
