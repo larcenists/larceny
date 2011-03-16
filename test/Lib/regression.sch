@@ -535,6 +535,10 @@
              ta_5_8)))
          99)
 
+   (test "Ticket #643"                  ; Bug in Larceny 0.97
+         (procedure-name procedure-name)
+         'procedure-name)
+
    ))
 
 (define (bug-105-test1)

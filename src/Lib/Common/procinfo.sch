@@ -64,6 +64,18 @@
 		       (cdr this))))))
 	ds)))
 
+; For safety and simplicity, this procedure mutates a copy of the
+; constant vector, and will only replace a vector with a vector.
+
+(define (procedure-documentation-set! p newdoc)
+  (let* ((cv (procedure-ref p 1))
+	 (ds (if (vector? cv) (vector-ref cv 0) #f)))
+    (if (and (vector? ds) (vector? newdoc))
+        (let ((newcv (vector-copy cv)))
+          (vector-set! newcv 0 newdoc)
+          (procedure-set! p 1 newcv)))
+    #f))
+
 (define (doc-accessor x)
   (lambda (proc)
     (cond ((procedure? proc)
@@ -75,15 +87,18 @@
 	  (else
            (assertion-violation 'doc-accessor (errmsg 'msg:notproc) proc)))))
 
-(define (doc-mutator x)
-  (lambda (proc newval)
-    (cond ((procedure? proc)
-	   (let ((doc (procedure-documentation proc)))
-	     (if (and (vector? doc) (< x (vector-length doc)))
-		 (vector-set! doc x newval)
-		 #f)))
-	  (else
-           (assertion-violation 'doc-mutator (errmsg 'msg:notproc) proc)))))
+; It's dangerous to mutate a possibly shared vector of documentation,
+; so this is no longer used.  See ticket #643.
+
+;(define (doc-mutator x)
+;  (lambda (proc newval)
+;    (cond ((procedure? proc)
+;           (let ((doc (procedure-documentation proc)))
+;             (if (and (vector? doc) (< x (vector-length doc)))
+;                 (vector-set! doc x newval)
+;                 #f)))
+;          (else
+;           (assertion-violation 'doc-mutator (errmsg 'msg:notproc) proc)))))
 
 (define procedure-arity (doc-accessor doc.arity))
 (define procedure-name (doc-accessor doc.procedure-name))
@@ -92,7 +107,21 @@
 (define procedure-expression (doc-accessor doc.source-code))
 (define procedure-formals (doc-accessor doc.formals))
 
-(define procedure-name-set! (doc-mutator doc.procedure-name))
+(define (procedure-name-set! proc newval)
+  (cond ((procedure? proc)
+         (let ((doc (procedure-documentation proc)))
+           (if (and (vector? doc)
+                    (< doc.procedure-name (vector-length doc)))
+               (procedure-documentation-set! proc
+                                             (vector-set! (vector-copy doc)
+                                                          doc.procedure-name
+                                                          newval))
+               #f)))
+        (else
+         (assertion-violation 'procedure-name-set!
+                              (errmsg 'msg:notproc)
+                              proc))))
+
 
 (define (procedure-source-file proc)
   (let ((sf (procedure-source-file-larceny proc)))
