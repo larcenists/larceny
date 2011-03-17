@@ -21,6 +21,9 @@
 ;; Single-character symbol prefixes.
 ;; No builtins may start with one of these.
 ;; If they do, select different values here.
+;;
+;; FIXME: If these are changed, then src/Compiler/syntaxenv.sch
+;; should also be changed.
 
 (define ex:guid-prefix "\x0;")
 (define ex:free-prefix "\x1;")

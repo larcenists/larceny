@@ -339,6 +339,9 @@
 ; the datum, trying not to copy any more of the datum than necessary.
 
 (define (m-strip x)
+
+  ; This routine unmangles Twobit's R5RS mangling.
+
   (define (original-symbol x)
     (define (loop sym s i n)
       (cond ((= i n) sym)
@@ -352,6 +355,7 @@
                (char=? (string-ref s 0) renaming-prefix-character))
           (loop x s 0 (string-length s))
           x)))
+
   (cond ((symbol? x)
          (original-symbol x))
         ((pair? x)
@@ -368,6 +372,37 @@
                x
                (list->vector v2))))
         (else x)))
+
+; FIXME: Keep this in sync with lib/R6RS/r6rs-compat-larceny.sch
+;
+; Given a symbol that may be an R5RS-mangled or R6RS-mangled
+; identifier, returns the unmangled identifier.  Should be used
+; only for documentation purposes, not for quoted constants.
+;
+; R6RS/ERR5RS variables have one of these forms:
+;     \x0;ID~HEX~HEX     where HEX is a sequence of hexadecimal digits
+;     \x1;ID
+
+(define (m-unmangled id)
+  (define guid-prefix #\x0)
+  (define free-prefix #\x1)
+  (define separator #\~)
+  (let ((s (symbol->string id)))
+    (cond ((= 0 (string-length s))
+           (m-strip id))
+          ((char=? (string-ref s 0) guid-prefix)
+           (let* ((chars (reverse (cdr (string->list s))))
+                  (chars (memv separator chars))
+                  (chars (and (pair? chars) (memv separator (cdr chars)))))
+             (if (pair? chars)
+                 (string->symbol
+                  (list->string (reverse (cdr chars))))
+                 id)))
+          ((char=? (string-ref s 0) free-prefix)
+           (string->symbol
+            (substring s 1 (string-length s))))
+          (else
+           (m-strip id)))))
 
 ; Given a list of identifiers, or a formal parameter "list",
 ; returns an alist that associates each identifier with a fresh identifier.

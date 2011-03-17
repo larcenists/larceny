@@ -462,7 +462,7 @@
               (if (and (lambda? rhs)
                        (include-procedure-names))
                   (let ((doc (lambda.doc rhs)))
-                    (doc.name-set! doc (m-strip x))))
+                    (doc.name-set! doc (m-unmangled x))))
               (if pass1-block-compiling?
                   (set! pass1-block-assignments
                         (cons x pass1-block-assignments)))
