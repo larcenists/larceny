@@ -539,6 +539,15 @@
          (procedure-name procedure-name)
          'procedure-name)
 
+   (test "Ticket #11"                   ; Bug in Larceny 0.97 and previous
+         (let-syntax ((foo (syntax-rules ()
+                            ((_ var) (define var 1)))))
+           (let ((x 2))
+             (begin (define foo +))
+             (cond (else (foo x))) 
+             x))
+         2)
+
    ))
 
 (define (bug-105-test1)

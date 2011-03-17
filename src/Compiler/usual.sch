@@ -86,10 +86,17 @@
      (let ((temp ?e1))
        (if temp temp (or ?e2 ?e3 ...))))))
 
+; Al Petrovsky observed that the natural handling of else clauses
+; in cond and case macros can insert a begin form that looks like
+; a definition when it should be an expression.  The solution is
+; add some nonsense that will mark it as an expression.  See
+;
+; http://groups.google.com/groups?selm=87bse3bznr.fsf%40radish.petrofsky.org
+
 (define-syntax cond
   (syntax-rules (else =>)
     ((cond (else ?result ?result2 ...))
-     (begin ?result ?result2 ...))
+     (begin #t ?result ?result2 ...))
     
     ((cond (?test => ?result))
      (let ((temp ?test))
@@ -159,7 +166,7 @@
 (define-syntax case
   (syntax-rules (else)
     ((case ?e1 (else ?body ?body2 ...))
-     (begin ?e1 ?body ?body2 ...))
+     (begin #t ?e1 ?body ?body2 ...))
     ((case ?e1 (?z ?body ?body2 ...))
      (if (memv ?e1 '?z) (begin ?body ?body2 ...)))
     ((case ?e1 ?clause1 ?clause2 ?clause3 ...)
@@ -167,7 +174,7 @@
        ((case-aux
           (... (syntax-rules (else)
                 ((case-aux ?temp (else ?body ?body2 ...))
-                 (begin ?body ?body2 ...))
+                 (begin #t ?body ?body2 ...))
                 ((case-aux ?temp ((?z ...) ?body ?body2 ...))
                  (if (memv ?temp '(?z ...)) (begin ?body ?body2 ...)))
                 ((case-aux ?temp ((?z ...) ?body ?body2 ...) ?c1 ?c2 ...)
