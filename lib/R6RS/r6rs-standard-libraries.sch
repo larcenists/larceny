@@ -132,6 +132,9 @@
           (for (core with-syntax)       expand)
           (for (primitives for-all)     expand))
   
+  ;; Larceny:  Replaced the original named let macro with one for
+  ;; which Twobit will generate better code.
+
   (define-syntax let
     (lambda (x)
       (syntax-case x ()
@@ -140,8 +143,15 @@
          (syntax ((lambda (x ...) e1 e2 ...) v ...)))
         ((_ f ((x v) ...) e1 e2 ...)
          (for-all identifier? (syntax (f x ...)))
-         (syntax ((letrec ((f (lambda (x ...) e1 e2 ...))) f) v ...))))))
+         ;;(syntax ((letrec ((f (lambda (x ...) e1 e2 ...))) f) v ...))))))
+         (syntax (letrec ((f (lambda (x ...) e1 e2 ...)))
+                   ((lambda (x ...) (f x ...))
+                    v ...)))))))
   
+  ;; Larceny:  Replaced the original letrec macro with one that
+  ;; delegates to letrec*, so Twobit can generate better code.
+
+#;
   (define-syntax letrec
     (lambda (x)
       (syntax-case x ()
@@ -151,6 +161,12 @@
                      (let ((t v) ...)
                        (set! i t) ...
                        (let () e1 e2 ...)))))))))
+
+  (define-syntax letrec
+    (lambda (x)
+      (syntax-case x ()
+       ((_ ((i v) ...) e1 e2 ...)
+        (syntax (letrec* ((i v) ...) e1 e2 ...))))))
   
   (define-syntax letrec*
     (lambda (x)

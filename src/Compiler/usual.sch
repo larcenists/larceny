@@ -53,7 +53,7 @@
 
 (define-syntax letrec*
   (syntax-rules (lambda quote)
-   ((letrec ((?name ?val) ...) ?body ?body2 ...)
+   ((letrec* ((?name ?val) ...) ?body ?body2 ...)
     ((lambda ()
        (define ?name ?val) ...
        ?body ?body2 ...)))))
