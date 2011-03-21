@@ -1,5 +1,5 @@
-;;; The definitions of repl and syntax-violation have been modified
-;;; for Larceny.
+;;; The definitions of repl, syntax-violation, and expand-library-or-program
+;;; have been modified for Larceny.
 
 ;;;=================================================================================
 ;;;
@@ -1644,12 +1644,14 @@
                                               (case library-type
                                                 ((program)
                                                  `(begin
+                                                    #\P ; [Larceny]
                                                     (ex:import-libraries-for-run ',imported-libraries
                                                                                  ',(current-builds imported-libraries)
                                                                                  0)
                                                     ,@(emit-body forms 'define)))
                                                 ((library)
                                                  `(begin
+                                                    #\L ; [Larceny]
                                                     ,@(map (lambda (var)
                                                              `(define ,var ex:unspecified))
                                                            bound-variables)
@@ -1687,6 +1689,7 @@
 
                                         ;; Register library for any further expansion.
                                         ;; FIXME: expand-file shouldn't do this
+                                        ;; [Larceny]
                                         (if (and (eq? library-type 'library)
                                                  (not
                                                   (larceny:r6rs-expand-only)))
