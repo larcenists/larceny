@@ -521,9 +521,10 @@ Util/hsplit.o: Util/hsplit.c
 clean:
 	rm -f larceny.bin larceny.bin.exe hsplit bdwlarceny.bin petit-larceny core \\
 	   Build/*.$(O) Nasm/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \\
+	   IAssassin/*.$(O) \\
 	   Sys/*.$(O) Util/*.$(O) \\
 	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \\
-	   Shared/arithmetic.c
+	   Shared/arithmetic.c Shared/*.$(O)
 
 rtsclean: clean
 	rm -f Build/*.s Build/*.*h
