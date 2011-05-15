@@ -160,7 +160,7 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
    (case version
      ((gcc-v3) " ")
      ((gcc-v4) " -fno-stack-protector "))
-   " -falign-functions=4 -I$(INC_ROOT)/Standard-C"))
+   " -falign-functions=4 -m32 -I$(INC_ROOT)/Standard-C"))
 (define (makefile-variable-definitions version)
   (let ((lines (lambda strings
                  (apply string-append 
@@ -198,7 +198,7 @@ ASFLAGS+=-f elf -g -DLINUX"))
 CC=gcc
 DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -falign-functions=4 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS+=-c -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX"))
