@@ -52,6 +52,11 @@ struct old_heap {
   old_heap_t *prev_in_group;
   old_heap_t *next_in_group;
 
+  struct {
+    int summarizer;
+    int marker;
+  } incoming_words;
+
   void *data;
      /* Data private to the heap implementation.
 	*/
@@ -183,9 +188,6 @@ old_heap_t *create_old_heap_t(
   void (*synchronize)( old_heap_t *heap ), 
   void *data
 );
-
-extern
-void oh_switch_group( old_heap_t *heap, region_group_t group );
 
 #define oh_initialize( oh )        ((oh)->initialize( oh ))
 #define oh_collect( oh,r )         ((oh)->collect( oh,r ))

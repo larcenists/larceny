@@ -125,11 +125,12 @@ word sro( gc_t *gc, int p_tag, int h_tag, int limit )
   for ( i=0 ; i < pages ; i++ )
     if (tbl.buckets[i] != 0)
       for ( b = tbl.buckets[i], j=0 ; j < bytes2words(PAGESIZE) ; j+= 2 )
-	if (b[j] != 0)
+	if (b[j] != 0) {
 	  if (sro_ok( b[j], b[j+1], p_tag, h_tag, limit ))
 	    cnt++;
 	  else
 	    b[j] = 0;
+	}
 
   /* Allocate result vector without GC. */
   x = gc_allocate( gc, words2bytes(cnt+1), TRUE, FALSE );

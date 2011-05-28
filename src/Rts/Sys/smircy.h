@@ -18,6 +18,7 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
 void smircy_push_roots( smircy_context_t *context );
 
 void smircy_push_remset( smircy_context_t *context, remset_t *rs );
+void smircy_push_locset( smircy_context_t *context, locset_t *rs );
 
 void smircy_push_elems( smircy_context_t *context, word *bot, word *top );
 
@@ -27,16 +28,22 @@ void smircy_progress( smircy_context_t *context,
 
 bool smircy_stack_empty_p( smircy_context_t *context );
 
+bool smircy_in_construction_stage_p( smircy_context_t *context );
+void smircy_enter_refinement_stage( smircy_context_t *context );
+bool smircy_in_refinement_stage_p( smircy_context_t *context );
+void smircy_exit_refinement_stage( smircy_context_t *context );
+bool smircy_in_completed_stage_p( smircy_context_t *context );
+
 bool smircy_object_marked_p( smircy_context_t *context, word obj );
 
 void smircy_when_object_forwarded( smircy_context_t *context, 
                                    word obj_orig, int gen_orig,
                                    word obj_new, int gen_new );
 
-void *smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
-                                     int rgn, 
-                                     void (*visit)(word *w, void *data),
-                                     void *orig_data );
+void smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
+                                    int rgn, 
+                                    void (*visit)(word *w, void *data),
+                                    void *orig_data );
 
 void smircy_jit_process_stack_for_rgn( smircy_context_t *context, int rgn );
   /* Iteratively marks all objects on stack for rgn and pushes their

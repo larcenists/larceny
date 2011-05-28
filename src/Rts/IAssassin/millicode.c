@@ -56,6 +56,7 @@ void my_longjmp( jmp_buf *env, int val) {
 RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 {
   my_longjmp( dispatch_jump_buffer, DISPATCH_STKUFLOW );
+  assert(0); /* unreachable (by design in non-Petit systems) */
 }
 
 void EXPORT mc_alloc_bv( word *globals )
@@ -861,6 +862,7 @@ cont_t restore_context( word *globals )
 RTYPE dispatch_loop_return( CONT_PARAMS )
 {
   my_longjmp( dispatch_jump_buffer, DISPATCH_EXIT );
+  assert(0); /* unreachable (by design in non-Petit systems) */
 }
 
 /* eof */

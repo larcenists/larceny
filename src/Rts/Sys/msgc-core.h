@@ -106,12 +106,13 @@ extern void msgc_assert_conservative_approximation( msgc_context_t *context );
 extern void msgc_set_object_visitor( msgc_context_t *context, 
                                      void* (*visitor)( word obj, 
                                                        word src, 
+                                                       int byte_offset_in_src, 
                                                        void *data ),
                                      void *visit_data );
 
 extern void* msgc_get_object_visitor_data( msgc_context_t *context );
 
-word 
+void 
 msgc_set_stop_when( msgc_context_t *context,
                     bool (*pred)( word obj, word src, void *data ),
                     void *data );

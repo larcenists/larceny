@@ -65,7 +65,10 @@ typedef enum {
   region_group_wait_w_sum, /* ibid, with a constructed summary */
   region_group_summzing,   /* enqueued to be from-space candidates */
   region_group_filled,     /* processed to-spaces */
-  region_group_popular,    /* skipped from-spaces */
+  region_group_risingstar, /* skipped from-spaces, remember incoming refs */
+  region_group_infamous,   /* ", remset discards incoming refs */
+  region_group_hasbeen,    /* ", desires remset reconstruction */
+  region_group_advertised, /* ", remset under reconstruction */
   region_group_limit_elem
 } region_group_t;
 
@@ -77,6 +80,9 @@ typedef struct static_heap static_heap_t;
 
 /* remset_t is elaborated in remset_t.h */
 typedef struct remset remset_t;
+
+/* locset_t is elaborated in locset_t.h */
+typedef struct locset locset_t;
 
 /* smircy_context_t is elaborated in smircy.h */
 typedef struct smircy_context smircy_context_t;

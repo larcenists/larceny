@@ -70,9 +70,34 @@ static void              clear( uremset_t *urs, int gno )
   rs_clear( DATA(urs)->remset[ gno ] );
   rs_clear( DATA(urs)->major_remset[ gno ] );
 }
+static void              clear_minor( uremset_t *urs )
+{
+  int i;
+  for( i=1; i < DATA(urs)->remset_count; i++) {
+    rs_clear( DATA(urs)->remset[ i ] );
+  }
+}
+
+static bool copy_over_to( word loc, void *data, unsigned *stats )
+{
+  remset_t *that = (remset_t*)data;
+  rs_add_elem( that, loc );
+  return TRUE;
+}
+
+static void copy_minor_to_major( uremset_t *urs ) 
+{
+  int i;
+  for( i=1; i < DATA(urs)->remset_count; i++) {
+    rs_enumerate( DATA(urs)->remset[ i ], 
+                  copy_over_to, 
+                  DATA(urs)->major_remset[ i ] );
+  }
+}
+
 static bool       add_elem_new( uremset_t *urs, word w )
 {
-  rs_add_elem_new( DATA(urs)->major_remset[ gen_of(w) ], w );
+  return rs_add_elem_new( DATA(urs)->major_remset[ gen_of(w) ], w );
 }
 static bool           add_elem( uremset_t *urs, word w )
 {
@@ -84,12 +109,16 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
   if (bot != top) {
     annoyingmsg("urs_add_elems rs[]=0x%08x bot=0x%08x top=0x%08x",
                 DATA(urs)->remset, bot, top );
-    rs_add_elems_distribute( DATA(urs)->remset, bot, top );
+    return rs_add_elems_distribute( DATA(urs)->remset, bot, top );
+  } else {
+    return FALSE;
   }
 }
 
 struct apply_scanner_to_rs_data {
   bool (*scanner)( word loc, void *data );
+  remset_t *filter_these; /* If not NULL then skip these during enumeration */
+  remset_t *mirror_these; /* If not NULL then propogate deletes here during enumeration */
   void *scanner_data;
 };
 static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
@@ -97,9 +126,20 @@ static bool apply_scanner_to_rs( word loc, void *data, unsigned *stats )
   struct apply_scanner_to_rs_data *my_data = 
     (struct apply_scanner_to_rs_data*)data;
 
-  return my_data->scanner( loc, my_data->scanner_data );
+  if ((my_data->filter_these != NULL) 
+      && rs_isremembered( my_data->filter_these, loc )) {
+    return TRUE; /* skip */
+  } else {
+    bool keep_elem; 
+    keep_elem = my_data->scanner( loc, my_data->scanner_data );
+    if (! keep_elem && (my_data->mirror_these != NULL)) {
+      rs_del_elem( my_data->mirror_these, loc );
+    }
+    return keep_elem;
+  }
 }
 static void enumerate_gno( uremset_t *urs, 
+                           bool incl_tag, 
                            int gno, 
                            bool (*scanner)(word loc, void *data), 
                            void *data )
@@ -109,12 +149,18 @@ static void enumerate_gno( uremset_t *urs,
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
 
+  wrapper_data.filter_these = DATA(urs)->major_remset[ gno ];
+  wrapper_data.mirror_these = NULL;
   rs_enumerate( DATA(urs)->remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
+  wrapper_data.filter_these = NULL;
+  wrapper_data.mirror_these = DATA(urs)->remset[ gno ];
   rs_enumerate( DATA(urs)->major_remset[ gno ], 
                 apply_scanner_to_rs, &wrapper_data );
 }
-static void enumerate_allbutgno( uremset_t *urs, int gno, 
+static void enumerate_allbutgno( uremset_t *urs, 
+                                 bool incl_tag, 
+                                 int gno, 
                                  bool (*scanner)(word loc, void *data), 
                                  void *data )
 {
@@ -136,7 +182,9 @@ static void enumerate_allbutgno( uremset_t *urs, int gno,
     }
   }
 }
-static void enumerate_older( uremset_t *urs, int gno, 
+static void enumerate_older( uremset_t *urs, 
+                             bool incl_tag, 
+                             int gno, 
                              bool (*scanner)(word loc, void *data), 
                              void *data )
 {
@@ -157,6 +205,7 @@ static void enumerate_older( uremset_t *urs, int gno,
   }
 }
 static void enumerate_minor_complement( uremset_t *urs, 
+                                        bool incl_tag, 
                                         gset_t gset, 
                                         bool (*scanner)(word loc, void *data), 
                                         void *data )
@@ -166,7 +215,9 @@ static void enumerate_minor_complement( uremset_t *urs,
   int rs_count;
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
-
+  wrapper_data.filter_these = NULL;
+  wrapper_data.mirror_these = NULL;
+  
   rs_count = DATA(urs)->remset_count;
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
@@ -178,6 +229,7 @@ static void enumerate_minor_complement( uremset_t *urs,
   }
 }
 static void enumerate_complement( uremset_t *urs, 
+                                  bool incl_tag, 
                                   gset_t gset, 
                                   bool (*scanner)(word loc, 
                                                   void *data), 
@@ -189,13 +241,46 @@ static void enumerate_complement( uremset_t *urs,
   wrapper_data.scanner = scanner;
   wrapper_data.scanner_data = data;
 
-  for( i = 1; i < ecount; i++ ) {
+  /* Handle static area (aka highest numbered) first, so that we 
+   * worry less about scanner's asynchronous gno_count
+   * modifications (aka region allocations) messing things up.
+   * Conceptually, the for loop now goes:
+   * 
+   *    [ecount-1, 1, 2, 3, ..., ecount-2].
+   *
+   * Note that such modifications can still happen during any
+   * invocation of scanner, which is why we need to re-establish
+   * static_area_gno in between the two enumerate invocations below.
+   * (This ugliness has crept elsewhere: the static area's gno is also
+   * handled specially within extbmp_enumerate_in itself.)
+   */
+  if (urs->collector->static_area != NULL) {
+    /* Deliberately not re-using ecount, because we want it to retain
+     * its original value during the for loop below. */
+    int static_area_gno;
+
+    static_area_gno = urs->collector->gno_count-1;
+    i = static_area_gno;
+    wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
+    wrapper_data.mirror_these = NULL;
+    rs_enumerate( DATA(urs)->remset[i], 
+                  apply_scanner_to_rs, &wrapper_data );
+
+    static_area_gno = urs->collector->gno_count-1;
+    i = static_area_gno;
+    wrapper_data.filter_these = NULL;
+    wrapper_data.mirror_these = DATA(urs)->remset[ i ];
+    rs_enumerate( DATA(urs)->major_remset[i], 
+                  apply_scanner_to_rs, &wrapper_data);
+  }
+  for( i = 1; i < ecount-1; i++ ) {
     if (! gset_memberp( i, gset )) {
+      wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
+      wrapper_data.mirror_these = NULL;
       rs_enumerate( DATA(urs)->remset[i], 
                     apply_scanner_to_rs, &wrapper_data);
-      /* XXX: I may need to filter out members of gc->remset[i] 
-       * because some components like summ_matrix assume that
-       * the enumerate does not duplicate entries... */
+      wrapper_data.filter_these = NULL;
+      wrapper_data.mirror_these = DATA(urs)->remset[ i ];
       rs_enumerate( DATA(urs)->major_remset[i], 
                     apply_scanner_to_rs, &wrapper_data);
     }
@@ -203,6 +288,7 @@ static void enumerate_complement( uremset_t *urs,
 }
 
 static void          enumerate( uremset_t *urs, 
+                                bool incl_tag, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {
@@ -214,8 +300,12 @@ static void          enumerate( uremset_t *urs,
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=1; i < DATA(urs)->remset_count; i++) {
+    wrapper_data.filter_these = DATA(urs)->major_remset[ i ];
+    wrapper_data.mirror_these = NULL;
     rs_enumerate( DATA(urs)->remset[ i ], 
                   apply_scanner_to_rs, &wrapper_data );
+    wrapper_data.filter_these = NULL;
+    wrapper_data.mirror_these = DATA(urs)->remset[ i ];
     rs_enumerate( DATA(urs)->major_remset[ i ], 
                   apply_scanner_to_rs, &wrapper_data );
   }
@@ -277,6 +367,8 @@ uremset_t *alloc_uremset_array( gc_t *gc, gc_param_t *info )
                            enumerate_gno,
                            enumerate_allbutgno, 
                            enumerate_older, 
+                           clear_minor, 
+                           copy_minor_to_major, 
                            enumerate_minor_complement, 
                            enumerate_complement, 
                            enumerate,

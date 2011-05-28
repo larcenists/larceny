@@ -322,7 +322,8 @@ Lsatbbarrier:					;
 	jne	LfullgenbarrierRestoreBothRegs	;   then no overflow, so done
 	mov	REG1, [GLOBALS+G_REG1]		;
 	mov	[GLOBALS+G_WBDEST], RESULT
-	MC2g_wb	mc_compact_satb_ssb_and_genb
+	mov	SECOND, [GLOBALS+G_WBVALUE]	; Restore state and 
+	MC2g_wb	mc_compact_satb_ssb_and_genb	;   handle overflow
 %else  ; OPTIMIZE_MILLICODE
 	mov	[GLOBALS+G_WBDEST], RESULT
 	mov	[GLOBALS+G_WBVALUE], SECOND

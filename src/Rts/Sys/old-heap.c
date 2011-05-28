@@ -28,6 +28,7 @@
 #include "old_heap_t.h"
 #include "static_heap_t.h"
 #include "semispace_t.h"
+#include "seqbuf_t.h"
 #include "los_t.h"
 #include "gclib.h"
 #include "remset_t.h"
@@ -234,6 +235,8 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
                                  gset_singleton( rgn_idx ),
                                  to );
     gc_phase_shift( heap->collector, gc_log_phase_majorgc, gc_log_phase_misc_memmgr );
+
+    gc_check_invariants_between_fwd_and_free( heap->collector, rgn_idx );
 
     /* can two below be re-ordered? */
     ss_free( from );
@@ -611,10 +614,24 @@ static word *data_load_area( old_heap_t *heap, int nbytes )
 
 /* Internal */
 
+static int static_used( old_heap_t *heap )
+{
+  static_heap_t *s = heap->collector->static_area;  /* may be NULL */
+
+  /* Including the static area inflates the estimate of actual live
+   * storage.  (That is not totally inappropriate, because the
+   * stopcopy collector does incur the cost of scanning the static
+   * area on every collection.)  We do *not* scan the text portion of
+   * the static area, which takes up the majority of the static area
+   * (at least on x86), and so we can avoid the over-inflation of the
+   * live estimate by not including the text area's bytes.
+   */
+  return (s ? s->data_area->allocated : 0);
+}
+
 static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
 {
-  static_heap_t *s = heap->collector->static_area;
-  int S = (s ? s->allocated : 0);
+  int S = static_used( heap );
   double L = DATA(heap)->load_factor;
   int upper_limit = DATA(heap)->upper_limit;
   int lower_limit = DATA(heap)->lower_limit;
@@ -775,6 +792,9 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   heap->group = region_group_nonrrof;
   heap->prev_in_group = NULL;
   heap->next_in_group = NULL;
+
+  heap->incoming_words.summarizer = 0;
+  heap->incoming_words.marker = 0;
 
   return heap;
 }

@@ -182,9 +182,11 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
    subsequent call to forward() will handle the object properly.
    */
 #define check_space_expand( dest, lim, wanted, wiggle, e )                   \
-  if ((char*)lim-(char*)dest < (wanted+wiggle) && (wanted)<=GC_LARGE_OBJECT_LIMIT){ \
+  if (((wanted <= GC_LARGE_OBJECT_LIMIT) && (((char*)lim-(char*)dest) < ((wanted)+(wiggle)))) \
+      || (e->last_forward_was_large)) {                                      \
     word *CS_LIM=lim, *CS_DEST=dest;                                         \
     expand_space( e, &CS_LIM, &CS_DEST, (wanted+wiggle) );                   \
+    e->last_forward_was_large = FALSE;                                       \
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
@@ -514,6 +516,7 @@ init_env_with_cursors( cheney_env_t *e,
   assert( tospaces_len > 0 );
   e->tospaces_cur_scan = 0;
   e->tospaces_cur_dest = 0;
+  e->last_forward_was_large = 0;
   e->tospace2 = tospace2;
   e->dest = tospace_dest(e)->chunks[tospace_dest(e)->current].top;
   e->dest2 = (tospace2 ? tospace2->chunks[tospace2->current].top : 0);
@@ -544,11 +547,10 @@ void init_env( cheney_env_t *e, gc_t *gc,
 
 static signed objects_scanned;
 
-static void remset_loc_scanner_oflo( word obj, int offset, void *data ) {
-  word *addr;
-  assert( (offset % sizeof(word)) == 0 );
-  addr = (word*)(((byte*)ptrof(obj))+offset);
-  root_scanner_oflo( addr, data );
+static void remset_loc_scanner_oflo( loc_t loc, void *data ) {
+  assert_loc_ok( loc );
+  objects_scanned++; /* a tiny lie, but better than leaving it at 0 */
+  root_scanner_oflo( loc_to_slot(loc), data );
 }
 
 void oldspace_copy( cheney_env_t *e )
@@ -649,7 +651,9 @@ void oldspace_copy_using_locations( cheney_env_t *e )
     objects_scanned = 0;
 
     gc_enumerate_remembered_locations
-      ( e->gc, e->forw_gset, remset_loc_scanner_oflo, (void*)e );
+      ( e->gc, e->forw_gset, 
+        remset_loc_scanner_oflo, (void*)e,
+        e->scan_from_remsets, (void*)e );
 
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );
@@ -887,6 +891,7 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
           assert(e->tospaces_cur_scan < e->tospaces_len);
+          assert(e->tospaces_cur_scan <= e->tospaces_cur_dest);
           e->scan_idx = e->cursors[ e->tospaces_cur_scan ].chunks_index;
           scanptr     = e->cursors[ e->tospaces_cur_scan ].chunk_ptr;
           scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
@@ -909,6 +914,8 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
       }
     }
 
+    assert( scanptr == dest );
+
     while ((p = los_walk_list( e->los->mark1, los_p )) != 0) {
       los_p = p;
       morework = 1;
@@ -916,7 +923,12 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
       scan_and_forward_update_rs( p, e->iflush, forward_nursery_and, forw_gset, 
                                   dest, copylim, e, check_space_expand );
     }
+
+    assert( e->tospaces_cur_scan <= e->tospaces_cur_dest );
+
   } while (morework);
+
+  assert2( tospace_dest(e) == tospace_scan(e) );
 
   e->dest = dest;
   e->lim = copylim;
@@ -1233,6 +1245,8 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     e->np.old_los_steps = ceildiv( e->np.old_los_bytes, GC_CHUNK_SIZE );
     e->np.young_los_steps = ceildiv( e->np.young_los_bytes, GC_CHUNK_SIZE );
   }
+
+  e->last_forward_was_large = TRUE;
   return ret;
 }
 

@@ -97,7 +97,14 @@
 #include "larceny.h"
 #include "gc_t.h"
 #include "gclib.h"
+#include "locset_t.h"
+#include "old_heap_t.h"
+#include "region_group_t.h"
+#include "remset_t.h"
+#include "semispace_t.h"
 #include "smircy.h"
+#include "static_heap_t.h"
+#include "uremset_t.h"
 
 #include "smircy_internal.h"
 
@@ -807,6 +814,24 @@ static void push( smircy_context_t *context, word obj, word src )
 
   if (isptr(obj)) {
 
+    if (isptr(src) 
+        && (gen_of(obj) != 0)
+        && (gen_of(obj) != context->gc->static_area->data_area->gen_no)) {
+      old_heap_t *heap = gc_heap_for_gno( context->gc, gen_of(obj));
+      heap->incoming_words.marker += 1;
+
+      /* rebuild remset for advertised regions. */
+      assert2( gen_of(src) != 0 );
+      if ((gen_of(obj) != gen_of(src))
+          && (heap->group == region_group_advertised)) {
+        urs_add_elem( context->gc->the_remset, src );
+      }
+
+      gc_check_rise_to_infamy( context->gc, 
+                               heap, 
+                               heap->incoming_words.marker );
+    }
+
 #if MARK_ON_PUSH
     already_marked = mark_object( context, obj );
     if (already_marked) return;
@@ -942,6 +967,11 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
   context->total_marked = 0;
   context->total_words_marked = 0;
 
+  context->stage = smircy_construction_stage;
+
+  /* all hasbeen regions can now be reclassified as polling */
+  region_group_enq_all( region_group_hasbeen, region_group_advertised );
+
   dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
          num_rgns, context->bitmap );
 
@@ -983,11 +1013,32 @@ static bool push_remset_entry( word obj, void *data, unsigned *stats )
   return TRUE;
 }
 
+static bool push_locset_entry( word *loc, void *data ) 
+{
+  smircy_context_t *context = (smircy_context_t*)data;
+  word obj = *loc;
+  if (isptr(obj)) {
+    dbmsg("smircy push_locset_entry( 0x%08x -> 0x%08x (%d), context )", 
+          loc, obj, gen_of(obj));
+  }
+  push( context, obj, 0x0 );
+  return TRUE;
+}
+
 void smircy_push_remset( smircy_context_t *context, remset_t *rs ) 
 {
   CHECK_REP( context );
 
   rs_enumerate( rs, push_remset_entry, context );
+
+  CHECK_REP( context );
+}
+
+void smircy_push_locset( smircy_context_t *context, locset_t *ls )
+{
+  CHECK_REP( context );
+
+  ls_enumerate( ls, push_locset_entry, context );
 
   CHECK_REP( context );
 }
@@ -1270,7 +1321,6 @@ bool smircy_object_marked_p( smircy_context_t *context, word obj )
   highest_heap_address = context->highest_heap_address;
   bitmap = context->bitmap;
 
-  assert2( isptr( obj ));
   if ( lowest_heap_address <= ptrof( obj ) &&
        ptrof( obj ) < highest_heap_address ) {
     bit_idx = (obj - (word)lowest_heap_address) >> BIT_IDX_SHIFT;
@@ -1316,10 +1366,10 @@ static void forcibly_push( smircy_context_t *context, word w, word src )
   unmark_object( context, w );
   push( context, w, src );
 }
-void *smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
-                                     int rgn, 
-                                     void (*visit)(word *w, void *data),
-                                     void *orig_data )
+void smircy_enumerate_stack_of_rgn( smircy_context_t *context, 
+                                    int rgn, 
+                                    void (*visit)(word *w, void *data),
+                                    void *orig_data )
 {
   obj_stack_entry_t     *obj_entry;
   obj_stack_entry_t     *obj_entry_next;
@@ -1805,6 +1855,28 @@ void smircy_check_rep( smircy_context_t *context )
       }
     }
   }
+}
+
+bool smircy_in_construction_stage_p( smircy_context_t *context ) {
+  return (context->stage == smircy_construction_stage);
+}
+void smircy_enter_refinement_stage( smircy_context_t *context ) {
+  assert2( context->stage == smircy_construction_stage );
+  assert2( smircy_stack_empty_p( context ));
+
+  /* all advertised regions can now be reclassified as filled */
+  region_group_enq_all( region_group_advertised, region_group_filled );
+
+  context->stage = smircy_refinement_stage;
+}
+bool smircy_in_refinement_stage_p( smircy_context_t *context ) {
+  return (context->stage == smircy_refinement_stage);
+}
+void smircy_exit_refinement_stage( smircy_context_t *context ) {
+  context->stage = smircy_completed_stage;
+}
+bool smircy_in_completed_stage_p( smircy_context_t *context ) {
+  return (context->stage == smircy_completed_stage);
 }
 
 /* eof */

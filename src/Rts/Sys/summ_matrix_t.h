@@ -68,7 +68,8 @@ struct summ_matrix {
 summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
                     double c, double g, double p, int popularity_limit,
-                    bool about_to_major, int rgn_next );
+                    bool about_to_major, int rgn_next,
+                    double F_1, double F_2, int F_3 );
 
 void sm_expand_gnos( summ_matrix_t *summ, int fresh_gno );
 
@@ -80,12 +81,15 @@ bool sm_progress_would_no_op( summ_matrix_t *summ, int ne_rgn_count );
   /* Returns TRUE implies an invocation of sm_construction_progress
      would just return without any useful internal progress. */
 
-void sm_construction_progress( summ_matrix_t *summ, 
+bool sm_construction_progress( summ_matrix_t *summ, 
                                int* word_countdown, int* object_countdown, 
                                int rgn_next, int ne_rgn_count, 
                                bool about_to_major, 
                                int allocation_per_majgc );
-  /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) */
+  /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) 
+   *
+   * returns true iff completed a summarization cycle during 
+   * this progress step.*/
 
 void sm_enumerate_row( summ_matrix_t *summ,
                        int row_gno, 
@@ -180,20 +184,27 @@ void sm_init_summary_from_nursery_alone( summ_matrix_t *summ,
                                          summary_t *summary );
 bool sm_nursery_summary_contains( summ_matrix_t *summ, word obj );
 void sm_nursery_summary_enumerate( summ_matrix_t *summ, 
-                                   bool (*scanner)(word loc, void *data, unsigned *stats),
+                                   bool (*scanner)(loc_t loc, void *data),
                                    void *data );
+
+int sm_cycle_count( summ_matrix_t *summ );
+int sm_pass_count( summ_matrix_t *summ );
+int sm_scan_count_curr_pass( summ_matrix_t *summ );
 
 /* below refactored from memmgr.c */
 
 void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, 
                                   word *bot, word *top, int g_rhs );
 void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
-void sm_refine_summaries_via_marksweep( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
-void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
 void sm_points_across_callback( summ_matrix_t *summ, word lhs, int offset, int g_rhs );
+
+void sm_start_refinement( summ_matrix_t *summ );
+bool sm_majorgc_permitted( summ_matrix_t *summ, int rgn_next );
+void sm_copy_summary_to( summ_matrix_t *summ, int rgn_next, int rgn_to );
+void sm_clear_nursery_summary( summ_matrix_t *summ );
 
 #endif /* INCLUDED_SUMM_MATRIX_T_H */
 

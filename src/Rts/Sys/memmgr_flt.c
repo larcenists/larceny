@@ -19,6 +19,8 @@
 #include "summ_matrix_t.h"
 
 #include "stats.h"
+
+#include "memmgr_flt.h"
 #include "memmgr_internal.h"
 
 static bool msfloat_object_marked_p( msgc_context_t *c, word x ) {
@@ -111,7 +113,7 @@ static int fill_up_to( char *bar, char mark, char altmark, int amt, int max ) {
   if (max == 0) 
     return rtn;
   else
-    count = (int)((amt*BAR_LENGTH)/max);
+    count = (int)((((long long)amt)*BAR_LENGTH)/max);
   assert(count >= 0);
   if (count > BAR_LENGTH) {
     rtn = amt;
@@ -136,10 +138,19 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
     bars[BAR_LENGTH] = '\0';
     bars[BAR_LENGTH+1] = '\0';
     {
+      int allocated;
       data_count = data.words.total*4;
       easy_float = data.words.zzflt*4+data.words.rsflt*4;
       hard_float = data.words.rsflt*4;
       newmax = DATA(gc)->ephemeral_area[i]->maximum;
+      allocated = DATA(gc)->ephemeral_area[i]->allocated;
+      if ( allocated > newmax ) {
+        if ( allocated > 2*newmax ) {
+          consolemsg( "  rgn %d allocated: %d significantly exceeds %d", 
+                      i, allocated, newmax );
+        }
+        newmax = allocated;
+      }
       newmax = fill_up_to( bars, ' ', '@', newmax, newmax );
       newmax = fill_up_to( bars, '.', '!', data_count, newmax );
       newmax = fill_up_to( bars, 'Z', 'z', easy_float, newmax );

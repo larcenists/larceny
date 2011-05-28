@@ -202,7 +202,7 @@ create_labelled_remset_with_owner_attrib
   data->tbl_lim = heapptr;
 
   /* Node pool */
-  p = allocate_pool_segment( pool_entries, data->mem_attribute );
+  p = allocate_pool_segment( pool_entries, data->mem_attribute ); /* XXX */
   data->first_pool = data->curr_pool = p;
   assert( data->curr_pool != 0 );
   data->numpools = 1;
@@ -297,6 +297,28 @@ static void handle_overflow( remset_t *rs, unsigned recorded, word *pooltop )
   }
   DATA(rs)->curr_pool = DATA(rs)->curr_pool->next;
   assert( DATA(rs)->curr_pool != 0 );
+}
+
+void rs_del_elem( remset_t *rs, word w ) 
+{
+  word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
+  bool overflowed = FALSE;
+  remset_data_t *data = DATA(rs);
+  pooltop = data->curr_pool->top;
+  poollim = data->curr_pool->lim;
+  tbl = data->tbl_bot;
+  tblsize = data->tbl_lim - tbl;
+  mask = tblsize-1;
+
+  h = hash_object( w, mask );
+  b = (word*)tbl[ h ];
+  while (b != 0 && *b != w) {
+    b = (word*)*(b+1);
+  }
+  if (b != 0) {
+    *b = (word)(word*)0;
+    rs->live -= 1;
+  }
 }
 
 bool rs_add_elem_new( remset_t *rs, word w ) 
@@ -570,6 +592,8 @@ void rs_init_summary( remset_t *rs, int max_words_per_step,
   summary_init( s, rs->live, &rs_pool_next_chunk );
   pool_t *ps = DATA(rs)->first_pool;
   word *p, *q;
+  p = NULL;
+  q = NULL;
   while (ps != NULL) {
     p = ps->bot;
     q = ps->top;

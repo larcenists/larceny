@@ -81,6 +81,9 @@ void rs_clear( remset_t *remset );
   /* Clears the remembered set.
      */
 
+void rs_del_elem( remset_t *rs, word w );
+  /* Removes w from the remset rs.  Does not check if w is already present. */
+
 bool rs_add_elem_new( remset_t *rs, word w );
   /* Copies w into the remset.rs.
      w is *not* subject to a collision check.

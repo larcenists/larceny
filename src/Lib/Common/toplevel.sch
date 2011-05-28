@@ -1356,6 +1356,18 @@
                     memstats-gc-max-cheney-elapsed-time)
   (environment-set! larc 'memstats-gc-max-cheney-cpu-time
                     memstats-gc-max-cheney-cpu-time)
+  (environment-set! larc 'memstats-gc-max-summar-elapsed-time
+                    memstats-gc-max-summar-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-summar-cpu-time
+                    memstats-gc-max-summar-cpu-time)
+  (environment-set! larc 'memstats-gc-max-smircy-mark-elapsed-time
+                    memstats-gc-max-smircy-mark-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-smircy-mark-cpu-time
+                    memstats-gc-max-smircy-mark-cpu-time)
+  (environment-set! larc 'memstats-gc-max-smircy-refine-elapsed-time
+                    memstats-gc-max-smircy-refine-elapsed-time)
+  (environment-set! larc 'memstats-gc-max-smircy-refine-cpu-time
+                    memstats-gc-max-smircy-refine-cpu-time)
   (environment-set! larc 'memstats-gc-max-truegc-elapsed-time
                     memstats-gc-max-truegc-elapsed-time)
   (environment-set! larc 'memstats-gc-max-truegc-cpu-time
@@ -1411,6 +1423,14 @@
                     memstats-mem-allocated-now)
   (environment-set! larc 'memstats-mem-allocated-max
                     memstats-mem-allocated-max)
+  (environment-set! larc 'memstats-gc-all-major-faults-during-gcs
+                    memstats-gc-all-major-faults-during-gcs)
+  (environment-set! larc 'memstats-gc-all-minor-faults-during-gcs
+                    memstats-gc-all-minor-faults-during-gcs)
+  (environment-set! larc 'memstats-gc-major-faults-during-max-truegc-pause
+                    memstats-gc-major-faults-during-max-truegc-pause)
+  (environment-set! larc 'memstats-gc-minor-faults-during-max-truegc-pause
+                    memstats-gc-minor-faults-during-max-truegc-pause)
   (environment-set! larc 'memstats-generations memstats-generations)
   (environment-set! larc 'memstats-remsets memstats-remsets)
   (environment-set! larc 'memstats-frames-flushed memstats-frames-flushed)

@@ -492,7 +492,15 @@ static int static_used( young_heap_t *heap )
 {
   static_heap_t *s = heap->collector->static_area;  /* may be NULL */
 
-  return (s ? s->allocated : 0);
+  /* Including the static area inflates the estimate of actual live
+   * storage.  (That is not totally inappropriate, because the
+   * stopcopy collector does incur the cost of scanning the static
+   * area on every collection.)  We do *not* scan the text portion of
+   * the static area, which takes up the majority of the static area
+   * (at least on x86), and so we can avoid the over-inflation of the
+   * live estimate by not including the text area's bytes.
+   */
+  return (s ? s->data_area->allocated : 0);
 }
 
 static int free_current_chunk( young_heap_t *heap )

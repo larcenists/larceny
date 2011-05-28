@@ -19,6 +19,7 @@ const char *larceny_gc_technology = "precise";
 #include "young_heap_t.h"
 #include "old_heap_t.h"
 #include "static_heap_t.h"
+#include "locset_t.h"
 #include "remset_t.h"
 #include "los_t.h"
 #include "semispace_t.h"
@@ -37,9 +38,12 @@ const char *larceny_gc_technology = "precise";
 #include "seqbuf_t.h"
 #include "uremset_t.h"
 #include "uremset_array_t.h"
+#include "uremset_debug_t.h"
 #include "uremset_extbmp_t.h"
 #include "math.h"
 
+#include "memmgr_flt.h"
+#include "memmgr_vfy.h"
 #include "memmgr_internal.h"
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
@@ -456,42 +460,65 @@ static int next_rgn( int rgn, int num_rgns ) {
 #define USE_ORACLE_TO_VERIFY_REMSETS 0
 #define USE_ORACLE_TO_VERIFY_SUMMARIES 0
 #define USE_ORACLE_TO_VERIFY_SMIRCY 0
+#define USE_ORACLE_TO_VERIFY_FWDFREE 0
 #define SMIRCY_RGN_STACK_IN_ROOTS 1
-#define SYNC_REFINEMENT_RROF_CYCLE 1
+#define SYNC_REFINEMENT_RROF_CYCLE 0
 #define DONT_USE_REFINEMENT_COUNTDOWN 1
 #define PRINT_SNAPSHOT_INFO_TO_CONSOLE 0
+#define PRINT_INCOMING_REFS_INFO_TO_CONSOLE 0
 #define USE_ORACLE_TO_CHECK_SUMMARY_SANITY 0
+#define USE_URS_WRAPPER_TO_CHECK_REMSET_SANITY 0
+#define INCREMENTAL_REFINE_DURING_SUMZ 1
+
+#if 0
+/* (The essential idea illustrating the interface) */
+#define GENERIC_VERIFICATION_POINT( gc, PRED, fcn ) \
+  do { if (PRED) fcn(gc); } while (0)
+#else
+/* (The more general approach allowing one to skip early checks) */
+#define GENERIC_VERIFICATION_POINT( gc, PRED, verify_fcn )       \
+  do {                                                           \
+    if ((PRED) && (DATA(gc)->oracle_countdown > 0)) {            \
+      if (DATA(gc)->oracle_countdown == 1) {                     \
+        verify_fcn( gc );                                        \
+        DATA(gc)->oracle_pointsrun += 1;                         \
+        if ((DATA(gc)->oracle_pointsrun % 10) == 9) {          \
+          unsigned ms;                                           \
+          ms = osdep_realclock();                                \
+          consolemsg("oracle_pointsrun: %d clock: %d.%d secs",   \
+                     DATA(gc)->oracle_pointsrun,                 \
+                     (ms/1000),                                  \
+                     ((ms%1000)/100));                           \
+        }                                                        \
+      } else {                                                   \
+        DATA(gc)->oracle_countdown -= 1;                         \
+      }                                                          \
+    }                                                            \
+  } while (0)
+#endif
 
 #define REMSET_VERIFICATION_POINT( gc )         \
-  do {                                          \
-    if (USE_ORACLE_TO_VERIFY_REMSETS)           \
-      verify_remsets_via_oracle( gc );          \
-  } while (0)
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_REMSETS, verify_remsets_via_oracle)
 
 #define NURS_SUMMARY_VERIFICATION_POINT( gc )   \
-  do {                                          \
-    if (USE_ORACLE_TO_VERIFY_REMSETS)           \
-      verify_nursery_summary_via_oracle( gc );  \
-  } while (0)
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_REMSETS, verify_nursery_summary_via_oracle )
 
 #define SUMMMTX_VERIFICATION_POINT( gc )        \
-  do {                                          \
-    if (USE_ORACLE_TO_VERIFY_SUMMARIES &&       \
-        (DATA(gc)->summaries != NULL))          \
-      verify_summaries_via_oracle( gc );        \
-  } while (0)
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_SUMMARIES, verify_summaries_via_oracle )
 
-#define SMIRCY_VERIFICATION_POINT( gc )                         \
-  do {                                                          \
-    if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc)->smircy != NULL)    \
-      smircy_assert_conservative_approximation( (gc)->smircy ); \
-  } while (0)
+#define SMIRCY_VERIFICATION_POINT( gc )         \
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_SMIRCY, verify_smircy_via_oracle )
+
+#define FWDFREE_VERIFICATION_POINT( gc )         \
+  GENERIC_VERIFICATION_POINT( gc, USE_ORACLE_TO_VERIFY_FWDFREE, verify_fwdfree_via_oracle )
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
 static const double default_popularity_factor = 8.0;
+static const double default_infamy_factor = 10000.0;
 static const double default_sumz_budget_inv = 2.0;
 static const double default_sumz_coverage_inv = 3.0;
+static const int    default_sumz_max_retries  = 1;
 
 static void smircy_start( gc_t *gc ) 
 {
@@ -502,7 +529,12 @@ static void smircy_start( gc_t *gc )
   }
   gc->smircy = smircy_begin_opt( gc, gc->gno_count, 
                                  DATA(gc)->rrof_alloc_mark_bmp_once );
+  assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
   DATA(gc)->globals[G_CONCURRENT_MARK] = 1;
+  { int i; 
+    for ( i = 0; i < DATA(gc)->ephemeral_area_count; i++ )
+      DATA(gc)->ephemeral_area[i]->incoming_words.marker = 0; 
+  }
   smircy_push_roots( gc->smircy );
   if (DATA(gc)->summaries != NULL) {
     sm_push_nursery_summary( DATA(gc)->summaries, gc->smircy );
@@ -510,6 +542,7 @@ static void smircy_start( gc_t *gc )
 
   DATA(gc)->since_developing_snapshot_began.words_promoted = 0;
   DATA(gc)->since_developing_snapshot_began.count_promotions = 0;
+  DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle += 1;
 }
 
 static bool scan_refine_remset( word loc, void *data )
@@ -531,7 +564,7 @@ static bool scan_refine_remset( word loc, void *data )
 static void refine_remsets_via_marksweep( gc_t *gc )
 {
   /* use mark/sweep system to refine the remembered set. */
-  urs_enumerate( gc->the_remset, scan_refine_remset, gc->smircy );
+  urs_enumerate( gc->the_remset, FALSE, scan_refine_remset, gc->smircy );
 }
 
 static void zeroed_promotion_counts( gc_t* gc ) 
@@ -556,6 +589,15 @@ static void update_promotion_counts( gc_t *gc, int words_promoted )
   DATA(gc)->since_cycle_began.words_promoted               += words_promoted;
   DATA(gc)->since_finished_snapshot_at_time_cycle_began_began
     .words_promoted += words_promoted;
+
+  DATA(gc)->mutator_effort.words_promoted_this.full_cycle += words_promoted;
+  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle += words_promoted;
+  DATA(gc)->mutator_effort.max_words_promoted_any.full_cycle =
+    max( DATA(gc)->mutator_effort.max_words_promoted_any.full_cycle,
+         DATA(gc)->mutator_effort.words_promoted_this.full_cycle );
+  DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle =
+    max( DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle,
+         DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle );
 
   DATA(gc)->since_finished_snapshot_began.count_promotions   += 1;
   DATA(gc)->since_developing_snapshot_began.count_promotions += 1;
@@ -601,44 +643,6 @@ static void reset_countdown_to_next_refine( gc_t *gc )
     assert(0);
   }
   
-}
-
-static void refine_metadata_via_marksweep( gc_t *gc ) 
-{
-  smircy_context_t *context;
-  int marked=0, traced=0, words_marked=0; 
-  context = gc->smircy;
-#if 1
-  assert2( smircy_stack_empty_p( context ));
-#else
-  smircy_progress( context, -1, -1, -1, &marked, &traced, &words_marked );
-  assert( (marked == 0) && (traced == 0) && (words_marked == 0) );
-#endif
-
-#if PRINT_SNAPSHOT_INFO_TO_CONSOLE
-  consolemsg( "% 31s"
-              " snapshot_live:% 5dM peak_snapshot:% 5dM "
-              " promoted_since_snapshot_completed,began:% 5dM,% 5dM (avg:% 5dK,% 5dK)", 
-              "refine_metadata_via_marksweep", 
-              DATA(gc)->last_live_words*sizeof(word)/MEGABYTE, 
-              DATA(gc)->max_live_words*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_finished_snapshot_began*sizeof(word)/MEGABYTE, 
-              DATA(gc)->words_promoted_since_developing_snapshot_began*sizeof(word)/MEGABYTE,
-              quotient2(DATA(gc)->words_promoted_since_finished_snapshot_completed*sizeof(word),
-                        DATA(gc)->count_promotions_since_finished_snapshot_completed)/KILOBYTE, 
-              quotient2(DATA(gc)->words_promoted_since_developing_snapshot_began*sizeof(word),
-                        DATA(gc)->count_promotions_since_developing_snapshot_began)/KILOBYTE);
-#endif
-
-  refine_remsets_via_marksweep( gc );
-  if (DATA(gc)->summaries != NULL) {
-    sm_refine_summaries_via_marksweep( DATA(gc)->summaries );
-  }
-  reset_countdown_to_next_refine( gc );
-
-  smircy_end( context );
-  gc->smircy = NULL;
-  DATA(gc)->globals[G_CONCURRENT_MARK] = 0;
 }
 
 static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
@@ -696,6 +700,9 @@ static void rrof_completed_regional_cycle( gc_t *gc )
 
   if (DATA(gc)->region_count < 2) {
     int live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
+    if (gc->static_area != NULL) {
+      live_words += (gc->static_area->data_area->allocated / sizeof(word));
+    }
     DATA(gc)->last_live_words = live_words;
     DATA(gc)->max_live_words = max( DATA(gc)->max_live_words, live_words );
     zeroed_promotion_counts( gc );
@@ -707,6 +714,17 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     DATA(gc)->last_live_words;
   DATA(gc)->since_finished_snapshot_at_time_cycle_began_began =
     DATA(gc)->since_finished_snapshot_began;
+
+  /* If we completed a mark cycle in the last full cycles, then sticking
+     to minor collections is working so far; stick with it.  Otherwise
+     allow smircy steps during major collections for (just) next full cycle.
+  */
+  DATA(gc)->rrof_smircy_step_on_minor_collections_alone = 
+    ( ! ((DATA(gc)->region_count >= 2) &&
+         (DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle == 0)));
+
+  DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle = 0;
+  DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle = 0;
 
 #if SYNC_REFINEMENT_RROF_CYCLE
   if (gc->smircy == NULL)
@@ -726,6 +744,72 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   if ((DATA(gc)->summaries == NULL) && (DATA(gc)->region_count > 4)) {
     initialize_summaries( gc, FALSE );
   }
+
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.full_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this.full_cycle = 0;
+}
+
+#if PRINT_INCOMING_REFS_INFO_TO_CONSOLE
+static void print_incoming_summarizer( gc_t *gc, char *prefix ) 
+{
+    int gno, words, mega_words, mega_words_remainder;
+    int MILLION = 1000000;
+    fprintf( stdout, "%s incoming summarizer ", prefix );
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno == gc->static_area->data_area->gen_no)
+        continue;
+      words = gc_heap_for_gno( gc, gno )->incoming_words.summarizer;
+      mega_words = words / MILLION;
+      mega_words_remainder =  (words % MILLION) / (MILLION / 100);
+      if (words == 0) {
+        fprintf( stdout, "    0%s ", 
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      } else {
+        fprintf( stdout, "%2d.%02d%s ", mega_words, mega_words_remainder,
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      }
+    }
+    fprintf( stdout, "\n" );
+    fflush( stdout );
+}
+
+static void print_incoming_marker( gc_t * gc, char *prefix ) 
+{
+    int gno, words, mega_words, mega_words_remainder;
+    int MILLION = 1000000;
+    fprintf( stdout, "%s incoming marker     ", prefix );
+    for ( gno = 1; gno < gc->gno_count; gno++ ) {
+      if (gno == gc->static_area->data_area->gen_no)
+        continue;
+      words = gc_heap_for_gno( gc, gno )->incoming_words.marker;
+      mega_words = words / MILLION;
+      mega_words_remainder = (words % MILLION) / (MILLION / 100);
+      if (words == 0) {
+        fprintf( stdout, "    0%s ", 
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      } else {
+        fprintf( stdout, "%2d.%02d%s ", mega_words, mega_words_remainder,
+                 region_group_name( gc_region_group_for_gno( gc, gno )));
+      }
+    }
+    fprintf( stdout, "\n" );
+    fflush( stdout );
+}
+#endif
+
+static void rrof_completed_summarization_cycle( gc_t *gc ) 
+{
+
+#if PRINT_INCOMING_REFS_INFO_TO_CONSOLE
+  { 
+    print_incoming_summarizer( gc, "sumz" );
+    print_incoming_marker(     gc, "    " );
+  }
+#endif
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
 }
 
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
@@ -745,6 +829,17 @@ static void stop_sumrize_timers( gc_t *gc,
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = ms_cpu;
 }
 
+static void stop_markm_timers( gc_t *gc, 
+				 stats_id_t *timer1, stats_id_t *timer2 )
+{
+  int ms, ms_cpu;
+  ms     = stats_stop_timer( *timer1 );
+  ms_cpu = stats_stop_timer( *timer2 );
+  
+  DATA(gc)->stat_last_ms_smircy_mark     = ms;
+  DATA(gc)->stat_last_ms_smircy_mark_cpu = ms_cpu;
+}
+
 static void stop_refinem_timers( gc_t *gc, 
 				 stats_id_t *timer1, stats_id_t *timer2 )
 {
@@ -752,8 +847,8 @@ static void stop_refinem_timers( gc_t *gc,
   ms     = stats_stop_timer( *timer1 );
   ms_cpu = stats_stop_timer( *timer2 );
   
-  DATA(gc)->stat_last_ms_mark_refinement     = ms;
-  DATA(gc)->stat_last_ms_mark_refinement_cpu = ms_cpu;
+  DATA(gc)->stat_last_ms_smircy_refine     = ms;
+  DATA(gc)->stat_last_ms_smircy_refine_cpu = ms_cpu;
 }
 
 static void handle_secondary_space( gc_t *gc ) 
@@ -773,12 +868,17 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   int word_countdown = -1, object_countdown = -1;
   int ne_rgn_count;
   int dA;
+  bool completed_cycle;
 
+  REMSET_VERIFICATION_POINT(gc);
   SUMMMTX_VERIFICATION_POINT(gc);
 
   assert( DATA(gc)->summaries != NULL );
   ne_rgn_count = nonempty_region_count( gc );
   if (sm_progress_would_no_op( DATA(gc)->summaries, ne_rgn_count )) {
+    DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
+    DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+    DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
     return;
   }
 
@@ -788,17 +888,77 @@ static void summarization_step( gc_t *gc, bool about_to_major )
                  (DATA(gc)->rrof_words_per_region_min 
                   * DATA(gc)->rrof_cycle_majors_total));
 
-  sm_construction_progress( DATA(gc)->summaries, 
-                            &word_countdown,
-                            &object_countdown, 
-                            DATA(gc)->rrof_next_region, 
-                            ne_rgn_count, 
-                            about_to_major,
-                            dA );
+  completed_cycle =
+    sm_construction_progress( DATA(gc)->summaries, 
+                              &word_countdown,
+                              &object_countdown, 
+                              DATA(gc)->rrof_next_region, 
+                              ne_rgn_count, 
+                              about_to_major,
+                              dA );
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
+  if (completed_cycle) {
+    rrof_completed_summarization_cycle( gc );
+  }
+
   SUMMMTX_VERIFICATION_POINT(gc);
+}
+
+static void initiate_refinement_during_summarization( gc_t *gc )
+{
+  { 
+    /* marking is done; the snapshot object graph will remain fixed
+     * until we dispose of it (newly allocated objects will still be
+     * added to it; this just avoids cost of SATB write barrier). */
+    DATA(gc)->globals[G_CONCURRENT_MARK] = 0; 
+  }
+
+  sm_start_refinement( DATA(gc)->summaries );
+}
+
+static void initiate_refinement( gc_t *gc )
+{
+  if (DATA(gc)->summaries != NULL) {
+    if (smircy_in_construction_stage_p( gc->smircy )) {
+      if (DATA(gc)->print_float_stats_each_refine)
+        print_float_stats( "prefin", gc );
+      initiate_refinement_during_summarization( gc );
+    } else {
+      assert( smircy_in_refinement_stage_p( gc->smircy ));
+      assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
+    }
+  } else {
+    if (DATA(gc)->print_float_stats_each_refine)
+      print_float_stats( "prefin", gc );
+    refine_remsets_via_marksweep( gc );
+    reset_countdown_to_next_refine( gc );
+  }
+}
+
+static void incremental_refinement_has_completed( gc_t *gc )
+{
+#if PRINT_INCOMING_REFS_INFO_TO_CONSOLE
+  { 
+    print_incoming_summarizer( gc, "    " );
+    print_incoming_marker(     gc, "mark" );
+  }
+#endif
+
+  reset_countdown_to_next_refine( gc ); /* XXX still necessary/meaningful? */
+
+  if (DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle > 0)
+    DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle += 1;
+
+  if (DATA(gc)->print_float_stats_each_refine && 
+      ! DATA(gc)->print_float_stats_each_major)
+    print_float_stats( "pstfin", gc );
+
+
+  smircy_end( gc->smircy );
+  gc->smircy = NULL;
+  assert( DATA(gc)->globals[G_CONCURRENT_MARK] == 0 );
 }
 
 typedef enum { 
@@ -814,7 +974,14 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   NURS_SUMMARY_VERIFICATION_POINT(gc);
   SMIRCY_VERIFICATION_POINT(gc);
 
+  if (gc->smircy != NULL 
+      && smircy_in_completed_stage_p( gc->smircy )) {
+    incremental_refinement_has_completed( gc );
+  }
+
 #if ! SYNC_REFINEMENT_RROF_CYCLE
+  if (DATA(gc)->region_count <= 2)
+    return;
   start_timers( &timer1, &timer2 );
   if (gc->smircy == NULL) {
     smircy_start( gc );
@@ -830,7 +997,9 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
   {
     int promoted = gc->words_from_nursery_last_gc;
-    int bound = ((double)promoted / (DATA(gc)->rrof_refinement_factor));
+    int bound = (((double)gc->young_area->maximum / sizeof(word))
+                 / (DATA(gc)->rrof_refinement_factor));
+    bound /= (1 + DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle);
     smircy_progress( gc->smircy, bound, bound, -1, 
                      &marked_recv, &traced_recv, &words_marked_recv );
   }
@@ -848,18 +1017,20 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
       DATA(gc)->since_developing_snapshot_began;
   }
 
+  stop_markm_timers( gc, &timer1, &timer2 );
+
   if ((finish_mode == smircy_step_must_refine) 
       || ((finish_mode == smircy_step_can_refine) 
           && smircy_stack_empty_p( gc->smircy ))) {
-    if (DATA(gc)->print_float_stats_each_refine)
-      print_float_stats( "prefin", gc );
-    refine_metadata_via_marksweep( gc );
-    if (DATA(gc)->print_float_stats_each_refine && 
-        ! DATA(gc)->print_float_stats_each_major)
-      print_float_stats( "pstfin", gc );
+  start_timers( &timer1, &timer2 );
+#if INCREMENTAL_REFINE_DURING_SUMZ
+    initiate_refinement( gc );
+#else
+#error bring back  refine_metadata_via_marksweep(..)
+#endif
+  stop_refinem_timers( gc, &timer1, &timer2 );
   }
 
-  stop_refinem_timers( gc, &timer1, &timer2 );
 
   REMSET_VERIFICATION_POINT(gc);
   NURS_SUMMARY_VERIFICATION_POINT(gc);
@@ -882,7 +1053,14 @@ static void initialize_summaries( gc_t *gc, bool about_to_major )
                         DATA(gc)->rrof_sumz_params.popularity_factor,
                         DATA(gc)->rrof_sumz_params.popularity_limit_words, 
                         about_to_major,
-                        DATA(gc)->rrof_next_region );
+                        DATA(gc)->rrof_next_region,
+                        DATA(gc)->rrof_sumz_params.coverage_inv,
+                        DATA(gc)->rrof_sumz_params.budget_inv,
+                        DATA(gc)->rrof_sumz_params.max_retries );
+
+  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
 }
 
 static void collect_rgnl_clear_summary( gc_t *gc, int rgn_next )
@@ -903,10 +1081,11 @@ static void collect_rgnl_choose_next_region( gc_t *gc, int num_rgns,
 struct msgc_visit_check_summary_data {
   gc_t *gc;
   int rgn_next;
-  remset_t *summary_as_rs;
+  locset_t *summary_as_ls;
 };
 
-static void* msgc_visit_check_summary( word obj, word src, void *my_data )
+static void* msgc_visit_check_summary( word obj, word src, int offset, 
+                                       void *my_data )
 {
   struct msgc_visit_check_summary_data *data;
   data = (struct msgc_visit_check_summary_data*)my_data;
@@ -916,106 +1095,185 @@ static void* msgc_visit_check_summary( word obj, word src, void *my_data )
     if ((obj_gno == data->rgn_next) && 
         (src_gno != obj_gno) &&
         (src_gno != 0)) {
-      assert( rs_isremembered( data->summary_as_rs, src ));
+      assert( ls_ismember_loc( data->summary_as_ls, 
+                               make_loc( src, offset )));
     }
   }
   return my_data;
 }
 
-static void assert_summary_as_rs_complete( gc_t *gc, 
+static void assert_summary_as_ls_complete( gc_t *gc, 
                                            int rgn_next, 
-                                           remset_t *summary_as_rs )
+                                           locset_t *summary_as_ls )
 {
   msgc_context_t *msgc;
   int ignm, ignt, ignw;
   struct msgc_visit_check_summary_data data;
   data.gc = gc;
   data.rgn_next = rgn_next;
-  data.summary_as_rs = summary_as_rs;
+  data.summary_as_ls = summary_as_ls;
 
   msgc = msgc_begin( gc );
   msgc_set_object_visitor( msgc, msgc_visit_check_summary, &data );
   msgc_mark_objects_from_roots( msgc, &ignw, &ignt, &ignw );
   msgc_end( msgc );
 }
-struct rsscan_summary_sound_data {
+struct lsscan_summary_sound_data {
   msgc_context_t *msgc;
   int rgn_next;
+  gc_t *gc;
 };
-static bool rsscan_summary_sound( word loc, void *my_data, unsigned *stats )
+static bool lsscan_summary_sound( loc_t loc, void *my_data )
 {
-  struct rsscan_summary_sound_data *data;
+  struct lsscan_summary_sound_data *data;
   msgc_context_t *msgc;
-  data = (struct rsscan_summary_sound_data*)my_data;
+  word *slot;
+  word val;
+  bool bad_condition;
+  data = (struct lsscan_summary_sound_data*)my_data;
   msgc = data->msgc;
-  assert( gen_of(loc) != data->rgn_next );
-  assert( msgc_object_marked_p( msgc, loc ));
+
+  /* cannot generally assert this; removed filter from summ_matrix */
+#if 0
+  assert( gen_of(loc.obj) != data->rgn_next );
+#endif
+
+  slot = loc_to_slot(loc);
+  val = *slot;
+  bad_condition = (isptr(val) 
+                   && (! msgc_object_marked_p( msgc, val ))
+                   /* nursery objects get a pass b/c smircy cant filter them;
+                    * its float, but some float is inevitable. */
+                   && (gen_of(val) != 0));
+  if (bad_condition) {
+    word loc_obj = loc_to_obj(loc);
+    consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) -> 0x%08x (%d) "
+                 "marked {obj->slot:N obj:%s, rs: %s, smircy obj->slot:%s obj:%s}", 
+                 loc_obj, gen_of(loc_obj), val, gen_of(val), 
+                 msgc_object_marked_p( msgc, loc_obj )?"Y":"N", 
+                 urs_isremembered( data->gc->the_remset, loc_obj )?"Y":"N",
+                 ((data->gc->smircy == NULL)?"n/a":
+                  (smircy_object_marked_p( data->gc->smircy,     val )?"Y  ":"N  ")),
+                 ((data->gc->smircy == NULL)?"n/a":
+                  (smircy_object_marked_p( data->gc->smircy, loc_obj )?"Y  ":"N  "))
+                 );
+  }
+  assert( ! bad_condition );
   return TRUE;
 }
 
-static void assert_summary_as_rs_sound( gc_t *gc,
-                                        int rgn_next, remset_t *summary_as_rs )
+struct push_remset_entry_if_in_smircy_data {
+  gc_t *gc;
+  msgc_context_t *msgc;
+};
+
+static bool push_remset_entry_if_in_smircy( word obj, void *my_data )
+{
+  struct push_remset_entry_if_in_smircy_data *data =
+    (struct push_remset_entry_if_in_smircy_data*)my_data;
+  if (smircy_object_marked_p( data->gc->smircy, obj ))
+    msgc_push_object( data->msgc, obj );
+  return TRUE;
+}
+
+static void assert_summary_as_ls_sound( gc_t *gc,
+                                        int rgn_next, locset_t *summary_as_ls )
 {
   msgc_context_t *msgc;
   int ignm, ignt, ignw;
-  if (gc->smircy != NULL) {
-    msgc = smircy_clone_begin( gc->smircy, FALSE );
+
+    /* note from Wed Jan 20 13:06:59 EST 2010
+     * These are some notes on the use of (clone of) gc->smircy 
+     * as msgc_context, and which mark traversal I should use.
+     * They are out of date and perhaps useless now. */
     /* WANT to use msgc_mark_objects_from_roots_and_remsets as given
      * below (rather than msgc_mark_objects_from_nil) because smircy
      * is snapshot of the past that may not have objects that ARE in
      * the heap NOW. */
+    /* note from Tue Jan 12 23:45:55 EST 2010
+     * (reasoning immediately above sounds bogus to me; objects are
+     *  marked when allocated, so why is it not safe to do
+     *  msgc_mark_objects_from_nil?  A better reason is that the
+     *  summaries hold imprecise data that the snapshot does not have;
+     *  that is, the data in the remset is actually *older* than the
+     *  snapshot, and that outdated-ness can propogate into the
+     *  summary itself.  This reasoning sounds more plausible to me;
+     *  note that it is indicating the exact *reverse* of the
+     *  reasoning employed in the comment immediately above.)
+     */
+
+  if (gc->smircy != NULL && smircy_in_refinement_stage_p( gc->smircy )) {
+    msgc = smircy_clone_begin( gc->smircy, FALSE );
+    {
+      int i;
+      struct push_remset_entry_if_in_smircy_data data;
+      data.gc = gc;
+      data.msgc = msgc;
+      for( i = 1; i < gc->gno_count; i++ ) {
+        urs_enumerate_gno( gc->the_remset, TRUE, i, 
+                           push_remset_entry_if_in_smircy, &data );
+      }
+    }
+    msgc_mark_objects_from_roots( msgc, &ignw, &ignt, &ignw );
   } else {
     msgc = msgc_begin( gc );
+    msgc_mark_objects_from_roots_and_remsets( msgc, &ignw, &ignt, &ignw );
   }
-  msgc_mark_objects_from_roots_and_remsets( msgc, &ignw, &ignt, &ignw );
   { 
-    struct rsscan_summary_sound_data data;
+    struct lsscan_summary_sound_data data;
     data.msgc = msgc;
     data.rgn_next = rgn_next;
-    rs_enumerate( summary_as_rs, rsscan_summary_sound, (void*)&data );
+    data.gc = gc;
+    ls_enumerate_locs( summary_as_ls, lsscan_summary_sound, (void*)&data );
   }
   msgc_end( msgc );
 }
-struct summaryscan_buildup_rs_data {
-  remset_t *target_rs;
+struct summaryscan_buildup_ls_data {
+  locset_t *target_ls;
   int rgn_next;
 };
-static void summaryscan_buildup_rs( word obj, int offset, void *my_data ) 
+static void summaryscan_buildup_ls( loc_t loc, void *my_data ) 
 { 
-  struct summaryscan_buildup_rs_data *data;
-  remset_t *target_rs;
+  word obj   = loc_to_obj(loc);
+  int offset = loc_to_offset(loc);
+  struct summaryscan_buildup_ls_data *data;
+  locset_t *target_ls;
   static word last_obj = 0x0;
   static int last_offset = 0x0;
-  data = (struct summaryscan_buildup_rs_data*)my_data;
-  target_rs = (remset_t*)data->target_rs;
+  data = (struct summaryscan_buildup_ls_data*)my_data;
+  target_ls = data->target_ls;
 
+  /* cannot generally assert this; removed filter from summ_matrix */
+#if 0
   assert( gen_of(obj) != data->rgn_next );
-  rs_add_elem( target_rs, obj );
+#endif
+
+  ls_add_obj_offset( target_ls, obj, offset );
   last_obj = obj;
   last_offset = offset;
 }
 
 static void assert_summary_sanity( gc_t *gc, int rgn_next )
 {
-  static remset_t *summary_as_rs;
-  if (summary_as_rs == NULL) {
-    summary_as_rs = create_remset( 0, 0 );
+  static locset_t *summary_as_ls;
+  if (summary_as_ls == NULL) {
+    summary_as_ls = create_locset( 0, 0 );
   }
-  rs_clear( summary_as_rs );
+  ls_clear( summary_as_ls );
   { 
-    struct summaryscan_buildup_rs_data data;
-    data.target_rs = summary_as_rs;
+    struct summaryscan_buildup_ls_data data;
+    data.target_ls = summary_as_ls;
     data.rgn_next = rgn_next;
-    summary_enumerate_locs2( &DATA(gc)->summary, summaryscan_buildup_rs, &data );
+    summary_enumerate_locs2( &DATA(gc)->summary, summaryscan_buildup_ls, &data );
     summary_dispose( &DATA(gc)->summary );
   }
 
-  consolemsg( "using summary_as_rs for rgn_next=%d, live: %d",
-              rgn_next, summary_as_rs->live );
-  assert_summary_as_rs_complete( gc, rgn_next, summary_as_rs );
-  assert_summary_as_rs_sound( gc, rgn_next, summary_as_rs );
+  consolemsg( "using summary_as_ls for rgn_next=%d, live: %d",
+              rgn_next, summary_as_ls->live );
+  assert_summary_as_ls_complete( gc, rgn_next, summary_as_ls );
+  assert_summary_as_ls_sound( gc, rgn_next, summary_as_ls );
 
-  rs_init_summary( summary_as_rs, -1, &DATA(gc)->summary );
+  ls_init_summary( summary_as_ls, -1, &DATA(gc)->summary );
 }
 
 /* returns TRUE iff the collection took place.  If FALSE, reselect
@@ -1097,6 +1355,11 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     SMIRCY_VERIFICATION_POINT(gc);
     SUMMMTX_VERIFICATION_POINT(gc);
 
+    if (USE_ORACLE_TO_CHECK_SUMMARY_SANITY &&
+        summarization_active_rgn_next) {
+      assert_summary_sanity( gc, rgn_next );
+    }
+
     if (USE_ORACLE_TO_VERIFY_SMIRCY && (gc->smircy != NULL)) {
       gc->smircy_completion = smircy_clone_begin( gc->smircy, FALSE );
       msgc_mark_objects_from_nil( gc->smircy_completion );
@@ -1108,10 +1371,6 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     }
 
-    if (USE_ORACLE_TO_CHECK_SUMMARY_SANITY &&
-        summarization_active_rgn_next) {
-      assert_summary_sanity( gc, rgn_next );
-    }
     if (summarization_active_rgn_next) {
       DATA(gc)->use_summary_instead_of_remsets = TRUE;
     } else {
@@ -1184,6 +1443,31 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       DATA(gc)->rrof_last_gc_rolled_cycle = TRUE;
     rrof_completed_major_collection( gc );
 
+    /* At start, we have two regions that act as to/from semispaces
+     * during major gc's.  If we still have only two regions at the
+     * end of a major gc, then one will be empty and the other will
+     * have a _precise_ measure of the amount of live storage.  We can
+     * use that measure to guide the allocation policy.
+     */
+    if (DATA(gc)->region_count == 2 &&
+        DATA(gc)->ephemeral_area_count == 2) {
+      int to_idx = rgn_to - 1;
+      int other_idx = (-to_idx)+1;
+      assert( to_idx == 0 || to_idx == 1 );
+      assert( other_idx == 0 || other_idx == 1 );
+      assert( (other_idx + to_idx) == 1 );
+      if (DATA(gc)->ephemeral_area[other_idx]->allocated == 0) {
+        int live_words = 
+          DATA(gc)->ephemeral_area[to_idx]->allocated / sizeof(word);
+        if (gc->static_area != NULL) {
+          live_words += (gc->static_area->data_area->allocated / sizeof(word));
+        }
+        DATA(gc)->last_live_words = live_words;
+        DATA(gc)->max_live_words = 
+          max( DATA(gc)->max_live_words, live_words );
+      }
+    }
+
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
     collect_rgnl_clear_summary( gc, rgn_next );
     {
@@ -1200,18 +1484,20 @@ static bool collect_rgnl_majorgc( gc_t *gc,
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     collect_rgnl_choose_next_region( gc, num_rgns, FALSE );
 
-    SUMMMTX_VERIFICATION_POINT(gc);
+    if (! DATA(gc)->rrof_smircy_step_on_minor_collections_alone) {
+      SUMMMTX_VERIFICATION_POINT(gc);
 
-    gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
-    smircy_step( gc, ((SYNC_REFINEMENT_RROF_CYCLE || 
-                       DONT_USE_REFINEMENT_COUNTDOWN ||
-                       (DATA(gc)->rrof_refine_mark_countdown > 0))
-                      ? smircy_step_can_refine
-                      : smircy_step_must_refine ));
-    gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
+      gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
+      smircy_step( gc, 
+                   ((SYNC_REFINEMENT_RROF_CYCLE || 
+                     DONT_USE_REFINEMENT_COUNTDOWN ||
+                     (DATA(gc)->rrof_refine_mark_countdown > 0))
+                    ? smircy_step_can_refine
+                    : smircy_step_must_refine ));
+      gc_phase_shift( gc, gc_log_phase_smircy, gc_log_phase_misc_memmgr );
 
-    SUMMMTX_VERIFICATION_POINT(gc);
-
+      SUMMMTX_VERIFICATION_POINT(gc);
+    }
     
   } else {
 
@@ -1228,6 +1514,69 @@ static bool collect_rgnl_majorgc( gc_t *gc,
   }
   
   return TRUE;
+}
+
+static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx ) 
+{
+  /* HACK.  At start, we have two regions that we treat as alternate
+   * targets for promotions out of the nursery during minor gc's, and
+   * the to/from semispaces during major gc's.  This means that we
+   * often are just promoting data out of the nursery into one region
+   * while the other region lies entirely empty and will *remain*
+   * entirely empty even after the promotion is complete.
+   *
+   * When that arises, we do not need to spend any time in cheney loop
+   * maintaining the remembered set.
+   * 
+   * (If incremental marking is not in progress, that means we do not
+   * need to spend any time in the cheney loop maintaining *any* of
+   * the regional meta-data; but toggling that overhead is already
+   * handled within code of cheney itself.) 
+   */
+
+  int other_idx = (-to_idx)+1;
+  int nursery_allocated = (gc->young_area->allocated +
+                           los_bytes_used( gc->los, 0 ));
+  int nursery_alloc_roundup;
+  int fragmentation_allowance;
+  int rgn_allocated;
+  int rgn_avail;
+  bool data_may_stay_in_one_region, data_stays_in_one_region;
+
+  assert2( other_idx == 0 || other_idx == 1 );
+  assert2( to_idx    == 0 || to_idx    == 1 );
+  assert2( (other_idx + to_idx) == 1 );
+
+  /* heuristic check; sync; final check with sync'd version */
+  data_stays_in_one_region = FALSE;
+  data_may_stay_in_one_region
+    = ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
+       && 
+       ((DATA(gc)->ephemeral_area[ to_idx ]->maximum -
+         DATA(gc)->ephemeral_area[ to_idx ]->allocated)
+        > nursery_allocated));
+  if (data_may_stay_in_one_region) {
+    int max_num_gc_chunks;
+    oh_synchronize( DATA(gc)->ephemeral_area[ other_idx ] );
+    oh_synchronize( DATA(gc)->ephemeral_area[ to_idx ] );
+
+    rgn_allocated = (DATA(gc)->ephemeral_area[ to_idx ]->allocated 
+                     + los_bytes_used( gc->los, to_idx+1 ));
+    rgn_avail = (DATA(gc)->ephemeral_area[ to_idx ]->maximum
+                 - rgn_allocated);
+    max_num_gc_chunks = quotient2( rgn_avail, GC_CHUNK_SIZE )+1;
+    fragmentation_allowance = max_num_gc_chunks * GC_LARGE_OBJECT_LIMIT;
+    nursery_alloc_roundup = 
+      (quotient2( nursery_allocated + fragmentation_allowance, 
+                  GC_CHUNK_SIZE )) * GC_CHUNK_SIZE;
+    data_stays_in_one_region
+      =  ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
+          && 
+          ((DATA(gc)->ephemeral_area[ to_idx ]->maximum - rgn_allocated)
+           > nursery_alloc_roundup));
+  }
+
+  return data_stays_in_one_region;
 }
 
 static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
@@ -1264,17 +1613,34 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
             || (grp == region_group_wait_nosum) /* XXX */
             || (grp == region_group_wait_w_sum) /* XXX */ );
   }
+
+#if 1
+  if (DATA(gc)->region_count == 2) {
+    int to_idx = rgn_to - 1;
+    assert2( rgn_to == 1 || rgn_to == 2 );
+
+    if (data_definitely_stays_in_one_region( gc, to_idx )) {
+      gc->scan_update_remset = FALSE;
+    }
+  }
+#endif
+
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
+  gc->scan_update_remset = TRUE; /* undo hack above */
+
+  urs_copy_minor_to_major( gc->the_remset );
+  urs_clear_minor( gc->the_remset );
 
   if (summarization_active) {
     int i;
+    /* is this loop *really* necessary?  Why does rgn_to even have a summary? */
     for (i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
       if (DATA(gc)->ephemeral_area[i]->was_target_during_gc) {
         oh_synchronize( DATA(gc)->ephemeral_area[i] );
         gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_summarize );
-        sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to );
+        sm_copy_summary_to( DATA(gc)->summaries, 0, rgn_to ); /* XXX */
         gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
       }
     }
@@ -1290,7 +1656,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   handle_secondary_space( gc );
   update_promotion_counts( gc, gc->words_from_nursery_last_gc );
 
-  DATA(gc)->total_heap_words_allocated != gc->words_from_nursery_last_gc;
+  DATA(gc)->total_heap_words_allocated += gc->words_from_nursery_last_gc;
   if (summarization_active) { /* ????   what??? */
     gc_phase_shift( gc, gc_log_phase_misc_memmgr, gc_log_phase_smircy );
     smircy_step( gc, smircy_step_can_refine );
@@ -1321,6 +1687,7 @@ static int find_appropriate_to( gc_t *gc )
   }
   first_unfilled = region_group_first_heap( region_group_unfilled );
   if (first_unfilled == NULL) {
+    assert( gc->scan_update_remset );
     add_region_to_expand_heap( gc, 0 );
     first_unfilled = region_group_first_heap( region_group_unfilled );
     assert( first_unfilled != NULL );
@@ -1385,6 +1752,27 @@ static int find_appropriate_next( gc_t *gc )
   }
   if (first_waiting == NULL) {
     old_heap_t *first_filled;
+    if (DATA(gc)->summaries != NULL) {
+        char *(*n)( region_group_t grp );
+        int   (*c)( region_group_t grp );
+        n = &region_group_name;
+        c = &region_group_count;
+
+      consolemsg( "ran out of ready-and-waiting "
+                  "summarized regions to collect!  "
+                  "Are parameter choices sane?"
+                  " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
+                  n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                  n( region_group_unfilled   ), c( region_group_unfilled ),
+                  n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                  n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                  n( region_group_summzing   ), c( region_group_summzing ),
+                  n( region_group_filled     ), c( region_group_filled ), 
+                  n( region_group_risingstar ), c( region_group_risingstar ),
+                  n( region_group_infamous   ), c( region_group_infamous ),
+                  n( region_group_hasbeen    ), c( region_group_hasbeen ) );
+
+    }
     assert( DATA(gc)->summaries == NULL );
     first_filled = region_group_first_heap( region_group_filled );
     assert( first_filled != NULL );
@@ -1426,13 +1814,13 @@ static void rrof_calc_target_allocation( gc_t *gc,
   long long P_old  = DATA(gc)->max_live_words;
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
-  int F_3    = 2; /* XXX FIXME see Will for calculation of F_3 */
+  int F_3    = DATA(gc)->rrof_sumz_params.max_retries;
   int N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
     / sizeof(word);
 
   long long A_target_1a = (long long)(L_hard*P_old);
-  long long A_target_1b = quotient2( A_target_1a, ((int)F_2) * F_3 ) - 1;
+  long long A_target_1b = quotient2( A_target_1a, ((int)(F_2 * (double)F_3)) ) - 1;
   long long A_target_1  = quotient2( A_target_1b, 2);
   long long A_target_2 = ((L_soft*P_old)-N_old);
   long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
@@ -1467,13 +1855,32 @@ static void rrof_gc_policy( gc_t *gc,
     (((long long)(majors_total+1) * A_this) > ((long long)(majors_sofar+1) * A_target));
 
   if (calculate_loudly) {
-    consolemsg( "majors_sofar:% 3d majors_total:% 3d "
-                "N_old:% 6lldK, N:% 6dK, P_old:% 6lldK, A_this:% 6lldK "
-                "A_target:% 6lldK = max(5M,min(% 6lldK,% 6lldK)) => will says: %s",
+#define FMT "% 3lld"
+    long long div = 1000 * 1000;
+
+    char *(*n)( region_group_t grp );
+    int   (*c)( region_group_t grp );
+    n = &region_group_name;
+    c = &region_group_count;
+
+    consolemsg( "majs{cur:% 3d tot:% 3d} "
+                "Nold:" FMT " N:" FMT " Pold:" FMT " A:" FMT " "
+                "Atgt:" FMT "=max(5,min(" FMT "," FMT "))" 
+                " => %s "
+                " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
                 majors_sofar, majors_total, 
-                N_old/1000, N/1000, P_old/1000, A_this/1000, 
-                A_target/1000, A_target_1/1000, A_target_2/1000, 
-                will_says_should_major?"major":"minor");
+                N_old/div, N/div, P_old/div, A_this/div, 
+                A_target/div, A_target_1/div, A_target_2/div,
+                will_says_should_major?"MAJ":"mnr",
+                n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                n( region_group_unfilled   ), c( region_group_unfilled ),
+                n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                n( region_group_summzing   ), c( region_group_summzing ),
+                n( region_group_filled     ), c( region_group_filled ), 
+                n( region_group_risingstar ), c( region_group_risingstar ),
+                n( region_group_infamous   ), c( region_group_infamous ),
+                n( region_group_hasbeen    ), c( region_group_hasbeen ) );
   }
 
   assert( !will_says_should_major || 
@@ -1484,27 +1891,51 @@ static void rrof_gc_policy( gc_t *gc,
   *will_says_should_major_recv = will_says_should_major;
 }
 
+static bool two_regions_one_filled_p( gc_t *gc )
+{
+  if ((DATA(gc)->region_count == 2) &&
+      (DATA(gc)->ephemeral_area[0]->group == region_group_filled) && 
+      (DATA(gc)->ephemeral_area[1]->group == region_group_unfilled)) {
+    return TRUE;
+  } else if ((DATA(gc)->region_count == 2) &&
+             (DATA(gc)->ephemeral_area[1]->group == region_group_filled) && 
+             (DATA(gc)->ephemeral_area[0]->group == region_group_unfilled)) {
+    return TRUE;
+  } else {
+    return FALSE;
+  }
+}
+
 static void collect_rgnl_evacuate_nursery( gc_t *gc ) 
 {
   /* only forward data out of the nursery, if possible */
   int rgn_to;
   int num_rgns = DATA(gc)->region_count;
 
-  bool will_says_should_major;
+  bool felix_says_should_major;
+  bool verbose = FALSE;
+  char *prefix = ("                                             "
+                  "                                             ");
 
-  if ((region_group_count( region_group_wait_nosum ) 
+  if ((DATA(gc)->rrof_cycle_majors_sofar == 0)
+      && two_regions_one_filled_p( gc )) {
+    if (verbose) {
+      consolemsg("%s    two_regions_one_filled => felix says: MAJOR", prefix);
+    }
+    felix_says_should_major = TRUE;
+  } else if ((region_group_count( region_group_wait_nosum ) 
        + region_group_count( region_group_wait_w_sum ) 
        + region_group_count( region_group_filled ) /* XXX */) 
       > 0) {
-    rrof_gc_policy( gc, &will_says_should_major, FALSE );
+    rrof_gc_policy( gc, &felix_says_should_major, verbose );
   } else {
-    will_says_should_major = FALSE;
+    felix_says_should_major = FALSE;
   }
 
   DATA(gc)->rrof_refine_mark_countdown -= 1;
 
  collect_evacuate_nursery:
-  if (will_says_should_major) {
+  if (felix_says_should_major) {
     bool didit;
     int rgn_next; 
     rgn_to = find_appropriate_to( gc );
@@ -1517,7 +1948,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
     didit = collect_rgnl_majorgc( gc, rgn_to, rgn_next, num_rgns );
     if (! didit) 
       goto collect_evacuate_nursery;
-  } else { /* ! will_says_should_major */
+  } else { /* ! felix_says_should_major */
     rgn_to = find_appropriate_to( gc );
     DATA(gc)->rrof_to_region = rgn_to;
     collect_rgnl_minorgc( gc, rgn_to );
@@ -1648,6 +2079,41 @@ void gc_signal_minor_collection( gc_t *gc ) {
 
 }
 
+void gc_check_rise_to_infamy( gc_t *gc,
+                              old_heap_t *heap, 
+                              int incoming_words_estimate )
+{
+  int max_infamous = (DATA(gc)->region_count 
+                      / (DATA(gc)->rrof_sumz_params.popularity_factor 
+                         * DATA(gc)->rrof_sumz_params.infamy_factor ));
+  int infamy_threshold = 
+    (DATA(gc)->rrof_sumz_params.popularity_limit_words 
+     * DATA(gc)->rrof_sumz_params.infamy_factor);
+  if (region_group_count( region_group_infamous )+1 > max_infamous) {
+    /* disallow #infamous regions overflow, no matter what */
+    return;
+  }
+  if (incoming_words_estimate > infamy_threshold &&
+      heap->group != region_group_infamous) {
+
+    /* One might think that heap must be in one of the popular groups;
+     * but that is NOT true because we can shift regions not under-going
+     * summarization into the infamous set. 
+     */
+    region_group_enq( heap, heap->group, region_group_infamous );
+  }
+}
+
+void gc_check_infamy_drop_to_hasbeen( gc_t *gc, 
+                                      old_heap_t *heap, 
+                                      int incoming_words_estimate )
+{
+  if (incoming_words_estimate 
+      < DATA(gc)->rrof_sumz_params.popularity_limit_words) {
+    region_group_enq( heap, region_group_infamous, region_group_hasbeen );
+  }
+}
+
 static void before_collection( gc_t *gc )
 {
   int e;
@@ -1657,8 +2123,13 @@ static void before_collection( gc_t *gc )
   gc->stat_last_gc_pause_ismajor = -1;
   DATA(gc)->stat_last_ms_remset_sumrize = -1;
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
-  DATA(gc)->stat_last_ms_mark_refinement = -1;
-  DATA(gc)->stat_last_ms_mark_refinement_cpu = -1;
+  DATA(gc)->stat_last_ms_smircy_mark = -1;
+  DATA(gc)->stat_last_ms_smircy_mark_cpu = -1;
+  DATA(gc)->stat_last_ms_smircy_refine = -1;
+  DATA(gc)->stat_last_ms_smircy_refine_cpu = -1;
+
+  osdep_pagefaults( &DATA(gc)->major_page_fault_count_at_gc_start,
+                    &DATA(gc)->minor_page_fault_count_at_gc_start );
 
   /* assume it does not roll over until we discover otherwise */
   DATA(gc)->rrof_last_gc_rolled_cycle = FALSE;
@@ -1695,6 +2166,8 @@ static void after_collection( gc_t *gc )
   int e;
 
   DATA(gc)->generations = DATA(gc)->generations_after_gc;
+
+  DATA(gc)->mutator_effort.forcing_collector_to_progress = FALSE;
 
   if (DATA(gc)->summaries != NULL)
     sm_after_collection( DATA(gc)->summaries );
@@ -1813,41 +2286,38 @@ enumerate_remsets_complement( gc_t *gc,
    * don't waste time adding elements to remset[gno] for 
    * gno <= generation
    */
+  /* FSK: Is this loop still necessary?  Where are elems added between
+   * before_collection's invoke of compact_all_ssbs and here? */
   for ( i=0 ; i <= ecount; i++ ) {
     process_seqbuf( gc, gc->ssb[i] );
   }
 
   if (DATA(gc)->enumerate_major_with_minor_remsets) {
-    urs_enumerate_complement( gc->the_remset, gset, f, fdata );
+    urs_enumerate_complement( gc->the_remset, TRUE, gset, f, fdata );
   } else {
-    urs_enumerate_minor_complement( gc->the_remset, gset, f, fdata );
+    urs_enumerate_minor_complement( gc->the_remset, TRUE, gset, f, fdata );
   }
 }
 
-struct apply_f_to_summary_loc_entry_data {
-  void (*f)( word obj, int offset, void *scan_data );
+struct apply_f_to_remset_obj_entry_data {
+  void (*f)( loc_t loc, void *scan_data );
   void *scan_data;
 };
 
-struct apply_f_to_summary_obj_entry_data {
-  void (*f)( word obj, int offset, void *scan_data );
-  void *scan_data;
-};
-
-static void apply_f_to_summary_obj_entry( word obj, void *data_orig )
+static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
 {
   word *w;
-  struct apply_f_to_summary_obj_entry_data *data;
+  struct apply_f_to_remset_obj_entry_data *data;
   void *scan_data;
-  data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
-  void (*f)( word obj, int offset, void *scan_data );
+  data = (struct apply_f_to_remset_obj_entry_data*)data_orig;
+  void (*f)( loc_t loc, void *scan_data );
 
   scan_data = data->scan_data;
   f         = data->f;
   w = ptrof(obj);
   if (tagof(obj) == PAIR_TAG) {
-    f( obj, 0, scan_data );
-    f( obj, sizeof(word), scan_data );
+    f( make_loc(obj, 0), scan_data );
+    f( make_loc(obj, sizeof(word)), scan_data );
   } else {
     word words; 
     int offset;
@@ -1856,32 +2326,33 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig )
     offset = 0;
     while (words--) {
       offset += sizeof(word);
-      f( obj, offset, scan_data );
+      f( make_loc(obj, offset), scan_data );
     }
   }
-}
 
-static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
-{
-  apply_f_to_summary_obj_entry( obj, data_orig );
   return TRUE;
 }
 
 static void enumerate_remembered_locations( gc_t *gc, gset_t genset, 
-                                            void (*f)(word addr, 
-                                                      int offset, 
+                                            void (*f)(loc_t loc, 
                                                       void *scan_data), 
-                                            void *scan_data )
+                                            void *scan_data,
+                                            bool (*g)(word obj, void *data),
+                                            void *g_scan_data )
 {
   if ( DATA(gc)->use_summary_instead_of_remsets) {
     summary_enumerate_locs2( &DATA(gc)->summary, f, scan_data );
   } else {
-    struct apply_f_to_summary_loc_entry_data remsets_data;
+#if 0
+    struct apply_f_to_remset_obj_entry_data remsets_data;
     remsets_data.f = f;
     remsets_data.scan_data = scan_data;
     gc_enumerate_remsets_complement( gc, genset, 
                                      apply_f_to_remset_obj_entry, 
                                      (void*) &remsets_data );
+#else
+    gc_enumerate_remsets_complement( gc, genset, g, g_scan_data );
+#endif
   }
 }
 
@@ -2032,19 +2503,83 @@ static void stats_following_gc( gc_t *gc )
     DATA(gc)->stat_last_ms_remset_sumrize;
   stats_gclib.last_ms_remset_sumrize_cpu = 
     DATA(gc)->stat_last_ms_remset_sumrize_cpu;
-  stats_gclib.last_ms_mark_refinement     = 
-    DATA(gc)->stat_last_ms_mark_refinement;
-  stats_gclib.last_ms_mark_refinement_cpu = 
-    DATA(gc)->stat_last_ms_mark_refinement_cpu;
+  stats_gclib.last_ms_smircy_mark     = 
+    DATA(gc)->stat_last_ms_smircy_mark;
+  stats_gclib.last_ms_smircy_mark_cpu = 
+    DATA(gc)->stat_last_ms_smircy_mark_cpu;
+  stats_gclib.last_ms_smircy_refine     = 
+    DATA(gc)->stat_last_ms_smircy_refine;
+  stats_gclib.last_ms_smircy_refine_cpu = 
+    DATA(gc)->stat_last_ms_smircy_refine_cpu;
+
+  {
+    unsigned major, minor;
+    osdep_pagefaults( &major, &minor );
+    stats_gclib.last_major_page_faults = 
+      (major - DATA(gc)->major_page_fault_count_at_gc_start);
+    stats_gclib.last_minor_page_faults = 
+      (minor - DATA(gc)->minor_page_fault_count_at_gc_start);
+    assert( stats_gclib.last_major_page_faults >= 0 );
+    assert( stats_gclib.last_minor_page_faults >= 0 );
+  }
+
   stats_add_gclib_stats( &stats_gclib );
 
   stats_dumpstate();		/* Dumps stats state if dumping is on */
 }
 
+static void force_collector_to_make_progress( gc_t *gc )
+{
+  word *globals = DATA(gc)->globals;
+  word *p;
+  int nbytes;
+  word *lim;
+  p = (word*)globals[ G_ETOP ];
+  lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
+  nbytes = (lim-p)*sizeof(word);
+
+  if (nbytes > 0) {
+#if 0
+    consolemsg( "force_collector_to_make_progress"
+                " p:0x%08x lim:0x%08x nbytes:%d",
+                p, lim, nbytes );
+#endif
+
+    *p = mkheader( nbytes-sizeof(word),BIGNUM_HDR);
+    if (p+1 < lim)
+      *(p+1) =  0xBACDBACD;
+    globals[ G_ETOP ] += nbytes;
+  }
+
+  DATA(gc)->mutator_effort.forcing_collector_to_progress = TRUE;
+}
+
+static int calc_cN( gc_t *gc );
+
 static int compact_all_ssbs( gc_t *gc )
 {
   int overflowed, i;
   word *bot, *top;
+  int cN, mut_effort_full,  mut_effort_sumz;
+  bool force_progress;
+
+  force_progress = FALSE;
+  if (DATA(gc)->mut_activity_bounded && DATA(gc)->summaries != NULL) {
+    cN = calc_cN( gc );
+    mut_effort_full = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+    mut_effort_sumz = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+    if (mut_effort_sumz > cN) {
+      consolemsg( "compact_all_ssbs force_progress because mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
+                  mut_effort_sumz, 
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle, DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  cN, DATA(gc)->max_live_words );
+      force_progress = TRUE;
+    }
+  }
 
   overflowed = 0;
   for (i = 0; i < gc->gno_count; i++) {
@@ -2052,6 +2587,11 @@ static int compact_all_ssbs( gc_t *gc )
     top = *gc->ssb[i]->top;
     overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
   }
+
+  if (force_progress) {
+    force_collector_to_make_progress( gc );
+  }
+
   return overflowed;
 }
 
@@ -2306,7 +2846,8 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
   /* XXX This code only works with RROF, but I do not have a
    * reasonable way to assert that precondition. */
   new_ssb[fresh_gno] = 
-    create_seqbuf( 0, &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
+    create_seqbuf( DATA(gc)->ssb_entry_count, 
+                   &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
                    &new_ssb_lim[fresh_gno], ssb_process_rrof, 
                    /* XXX */(void*) fresh_gno );
   for( i = fresh_gno+1; i < new_gno_count; i++ ) {
@@ -2363,6 +2904,7 @@ static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed,
 static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
 				     semispace_t *current_space )
 {
+  int los_allocated;
   int cur_allocated;
   int max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
@@ -2373,8 +2915,9 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   oh_synchronize( DATA(gc)->ephemeral_area[ to_rgn_old-1 ] );
 
   ss_sync( current_space );
-  cur_allocated = 
-    current_space->used+los_bytes_used( gc->los, current_space->gen_no );
+  los_allocated =  /* los_bytes_used( gc->los, current_space->gen_no ); */
+    los_bytes_used_include_marklists( gc->los, current_space->gen_no );
+  cur_allocated = current_space->used+los_allocated;
 
   if (cur_allocated + expansion_amount <= max_allocated) {
     ss_expand( current_space, expansion_amount );
@@ -2391,6 +2934,8 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
     region_group_enq( DATA(gc)->ephemeral_area[ to_rgn_old-1 ],
                       grp, region_group_filled );
   }
+
+  assert( gc->scan_update_remset );
 
   to_rgn_new = find_appropriate_to( gc );
 
@@ -2488,6 +3033,8 @@ static int allocated_to_areas( gc_t *gc, gset_t gs )
     for (i = gs.g1; i < gs.g2; i++) 
       sum += allocated_to_area( gc, i );
     return sum;
+  case gs_nil:   return 0;
+  case gs_twrng: assert(0); /* not implemented yet */
   }
   assert(0);
 }
@@ -2503,15 +3050,22 @@ static int maximum_allotted( gc_t *gc, gset_t gs )
     for (i = gs.g1; i < gs.g2; i++) 
       sum += maximum_allotted_to_area( gc, i );
     return sum;
+  case gs_nil:   return 0;
+  case gs_twrng: assert(0); /* not implemented yet */
   }
   assert(0);
 }
 
 static bool is_nonmoving( gc_t *gc, int gen_no ) 
 {
+  region_group_t grp;
   if (gen_no == DATA(gc)->static_generation)
     return TRUE;
   
+  grp = gc_region_group_for_gno( gc, gen_no );
+  if ((grp == region_group_infamous) || (grp == region_group_hasbeen) )
+    return TRUE;
+
   return FALSE;
 }
 
@@ -2578,6 +3132,8 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
   DATA(gc)->dynamic_max = info->sc_info.dynamic_max;
   DATA(gc)->dynamic_min = info->sc_info.dynamic_min;
+  DATA(gc)->remset_undirected = FALSE;
+  DATA(gc)->mut_activity_bounded = FALSE;
 
   strcpy( buf, "S+C " );
 
@@ -2596,11 +3152,127 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
 static int ssb_process_gen( gc_t *gc, word *bot, word *top, void *ep_data ) {
   urs_add_elems( gc->the_remset, bot, top );
+  return 0; /* urs_add_elems doesn't currently provide an interesting result */
+}
+
+static int calc_cN( gc_t *gc )
+{
+  double F_1 = DATA(gc)->rrof_sumz_params.coverage_inv;
+  double F_2 = DATA(gc)->rrof_sumz_params.budget_inv;
+  int    F_3 = DATA(gc)->rrof_sumz_params.max_retries;
+  double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
+
+  double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
+  int N = /* FIXME should be incrementally calculated via collection delta */
+    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
+    / sizeof(word);
+  int retval;
+
+  assert2( c > 0.0 );
+
+  N = max( N, 5*MEGABYTE );
+
+  retval = (int)(c * ((double)N));
+  if (retval <= 0 ) {
+    consolemsg("c:%g * N:%d yields nonneg.", c, N );
+  }
+  assert( retval > 0 );
+  return retval;
+}
+
+static void zero_all_mutator_effort( gc_data_t *data ) {
+  struct mutator_effort *p = &data->mutator_effort;
+  p->rrof_ssb_flushes = 0;
+  p->rrof_ssb_entries_flushed_total = 0;
+  p->rrof_ssb_entries_flushed_this.full_cycle = 0;
+  p->rrof_ssb_entries_flushed_this.sumz_cycle = 0;
+  p->rrof_ssb_max_entries_flushed_any.full_cycle = 0;
+  p->rrof_ssb_max_entries_flushed_any.sumz_cycle = 0;
+
+  p->satb_ssb_flushes = 0;
+  p->satb_ssb_entries_flushed_total = 0;
+  p->satb_ssb_entries_flushed_this.full_cycle = 0;
+  p->satb_ssb_entries_flushed_this.sumz_cycle = 0;
+  p->satb_ssb_max_entries_flushed_any.full_cycle = 0;
+  p->satb_ssb_max_entries_flushed_any.sumz_cycle = 0;
+
+  p->words_promoted_this.full_cycle = 0;
+  p->words_promoted_this.sumz_cycle = 0;
+  p->max_words_promoted_any.full_cycle = 0;
+  p->max_words_promoted_any.sumz_cycle = 0;
+
+  p->forcing_collector_to_progress = FALSE;
+}
+
+static void update_rrof_flush_counts( gc_t *gc, int entries_flushed ) 
+{
+  struct mutator_effort *p = &(DATA(gc)->mutator_effort);
+  p->rrof_ssb_flushes += 1;
+  p->rrof_ssb_entries_flushed_total += entries_flushed;
+  p->rrof_ssb_entries_flushed_this.full_cycle += entries_flushed;
+  if (DATA(gc)->summaries != NULL) {
+    p->rrof_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
+    p->rrof_ssb_max_entries_flushed_any.full_cycle
+      = max( p->rrof_ssb_entries_flushed_this.full_cycle, 
+             p->rrof_ssb_max_entries_flushed_any.full_cycle);
+    p->rrof_ssb_max_entries_flushed_any.sumz_cycle
+      = max( p->rrof_ssb_entries_flushed_this.sumz_cycle, 
+             p->rrof_ssb_max_entries_flushed_any.sumz_cycle);
+  }
+}
+
+static void update_satb_flush_counts( gc_t *gc, int entries_flushed ) 
+{
+  struct mutator_effort *p = &(DATA(gc)->mutator_effort);
+  p->satb_ssb_flushes += 1;
+  p->satb_ssb_entries_flushed_total += entries_flushed;
+  p->satb_ssb_entries_flushed_this.full_cycle += entries_flushed;
+
+  if (DATA(gc)->summaries != NULL) {
+    p->satb_ssb_entries_flushed_this.sumz_cycle += entries_flushed;
+    p->satb_ssb_max_entries_flushed_any.full_cycle
+      = max( p->satb_ssb_entries_flushed_this.full_cycle, 
+             p->satb_ssb_max_entries_flushed_any.full_cycle);
+    p->satb_ssb_max_entries_flushed_any.sumz_cycle
+      = max( p->satb_ssb_entries_flushed_this.sumz_cycle, 
+             p->satb_ssb_max_entries_flushed_any.sumz_cycle);
+  }
 }
 
 static int ssb_process_satb( gc_t *gc, word *bot, word *top, void *ep_data ) {
-  if (0) 
-    consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x )", bot, top );
+  update_satb_flush_counts( gc, (top - bot) );
+  if (bot != top) {
+    int cN;
+    int mut_effort_full = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+    int mut_effort_sumz = 
+      (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+       DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+
+    if ( DATA(gc)->region_count > 2) 
+      cN = calc_cN( gc ); /* delay (expensive?) valuation */
+    if ( DATA(gc)->region_count > 2 && mut_effort_sumz > cN ) {
+#if 0
+      consolemsg( "ssb_process_satb( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
+                  bot, top,
+                  nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
+                  DATA(gc)->mutator_effort.satb_ssb_flushes,
+                  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_total,
+                  DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.satb_ssb_max_entries_flushed_any.sumz_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle,
+                  mut_effort_sumz, 
+                  (mut_effort_sumz <= cN)?" <= ":" >> ", 
+                  cN, 
+                  (DATA(gc)->summaries != NULL)?sm_cycle_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_scan_count_curr_pass( DATA(gc)->summaries ):0,
+                  DATA(gc)->region_count );
+#endif
+    }
+  }
   if (gc->smircy != NULL) {
     if (! smircy_stack_empty_p( gc->smircy )) {
       smircy_push_elems( gc->smircy, bot, top );
@@ -2614,6 +3286,54 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   int retval = 0;
   int g_rhs;
   word *p, *q, w;
+
+  /* XXX this is not really right; there may be duplicate entries in
+   * the SSB, and in principle we are supposed to only count the
+   * number of distinct locations assigned.
+   * 
+   * But I do not carry enough information around to know about all
+   * duplicate entries... at best for now I can count locations added
+   * for a *subset* of the regions (via the summary set addittions)
+   * and/or I can count the *objects* added to the remembered set...
+   */
+
+  update_rrof_flush_counts( gc, (top - bot) );
+  if (bot != top) {
+    int cN;
+    int mut_effort_full, mut_effort_sumz;
+    if (DATA(gc)->mut_activity_bounded
+        && DATA(gc)->summaries != NULL) {
+      cN = calc_cN( gc );
+      mut_effort_full = 
+        (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.full_cycle + 
+         DATA(gc)->mutator_effort.words_promoted_this.full_cycle);
+      mut_effort_sumz = 
+        (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+         DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+    }
+    if (DATA(gc)->mut_activity_bounded 
+        && DATA(gc)->summaries != NULL
+        && mut_effort_sumz > cN) {
+#if 0
+      consolemsg( "ssb_process_rrof( gc, bot: 0x%08x, top: 0x%08x ) gc,majors:%d,%d cnt:%d flush:%lld,%d<=%d promote:%d<=%d %d%s%d summ:%d.%d.%d/%d", 
+                  bot, top,
+                  nativeint( DATA(gc)->globals[ G_GC_CNT ] ), nativeint( DATA(gc)->globals[ G_MAJORGC_CNT ] ),
+                  DATA(gc)->mutator_effort.rrof_ssb_flushes,
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_total,
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.rrof_ssb_max_entries_flushed_any.sumz_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.max_words_promoted_any.sumz_cycle,
+                  mut_effort_sumz, 
+                  (mut_effort_sumz <= cN)?" <= ":" >> ", 
+                  cN, 
+                  (DATA(gc)->summaries != NULL)?sm_cycle_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_pass_count( DATA(gc)->summaries ):0,
+                  (DATA(gc)->summaries != NULL)?sm_scan_count_curr_pass( DATA(gc)->summaries ):0,
+                  DATA(gc)->ephemeral_area_count );
+#endif
+    }
+  }
   retval |= urs_add_elems( gc->the_remset, bot, top );
 
   g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
@@ -2638,6 +3358,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->is_partitioned_system = 1;
   data->use_np_collector = info->use_non_predictive_collector;
   data->remset_undirected = FALSE;
+  data->mut_activity_bounded = FALSE;
   size = 0;
 
   strcpy( buf, "GEN " );
@@ -2738,13 +3459,14 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->gno_count );
   gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
+  DATA(gc)->ssb_entry_count = info->ssb;
   for ( i = 0; i < gc->gno_count ; i++ ) {
     /* nursery has one too, an artifact of RROF.
      * XXX consider using different structures for n-YF vs ROF vs RROF;
      * RROF needs points-into information implicit with index here,
      * but others do not. */
     gc->ssb[i] = 
-      create_seqbuf( info->ssb, 
+      create_seqbuf( DATA(gc)->ssb_entry_count, 
                      &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
                      ssb_process_gen, 0 );
   }
@@ -2770,6 +3492,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   assert( ! info->use_non_predictive_collector );
   data->use_np_collector = 0; /* RROF is not ROF. */
   data->remset_undirected = TRUE;
+  data->mut_activity_bounded = TRUE;
   size = 0;
 
   strcpy( buf, "RGN " );
@@ -2793,6 +3516,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
     int words;
     double popular_factor;
+    double infamy_factor;
     assert( e > 0 );
     data->region_count = e;
     data->fixed_ephemeral_area = FALSE;
@@ -2801,11 +3525,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     popular_factor = (info->has_popularity_factor 
                       ? info->popularity_factor
                       : default_popularity_factor);
+    infamy_factor = (info->has_infamy_factor 
+                     ? info->infamy_factor
+                     : default_infamy_factor );
     data->rrof_sumz_params.popularity_factor = popular_factor;
     data->rrof_sumz_params.popularity_limit_words =
       (info->ephemeral_info[ e-1 ].size_bytes
        * popular_factor / sizeof(word));
     assert( data->rrof_sumz_params.popularity_limit_words > 0 );
+    data->rrof_sumz_params.infamy_factor = infamy_factor;
     data->rrof_sumz_params.budget_inv = 
       (info->has_sumzbudget
        ? info->sumzbudget_inv
@@ -2814,6 +3542,38 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
       (info->has_sumzcoverage
        ? info->sumzcoverage_inv
        : default_sumz_coverage_inv);
+    data->rrof_sumz_params.max_retries =
+      (info->has_sumz_retries
+       ? info->max_sumz_retries
+       : default_sumz_max_retries);
+
+    {
+      double F_1 = DATA(gc)->rrof_sumz_params.coverage_inv;
+      double F_2 = DATA(gc)->rrof_sumz_params.budget_inv;
+      int    F_3 = DATA(gc)->rrof_sumz_params.max_retries;
+      double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
+      double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
+      double max_utilized_regions;
+      if (c <= 0.0) {
+        consolemsg("c:%g must be positive; "
+                   "c = (F_2*F_3 - 1)/(F_1*F_2)*S-1.0 "
+                   """= (%g*%d - 1)/(%g*%g)*%g-1.0",
+                   c,   F_2, F_3,   F_1, F_2, S);
+      }
+      assert( c > 0.0 );
+
+      max_utilized_regions =
+        (1.0 / S 
+         + ((double)F_3)/F_1 
+         + 1.0/(F_1*F_2*((double)F_3)));
+      if (max_utilized_regions > 1.0) {
+        consolemsg("Invalid parameter selection; need"
+                   " 1/S + F_3/F_1 + 1/(F_1 F_2 F_3) = "
+                   " 1/%g + %d/%g  + 1/(%g %g %d) <= 1"
+                   ,   S,  F_3, F_1, F_1, F_2, F_3);
+      }
+      assert( max_utilized_regions <= 1.0 );
+    }
 
     for ( i = 0; i < e; i++ ) {
       assert( info->ephemeral_info[i].size_bytes > 0 );
@@ -2873,19 +3633,24 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     } else {
       gc->the_remset = alloc_uremset_extbmp( gc, info );
     }
+#if USE_URS_WRAPPER_TO_CHECK_REMSET_SANITY
+    gc->the_remset = alloc_uremset_debug( gc->the_remset );
+#endif
 
     data->ssb_bot = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_top = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     data->ssb_lim = (word**)must_malloc( sizeof(word*)*gc->gno_count );
     gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
+    DATA(gc)->ssb_entry_count = info->ssb;
     for ( i = 0; i < gc->gno_count ; i++ ) {
       /* nursery has one too! */
       gc->ssb[i] = 
-        create_seqbuf( info->ssb, 
+        create_seqbuf( DATA(gc)->ssb_entry_count, 
                        &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
                        ssb_process_rrof, 0 );
     }
-    gc->satb_ssb = create_seqbuf( info->ssb, &data->satb_ssb_bot, 
+    gc->satb_ssb = create_seqbuf( DATA(gc)->ssb_entry_count, 
+                                  &data->satb_ssb_bot, 
                                   &data->satb_ssb_top, &data->satb_ssb_lim, 
                                   ssb_process_satb, 0 );
   }
@@ -2913,6 +3678,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     if (0) consolemsg("initial mark countdown: %d", countdown_to_first_mark );
   }
   data->rrof_alloc_mark_bmp_once = info->alloc_mark_bmp_once;
+
+  data->oracle_countdown = info->oracle_countdown;
 
   data->print_float_stats_each_cycle  = info->print_float_stats_cycle;
   data->print_float_stats_each_major  = info->print_float_stats_major;
@@ -2967,6 +3734,13 @@ region_group_t region_group_for_gno(gc_t *gc, int gen_no ) {
   } else {
     assert(0);
   }
+}
+
+static void check_invariants_between_fwd_and_free( gc_t *gc, int gen_no )
+{
+  verify_fwdfree_via_oracle_gen_no = gen_no;
+  FWDFREE_VERIFICATION_POINT( gc );
+  return;
 }
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
@@ -3035,6 +3809,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_words_per_region_max = 0;
   data->rrof_words_per_region_min = -1;
 
+  zero_all_mutator_effort( data );
+
 #if GATHER_MMU_DATA
   if (info->mmu_buf_size >= 0) { 
     int mmu_buf_size;
@@ -3081,6 +3857,10 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_prefer_lil_summ = info->rrof_prefer_lil_summ;
   data->rrof_prefer_lat_summ = info->rrof_prefer_lat_summ;
 
+  data->rrof_smircy_step_on_minor_collections_alone = TRUE;
+  data->rrof_mark_cycles_begun_in_this_full_cycle = 0;
+  data->rrof_mark_cycles_run_in_this_full_cycle = 0;
+
   ret = 
     create_gc_t( "*invalid*",
 		 (void*)data,
@@ -3122,7 +3902,8 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 		 my_check_remset_invs,
 		 points_across_callback,
 		 heap_for_gno, 
-		 region_group_for_gno
+		 region_group_for_gno,
+		 check_invariants_between_fwd_and_free
 		 );
   ret->scan_update_remset = info->is_regional_system;
 

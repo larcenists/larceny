@@ -12,6 +12,7 @@
 #include "larceny-types.h"
 #include "gset_t.h"
 #include "smircy.h"
+#include "summary_t.h" /* for loc_t definition */
 
 typedef enum {
   gno_state_normal,  /* default */
@@ -212,10 +213,15 @@ struct gc {
         rs_enumerate() for more info).
         */
   void (*enumerate_remembered_locations)( gc_t *gc, gset_t genset, 
-                                          void (*f)( word, int, void* ), void* );
+                                          void (*f)( loc_t, void* ), void*fd,
+                                          bool (*g)( word, void* ), void*gd );
      /* Invokes f on a superset of locations (each represented as
       * tagged-word + byte offset) in the remembered set, passing
       * along the accumulator scan_data.
+      * OR 
+      * Invokes enumerate_remsets_complement( gc, genset, g, gd )
+      *
+      * (Its the receivers choice.)
       */
 
   void (*enumerate_hdr_address_ranges)( gc_t *gc, int gno, 
@@ -252,6 +258,8 @@ struct gc {
   void (*points_across)( gc_t *gc, word lhs, int offset, word rhs );
   old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no );
   region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no );
+
+  void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no );
 };
 
 /* Operations.  For prototypes, see the method specs above. */
@@ -283,8 +291,8 @@ struct gc {
 #define gc_np_remset_ptrs( gc, t, l ) ((gc)->np_remset_ptrs( gc, t, l ))
 #define gc_enumerate_remsets_complement( gc, gset, s, d ) \
   ((gc)->enumerate_remsets_complement( gc, gset, s, d ))
-#define gc_enumerate_remembered_locations( gc, gset, s, d) \
-  ((gc)->enumerate_remembered_locations( gc, gset, s, d ))
+#define gc_enumerate_remembered_locations( gc, gset, s, d, s2, d2) \
+  ((gc)->enumerate_remembered_locations( gc, gset, s, d, s2, d2 ))
 #define gc_enumerate_hdr_address_ranges( gc, gno, s, d ) \
   ((gc)->enumerate_hdr_address_ranges( gc, gno, s, d ))
 #define gc_make_handle( gc, o )       ((gc)->make_handle( gc, o ))
@@ -300,6 +308,17 @@ struct gc {
 #define gc_points_across( gc,l,o,r )    ((gc)->points_across( (gc), (l), (o), (r) ))
 #define gc_heap_for_gno( gc,gno )       ((gc)->heap_for_gno( (gc), (gno) ))
 #define gc_region_group_for_gno( gc,gno ) ((gc)->region_group_for_gno( (gc), (gno) ))
+
+#define gc_check_invariants_between_fwd_and_free( gc, from_gno )        \
+  ((gc)->check_invariants_between_fwd_and_free( (gc), (from_gno) ))
+
+extern void gc_check_rise_to_infamy( gc_t *gc, 
+                                     old_heap_t *heap, 
+                                     int incoming_words_estimate );
+
+extern void gc_check_infamy_drop_to_hasbeen( gc_t *gc, 
+                                             old_heap_t *heap, 
+                                             int incoming_words_estimate );
 
 gc_t 
 *create_gc_t(char *id,
@@ -339,7 +358,8 @@ gc_t
 		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset, 
-	          void (*f)( word, int, void* ), void* ),
+	          void (*f)( loc_t, void* ), void*fd,
+	          bool (*g)( word, void* ), void*gd),
 	     void (*enumerate_hdr_address_ranges)
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s,word *l,void *d), void *d),
@@ -353,7 +373,8 @@ gc_t
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
 	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
 	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
-	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
+	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no ),
+	     void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no )
 	     );
 
 void gc_parameters( gc_t *gc, int op, int *ans );

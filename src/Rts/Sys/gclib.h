@@ -22,7 +22,6 @@
 #define INCLUDED_GCLIB_H
 
 #include "config.h"
-
 #ifndef ASSEMBLER
 #include "gset_t.h"
 #endif /* not ASSEMBLER */

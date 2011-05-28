@@ -198,7 +198,17 @@ ASFLAGS+=-f elf -g -DLINUX"))
 CC=gcc
 DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
-CFLAGS+=-c -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+WARNINGS=-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-label
+#CFLAGS+=-c -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS+=-c -fno-stack-protector -falign-functions=4 -m32 -ISys -IBuild -IIAssassin $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
+default_target: larceny.bin
+smoke-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.smoke10.sh 
+quick-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.quick.sh 
+
 LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX"))
@@ -413,7 +423,7 @@ PRECISE_GC_OBJECTS=\\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
 	Sys/extbmp.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\
-	Sys/gc_mmu_log.$(O) \\
+	Sys/gc_mmu_log.$(O) Sys/locset.$(O) \\
 	Sys/memmgr.$(O) Sys/memmgr_vfy.$(O) Sys/memmgr_flt.$(O) \\
 	Sys/msgc-core.$(O) Sys/np-sc-heap.$(O) Sys/nursery.$(O) \\
 	Sys/old_heap_t.$(O) Sys/old-heap.$(O) \\
@@ -422,7 +432,7 @@ PRECISE_GC_OBJECTS=\\
 	Sys/sc-heap.$(O) Sys/semispace.$(O) Sys/static-heap.$(O) \\
 	Sys/stats.$(O) Sys/summary.$(O) Sys/summ_matrix.$(O) \\
 	Sys/smircy.$(O) Sys/smircy_checking.$(O) \\
-	Sys/uremset_array.$(O) Sys/uremset_extbmp.$(O) \\
+	Sys/uremset_array.$(O) Sys/uremset_debug.$(O) Sys/uremset_extbmp.$(O) \\
 	Sys/uremset_t.$(O) \\
 	Sys/young_heap_t.$(O)
 
@@ -540,11 +550,14 @@ realclean: clean
 BARRIER_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/barrier.h
 CHENEY_H=Sys/gset_t.h Sys/cheney.h
 GCLIB_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/gclib.h
-GC_T_H=Sys/gset_t.h Sys/gc_t.h
+GC_T_H=Sys/gset_t.h Sys/gc_t.h Sys/summary_t.h
 GC_MMU_LOG_H=Sys/gc_mmu_log.h
 HEAPIO_H=$(INC_ROOT)/cdefs.h $(INC_ROOT)/Sys/larceny-types.h Sys/heapio.h
+LOCSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/summary_t.h Sys/locset_t.h
 LOS_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/los_t.h
 MEMMGR_H=$(INC_ROOT)/Sys/larceny-types.h $(GCLIB_H) Sys/memmgr.h
+MEMMGR_FLT_H=Sys/memmgr_flt.h Sys/memmgr_internal.h
+MEMMGR_VFY_H=Sys/memmgr_vfy.h Sys/memmgr_internal.h
 MSGC_CORE_H=$(INC_ROOT)/Sys/larceny-types.h Sys/msgc-core.h
 OLD_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/old_heap_t.h
 REMSET_T_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h $(SEQBUF_T_H) Sys/remset_t.h
@@ -560,6 +573,7 @@ STATS_H=$(INC_ROOT)/config.h $(INC_ROOT)/Sys/larceny-types.h Sys/stats.h
 SUMM_MATRIX_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h Sys/summ_matrix_t.h
 UREMSET_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/gset_t.h $(GC_T_H) Sys/uremset_t.h
 UREMSET_ARRAY_T_H=Sys/uremset_array_t.h
+UREMSET_DEBUG_T_H=Sys/uremset_debug_t.h
 UREMSET_EXTBMP_T_H=Sys/uremset_extbmp_t.h
 YOUNG_HEAP_T_H=$(INC_ROOT)/Sys/larceny-types.h Sys/young_heap_t.h
 SPARC_ASM_H=$(INC_ROOT)/asmdefs.h Sparc/asmmacro.h
@@ -627,6 +641,7 @@ Sys/gc_t.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h
 Sys/heapio.$(O): $(LARCENY_H) $(HEAPIO_H) $(SEMISPACE_T_H) $(GCLIB_H)
 Sys/larceny.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(STATS_H) $(YOUNG_HEAP_T_H)
 Sys/ldebug.$(O): $(LARCENY_H)
+Sys/locset.$(O): $(LARCENY_H) $(LOCSET_T_H) $(GCLIB_H) 
 Sys/los.$(O): $(LARCENY_H) $(GCLIB_H) $(LOS_T_H)
 Sys/malloc.$(O): $(LARCENY_H)
 Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) Sys/gset_t.h $(GCLIB_H) \\
@@ -634,14 +649,14 @@ Sys/memmgr.$(O): $(LARCENY_H) $(BARRIER_H) Sys/gc.h $(GC_T_H) Sys/gset_t.h $(GCL
 	$(OLD_HEAP_T_H) $(REMSET_T_H) Sys/region_group_t.h \\
 	$(SEMISPACE_T_H) $(SMIRCY_H) \\
 	$(STACK_H) $(MSGC_CORE_H) $(STATIC_HEAP_T_H) $(YOUNG_HEAP_T_H) \\
-	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h \\
-	$(UREMSET_T_H) $(UREMSET_ARRAY_T_H)
+	$(SUMM_MATRIX_T_H) Sys/summary_t.h $(MEMGR_FLT_H) $(MEMMGR_VFY_H) \\
+	$(UREMSET_T_H) $(UREMSET_ARRAY_T_H) $(UREMSET_DEBUG_T_H) $(UREMSET_EXTBMP_T_H)
 Sys/memmgr_flt.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(OLD_HEAP_T_H) $(REMSET_T_H) $(GCLIB_H) $(MSGC_CORE_H) \\
-	$(SUMM_MATRIX_T_H) Sys/summary_t.h Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/summary_t.h $(MEMMGR_FLT_H)
 Sys/memmgr_vfy.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) \\
 	$(GCLIB_H) $(MSGC_CORE_H) Sys/summary_t.h \\
-	$(SUMM_MATRIX_T_H) Sys/seqbuf_t.h Sys/memmgr_internal.h
+	$(SUMM_MATRIX_T_H) Sys/seqbuf_t.h $(MEMMGR_VFY_H)
 Sys/np-sc-heap.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	Sys/gset_t.h $(STATS_H) $(LOS_T_H) $(MEMMGR_H) $(OLD_HEAP_T_H) \\
 	$(REMSET_T_H) $(SEMISPACE_T_H) $(STATIC_HEAP_T_H) \\
@@ -679,8 +694,8 @@ Sys/stats.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H) $(GCLIB_H) \\
 	$(STATS_H) $(MEMMGR_H)
 Sys/summary.$(O): $(LARCENY_H) Sys/summary_t.h
 Sys/summ_matrix.$(O): $(LARCENY_H) $(GC_T_H) Sys/gset_t.h \\
-	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) $(SUMM_MATRIX_T_H) \\
-	$(UREMSET_T_H)
+	Sys/region_group_t.h $(SEQBUF_T_H) $(SMIRCY_H) Sys/summary_t.h \\
+	$(SUMM_MATRIX_T_H) $(UREMSET_T_H)
 Sys/syscall.$(O): $(LARCENY_H) $(SIGNALS_H)
 Sys/primitive.$(O): $(LARCENY_H)  $(GC_T_H) $(SIGNALS_H) $(STATS_H)
 Sys/osdep-unix.$(O): $(LARCENY_H) $(GC_T_H)
@@ -688,6 +703,7 @@ Sys/osdep-win32.$(O): $(LARCENY_H)
 Sys/osdep-generic.$(O): $(LARCENY_H)
 Sys/util.$(O): $(LARCENY_H) Sys/gc.h $(GC_T_H)
 Sys/uremset_array.$(O): $(LARCENY_H) $(UREMSET_T_H) $(UREMSET_ARRAY_T_H)
+Sys/uremset_debug.$(O): $(LARCENY_H) $(UREMSET_T_H) $(UREMSET_DEBUG_T_H)
 Sys/uremset_extbmp.$(O): $(LARCENY_H) $(UREMSET_T_H) $(UREMSET_EXTBMP_T_H)
 Sys/uremset_t.$(O): $(LARCENY_H) $(UREMSET_T_H)
 Sys/version.$(O): $(INC_ROOT)/config.h

@@ -255,6 +255,9 @@ int strncasecmp( const char *s1, const char *s2, size_t n );
 #if !defined(DEBIAN_STRDUP_WEIRDNESS)
 char *strdup( const char * );
 #endif
+#if !defined(HAVE_HRTIME_T)
+hrtime_t gethrtime( void );
+#endif
 
 /* Target-specific */
 /* NOTE!  For the time being, the SPARC version uses a global
@@ -321,6 +324,9 @@ extern int memfail( int code, char *fmt, ... );
 #define DEFAULT_REMSET_TBLSIZE   16384     /* 16K elements = 64KB */
 #define DEFAULT_SSB_SIZE         16384     /* 16K elements = 64KB */
 
+#define DEFAULT_LOCSET_TBLSIZE   16384
+#define DEFAULT_LOCSET_POOLSIZE   1024
+
 /* Selectors for getheaplimit/setheaplimit */
 #define HL_TBOT 0
 #define HL_TTOP 1
@@ -354,6 +360,9 @@ extern int memfail( int code, char *fmt, ... );
 #else
 #define debug2msg  1?(void)0:(void)
 #endif
+
+/* self-initialize so that GCC -Wuninitialized does not complain. */
+#define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name
 
 #endif /* if INCLUDED_LARCENY_H */
 

@@ -45,6 +45,14 @@
 #define MAX_WORD( src, target, field ) \
   target->field = max(target->field, fixnum( src->field ))
 
+#define IFGT_UPD_WORD( src, target, cmp_field, tgt_field, newint )      \
+  do {                                                                  \
+    if (fixnum(src->cmp_field) > target->cmp_field) {                   \
+      target->tgt_field = fixnum( newint );                             \
+    }                                                                   \
+  } while (0)
+
+
 /* Put a 58-bit int into two fixnum fields */
 #define PUTBIG_DWORD( src, target, field )				\
   do { target->PASTE(field,_lo) = fixnum( src->field & FIXNUM_MASK );	\
@@ -107,11 +115,17 @@ struct gclib_memstat {
   word max_entries_remset_scan;
   DWORD( total_entries_remset_scan );
 
-  word max_mark_pause;
-  word max_mark_pause_cpu;
-  word total_mark_pause;
-  word total_mark_pause_cpu;
-  word mark_pause_count;
+  word max_smircy_mark_pause;
+  word max_smircy_mark_pause_cpu;
+  word total_smircy_mark_pause;
+  word total_smircy_mark_pause_cpu;
+  word smircy_mark_pause_count;
+
+  word max_smircy_refine_pause;
+  word max_smircy_refine_pause_cpu;
+  word total_smircy_refine_pause;
+  word total_smircy_refine_pause_cpu;
+  word smircy_refine_pause_count;
 
   word max_ms_minor;
   word max_ms_minor_cpu;
@@ -133,6 +147,10 @@ struct gclib_memstat {
 
   word max_ms_mutator_paused;
   word max_ms_mutator_paused_cpu;
+  word major_faults_during_max_ms_mutator_paused;
+  word minor_faults_during_max_ms_mutator_paused;
+  word major_faults_during_all_mutator_pauses;
+  word minor_faults_during_all_mutator_pauses;
   
   word count_collect_00_10_ms;
   word count_collect_10_20_ms;
@@ -461,7 +479,7 @@ stats_id_t stats_start_timer( stats_timer_t type )
 int stats_stop_timer( stats_id_t timer )
 {
   int then;
-
+  int retval;
   assert( 0 <= timer && 
 	  timer < MAX_TIMERS && 
 	  stats_state.timers[timer].used != 0 );
@@ -471,13 +489,22 @@ int stats_stop_timer( stats_id_t timer )
   stats_state.timers[timer].used = 0;
   switch (stats_state.timers[timer].type) {
     case TIMER_ELAPSED :
-      return osdep_realclock() - then;
+      retval = (osdep_realclock() - then);
+      break;
     case TIMER_CPU :
-      return osdep_cpuclock() - then;
+      retval = (osdep_cpuclock() - then);
+      break;
     default :
       assert(0);
       return 0;
   }
+#if 0
+  assert( retval >= 0 );
+#else
+  if (retval < 0) 
+    retval = INT_MAX;
+#endif
+  return retval;
 }
 
 void stats_add_gclib_stats( gclib_stats_t *stats )
@@ -608,39 +635,71 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
     s->total_ms_minor     += fixnum( ms_minor );
     s->total_ms_minor_cpu += fixnum( ms_minor_cpu );
   }
-  if (stats->last_ms_remset_sumrize == -1) {
+  if (stats->last_ms_remset_sumrize < 0) {
   } else {
-    word ms     = stats->last_ms_remset_sumrize;
-    word ms_cpu = stats->last_ms_remset_sumrize_cpu;
+    word ms     = (word)stats->last_ms_remset_sumrize;
+    word ms_cpu = (word)stats->last_ms_remset_sumrize_cpu;
+
     RANGECASES( s->count_sumrize_, _ms, ms );
     s->max_build_remset_summary        = max( fixnum(ms), 
                                               s->max_build_remset_summary);
     s->max_build_remset_summary_cpu    = max( fixnum(ms_cpu), 
                                               s->max_build_remset_summary_cpu);
+    MAX_WORD( stats, s, max_build_remset_summary );
+    MAX_WORD( stats, s, max_build_remset_summary_cpu );
     s->build_remset_summary_count     += fixnum(1);
     s->total_build_remset_summary     += fixnum( ms );
     s->total_build_remset_summary_cpu += fixnum( ms_cpu );
   }
-  if (stats->last_ms_mark_refinement == -1) {
+  if (stats->last_ms_smircy_mark < 0) {
   } else {
-    word ms     = fixnum( stats->last_ms_mark_refinement );
-    word ms_cpu = fixnum( stats->last_ms_mark_refinement_cpu );
-    s->max_mark_pause        = max( ms, s->max_mark_pause );
-    s->max_mark_pause_cpu    = max( ms_cpu, s->max_mark_pause_cpu );
-    s->mark_pause_count     += fixnum(1);
-    s->total_mark_pause     += ms;
-    s->total_mark_pause_cpu += ms_cpu;
+    word ms     = fixnum( stats->last_ms_smircy_mark );
+    word ms_cpu = fixnum( stats->last_ms_smircy_mark_cpu );
+
+    s->max_smircy_mark_pause        = max( ms, s->max_smircy_mark_pause );
+    s->max_smircy_mark_pause_cpu    = max( ms_cpu, s->max_smircy_mark_pause_cpu );
+    MAX_WORD( stats, s, max_smircy_mark_pause );
+    MAX_WORD( stats, s, max_smircy_mark_pause_cpu );
+    s->smircy_mark_pause_count     += fixnum(1);
+    s->total_smircy_mark_pause     += ms;
+    s->total_smircy_mark_pause_cpu += ms_cpu;
+  }
+  if (stats->last_ms_smircy_refine < 0) {
+  } else {
+    word ms     = fixnum( stats->last_ms_smircy_refine );
+    word ms_cpu = fixnum( stats->last_ms_smircy_refine_cpu );
+
+    s->max_smircy_refine_pause        = max( ms, s->max_smircy_refine_pause );
+    s->max_smircy_refine_pause_cpu    = max( ms_cpu, s->max_smircy_refine_pause_cpu );
+    MAX_WORD( stats, s, max_smircy_refine_pause );
+    MAX_WORD( stats, s, max_smircy_refine_pause_cpu );
+    s->smircy_refine_pause_count     += fixnum(1);
+    s->total_smircy_refine_pause     += ms;
+    s->total_smircy_refine_pause_cpu += ms_cpu;
   }
 
   {
     word ms     = stats->last_ms_gc_truegc_pause;
     word ms_cpu = stats->last_ms_gc_truegc_pause_cpu;
+    int major_faults = stats->last_major_page_faults;
+    int minor_faults = stats->last_minor_page_faults;
     stats->max_ms_mutator_paused = 
       max( ms, stats->max_ms_mutator_paused );
     stats->max_ms_mutator_paused_cpu = 
       max( ms_cpu, stats->max_ms_mutator_paused_cpu );
+    IFGT_UPD_WORD( stats, s, max_ms_mutator_paused, 
+                   major_faults_during_max_ms_mutator_paused, 
+                   major_faults );
+    IFGT_UPD_WORD( stats, s, max_ms_mutator_paused, 
+                   minor_faults_during_max_ms_mutator_paused, 
+                   minor_faults );
     MAX_WORD( stats, s, max_ms_mutator_paused );
     MAX_WORD( stats, s, max_ms_mutator_paused_cpu );
+
+    stats->major_faults_during_all_mutator_pauses = major_faults;
+    stats->minor_faults_during_all_mutator_pauses = minor_faults;
+    ADD_WORD( stats, s, major_faults_during_all_mutator_pauses );
+    ADD_WORD( stats, s, minor_faults_during_all_mutator_pauses );
   }
 }
 
@@ -874,11 +933,17 @@ static void fill_main_entries( word *vp )
   vp[ STAT_TOTAL_REMSET_SCAN_CPU ] = gclib->total_remset_scan_cpu;
   vp[ STAT_REMSET_SCAN_COUNT ]     = gclib->remset_scan_count;
 
-  vp[ STAT_MAX_MARK_PAUSE ]          = gclib->max_mark_pause;
-  vp[ STAT_MAX_MARK_PAUSE_CPU ]      = gclib->max_mark_pause_cpu;
-  vp[ STAT_TOTAL_MARK_PAUSE ]        = gclib->total_mark_pause;
-  vp[ STAT_TOTAL_MARK_PAUSE_CPU ]    = gclib->total_mark_pause_cpu;
-  vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->mark_pause_count;
+  vp[ STAT_MAX_MARK_PAUSE ]          = gclib->max_smircy_mark_pause;
+  vp[ STAT_MAX_MARK_PAUSE_CPU ]      = gclib->max_smircy_mark_pause_cpu;
+  vp[ STAT_TOTAL_MARK_PAUSE ]        = gclib->total_smircy_mark_pause;
+  vp[ STAT_TOTAL_MARK_PAUSE_CPU ]    = gclib->total_smircy_mark_pause_cpu;
+  vp[ STAT_MARK_PAUSE_COUNT ]        = gclib->smircy_mark_pause_count;
+
+  vp[ STAT_MAX_REFINE_REMSET ]          = gclib->max_smircy_refine_pause;
+  vp[ STAT_MAX_REFINE_REMSET_CPU ]      = gclib->max_smircy_refine_pause_cpu;
+  vp[ STAT_TOTAL_REFINE_REMSET ]        = gclib->total_smircy_refine_pause;
+  vp[ STAT_TOTAL_REFINE_REMSET_CPU ]    = gclib->total_smircy_refine_pause_cpu;
+  vp[ STAT_REFINE_REMSET_COUNT ]        = gclib->smircy_refine_pause_count;
 
   vp[ STAT_MAX_ENTRIES_REMSET_SCAN ]   = gclib->max_entries_remset_scan;
   STAT_PUT_DWORD( vp, 
@@ -1068,6 +1133,14 @@ static void fill_main_entries( word *vp )
   vp[ STAT_MAX_CHENEY_GCTIME_CPU ] = gc->max_ms_cheney_collection_cpu;
   vp[ STAT_MAX_MUTATOR_PAUSED ]     = gclib->max_ms_mutator_paused;
   vp[ STAT_MAX_MUTATOR_PAUSED_CPU ] = gclib->max_ms_mutator_paused_cpu;
+  vp[ STAT_MAJOR_FAULTS_DURING_MAX_MUTATOR_PAUSE ]
+    = gclib->major_faults_during_max_ms_mutator_paused;
+  vp[ STAT_MINOR_FAULTS_DURING_MAX_MUTATOR_PAUSE ]
+    = gclib->minor_faults_during_max_ms_mutator_paused;
+  vp[ STAT_MAJOR_FAULTS_DURING_ALL_MUTATOR_PAUSES ]
+    = gclib->major_faults_during_all_mutator_pauses;
+  vp[ STAT_MINOR_FAULTS_DURING_ALL_MUTATOR_PAUSES ]
+    = gclib->minor_faults_during_all_mutator_pauses;
 
   /* stack */
   vp[ STAT_STK_CREATED ]   = stack->stacks_created;
@@ -1234,12 +1307,13 @@ void stats_dumpstate_stdout( void )
   stats_dump_state_now( stdout );
 }
 
-#define PRINT_DWORD( f, s, fld ) \
-  fprintf( f, "%lu %lu ", \
-           nativeuint( s->PASTE(fld,_hi) ), nativeuint( s->PASTE(fld,_lo) ) )
+#define PRINT_DWORD( f, s, fld )                                \
+  fprintf( f, "%lu %lu ",                                       \
+           (long unsigned int)nativeuint( s->PASTE(fld,_hi) ),  \
+           (long unsigned int)nativeuint( s->PASTE(fld,_lo) ) )
 
 #define PRINT_WORD( f, s, fld ) \
-  fprintf( f, "%lu ", nativeuint( s->fld ) )
+  fprintf( f, "%lu ", (long unsigned int)nativeuint( s->fld ) )
 
 #define PRINT_DFIELD( f, s, fld ) \
   do {                            \

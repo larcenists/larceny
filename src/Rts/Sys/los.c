@@ -102,7 +102,7 @@ void los_free_list( los_list_t *list )
 
 int los_bytes_used( los_t *los, int gen_no )
 {
-  assert( 0 <= gen_no && gen_no < los->generations 
+  assert( (0 <= gen_no && gen_no < los->generations)
 	  || gen_no == LOS_MARK1
 	  || gen_no == LOS_MARK2 );
 

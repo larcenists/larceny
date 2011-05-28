@@ -18,6 +18,7 @@ struct gc_data {
   bool shrink_heap;		/* True if heap can be shrunk */
   bool fixed_ephemeral_area;    /* True iff ephemeral_area_count is invariant */
   bool remset_undirected;       /* Regional (vs gen'l directed remsets) */
+  bool mut_activity_bounded;    /* True for RROF alone (for now). */
 
   int  dynamic_min;		/* 0 or lower limit of expandable area */
   int  dynamic_max;		/* 0 or upper limit of expandable area */
@@ -36,6 +37,7 @@ struct gc_data {
   word *satb_ssb_bot;
   word *satb_ssb_top;
   word *satb_ssb_lim;
+  int  ssb_entry_count;
 
   old_heap_t **ephemeral_area;
     /* In precise collectors: An array of pointers to ephemeral areas;
@@ -79,11 +81,14 @@ struct gc_data {
     /* limits size of summaries */
     double popularity_factor; /* Will calls this S. */
     int popularity_limit_words; 
+    double infamy_factor;
 
     double coverage_inv;
     /* denoted by C in comments below; Will calls this F1 */
     double budget_inv;
     /* denoted by B in comments below; Will calls this F2 */
+    int max_retries;
+    /* Will calls this F3; XXX still needs documentation in code */
 
     /* In RROF collector, (1/C)*(N/R) is number of summaries that we
        will try to construct ("summary coverage") during each heap 
@@ -141,11 +146,15 @@ struct gc_data {
   stats_id_t pause_timer_cpu;
   int last_pause_elapsed;
   int last_pause_cpu;
+  unsigned major_page_fault_count_at_gc_start;
+  unsigned minor_page_fault_count_at_gc_start;
 
   int stat_last_ms_remset_sumrize;
   int stat_last_ms_remset_sumrize_cpu;
-  int stat_last_ms_mark_refinement;
-  int stat_last_ms_mark_refinement_cpu;
+  int stat_last_ms_smircy_mark;
+  int stat_last_ms_smircy_mark_cpu;
+  int stat_last_ms_smircy_refine;
+  int stat_last_ms_smircy_refine_cpu;
   int stat_length_minor_gc_run;
 
   bool print_float_stats_each_cycle;
@@ -171,6 +180,30 @@ struct gc_data {
   /* parse the above name as ``promotions since the beginning of the
      last completed snapshot at the time when this cycle itself
      began.'' */
+
+  struct mutator_effort {
+    int rrof_ssb_flushes;
+    long long rrof_ssb_entries_flushed_total;
+    struct {int full_cycle; int sumz_cycle;} rrof_ssb_entries_flushed_this;
+    struct {int full_cycle; int sumz_cycle;} rrof_ssb_max_entries_flushed_any;
+
+    int satb_ssb_flushes;
+    long long satb_ssb_entries_flushed_total;
+    struct {int full_cycle; int sumz_cycle;} satb_ssb_entries_flushed_this;
+    struct {int full_cycle; int sumz_cycle;} satb_ssb_max_entries_flushed_any;
+
+    struct {int full_cycle; int sumz_cycle;} words_promoted_this;
+    struct {int full_cycle; int sumz_cycle;} max_words_promoted_any;
+
+    bool forcing_collector_to_progress;
+  } mutator_effort;
+
+  int oracle_countdown;
+  int oracle_pointsrun;
+
+  int rrof_mark_cycles_begun_in_this_full_cycle;
+  int rrof_mark_cycles_run_in_this_full_cycle;
+  bool rrof_smircy_step_on_minor_collections_alone;
 };
 
 #define DATA(gc) ((gc_data_t*)(gc->data))

@@ -12,5 +12,6 @@
 
 msgc_context_t *smircy_clone_begin( smircy_context_t *context_old, bool loud );
 void smircy_clone_end( msgc_context_t *c );
+bool smircy_assert_conservative_approximation( smircy_context_t *context );
 
 #endif

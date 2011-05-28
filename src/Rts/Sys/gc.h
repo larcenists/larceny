@@ -77,6 +77,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   int  mark_period;		       /* In the regional system. */
   bool   has_popularity_factor;	       /* In the regional system. */
   double popularity_factor;	       /* In the regional system. */
+  bool   has_infamy_factor;	       /* In the regional system. */
+  double infamy_factor;		       /* In the regional system. */
   bool   has_refine_factor;	       /* In the regional system. */
   double refinement_factor;	       /* In the regional system. */
   bool   alloc_mark_bmp_once;	       /* In the regional system. */
@@ -84,6 +86,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   double sumzbudget_inv;	       /* In the regional system. */
   bool   has_sumzcoverage;	       /* In the regional system. */
   double sumzcoverage_inv;	       /* In the regional system. */
+  bool   has_sumz_retries;	       /* In the regional system. */
+  int    max_sumz_retries;	       /* In the regional system. */
   bool print_float_stats_cycle;        /* In the regional system. */
   bool print_float_stats_major;        /* In the regional system. */
   bool print_float_stats_minor;        /* In the regional system. */
@@ -117,6 +121,8 @@ struct gc_param {               /* Parameter structure passed to create_gc() */
   bool rrof_prefer_big_summ;
   bool rrof_prefer_lil_summ;
   bool rrof_prefer_lat_summ;
+
+  int oracle_countdown;         /* 0 => none; 1 => oracle; o/w countdown */
 };
 
 /* In memmgr.c */

@@ -60,9 +60,9 @@
  */
 
 /* 
- * Covering a 32-bit address space requires ( 2^32 / LEAF_BYTES )
- * (Assuming leaf covers exactly 1 chunk as described above, this is
- *  16K leaves.)
+ * Covering a 32-bit address space requires ( 2^32 / bytes_covered_per_leaf )
+ * leaves.  Assuming a leaf covers exactly 1 chunk as described above, this is
+ *     2^32 / 256K == 16K leaves.
  * 
  * Let NL be the number of leaves.
  * 
@@ -109,8 +109,8 @@
  *
  */
 
-static const int DEFAULT_LEAF_BYTES = 4096;
-static const int DEFAULT_ENTRIES_PER_INODE = 128; /* branching factor */
+static const int DEFAULT_LEAF_BYTES = (8*4096);
+static const int DEFAULT_ENTRIES_PER_INODE = 46; /* branching factor */
 
 /* default leaves large; allocate individually */
 static const int DEFAULT_LEAF_POOL_SIZE  = 1;  /*  1 element  = 4KB */
@@ -152,8 +152,8 @@ struct inode {
   word start;
   word limit;
 #endif
-  long long address_range;
-  long long addresses_per_child;
+  long long address_range_in_words;
+  long long address_words_per_child;
   /* XXX FIXME move above into INCLUDE_REDUNDANT_FIELDS */
 
   tnode_t *nodes[DYNAMIC_SIZE];
@@ -164,6 +164,9 @@ struct leaf  {
   word start;
   word limit;
 #endif
+  int    gno; /* If gno > 0 then leaf's values are in gno; if 0 then mixed */
+  leaf_t *prev_for_gno; /* doubly-linked list of elems w/ same gno field */
+  leaf_t *next_for_gno;
   word   bitmap[DYNAMIC_SIZE];
 };
 
@@ -186,7 +189,67 @@ struct extbmp {
     leaf_t *leaf;        /* NULL iff cache invalid */
     word   first_addr_for_leaf;
   } mru_cache;           /* Most recently access via find_xxx */
+  leaf_t **gno_to_leaf;  /* Maps gno g to leaves l with l->gno == g */
+  int gno_count;
+  int leaf_count;
 };
+
+static void insert_leaf_in_list_core( extbmp_t *ebmp, leaf_t *leaf, int gno ) 
+{
+  leaf_t *old_first;
+
+  old_first = ebmp->gno_to_leaf[gno];
+
+  assert( leaf->prev_for_gno == NULL );
+  assert( leaf->next_for_gno == NULL );
+  assert( (old_first == NULL) || (old_first->prev_for_gno == NULL) );
+
+  leaf->gno = gno;
+
+  if (old_first != NULL) {
+    old_first->prev_for_gno = leaf;
+    leaf->next_for_gno = old_first;
+  }
+
+  ebmp->gno_to_leaf[gno] = leaf;
+}
+
+static void insert_leaf_in_list( extbmp_t *ebmp, leaf_t *leaf, int gno ) 
+{
+  dbmsg("new leaf of %d", gno );
+  insert_leaf_in_list_core( ebmp, leaf, gno );
+}
+
+static void move_leaf_to_mixed_list( extbmp_t *ebmp, leaf_t *leaf, int gno )
+{
+  int old_gno;
+  leaf_t *prev, *next;
+
+  assert( leaf->gno != 0 );
+
+#if 0
+  consolemsg("leaf [0x%08x,0x%08x] of %d became mixed with %d", leaf->start, leaf->limit, leaf->gno, gno );
+#endif
+
+  old_gno = leaf->gno;
+  prev = leaf->prev_for_gno;
+  next = leaf->next_for_gno;
+
+  if (prev != NULL) 
+    prev->next_for_gno = next;
+  if (next != NULL)
+    next->prev_for_gno = prev;
+
+  leaf->prev_for_gno = NULL;
+  leaf->next_for_gno = NULL;
+
+  if (ebmp->gno_to_leaf[old_gno] == leaf) {
+    assert( prev == NULL );
+    ebmp->gno_to_leaf[old_gno] = next;
+  }
+
+  insert_leaf_in_list_core( ebmp, leaf, 0 );
+}
 
 static tnode_t *alloc_tnode( extbmp_t *ebmp, 
                              enum tnode_tag tag, 
@@ -217,13 +280,18 @@ static void init_leaf_fields_cleared( extbmp_t *ebmp, leaf_t *l ) {
   for (i = 0; i < bmp_words; i++) {
     bmp[i] = 0;
   }
+  l->gno = -2;
+  l->prev_for_gno = NULL;
+  l->next_for_gno = NULL;
 }
 static tnode_t *alloc_leaf( extbmp_t *ebmp, word start, word limit ) 
 {
   tnode_t *retval;
+  ebmp->leaf_count += 1;
   retval = alloc_tnode( ebmp, tag_leaf, 
                         (sizeof( leaf_t )
                          + ebmp->leaf_words*sizeof(word)));
+  assert( ((word*)start + (ADDRS_PER_WORD*ebmp->leaf_words)) == (word*)limit );
 #if INCLUDE_REDUNDANT_FIELDS
   retval->leaf.start = start;
   retval->leaf.limit = limit;
@@ -239,10 +307,24 @@ static tnode_t *alloc_leaf( extbmp_t *ebmp, word start, word limit )
 static void free_leaf( extbmp_t *ebmp, tnode_t *leaf )
 {
   dbmsg("free_leaf( ebmp, leaf=0x%08x", leaf);
+  ebmp->leaf_count -= 1;
   if (leaf == (tnode_t*)ebmp->mru_cache.leaf) {
     ebmp->mru_cache.leaf                = NULL;
     ebmp->mru_cache.first_addr_for_leaf = 0;
   }
+
+  { 
+    leaf_t *l;
+    l = &leaf->leaf;
+    if (l->next_for_gno != NULL)
+      l->next_for_gno->prev_for_gno = l->prev_for_gno;
+    if (l->prev_for_gno != NULL)
+      l->prev_for_gno->next_for_gno = l->next_for_gno;
+    if (ebmp->gno_to_leaf[ l->gno ] == l) {
+      ebmp->gno_to_leaf[ l->gno ] = l->next_for_gno;
+    }
+  }
+
   free_tnode( ebmp, leaf, 
               tag_leaf, 
               (sizeof( leaf_t )
@@ -260,22 +342,25 @@ static void init_inode_fields_cleared( extbmp_t *ebmp, inode_t *n )
 }
 
 static tnode_t *alloc_inode( extbmp_t *ebmp, 
-                             long long address_range, 
+                             long long address_range_in_words, 
                              word start, 
                              long long limit )
 {
   tnode_t *retval;
 
-  assert( address_range > 0 );
+  assert( address_range_in_words > 0 );
 
   retval = alloc_tnode( ebmp, tag_inode, 
                         (sizeof( inode_t ) 
                          + ebmp->entries_per_inode*sizeof( tnode_t* )));
-  retval->inode.address_range = address_range;
-  retval->inode.addresses_per_child = 
-    CEILDIV( ((long long)address_range), ebmp->entries_per_inode );
+  retval->inode.address_range_in_words = address_range_in_words;
+  retval->inode.address_words_per_child = 
+    CEILDIV( ((long long)address_range_in_words), ebmp->entries_per_inode );
 
-  assert( retval->inode.addresses_per_child > 0 );
+  assert( retval->inode.address_words_per_child > 0 );
+  assert((retval->inode.address_words_per_child 
+          * ebmp->entries_per_inode) 
+         >= retval->inode.address_range_in_words);
 
 #if INCLUDE_REDUNDANT_FIELDS
   retval->inode.start = start;
@@ -284,9 +369,9 @@ static tnode_t *alloc_inode( extbmp_t *ebmp,
 
   init_inode_fields_cleared( ebmp, &retval->inode );
 
-  dbmsg(     "alloc_inode(ebmp,%8d,start=0x%08x,limit=0x%08x)"
+  dbmsg(     "alloc_inode(ebmp,%8lld,start=0x%08x,limit=0x%08llx)"
              " ==> 0x%08x", 
-             address_range, start, limit, retval);
+             address_range_in_words, start, limit, retval);
   return retval;
 }
 static void free_inode( extbmp_t *ebmp, tnode_t *inode )
@@ -307,18 +392,22 @@ extbmp_t *create_extensible_bitmap_params( gc_t *gc, gc_param_t *info,
   int depth;
   int max_leaves;
   int leaf_words = CEILDIV(leaf_bytes, sizeof(word));
+  long long address_range_in_words;
 
   assert( (leaf_bytes % MIN_BYTES_PER_OBJECT) == 0 );
   max_leaves = SHIFTED_ADDRESS_SPACE / (BITS_PER_WORD * leaf_words);
   assert( max_leaves > 0 );
   { /* calculate max depth of tree */
-    int i = 1;
-    long long tot = entries_per_node;
+    int i = 0;
+    long long tot = 1;
+    long long addr_range = ADDRS_PER_WORD * leaf_words;
     while (tot < max_leaves) {
       i   += 1;
       tot *= entries_per_node;
+      addr_range *= entries_per_node;
     }
     depth = i;
+    address_range_in_words = addr_range;
   }
 
   ebmp = (extbmp_t*)must_malloc( sizeof( extbmp_t ));
@@ -326,17 +415,27 @@ extbmp_t *create_extensible_bitmap_params( gc_t *gc, gc_param_t *info,
   ebmp->leaf_words        = CEILDIV(leaf_bytes,sizeof(word));
   ebmp->entries_per_inode = entries_per_node;
   ebmp->depth             = depth;
-  ebmp->tree              = 
-    alloc_inode( ebmp, 
-                 (((long long)SHIFTED_ADDRESS_SPACE) << BIT_IDX_SHIFT),
-                 0, 
-                 (((long long)SHIFTED_ADDRESS_SPACE) << BIT_IDX_SHIFT));
+  ebmp->tree
+    = alloc_inode( ebmp, 
+                   address_range_in_words, 
+                   0, 
+                   (((long long)SHIFTED_ADDRESS_SPACE) << BIT_IDX_SHIFT));
 
   ebmp->mru_cache.leaf    = NULL;
   ebmp->mru_cache.first_addr_for_leaf = 0;
 
-  consolemsg( "ebmp{gc,leaf_words=%d,entries_per_inode=%d,depth=%d,tree} max_leaves:%d",
-              ebmp->leaf_words, ebmp->entries_per_inode, ebmp->depth, max_leaves );
+  ebmp->gno_count = gc->gno_count;
+  ebmp->gno_to_leaf = (leaf_t**)must_malloc( sizeof(leaf_t*) * ebmp->gno_count );
+  { 
+    int i;
+    for (i = 0; i < ebmp->gno_count; i++) {
+      ebmp->gno_to_leaf[i] = NULL;
+    }
+  }
+  ebmp->leaf_count = 0;
+
+  annoyingmsg( "ebmp{gc,leaf_words=%d,entries_per_inode=%d,depth=%d,tree} max_leaves:%d",
+               ebmp->leaf_words, ebmp->entries_per_inode, ebmp->depth, max_leaves );
   return ebmp;
 }
 
@@ -378,37 +477,42 @@ static bool find_leaf_calc_offset_recur( extbmp_t *ebmp, word untagged_w,
   } else {
     inode_t *inode;
     int idx;
-    long long new_start_addr;
-    long long new_addr_limit;
+    word *new_start_addr;
+    word *new_addr_limit;
 
     assert2( tree->metadata.tag == tag_inode );
 
     inode = &tree->inode;
     idx   = 
-      ( (untagged_w - start_addr_of_node_coverage)
-        / inode->addresses_per_child );
+      ( ((untagged_w - start_addr_of_node_coverage) / sizeof(word))
+        / inode->address_words_per_child );
 
     assert2( idx >= 0 );
     assert2( idx < ebmp->entries_per_inode );
 
     new_start_addr = 
-      (start_addr_of_node_coverage 
-       + idx * inode->addresses_per_child );
+      ((word*)start_addr_of_node_coverage
+       + idx * inode->address_words_per_child );
     new_addr_limit = 
-      (new_start_addr 
-       + inode->addresses_per_child );
-    assert2( new_start_addr <= untagged_w );
-    assert2( untagged_w  < new_addr_limit );
+      (new_start_addr
+       + inode->address_words_per_child );
+    assert2( new_start_addr <= (word*)untagged_w );
+    assert2( (word*)untagged_w  < new_addr_limit );
 
     if (inode->nodes[ idx ] == NULL) {
       if (alloc_if_unfound) {
         if (depth == 1) {
-          inode->nodes[ idx ] =  alloc_leaf( ebmp, new_start_addr, new_addr_limit );
+          assert( (new_start_addr + (ADDRS_PER_WORD*ebmp->leaf_words)) 
+                  == new_addr_limit );
+          inode->nodes[ idx ] =  alloc_leaf( ebmp,
+                                             (word)new_start_addr, 
+                                             (word)new_addr_limit );
           assert2( inode->nodes[idx]->metadata.tag == tag_leaf );
         } else {
           inode->nodes[ idx ] = alloc_inode( ebmp, 
-                                             inode->addresses_per_child,
-                                             new_start_addr, new_addr_limit );
+                                             inode->address_words_per_child,
+                                             (word)new_start_addr, 
+                                             (word)new_addr_limit );
           assert2( inode->nodes[idx]->metadata.tag == tag_inode );
         }
       } else {
@@ -423,7 +527,7 @@ static bool find_leaf_calc_offset_recur( extbmp_t *ebmp, word untagged_w,
                                    untagged_w,
                                    inode->nodes[ idx ],
                                    depth-1,
-                                   new_start_addr, 
+                                   (word)new_start_addr, 
                                    leaf_recv,
                                    first_addr_for_leaf,
                                    alloc_if_unfound );
@@ -551,7 +655,39 @@ bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
 
   assert2( extbmp_is_member(ebmp, untagged_w ));
 
+  {
+    int gno;
+    gno = gen_of( untagged_w );
+    assert( gno != 0 );
+    if (leaf->gno == 0) {
+      /* mixed leaf; do nothing */
+    } else if (leaf->gno < 0) {
+      insert_leaf_in_list( ebmp, leaf, gno );
+    } else if (leaf->gno != gno) {
+      move_leaf_to_mixed_list( ebmp, leaf, gno );
+    }
+  }
+
   return retval;
+}
+
+void extbmp_del_elem( extbmp_t *ebmp, word untagged_w ) 
+{
+  leaf_t *leaf;
+  word first;
+  bool found;
+  unsigned int bit_idx, word_idx, bit_in_word;
+  found = find_leaf_or_fail( ebmp, untagged_w, &leaf, &first );
+
+  if (found) {
+    bit_idx     = (untagged_w - first) >> BIT_IDX_SHIFT;
+    word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
+    bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+
+    if (leaf->bitmap[ word_idx ] & bit_in_word) {
+      leaf->bitmap[ word_idx ] &= ~bit_in_word;
+    }
+  }
 }
 
 bool extbmp_is_member( extbmp_t *ebmp, word untagged_w )
@@ -614,7 +750,7 @@ void extbmp_clear_members_in( extbmp_t *ebmp, int gno )
 { /* ebmp := ebmp \ addresses(gno) */
   /* stupid simple but slow impl */
   dbmsg("extbmp_clear_members_in( ebmp, gno=%d )", gno );
-  extbmp_enumerate_in( ebmp, gno, scan_clear_always, NULL );
+  extbmp_enumerate_in( ebmp, FALSE, gno, scan_clear_always, NULL );
 }
 
 static bool scan_accum_count( word loc, void *data )
@@ -629,7 +765,7 @@ int  extbmp_count_members_in( extbmp_t *ebmp, int gno )
   int accum;
   /* stupid simple but slow impl */
   accum = 0;
-  extbmp_enumerate_in( ebmp, gno, scan_accum_count, &accum );
+  extbmp_enumerate_in( ebmp, FALSE, gno, scan_accum_count, &accum );
   return accum;
 }
 
@@ -641,6 +777,7 @@ int  extbmp_count_members_in( extbmp_t *ebmp, int gno )
 static bool tnode_enum_leaf( extbmp_t *ebmp,
                              int gno,
                              bool ignore_gno, 
+                             bool gno_is_static_area, 
                              bool need_tagged_ptr, 
                              leaf_t *leaf, 
                              word first_addr_for_leaf,
@@ -750,7 +887,9 @@ static bool tnode_enum_leaf( extbmp_t *ebmp,
           if (! ignore_gno) {
             word obj2 = tagptr( obj, PAIR_TAG );
 
-            if (gen_of(obj2) != gno) {
+            if ((gno_is_static_area && (gen_of(obj2) != ebmp->gc->gno_count-1))
+                ||
+                ((! gno_is_static_area) && (gen_of(obj2) != gno))) {
               dbmsg(     "tnode_enum_leaf"
                          " first_addr_for_leaf:0x%08x word_idx:%d j:%2d"
                          " SKIP 0x%08x (%d) looking for gno=%d", 
@@ -825,9 +964,11 @@ static void tnode_enumerate_slow_but_certain
                            ( extbmp_t *ebmp,
                              int gno, 
                              bool ignore_gno, 
+                             bool gno_is_static_area, 
                              tnode_t *tree, 
                              int depth, 
                              word first_addr_for_node, 
+                             int *leaves_enumerated, 
                              bool (*scanner)(word loc, void *data), 
                              void *data )
 {
@@ -844,23 +985,29 @@ static void tnode_enumerate_slow_but_certain
       }
     }
   }
+  *leaves_enumerated = 0;
 }
 
 /* Returns TRUE implies node post-enumeration is clear[ed] (ie all zero bits). */
 static bool tnode_enumerate( extbmp_t *ebmp,
+                             bool incl_tag, 
                              int gno, 
                              bool ignore_gno, 
+                             bool gno_is_static_area, 
                              tnode_t *tree, 
                              int depth, 
                              word first_addr_for_node, 
                              word first_enum_addr, 
                              word limit_enum_addr, 
+                             int *leaves_enumerated, 
+                             int *nodes_enumerated, 
                              bool (*scanner)(word loc, void *data), 
                              void *data )
 {
   if (depth == 0) {
+    *leaves_enumerated += 1;
     return
-      tnode_enum_leaf( ebmp, gno, ignore_gno, TRUE, 
+      tnode_enum_leaf( ebmp, gno, ignore_gno, gno_is_static_area, incl_tag, 
                        &tree->leaf, 
                        first_addr_for_node, 
                        first_enum_addr, limit_enum_addr, 
@@ -874,10 +1021,14 @@ static bool tnode_enumerate( extbmp_t *ebmp,
     bool subtree_is_empty;
     word limit_addr_for_node;
 
+    *nodes_enumerated += 1;
+
     inode = &tree->inode;
     entries = ebmp->entries_per_inode;
     found_nonempty_tree = FALSE;
-    limit_addr_for_node = first_addr_for_node + (inode->addresses_per_child * entries);
+    limit_addr_for_node = 
+      (word)
+      ((word*)first_addr_for_node) + (inode->address_words_per_child * entries);
 
 #if 1
     if (limit_enum_addr <= first_addr_for_node) {
@@ -890,7 +1041,7 @@ static bool tnode_enumerate( extbmp_t *ebmp,
       bool cmpresult;
       long long limit = 
         ((long long)first_addr_for_node
-         + (long long)inode->address_range);
+         + sizeof(word)*(long long)inode->address_range_in_words);
       cmpresult = ((long long)first_enum_addr > limit);
 
 #if 0
@@ -910,8 +1061,8 @@ static bool tnode_enumerate( extbmp_t *ebmp,
 
     if (first_enum_addr > first_addr_for_node) {
       /* skipping words before enum start addr */
-      unsigned int delta = (first_enum_addr - first_addr_for_node);
-      unsigned int newidx = (delta / inode->addresses_per_child);
+      unsigned int delta = (first_enum_addr - first_addr_for_node) / sizeof(word);
+      unsigned int newidx = (delta / inode->address_words_per_child);
       if (newidx > 0)
         found_nonempty_tree = TRUE; /* be conservative since we're skipping words. */
       idx_start = newidx;
@@ -921,8 +1072,8 @@ static bool tnode_enumerate( extbmp_t *ebmp,
     assert( idx_start >= 0 && idx_start < entries );
 
     if (limit_enum_addr < limit_addr_for_node) {
-      unsigned int delta = (limit_addr_for_node - limit_enum_addr);
-      unsigned int newidx = entries - (delta / inode->addresses_per_child);
+      unsigned int delta = (limit_addr_for_node - limit_enum_addr) / sizeof(word);
+      unsigned int newidx = entries - (delta / inode->address_words_per_child);
       /* skipping words after enum limit addr */
       if (newidx < entries)
         found_nonempty_tree = TRUE; /* be conservative since we're skipping words */
@@ -938,19 +1089,22 @@ static bool tnode_enumerate( extbmp_t *ebmp,
           dbmsg(      "tnode_enum i:%d depth:%d first_addr:0x%08x limit:0x%08x "
                       "addrs_per_child:%lld", 
                       i, depth, first_addr_for_node, limit_enum_addr, 
-                      inode->addresses_per_child );
+                      inode->address_words_per_child );
         } else {
           dbmsg(      "tnode_enum i:%d depth:%d first_addr:0x%08x limit:0x%08x "
                       "addrs_per_child:%lld gno:%d", 
                       i, depth, first_addr_for_node, limit_enum_addr, 
-                      inode->addresses_per_child, gno );
+                      inode->address_words_per_child, gno );
         }
         subtree_is_empty =
-          tnode_enumerate( ebmp, gno, ignore_gno, 
+          tnode_enumerate( ebmp, incl_tag, gno, ignore_gno, gno_is_static_area, 
                            inode->nodes[i], depth-1, 
-                           (first_addr_for_node + 
-                            i * inode->addresses_per_child),
+                           (word)
+                           (((word*)first_addr_for_node) + 
+                            i * inode->address_words_per_child),
                            first_enum_addr, limit_enum_addr, 
+                           leaves_enumerated, 
+                           nodes_enumerated, 
                            scanner, data );
         if (! subtree_is_empty) {
           found_nonempty_tree = TRUE; 
@@ -973,63 +1127,106 @@ static bool tnode_enumerate( extbmp_t *ebmp,
 
 struct apply_scan_hdr_address_range_data {
   extbmp_t *ebmp;
+  bool incl_tag;
   int  gno;
+  bool gno_is_for_static_area; 
   bool (*scanner)(word loc, void *data);
+  int leaves_enumerated;
+  int nodes_enumerated;
+  int ranges_enumerated;
   void *data;
 };
 static void apply_scan_hdr_address_range( word *s, word *l, void *d)
 {
+  int leaves_enumerated, nodes_enumerated;
   struct apply_scan_hdr_address_range_data *apply_data;
   apply_data = (struct apply_scan_hdr_address_range_data*)d;
+  leaves_enumerated = 0;
+  nodes_enumerated = 0;
   tnode_enumerate( apply_data->ebmp, 
+                   apply_data->incl_tag, 
                    apply_data->gno, FALSE,
+                   apply_data->gno_is_for_static_area, 
                    apply_data->ebmp->tree, apply_data->ebmp->depth,
                    0, (word)s, (word)l,
+                   &leaves_enumerated, 
+                   &nodes_enumerated, 
                    apply_data->scanner, apply_data->data );
+  apply_data->leaves_enumerated += leaves_enumerated;
+  apply_data->nodes_enumerated += nodes_enumerated;
+  apply_data->ranges_enumerated += 1;
 }
 
 static void tnode_enumerate_in( extbmp_t *ebmp,
+                                bool incl_tag, 
                                 int gno, 
+                                bool gno_is_static_area, 
+                                int *leaves_enumerated, 
+                                int *nodes_enumerated, 
+                                int *ranges_enumerated, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *scan_data )
 {
   struct apply_scan_hdr_address_range_data apply_data;
   apply_data.ebmp    = ebmp;
+  apply_data.incl_tag = incl_tag;
   apply_data.gno     = gno;
+  apply_data.gno_is_for_static_area = gno_is_static_area;
   apply_data.scanner = scanner;
   apply_data.data    = scan_data;
+  apply_data.leaves_enumerated = 0;
+  apply_data.nodes_enumerated = 0;
+  apply_data.ranges_enumerated = 0;
   gc_enumerate_hdr_address_ranges( ebmp->gc, 
                                    gno, 
                                    apply_scan_hdr_address_range,
                                    &apply_data );
+  *leaves_enumerated = apply_data.leaves_enumerated;
+  *nodes_enumerated = apply_data.nodes_enumerated;
+  *ranges_enumerated = apply_data.ranges_enumerated;
 }
 
 static void tnode_enumerate_in_slow( 
                                 extbmp_t *ebmp,
+                                bool incl_tag, 
                                 int gno, 
+                                bool gno_is_static_area, 
+                                int *leaves_enumerated, 
+                                int *nodes_enumerated, 
+                                int *ranges_enumerated, 
                                 bool (*scanner)(word loc, void *data), 
                                 void *data )
 {
-  tnode_enumerate( ebmp, gno, FALSE, 
+  *ranges_enumerated = 0;
+  tnode_enumerate( ebmp, incl_tag, gno, FALSE, gno_is_static_area, 
                    ebmp->tree, ebmp->depth, 
                    0, 0, 0xFFFFFFFF,
+                   leaves_enumerated, 
+                   nodes_enumerated, 
                    scanner, data );
 }
 
 static void tnode_enumerate_all( extbmp_t *ebmp,
+                                 bool incl_tag, 
                                  tnode_t *tree, 
                                  int depth, 
                                  word first_addr_for_node, 
                                  bool (*scanner)(word loc, void *data), 
                                  void *data )
 {
-  tnode_enumerate( ebmp, -66, TRUE, 
+  int leaves_enumerated, nodes_enumerated;
+  leaves_enumerated = 0;
+  nodes_enumerated = 0;
+  tnode_enumerate( ebmp, incl_tag, -66, TRUE, FALSE, 
                    tree, depth, 
                    first_addr_for_node, 0, 0xFFFFFFFF, 
+                   &leaves_enumerated, 
+                   &nodes_enumerated, 
                    scanner, data );
 }
 
 void extbmp_enumerate( extbmp_t *ebmp, 
+                       bool incl_tag, 
                        bool (*scanner)(word loc, void *data), 
                        void *data )
 {
@@ -1039,18 +1236,101 @@ void extbmp_enumerate( extbmp_t *ebmp,
    */
   /* stupid and slow impl */
   tnode_enumerate_all( ebmp,
+                       incl_tag, 
                        ebmp->tree, ebmp->depth, 0, 
                        scanner, data );
 }
 
+int count_gno_leaves( extbmp_t *ebmp, int gno ) 
+{
+  int c;
+  leaf_t *l;
+  c = 0;
+  l = ebmp->gno_to_leaf[gno];
+  while (l != NULL ) {
+    assert( l->gno == gno );
+    c += 1;
+    l = l->next_for_gno;
+  }
+  return c;
+}
+
+int count_all_leaves( extbmp_t *ebmp ) 
+{
+  int c;
+  int i;
+  c = 0;
+  for (i = 0; i < ebmp->gno_count; i++ ) {
+    c += count_gno_leaves( ebmp, i );
+  }
+  return c;
+}
+
 void extbmp_enumerate_in( extbmp_t *ebmp, 
+                          bool incl_tag, 
                           int gno, 
                           bool (*scanner)(word loc, void *data), 
                           void *data )
 {
+  int leaves_enumerated;
+  int nodes_enumerated;
+  int ranges_enumerated;
+  bool gno_is_for_static_area = 
+    ((ebmp->gc->static_area != NULL) &&
+     (gno == ebmp->gc->gno_count-1));
+
   /* for each w in (ebmp & addresses(gno))
    *   invoke scanner( w, data )
    *   if scanner returns FALSE, ebmp := ebmp \ { w }
    */
-  tnode_enumerate_in( ebmp, gno, scanner, data );
+  leaves_enumerated = 0;
+  nodes_enumerated = 0;
+  ranges_enumerated = 0;
+  tnode_enumerate_in( ebmp, incl_tag, gno, gno_is_for_static_area,
+                      &leaves_enumerated, 
+                      &nodes_enumerated, 
+                      &ranges_enumerated, 
+                      scanner, data );
+
+  dbmsg( "extbmp_enumerate_in gno: %d leaves: %d mixed: %d all: %d "
+              "leaf_count: %d "
+              "leaves_enumerated: %d "
+              "nodes_enumerated: %d "
+              "ranges_enumerated: %d", 
+              gno, 
+              count_gno_leaves( ebmp, gno ), 
+              count_gno_leaves( ebmp, 0 ),
+              count_all_leaves( ebmp ),
+              ebmp->leaf_count, 
+              leaves_enumerated, 
+              nodes_enumerated,
+              ranges_enumerated );
+}
+
+void extbmp_expand_remset_gnos( extbmp_t *ebmp, int fresh_gno )
+{
+  int i;
+  int new_gno_count = ebmp->gno_count + 1;
+  leaf_t **new_gno_to_leaf;
+  leaf_t *leaf;
+
+
+  new_gno_to_leaf = (leaf_t**)must_malloc( sizeof(leaf_t*) * new_gno_count );
+  for (i = 0; i < fresh_gno; i++ ) {
+    new_gno_to_leaf[ i ] = ebmp->gno_to_leaf[i];
+  }
+  new_gno_to_leaf[ fresh_gno ] = NULL;
+  for ( i = fresh_gno+1; i < new_gno_count; i++ ) {
+    new_gno_to_leaf[ i ] = ebmp->gno_to_leaf[i-1];
+    leaf = new_gno_to_leaf[i];
+    while (leaf != NULL) {
+      leaf->gno += 1;
+      leaf = leaf->next_for_gno;
+    }
+  }
+
+  free( ebmp->gno_to_leaf );
+
+  ebmp->gno_count = new_gno_count;
+  ebmp->gno_to_leaf = new_gno_to_leaf;
 }

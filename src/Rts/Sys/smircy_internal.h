@@ -86,6 +86,11 @@ struct smircy_stack {
   los_stack_t    los;         /* LOS cursor stack */
 };
 
+typedef enum { smircy_construction_stage, 
+               smircy_refinement_stage, 
+               smircy_completed_stage }
+  smircy_stage_t;
+
 struct smircy_context {
   gc_t               *gc;
   int                num_rgns;
@@ -101,6 +106,7 @@ struct smircy_context {
   int                total_traced;
   int                total_marked;
   int                total_words_marked;
+  smircy_stage_t     stage;
 };
 
 #endif /* INCLUDED_SMIRCY_H */

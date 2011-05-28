@@ -47,7 +47,8 @@ gc_t
 		  void *data ),
 	     void (*enumerate_remembered_locations)
 	        ( gc_t *gc, gset_t genset,
-	          void (*f)( word, int, void* ), void* ),
+	          void (*f)( loc_t, void* ), void*fd,
+	          bool (*g)( word, void* ), void*gd),
 	     void (*enumerate_hdr_address_ranges)
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s, word *l, void *d), void *d ),
@@ -61,7 +62,8 @@ gc_t
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
 	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
 	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
-	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no )
+	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no ),
+	     void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no )
 	     )
 {
   gc_t *gc;
@@ -137,6 +139,9 @@ gc_t
   gc->points_across = points_across;
   gc->heap_for_gno = heap_for_gno;
   gc->region_group_for_gno = region_group_for_gno;
+
+  gc->check_invariants_between_fwd_and_free = 
+    check_invariants_between_fwd_and_free;
 
   return gc;
 }

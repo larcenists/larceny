@@ -3,13 +3,104 @@
 #ifndef INCLUDED_SUMMARY_T_H
 #define INCLUDED_SUMMARY_T_H
 
-#include "larceny-types.h"
+#define USE_OBJ_OFFS_REP_FOR_LOC_T 0
 
+#if USE_OBJ_OFFS_REP_FOR_LOC_T
 struct loc {
   word obj;
   int  offset; /* measured in bytes */
                /* (happens to match tagged fixnum word-count, for now) */
 };
+
+static bool loc_equal_p( loc_t loc1, loc_t loc2 )
+{
+  return (loc1.obj == loc2.obj) && (loc1.offset == loc2.offset);
+}
+static void assert_loc_ok( loc_t loc )
+{
+  /* offset is in bytes */
+  assert( (loc.offset % sizeof(word)) == 0);
+}
+
+static loc_t make_loc( word obj, int offset ) 
+{
+  loc_t loc;
+
+  loc.obj = obj;
+  loc.offset = offset;
+
+  assert_loc_ok( loc );
+  return loc;
+}
+
+static void clear_loc( loc_t *loc )
+{
+  loc->obj = 0x0;
+}
+
+static bool loc_clear_p(loc_t loc ) 
+{
+  return (loc.obj == 0x0);
+}
+
+static word* loc_to_slot( loc_t l ) 
+{
+  return (word*)(((byte*)ptrof(l.obj))+l.offset);
+}
+
+static word loc_to_obj( loc_t loc )
+{
+  return loc.obj;
+}
+static int loc_to_offset( loc_t loc )
+{
+  return loc.offset;
+}
+#else
+struct loc {
+  word *slot;
+};
+
+static bool loc_equal_p( loc_t loc1, loc_t loc2 )
+{
+  return (loc1.slot == loc2.slot);
+}
+
+static void assert_loc_ok( loc_t loc )
+{
+}
+
+static loc_t make_loc( word obj, int offset )
+{
+  loc_t l;
+  l.slot = (word*)(((byte*)ptrof(obj))+offset);
+  return l;
+}
+
+static void clear_loc( loc_t *loc )
+{
+  loc->slot = NULL;
+}
+
+static bool loc_clear_p( loc_t loc )
+{
+  return (loc.slot == NULL);
+}
+
+static word* loc_to_slot( loc_t l )
+{
+  return l.slot;
+}
+
+static word loc_to_obj( loc_t loc )
+{
+  assert(0);
+}
+static int loc_to_offset( loc_t loc )
+{
+  assert(0);
+}
+#endif
 
 struct summary {
   int entries;
@@ -139,6 +230,7 @@ void summary_compose( summary_t *fst, summary_t *snd,
   /* Initializes recv so that it iterates through fst, snd, and thd
      each in turn. */
 
+#if 0
 void summary_enumerate( summary_t *summary,
                         void (*scanner)(word loc, void *data, unsigned *stats),
                         void *data );
@@ -152,9 +244,10 @@ void summary_enumerate_locs( summary_t *summary,
   /* Invokes scanner on each location produced by iterating through summary.
      Does *not* call summary_dispose when enumeration is complete.
    */
+#endif
 
 void summary_enumerate_locs2( summary_t *summary,
-                              void (*scanner)(word obj, int offset, 
+                              void (*scanner)(loc_t loc, 
                                               void *data),
                               void *data );
   /* Invokes scanner on each location produced by iterating through summary.

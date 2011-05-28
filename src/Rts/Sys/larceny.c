@@ -49,7 +49,7 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
-static void print_banner() {
+static void print_banner(void) {
 #ifndef PETIT_LARCENY
   consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
               larceny_system_name,
@@ -294,6 +294,9 @@ int panic_exit( const char *fmt, ... )
   return 0;
 }
 
+#ifdef __GNUC__
+extern int panic_abort( const char *fmt, ... ) __attribute__ ((__noreturn__));
+#endif
 int panic_abort( const char *fmt, ... )
 {
   static int in_panic = 0;
@@ -309,7 +312,9 @@ int panic_abort( const char *fmt, ... )
   in_panic = 1;
   abort();
   /* Never returns. Return type is 'int' to facilitate an idiom. */
+#ifndef __GNUC__
   return 0;
+#endif
 }
 
 void annoyingmsg( const char *fmt, ... )
@@ -475,10 +480,13 @@ parse_options( int argc, char **argv, opt_t *o )
   int i, loc, prev_size, areas = DEFAULT_AREAS;
   int mmu_size;
   int mark_period;
+  int oracle_countdown;
   double popular_factor = 0.0;
+  double infamy_factor = 0.0;
   double refine_factor = 0.0;
   double sumz_budget = 0.0;
   double sumz_coverage = 0.0;
+  int sumz_retries;
 #if defined( BDW_GC )
   double load_factor = 0.0;                   /* Ignore it. */
 #else
@@ -511,6 +519,9 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dont_shrink_heap = 1;
     else if (hstrcmp( *argv, "-oracle" ) == 0)
       o->gc_info.use_oracle_to_update_remsets = 1;
+    else if (numbarg( "-oracle_countdown", &argc, &argv, &oracle_countdown )) {
+      o->gc_info.oracle_countdown = oracle_countdown;
+    } 
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1 && ! o->gc_info.is_regional_system) {
         /* Maybe we shouldn't be inferring this anymore */
@@ -525,6 +536,8 @@ parse_options( int argc, char **argv, opt_t *o )
           for ( i=1 ; i < o->maxheaps ; i++ )
             if (o->size[i-1] == 0) o->size[i-1] = val;
       } else if (o->gc_info.is_regional_system) {
+        o->size[loc] = val;
+      } else if (o->gc_info.is_stopcopy_system) {
         o->size[loc] = val;
       }
     }
@@ -570,9 +583,21 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.has_sumzcoverage = TRUE;
       o->gc_info.sumzcoverage_inv = sumz_coverage;
     }
+    else if (numbarg( "-sumzretries", &argc, &argv, &sumz_retries )) {
+      o->gc_info.has_sumz_retries = TRUE;
+      o->gc_info.max_sumz_retries = sumz_retries;
+    }
     else if (doublearg( "-popularity", &argc, &argv, &popular_factor)) {
       o->gc_info.has_popularity_factor = TRUE;
       o->gc_info.popularity_factor = popular_factor;
+    }
+    else if (doublearg( "-infamy", &argc, &argv, &infamy_factor)) {
+      if (infamy_factor == 0) {
+        o->gc_info.has_infamy_factor = FALSE;
+      } else {
+        o->gc_info.has_infamy_factor = TRUE;
+        o->gc_info.infamy_factor = infamy_factor;
+      }
     }
     else if (hstrcmp( *argv, "-print_float_stats_cycle" ) == 0)
       o->gc_info.print_float_stats_cycle = TRUE;
