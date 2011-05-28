@@ -178,7 +178,7 @@
           (case (string-ref s i)
            ((#\i #\I)               ; FIXME: does the R6RS allow #\I here?
             (cond ((= (+ i 1) n)
-                   (coerce-exactness exactness -i))
+                   (coerce-exactness exactness (make-rectangular 0 sign)))
                   ((and (<= (+ i 5) n)
                         (char=? #\n (string-ref s (+ i 1)))
                         (char=? #\f (string-ref s (+ i 2)))

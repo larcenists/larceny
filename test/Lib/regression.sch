@@ -548,6 +548,10 @@
              x))
          2)
 
+   (test "Ticket #667"                  ; Bug in Larceny 0.962 through 0.97
+         (string->number "+i")
+         (make-rectangular 0 1))
+
    ))
 
 (define (bug-105-test1)
