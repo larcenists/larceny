@@ -514,10 +514,36 @@ static int next_rgn( int rgn, int num_rgns ) {
 
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
 
+/* Felix used these defaults. */
+
+/*
 static const double default_popularity_factor = 8.0;
 static const double default_infamy_factor = 10000.0;
 static const double default_sumz_budget_inv = 2.0;
 static const double default_sumz_coverage_inv = 3.0;
+static const int    default_sumz_max_retries  = 1;
+*/
+
+/*
+ * FIXME
+ *
+ * According to section 9.2 of Felix's thesis, these three sets
+ * of parameters work pretty well:
+ *
+ * S  (popularity)               8  6     4
+ * F1 (sumzcoverage)             2  1.75  2
+ * F2 (sumzbudget)               2  2.75  3
+ * F3 (sumzretries)              1  2     2
+ *
+ * but the second and third columns don't work.
+ * They do work if sumzretries is 1 instead of 2.
+ *
+ */
+
+static const double default_popularity_factor = 8.0;
+static const double default_infamy_factor = 2.0;
+static const double default_sumz_coverage_inv = 2.0;
+static const double default_sumz_budget_inv = 2.0;
 static const int    default_sumz_max_retries  = 1;
 
 static void smircy_start( gc_t *gc ) 
@@ -1038,6 +1064,9 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
 static void initialize_summaries( gc_t *gc, bool about_to_major ) 
 {
+  annoyingmsg("[FIXME] region_group_filled = %d", region_group_filled);
+  annoyingmsg("[FIXME] region_group_count = %d",
+              region_group_count( region_group_filled ));
   assert( region_group_count( region_group_filled ) >= 2 );
   {
     /* prime the pump */
@@ -3567,7 +3596,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
          + ((double)F_3)/F_1 
          + 1.0/(F_1*F_2*((double)F_3)));
       if (max_utilized_regions > 1.0) {
-        consolemsg("Invalid parameter selection; need"
+        consolemsg("Invalid parameter selection; need\n"
                    " 1/S + F_3/F_1 + 1/(F_1 F_2 F_3) = "
                    " 1/%g + %d/%g  + 1/(%g %g %d) <= 1"
                    ,   S,  F_3, F_1, F_1, F_2, F_3);

@@ -464,7 +464,7 @@ static void init_regional( opt_t *o, int areas, char *name )
 
   if (o->gc_info.ephemeral_info != 0) {
     consolemsg( "Error: Number of areas re-specified with '%s'", name );
-    consolemsg( "Type \"larceny -heap\" for help." );
+    consolemsg( "Type \"larceny -help\" for help." );
     exit( 1 );
   }
   
@@ -931,10 +931,13 @@ parse_options( int argc, char **argv, opt_t *o )
 
     /* Nursery */
     o->gc_info.nursery_info.size_bytes =
-      (o->size[0] > 0 ? o->size[0] : DEFAULT_NURSERY_SIZE);
+      (o->size[0] > 0 ? o->size[0] : DEFAULT_REGIONAL_NURSERY_SIZE);
 
     /* Ephemeral generations */
     prev_size = 5*o->gc_info.nursery_info.size_bytes;
+
+    if (prev_size < DEFAULT_REGIONAL_REGION_SIZE)
+      prev_size = DEFAULT_REGIONAL_REGION_SIZE;
 
     for ( i = 1 ; i <= areas ; i++ ) {
       if (o->size[i] == 0)
@@ -1005,6 +1008,8 @@ static int sizearg( char *str, int *argc, char ***argv, int *loc )
   else
     return 0;
 }
+
+/* FIXME: doesn't allow --size0 1M etc */
 
 static int 
 hsizearg( char *str, int *argc, char ***argv, int *var, int *loc ) 
@@ -1279,24 +1284,24 @@ static char *wizardhelptext[] = {
   "  -annoy-user-greatly",
   "     Print a great many very annoying debug messages, usually about GC.",
   "  -stopcopy",
-  "     Select the stop-and-copy collector." ,
+  "     Use the stop-and-copy garbage collector." ,
   "  -gen",
-  "     Select generational collection with the standard generational",
-  "     collector.  This is the default collector.",
-  "  -areas n",
-  "     Select generational collection, with n heap areas.  The default" ,
-  "     number of heap areas is "
-        STR(DEFAULT_AREAS) 
-        ".",
+  "     Use the standard generational collector.  This is the default.",
 #if ROF_COLLECTOR
-  "  -np",
   "  -rof",
-  "     Select generational collection with the renewal-oldest-first",
-  "     dynamic area (radioactive decay non-predictive collection).",
+  "     Use the hybrid renewal-oldest-first collector (experimental).",
 #endif
+  "  -regional",
+  "     Use the bounded-latency regional collector (experimental).",
   "  -size# nnnn",
   "     Heap area number '#' is given size 'nnnn' bytes.",
-  "     This selects generational collection if # > 1.",
+  "     Area 0 is the nursery.",
+  "     If # > 1, this selects the standard generational collector.",
+  "  -areas n",
+  "     Use the standard generational collector with n heap areas.",
+  "     The default number of heap areas is "
+        STR(DEFAULT_AREAS) 
+        ".",
 #endif
   "  -min nnnn",
   "     Set the lower limit on the size of the expandable (\"dynamic\") area.",
@@ -1304,12 +1309,13 @@ static char *wizardhelptext[] = {
   "     Set the upper limit on the size of the expandable (\"dynamic\") area.",
   "  -load d",
   "     Use inverse load factor d to control allocation and collection.",
-  "     After a major garbage collection, the collector will resize the heap",
-  "     and attempt to keep memory consumption below d*live, where live data",
-  "     is computed (sometimes estimated) following the major collection.",
+  "     The garbage collector will try to resize the heap as necessary",
+  "     to keep memory consumption below d*live, where live data",
+  "     is computed or estimated following major collections.",
 #if !defined(BDW_GC)
-  "     In a copying collector, d must be at least 2.0; the default value",
-  "     is 3.0.",
+  "     The regional collector allows d to be less than 2.0.",
+  "     All of Larceny's other collectors require d to be at least 2.0.",
+  "     The default is 3.0.",
 #else
   "     In the conservative collector, d must be at least 1.0; no default is",
   "     set, as the conservative collector by default manages heap growth",
@@ -1335,45 +1341,41 @@ static char *wizardhelptext[] = {
 #define STRINGIZE(val) #val
 #define STRINGIZE2(val) STRINGIZE(val)
 #if !defined(BDW_GC)
-  "  -mmusize n", 
-  "     If n >= 0, activates MMU data gathering, with MMU buffer size n.",
-  "     Use n = 0 to indicate default size (" STRINGIZE2(DEFAULT_MMU_BUFFER_SIZE) ").",
   "  -nostatic",
   "     Do not use the static area, but load the heap image into the",
   "     garbage-collected heap." ,
   "  -nocontract",
-  "     Do not contract the dynamic area according to the load factor, but",
-  "     always use all the memory that has been allocated.",
-  "  -rrof",
-  "  -regional",
-  "     Select regional collection with a round robin collection policy,",
-  "     which should act like a fine grained renewal-oldest-first collector.",
+  "     Do not allow the heap to contract according to the load factor,",
+  "     but continue to use all memory that has been allocated.",
+  "  -mmusize n", 
+  "     Record minimum mutator utilization within a buffer of size n.",
+  "     If n is 0, the default size (" STRINGIZE2(DEFAULT_MMU_BUFFER_SIZE) ") will be used.",
+  /* The --regions option can cause a Larceny panic. */
+#if 0
   "  -regions n",
-  "     Select regional collection, with n heap areas.  The default number",
-  "     number of heap areas is " STR(DEFAULT_AREAS) ".",
-  "  -oracle",
-  "     (RROF) Turns on remembered set updating via an untimed oracle.",
-  "     Simulates how the regional garbage collector might perform if we had",
-  "     a zero cost remembered set representation, thus providing an",
-  "     estimate of how much improvement we might get from changes to the",
-  "     remembered set representation.",
+  "     Use the regional collector with n heap areas.",
+  "     The default number number of heap areas is " STR(DEFAULT_AREAS) ".",
+#endif
   "  -refinement d",
-  "     (RROF) Turns on periodic mark pass during collection to refine",
-  "     remembered sets.  The parameter d roughly represents the number of",
-  "     words of allocation allowed for each word of marking.",
+  "     For the regional collector only:  Allocate d words for each",
+  "     word marked.  The default is 1.0.",
   "  -mark_period n",
-  "     (RROF) Turns on periodic mark pass during collection to refine",
-  "     remembered sets.  The mark pass will be invoked every n nursery",
-  "     evacuations.",
+  "     For the regional collector only:  Do some incremental marking",
+  "     after every n minor collections.  The default is 1.",
+  "  -oracle",
+  "     For the regional collector only:  Don't count time spent updating",
+  "     the remembered set.  (Used to estimate the cost of updating.)",
   "  -print_float_stats_cycle",
   "  -print_float_stats_major",
   "  -print_float_stats_minor",
   "  -print_float_stats_refine",
-  "     (RROF) Turns on instrumentation to print information about object",
+  "     For the regional collector only:  Print information about object",
   "     float during various stages of regional collection.  The character",
   "     'Z' represents trivially collectable storage, 'R' represents ",
   "     dead storage referenced from unreachable objects in other regions",
   "     (and thus not guaranteed to be reclaimed in next major collection).",
+  /* Users should probably use the regional collector instead. */
+#if 0
 #if ROF_COLLECTOR
   "  -steps n",
   "     Select the initial number of steps in the non-predictive collector.",
@@ -1412,16 +1414,17 @@ static char *wizardhelptext[] = {
   "     default, the limit is infinity.  This parameter does not select",
   "     anything else, not even the nonpredictive GC.",
 #endif
+#endif
   "  -rhash nnnn",
   "     Set the remembered-set hash table size, in elements.  The size must",
   "     be a power of 2.",
   "  -ssb nnnn",
-  "     Set the remembered-set Sequential Store Buffer (SSB) size, in "
+  "     Set the write barrier's Sequential Store Buffer (SSB) size, in "
         "elements.",
   "  -rhashrep",
-  "     Select the hashtable (array) representation of the remembered set.",
+  "     Use a hashtable (array) representation of the remembered set.",
   "  -rbitsrep",
-  "     Select the bitmap (tree) representation of the remembred set.",
+  "     Use a bitmap (tree) representation of the remembred set.",
 #endif
   "  -ticks nnnn",
   "     Set the initial countdown timer interval value.",
