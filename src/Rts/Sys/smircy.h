@@ -24,7 +24,9 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top );
 
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
-                      int *marked, int *traced, int *words_marked );
+                      int misc_max,
+                      int *marked, int *traced, int *words_marked,
+                      int *misc );
 
 bool smircy_stack_empty_p( smircy_context_t *context );
 

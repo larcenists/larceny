@@ -21,7 +21,7 @@
 #define DEFAULT_EPHEMERAL_INCREMENT  (4*MEGABYTE)
 #define DEFAULT_DYNAMIC_INCREMENT    (4*MEGABYTE)
 #define DEFAULT_REGIONAL_NURSERY_SIZE (1*MEGABYTE)
-#define DEFAULT_REGIONAL_REGION_SIZE (8*MEGABYTE)
+#define DEFAULT_REGIONAL_REGION_SIZE (5*MEGABYTE)
 
 #define DEFAULT_MMU_BUFFER_SIZE      5000
 
@@ -32,6 +32,7 @@
 
 /* RROF collector */
 #define DEFAULT_LOAD_FACTOR_HARD     10.0
+#define SMIRCY_MISC_BOUND            5000
 
 struct nursery_info {           /* Generational gc nursery */
   int size_bytes;               /* size of area in bytes, > 0 */

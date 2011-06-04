@@ -524,7 +524,7 @@ parse_options( int argc, char **argv, opt_t *o )
     } 
     else if (hsizearg( "-size", &argc, &argv, &val, &loc )) {
       if (loc > 1 && ! o->gc_info.is_regional_system) {
-        /* Maybe we shouldn't be inferring this anymore */
+        /* FIXME: Maybe we shouldn't be inferring this anymore */
         o->gc_info.is_generational_system = 1; 
       }
       if (loc < 0 || loc > o->maxheaps) {
@@ -535,9 +535,15 @@ parse_options( int argc, char **argv, opt_t *o )
         else 
           for ( i=1 ; i < o->maxheaps ; i++ )
             if (o->size[i-1] == 0) o->size[i-1] = val;
-      } else if (o->gc_info.is_regional_system) {
+      }
+
+      /* FIXME:  The following could be simplified. */
+
+      else if (o->gc_info.is_regional_system) {
         o->size[loc] = val;
       } else if (o->gc_info.is_stopcopy_system) {
+        o->size[loc] = val;
+      } else {
         o->size[loc] = val;
       }
     }
@@ -1358,10 +1364,10 @@ static char *wizardhelptext[] = {
 #endif
   "  -refinement d",
   "     For the regional collector only:  Allocate d words for each",
-  "     word marked.  The default is 1.0.",
+  "     word marked.  Incompatible with -mark_period.  The default is 1.0.",
   "  -mark_period n",
   "     For the regional collector only:  Do some incremental marking",
-  "     after every n minor collections.  The default is 1.",
+  "     after every n minor collections.  Incompatible with -refinement.",
   "  -oracle",
   "     For the regional collector only:  Don't count time spent updating",
   "     the remembered set.  (Used to estimate the cost of updating.)",
@@ -1458,7 +1464,7 @@ static void help(int wizardp)
           consolemsg( wizardhelptext[i] );
   }
   consolemsg("The Larceny User's Manual is available on the web at");
-  consolemsg("  http://larceny.ccs.neu.edu/doc/");
+  consolemsg("  http://www.larcenists.org/doc.html/");
   exit( 0 );
 }
 

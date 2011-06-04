@@ -454,7 +454,7 @@ stats_id_t stats_start_timer( stats_timer_t type )
 {
   int i;
 
-  /* Find the first nonzero timer (which will be the first one not in use). */
+  /* Find the first zero timer (which will be the first one not in use). */
 
   for ( i=0 ; i < MAX_TIMERS && stats_state.timers[i].used != 0 ; i++ )
     ;

@@ -646,6 +646,7 @@ static void reset_countdown_to_next_refine( gc_t *gc )
     int new_countdown;
     marked = smircy_objs_marked( context );
     words_marked = smircy_words_marked( context );
+    /* FIXME: does this make any sense? */
     new_countdown = 
       (int)((R*(double)(sizeof(word)*marked*2))
 	    / ((double)gc->young_area->maximum));
@@ -664,7 +665,11 @@ static void reset_countdown_to_next_refine( gc_t *gc )
     DATA(gc)->since_finished_snapshot_began.count_promotions =
       DATA(gc)->since_developing_snapshot_began.count_promotions;
 
+    /* FIXME */
+#if 0
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
+#endif
+    if (1) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
   }
@@ -715,11 +720,17 @@ static void rrof_calc_target_allocation( gc_t *gc,
                                          long long *A_target_2_recv, 
                                          long long *A_target_recv );
 
+int debug_counter = 0; /* FIXME */
+
 static void rrof_completed_regional_cycle( gc_t *gc ) 
 {
   long long allocation_target;
 
   DATA(gc)->rrof_cycle_count += 1;
+
+  /* FIXME */
+  consolemsg( "COMPLETED FULL CYCLE %d (%d)",
+              DATA(gc)->rrof_cycle_count, debug_counter );
 
   if (DATA(gc)->print_float_stats_each_cycle)
     print_float_stats( "cycle ", gc );
@@ -748,6 +759,9 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->rrof_smircy_step_on_minor_collections_alone = 
     ( ! ((DATA(gc)->region_count >= 2) &&
          (DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle == 0)));
+  /* FIXME */
+  if ( ! (DATA(gc)->rrof_smircy_step_on_minor_collections_alone) )
+    consolemsg( "ENABLING MARKING DURING MAJOR GC" );
 
   DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle = 0;
   DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle = 0;
@@ -995,6 +1009,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 {
   stats_id_t timer1, timer2;
   int marked_recv = 0, traced_recv = 0, words_marked_recv = 0;
+  int misc_recv = 0;
 
   REMSET_VERIFICATION_POINT(gc);
   NURS_SUMMARY_VERIFICATION_POINT(gc);
@@ -1026,8 +1041,13 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
     int bound = (((double)gc->young_area->maximum / sizeof(word))
                  / (DATA(gc)->rrof_refinement_factor));
     bound /= (1 + DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle);
-    smircy_progress( gc->smircy, bound, bound, -1, 
-                     &marked_recv, &traced_recv, &words_marked_recv );
+#if 1
+    /* FIXME: seems to help, but questionable */
+    bound = 10 * bound;
+#endif
+    smircy_progress( gc->smircy, bound, bound, bound, SMIRCY_MISC_BOUND,
+                     &marked_recv, &traced_recv, &words_marked_recv,
+                     &misc_recv );
   }
 
   SMIRCY_VERIFICATION_POINT(gc);
@@ -1995,7 +2015,6 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
   assert( rgn > 0 || bytes_needed >= 0 );
   assert( data->in_gc >= 0 );
 
-
   if (data->in_gc++ == 0) {
     gc_signal_moving_collection( gc );
     data->pause_timer_elapsed = stats_start_timer( TIMER_ELAPSED );
@@ -2056,6 +2075,25 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
       stats_stop_timer( data->pause_timer_cpu );
     DATA(gc)->last_pause_elapsed =
       stats_stop_timer( data->pause_timer_elapsed );
+
+    /* FIXME
+     *
+     * Increasing the mark budget by a factor of 10 made
+     * summarization pauses go to 10+ seconds, but had no
+     * effect on mark pauses.  It also improved throughput.
+     *
+     * Reducing the region size to 5M brought pause times
+     * back to what they were before (about 700ms).
+     *
+     * Better accounting brought mark pauses under control.
+     * The cheney and summarization pauses are now limiting.
+     *
+     */
+
+    if (DATA(gc)->last_pause_cpu > 400)
+      consolemsg( "PAUSE = %d ********** (%d) request = %d",
+                  DATA(gc)->last_pause_cpu, debug_counter, request );
+    debug_counter = debug_counter + 1;
 
     stats_following_gc( gc );
     gclib_stats( &stats );
@@ -3771,6 +3809,10 @@ static void check_invariants_between_fwd_and_free( gc_t *gc, int gen_no )
   FWDFREE_VERIFICATION_POINT( gc );
   return;
 }
+
+/*     Allocates and initializes the gc structure.
+ *     Collector-specific initialization comes later.
+ */
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {

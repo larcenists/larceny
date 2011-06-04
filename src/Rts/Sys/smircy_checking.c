@@ -381,16 +381,17 @@ static void smircy_unmark_and_push_stack( msgc_context_t *context_new,
 
 static void smircy_complete( smircy_context_t *context ) 
 {
-  int marked_ign, traced_ign, words_marked_ign;
+  int marked_ign, traced_ign, words_marked_ign, misc_ign;
   marked_ign = 0;
   traced_ign = 0;
   words_marked_ign = 0;
+  misc_ign = 0;
 #if 1
-  smircy_progress(      context, -1, -1, -1, 
-                        &marked_ign, &traced_ign, &words_marked_ign );
+  smircy_progress(    context, -1, -1, -1, -1,
+                      &marked_ign, &traced_ign, &words_marked_ign, &misc_ign );
 #else
-  smircy_progress_core( context, -1, -1, -1, 
-                        &marked_ign, &traced_ign, &words_marked_ign,
+  smircy_progress_core( context, -1, -1, -1, -1,
+                        &marked_ign, &traced_ign, &words_marked_ign, &misc_ign,
                         FALSE /* not loud */ );
 #endif
 }

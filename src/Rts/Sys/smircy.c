@@ -1138,15 +1138,24 @@ static void reestablish_rgn_to_obj_entry_post_pop( smircy_context_t *context,
   }
 }
 
+/* Given the smircy_context, four upper bounds, and four cells
+ * in which to return statistics, makes some progress on marking.
+ *
+ * The misc_max budget covers underflow, which is very expensive
+ * and occurs in bunches.  If we don't have a budget for it, the
+ * mark pauses become intolerable.
+ */
+
 void smircy_progress( smircy_context_t *context, 
                       int mark_max, int trace_max, int mark_words_max,
+                      int misc_max,
                       int *marked_recv, int *traced_recv, 
-                      int *words_marked_recv )
+                      int *words_marked_recv, int *misc_recv )
 {
   word w;
   int w_gno;
   smircy_stack_t *stack;
-  int mark_budget, trace_budget, mark_words_budget;
+  int mark_budget, trace_budget, mark_words_budget, misc_budget;
   int traced = 0, marked = 0, words_marked = 0, constituents;
   bool already_marked;
 
@@ -1155,6 +1164,7 @@ void smircy_progress( smircy_context_t *context,
   mark_budget = mark_max;
   trace_budget = trace_max;
   mark_words_budget = mark_words_max;
+  misc_budget = misc_max;
 
   stack = &context->stack;
   dbmsg("smircy process stack, "
@@ -1163,8 +1173,10 @@ void smircy_progress( smircy_context_t *context,
   {
     {
       while(1) {
+        if (misc_budget <= 0) break;
         /* pop */
         if (stack->obj.stkp == stack->obj.stkbot) { /* underflow */
+          misc_budget = misc_budget - 1;
           if (stack->obj.seg == NULL) {
             if (fill_from_los_stack( context )) 
               continue; /* restart processing of stacks[rgn] */
@@ -1196,6 +1208,7 @@ void smircy_progress( smircy_context_t *context,
         w = stack->obj.stkp->val;
 
         if (w == 0x0) { // dead entry
+          misc_budget = misc_budget - 1;
           continue;
         }
 
@@ -1225,7 +1238,10 @@ void smircy_progress( smircy_context_t *context,
 
 #if MARK_ON_POP
         already_marked = mark_object( context, w );
-        if (already_marked) continue;
+        if (already_marked) {
+          misc_budget = misc_budget - 1;
+          continue;
+        }
 #endif
         assert2( smircy_object_marked_p( context, w ));
 
@@ -1249,6 +1265,7 @@ void smircy_progress( smircy_context_t *context,
   *marked_recv = marked;
   *traced_recv = traced;
   *words_marked_recv = words_marked;
+  *misc_recv = misc_max - misc_budget;
 
   CHECK_REP( context );
 }
