@@ -71,8 +71,8 @@ gc_t *create_gc( gc_param_t *info, int *generations )
 
   /* mutually exclusive, collectively exhaustive */
   assert( (info->is_generational_system + 
-	   info->is_stopcopy_system + 
-	   info->is_regional_system) == 1 );
+           info->is_stopcopy_system + 
+           info->is_regional_system) == 1 );
 
   gclib_init();
   gc = alloc_gc_structure( info->globals, info );
@@ -167,11 +167,11 @@ void gc_dump_mmu_data( gc_t *gc, FILE *f )
    load factor for control.
    */
 int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L, 
-			     int lower_limit, int upper_limit )
+                             int lower_limit, int upper_limit )
 {
   int live = D+S+Q;
   int M = (int)(L*live);
-  int est_live_next_gc = live;	/* == M/L */
+  int est_live_next_gc = live;        /* == M/L */
 
   if (lower_limit && upper_limit == lower_limit) {
     /* Fixed heap size */
@@ -198,7 +198,7 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
     int newM = min( M, upper_limit );
     int avail = (newM - live - est_live_next_gc);
     if (avail < 0)
-      M = newM + roundup_page( abs( avail ) );	/* _Minimal_ amount */
+      M = newM + roundup_page( abs( avail ) );        /* _Minimal_ amount */
     else
       M = newM;
   }
@@ -233,14 +233,14 @@ void gc_parameters( gc_t *gc, int op, int *ans )
     if (op == 0) {
       ans[1] = gc->young_area->maximum;
       if (data->is_partitioned_system) {
-	/* Nursery */
-	ans[0] = 0;
-	ans[2] = 0;
+        /* Nursery */
+        ans[0] = 0;
+        ans[2] = 0;
       }
       else {
-	/* Stopcopy area */
-	ans[0] = 1;
-	ans[2] = 1;
+        /* Stopcopy area */
+        ans[0] = 1;
+        ans[2] = 1;
       }
     }
     else if (op-1 < DATA(gc)->ephemeral_area_count) {
@@ -249,8 +249,8 @@ void gc_parameters( gc_t *gc, int op, int *ans )
       ans[2] = 0;
     }
     else if (op < data->static_generation &&
-	     DATA(gc)->dynamic_area &&
-	     data->use_np_collector) {
+             DATA(gc)->dynamic_area &&
+             data->use_np_collector) {
 #if ROF_COLLECTOR
       int k, j;
 
@@ -259,17 +259,18 @@ void gc_parameters( gc_t *gc, int op, int *ans )
       ans[2] = k;
       ans[3] = j;
       if (op-1 == DATA(gc)->ephemeral_area_count) {
-	/* NP old */
-	ans[0] = 2;
-	ans[1] = (DATA(gc)->dynamic_area->maximum / k) * (k - j);
+        /* NP old */
+        ans[0] = 2;
+        ans[1] = (DATA(gc)->dynamic_area->maximum / k) * (k - j);
       }
       else {
-	ans[0] = 3;
-	ans[1] = (DATA(gc)->dynamic_area->maximum / k) * j;
+        ans[0] = 3;
+        ans[1] = (DATA(gc)->dynamic_area->maximum / k) * j;
       }
 #endif
     }
-    else if (op-1 == DATA(gc)->ephemeral_area_count && DATA(gc)->dynamic_area) {
+    else if (op-1 == DATA(gc)->ephemeral_area_count
+             && DATA(gc)->dynamic_area) {
       /* Dynamic area */
       ans[0] = 1;
       ans[1] = DATA(gc)->dynamic_area->maximum;
@@ -295,7 +296,7 @@ static int initialize( gc_t *gc )
   if (DATA(gc)->ephemeral_area)
     for ( i = 0 ; i < DATA(gc)->ephemeral_area_count  ; i++ )
       if (!oh_initialize( DATA(gc)->ephemeral_area[i] ))
-	return 0;
+        return 0;
 
   if (DATA(gc)->dynamic_area)
     if (!oh_initialize( DATA(gc)->dynamic_area ))
@@ -308,19 +309,19 @@ static int initialize( gc_t *gc )
   if (data->is_partitioned_system) {
     wb_setup( gclib_desc_g,
 #if GCLIB_LARGE_TABLE
-	      (byte*)0,
+              (byte*)0,
 #else
-	      (byte*)gclib_pagebase,
+              (byte*)gclib_pagebase,
 #endif
-	      data->generations,
-	      data->globals,
-	      data->ssb_top,
-	      data->ssb_lim, 
-	      &data->satb_ssb_top,
-	      &data->satb_ssb_lim,
-	      (data->use_np_collector ? data->generations-1 : -1 ),
-	      gc->np_remset
-	     );
+              data->generations,
+              data->globals,
+              data->ssb_top,
+              data->ssb_lim, 
+              &data->satb_ssb_top,
+              &data->satb_ssb_lim,
+              (data->use_np_collector ? data->generations-1 : -1 ),
+              gc->np_remset
+             );
   }
   else
     wb_disable_barrier( data->globals );
@@ -339,7 +340,7 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
     panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
-	        nbytes, LARGEST_OBJECT );
+                nbytes, LARGEST_OBJECT );
 
   if (DATA(gc)->ephemeral_area_count > 0 && 
       nbytes > DATA(gc)->ephemeral_area[ 0 ]->maximum ) {
@@ -355,12 +356,12 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
   assert( nbytes > 0 );
 
   if (gc->static_area == 0)
-    panic_exit( "Cannot allocate nonmoving in a system without a static heap." );
+    panic_exit( "Can't allocate nonmoving in systems with no static heap." );
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
     panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
-	        nbytes, LARGEST_OBJECT );
+                nbytes, LARGEST_OBJECT );
 
   return sh_allocate( gc->static_area, nbytes );
 }
@@ -442,8 +443,8 @@ static void collect_generational( gc_t *gc,
 
     gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
-		 stats.heap_allocated, stats.remset_allocated, 
-		 stats.rts_allocated );
+                 stats.heap_allocated, stats.remset_allocated, 
+                 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
   }
 }
@@ -649,7 +650,7 @@ static void reset_countdown_to_next_refine( gc_t *gc )
     /* FIXME: does this make any sense? */
     new_countdown = 
       (int)((R*(double)(sizeof(word)*marked*2))
-	    / ((double)gc->young_area->maximum));
+            / ((double)gc->young_area->maximum));
     assert( new_countdown >= 0 );
     DATA(gc)->rrof_refine_mark_countdown += new_countdown;
     DATA(gc)->rrof_refine_mark_countdown = 
@@ -859,7 +860,7 @@ static void start_timers( stats_id_t *timer1, stats_id_t *timer2 )
 }
 
 static void stop_sumrize_timers( gc_t *gc, 
-				 stats_id_t *timer1, stats_id_t *timer2 ) 
+                                 stats_id_t *timer1, stats_id_t *timer2 ) 
 {
   int ms, ms_cpu;
   ms     = stats_stop_timer( *timer1 );
@@ -870,7 +871,7 @@ static void stop_sumrize_timers( gc_t *gc,
 }
 
 static void stop_markm_timers( gc_t *gc, 
-				 stats_id_t *timer1, stats_id_t *timer2 )
+                                 stats_id_t *timer1, stats_id_t *timer2 )
 {
   int ms, ms_cpu;
   ms     = stats_stop_timer( *timer1 );
@@ -881,7 +882,7 @@ static void stop_markm_timers( gc_t *gc,
 }
 
 static void stop_refinem_timers( gc_t *gc, 
-				 stats_id_t *timer1, stats_id_t *timer2 )
+                                 stats_id_t *timer1, stats_id_t *timer2 )
 {
   int ms, ms_cpu;
   ms     = stats_stop_timer( *timer1 );
@@ -897,7 +898,7 @@ static void handle_secondary_space( gc_t *gc )
     int gen_no = DATA(gc)->secondary_space->gen_no;
     ss_sync( DATA(gc)->secondary_space );
     oh_assimilate( DATA(gc)->ephemeral_area[ gen_no-1 ],
-		   DATA(gc)->secondary_space );
+                   DATA(gc)->secondary_space );
     DATA(gc)->secondary_space = NULL;
   }
 }
@@ -2098,8 +2099,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
     stats_following_gc( gc );
     gclib_stats( &stats );
     annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
-		 stats.heap_allocated, stats.remset_allocated, 
-		 stats.rts_allocated );
+                 stats.heap_allocated, stats.remset_allocated, 
+                 stats.rts_allocated );
     annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
   }
 
@@ -2109,24 +2110,24 @@ static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt )
 {
   assert(isptr(tgt));
   supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08x (%d), 0x%08x (%d) )", 
-			 src, isptr(src)?gen_of(src):0, tgt, gen_of(tgt) );
+                         src, isptr(src)?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
   assert( ! isptr(src) ||
-	  gen_of(src) != gen_of(tgt) ||   // FSK: why are below || (opposed to &&)
-	  gen_of(src) != 0 ||
-	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  urs_isremembered( gc->the_remset, src ) );
+          gen_of(src) != gen_of(tgt) ||   // FSK: why are below || (opposed to &&)
+          gen_of(src) != 0 ||
+          gen_of(tgt) != DATA(gc)->static_generation ||
+          urs_isremembered( gc->the_remset, src ) );
 }
 static void check_remset_invs( gc_t *gc, word src, word tgt ) 
 {
   supremely_annoyingmsg( "check_remset_invs( gc, 0x%08x (%d), 0x%08x (%d) )", 
-			 src, src?gen_of(src):0, tgt, gen_of(tgt) );
+                         src, src?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
   assert( !src || 
-	  gen_of(src)  < gen_of(tgt) ||
-	  gen_of(src) != 0 ||
-	  gen_of(tgt) != DATA(gc)->static_generation ||
-	  urs_isremembered( gc->the_remset, src ));
+          gen_of(src)  < gen_of(tgt) ||
+          gen_of(src) != 0 ||
+          gen_of(tgt) != DATA(gc)->static_generation ||
+          urs_isremembered( gc->the_remset, src ));
 }
 
 void gc_signal_moving_collection( gc_t *gc )
@@ -2135,7 +2136,7 @@ void gc_signal_moving_collection( gc_t *gc )
   DATA(gc)->globals[ G_MAJORGC_CNT ] += fixnum(1);
   if (DATA(gc)->globals[ G_GC_CNT ] == 0)
     hardconsolemsg( "\n\nCongratulations!\n"
-		    "You have survived 1,073,741,824 garbage collections!\n" );
+                    "You have survived 1,073,741,824 garbage collections!\n" );
 }
 
 void gc_signal_minor_collection( gc_t *gc ) {
@@ -2324,9 +2325,9 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
  */
 static void
 enumerate_remsets_complement( gc_t *gc,
-			      gset_t gset,
-			      bool (*f)(word obj, void *data),
-			      void *fdata )
+                              gset_t gset,
+                              bool (*f)(word obj, void *data),
+                              void *fdata )
 {
   int i;
   int ecount;
@@ -2538,19 +2539,19 @@ static void stats_following_gc( gc_t *gc )
 #define assert_geq_and_assign( lhs, rhs ) \
   do { assert( lhs <= rhs ); lhs = rhs; } while (0)
   assert_geq_and_assign(stats_gclib.max_remset_scan,
-			gc->stat_max_remset_scan);
+                        gc->stat_max_remset_scan);
   assert_geq_and_assign(stats_gclib.max_remset_scan_cpu,
-			gc->stat_max_remset_scan_cpu);
+                        gc->stat_max_remset_scan_cpu);
   assert_geq_and_assign(stats_gclib.total_remset_scan,
-			gc->stat_total_remset_scan);
+                        gc->stat_total_remset_scan);
   assert_geq_and_assign(stats_gclib.total_remset_scan_cpu,
-			gc->stat_total_remset_scan_cpu);
+                        gc->stat_total_remset_scan_cpu);
   assert_geq_and_assign(stats_gclib.remset_scan_count,
-			gc->stat_remset_scan_count);
+                        gc->stat_remset_scan_count);
   assert_geq_and_assign(stats_gclib.max_entries_remset_scan,
-			gc->stat_max_entries_remset_scan);
+                        gc->stat_max_entries_remset_scan);
   assert_geq_and_assign(stats_gclib.total_entries_remset_scan,
-			gc->stat_total_entries_remset_scan);
+                        gc->stat_total_entries_remset_scan);
 
   stats_gclib.last_ms_gc_truegc_pause = DATA(gc)->last_pause_elapsed;
   stats_gclib.last_ms_gc_truegc_pause_cpu = DATA(gc)->last_pause_cpu;
@@ -2592,7 +2593,7 @@ static void stats_following_gc( gc_t *gc )
 
   stats_add_gclib_stats( &stats_gclib );
 
-  stats_dumpstate();		/* Dumps stats state if dumping is on */
+  stats_dumpstate();                /* Dumps stats state if dumping is on */
 }
 
 static void force_collector_to_make_progress( gc_t *gc )
@@ -2735,7 +2736,7 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
   p = 0;
   while ((p = los_walk_list ( gc->los->object_lists[0], p )) != 0) {
     r = hio_dump_segment( heap, DATA_SEGMENT,
-			  p, p + bytes2words(sizefield(*ptrof(p))) + 1 );
+                          p, p + bytes2words(sizefield(*ptrof(p))) + 1 );
     if (r < 0) goto fail;
   }
 
@@ -2840,8 +2841,8 @@ static old_heap_t* expand_ephemeral_area_gnos( gc_t *gc, int fresh_gno )
     (old_heap_t**)must_malloc( new_area_count*sizeof( old_heap_t* ));
   
   annoyingmsg( "memmgr: expand_ephemeral_area_gnos "
-	       "fresh_gno %d area_count: %d",
-	       fresh_gno, old_area_count );
+               "fresh_gno %d area_count: %d",
+               fresh_gno, old_area_count );
 
   assert( old_area_count > 0 );
   
@@ -2962,14 +2963,14 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
 }
 
 static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed, 
-					  semispace_t *current_space )
+                                          semispace_t *current_space )
 {
   ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ) );
   return current_space;
 }
 
 static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
-				     semispace_t *current_space )
+                                     semispace_t *current_space )
 {
   int los_allocated;
   int cur_allocated;
@@ -3029,11 +3030,11 @@ static semispace_t *fresh_space( gc_t *gc )
   if (gc->static_area != NULL) {
     assert( DATA(gc)->static_generation == DATA(gc)->generations_after_gc - 1 );
     assert( ! gc->static_area->data_area || 
-	    (DATA(gc)->static_generation == 
-	     gc->static_area->data_area->gen_no ));
+            (DATA(gc)->static_generation == 
+             gc->static_area->data_area->gen_no ));
     assert( ! gc->static_area->text_area ||
-	    (DATA(gc)->static_generation == 
-	     gc->static_area->text_area->gen_no ));
+            (DATA(gc)->static_generation == 
+             gc->static_area->text_area->gen_no ));
   }
 
   /* Allocate a gno to assign to the returned semispace. */
@@ -3174,19 +3175,19 @@ static bool is_address_mapped( gc_t *gc, word *addr, bool noisy )
     int i, j;
     for( i = 0; i < DATA(gc)->ephemeral_area_count; i++ ) {
       if (oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, noisy )) {
-	if (ret) {
-	  oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, TRUE );
-	  assert( ! los_is_address_mapped( gc->los, addr, TRUE ));
-	  assert( ! yh_is_address_mapped( gc->young_area, addr ));
-	  assert( ! sh_is_address_mapped( gc->static_area, addr, TRUE ));
-	  assert( ! oh_is_address_mapped( DATA(gc)->dynamic_area, addr, TRUE ));
-	  for ( j = 0; j < i; j++ )
-	    assert( ! oh_is_address_mapped( DATA(gc)->ephemeral_area[j], 
-					    addr, 
-					    TRUE ));
-	  assert( !ret ); 
-	}
-	ret = TRUE;
+        if (ret) {
+          oh_is_address_mapped( DATA(gc)->ephemeral_area[i], addr, TRUE );
+          assert( ! los_is_address_mapped( gc->los, addr, TRUE ));
+          assert( ! yh_is_address_mapped( gc->young_area, addr ));
+          assert( ! sh_is_address_mapped( gc->static_area, addr, TRUE ));
+          assert( ! oh_is_address_mapped( DATA(gc)->dynamic_area, addr, TRUE ));
+          for ( j = 0; j < i; j++ )
+            assert( ! oh_is_address_mapped( DATA(gc)->ephemeral_area[j], 
+                                            addr, 
+                                            TRUE ));
+          assert( !ret ); 
+        }
+        ret = TRUE;
       }
     }
   }
@@ -3458,14 +3459,14 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     for ( i = 0 ; i < e ; i++ ) {
       size += info->ephemeral_info[i].size_bytes;
       DATA(gc)->ephemeral_area[ i ] = 
-	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
-			OHTYPE_EPHEMERAL );
+        create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
+                        OHTYPE_EPHEMERAL );
       gen_no += 1;
     }
   }
   if (DATA(gc)->ephemeral_area_count > 0) {
     sprintf( buf2, "+%d*%s",
-	     DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
+             DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
     strcat( buf, buf2 );
   }
 
@@ -3653,8 +3654,8 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
         ((DATA(gc)->rrof_words_per_region_min < 0) ? 
          words : min( words, DATA(gc)->rrof_words_per_region_min ));
       data->ephemeral_area[ i ] = 
-	create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
-			OHTYPE_REGIONAL );
+        create_sc_area( gen_no, gc, &info->ephemeral_info[i], 
+                        OHTYPE_REGIONAL );
       region_group_enq( data->ephemeral_area[ i ], 
                         region_group_nonrrof, region_group_unfilled );
       gen_no += 1;
@@ -3664,7 +3665,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   assert( data->rrof_words_per_region_max > 0 );
   if (data->ephemeral_area_count > 0) {
     sprintf( buf2, "+%d*%s",
-	     DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
+             DATA(gc)->ephemeral_area_count, DATA(gc)->ephemeral_area[0]->id );
     strcat( buf, buf2 );
   }
   data->nonexpandable_size = size; /* is this sensible in RROF? */
@@ -3819,7 +3820,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   gc_data_t *data;
   gc_t *ret;
   semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
-				 semispace_t *current_space );
+                                 semispace_t *current_space );
   void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
   void (*my_check_remset_invs)( gc_t *gc, word src, word tgt );
   
@@ -3934,48 +3935,48 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   ret = 
     create_gc_t( "*invalid*",
-		 (void*)data,
-		 initialize, 
-		 allocate,
-		 allocate_nonmoving,
-		 make_room,
-		 my_collect,
-		 set_policy,
-		 data_load_area,
-		 text_load_area,
-		 iflush,
-		 creg_get,
-		 creg_set,
-		 stack_overflow,
-		 stack_underflow,
-		 compact_all_ssbs,
+                 (void*)data,
+                 initialize, 
+                 allocate,
+                 allocate_nonmoving,
+                 make_room,
+                 my_collect,
+                 set_policy,
+                 data_load_area,
+                 text_load_area,
+                 iflush,
+                 creg_get,
+                 creg_set,
+                 stack_overflow,
+                 stack_underflow,
+                 compact_all_ssbs,
 #if defined(SIMULATE_NEW_BARRIER)
-		 isremembered,
+                 isremembered,
 #endif
-		 0,
-		 np_remset_ptrs,
-		 0,		/* load_heap */
-		 dump_image,
-		 make_handle,
-		 free_handle,
-		 gno_state, 
-		 enumerate_roots,
-		 enumerate_smircy_roots,
-		 enumerate_remsets_complement,
-		 enumerate_remembered_locations, 
-		 enumerate_hdr_address_ranges, 
-		 fresh_space,
-		 my_find_space,
-		 allocated_to_areas,
-		 maximum_allotted,
-		 is_nonmoving, 
-		 is_address_mapped,
-		 my_check_remset_invs,
-		 points_across_callback,
-		 heap_for_gno, 
-		 region_group_for_gno,
-		 check_invariants_between_fwd_and_free
-		 );
+                 0,
+                 np_remset_ptrs,
+                 0,                /* load_heap */
+                 dump_image,
+                 make_handle,
+                 free_handle,
+                 gno_state, 
+                 enumerate_roots,
+                 enumerate_smircy_roots,
+                 enumerate_remsets_complement,
+                 enumerate_remembered_locations, 
+                 enumerate_hdr_address_ranges, 
+                 fresh_space,
+                 my_find_space,
+                 allocated_to_areas,
+                 maximum_allotted,
+                 is_nonmoving, 
+                 is_address_mapped,
+                 my_check_remset_invs,
+                 points_across_callback,
+                 heap_for_gno, 
+                 region_group_for_gno,
+                 check_invariants_between_fwd_and_free
+                 );
   ret->scan_update_remset = info->is_regional_system;
 
   zeroed_promotion_counts( ret );
