@@ -32,7 +32,7 @@
 
 /* RROF collector */
 #define DEFAULT_LOAD_FACTOR_HARD     10.0
-#define SMIRCY_MISC_BOUND            5000
+#define SMIRCY_MISC_BOUND            2000
 
 struct nursery_info {           /* Generational gc nursery */
   int size_bytes;               /* size of area in bytes, > 0 */

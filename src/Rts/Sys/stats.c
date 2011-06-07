@@ -43,7 +43,7 @@
   target->field += fixnum( src->field )
 
 #define MAX_WORD( src, target, field ) \
-  target->field = max(target->field, fixnum( src->field ))
+  target->field = umax(target->field, fixnum( src->field ))
 
 #define IFGT_UPD_WORD( src, target, cmp_field, tgt_field, newint )      \
   do {                                                                  \
@@ -62,6 +62,12 @@
 
 #define PUT_WORD( src, target, field ) 		\
   target->field = fixnum( src->field )
+
+/* Put a 30-bit int into a single fixnum field by dropping the low bit. */
+/* This is used to report memory sizes in terms of doublewords.         */
+
+#define PUT_WORD2( src, target, field )                                 \
+  target->field = fixnum( src->field / 2 )
 
 #define CPUTBIG_DWORD( src, target, field )                             \
   do { if (src->field != 0) {                                           \
@@ -511,27 +517,27 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
 {
   gclib_memstat_t *s = &stats_state.gclib_stats;
 
-  PUT_WORD( stats, s, heap_allocated );
-  PUT_WORD( stats, s, heap_allocated_max );
-  PUT_WORD( stats, s, remset_allocated );
-  PUT_WORD( stats, s, remset_allocated_max );
-  PUT_WORD( stats, s, summ_allocated );
-  PUT_WORD( stats, s, summ_allocated_max );
-  PUT_WORD( stats, s, smircy_allocated );
-  PUT_WORD( stats, s, smircy_allocated_max );
-  PUT_WORD( stats, s, rts_allocated );
-  PUT_WORD( stats, s, rts_allocated_max );
-  PUT_WORD( stats, s, heap_fragmentation );
-  PUT_WORD( stats, s, heap_fragmentation_max );
-  PUT_WORD( stats, s, mem_allocated );
-  PUT_WORD( stats, s, mem_allocated_max );
+  PUT_WORD2( stats, s, heap_allocated );
+  PUT_WORD2( stats, s, heap_allocated_max );
+  PUT_WORD2( stats, s, remset_allocated );
+  PUT_WORD2( stats, s, remset_allocated_max );
+  PUT_WORD2( stats, s, summ_allocated );
+  PUT_WORD2( stats, s, summ_allocated_max );
+  PUT_WORD2( stats, s, smircy_allocated );
+  PUT_WORD2( stats, s, smircy_allocated_max );
+  PUT_WORD2( stats, s, rts_allocated );
+  PUT_WORD2( stats, s, rts_allocated_max );
+  PUT_WORD2( stats, s, heap_fragmentation );
+  PUT_WORD2( stats, s, heap_fragmentation_max );
+  PUT_WORD2( stats, s, mem_allocated );
+  PUT_WORD2( stats, s, mem_allocated_max );
 
-  PUT_WORD( stats, s, heap_allocated_peak );
-  PUT_WORD( stats, s, remset_allocated_peak );
-  PUT_WORD( stats, s, summ_allocated_peak );
-  PUT_WORD( stats, s, smircy_allocated_peak );
-  PUT_WORD( stats, s, rts_allocated_peak );
-  PUT_WORD( stats, s, heap_fragmentation_peak );
+  PUT_WORD2( stats, s, heap_allocated_peak );
+  PUT_WORD2( stats, s, remset_allocated_peak );
+  PUT_WORD2( stats, s, summ_allocated_peak );
+  PUT_WORD2( stats, s, smircy_allocated_peak );
+  PUT_WORD2( stats, s, rts_allocated_peak );
+  PUT_WORD2( stats, s, heap_fragmentation_peak );
 
   PUT_WORD( stats, s, max_remset_scan );
   PUT_WORD( stats, s, max_remset_scan_cpu );
@@ -774,7 +780,7 @@ void stats_add_remset_stats( stats_id_t remset, remset_stats_t *stats )
   s = &stats_state.remset_stats[ remset ];
 
   PUT_WORD( stats, s, allocated );
-  s->max_allocated = max( s->max_allocated, fixnum(stats->allocated) );
+  s->max_allocated = umax( s->max_allocated, fixnum(stats->allocated) );
   PUT_WORD( stats, s, used );
   PUT_WORD( stats, s, live );
 

@@ -89,7 +89,7 @@
 
 #define the_gc( globals )      ((gc_t*)globals[ G_GC ])
 
-#define bytes2words(x)      ((x) / sizeof(word))
+#define bytes2words(x)      (((unsigned) (x)) / sizeof(word))
 #define words2bytes(x)      ((x) * sizeof(word))
 
 /* Macros for manipulating Scheme data types. */

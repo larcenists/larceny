@@ -183,15 +183,15 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
        the allocation budget beyond reason, if not much is live at
        present.
        */
-    M = max( M, lower_limit );
-    est_live_next_gc = max( M/L, est_live_next_gc );
+    M = umax( M, lower_limit );
+    est_live_next_gc = umax( M/L, est_live_next_gc );
   }
   
   if (!DATA(gc)->shrink_heap) {
     gclib_stats_t stats;
 
     gclib_stats( &stats );
-    M = max( M, stats.heap_allocated_max ); /* use no less than before */
+    M = umax( M, stats.heap_allocated_max ); /* use no less than before */
   }
 
   if (upper_limit > 0) {
@@ -659,18 +659,16 @@ static void reset_countdown_to_next_refine( gc_t *gc )
     DATA(gc)->rrof_last_live_estimate = sizeof(word)*words_marked;
     DATA(gc)->last_live_words = words_marked;
     DATA(gc)->max_live_words = 
-      max( DATA(gc)->max_live_words, words_marked );
+      umax( DATA(gc)->max_live_words, words_marked );
 
     DATA(gc)->since_finished_snapshot_began.words_promoted =
       DATA(gc)->since_developing_snapshot_began.words_promoted;
     DATA(gc)->since_finished_snapshot_began.count_promotions =
       DATA(gc)->since_developing_snapshot_began.count_promotions;
 
-    /* FIXME */
 #if 0
     if (0) consolemsg("revised mark countdown: %d", new_countdown );
 #endif
-    if (1) consolemsg("revised mark countdown: %d", new_countdown );
   } else {
     assert(0);
   }
@@ -742,7 +740,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
       live_words += (gc->static_area->data_area->allocated / sizeof(word));
     }
     DATA(gc)->last_live_words = live_words;
-    DATA(gc)->max_live_words = max( DATA(gc)->max_live_words, live_words );
+    DATA(gc)->max_live_words = umax( DATA(gc)->max_live_words, live_words );
     zeroed_promotion_counts( gc );
   }
 
@@ -1059,7 +1057,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
     DATA(gc)->last_live_words = words_marked;
     DATA(gc)->max_live_words = 
-      max( DATA(gc)->max_live_words, words_marked );
+      umax( DATA(gc)->max_live_words, words_marked );
     DATA(gc)->since_finished_snapshot_began =
       DATA(gc)->since_developing_snapshot_began;
   }
@@ -1514,7 +1512,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
         }
         DATA(gc)->last_live_words = live_words;
         DATA(gc)->max_live_words = 
-          max( DATA(gc)->max_live_words, live_words );
+          umax( DATA(gc)->max_live_words, live_words );
       }
     }
 
@@ -3238,7 +3236,7 @@ static int calc_cN( gc_t *gc )
 
   assert2( c > 0.0 );
 
-  N = max( N, 5*MEGABYTE );
+  N = umax( N, 5*MEGABYTE );
 
   retval = (int)(c * ((double)N));
   if (retval <= 0 ) {

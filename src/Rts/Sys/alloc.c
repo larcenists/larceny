@@ -91,33 +91,33 @@ caddr_t      gclib_pagebase;	/* page address of lowest known word */
 /* Private globals */
 
 static struct {
-  byte *membot;		/* address of lowest known word */
-  byte *memtop;		/* address of highest known word */
+  byte *membot;                /* address of lowest known word */
+  byte *memtop;                /* address of highest known word */
   byte *heapbot;
   byte *heaplim;
   
-  int     descriptor_slots;	/* number of allocated slots */
-  int     heap_bytes_limit;	/* Maximum allowed heap allocation */
-  int     heap_bytes;		/* bytes allocated to heap */
-  int     max_heap_bytes;	/* max ditto */
-  int     peak_heap_bytes;	/* max_mem_bytes ditto */
-  int     remset_bytes;		/* bytes allocated to remset */
-  int     max_remset_bytes;	/* max ditto */
-  int     peak_remset_bytes;	/* max_mem_bytes ditto */
-  int     summ_bytes;		/* bytes allocated to summary sets */
-  int     max_summ_bytes;	/* max ditto */
-  int     peak_summ_bytes;	/* max_mem_bytes ditto */
-  int     smircy_bytes;		/* bytes allocated to marking state */
-  int     max_smircy_bytes;	/* max ditto */
-  int     peak_smircy_bytes;	/* max_mem_bytes ditto */
-  int     rts_bytes;		/* bytes allocated to RTS "other" */
-  int     max_rts_bytes;	/* max ditto */
-  int     peak_rts_bytes;	/* max_mem_bytes ditto */
-  int     wastage_bytes;	/* amount of wasted space */
-  int     max_wastage_bytes;	/* max ditto */
-  int     peak_wastage_bytes;	/* max_mem_bytes ditto */
-  int     mem_bytes;		/* amount of heap + remset + RTS + frag */
-  int     max_mem_bytes;	/* max ditto */
+  unsigned     descriptor_slots;     /* number of allocated slots */
+  unsigned     heap_bytes_limit;     /* Maximum allowed heap allocation */
+  unsigned     heap_bytes;           /* bytes allocated to heap */
+  unsigned     max_heap_bytes;       /* max ditto */
+  unsigned     peak_heap_bytes;      /* max_mem_bytes ditto */
+  unsigned     remset_bytes;         /* bytes allocated to remset */
+  unsigned     max_remset_bytes;     /* max ditto */
+  unsigned     peak_remset_bytes;    /* max_mem_bytes ditto */
+  unsigned     summ_bytes;           /* bytes allocated to summary sets */
+  unsigned     max_summ_bytes;       /* max ditto */
+  unsigned     peak_summ_bytes;      /* max_mem_bytes ditto */
+  unsigned     smircy_bytes;         /* bytes allocated to marking state */
+  unsigned     max_smircy_bytes;     /* max ditto */
+  unsigned     peak_smircy_bytes;    /* max_mem_bytes ditto */
+  unsigned     rts_bytes;            /* bytes allocated to RTS "other" */
+  unsigned     max_rts_bytes;        /* max ditto */
+  unsigned     peak_rts_bytes;       /* max_mem_bytes ditto */
+  unsigned     wastage_bytes;        /* amount of wasted space */
+  unsigned     max_wastage_bytes;    /* max ditto */
+  unsigned     peak_wastage_bytes;   /* max_mem_bytes ditto */
+  unsigned     mem_bytes;            /* amount of heap + remset + RTS + frag */
+  unsigned     max_mem_bytes;        /* max ditto */
 } data;
 
 static byte *gclib_alloc( unsigned bytes );
@@ -209,7 +209,7 @@ void *gclib_alloc_heap( int bytes, int gen_no )
 #endif
   }
   data.heap_bytes += bytes;
-  data.max_heap_bytes = max( data.max_heap_bytes, data.heap_bytes );
+  data.max_heap_bytes = umax( data.max_heap_bytes, data.heap_bytes );
 
   supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%d addr=[0x%08x,0x%08x)",
 			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );

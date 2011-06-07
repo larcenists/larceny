@@ -258,6 +258,9 @@ char *strdup( const char * );
 #if !defined(HAVE_HRTIME_T)
 hrtime_t gethrtime( void );
 #endif
+int umin( int x, int y );
+int umax( int x, int y );
+
 
 /* Target-specific */
 /* NOTE!  For the time being, the SPARC version uses a global
