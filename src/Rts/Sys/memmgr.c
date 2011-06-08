@@ -541,11 +541,19 @@ static const int    default_sumz_max_retries  = 1;
  *
  */
 
+#if (1)
 static const double default_popularity_factor = 8.0;
 static const double default_infamy_factor = 2.0;
 static const double default_sumz_coverage_inv = 2.0;
 static const double default_sumz_budget_inv = 2.0;
 static const int    default_sumz_max_retries  = 1;
+#else
+static const double default_popularity_factor = 4.0;
+static const double default_infamy_factor = 2.0;
+static const double default_sumz_coverage_inv = 2.0;
+static const double default_sumz_budget_inv = 3.0;
+static const int    default_sumz_max_retries  = 1;
+#endif
 
 static void smircy_start( gc_t *gc ) 
 {
@@ -938,7 +946,17 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
+  /* FIXME */
+  if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 200)
+    consolemsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
+                "%d %d %d %d %d %d",
+                DATA(gc)->stat_last_ms_remset_sumrize_cpu,
+                debug_counter, word_countdown, object_countdown,
+                DATA(gc)->rrof_next_region, ne_rgn_count, 
+                about_to_major, dA );
+
   if (completed_cycle) {
+    consolemsg( "COMPLETED SUMMARIZATION CYCLE" );  /* FIXME */
     rrof_completed_summarization_cycle( gc );
   }
 
@@ -2090,8 +2108,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
      */
 
     if (DATA(gc)->last_pause_cpu > 400)
-      consolemsg( "PAUSE = %d ********** (%d) request = %d",
-                  DATA(gc)->last_pause_cpu, debug_counter, request );
+      consolemsg( "PAUSE = %d ********** (%d) rgn = %d",
+                  DATA(gc)->last_pause_cpu, debug_counter, rgn );
     debug_counter = debug_counter + 1;
 
     stats_following_gc( gc );

@@ -70,6 +70,11 @@
 
 #define CONSERVATIVE_REGION_COUNT 0
 
+/* Try to start each summarization cycle just a little ahead of time */
+/* so there's no rush.                                               */
+
+#define HEAD_START 5
+
 /* cyclic FSM: sched -> doing -> finis -> sched */
 /* synchronized with smircy: build -> refine -> done -> build */
 typedef enum { 
@@ -169,12 +174,12 @@ struct summ_col {
 };
 
 struct summ_matrix_data {
-  double F_1;
-  double F_2;
-  int    F_3;
-  double coverage;
-  double goal;
-  double p;
+  double F_1;         /* coverage = 1 / F_1                                  */
+  double F_2;         /* goal     = 1 / (F_1 * F_2)                          */
+  int    F_3;         /* number of tries (if coverage doesn't meet goal)     */
+  double coverage;    /* try for summary sets on this fraction of heap       */
+  double goal;        /* must create summary sets for this fraction of heap  */
+  double p;           /* wave-off threshold (S)                              */
   int entries_per_objs_pool_segment;
   int entries_per_locs_pool_segment;
 
@@ -205,15 +210,61 @@ struct summ_matrix_data {
 
   struct {
 
+    /* FIXME:  This is definitely suboptimal.
+     *
+     * Scheduling the summarization work in discrete units (the number
+     * of regions whose remsets are scanned) necessarily results in
+     * some unevenness of scheduling.  That's a reasonable compromise,
+     * but we're making it worse than it has to be.
+     *
+     * Calculating the summarization work per major gc at the beginning
+     * of a summarization cycle, rounding up to the next integer, and
+     * using that integer to determine the work done whenever the
+     * summarizer is scheduled exacerbates the quantization error.
+     * Instead of scanning 3 regions during most major cycles, with
+     * an occasional major cycle that scans 4 regions, the current
+     * approach will scan 4 regions on every major cycle.
+     *
+     * In fact, it will scan more than 4 regions on most major cycles,
+     * because most major cycles include two or more minor cycles, and
+     * the current implementation performs (almost) a full major cycle's
+     * worth of summarization on each minor collection.  (The "relax a
+     * bit" hack helps a little, which explains the "almost".)
+     *
+     * The fact that dA is calculated as an integer (usually 1) also
+     * contributes to the quantization error.
+     *
+     * As things stand, summarization.num is usually 4 at equilibrium
+     * (F_1*F_2*F_3 + 1 + dA, where the 1 comes from the crude roundup
+     * performed by quotient2) when it should be 3.  And that's for
+     * major cycles, when minor cycles should be taken into account.
+     *
+     * Summarization pauses could be reduced by beginning the
+     * summarization cycle earlier and performing less work on
+     * each major cycle.  With the current architecture, however,
+     * that would increase overhead and decrease throughput.
+     * (The fixed overestimate of work to be performed on each
+     * major cycle, combined with performing that work on minor
+     * cycles, leads to early completion of summarization cycles.
+     * Starting the next summarization cycle earlier would lead
+     * to more summarization cycles overall.)
+     *
+     * A better approach would recalculate the required rate of
+     * progress at every minor/major collection and round up to an
+     * integral number of regions to scan for that collection only.
+     *
+     */
+
     /* TODO: factor this out.  Felix now thinks goal involves the currently
      * built summaries and the ones under construction, which means that this
      * state does not really belong here... */
-    int    goal; /* number of usable summaries needed before we say "done" */
+
+    int    goal;   /* number of usable summaries needed before we say "done" */
 
     bool   waiting;   /* TRUE only if currently delaying next round of summz */
-    bool   complete;  /* TRUE only if done with current round of sumz. */
-    int    cursor; /* start remset for next sm_build_summaries_partial() */
-    int    num; /* #remsets to scan in each sm_build_summaries_partial() */
+    bool   complete;  /* TRUE only if done with current round of sumz        */
+    int    cursor;    /* start remset for next sm_build_summaries_partial()  */
+    int    num;       /* #remsets to scan per sm_build_summaries_partial()   */
 
   } summarizing;
 
@@ -770,6 +821,10 @@ static void delayed_check_rep( summ_matrix_t *summ )
   }
 }
 
+static void sm_build_summaries_partial_n( summ_matrix_t *summ, 
+                                          int rgn_next,
+                                          int region_count,
+                                          int num );
 static void sm_build_summaries_partial( summ_matrix_t *summ, 
                                         int rgn_next,
                                         int ne_rgn_count,
@@ -785,6 +840,16 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
                                          int ne_rgn_count,
                                          bool about_to_major,
                                          int dA );
+
+/* Called at the end (or beginning?) of every full cycle.
+ *
+ * initial_num_rgns is the number of regions in the heap (N/R)
+ * c is the fraction of those regions to try to summarize (1/F_1)
+ * g is the fraction of those regions that should succeed (1/(F_1*F_2)
+ * p is the wave-off threshold (S)
+ * popularity_limit is in words (S * R)
+ *
+ */
 
 EXPORT summ_matrix_t *
 create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns, 
@@ -1008,7 +1073,43 @@ static void sm_ensure_available( summ_matrix_t *summ, int gno,
 static void setup_next_wave( summ_matrix_t *summ, int rgn_next, 
                              int ne_rgn_count, bool about_to_major, int dA );
 
+/* Returns true iff this summarization cycle is ahead of schedule */
+/* by the specified number of regions.                            */
+
+static bool summarization_is_ahead( summ_matrix_t *summ, int nrgns ) {
+  int fuel, capability, required;
+
+  /*  fuel is one more than the number of ready regions,
+   *      so it's an estimate of the number of major gcs
+   *      we can perform before the current summarization
+   *      cycle completes
+   *  capability is the number of regions whose remsets
+   *      we can expect to scan during the remainder of
+   *      this summarization cycle
+   *  required is the number of regions we need to scan
+   *      during the rest of this summarization cycle
+   */
+
+  fuel =
+    region_group_count( region_group_wait_nosum ) +
+    region_group_count( region_group_wait_w_sum );
+  capability = DATA(summ)->summarizing.num * fuel;
+  required = DATA(summ)->summarizing.cursor;
+
+  return capability >= (required + nrgns);
+}
+
+/* Returns true iff this summarization cycle is on schedule. */
+
+static bool summarization_is_on_schedule( summ_matrix_t *summ ) {
+  return summarization_is_ahead( summ, 0 );
+}
+
 #define quotient2( x, y ) (((x) == 0) ? 0 : (((x)+(y)-1)/(y)))
+
+/* Will thinks this function is supposed to return true whenever   */
+/* sm_construction_progress would return false.  It doesn't really */
+/* accomplish that except in simple cases.                         */
 
 EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count ) 
 {
@@ -1026,7 +1127,7 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count )
     int filled =
       region_group_count( region_group_filled );
 
-    if ( usable - max_pop > goal_budget ) {
+    if ( usable - max_pop > goal_budget) {
       return TRUE;
     } else if (filled < coverage) {
       return TRUE;
@@ -1055,6 +1156,9 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 {
   /* (must be kept in sync with sm_progress_would_no_op above) */
   int start, coverage;
+  int num_to_scan;        /* number of regions' remsets to scan */
+  unsigned t0, t1;        /* FIXME */
+  t0 = osdep_realclock(); /* FIXME */
 
   bool completed_cycle = FALSE;
 
@@ -1085,7 +1189,13 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 
     assert2( coverage >= goal_budget );
 
-    if ( usable-max_pop > goal_budget ) {
+    /* FIXME: I just gotta know.  Looks like it's never more than 1. */
+
+    if (region_group_count( region_group_wait_nosum ) > 1)  /* FIXME */
+      consolemsg( "%d in region_group_wait_nosum",
+                  region_group_count( region_group_wait_nosum) );
+
+    if ( usable - max_pop > goal_budget) {
       /* continue waiting to setup next wave */
       return FALSE;
     } else if (filled < coverage) {
@@ -1098,6 +1208,13 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     }
   }
 
+  /* num_to_scan is the number of regions whose remsets we need to scan
+   * per major collection.  The call to setup_next_wave(...) above might
+   * change this parameter, so don't fetch it any earlier than this.
+   */
+
+  num_to_scan = DATA(summ)->summarizing.num;
+
   assert( (region_group_count(region_group_summzing) > 0) 
           || (region_group_count(region_group_filled) == 0));
 
@@ -1108,9 +1225,30 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     assert2( DATA(summ)->summarizing.num > 0 );
 
     if (! about_to_major ) {
-      shall_we_progress = TRUE; /* yes, lets! */
+
+      shall_we_progress = TRUE;                           /* yes, lets!  */
+      if (summarization_is_ahead( summ, num_to_scan ))
+        num_to_scan = max(1, num_to_scan - 1);            /* relax a bit */
+
     } else {
+
+      /* FIXME: this should just call summarization_is_on_schedule(summ). */
+
       int fuel, capability, required;
+
+      /*  We're about to perform a major collection, so we'd
+       *  prefer not to do any summarization here.
+       *
+       *  fuel is one more than the number of ready regions,
+       *      so it's an estimate of the number of major gcs
+       *      we can perform before the current summarization
+       *      cycle completes
+       *  capability is the number of regions whose remsets
+       *      we can expect to scan during the remainder of
+       *      this summarization cycle
+       *  required is the number of regions we need to scan
+       *      during the rest of this summarization cycle
+       */
 
       fuel =
         region_group_count( region_group_wait_nosum ) +
@@ -1128,6 +1266,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
       /* XXX Hmm these calculations are now bogus because the required
        * value is too conservative; doesnt filter out empty remembered
        * sets in the remaining remsets to traverse.  What to do? */
+
       if ( capability >= required ) {
         /* no need to progress further; we're on budget. */
         shall_we_progress = FALSE;
@@ -1162,9 +1301,16 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     }
 
     if ( shall_we_progress ) {
+      t0 = osdep_realclock(); /* FIXME */
       /* make progress on next wave. */
       assert( ! DATA(summ)->summarizing.complete );
-      sm_build_summaries_partial( summ, rgn_next, ne_rgn_count, about_to_major );
+      sm_build_summaries_partial_n( summ,
+                                    rgn_next, ne_rgn_count, num_to_scan );
+      t1 = osdep_realclock(); /* FIXME */
+      if ((t1 - t0) > 200)
+        consolemsg( "==== part 1 %d %d",
+                    t1 - t0, DATA(summ)->summarizing.num );
+      t0 = t1;
       if (DATA(summ)->summarizing.complete) {
         completed_cycle = TRUE;
       }
@@ -1173,9 +1319,14 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
   } else {
     /* next wave complete; shift if appropriate. */
     completed_cycle = TRUE;
+    t0 = osdep_realclock(); /* FIXME */
     if ( region_group_count( region_group_wait_w_sum ) == 0 ) {
       sm_ensure_available( summ, rgn_next, ne_rgn_count, about_to_major, 
                            alloc_per_majgc );
+    t1 = osdep_realclock(); /* FIXME */
+    if ((t1 - t0) > 200)
+      consolemsg( "==== part 2 %d", t1 - t0);
+    t0 = t1;
     }
   }
 
@@ -2132,6 +2283,8 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
     num_under_construction = 
       quotient2( summ->collector->gno_count, gc_budget );
 #endif
+    consolemsg( "summarizing.num = %d = ceil((%d - %d + 1)*%d / %d) + %d",
+                num_under_construction, N_over_R, U, F_3, W, dA ); /* FIXME */
 
     dbmsg("sm_build_summaries_setup"
           "( summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%d, dA=%d )"
@@ -2149,6 +2302,54 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
      * but the calculated num_under_construction above makes use
      * of dynamic allocation behavior passed along in dA. 
      */
+
+    /* FIXME
+     *
+     * Will thinks the comment above is highly misleading.
+     * The comment above speaks of 1/(F_1 F_2 F_3)
+     * but the calculation below uses (F_1 * F_2 * F_3) instead.
+     * Neither makes sense.
+     * The number of summaries under construction should be about (N/R)/F_1.
+     * The number of summaries that need to succeed is about (N/R)/(F_1*F_2).
+     *
+     * Will strongly suspects that num_under_construction is an
+     * extraordinarily misleading name for something like the
+     * number of regions whose outgoing pointers must be scanned
+     * per major collection.  If so, then its name should be
+     * changed to something like num_to_scan.
+     *
+     * If so, and its calculation is simplified by assuming that
+     * no summary sets will be discarded after being constructed:
+     * 
+     * The number of regions to try to summarize is N/R/F_1.
+     * The number of regions to scan is N/R - #empty - #scanned.
+     * The number of major gcs over which we can amortize is
+     * the number of ready regions divided by F_3.
+     * The number of minor gcs per major gc is R/R_0 - 1 = (R-R_0)/R_0,
+     * where R_0 is the size of the nursery.
+     * 
+     * If the summarization is begun when there are no empty regions
+     * and the number of ready regions is (N/R) * 1/(F_1*F_2),
+     * then the number of regions to scan per minor gc should be about
+     *
+     *       (N/R) / (((N/R) * 1/(F_1*F_2))/F_3) / ((R-R_0)/R_0)
+     *     = (F_1 * F_2 * F_3 * R_0) / (R - R_0)
+     *
+     * If Will's guess is correct, then the scheduler should spread
+     * that work over a larger number of minor gcs.
+     *
+     */
+
+#if 0
+    /* FIXME: temporary hack to test Will's guess above, with   */
+    /* 1M nursery and 5M regions.  Yes, it works.  It improves  */
+    /* throughput slightly while reducing pause times by 25%    */
+    /* (because it reduced the value from 4 to 3).              */
+
+    num_under_construction
+      = ((int) (F_1 * F_2 * F_3 * 1.0) / (5.0 - 1.0)) + 1 + dA;
+#endif
+
     if (num_under_construction > ((int)ceil(F_1*F_2*F_3) + dA_over_R)) {
       consolemsg( "Predicted max summ/gc: %d+%d but num_under_construction: %d",
                   (int)ceil(F_1*F_2*F_3), dA_over_R, num_under_construction );
@@ -2488,6 +2689,7 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
   int start;
   int finis;
   int nontrivial_scans;
+  unsigned t0, t1; /* FIXME */
 
   dbmsg( "sm_build_summaries_partial( summ, rgn_next=%d, region_count=%d );",
               rgn_next, region_count );
@@ -2506,8 +2708,14 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
   start = max( finis-num, 1 );
   assert2( start < finis );
 
+  t0 = osdep_realclock(); /* FIXME */
   nontrivial_scans =
     sm_build_summaries_by_scanning( summ, start, finis, &remsum );
+  t1 = osdep_realclock(); /* FIXME */
+  if ((t1 - t0) > 200)
+    consolemsg( "==== sm_build_summaries_by_scanning %d %d %d %d",
+                t1 - t0, start, finis, nontrivial_scans );
+  t0 = t1;
 
   if (start == 1) {
     sm_build_summaries_iteration_complete( summ, region_count );
@@ -2540,8 +2748,8 @@ static void sm_build_summaries_partial( summ_matrix_t *summ,
                                         int region_count,
                                         bool about_to_major )
 {
-  sm_build_summaries_partial_n( summ, rgn_next, region_count,
-                                DATA(summ)->summarizing.num );
+  int num_to_scan = DATA(summ)->summarizing.num;
+  sm_build_summaries_partial_n( summ, rgn_next, region_count, num_to_scan );
 }
  
 static void sm_build_summaries_just_static_area( summ_matrix_t *summ,
