@@ -102,7 +102,7 @@ public class Pueue4 {
         int i = 0;
         while (m > 0) {
             long tStart = System.currentTimeMillis();
-            buffer[i] = IntList.makeList(this.n, popular[i % p]);  // see note
+            buffer[i] = IntList.makeList(this.n, popular[m % p]);  // see note
             long tFinish = System.currentTimeMillis();
             long t = tFinish - tStart;
             if (t > maxTime)

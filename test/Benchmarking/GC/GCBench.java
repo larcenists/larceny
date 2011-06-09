@@ -1,3 +1,26 @@
+// This benchmark has been modified (by Will Clinger):
+//
+//      The name of the main class has been changed to GCBench.
+//      The name of the main method has been changed to originalMain.
+//      The benchmark's parameters are now variables instead of constants.
+//      A new main method allows the number of iterations and the
+//           benchmark's main size parameter to be specified on the
+//           command line.  The new main method computes the other
+//           parameters from the main parameter, times the iterated
+//           benchmark, and reports that iterated timing in addition
+//           to timings for each iteration (which are still reported
+//           by the originalMain method).
+//
+// Usage:
+//
+//      java GCBench N K
+//
+// where
+//      N is the number of iterations (defaulting to its original value, 1)
+//      K is the size parameter (defaulting to its original value, 18)
+//
+// The original comment follows:
+
 // This is adapted from a benchmark written by John Ellis and Pete Kovac
 // of Post Communications.
 // It was modified by Hans Boehm of Silicon Graphics.
@@ -45,11 +68,41 @@ class Node {
 
 public class GCBench {
 
-        public static final int kStretchTreeDepth    = 18;      // about 16Mb
-        public static final int kLongLivedTreeDepth  = 16;  // about 4Mb
-        public static final int kArraySize  = 500000;  // about 4Mb
+        public static void main (String[] args) {
+
+	    int n = 1;                // number of iterations
+
+	    if (args.length > 0)
+		n = Integer.parseInt (args[0], 10);
+	    if (args.length > 1) {
+		kStretchTreeDepth = Integer.parseInt (args[1], 10);
+		kLongLivedTreeDepth = kStretchTreeDepth - 2;
+		kArraySize = 4 * TreeSize(kLongLivedTreeDepth);
+		kMaxTreeDepth = kLongLivedTreeDepth;
+	    }
+	    if (n == 1)
+		originalMain(args);
+	    else {
+                long    tStart, tFinish, tElapsed;
+                tStart = System.currentTimeMillis();
+                for (int i = 0; i < n; i = i + 1)
+		    originalMain(args);
+                tFinish = System.currentTimeMillis();
+                tElapsed = tFinish - tStart;
+                PrintDiagnostics();
+                System.out.println(n +
+				   "gcbench:" +
+				   kStretchTreeDepth +
+				   " took " +
+				   tElapsed + "ms.");
+	    }
+        }
+
+        public static       int kStretchTreeDepth    = 18;  // about 16Mb
+        public static       int kLongLivedTreeDepth  = 16;  // about 4Mb
+        public static       int kArraySize  = 500000;       // about 4Mb
         public static final int kMinTreeDepth = 4;
-        public static final int kMaxTreeDepth = 16;
+        public static       int kMaxTreeDepth = 16;
 
         // Nodes used by a tree of a given size
         static int TreeSize(int i) {
@@ -121,7 +174,7 @@ public class GCBench {
 
         }
 
-        public static void main(String args[]) {
+        public static void originalMain(String args[]) {
                 Node    root;
                 Node    longLivedTree;
                 Node    tempTree;

@@ -3,15 +3,19 @@
 ;  It was modified by Hans Boehm of Silicon Graphics.
 ;  It was translated into Scheme by William D Clinger of Northeastern Univ;
 ;    the Scheme version uses (RUN-BENCHMARK <string> <thunk>)
-;  It was later hacked by Lars T Hansen of Northeastern University;
-;    this version has a fixed tree height but accepts a number of 
-;    iterations to run.
+;  It was later hacked by Lars T Hansen of Northeastern University,
+;    and again by Clinger.
 ;
 ;  Modified 2000-02-15 / lth: changed gc-benchmark to only stretch once,
 ;     and to have a different interface (now accepts iteration numbers,
 ;     not tree height)
 ;  Last modified 2000-07-14 / lth -- fixed a buggy comment about storage 
 ;     use in Larceny.
+;  Modified sometime by someone to accept both the number of iterations
+;     and the tree height as optional arguments.
+;  Modified 2011-05-29 / wdc: A regional collector requires large
+;     arrays to be broken up into smaller pieces, so it's simulated
+;     in this benchmark.
 ;
 ;       This is no substitute for real applications.  No actual application
 ;       is likely to behave in exactly this way.  However, this benchmark was
@@ -155,6 +159,15 @@
                          yes)))
       
       (define (main)
+
+        ;; These definitions isolate the vector operations below
+        ;; from those provided by the host system.
+
+        (define (make-vector n x) (alternative-make-vector n x))
+        (define (vector-length v) (alternative-vector-length v))
+        (define (vector-ref v i) (alternative-vector-ref v i))
+        (define (vector-set! v i x) (alternative-vector-set! v i x))
+
         (display "Garbage Collector Test")
         (newline)
         (if stretch
@@ -232,3 +245,37 @@
                      (set! stretch #f))
                    yes)
     (set! stretch #t)))
+
+;;; A regional collector may use an alternative representation
+;;; for large vectors (so each allocated object will fit into
+;;; a single region).
+
+(define elements-per-arraylet (expt 2 16))
+
+(define (alternative-make-vector n x)
+  (let* ((n0 (div n elements-per-arraylet))
+         (n1 (mod n elements-per-arraylet))
+         (n00 (if (zero? n1) n0 (+ n0 1)))
+         (v (make-vector n00)))
+    (do ((i 0 (+ i 1)))
+        ((= i n0))
+      (vector-set! v i (make-vector elements-per-arraylet x)))
+    (if (> n00 n0)
+        (vector-set! v n0 (make-vector n1 x)))
+    v))
+
+(define (alternative-vector-length v)
+  (let ((n (vector-length v)))
+    (+ (* (- n 1) elements-per-arraylet)
+       (vector-length (vector-ref v (- n 1))))))
+
+(define (alternative-vector-ref v i)
+  (let ((j (div i elements-per-arraylet))
+        (k (mod i elements-per-arraylet)))
+    (vector-ref (vector-ref v j) k)))
+
+(define (alternative-vector-set! v i x)
+  (let ((j (div i elements-per-arraylet))
+        (k (mod i elements-per-arraylet)))
+    (vector-set! (vector-ref v j) k x)))
+

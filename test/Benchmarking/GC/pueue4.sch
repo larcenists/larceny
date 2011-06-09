@@ -55,7 +55,7 @@
             ((fx=? i k)
              (loop m 0))
             (else
-             (let* ((x (vector-ref xs (remainder i p))))
+             (let* ((x (vector-ref xs (remainder m p))))
 	       (vector-set! q i (make-list n x)))
 	     (loop (fx- m 1) (fx+ i 1)))))
     (define (make-list n x)
