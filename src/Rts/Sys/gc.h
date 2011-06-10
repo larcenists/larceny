@@ -34,6 +34,14 @@
 #define DEFAULT_LOAD_FACTOR_HARD     10.0
 #define SMIRCY_MISC_BOUND            2000
 
+/* Felix's dissertation described three sets of parameters that seem */
+/* to work well.  One of those sets is wired in as the default set.  */
+/* By changing the following defines, you can change that default.   */
+
+#define PARAMETERS8221 1
+#define PARAMETERS6121 0
+#define PARAMETERS4231 0
+
 struct nursery_info {           /* Generational gc nursery */
   int size_bytes;               /* size of area in bytes, > 0 */
 };

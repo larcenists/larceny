@@ -30,6 +30,7 @@
 #define assertmsg( format, args... ) if (1) consolemsg( format, ## args )
 #define assert_printgset( prefix, arg ) if (1) console_printgset( prefix, arg )
 #define verifymsg( format, args... ) if (0) consolemsg( format, ## args )
+#define timingmsg( format, args... ) if (0) consolemsg( format, ## args )
 
 #include <stdio.h>
 #include <math.h>
@@ -69,11 +70,6 @@
 #define SUMMARIZE_KILLS_RS_ENTRIES 1
 
 #define CONSERVATIVE_REGION_COUNT 0
-
-/* Try to start each summarization cycle just a little ahead of time */
-/* so there's no rush.                                               */
-
-#define HEAD_START 5
 
 /* cyclic FSM: sched -> doing -> finis -> sched */
 /* synchronized with smircy: build -> refine -> done -> build */
@@ -1227,7 +1223,23 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     if (! about_to_major ) {
 
       shall_we_progress = TRUE;                           /* yes, lets!  */
-      if (summarization_is_ahead( summ, num_to_scan ))
+
+      /*  The relaxation below doesn't improve the worst case,
+       *  and it has no effect on throughput, but it does
+       *  reduce the number of worst-case pause times and
+       *  the average pause time.
+       *
+       *  It also gives us some idea of how much we could
+       *  improve the worst case through better scheduling.
+       *  Right now the longest pauses tend to occur near
+       *  the beginning of a summarization cycle, before
+       *  we get far enough ahead of schedule for the
+       *  relaxation below to kick in.
+       */
+
+      if (summarization_is_ahead( summ, 2 * num_to_scan ))
+        num_to_scan = 1 + num_to_scan / 2;                /* relax a lot */
+      else if (summarization_is_ahead( summ, num_to_scan ))
         num_to_scan = max(1, num_to_scan - 1);            /* relax a bit */
 
     } else {
@@ -1283,19 +1295,19 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
         int   (*c)( region_group_t grp );
         n = &region_group_name;
         c = &region_group_count;
-        consolemsg("summ_matrix.c: had to summarize "
-                   "during major gc pause to meet budget"
-                   "                    "
-                   " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d",
-                   n( region_group_nonrrof    ), c( region_group_nonrrof ),
-                   n( region_group_unfilled   ), c( region_group_unfilled ),
-                   n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
-                   n( region_group_wait_nosum ), c( region_group_wait_nosum ),
-                   n( region_group_summzing   ), c( region_group_summzing ),
-                   n( region_group_filled     ), c( region_group_filled ), 
-                   n( region_group_risingstar ), c( region_group_risingstar ),
-                   n( region_group_infamous   ), c( region_group_infamous ),
-                   n( region_group_hasbeen    ), c( region_group_hasbeen ) );
+        timingmsg("summ_matrix.c: had to summarize "
+                  "during major gc pause to meet budget"
+                  "                    "
+                  " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d",
+                  n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                  n( region_group_unfilled   ), c( region_group_unfilled ),
+                  n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                  n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                  n( region_group_summzing   ), c( region_group_summzing ),
+                  n( region_group_filled     ), c( region_group_filled ), 
+                  n( region_group_risingstar ), c( region_group_risingstar ),
+                  n( region_group_infamous   ), c( region_group_infamous ),
+                  n( region_group_hasbeen    ), c( region_group_hasbeen ) );
         shall_we_progress = TRUE;
       }
     }
@@ -1308,8 +1320,8 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
                                     rgn_next, ne_rgn_count, num_to_scan );
       t1 = osdep_realclock(); /* FIXME */
       if ((t1 - t0) > 200)
-        consolemsg( "==== part 1 %d %d",
-                    t1 - t0, DATA(summ)->summarizing.num );
+        timingmsg( "==== part 1 %d %d",
+                   t1 - t0, DATA(summ)->summarizing.num );
       t0 = t1;
       if (DATA(summ)->summarizing.complete) {
         completed_cycle = TRUE;
@@ -1325,7 +1337,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
                            alloc_per_majgc );
     t1 = osdep_realclock(); /* FIXME */
     if ((t1 - t0) > 200)
-      consolemsg( "==== part 2 %d", t1 - t0);
+      timingmsg( "==== part 2 %d", t1 - t0);
     t0 = t1;
     }
   }
@@ -2283,8 +2295,8 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
     num_under_construction = 
       quotient2( summ->collector->gno_count, gc_budget );
 #endif
-    consolemsg( "summarizing.num = %d = ceil((%d - %d + 1)*%d / %d) + %d",
-                num_under_construction, N_over_R, U, F_3, W, dA ); /* FIXME */
+    timingmsg( "summarizing.num = %d = ceil((%d - %d + 1)*%d / %d) + %d",
+               num_under_construction, N_over_R, U, F_3, W, dA ); /* FIXME */
 
     dbmsg("sm_build_summaries_setup"
           "( summ, majors=%d, ne_rgn_count=%d, rgn_next=%d, about_to_major=%d, dA=%d )"
@@ -2351,8 +2363,8 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
 #endif
 
     if (num_under_construction > ((int)ceil(F_1*F_2*F_3) + dA_over_R)) {
-      consolemsg( "Predicted max summ/gc: %d+%d but num_under_construction: %d",
-                  (int)ceil(F_1*F_2*F_3), dA_over_R, num_under_construction );
+      timingmsg( "Predicted max summ/gc: %d+%d but num_under_construction: %d",
+                 (int)ceil(F_1*F_2*F_3), dA_over_R, num_under_construction );
     }
 #endif
   }
@@ -2482,21 +2494,22 @@ static void switch_some_to_summarizing( summ_matrix_t *summ,
         int   (*c)( region_group_t grp );
         n = &region_group_name;
         c = &region_group_count;
-        consolemsg( "summ_matrix.c: ran out of regions to summarize:"
-                    " coverage: %3d coverage_orig: %3d"
-                    " cycle_count: %d curr_cycle_pass_count: %d"
-                    " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
-                    coverage, coverage_orig, 
-                    DATA(summ)->cycle_count, DATA(summ)->curr_cycle_pass_count, 
-                    n( region_group_nonrrof    ), c( region_group_nonrrof ),
-                    n( region_group_unfilled   ), c( region_group_unfilled ),
-                    n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
-                    n( region_group_wait_nosum ), c( region_group_wait_nosum ),
-                    n( region_group_summzing   ), c( region_group_summzing ),
-                    n( region_group_filled     ), c( region_group_filled ), 
-                    n( region_group_risingstar ), c( region_group_risingstar ),
-                    n( region_group_infamous   ), c( region_group_infamous ),
-                    n( region_group_hasbeen    ), c( region_group_hasbeen ) );
+        timingmsg( "summ_matrix.c: ran out of regions to summarize:"
+                   " coverage: %3d coverage_orig: %3d"
+                   " cycle_count: %d curr_cycle_pass_count: %d"
+                   " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
+                   coverage, coverage_orig, 
+
+                   DATA(summ)->cycle_count, DATA(summ)->curr_cycle_pass_count, 
+                   n( region_group_nonrrof    ), c( region_group_nonrrof ),
+                   n( region_group_unfilled   ), c( region_group_unfilled ),
+                   n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
+                   n( region_group_wait_nosum ), c( region_group_wait_nosum ),
+                   n( region_group_summzing   ), c( region_group_summzing ),
+                   n( region_group_filled     ), c( region_group_filled ), 
+                   n( region_group_risingstar ), c( region_group_risingstar ),
+                   n( region_group_infamous   ), c( region_group_infamous ),
+                   n( region_group_hasbeen    ), c( region_group_hasbeen ) );
 
         break; /* nothing left to summarize! */
       }
@@ -2713,8 +2726,8 @@ static void sm_build_summaries_partial_n( summ_matrix_t *summ,
     sm_build_summaries_by_scanning( summ, start, finis, &remsum );
   t1 = osdep_realclock(); /* FIXME */
   if ((t1 - t0) > 200)
-    consolemsg( "==== sm_build_summaries_by_scanning %d %d %d %d",
-                t1 - t0, start, finis, nontrivial_scans );
+    timingmsg( "==== sm_build_summaries_by_scanning %d %d %d %d",
+               t1 - t0, start, finis, nontrivial_scans );
   t0 = t1;
 
   if (start == 1) {

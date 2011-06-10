@@ -541,11 +541,17 @@ static const int    default_sumz_max_retries  = 1;
  *
  */
 
-#if (1)
+#if PARAMETERS8221
 static const double default_popularity_factor = 8.0;
 static const double default_infamy_factor = 2.0;
 static const double default_sumz_coverage_inv = 2.0;
 static const double default_sumz_budget_inv = 2.0;
+static const int    default_sumz_max_retries  = 1;
+#elif PARAMETERS6121
+static const double default_popularity_factor = 6.0;
+static const double default_infamy_factor = 2.0;
+static const double default_sumz_coverage_inv = 1.75;
+static const double default_sumz_budget_inv = 2.75;
 static const int    default_sumz_max_retries  = 1;
 #else
 static const double default_popularity_factor = 4.0;
@@ -675,7 +681,7 @@ static void reset_countdown_to_next_refine( gc_t *gc )
       DATA(gc)->since_developing_snapshot_began.count_promotions;
 
 #if 0
-    if (0) consolemsg("revised mark countdown: %d", new_countdown );
+    if (0) annoyingmsg("revised mark countdown: %d", new_countdown );
 #endif
   } else {
     assert(0);
@@ -736,8 +742,8 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->rrof_cycle_count += 1;
 
   /* FIXME */
-  consolemsg( "COMPLETED FULL CYCLE %d (%d)",
-              DATA(gc)->rrof_cycle_count, debug_counter );
+  annoyingmsg( "COMPLETED FULL CYCLE %d (%d)",
+               DATA(gc)->rrof_cycle_count, debug_counter );
 
   if (DATA(gc)->print_float_stats_each_cycle)
     print_float_stats( "cycle ", gc );
@@ -768,7 +774,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
          (DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle == 0)));
   /* FIXME */
   if ( ! (DATA(gc)->rrof_smircy_step_on_minor_collections_alone) )
-    consolemsg( "ENABLING MARKING DURING MAJOR GC" );
+    annoyingmsg( "ENABLING MARKING DURING MAJOR GC" );
 
   DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle = 0;
   DATA(gc)->rrof_mark_cycles_begun_in_this_full_cycle = 0;
@@ -948,15 +954,15 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 200)
-    consolemsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
-                "%d %d %d %d %d %d",
-                DATA(gc)->stat_last_ms_remset_sumrize_cpu,
-                debug_counter, word_countdown, object_countdown,
-                DATA(gc)->rrof_next_region, ne_rgn_count, 
-                about_to_major, dA );
+    annoyingmsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
+                 "%d %d %d %d %d %d",
+                 DATA(gc)->stat_last_ms_remset_sumrize_cpu,
+                 debug_counter, word_countdown, object_countdown,
+                 DATA(gc)->rrof_next_region, ne_rgn_count, 
+                 about_to_major, dA );
 
   if (completed_cycle) {
-    consolemsg( "COMPLETED SUMMARIZATION CYCLE" );  /* FIXME */
+    annoyingmsg( "COMPLETED SUMMARIZATION CYCLE" );  /* FIXME */
     rrof_completed_summarization_cycle( gc );
   }
 
@@ -2108,8 +2114,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
      */
 
     if (DATA(gc)->last_pause_cpu > 400)
-      consolemsg( "PAUSE = %d ********** (%d) rgn = %d",
-                  DATA(gc)->last_pause_cpu, debug_counter, rgn );
+      annoyingmsg( "PAUSE = %d ********** (%d) rgn = %d",
+                   DATA(gc)->last_pause_cpu, debug_counter, rgn );
     debug_counter = debug_counter + 1;
 
     stats_following_gc( gc );
