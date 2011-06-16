@@ -1299,20 +1299,6 @@ static char *wizardhelptext[] = {
 #endif
   "  -regional",
   "     Use the bounded-latency regional collector (experimental).",
-  "  -size# nnnn",
-  "     Heap area number '#' is given size 'nnnn' bytes.",
-  "     Area 0 is the nursery.",
-  "     If # > 1, this selects the standard generational collector.",
-  "  -areas n",
-  "     Use the standard generational collector with n heap areas.",
-  "     The default number of heap areas is "
-        STR(DEFAULT_AREAS) 
-        ".",
-#endif
-  "  -min nnnn",
-  "     Set the lower limit on the size of the expandable (\"dynamic\") area.",
-  "  -max nnnn",
-  "     Set the upper limit on the size of the expandable (\"dynamic\") area.",
   "  -load d",
   "     Use inverse load factor d to control allocation and collection.",
   "     The garbage collector will try to resize the heap as necessary",
@@ -1327,6 +1313,20 @@ static char *wizardhelptext[] = {
   "     set, as the conservative collector by default manages heap growth",
   "     using the heap space divisor (see -divisor parameter).  The -load",
   "     and -expansion parameters are mutually exclusive.",
+#endif
+  "  -min nnnn",
+  "     Set the lower limit on the size of the expandable (\"dynamic\") area.",
+  "  -max nnnn",
+  "     Set the upper limit on the size of the expandable (\"dynamic\") area.",
+  "  -size# nnnn",
+  "     Heap area number '#' is given size 'nnnn' bytes.",
+  "     Area 0 is the nursery.",
+  "     If # > 1, this selects the standard generational collector.",
+  "  -areas n",
+  "     Use the standard generational collector with n heap areas.",
+  "     The default number of heap areas is "
+        STR(DEFAULT_AREAS) 
+        ".",
 #endif
 #if defined(BDW_GC)
   "  -divisor n",
@@ -1365,6 +1365,8 @@ static char *wizardhelptext[] = {
   "  -refinement d",
   "     For the regional collector only:  Allocate d words for each",
   "     word marked.  Incompatible with -mark_period.  The default is 1.0.",
+  /* These make sense only for researchers, who can read the code base. */
+#if 0
   "  -mark_period n",
   "     For the regional collector only:  Do some incremental marking",
   "     after every n minor collections.  Incompatible with -refinement.",
@@ -1380,6 +1382,7 @@ static char *wizardhelptext[] = {
   "     'Z' represents trivially collectable storage, 'R' represents ",
   "     dead storage referenced from unreachable objects in other regions",
   "     (and thus not guaranteed to be reclaimed in next major collection).",
+#endif
   /* Users should probably use the regional collector instead. */
 #if 0
 #if ROF_COLLECTOR

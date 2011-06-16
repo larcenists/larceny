@@ -26,7 +26,7 @@
  *  First Safety                0.95         8 Nov 2007     5108
  *  Fluoridation                0.96        24 Dec 2007     5266
  *  Funny in the Head           0.97        19 Aug 2009     6398
- *  General Ripper 
+ *  General Ripper              0.98b0
  *  Goldie
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
@@ -68,9 +68,9 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 97;
-/* char *larceny_version_qualifier = " \"Funny in the Head\""; */
-char *larceny_version_qualifier = "+ (new heap format)";
+int  larceny_minor_version = 98;
+/* char *larceny_version_qualifier = " \"General Ripper\""; */
+char *larceny_version_qualifier = "b0";
 
 char *date = DATE " " TIME;
 char *user = USER;
