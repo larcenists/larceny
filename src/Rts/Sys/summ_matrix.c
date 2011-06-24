@@ -1107,7 +1107,8 @@ static bool summarization_is_on_schedule( summ_matrix_t *summ ) {
 /* sm_construction_progress would return false.  It doesn't really */
 /* accomplish that except in simple cases.                         */
 
-EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count ) 
+static bool sm_progress_would_no_op_original( summ_matrix_t *summ,
+                                              int ne_rgn_count )
 {
   /* (must be kept in sync with sm_construction_progress below) */
 
@@ -1142,13 +1143,13 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count )
 }
 
 
-EXPORT bool sm_construction_progress( summ_matrix_t *summ, 
-                                      int* word_countdown,
-                                      int* object_countdown,
-                                      int rgn_next,
-                                      int ne_rgn_count,
-                                      bool about_to_major,
-                                      int alloc_per_majgc )
+static bool sm_construction_progress_original( summ_matrix_t *summ, 
+                                               int* word_countdown,
+                                               int* object_countdown,
+                                               int rgn_next,
+                                               int ne_rgn_count,
+                                               bool about_to_major,
+                                               int alloc_per_majgc )
 {
   /* (must be kept in sync with sm_progress_would_no_op above) */
   int start, coverage;
@@ -1211,6 +1212,10 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 
   num_to_scan = DATA(summ)->summarizing.num;
 
+#if 0
+  num_to_scan = 1; /* FIXME */
+#endif
+
   assert( (region_group_count(region_group_summzing) > 0) 
           || (region_group_count(region_group_filled) == 0));
 
@@ -1241,6 +1246,8 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
         num_to_scan = 1 + num_to_scan / 2;                /* relax a lot */
       else if (summarization_is_ahead( summ, num_to_scan ))
         num_to_scan = max(1, num_to_scan - 1);            /* relax a bit */
+
+      num_to_scan = 1; /* FIXME */
 
     } else {
 
@@ -1313,6 +1320,16 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     }
 
     if ( shall_we_progress ) {
+      if (num_to_scan > 1)
+        consolemsg("summarizing: %d %d %d %d %d %d %d %d",
+                   summ,
+                   word_countdown,
+                   object_countdown,
+                   rgn_next,
+                   ne_rgn_count,
+                   about_to_major,
+                   alloc_per_majgc,
+                   num_to_scan );
       t0 = osdep_realclock(); /* FIXME */
       /* make progress on next wave. */
       assert( ! DATA(summ)->summarizing.complete );
@@ -1355,6 +1372,101 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
   check_rep_1( summ );
 
   return completed_cycle;
+}
+
+/* FIXME
+ *
+ * For now, this just gives us a place to insert experimental code.
+ */
+
+EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count ) 
+{
+  return sm_progress_would_no_op_original( summ, ne_rgn_count );
+}
+
+/*  There are three fractions that estimate progress required and/or made
+ *  during this summarization cycle:
+ *
+ *      m_cN  =  m/cN                 is the mutator activity divided by
+ *                                    the mutator activity to be allowed
+ *                                    during this summarization cycle
+ *                                    (which should be less than cN)
+ *
+ *      rdyF  =  readyNow/ready0      is the number of summary sets that
+ *                                    are still ready divided by the number
+ *                                    that were ready at the start of this
+ *                                    summarization cycle
+ *
+ *      rgnF  =  rgnsNow/rgns0        is the number of regions that have
+ *                                    been scanned so far divided by the
+ *                                    total number of nonempty regions
+ *
+ * FIXME
+ *      rdyF is not being used.
+ *      Major collections may be consuming summary sets faster than necessary.
+ */
+
+EXPORT bool sm_construction_progress( summ_matrix_t *summ, 
+                                      int* word_countdown,
+                                      int* object_countdown,
+                                      int rgn_next,
+                                      int ne_rgn_count,
+                                      bool about_to_major,
+                                      int alloc_per_majgc,
+                                      double m_cN )
+{
+  double rdyF;
+  double rgnF;
+  double readyNow;
+  double ready0;
+  double rgnsNow;
+  double rgns0;
+  double number_of_regions;
+
+  readyNow = region_group_count( region_group_wait_w_sum );
+  ready0 = ne_rgn_count * DATA(summ)->coverage;              /* FIXME */
+  rdyF = readyNow / ready0;
+
+  rgnsNow = ne_rgn_count - DATA(summ)->summarizing.cursor;   /* FIXME */
+  rgns0 = ne_rgn_count;
+  rgnF = rgnsNow / rgns0;                                    /* FIXME */
+
+  /* FIXME */
+
+  if (m_cN >= 2.0) {
+
+    return sm_construction_progress_original( summ,
+                                              word_countdown,
+                                              object_countdown,
+                                              rgn_next,
+                                              ne_rgn_count,
+                                              about_to_major,
+                                              alloc_per_majgc );
+  }
+
+  if (DATA(summ)->summarizing.complete)
+    return FALSE;
+
+  if ((m_cN > rgnF) || (rdyF < rgnF)) {
+    unsigned t0, t1;
+    bool completed_cycle;
+
+    assert2( ! DATA(summ)->summarizing.waiting );
+
+    t0 = osdep_realclock(); /* FIXME */
+    sm_build_summaries_partial_n( summ, rgn_next, ne_rgn_count, 1 );
+    t1 = osdep_realclock(); /* FIXME */
+    if ((t1 - t0) > 200)
+      timingmsg( "==== part 1 %d %d",
+                 t1 - t0, DATA(summ)->summarizing.num );
+    t0 = t1;
+    if (DATA(summ)->summarizing.complete) {
+      completed_cycle = TRUE;
+      return completed_cycle;
+    }
+    else return FALSE;
+  }
+  else return FALSE;
 }
 
 EXPORT void sm_enumerate_row( summ_matrix_t *summ,

@@ -948,7 +948,8 @@ static void summarization_step( gc_t *gc, bool about_to_major )
                               DATA(gc)->rrof_next_region, 
                               ne_rgn_count, 
                               about_to_major,
-                              dA );
+                              dA,
+                              2.0 );  /* FIXME */
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
@@ -2128,6 +2129,8 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 }
 
+static int calc_cN( gc_t *gc );
+
 /* These procedures may be called thousands of times per second. */
 
 static void incremental_nop( gc_t *gc ) { /* do nothing */ }
@@ -2135,6 +2138,73 @@ static void incremental_nop( gc_t *gc ) { /* do nothing */ }
 static void incremental_rgnl( gc_t *gc )
 {
   /* Schedule some work here. */
+
+  double mut_activity_sumz;
+  double cN;
+  double m_cN;
+  int ne_rgn_count;
+  bool about_to_major;
+  int dA;
+  bool completed_cycle;
+  int word_countdown = -1, object_countdown = -1;
+  stats_id_t timer1, timer2;
+  bool summarization_active;
+  word *globals;
+  word *p;
+  int nbytes;
+  word *lim;
+
+  if (DATA(gc)->summaries == NULL)
+    return;
+
+  globals = DATA(gc)->globals;
+  p = (word*)globals[ G_ETOP ];
+  lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
+  nbytes = (lim-p)*sizeof(word);
+
+  /* FIXME: just guessing that satb entries should count too */
+
+  mut_activity_sumz = 
+    nbytes +
+    DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle + 
+    DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+    DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle;
+  cN = calc_cN( gc );
+  m_cN = mut_activity_sumz / cN;
+
+  ne_rgn_count = nonempty_region_count( gc );
+  about_to_major = 0;
+  dA = 1;  /* FIXME */
+
+  if (m_cN >= 1.0)
+    consolemsg( "m/cN = %d (%)", (int) (100.0 * m_cN) );
+
+  start_timers( &timer1, &timer2 );
+  completed_cycle
+    = sm_construction_progress( DATA(gc)->summaries, 
+                                &word_countdown,
+                                &object_countdown, 
+                                DATA(gc)->rrof_next_region, 
+                                ne_rgn_count, 
+                                about_to_major,
+                                dA,
+                                m_cN );
+  stop_sumrize_timers( gc, &timer1, &timer2 );
+
+  /* FIXME */
+  if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 50) {
+    consolemsg( "SHORT SUMMARIZATION PAUSE = %d ********** (%d) "
+                 "%d %d %d %d %d %d %d%%",
+                 DATA(gc)->stat_last_ms_remset_sumrize_cpu,
+                 debug_counter, word_countdown, object_countdown,
+                 DATA(gc)->rrof_next_region, ne_rgn_count,
+                 about_to_major, dA, (int) (100.0 * m_cN) );
+  }
+
+  if (completed_cycle) {
+    consolemsg( "COMPLETED SUMMARIZATION CYCLE (on short pause)" ); /* FIXME */
+    rrof_completed_summarization_cycle( gc );
+  }
 }
 
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
@@ -2652,8 +2722,6 @@ static void force_collector_to_make_progress( gc_t *gc )
 
   DATA(gc)->mutator_effort.forcing_collector_to_progress = TRUE;
 }
-
-static int calc_cN( gc_t *gc );
 
 static int compact_all_ssbs( gc_t *gc )
 {

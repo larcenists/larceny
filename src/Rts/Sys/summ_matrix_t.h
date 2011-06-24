@@ -85,8 +85,10 @@ bool sm_construction_progress( summ_matrix_t *summ,
                                int* word_countdown, int* object_countdown, 
                                int rgn_next, int ne_rgn_count, 
                                bool about_to_major, 
-                               int allocation_per_majgc );
+                               int allocation_per_majgc,
+                               double m_cN );
   /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) 
+   * m_cN is mutator activity this cycle divided by max allowed activity
    *
    * returns true iff completed a summarization cycle during 
    * this progress step.*/
