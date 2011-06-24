@@ -182,6 +182,7 @@ void EXPORT mc_timer_exception( word *globals, cont_t k )
 static void timer_exception( word *globals, cont_t k )
 {
   check_signals( globals, k );
+  gc_incremental( the_gc( globals ) );
 
   if (globals[ G_TIMER_ENABLE ] == FALSE_CONST)
     globals[ G_TIMER ] = TEMPORARY_FUEL;         /* Run a little longer */

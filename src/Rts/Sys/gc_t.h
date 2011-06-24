@@ -135,6 +135,11 @@ struct gc {
        allocated following the collection.
        */
 
+  void (*incremental)( gc_t *gc );
+    /* A method that allows some work to be done by incremental collectors.
+       May be called thousands of times per second.
+       */
+
   void (*set_policy)( gc_t *gc, int heap, int x, int y );
 
   word *(*data_load_area)( gc_t *gc, int nbytes );
@@ -269,6 +274,7 @@ struct gc {
 #define gc_allocate_nonmoving( gc,n,a ) ((gc)->allocate_nonmoving( gc, n,a ))
 #define gc_make_room( gc )            ((gc)->make_room( gc ))
 #define gc_collect( gc,gen,n,t )      ((gc)->collect( gc,gen,n,t ))
+#define gc_incremental( gc )          ((gc)->incremental( gc ))
 #define gc_set_policy( gc,h,x,y )     ((gc)->set_policy( gc,h,x,y ))
 #define gc_data_load_area( gc,n )     ((gc)->data_load_area( gc,n ))
 #define gc_text_load_area( gc,n )     ((gc)->text_load_area( gc,n ))
@@ -328,6 +334,7 @@ gc_t
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
 	     void (*make_room)( gc_t *gc ),
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
+             void (*incremental)( gc_t *gc ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),

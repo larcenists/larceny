@@ -461,7 +461,7 @@ PUBLIC i386_bytevector_like_compare
 	jnz	%%RETFALSE
 	mov	RESULT, TRUE_CONST
 	ret
-%%RETFALSE
+%%RETFALSE:	
 	mov	RESULT, FALSE_CONST
 	ret
 %endmacro

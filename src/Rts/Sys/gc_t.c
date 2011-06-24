@@ -17,6 +17,7 @@ gc_t
 	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
 	     void (*make_room)( gc_t *gc ), 
 	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
+             void (*incremental)( gc_t *gc ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
 	     word *(*data_load_area)( gc_t *gc, int nbytes ),
 	     word *(*text_load_area)( gc_t *gc, int nbytes ),
@@ -97,6 +98,7 @@ gc_t
   gc->allocate_nonmoving = allocate_nonmoving;
   gc->make_room = make_room;
   gc->collect = collect;
+  gc->incremental = incremental;
   gc->set_policy = set_policy;
   gc->data_load_area = data_load_area;
   gc->text_load_area = text_load_area;

@@ -2128,6 +2128,15 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 }
 
+/* These procedures may be called thousands of times per second. */
+
+static void incremental_nop( gc_t *gc ) { /* do nothing */ }
+
+static void incremental_rgnl( gc_t *gc )
+{
+  /* Schedule some work here. */
+}
+
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
 {
   assert(isptr(tgt));
@@ -3844,15 +3853,18 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
                                  semispace_t *current_space );
   void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
+  void (*my_incremental)( gc_t *gc );
   void (*my_check_remset_invs)( gc_t *gc, word src, word tgt );
   
   if (info->is_regional_system) {
     my_find_space = find_space_rgnl;
     my_collect = collect_rgnl;
+    my_incremental = incremental_rgnl;
     my_check_remset_invs = check_remset_invs_rgnl;    
   } else {
     my_find_space = find_space_expanding;
     my_collect = collect_generational;
+    my_incremental = incremental_nop;
     my_check_remset_invs = check_remset_invs;
   }
 
@@ -3963,6 +3975,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
                  allocate_nonmoving,
                  make_room,
                  my_collect,
+                 my_incremental,
                  set_policy,
                  data_load_area,
                  text_load_area,
