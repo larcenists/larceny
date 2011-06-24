@@ -552,6 +552,18 @@
          (string->number "+i")
          (make-rectangular 0 1))
 
+   (test "Ticket #670"                  ; Bug in Larceny 0.97 and previous
+         (begin (enable-interrupts 1000000)
+                (call-with-current-continuation
+                 (lambda (k)
+                   (dynamic-wind
+                    (lambda () #t)
+                    (lambda () 17)
+                    (lambda () (k #t)))))
+                (let ((status (disable-interrupts)))
+                  (enable-interrupts 1000000)
+                  (and status #t)))
+         #t)
    ))
 
 (define (bug-105-test1)

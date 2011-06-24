@@ -219,6 +219,8 @@
 ; Snarfed from Lisp Pointers, V(4), October-December 1992, p45.
 ; Written by Jonathan Rees.
 ;
+; FIXME
+;
 ; Modification:  We would like reroot! to be atomic wrt timer interrupts.
 ; While it is not desirable to disable interrupts while rerooting, since
 ; buggy user code can then hang the system, I have chosen to do for the
@@ -226,8 +228,21 @@
 ; (If it is not atomic, though, non-buggy user code cannot be made race-free!
 ; Better to make it possible to write correct code than to make it easy
 ; to debug code that cannot be fixed.)
+;
+; Problem:  As documented by ticket #670, the modification described
+; above left timer interrupts permanently disabled when the after
+; thunk of a dynamic-wind performs a throw.  A full solution probably
+; involves a separate *here* state for each thread and attaching more
+; information to each node of that state.
+;
+; Race conditions should be fixed by locks on individual objects and
+; operations instead of blocking all other threads.  Until Larceny's
+; current reliance on call-without-interrupts is fixed, however,
+; we're just going to detect throws that occur while timer interrupts
+; are disabled only because a rerooting is in progress.
 
 (define *here* (list #f))
+(define *enable-interrupts-when-done* #f)
 
 (define call-with-current-continuation
   (let ((call-with-current-continuation call-with-current-continuation))
@@ -236,8 +251,17 @@
         (call-with-current-continuation
          (lambda (cont)
            (proc (lambda results
+
+                   ;; Any rerooting that was in progress will be
+                   ;; abandoned, so restore interrupt status.
+
+                   (if *enable-interrupts-when-done*
+                       (enable-interrupts *enable-interrupts-when-done*))
+
                    (reroot! here)
+
                    ;; Handle extremely common case.
+
                    (if (and (pair? results)
                             (null? (cdr results)))
                        (cont (car results))
@@ -284,7 +308,9 @@
                  (before)))))
 
   (let ((ticks (disable-interrupts)))
+    (set! *enable-interrupts-when-done* ticks)
     (reroot-loop there)
+    (set! *enable-interrupts-when-done* #f)
     (if ticks (enable-interrupts ticks))))
 
 ;; Continuation Marks
