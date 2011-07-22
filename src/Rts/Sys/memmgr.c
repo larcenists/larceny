@@ -1106,13 +1106,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   NURS_SUMMARY_VERIFICATION_POINT(gc);
 }
 
-/* FIXME
- *
- * It looks as though this is being called only at the completion
- * of a full cycle.  Should it be called at the completion of
- * every summarization cycle?
- *
- */
+/* Called only once, at the completion of a full cycle. */
 
 static void initialize_summaries( gc_t *gc, bool about_to_major ) 
 {

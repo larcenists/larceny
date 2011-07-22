@@ -252,10 +252,16 @@ struct summ_matrix_data {
      */
 
     /* The number of regions that were ready (summarized) at the
-     * start of this summarization cycle.
+     * start of this summarization cycle.  Used as a divisor.
      */
 
     int ready0;
+
+    /* The number of regions that are being scanned during this
+     * summarization cycle.  Used as a divisor.
+     */
+
+    int cursor0;
 
     /* TODO: factor this out.  Felix now thinks goal involves the currently
      * built summaries and the ones under construction, which means that this
@@ -843,7 +849,7 @@ static void advance_to_next_summary_set( summ_matrix_t *summ,
                                          bool about_to_major,
                                          int dA );
 
-/* Called at the end (or beginning?) of every full cycle.
+/* Called only once, at the end of a full cycle.
  *
  * initial_num_rgns is the number of regions in the heap (N/R)
  * c is the fraction of those regions to try to summarize (1/F_1)
@@ -866,8 +872,8 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
   int num_under_construction = (int)(initial_num_rgns * c);
   int num_rows = gc->gno_count;
 
-  consolemsg( "[FIXME] create_summ_matrix %d %d %d %d",
-              first_gno, initial_num_rgns, rgn_next, about_to_major );
+  annoyingmsg( "[FIXME] create_summ_matrix %d %d %d %d",
+               first_gno, initial_num_rgns, rgn_next, about_to_major );
 
   dbmsg("  create_summ_matrix( gc, %d, initial_num_rgns: %d,"
         " %f, %f, pop_limit: %d, num_cols: %d )",
@@ -925,9 +931,11 @@ create_summ_matrix( gc_t *gc, int first_gno, int initial_num_rgns,
 
   {
     int goal = (int)ceil(((double)initial_num_rgns) * g);
-    int curr = (int)ceil(((double)initial_num_rgns) * c);
+    int curr = (int)ceil(((double)initial_num_rgns) * c);  /* FIXME: unused */
     int gno;
 
+    DATA(sm)->summarizing.ready0 = 0;
+    DATA(sm)->summarizing.cursor0 = gc->gno_count;
     DATA(sm)->summarizing.goal = goal;
     DATA(sm)->summarizing.complete = FALSE;
     DATA(sm)->summarizing.cursor = gc->gno_count;
@@ -1080,28 +1088,26 @@ static void setup_next_wave( summ_matrix_t *summ, int rgn_next,
 
 /* Returns true iff this summarization cycle is ahead of schedule */
 /* by the specified number of regions.                            */
+/* See comment at sm_construction_progress.                       */
 
 static bool summarization_is_ahead( summ_matrix_t *summ, int nrgns ) {
-  int fuel, capability, required;
+  double rdyF;
+  double rgnF;
+  double readyNow;
+  double ready0;
+  double rgnsNow;
+  double rgns0;
+  double number_of_regions;
 
-  /*  fuel is one more than the number of ready regions,
-   *      so it's an estimate of the number of major gcs
-   *      we can perform before the current summarization
-   *      cycle completes
-   *  capability is the number of regions whose remsets
-   *      we can expect to scan during the remainder of
-   *      this summarization cycle
-   *  required is the number of regions we need to scan
-   *      during the rest of this summarization cycle
-   */
+  readyNow = region_group_count( region_group_wait_w_sum );
+  ready0 = (double) max( 1, DATA(summ)->summarizing.ready0 );
+  rdyF = readyNow / ready0;
 
-  fuel =
-    region_group_count( region_group_wait_nosum ) +
-    region_group_count( region_group_wait_w_sum );
-  capability = DATA(summ)->summarizing.num * fuel;
-  required = DATA(summ)->summarizing.cursor;
+  rgns0 = DATA(summ)->summarizing.cursor0;  /* FIXME */
+  rgnsNow = rgns0 - DATA(summ)->summarizing.cursor;
+  rgnF = (rgnsNow - nrgns) / rgns0;
 
-  return capability >= (required + nrgns);
+  return (1.0 - rdyF) < rgnF;
 }
 
 /* Returns true iff this summarization cycle is on schedule. */
@@ -1239,61 +1245,22 @@ static bool sm_construction_progress_original( summ_matrix_t *summ,
       shall_we_progress = TRUE;                           /* yes, lets!  */
 
       /*  The relaxation below doesn't improve the worst case,
-       *  and it has no effect on throughput, but it does
-       *  reduce the number of worst-case pause times and
-       *  the average pause time.
-       *
-       *  It also gives us some idea of how much we could
-       *  improve the worst case through better scheduling.
-       *  Right now the longest pauses tend to occur near
-       *  the beginning of a summarization cycle, before
-       *  we get far enough ahead of schedule for the
-       *  relaxation below to kick in.
+       *  and it has no effect on throughput, but it comes
+       *  close to doing away with summarization during major
+       *  gc pauses, which should improve both pause times and
+       *  MMU.
        */
 
       if (summarization_is_ahead( summ, 2 * num_to_scan ))
-        num_to_scan = 1 + num_to_scan / 2;                /* relax a lot */
+        num_to_scan = 1;
       else if (summarization_is_ahead( summ, num_to_scan ))
-        num_to_scan = max(1, num_to_scan - 1);            /* relax a bit */
-
-      num_to_scan = 1; /* FIXME */
+        num_to_scan = max(1, num_to_scan / 3);
+      else if (summarization_is_ahead( summ, num_to_scan / 2 ))
+        num_to_scan = max(1, num_to_scan / 2);
+      else if (summarization_is_ahead( summ, 1 ))
+        num_to_scan = max(1, num_to_scan - 1);
 
     } else {
-
-      /* FIXME: this should just call summarization_is_on_schedule(summ). */
-
-      int fuel, capability, required;
-
-      /*  We're about to perform a major collection, so we'd
-       *  prefer not to do any summarization here.
-       *
-       *  fuel is one more than the number of ready regions,
-       *      so it's an estimate of the number of major gcs
-       *      we can perform before the current summarization
-       *      cycle completes
-       *  capability is the number of regions whose remsets
-       *      we can expect to scan during the remainder of
-       *      this summarization cycle
-       *  required is the number of regions we need to scan
-       *      during the rest of this summarization cycle
-       */
-
-      fuel =
-        region_group_count( region_group_wait_nosum ) +
-        region_group_count( region_group_wait_w_sum );
-      capability = DATA(summ)->summarizing.num * fuel;
-      required = DATA(summ)->summarizing.cursor;
-
-#if CONSERVATIVE_REGION_COUNT
-      assert( capability >= required );
-#endif
-
-      /* the major collection itself will use one unit of fuel. */
-      capability = DATA(summ)->summarizing.num * (fuel - 1);
-
-      /* XXX Hmm these calculations are now bogus because the required
-       * value is too conservative; doesnt filter out empty remembered
-       * sets in the remaining remsets to traverse.  What to do? */
 
       /* FIXME
        *
@@ -1345,23 +1312,23 @@ SUMMARIZATION PAUSE = 568 ********** (2909) -1 -1 4 38 1 1
        *
        */
 
-      if ( capability >= required ) {
-        /* no need to progress further; we're on budget. */
+      if ( summarization_is_on_schedule( summ ) ) {
         shall_we_progress = FALSE;
-
-        /* XXX but should we be eager beavers?  Perhaps invoking
-         * sm_build_summaries_partial_n with a smaller count than
-         * summarizing.num?
-         * 
-         * In any case, to bring back behavior from circa SVN revision
-         * 6110, set shall_we_progress to TRUE here. */
-
       } else {
+
+        /* FIXME
+         *
+         * This seems to happen when large arrays are allocated.
+         * The allocation rate exceeds incremental summarization
+         * because the Larceny runtime system allocates the array
+         * inline without decrementing the countdown timer enough.
+         */
+
         char *(*n)( region_group_t grp );
         int   (*c)( region_group_t grp );
         n = &region_group_name;
         c = &region_group_count;
-        timingmsg("summ_matrix.c: had to summarize "
+        timingmsg("summ_matrix.c: summarizing "
                   "during major gc pause to meet budget"
                   "                    "
                   " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d",
@@ -1479,7 +1446,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
   double number_of_regions;
 
   readyNow = region_group_count( region_group_wait_w_sum );
-  ready0 = ne_rgn_count * DATA(summ)->goal;                  /* FIXME */
+  ready0 = (double) max( 1, DATA(summ)->summarizing.ready0 );
   rdyF = readyNow / ready0;
 
   rgnsNow = ne_rgn_count - DATA(summ)->summarizing.cursor;   /* FIXME */
@@ -1510,7 +1477,7 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
     assert2( ! DATA(summ)->summarizing.waiting );
 
     if (m_cN <= rgnF)
-      timingmsg( "incremental collection triggered by rdyF: %f > %f",
+      timingmsg( "incremental summarization triggered by rdyF: %f > %f",
                  1.0 - rdyF, rgnF );
 
     t0 = osdep_realclock(); /* FIXME */
@@ -2548,7 +2515,9 @@ static void sm_build_summaries_setup( summ_matrix_t *summ,
      majors, ne_rgn_count, rgn_next, about_to_major?"TRUE":"FALSE", 
       goal, num_under_construction, ((int)ceil(F_1*F_2*F_3) + dA_over_R));
 
-
+  DATA(summ)->summarizing.ready0
+    = region_group_count( region_group_wait_w_sum );
+  DATA(summ)->summarizing.cursor0 = summ->collector->gno_count;
   DATA(summ)->summarizing.goal = goal;
   DATA(summ)->summarizing.waiting = FALSE;
   DATA(summ)->summarizing.complete = FALSE;
@@ -2955,8 +2924,8 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
   int gno_count = summ->collector->gno_count;
   int goal;
 
-  consolemsg( "[FIXME] sm_build_remset_summaries %d %d %d",
-              region_count, rgn_next, about_to_major );
+  annoyingmsg( "[FIXME] sm_build_remset_summaries %d %d %d",
+               region_count, rgn_next, about_to_major );
 
   check_rep_1( summ );
 
@@ -3521,8 +3490,10 @@ static int count_usable_summaries_in( summ_matrix_t *summ, gset_t gset )
 
 static void wait_to_setup_next_wave( summ_matrix_t *summ )
 {
-  DATA(summ)->summarizing.waiting = TRUE;
+  DATA(summ)->summarizing.ready0 = 0;
+  DATA(summ)->summarizing.cursor0 = summ->collector->gno_count;
   DATA(summ)->summarizing.goal = 0;
+  DATA(summ)->summarizing.waiting = TRUE;
   DATA(summ)->summarizing.complete = TRUE;
   DATA(summ)->summarizing.cursor = summ->collector->gno_count;
   DATA(summ)->summarizing.num = 0;
