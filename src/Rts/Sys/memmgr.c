@@ -955,7 +955,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 200)
-    annoyingmsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
+    consolemsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
                  "%d %d %d %d %d %d",
                  DATA(gc)->stat_last_ms_remset_sumrize_cpu,
                  debug_counter, word_countdown, object_countdown,
@@ -1105,6 +1105,14 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   REMSET_VERIFICATION_POINT(gc);
   NURS_SUMMARY_VERIFICATION_POINT(gc);
 }
+
+/* FIXME
+ *
+ * It looks as though this is being called only at the completion
+ * of a full cycle.  Should it be called at the completion of
+ * every summarization cycle?
+ *
+ */
 
 static void initialize_summaries( gc_t *gc, bool about_to_major ) 
 {
@@ -2192,7 +2200,7 @@ static void incremental_rgnl( gc_t *gc )
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
   /* FIXME */
-  if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 50) {
+  if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 100) {
     consolemsg( "SHORT SUMMARIZATION PAUSE = %d ********** (%d) "
                  "%d %d %d %d %d %d %d%%",
                  DATA(gc)->stat_last_ms_remset_sumrize_cpu,
@@ -2202,7 +2210,7 @@ static void incremental_rgnl( gc_t *gc )
   }
 
   if (completed_cycle) {
-    consolemsg( "COMPLETED SUMMARIZATION CYCLE (on short pause)" ); /* FIXME */
+    annoyingmsg( "COMPLETED SUMMARIZATION CYCLE (on short pause)" );
     rrof_completed_summarization_cycle( gc );
   }
 }
@@ -2422,7 +2430,7 @@ enumerate_roots( gc_t *gc, void (*f)(word *addr, void *scan_data), void *scan_da
  * mutator activity, not the major_remsets. 
  * 
  * If you want information from the major remsets, you need to
- * propogate it via the remset summary.
+ * propagate it via the remset summary.
  */
 static void
 enumerate_remsets_complement( gc_t *gc,
@@ -2530,25 +2538,43 @@ static void enumerate_hdr_address_ranges( gc_t *gc,
                                           void (*f)( word *s,word *l,void *d ),
                                           void *d ) 
 {
+  unsigned t0, t1; /* FIXME */
+  int iterations = 0; /* FIXME */
   if (gno-1 < DATA(gc)->ephemeral_area_count) {
     semispace_t *ss;
     ss = oh_current_space( DATA(gc)->ephemeral_area[gno-1] );
+    t0 = osdep_realclock(); /* FIXME */
     ss_enumerate_hdr_ranges( ss, f, d );
+    t1 = osdep_realclock(); /* FIXME */
+    if ((t1 - t0) > 200)
+      consolemsg( "===1 enumerate_hdr_address_ranges %d",
+                  t1 - t0 ); /* FIXME */
 
     {
       word *p;
       p = NULL;
+      t0 = osdep_realclock(); /* FIXME */
       do {
+        iterations++;
         p = los_walk_list( gc->los->object_lists[gno], p );
         if (p != NULL) 
           f( p, p+1, d );
       } while (p != NULL);
+      t1 = osdep_realclock(); /* FIXME */
+      if ((t1 - t0) > 200)
+        consolemsg( "===2 enumerate_hdr_address_ranges %d (%d)",
+                    t1 - t0, iterations ); /* FIXME */
     }
   }
   {
     if (gc->static_area != NULL && 
         (gno == DATA(gc)->static_generation)) {
+      t0 = osdep_realclock(); /* FIXME */
       ss_enumerate_hdr_ranges( gc->static_area->data_area, f, d );
+      t1 = osdep_realclock(); /* FIXME */
+      if ((t1 - t0) > 200)
+        consolemsg( "===3 enumerate_hdr_address_ranges %d",
+                    t1 - t0 ); /* FIXME */
     }
   }
 }
