@@ -80,6 +80,77 @@
 #define CPUT_WORD( src, target, field ) 		\
   if (src->field != 0) target->field = fixnum( src->field )
 
+#define RANGECASE(lo, hi, recv_prefix, recv_suffix, arg)     \
+  else if (lo <= arg && arg < hi)            \
+    recv_prefix ## lo ## _ ## hi ## recv_suffix += fixnum(1)
+
+#define RANGECASE_ALT(lo, hi, lo_id, hi_id, recv_prefix, recv_suffix, arg) \
+  else if (lo <= arg && arg < hi)            \
+    recv_prefix ## lo_id ## _ ## hi_id ## recv_suffix += fixnum(1)
+
+  /* Note that the leading zero in 00 below is signifcant, 
+   * since the token is turned into an identifier as well
+   * as being used to represent zero. */
+#define RANGECASES( recv_prefix, recv_suffix, arg )          \
+  do {                                          \
+    if (0);                                     \
+    RANGECASE(   00,   10, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
+    else { assert(arg > 1000);                               \
+      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
+    }                                                        \
+  } while (0)
+
+#define RANGECASES_FINE( recv_prefix, recv_suffix, arg )     \
+  do {                                          \
+    if (0);                                     \
+    RANGECASE_ALT(0,2, 00,02, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(2,4, 02,04, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(4,6, 04,06, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(6,8, 06,08, recv_prefix, recv_suffix, arg ); \
+    RANGECASE_ALT(8,10,08,10, recv_prefix, recv_suffix, arg ); \
+    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
+    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
+    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
+    else { assert(arg > 1000);                               \
+      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
+    }                                                        \
+  } while (0)
+  
 
 typedef struct gc_memstat gc_memstat_t;
 typedef struct gclib_memstat gclib_memstat_t;
@@ -513,6 +584,57 @@ int stats_stop_timer( stats_id_t timer )
   return retval;
 }
 
+/* Updates stats_state with stats data from an incremental process
+ * of the regional collector.  Ignores irrelevant fields of its argument.
+ */
+
+void stats_add_gclib_stats_incremental( gclib_stats_t *stats )
+{
+  gclib_memstat_t *s = &stats_state.gclib_stats;
+
+  if (stats->last_ms_remset_sumrize > 0) {
+    word ms     = (word)stats->last_ms_remset_sumrize;
+    word ms_cpu = (word)stats->last_ms_remset_sumrize_cpu;
+
+    RANGECASES( s->count_sumrize_, _ms, ms );
+    s->max_build_remset_summary        = max( fixnum(ms), 
+                                              s->max_build_remset_summary);
+    s->max_build_remset_summary_cpu    = max( fixnum(ms_cpu), 
+                                              s->max_build_remset_summary_cpu);
+    MAX_WORD( stats, s, max_build_remset_summary );
+    MAX_WORD( stats, s, max_build_remset_summary_cpu );
+    s->build_remset_summary_count     += fixnum(1);
+    s->total_build_remset_summary     += fixnum( ms );
+    s->total_build_remset_summary_cpu += fixnum( ms_cpu );
+  }
+  if (stats->last_ms_smircy_mark > 0) {
+    word ms     = fixnum( stats->last_ms_smircy_mark );
+    word ms_cpu = fixnum( stats->last_ms_smircy_mark_cpu );
+
+    s->max_smircy_mark_pause        = max( ms, s->max_smircy_mark_pause );
+    s->max_smircy_mark_pause_cpu    = max( ms_cpu, s->max_smircy_mark_pause_cpu );
+    MAX_WORD( stats, s, max_smircy_mark_pause );
+    MAX_WORD( stats, s, max_smircy_mark_pause_cpu );
+    s->smircy_mark_pause_count     += fixnum(1);
+    s->total_smircy_mark_pause     += ms;
+    s->total_smircy_mark_pause_cpu += ms_cpu;
+  }
+  if (stats->last_ms_smircy_refine > 0) {
+    word ms     = fixnum( stats->last_ms_smircy_refine );
+    word ms_cpu = fixnum( stats->last_ms_smircy_refine_cpu );
+
+    s->max_smircy_refine_pause        = max( ms, s->max_smircy_refine_pause );
+    s->max_smircy_refine_pause_cpu    = max( ms_cpu, s->max_smircy_refine_pause_cpu );
+    MAX_WORD( stats, s, max_smircy_refine_pause );
+    MAX_WORD( stats, s, max_smircy_refine_pause_cpu );
+    s->smircy_refine_pause_count     += fixnum(1);
+    s->total_smircy_refine_pause     += ms;
+    s->total_smircy_refine_pause_cpu += ms_cpu;
+  }
+}
+
+/* Updates stats_state with stats data from a collection. */
+
 void stats_add_gclib_stats( gclib_stats_t *stats )
 {
   gclib_memstat_t *s = &stats_state.gclib_stats;
@@ -547,79 +669,6 @@ void stats_add_gclib_stats( gclib_stats_t *stats )
   PUT_WORD( stats, s, max_entries_remset_scan );
   PUTBIG_DWORD( stats, s, total_entries_remset_scan );
 
-#define RANGECASE(lo, hi, recv_prefix, recv_suffix, arg)     \
-  else if (lo <= arg && arg < hi)            \
-    recv_prefix ## lo ## _ ## hi ## recv_suffix += fixnum(1)
-
-#define RANGECASE_ALT(lo, hi, lo_id, hi_id, recv_prefix, recv_suffix, arg) \
-  else if (lo <= arg && arg < hi)            \
-    recv_prefix ## lo_id ## _ ## hi_id ## recv_suffix += fixnum(1)
-
-  /* Note that the leading zero in 00 below is signifcant, 
-   * since the token is turned into an identifier as well
-   * as being used to represent zero. */
-#define RANGECASES( recv_prefix, recv_suffix, arg )          \
-  do {                                          \
-    if (0);                                     \
-    RANGECASE(   00,   10, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
-    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
-    else { assert(arg > 1000);                               \
-      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
-    }                                                        \
-  } while (0)
-
-#define RANGECASES_FINE( recv_prefix, recv_suffix, arg )     \
-  do {                                          \
-    if (0);                                     \
-    RANGECASE_ALT(0,2, 00,02, recv_prefix, recv_suffix, arg ); \
-    RANGECASE_ALT(2,4, 02,04, recv_prefix, recv_suffix, arg ); \
-    RANGECASE_ALT(4,6, 04,06, recv_prefix, recv_suffix, arg ); \
-    RANGECASE_ALT(6,8, 06,08, recv_prefix, recv_suffix, arg ); \
-    RANGECASE_ALT(8,10,08,10, recv_prefix, recv_suffix, arg ); \
-    RANGECASE(   10,   20, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   20,   30, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   30,   40, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   40,   50, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   50,   60, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   60,   70, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   70,   80, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   80,   90, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(   90,  100, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  100,  200, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  200,  300, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  300,  400, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  400,  500, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  500,  600, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  600,  700, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  700,  800, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  800,  900, recv_prefix, recv_suffix, arg );  \
-    RANGECASE(  900, 1000, recv_prefix, recv_suffix, arg );  \
-    RANGECASE( 1000, 2000, recv_prefix, recv_suffix, arg );  \
-    else { assert(arg > 1000);                               \
-      recv_prefix ## geq_2000 ## recv_suffix += fixnum(1);   \
-    }                                                        \
-  } while (0)
-  
-  /* okay, now that we have the above helper macros,
-   * here's the actual code to put in the values. */
   RANGECASES( s->count_collect_, _ms, stats->last_ms_gc_cheney_pause );
   if (stats->last_gc_pause_ismajor) {
     word ms_major     = stats->last_ms_gc_cheney_pause;

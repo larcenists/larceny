@@ -54,6 +54,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info );
 static void before_collection( gc_t *gc );
 static void after_collection( gc_t *gc );
 static void stats_following_gc( gc_t *gc );
+static void before_incremental( gc_t *gc );
+static void after_incremental( gc_t *gc );
+static void stats_following_incremental( gc_t *gc );
 #if defined(SIMULATE_NEW_BARRIER)
 static int isremembered( gc_t *gc, word w );
 #endif
@@ -64,6 +67,9 @@ dump_generational_system( gc_t *gc, const char *filename, bool compact );
 static int
 dump_stopcopy_system( gc_t *gc, const char *filename, bool compact );
 const int rrof_first_region = 1;
+static int calc_cN( gc_t *gc );
+static int calc_mutator_activity_sumz( gc_t *gc );
+
 
 gc_t *create_gc( gc_param_t *info, int *generations )
 {
@@ -922,18 +928,41 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   int ne_rgn_count;
   int dA;
   bool completed_cycle;
+  double mut_activity_sumz;
+  double cN;
+  double m_cN;
 
   REMSET_VERIFICATION_POINT(gc);
   SUMMMTX_VERIFICATION_POINT(gc);
 
   assert( DATA(gc)->summaries != NULL );
   ne_rgn_count = nonempty_region_count( gc );
+
+  /*  FIXME
+   *
+   *  As a temporary workaround, the code below is commented out.
+   *
+   *  The mutator activity during any summarization cycle is limited to cN
+   *  (as calculated by calc_cN).  The code below delays this accounting
+   *  until the summarization process actually starts, which would be okay
+   *  so long as some separate accounting prevents the ratio of filled to
+   *  ready regions from increasing too much before summarization starts.
+   *  Unfortunately, that accounting is not being done or is being done
+   *  incorrectly.
+   *  
+   *  Letting the cN accounting determine initiation of summarization
+   *  isn't really the right thing, but it will work until we fix the
+   *  other accounting.
+   */
+
+#if 0
   if (sm_progress_would_no_op( DATA(gc)->summaries, ne_rgn_count )) {
     DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle = 0;
     DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle = 0;
     DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle = 0;
     return;
   }
+#endif
 
   start_timers( &timer1, &timer2 );
 
@@ -941,24 +970,27 @@ static void summarization_step( gc_t *gc, bool about_to_major )
                  (DATA(gc)->rrof_words_per_region_min 
                   * DATA(gc)->rrof_cycle_majors_total));
 
+  mut_activity_sumz = calc_mutator_activity_sumz( gc );
+  cN = calc_cN( gc );
+  m_cN = mut_activity_sumz / cN;
+
   completed_cycle =
     sm_construction_progress( DATA(gc)->summaries, 
-                              &word_countdown,
-                              &object_countdown, 
                               DATA(gc)->rrof_next_region, 
                               ne_rgn_count, 
                               about_to_major,
+                              FALSE,
                               dA,
-                              2.0 );  /* FIXME */
+                              m_cN );
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 200)
     consolemsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
-                 "%d %d %d %d %d %d",
+                 "%d %d %d %d",
                  DATA(gc)->stat_last_ms_remset_sumrize_cpu,
-                 debug_counter, word_countdown, object_countdown,
+                 debug_counter,
                  DATA(gc)->rrof_next_region, ne_rgn_count, 
                  about_to_major, dA );
 
@@ -1834,7 +1866,7 @@ static int find_appropriate_next( gc_t *gc )
         c = &region_group_count;
 
       consolemsg( "ran out of ready-and-waiting "
-                  "summarized regions to collect!  "
+                  "summarized regions to collect!\n"
                   "Are parameter choices sane?"
                   " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
                   n( region_group_nonrrof    ), c( region_group_nonrrof ),
@@ -1926,8 +1958,18 @@ static void rrof_gc_policy( gc_t *gc,
                                &A_target_1a, &A_target_1b, 
                                &A_target_1, &A_target_2, &A_target );
 
-  will_says_should_major = /* XXX need to figure out what to do about majors_sofar = 0 case (when no regions are waiting for major gc) ... */
-    (((long long)(majors_total+1) * A_this) > ((long long)(majors_sofar+1) * A_target));
+  /* XXX need to figure out what to do about majors_sofar = 0 case
+   * (when no regions are waiting for major gc) ... */
+
+  /*  If the allocation per major gc in this major cycle exceeds
+   *  the target allocation divided by the total number of major gcs
+   *  expected in this major cycle, then it's time for another
+   *  major gc.
+   */
+
+  will_says_should_major =
+    (((long long)(majors_total) * A_this)
+     > ((long long)(majors_sofar+1) * A_target));
 
   if (calculate_loudly) {
 #define FMT "% 3lld"
@@ -2131,13 +2173,11 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
 }
 
-static int calc_cN( gc_t *gc );
-
 /* These procedures may be called thousands of times per second. */
 
 static void incremental_nop( gc_t *gc ) { /* do nothing */ }
 
-static void incremental_rgnl( gc_t *gc )
+static void incremental_rgnl_activity( gc_t *gc )
 {
   /* Schedule some work here. */
 
@@ -2148,29 +2188,21 @@ static void incremental_rgnl( gc_t *gc )
   bool about_to_major;
   int dA;
   bool completed_cycle;
-  int word_countdown = -1, object_countdown = -1;
   stats_id_t timer1, timer2;
   bool summarization_active;
-  word *globals;
-  word *p;
-  int nbytes;
-  word *lim;
 
   if (DATA(gc)->summaries == NULL)
     return;
 
-  globals = DATA(gc)->globals;
-  p = (word*)globals[ G_ETOP ];
-  lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
-  nbytes = (lim-p)*sizeof(word);
+  before_incremental( gc );
 
-  /* FIXME: just guessing that satb entries should count too */
+  /*  Marking.  */
 
-  mut_activity_sumz = 
-    nbytes +
-    DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle + 
-    DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
-    DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle;
+  /*  Summarization.  */
+
+  start_timers( &timer1, &timer2 );
+
+  mut_activity_sumz = calc_mutator_activity_sumz( gc );
   cN = calc_cN( gc );
   m_cN = mut_activity_sumz / cN;
 
@@ -2181,14 +2213,12 @@ static void incremental_rgnl( gc_t *gc )
   if (m_cN >= 1.0)
     consolemsg( "m/cN = %d (%)", (int) (100.0 * m_cN) );
 
-  start_timers( &timer1, &timer2 );
   completed_cycle
     = sm_construction_progress( DATA(gc)->summaries, 
-                                &word_countdown,
-                                &object_countdown, 
                                 DATA(gc)->rrof_next_region, 
                                 ne_rgn_count, 
                                 about_to_major,
+                                TRUE,
                                 dA,
                                 m_cN );
   stop_sumrize_timers( gc, &timer1, &timer2 );
@@ -2196,17 +2226,30 @@ static void incremental_rgnl( gc_t *gc )
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 100) {
     consolemsg( "SHORT SUMMARIZATION PAUSE = %d ********** (%d) "
-                 "%d %d %d %d %d %d %d%%",
+                 "%d %d %d %d %d%%",
                  DATA(gc)->stat_last_ms_remset_sumrize_cpu,
-                 debug_counter, word_countdown, object_countdown,
+                 debug_counter,
                  DATA(gc)->rrof_next_region, ne_rgn_count,
                  about_to_major, dA, (int) (100.0 * m_cN) );
   }
+
+  after_incremental( gc );
+  stats_following_incremental( gc );
 
   if (completed_cycle) {
     annoyingmsg( "COMPLETED SUMMARIZATION CYCLE (on short pause)" );
     rrof_completed_summarization_cycle( gc );
   }
+}
+
+static void incremental_rgnl( gc_t *gc )
+{
+  if (DATA(gc)->summaries == NULL)
+    return;
+
+  gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_summarize );
+  incremental_rgnl_activity( gc );
+  gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_mutator );
 }
 
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
@@ -2292,6 +2335,7 @@ static void before_collection( gc_t *gc )
   gc->stat_last_ms_gc_cheney_pause = 0;
   gc->stat_last_ms_gc_cheney_pause_cpu = 0;
   gc->stat_last_gc_pause_ismajor = -1;
+
   DATA(gc)->stat_last_ms_remset_sumrize = -1;
   DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
   DATA(gc)->stat_last_ms_smircy_mark = -1;
@@ -2364,7 +2408,80 @@ static void after_collection( gc_t *gc )
     REMSET_VERIFICATION_POINT(gc);
     NURS_SUMMARY_VERIFICATION_POINT( gc );
   }
+}
 
+/*  Called before incremental work that doesn't involve collection.
+ *  Called only by regional collector.
+ */
+
+static void before_incremental( gc_t *gc )
+{
+
+  DATA(gc)->stat_last_ms_remset_sumrize = -1;
+  DATA(gc)->stat_last_ms_remset_sumrize_cpu = -1;
+  DATA(gc)->stat_last_ms_smircy_mark = -1;
+  DATA(gc)->stat_last_ms_smircy_mark_cpu = -1;
+  DATA(gc)->stat_last_ms_smircy_refine = -1;
+  DATA(gc)->stat_last_ms_smircy_refine_cpu = -1;
+
+  REMSET_VERIFICATION_POINT(gc);
+  NURS_SUMMARY_VERIFICATION_POINT(gc);
+
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
+
+  SUMMMTX_VERIFICATION_POINT(gc);
+  SMIRCY_VERIFICATION_POINT(gc);
+}
+
+/*  Called after incremental work that didn't involve collection.
+ *  Called only by regional collector.
+ */
+
+static void after_incremental( gc_t *gc )
+{
+  SMIRCY_VERIFICATION_POINT(gc);
+  if (DATA(gc)->remset_undirected) {
+    /* why the guard?  See note below. */
+    REMSET_VERIFICATION_POINT(gc);
+    NURS_SUMMARY_VERIFICATION_POINT(gc); 
+  }
+  assert(! DATA(gc)->use_summary_instead_of_remsets );
+  SUMMMTX_VERIFICATION_POINT(gc);
+  if (! DATA(gc)->remset_undirected) {
+    /* hack to work around delayed clearing of remset in generational gc;
+     * the remset has dangling pointers in it until it is cleared by
+     * the oh_after_collection invocation above. */
+    REMSET_VERIFICATION_POINT(gc);
+    NURS_SUMMARY_VERIFICATION_POINT( gc );
+  }
+}
+
+/* Called after after_incremental, only by the regional collector. */
+
+static void stats_following_incremental( gc_t *gc )
+{
+  gc_data_t *data = DATA(gc);
+  stack_stats_t stats_stack;
+  gclib_stats_t stats_gclib;
+  int i;
+
+  memset( &stats_gclib, 0, sizeof( gclib_stats_t ) );
+  gclib_stats( &stats_gclib );
+
+  stats_gclib.last_ms_remset_sumrize     = 
+    DATA(gc)->stat_last_ms_remset_sumrize;
+  stats_gclib.last_ms_remset_sumrize_cpu = 
+    DATA(gc)->stat_last_ms_remset_sumrize_cpu;
+  stats_gclib.last_ms_smircy_mark     = 
+    DATA(gc)->stat_last_ms_smircy_mark;
+  stats_gclib.last_ms_smircy_mark_cpu = 
+    DATA(gc)->stat_last_ms_smircy_mark_cpu;
+  stats_gclib.last_ms_smircy_refine     = 
+    DATA(gc)->stat_last_ms_smircy_refine;
+  stats_gclib.last_ms_smircy_refine_cpu = 
+    DATA(gc)->stat_last_ms_smircy_refine_cpu;
+
+  stats_add_gclib_stats_incremental( &stats_gclib );
 }
 
 static void set_policy( gc_t *gc, int gen, int op, int value )
@@ -3366,6 +3483,32 @@ static int calc_cN( gc_t *gc )
   assert( retval > 0 );
   return retval;
 }
+
+/* Returns the mutator activity during this summarization cycle. */
+
+static int calc_mutator_activity_sumz( gc_t *gc ) {
+  word *globals;
+  word *p;
+  word *lim;
+  int nwords;              /* words allocated in nursery */
+  int mut_activity_sumz;
+
+  globals = DATA(gc)->globals;
+  p = (word*)globals[ G_ETOP ];
+  lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
+  nwords = (lim-p);
+
+  /* FIXME: just guessing that satb entries should count too */
+
+  mut_activity_sumz = 
+    nwords +
+    DATA(gc)->mutator_effort.satb_ssb_entries_flushed_this.sumz_cycle + 
+    DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
+    DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle;
+
+  return mut_activity_sumz;
+}
+
 
 static void zero_all_mutator_effort( gc_data_t *data ) {
   struct mutator_effort *p = &data->mutator_effort;

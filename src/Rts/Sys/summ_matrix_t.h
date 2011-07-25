@@ -82,9 +82,9 @@ bool sm_progress_would_no_op( summ_matrix_t *summ, int ne_rgn_count );
      would just return without any useful internal progress. */
 
 bool sm_construction_progress( summ_matrix_t *summ, 
-                               int* word_countdown, int* object_countdown, 
                                int rgn_next, int ne_rgn_count, 
                                bool about_to_major, 
+                               bool incremental,
                                int allocation_per_majgc,
                                double m_cN );
   /* allocation_per_majgc unit is words/rgnsz (count *regions* of alloc) 

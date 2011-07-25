@@ -48,18 +48,18 @@ struct gclib_stats {
   int last_gc_pause_ismajor;      /* 1 for major, 0 for minor */
   int last_ms_remset_sumrize;     /* Time in remset summarizing in last gc. */
   int last_ms_remset_sumrize_cpu;
-  int last_ms_smircy_mark;    /* Time building mark bitmap in last gc. */
+  int last_ms_smircy_mark;        /* Time building mark bitmap in last gc. */
   int last_ms_smircy_mark_cpu;
-  int last_ms_smircy_refine;    /* Time in remset refinement in last gc. */
+  int last_ms_smircy_refine;      /* Time in remset refinement in last gc. */
   int last_ms_smircy_refine_cpu;
-  int last_ms_gc_truegc_pause;    /* Total time away from mutator in last gc. */
+  int last_ms_gc_truegc_pause;    /* Total time not in mutator in last gc. */
   int last_ms_gc_truegc_pause_cpu;
   int last_major_page_faults;     /* Total major faults during last gc. */
   int last_minor_page_faults;     /* Total minor faults during last gc. */
   int length_minor_gc_run;        /* Num of consecutive minor gc's (so far) */
 
-  /* N.B.: both the below measure time mutator is interrupted;
-   * it should include cheney collection time as well as time 
+  /* N.B.: both of the next two values should include all non-mutator time;
+   * they should include cheney collection time as well as time 
    * spent maintaining structure internal to the memory manager. */
   word max_ms_mutator_paused;
   word max_ms_mutator_paused_cpu;
