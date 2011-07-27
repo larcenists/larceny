@@ -2242,14 +2242,34 @@ static void incremental_rgnl_activity( gc_t *gc )
   }
 }
 
+/*  FIXME
+ *
+ *  To compensate for Larceny's highly variable rate of software
+ *  timer interrupts, which lowers MMU at fine resolution, this
+ *  function does nothing unless a certain amount of time has
+ *  passed since it last did incremental work.
+ */
+
+#define INCREMENTAL_TIMING_DELAY 5
+
+static unsigned time_of_last_work = 0;
+
 static void incremental_rgnl( gc_t *gc )
 {
+  unsigned t0;
+
   if (DATA(gc)->summaries == NULL)
     return;
 
-  gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_summarize );
-  incremental_rgnl_activity( gc );
-  gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_mutator );
+  if (((unsigned) osdep_realclock())
+      > (time_of_last_work + INCREMENTAL_TIMING_DELAY)) {
+
+    gc_phase_shift( gc, gc_log_phase_mutator, gc_log_phase_summarize );
+    incremental_rgnl_activity( gc );
+    gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_mutator );
+
+    time_of_last_work = osdep_realclock();
+  }
 }
 
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 

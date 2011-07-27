@@ -1147,8 +1147,8 @@ static bool sm_is_waiting_or_complete( summ_matrix_t *summ,
           (DATA(summ)->summarizing.num > 0) );
 
   if ( DATA(summ)->summarizing.waiting ) {
-    int goal_budget = calc_goal( summ, ne_rgn_count );
-    int coverage = calc_coverage( summ, ne_rgn_count );
+    int goal_budget = calc_goal( summ, ne_rgn_count );      /* 1/(F_1*F_2) */
+    int coverage = calc_coverage( summ, ne_rgn_count );     /* 1/F_1 */
     int max_pop = quotient2( ne_rgn_count, DATA(summ)->p );
     int usable = 
       region_group_count( region_group_wait_w_sum ) +
@@ -1163,6 +1163,15 @@ static bool sm_is_waiting_or_complete( summ_matrix_t *summ,
     if (doit && region_group_count( region_group_wait_nosum ) > 1)  /* FIXME */
       consolemsg( "%d in region_group_wait_nosum",
                   region_group_count( region_group_wait_nosum) );
+
+    /*  FIXME
+     *
+     *  Will doesn't understand why the maximum possible number of
+     *  popular regions is being subtracted here.  It could be an
+     *  approximation to the number of currently available summary
+     *  sets for regions that might become popular before the next
+     *  summarization cycle is completed.
+     */
 
     if ( usable - max_pop > goal_budget) {
       /* continue waiting to setup next wave */

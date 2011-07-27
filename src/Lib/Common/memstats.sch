@@ -734,7 +734,8 @@
   (define (mprint . rest)
     (for-each display rest) (newline))
 
-  (define (pr allocated reclaimed elapsed user system gcs gctime gccpu 
+  (define (pr allocated reclaimed elapsed user system
+              minorgcs gcs gctime gccpu 
               all-major-faults-during-gcs
               all-minor-faults-during-gcs
               maxgctime maxgccpu 
@@ -752,17 +753,18 @@
               sumzs sumztime sumzcpu
               )
     (mprint "Words allocated: " allocated)
-    (mprint "Words reclaimed: " reclaimed)
+;   (mprint "Words reclaimed: " reclaimed)
     (mprint "Elapsed time...: " elapsed
 	   " ms (User: " user " ms; System: " system " ms)")
     (mprint "Elapsed GC time: " gctime " ms (CPU: " gccpu 
-            " faults major: " all-major-faults-during-gcs
-            " faults minor: " all-minor-faults-during-gcs 
-            " in " gcs " collections.)")
+;           " faults major: " all-major-faults-during-gcs
+;           " faults minor: " all-minor-faults-during-gcs 
+            " in " gcs " collections"
+            " (" minorgcs " minor).)")
     (mprint "{Max pause elapsed: " maxgctime " ms"
             ", CPU: " maxgccpu " ms"
-            ", faults major: " major-faults-during-maxgcpause 
-            ", faults minor: " minor-faults-during-maxgcpause
+;           ", faults major: " major-faults-during-maxgcpause 
+;           ", faults minor: " minor-faults-during-maxgcpause
             " } ")
     (mprint "{Max cheney elapsed: " maxcheneytime " ms"
             ", CPU: "maxcheneycpu " ms} ")
@@ -782,16 +784,17 @@
             " Marking: " words-marking-max
             " Rts: " words-rts-max 
             " Waste: " words-waste-max "}")
-    (mprint "Elapsed mark time: " marktime " (CPU: " markcpu " in " marks " marks.)")
-    (mprint "Elapsed summarization time: " sumztime " (CPU: " sumzcpu " in " sumzs " summarization.)")
+    (mprint "Elapsed mark time: " marktime " ms (CPU: " markcpu " in " marks " marks.)")
+    (mprint "Elapsed summarization time: " sumztime " ms (CPU: " sumzcpu " in " sumzs " summarization.)")
     )
 
-  (define (print-stats s1 s2)
+  (define (print-stats s1 s2 minorgcs)
     (pr (- (memstats-allocated s2) (memstats-allocated s1))
 	(- (memstats-gc-reclaimed s2) (memstats-gc-reclaimed s1))
 	(- (memstats-elapsed-time s2) (memstats-elapsed-time s1))
 	(- (memstats-user-time s2) (memstats-user-time s1))
 	(- (memstats-system-time s2) (memstats-system-time s1))
+        minorgcs
 	(let ((gcs0 0)
 	      (gcs1 0))
 	  (do ((i 0 (+ i 1)))
@@ -861,9 +864,11 @@
 	))
   
   (let* ((s1 (memstats))
+         (minorgcs1 (- (gc-counter) (major-gc-counter)))
 	 (r  (thunk))
+         (minorgcs2 (- (gc-counter) (major-gc-counter)))
 	 (s2 (memstats)))
-    (print-stats s1 s2)
+    (print-stats s1 s2 (- minorgcs2 minorgcs1))
     r))
 
 
