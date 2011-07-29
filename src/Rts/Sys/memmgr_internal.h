@@ -166,6 +166,9 @@ struct gc_data {
   int last_live_words;
   int max_live_words;
 
+  int last_live_words_at_time_cycle_began;    /* N_old */
+  int max_live_words_at_time_cycle_began;     /* P_old */
+
   int total_heap_words_allocated; 
   int allocation_target_for_cycle; /* Will's A variable */
 
@@ -175,7 +178,6 @@ struct gc_data {
   struct promotion_counts since_developing_snapshot_began;
   struct promotion_counts since_cycle_began;
 
-  int last_live_words_at_time_cycle_began;
   struct promotion_counts since_finished_snapshot_at_time_cycle_began_began;
   /* parse the above name as ``promotions since the beginning of the
      last completed snapshot at the time when this cycle itself

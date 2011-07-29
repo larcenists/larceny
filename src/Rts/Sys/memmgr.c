@@ -733,8 +733,6 @@ static void rrof_calc_target_allocation( gc_t *gc,
                                          long long *N_old_recv,
                                          long long *P_old_recv,
                                          long long *A_this_recv, 
-                                         long long *A_target_1a_recv,
-                                         long long *A_target_1b_recv,
                                          long long *A_target_1_recv,
                                          long long *A_target_2_recv, 
                                          long long *A_target_recv );
@@ -768,6 +766,9 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->since_cycle_began.count_promotions = 0;
   DATA(gc)->last_live_words_at_time_cycle_began = 
     DATA(gc)->last_live_words;
+  DATA(gc)->max_live_words_at_time_cycle_began = 
+    max(DATA(gc)->last_live_words_at_time_cycle_began,
+        DATA(gc)->max_live_words_at_time_cycle_began);
   DATA(gc)->since_finished_snapshot_at_time_cycle_began_began =
     DATA(gc)->since_finished_snapshot_began;
 
@@ -795,7 +796,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
   DATA(gc)->rrof_cycle_majors_sofar = 0;
 
   rrof_calc_target_allocation( gc, NULL, NULL, NULL, NULL, 
-                               NULL, NULL, NULL, NULL, &allocation_target );
+                               NULL, NULL, &allocation_target );
 
   assert( allocation_target == (long long)((int)allocation_target) );
   DATA(gc)->allocation_target_for_cycle = (int) allocation_target;
@@ -988,11 +989,11 @@ static void summarization_step( gc_t *gc, bool about_to_major )
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 200)
     consolemsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
-                 "%d %d %d %d",
+                 "%d %d %d %d %d%%",
                  DATA(gc)->stat_last_ms_remset_sumrize_cpu,
                  debug_counter,
                  DATA(gc)->rrof_next_region, ne_rgn_count, 
-                 about_to_major, dA );
+                 about_to_major, dA, (int) (100.0 * m_cN) );
 
   if (completed_cycle) {
     annoyingmsg( "COMPLETED SUMMARIZATION CYCLE" );  /* FIXME */
@@ -1096,10 +1097,12 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
     int promoted = gc->words_from_nursery_last_gc;
     int bound = (((double)gc->young_area->maximum / sizeof(word))
                  / (DATA(gc)->rrof_refinement_factor));
+#if 0
     bound /= (1 + DATA(gc)->rrof_mark_cycles_run_in_this_full_cycle);
+#endif
 #if 1
     /* FIXME: seems to help, but questionable */
-    bound = 10 * bound;
+    bound = 5 * bound;
 #endif
     smircy_progress( gc->smircy, bound, bound, bound, SMIRCY_MISC_BOUND,
                      &marked_recv, &traced_recv, &words_marked_recv,
@@ -1909,8 +1912,6 @@ static void rrof_calc_target_allocation( gc_t *gc,
                                          long long *N_old_recv,
                                          long long *P_old_recv,
                                          long long *A_this_recv, 
-                                         long long *A_target_1a_recv,
-                                         long long *A_target_1b_recv,
                                          long long *A_target_1_recv,
                                          long long *A_target_2_recv, 
                                          long long *A_target_recv ) 
@@ -1918,26 +1919,44 @@ static void rrof_calc_target_allocation( gc_t *gc,
   double L_hard = DATA(gc)->rrof_load_factor_hard;
   double L_soft = DATA(gc)->rrof_load_factor_soft;
   long long N_old  = DATA(gc)->last_live_words_at_time_cycle_began;
-  long long P_old  = DATA(gc)->max_live_words;
+#if 0
+  long long P_old  = DATA(gc)->max_live_words;    /* FIXME: incorrect! */
+#endif
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
   int F_3    = DATA(gc)->rrof_sumz_params.max_retries;
   int N = /* FIXME should be incrementally calculated via collection delta */
-    gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
+    gc_allocated_to_areas( gc,
+                           gset_range( 1, DATA(gc)->ephemeral_area_count ))
     / sizeof(word);
 
-  long long A_target_1a = (long long)(L_hard*P_old);
-  long long A_target_1b = quotient2( A_target_1a, ((int)(F_2 * (double)F_3)) ) - 1;
-  long long A_target_1  = quotient2( A_target_1b, 2);
+  /* FIXME
+   *
+   * The calculation of P_old above contains a subtle bug.
+   * P_old is defined as the maximum over all past values of N_old.
+   * The current value of DATA(gc)->max_live_words may be greater
+   * than the correct value of P_old, and often is greater when the
+   * heap is expanding.
+   * Using the incorrect value of P_old leads to an overly large
+   * value for A_target, which causes the heap to expand faster
+   * than the available summary sets can support.
+   *
+   * A_target1 was also being calculated incorrectly, but has been
+   * corrected below.
+   */
+
+  long long P_old = DATA(gc)->max_live_words_at_time_cycle_began;
+
+  long long A_target_1
+    = (long long) (0.5 * ((L_hard / (F_2 * F_3)) - 1.0) * P_old);
   long long A_target_2 = ((L_soft*P_old)-N_old);
-  long long A_target   = max( 5*MEGABYTE/sizeof(word), min( A_target_1, A_target_2 ));
+  long long A_target   = max( 5*MEGABYTE/sizeof(word),
+                              min( A_target_1, A_target_2 ));
 
   if (N_recv != NULL)           *N_recv           = N;
   if (N_old_recv != NULL)       *N_old_recv       = N_old;
   if (P_old_recv != NULL)       *P_old_recv       = P_old;
   if (A_this_recv != NULL)      *A_this_recv      = A_this;
-  if (A_target_1a_recv != NULL) *A_target_1a_recv = A_target_1a;
-  if (A_target_1b_recv != NULL) *A_target_1b_recv = A_target_1b;
   if (A_target_1_recv != NULL)  *A_target_1_recv  = A_target_1;
   if (A_target_2_recv != NULL)  *A_target_2_recv  = A_target_2;
   if (A_target_recv != NULL)    *A_target_recv    = A_target;
@@ -1951,11 +1970,10 @@ static void rrof_gc_policy( gc_t *gc,
   int majors_total = DATA(gc)->rrof_cycle_majors_total;
 
   long long N, N_old, P_old, A_this; 
-  long long A_target_1a, A_target_1b, A_target_1, A_target_2, A_target;
+  long long A_target_1, A_target_2, A_target;
   bool will_says_should_major;
 
   rrof_calc_target_allocation( gc, &N, &N_old, &P_old, &A_this, 
-                               &A_target_1a, &A_target_1b, 
                                &A_target_1, &A_target_2, &A_target );
 
   /* XXX need to figure out what to do about majors_sofar = 0 case
@@ -1973,22 +1991,22 @@ static void rrof_gc_policy( gc_t *gc,
 
   if (calculate_loudly) {
 #define FMT "% 3lld"
-    long long div = 1000 * 1000;
+    long long div = (1000 * 1000) / sizeof(word);    /* convert to MB */
 
     char *(*n)( region_group_t grp );
     int   (*c)( region_group_t grp );
     n = &region_group_name;
     c = &region_group_count;
 
-    consolemsg( "majs{cur:% 3d tot:% 3d} "
-                "Nold:" FMT " N:" FMT " Pold:" FMT " A:" FMT " "
-                "Atgt:" FMT "=max(5,min(" FMT "," FMT "))" 
-                " => %s "
+    consolemsg( "majs{% 3d /% 3d} "
+                "N:" FMT " Nold:" FMT " Pold:" FMT " A:" FMT " "
+                "Atgt:" FMT "=max(5,min(" FMT "," FMT "))\n" 
+                "    => %s "
                 " %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d %s%3d", 
                 majors_sofar, majors_total, 
-                N_old/div, N/div, P_old/div, A_this/div, 
+                N/div, N_old/div, P_old/div, A_this/div, 
                 A_target/div, A_target_1/div, A_target_2/div,
-                will_says_should_major?"MAJ":"mnr",
+                will_says_should_major?"MAJOR":"minor",
                 n( region_group_nonrrof    ), c( region_group_nonrrof ),
                 n( region_group_unfilled   ), c( region_group_unfilled ),
                 n( region_group_wait_w_sum ), c( region_group_wait_w_sum ),
@@ -2041,9 +2059,9 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
     }
     felix_says_should_major = TRUE;
   } else if ((region_group_count( region_group_wait_nosum ) 
-       + region_group_count( region_group_wait_w_sum ) 
-       + region_group_count( region_group_filled ) /* XXX */) 
-      > 0) {
+              + region_group_count( region_group_wait_w_sum )
+              + region_group_count( region_group_filled ) /* XXX */)
+             > 0) {
     rrof_gc_policy( gc, &felix_says_should_major, verbose );
   } else {
     felix_says_should_major = FALSE;
@@ -2897,9 +2915,11 @@ static int compact_all_ssbs( gc_t *gc )
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
     if (mut_effort_sumz > cN) {
-      consolemsg( "compact_all_ssbs force_progress because mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
+      annoyingmsg( "compact_all_ssbs force_progress because "
+                   "mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
                   mut_effort_sumz, 
-                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle, DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle,
+                  DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
                   cN, DATA(gc)->max_live_words );
       force_progress = TRUE;
     }
@@ -4159,6 +4179,21 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data->last_live_words = 0;
   data->max_live_words = 0;
+
+  /* FIXME
+   *
+   * max_live_words_at_time_cycle_began, aka P_old, should be
+   * initialized to the live storage plus some headroom, but
+   * we don't know the live storage at this point.
+   *
+   * The headroom will be added by rrof_calc_target_allocation,
+   * but the first major cycle is allowing only that headroom
+   * to be allocated.  For large initial heaps, it would be
+   * better to take the initial heap size into account.
+   */
+
+  data->last_live_words_at_time_cycle_began = 0;
+  data->max_live_words_at_time_cycle_began = 0;
 
   data->total_heap_words_allocated = 0;
   data->allocation_target_for_cycle = 0;

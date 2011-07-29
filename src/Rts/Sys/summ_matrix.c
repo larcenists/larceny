@@ -1254,7 +1254,7 @@ EXPORT bool sm_progress_would_no_op(  summ_matrix_t *summ, int ne_rgn_count )
  *  we use three different speedup factors plus a threshold.
  */
 
-#define SUMM_SPEEDUP_TIMER 1.2
+#define SUMM_SPEEDUP_TIMER 1.3
 #define SUMM_SPEEDUP_MINOR 1.1
 #define SUMM_SPEEDUP_MAJOR 1.0
 #define SUMM_THRESHOLD_MAJOR 0.4
@@ -1287,11 +1287,14 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
                                  alloc_per_majgc, TRUE ))
     return FALSE;
 
+  /* If we don't subtract something from readyNow when calculating rdyF,
+   * then we won't do any summarization until the first summary set
+   * is consumed.
+   */
+
   readyNow = region_group_count( region_group_wait_w_sum );
-  if (about_to_major)
-    readyNow = readyNow - 1;
   ready0 = (double) max( 1, DATA(summ)->summarizing.ready0 );
-  rdyF = readyNow / ready0;
+  rdyF = (readyNow - 1.0) / ready0;
 
   rgnsNow = ne_rgn_count - DATA(summ)->summarizing.cursor;
   rgnsNow = max(0, rgnsNow);
@@ -1335,6 +1338,8 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
      */
 
     if ((readyNow <= 2) && (! incremental)) {
+      if (about_to_major)
+        readyNow = readyNow - 1.0;
       count = DATA(summ)->summarizing.cursor / max(1, readyNow);
       if (count > 1) {
         timingmsg( "***** SUMMARIZATION TOO SLOW *****\n"
