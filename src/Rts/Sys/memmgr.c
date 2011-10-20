@@ -995,12 +995,12 @@ static void summarization_step( gc_t *gc, bool about_to_major )
                  debug_counter,
                  DATA(gc)->rrof_next_region, ne_rgn_count, 
                  about_to_major, dA, (int) (100.0 * m_cN) );
+#endif
 
   if (completed_cycle) {
     annoyingmsg( "COMPLETED SUMMARIZATION CYCLE" );  /* FIXME */
     rrof_completed_summarization_cycle( gc );
   }
-#endif
 
   SUMMMTX_VERIFICATION_POINT(gc);
 }
