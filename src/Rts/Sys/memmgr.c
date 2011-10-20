@@ -986,6 +986,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
 
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
+#if 0
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 200)
     consolemsg( "SUMMARIZATION PAUSE = %d ********** (%d) "
@@ -999,6 +1000,7 @@ static void summarization_step( gc_t *gc, bool about_to_major )
     annoyingmsg( "COMPLETED SUMMARIZATION CYCLE" );  /* FIXME */
     rrof_completed_summarization_cycle( gc );
   }
+#endif
 
   SUMMMTX_VERIFICATION_POINT(gc);
 }
@@ -1102,6 +1104,7 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 #endif
 #if 1
     /* FIXME: seems to help, but questionable */
+    /* See also the help message in larceny.c */
     bound = 5 * bound;
 #endif
     smircy_progress( gc->smircy, bound, bound, bound, SMIRCY_MISC_BOUND,
@@ -2241,6 +2244,7 @@ static void incremental_rgnl_activity( gc_t *gc )
                                 m_cN );
   stop_sumrize_timers( gc, &timer1, &timer2 );
 
+#if 0
   /* FIXME */
   if (DATA(gc)->stat_last_ms_remset_sumrize_cpu > 100) {
     consolemsg( "SHORT SUMMARIZATION PAUSE = %d ********** (%d) "
@@ -2250,6 +2254,7 @@ static void incremental_rgnl_activity( gc_t *gc )
                  DATA(gc)->rrof_next_region, ne_rgn_count,
                  about_to_major, dA, (int) (100.0 * m_cN) );
   }
+#endif
 
   after_incremental( gc );
   stats_following_incremental( gc );

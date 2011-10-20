@@ -1362,11 +1362,16 @@ static char *wizardhelptext[] = {
   "     Use the regional collector with n heap areas.",
   "     The default number number of heap areas is " STR(DEFAULT_AREAS) ".",
 #endif
+  /* These make sense only for researchers, who can read the code base. */
+#if 0
+  /* FIXME
+   * The -refinement switch should be exposed, but Will doesn't fully
+   * understand its semantics, and there's an ad hoc adjustment in
+   * memmgr.c anyway.
+   */
   "  -refinement d",
   "     For the regional collector only:  Allocate d words for each",
   "     word marked.  Incompatible with -mark_period.  The default is 1.0.",
-  /* These make sense only for researchers, who can read the code base. */
-#if 0
   "  -mark_period n",
   "     For the regional collector only:  Do some incremental marking",
   "     after every n minor collections.  Incompatible with -refinement.",
