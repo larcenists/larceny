@@ -499,8 +499,9 @@ void* ss_enumerate( semispace_t *ss,
     /* scanning code below is based on scan_core macro in cheney.h */
     assert( !( ((word)cursor) & 7) ); /* cursor is aligned, right? */
     while (cursor < end) {
+      word w;
       assert( !( ((word)cursor) & 7) ); /* cursor is still aligned, right? */
-      word w = *cursor;
+      w = *cursor;
       if (ishdr( w )) {
         word h = header( w );
         if (h == BV_HDR) {

@@ -416,10 +416,11 @@ static bool ls_pool_next_chunk_locs( summary_t *this, loc_t **start, loc_t **lim
 void ls_init_summary( locset_t *ls, int max_words_per_step,
                       /* out parameter */ summary_t *s )
 {
+  pool_t *ps;
+  ent_t *p, *q;
   assert( max_words_per_step == -1 ); /* no support for incremental yet */
   summary_init_locs_dispose( s, ls->live, &ls_pool_next_chunk_locs, NULL, NULL );
-  pool_t *ps = DATA(ls)->first_pool;
-  ent_t *p, *q;
+  ps = DATA(ls)->first_pool;
   p = NULL;
   q = NULL;
   while (ps != NULL) {

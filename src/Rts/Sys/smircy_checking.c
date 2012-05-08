@@ -1,6 +1,9 @@
 #define GC_INTERNAL
 
-#define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+/* Microsoft's C compiler doesn't like this:
+ * #define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+ */
+#define dbmsg( format, ... ) if (0) consolemsg( format, ## __VA_ARGS__ )
 
 #define bounded_decrement( x, y ) if (x > 0) x = max( 0, x - (y) );
 

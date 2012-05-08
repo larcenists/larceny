@@ -131,7 +131,10 @@ typedef union tnode tnode_t;
  */
 #define INCLUDE_REDUNDANT_FIELDS 1
 
-#define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+/* Microsoft's C compiler doesn't like this:
+ * #define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+ */
+#define dbmsg( format, ... ) if (0) consolemsg( format, ## __VA_ARGS__ )
 
 #if INCLUDE_REDUNDANT_FIELDS
 enum tnode_tag { tag_ignoreme, tag_freed, tag_inode, tag_leaf };

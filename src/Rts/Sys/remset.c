@@ -588,10 +588,11 @@ static bool rs_pool_next_chunk( summary_t *this, word **start, word **lim,
 void rs_init_summary( remset_t *rs, int max_words_per_step, 
                       /* out parameter */ summary_t *s )
 {
+  pool_t *ps;
+  word *p, *q;
   assert( max_words_per_step == -1 ); /* no support for incremental yet */
   summary_init( s, rs->live, &rs_pool_next_chunk );
-  pool_t *ps = DATA(rs)->first_pool;
-  word *p, *q;
+  ps = DATA(rs)->first_pool;
   p = NULL;
   q = NULL;
   while (ps != NULL) {

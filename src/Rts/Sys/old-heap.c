@@ -779,8 +779,10 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
 			    synchronize, 
 			    data );
   heap->collector = gc;
-  static int total_gens = 0;
-  data->self = stats_new_generation( gen_no, total_gens++ );
+  {
+    static int total_gens = 0;
+    data->self = stats_new_generation( gen_no, total_gens++ );
+  }
   data->gen_no = gen_no;
   data->promoted_last_gc = 0;
   data->oh_type = oh_type;

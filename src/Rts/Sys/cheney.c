@@ -215,7 +215,7 @@ static void scan_static_area_update_rs( cheney_env_t *e );
 static void root_scanner_oflo( word *addr, void *data );
 static bool remset_scanner_oflo( word obj, void *data );
 static bool remset_scanner_oflo_update_rs( word obj, void *data );
-static word forward_large_object( cheney_env_t *e, word *ptr, int tag, int tgt_gen );
+static word forward_large_object( cheney_env_t * const e, word * const ptr, const int tag, const int tgt_gen );
 static bool forward_lessthan( int gno, int gno_bound ) {
   return gno < gno_bound; }
 static bool forward_nursery_and( int gno, gset_t gset ) { 

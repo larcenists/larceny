@@ -145,8 +145,9 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig,
   word *w;
   struct apply_f_to_summary_obj_entry_data *data;
   void *scan_data;
-  data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
   void (*f)( word *addr, void *scan_data );
+
+  data = (struct apply_f_to_summary_obj_entry_data*)data_orig;
 
   scan_data = data->scan_data;
   f         = data->f;
@@ -238,8 +239,9 @@ static void apply_f_to_summary_obj_entry2( word obj, void *data_orig,
   word *w;
   struct apply_f_to_summary_obj_entry2_data *data;
   void *scan_data;
-  data = (struct apply_f_to_summary_obj_entry2_data*)data_orig;
   void (*f)( loc_t loc, void *scan_data );
+
+  data = (struct apply_f_to_summary_obj_entry2_data*)data_orig;
 
   scan_data = data->scan_data;
   f         = data->f;

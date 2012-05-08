@@ -370,7 +370,7 @@ no_update_remset( cheney_env_t *e, word origin_ptr, int g_lhs, int pair_tag, wor
 /* private procedures shared among cheney*.c */
 void scan_oflo_normal( cheney_env_t *e );
 void scan_oflo_normal_update_rs( cheney_env_t *e );
-word forward( word, word **, cheney_env_t *e );
+word forward(const word, word **, cheney_env_t *e );
 void oldspace_copy( cheney_env_t *e );
 void seal_chunk( semispace_t *ss, word *lim, word *dest );
 void sweep_large_objects( gc_t *gc, int sweep_oldest, int g1, int g2 );

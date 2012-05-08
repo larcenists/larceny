@@ -24,13 +24,17 @@
 
 #define GC_INTERNAL
 
-#define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+/* Microsoft's C compiler doesn't like this:
+ * #define dbmsg( format, args... ) if (0) consolemsg( format, ## args )
+ */
+#define dbmsg( format, ... ) if (0) consolemsg( format, ## __VA_ARGS__ )
+
 #define db_printgset( prefix, arg ) if (0) console_printgset( prefix, arg )
 
-#define assertmsg( format, args... ) if (1) consolemsg( format, ## args )
+#define assertmsg( format, ... ) if (1) consolemsg( format, ## __VA_ARGS__ )
 #define assert_printgset( prefix, arg ) if (1) console_printgset( prefix, arg )
-#define verifymsg( format, args... ) if (0) consolemsg( format, ## args )
-#define timingmsg( format, args... ) if (0) consolemsg( format, ## args )
+#define verifymsg( format, ... ) if (0) consolemsg( format, ## __VA_ARGS__ )
+#define timingmsg( format, ... ) if (0) consolemsg( format, ## __VA_ARGS__ )
 
 #include <stdio.h>
 #include <math.h>
@@ -779,13 +783,15 @@ static summ_cell_t *scan_col_for_cell( summ_col_t *col, int src_gno,
 static void  create_refactored_from_memmgr( summ_matrix_t *sm,
                                             int popularity_limit )
 {
+  int len;
+  int i;
+
   DATA(sm)->summaries_count = 0;
 
   /* data->summaries->region_count = data->region_count; */
   DATA(sm)->popularity_limit = popularity_limit;
 
-  int len = sm->collector->gno_count+1;
-  int i;
+  len = sm->collector->gno_count+1;
   DATA(sm)->summaries_count = len;
   DATA(sm)->nursery_locset = create_locset( 0, 0 );
 }
@@ -2952,8 +2958,9 @@ static void msvfy_mark_objects_from_roots_and_remsets( msgc_context_t *c ) {
 static bool verify_summaries_locset_fcn( loc_t loc, void *the_data )
 {
   struct verify_summaries_locset_fcn_data *data;
+  word obj;
   data = (struct verify_summaries_locset_fcn_data*)the_data;
-  word obj = loc_to_obj(loc);
+  obj = loc_to_obj(loc);
 
   /* filtering out loc's that are not marked in smircy when we find
    * data->col->construction_predates_snapshot */
