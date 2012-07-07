@@ -8,6 +8,11 @@
 #ifndef INCLUDED_LARCENY_H
 #define INCLUDED_LARCENY_H
 
+#if WIN32
+	#define WIN32_LEAN_AND_MEAN
+	#include <windows.h>  /* required for DEP policy */
+#endif
+
 #include <limits.h>
 #include <string.h> /* for memset */
 #include <stddef.h>

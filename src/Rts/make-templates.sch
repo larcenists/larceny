@@ -330,7 +330,7 @@ larceny.bin: kill_version_o $(LARCENY_OBJECTS) Util/ffi-dummy.o
 kill_version_o: 
 	del Sys\\version.$(O)
 larceny.bin.exe: kill_version_o $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
-	$(CC) $(PROFILE) $(TCOV) -o larceny.bin.exe $(X86_SASSY_LARCENY_OBJECTS) \\
+	$(CC) /NXCOMPAT:NO $(PROFILE) $(TCOV) -o larceny.bin.exe $(X86_SASSY_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	del Sys\\version.$(O)")
 

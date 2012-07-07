@@ -79,6 +79,30 @@ int main( int argc, char **os_argv )
 {
   int generations;
   char **argv;
+  
+  /* FIXME: this allows us to (temporarily) circumvent DEP problems for the
+   majority of windows users */
+#if WIN32
+  /* there are four possible returns to this function.  We care about AlwaysOn and
+     OptOut.  If the policy is set to AlwaysOn then larceny cannot run.  Otherwise
+	 we can opt out of the restriction.  The other two cases (AlwaysOff and OptIn)
+	 have no affect */
+   
+  switch(GetSystemDEPPolicy())
+  {
+  case 0: break; /* AlwaysOff: we don't care about this */
+  case 1:  /* DEP has been set in the windows boot.ini to be always on */
+	panic_exit("The system DEP Policy is to restrictive to allow larceny to run");
+	break;
+  case 2: break; /* OptIn: we don't care about this either */
+  case 3:  /* DEP has been set to be OptOut, which is what we do */
+    if(!SetProcessDEPPolicy(0))
+	{
+		consolemsg("Failed to set DEP policy");
+	}
+	break;
+  }  
+#endif /* WIN32 */
 
 #if defined(DEC_ALPHA_32BIT)
   /* I know this looks weird.  When running Petit Larceny on the Alpha
