@@ -12,6 +12,8 @@
 #define SSB_ENQUEUE_LOUDLY 0
 #define SSB_ENQUEUE_OFFSET_AS_FIXNUM 1
 
+#define EQV_LOOKS_INSIDE_PROCS 1
+
 #include "larceny.h"            /* Includes config.h also */
 #include "gc.h"
 #include "gc_t.h"               /* For gc_allocate() macro */
@@ -403,11 +405,28 @@ static int same_bits(double x, double y) {
     xbits[7] == ybits[7];
 }
 
+#if EQV_LOOKS_INSIDE_PROCS
+
+/* given procedures x and y, */
+/* returns true iff x and y have the same bit-level representation */
+
+static int same_procs( word x, word y ) {
+  int i = 0;
+  int n = procedure_length( x );
+  if (n != procedure_length( y ))
+    return 0;
+  for (i = 0; i < n; i = i + 1) {
+    if (procedure_ref( x, i ) != procedure_ref( y, i ))
+      return 0;
+  }
+  return 1;
+}
+#endif
+
 void EXPORT mc_eqv( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
   word y = globals[ G_SECOND ];
-
   if (x == y)                             /* eq? => eqv? */
     globals[ G_RESULT ] = TRUE_CONST;     
   else if (tagof( x ^ y ) != 0)           /* Different tags => not eqv? */
@@ -452,6 +471,12 @@ void EXPORT mc_eqv( word *globals, cont_t k )
     else
       globals[ G_RESULT ] = FALSE_CONST;
   }
+#if EQV_LOOKS_INSIDE_PROCS
+  else if (tagof( x ) == PROC_TAG &&
+           tagof( y ) == PROC_TAG &&
+           same_procs( x, y ))
+      globals[ G_RESULT ] = TRUE_CONST;
+#endif
   else
     globals[ G_RESULT ] = FALSE_CONST;
 }
