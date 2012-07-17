@@ -56,6 +56,18 @@
      (test "(e a a)" (e a a) '(#t #t))
      (test "(e b b)" (e b b) '(#t #t))
      (test "(e 'foo 'foo)" (e 'foo 'foo) '(#t #t))
+     (test "(e (lambda () 1) (lambda () 1))"
+           (e (lambda () 1) (lambda () 1))
+           '(#f #f))
+     (test "(e (closure 0) (closure 0))"
+           (let ((closure (lambda (n) (lambda () n))))
+             (e (closure 0) (closure 0)))
+           '(#f #f))
+     (test "(e (closure 1) (closure 1))"
+           (let* ((n (- (expt 3 3) 27))
+                  (closure (lambda (ignored) n)))
+             (e (closure 1) (closure 1)))
+           '(#f #f))
      )))
 
 ; Tests symbol=?
