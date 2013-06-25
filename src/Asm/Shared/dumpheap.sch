@@ -366,8 +366,27 @@
       (- #x100000000 (* (abs f) 4))
       (* 4 f)))
 
-(define (dump-char! h c)
-  (+ (* (char->integer c) twofiftysix^2) $imm.character))
+; In the Old Days, the character representation was this:
+;  00000000 cccccccc 00000000 00tttttt
+;
+; But with Unicode, it is this:
+;  000ccccc cccccccc cccccccc 00tttttt
+;
+; It's not clear to Lars which platforms have not yet been converted
+; (July 2012) so we continue to require customization for each
+; platform here, but it would be best to clean this up.  The only
+; candidate for the old code may be the CLR port.
+
+(define dump-char!
+  (case (nbuild-parameter 'target-machine)
+    ((sparc x86-sass x86-nasm standard-c arm)
+     (lambda (h c)
+       (+ (* (char->integer c) twofiftysix) $imm.character)))
+    ((**no-known-target-machines**)
+     (lambda (h c)
+       (+ (* (char->integer c) twofiftysix^2) $imm.character)))
+    (else
+     (error "You need to define dump-char! for your target machine"))))
 
 (define (dump-bignum! h b)
   (dump-bytevector! h (bignum->bytevector b) $tag.bignum-typetag))

@@ -87,7 +87,9 @@
   (config (in-rts "mprocs.cfg"))
   (case *runtime-type* 
     ((sparc-native) (config (in-rts "sparc-regs.cfg")))
-    ((sassy-native) (config (in-rts "iasn-regs.cfg"))))
+    ((sassy-native) (config (in-rts "iasn-regs.cfg")))
+    ((arm-native) (config (in-rts "fence-arm-regs.cfg")))
+    (else (error "No registers config file for this runtime-type: " *runtime-type*)))
   (catfiles (map in-include
                  '("globals.ch"
                    "except.ch"
@@ -95,7 +97,7 @@
                    "mprocs.ch"))
             (in-include "cdefs.h"))
 
-  ;; for Sparc and Intel native
+  ;; for Sparc and Intel and ARM native
 
   (catfiles (map in-include
                  `("globals.ah"
@@ -103,7 +105,7 @@
                    "layouts.ah"
                    "mprocs.ah"
                    ,@(case *runtime-type* 
-                       ((sparc-native sassy-native) '("regs.ah"))
+                       ((sparc-native sassy-native arm-native) '("regs.ah"))
                        (else '()))))
             (in-include "asmdefs.h"))
 
@@ -135,6 +137,7 @@
      features-x86-sassy-linux
      features-x86-nasm-win32
      features-x86-sassy-win32
+     features-arm-el-linux	        ; Tested on Android 2.3 but pretty generic
      features-petit-linux-redhat5       ; Very old, Redhat linux 5.1
      features-sparc-linux-debian        ; Very old, SPARC Debian v2(?)
      features-petit-macos9-cw3          ; Very old (ca v0.48), CW Pro 3

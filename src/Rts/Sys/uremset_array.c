@@ -108,7 +108,7 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
   assert( DATA(urs)->remset != NULL );
   if (bot != top) {
     annoyingmsg("urs_add_elems rs[]=0x%08x bot=0x%08x top=0x%08x",
-                DATA(urs)->remset, bot, top );
+                (unsigned)(DATA(urs)->remset), (unsigned)bot, (unsigned)top );
     return rs_add_elems_distribute( DATA(urs)->remset, bot, top );
   } else {
     return FALSE;

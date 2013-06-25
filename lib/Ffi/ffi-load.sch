@@ -24,6 +24,9 @@
 	    ((and (string=? os "MacOS X") (string=? ar "IAssassin"))
 	     'i386-macosx)
 	    ((and (string=? os "Linux")
+		  (string=? ar "ARM"))
+	     'arm-linux)
+	    ((and (string=? os "Linux")
 		  (zero?
 		   (system "test \"`uname -m | grep 'i.86'`x\" != \"x\"")))
 	     'i386-linux)
@@ -86,6 +89,8 @@
 	     ffi/i386-linux-C-callback-cdecl
              #f
              #f))
+    ((arm-linux)
+     (error "ffi-load.sch: arm-linux not yet supported"))
     (else
      (error "Unknown FFI architecture " *ffi-architecture*))))
 

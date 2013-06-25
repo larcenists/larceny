@@ -392,6 +392,7 @@ void hardconsolemsg( const char *fmt, ... )
   vfprintf( stderr, fmt, args );
   va_end( args );
   fprintf( stderr, "\n" );
+  fflush( stderr );
 }
 
 static long long generic_event_counter = 0;
