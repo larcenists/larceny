@@ -181,6 +181,10 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   timer1 = stats_start_timer( TIMER_ELAPSED );
   timer2 = stats_start_timer( TIMER_CPU );
 
+#if 1
+  annoyingmsg("Request: %d\n", request_bytes);
+#endif
+
   assert( request_bytes >= 0 );
   
   /* [pnkfelix] Tue Jun  6 01:04:55 EDT 2006
@@ -203,6 +207,16 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   stack = used_stack_space( heap );
   flush_stack( heap );
 
+#if 0
+  word p = data->globals[G_CONT];
+  for (;;) {
+    annoyingmsg( "  %08x", p);
+    if (!isptr(p))
+      break;
+    p = ptrof(p)[HC_DYNLINK];
+  }
+#endif
+
   used_before = used_space( heap );
   annoyingmsg( "Stop-and-copy heap: Garbage collection." );
   annoyingmsg( "  Avail=%d,  Used=%d", free_space( heap ), used_before );
@@ -219,6 +233,14 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
   other_space =
     create_semispace( GC_CHUNK_SIZE, data->gen_no );
+
+#if 1
+  int i;
+  for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
+    if (!(i >= G_REG5 && i <= G_REG31))
+      annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+  }
+#endif
 
   gclib_stopcopy_collect_and_scan_static( heap->collector, other_space );
 
@@ -270,6 +292,10 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
                used_space( heap ) );
+  {
+    extern int flushes;
+    annoyingmsg( "  Flushes=%d", flushes );
+  }
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( 
@@ -355,6 +381,7 @@ static word *data_load_area( young_heap_t *heap, int nbytes )
    */
 static void stack_overflow( young_heap_t *heap )
 {
+  annoyingmsg("Stack overflow");
   if (!collect_if_no_room( heap, 0 ))
     make_space_for( heap, STACK_ROOM, 1 );
 }
@@ -373,6 +400,7 @@ static word creg_get( young_heap_t *heap )
   int room = stk_size_for_top_stack_frame( DATA(heap)->globals );
   word p;
 
+  annoyingmsg("creg-get");
   collect_if_no_room( heap, room );
   flush_stack( heap );
   make_space_for( heap, room, 0 );
@@ -386,6 +414,7 @@ static void creg_set( young_heap_t *heap, word k )
 {
   word *globals = DATA(heap)->globals;
 
+  annoyingmsg("creg-set");
   stk_clear( globals );
   globals[ G_CONT ] = k;
   if (!stk_restore_frame( globals ))

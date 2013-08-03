@@ -231,6 +231,9 @@
          (let* ((host:   (case host: 
                            ;; Felix prefers "linux86" and "macosx86",
                            ;; so those aliases are supported here
+			   ;;
+			   ;; Lars notes that "linux-el" as a synonym for "linux-x86-el"
+			   ;; is unreasonable given that Linux runs on so many platforms.
                            ((linux86) 'linux-el)
                            ((macosx86) 'macosx-el)
                            (else host:)))
@@ -256,11 +259,11 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris clr-be)                  'big)
-      ((macosx-el linux-el cygwin win32 clr-el) 'little)
+      ((macosx-el linux-el linux-arm-el cygwin win32 clr-el) 'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx macosx-el solaris linux-el cygwin) 'unix)
+      ((macosx macosx-el solaris linux-el cygwin linux-arm-el) 'unix)
       ((win32) 'win32)
       ((clr-be) 'unix)     ; FIXME
       ((clr-el) 'win32)    ; FIXME
@@ -313,10 +316,12 @@
           ((macosx)       'features-petit-macosx)
           ((solaris)      (cond (native 'features-sparc-solaris)
                                 (else 'features-petit-solaris)))
-          ((linux-el)     (cond (sassy  'features-x86-sassy-linux)
-                                (nasm   'features-x86-nasm-linux)
-                                (native 'features-x86-nasm-linux)
-                                (else   'features-petit-linux)))
+	  ((linux-arm-el) (cond (native    'features-arm-el-linux)
+				(else      (error 'setup.sch "Only the native system is supported on ARM Linux"))))
+          ((linux-el)     (cond (sassy     'features-x86-sassy-linux)
+                                (nasm      'features-x86-nasm-linux)
+                                (native    'features-x86-nasm-linux)
+                                (else      'features-petit-linux)))
           ((cygwin)       'features-petit-cygwin)
           ((win32)        (cond (sassy  'features-x86-sassy-win32)
                                 (nasm   'features-x86-nasm-win32)
@@ -344,7 +349,7 @@
             macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
-          ((linux-el) "petitdebianlinux")
+          ((linux-el linux-arm-el) "petitdebianlinux")
           ((clr-be clr-le) "common")))        ; FIXME
 
   (set! *host:endianness* (platform->endianness host-arch))
@@ -380,6 +385,13 @@
             (set! *makefile-configuration* 'sparc-solaris-static-gcc)
             (set! *heap-type* 'sparc-native)
             (set! *runtime-type* 'sparc-native))
+
+	   ((linux-arm-el)
+	    (set! *target:machine* 'arm)
+	    (set! *target:machine-source* "Fence")
+	    (set! *makefile-configuration* 'arm-linux-gcc-v4-gas)
+	    (set! *heap-type* 'arm-native)
+	    (set! *runtime-type* 'arm-native))
 
            ;; Win32 native is just Petit with extasm of NASM rather than C
 
@@ -447,6 +459,9 @@
   (if (or (eq? *target:machine* 'x86-nasm)
           (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
+
+  (if (eq? *target:machine* 'arm)
+      (set! *globals-table* "globals-fence.cfg"))
  
   (case target-arch
    ((clr-be clr-el)

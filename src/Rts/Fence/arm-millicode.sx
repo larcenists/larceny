@@ -1,0 +1,226 @@
+/* -*- indent-tabs-mode: nil -*- */
+/* Copyright 2012 Lars T Hansen */
+
+/* ARMv6-A/ARMv7-A millicode to support Fence/Cant back-end.
+ *
+ * This code is for the GNU assembler with CPP macros.  Process this
+ * file with GCC, it will run CPP on the file due to the .sx file type.
+ *
+ * Note: We can always destroy TMP0 and TMP1 in millicode.
+ */
+        
+#include "asmdefs.h"
+
+        .global fence_dispatch_loop_return
+        .global fence_stack_underflow
+        .global fence_scheme_jump
+        .global fence_return_from_scheme
+
+/* Save Scheme context where the garbage collector will find it.
+ * Don't use STM: it does not respect argument ordering, and there's
+ * no guarantee MAL register order corresponds to HW register order
+ * (though we could probably make that happen if we had to).
+ */
+#define SAVE_SCHEME_CONTEXT \
+        str     RESULT, [GLOBALS, #G_RESULT] ;\
+        str     SECOND, [GLOBALS, #G_SECOND] ;\
+        str     STKP, [GLOBALS, #G_STKP]     ;\
+        str     REG0, [GLOBALS, #G_REG0]     ;\
+        str     REG1, [GLOBALS, #G_REG1]     ;\
+        str     REG2, [GLOBALS, #G_REG2]     ;\
+        str     REG3, [GLOBALS, #G_REG3]     ;\
+        str     REG4, [GLOBALS, #G_REG4]     ;\
+        str     REG5, [GLOBALS, #G_REG5]     ;\
+        vstr    d0, [GLOBALS, #G_F0]         ;\
+        vstr    d1, [GLOBALS, #G_F1]         ;\
+        vstr    d2, [GLOBALS, #G_F2]         ;\
+        vstr    d3, [GLOBALS, #G_F3]         ;\
+        str     lr, [GLOBALS, #G_RETADDR]
+
+#define SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR \
+        SAVE_SCHEME_CONTEXT                  ;\
+        ldr     TMP0, [REG0, #(-7+4)]        ;\
+        sub     TMP0, TMP0, #1               ;\
+        sub     TMP0, lr, TMP0               ;\
+        str     TMP0, [GLOBALS, #G_RETADDR]
+
+/* Load the Scheme context into registers assuming GLOBALS has been set up */
+#define LOAD_SCHEME_CONTEXT \
+        ldr     RESULT, [GLOBALS, #G_RESULT] ;\
+        ldr     SECOND, [GLOBALS, #G_SECOND] ;\
+        ldr     STKP, [GLOBALS, #G_STKP]     ;\
+        ldr     REG0, [GLOBALS, #G_REG0]     ;\
+        ldr     REG1, [GLOBALS, #G_REG1]     ;\
+        ldr     REG2, [GLOBALS, #G_REG2]     ;\
+        ldr     REG3, [GLOBALS, #G_REG3]     ;\
+        ldr     REG4, [GLOBALS, #G_REG4]     ;\
+        ldr     REG5, [GLOBALS, #G_REG5]     ;\
+        vldr    d0, [GLOBALS, #G_F0]         ;\
+        vldr    d1, [GLOBALS, #G_F1]         ;\
+        vldr    d2, [GLOBALS, #G_F2]         ;\
+        vldr    d3, [GLOBALS, #G_F3]         ;\
+        ldr     lr, [GLOBALS, #G_RETADDR]
+
+#define LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR \
+        LOAD_SCHEME_CONTEXT                  ;\
+        ldr     TMP0, [REG0, #(-7+4)]        ;\
+        sub     TMP0, TMP0, #1               ;\
+        add     lr, lr, TMP0
+
+/* Switch to C context.  Save GLOBALS in permanent register r4 for later use
+ * in SAVE_C_CONTEXT.
+ */
+#define LOAD_C_CONTEXT \
+        mov     r4, GLOBALS             ;\
+        ldr     sp, [r4, #G_SAVED_SP]   ;\
+        ldr     fp, [r4, #G_SAVED_FP]
+
+/* Switch from C context - sp and fp have not changed, so just pick up GLOBALS
+ * from r4 where it was saved.
+ */
+#define SAVE_C_CONTEXT \
+        mov     GLOBALS, r4
+
+/* Enter Scheme mode from C.  The only argument is the globals pointer;
+ * globals[G_RETADDR] has a translated "return" address.
+ * Does not return.
+ */
+fence_scheme_jump:
+        str     sp, [r0, #G_SAVED_SP]
+        str     fp, [r0, #G_SAVED_FP]
+        mov     GLOBALS, r0
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        bx      lr
+
+/* A pointer to fence_dispatch_loop_return is installed as the
+ * return address in the bottommost (oldest) stack frame.  If
+ * code returns into this function then Larceny will exit.
+ */
+fence_dispatch_loop_return:
+        SAVE_SCHEME_CONTEXT
+        LOAD_C_CONTEXT
+
+        mov     r0, r4                /* arg #1: globals */
+        b       dispatch_loop_return
+
+/* A pointer to fence_stack_underflow is installed as the return
+ * address in the frame underneath the stack cache.  If code
+ * returns into this functions then Larceny will repopulate the
+ * cache with at least one frame from the heap and return into
+ * that frame.
+ */
+fence_stack_underflow:
+        SAVE_SCHEME_CONTEXT     /* globals[G_RETADDR] is junk, ignore it */
+        LOAD_C_CONTEXT
+
+        mov     r0, r4          /* arg #1: globals */
+        bl      mem_stkuflow    /* Changes globals[G_RETADDR] */
+        
+        SAVE_C_CONTEXT
+        LOAD_SCHEME_CONTEXT     /* Do not decode G_RETADDR, it is decoded already */
+        bx      lr
+        
+/* A pointer to fence_return_from_scheme is installed as the return
+ * address when millicode calls out to Scheme.  return_from_scheme
+ * changes the value of globals[G_RETADDR], and LOAD_SCHEME_CONTEXT
+ * restores that value into lr.
+ */
+fence_return_from_scheme:
+        SAVE_SCHEME_CONTEXT     /* globals[G_RETADDR] is junk, ignore it */
+        LOAD_C_CONTEXT
+        
+        mov     r0, r4          /* arg #1: globals */
+        bl      return_from_scheme
+        
+        SAVE_C_CONTEXT
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        bx      lr
+
+#define MILLIPROC2(asmname,cname,value) \
+        .global asmname                        ;\
+asmname:                                       ;\
+        SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR ;\
+        LOAD_C_CONTEXT                         ;\
+        mov     r0, r4                         ;\
+        mov     r1, $value                     ;\
+        bl      cname                          ;\
+        SAVE_C_CONTEXT                         ;\
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR ;\
+        bx      lr
+
+/* Simplify on ARM, because we can */
+#define MILLIPROC1(asmname,cname) \
+        MILLIPROC2(asmname,cname,0)
+        
+/* For the sake of simplicity the C millicode entry points are
+ * compatible with the i386 and Petit Larceny millicode in the sense
+ * that they accept a redundant (for native code) continuation argument
+ * in many cases, but we always pass 0 for that argument because it
+ * is unused.  C millicode can rely on that.
+ */
+MILLIPROC1(fmc_morecore,mc_morecore)
+MILLIPROC1(fmc_stack_overflow,mc_stack_overflow)
+MILLIPROC2(fmc_timer_exception,mc_timer_exception,0)
+MILLIPROC2(fmc_add,mc_add,0)
+MILLIPROC2(fmc_sub,mc_sub,0)
+MILLIPROC2(fmc_equalp,mc_equalp,0)
+MILLIPROC1(fmc_alloc,mc_alloc)
+MILLIPROC1(fmc_alloci,mc_alloci)
+MILLIPROC1(fmc_alloc_bv,mc_alloc_bv)
+MILLIPROC1(fmc_capture_continuation,mc_capture_continuation)
+MILLIPROC1(fmc_restore_continuation,mc_restore_continuation)
+MILLIPROC1(fmc_full_barrier,mc_full_barrier)
+MILLIPROC1(fmc_partial_barrier,mc_partial_barrier)
+MILLIPROC1(fmc_break,mc_break)
+MILLIPROC2(fmc_global_exception,mc_exception,EX_UNDEF_GLOBAL)
+MILLIPROC2(fmc_invoke_exception,mc_exception,EX_NONPROC)
+MILLIPROC2(fmc_global_invoke_exception,mc_exception,EX_GLOBAL_INVOKE)
+MILLIPROC2(fmc_argc_exception,mc_exception,EX_ARGC)
+MILLIPROC2(fmc_enable_interrupts,mc_enable_interrupts,0)
+MILLIPROC2(fmc_disable_interrupts,mc_disable_interrupts,0)
+MILLIPROC1(fmc_apply,mc_apply)
+MILLIPROC1(fmc_restargs,mc_restargs)
+MILLIPROC2(fmc_syscall,mc_syscall,0)
+MILLIPROC1(fmc_typetag,mc_typetag)
+MILLIPROC1(fmc_typetag_set,mc_typetag_set)
+MILLIPROC2(fmc_eqv,mc_eqv,0)
+MILLIPROC1(fmc_partial_list2vector,mc_partial_list2vector)
+MILLIPROC1(fmc_bytevector_like_fill,mc_bytevector_like_fill)
+MILLIPROC1(fmc_bytevector_like_compare,mc_bytevector_like_compare)
+MILLIPROC2(fmc_mul,mc_mul,0)
+MILLIPROC2(fmc_div,mc_div,0)
+MILLIPROC2(fmc_quo,mc_quo,0)
+MILLIPROC2(fmc_rem,mc_rem,0)
+MILLIPROC2(fmc_neg,mc_neg,0)
+MILLIPROC2(fmc_abs,mc_abs,0)
+MILLIPROC2(fmc_lessp,mc_lessp,0)
+MILLIPROC2(fmc_less_or_equalp,mc_less_or_equalp,0)
+MILLIPROC2(fmc_greaterp,mc_greaterp,0)
+MILLIPROC2(fmc_greater_or_equalp,mc_greater_or_equalp,0)
+MILLIPROC2(fmc_exact2inexact,mc_exact2inexact,0)
+MILLIPROC2(fmc_inexact2exact,mc_inexact2exact,0)
+MILLIPROC1(fmc_real_part,mc_real_part)
+MILLIPROC1(fmc_imag_part,mc_imag_part)
+MILLIPROC2(fmc_round,mc_round,0)
+MILLIPROC2(fmc_truncate,mc_truncate,0)
+MILLIPROC1(fmc_zerop,mc_zerop)
+MILLIPROC1(fmc_complexp,mc_complexp)
+MILLIPROC1(fmc_rationalp,mc_rationalp)
+MILLIPROC1(fmc_integerp,mc_integerp)
+MILLIPROC1(fmc_exactp,mc_exactp)
+MILLIPROC1(fmc_inexactp,mc_inexactp)
+MILLIPROC1(fmc_singlestep,mc_singlestep)
+
+/* Special case: the exception code is transmitted in TMP0 */
+
+        .global fmc_exception
+fmc_exception:
+        str     TMP0, [GLOBALS, #G_PUSHTMP]
+        SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR
+        LOAD_C_CONTEXT
+        mov     r0, r4          /* arg #1: globals */
+        ldr     r1, [GLOBALS, #G_PUSHTMP]
+        bl      mc_exception
+        SAVE_C_CONTEXT
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        bx      lr

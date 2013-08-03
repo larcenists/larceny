@@ -23,6 +23,7 @@
  "SPARC" 			; Native: SPARC v8 or later
  "X86_SASSY"			; Native: Intel 486 using Sassy assembler
  "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
+ "ARM"				; Native: ARMv7-A using Fence/Cant assembler
  "PPC_GAS"                      ; Native: PowerPC using GNU 'as'
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
 
@@ -522,6 +523,22 @@
     "USE_STDIO"
     "NO_SYNCHRONOUS_SIGNALS"
     "HAVE_STAT"
+    ))
+
+(define features-arm-el-linux
+  '("ARM"
+    "BITS_32"
+    "ENDIAN_LITTLE"
+    "LINUX"
+    "HAVE_RINT"
+    "HAVE_STRNCASECMP"
+    "HAVE_STRDUP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "EXPLICIT_DIVZ_CHECK"               ; better error messages
+    "DEBIAN_STRDUP_WEIRDNESS"
     ))
 
 

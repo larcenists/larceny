@@ -177,7 +177,7 @@ word w_fn, w_buf;
     globals[ G_RESULT ] = fixnum( -1 );
     return;
   }
-  tm = localtime( &buf.st_mtime );
+  tm = localtime( (time_t*)&buf.st_mtime );
   vector_set( w_buf, 0, fixnum( tm->tm_year + 1900 ) );
   vector_set( w_buf, 1, fixnum( tm->tm_mon + 1 ) );
   vector_set( w_buf, 2, fixnum( tm->tm_mday ) );

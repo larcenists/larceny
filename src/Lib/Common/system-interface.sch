@@ -164,6 +164,7 @@
          ((2) "X86-NASM")
          ((3) "IAssassin")
          ((4) "CLR")
+	 ((5) "ARM")
          (else "Unknown"))))
     ((endian)
      (let ((end (get-feature feature$endianness)))

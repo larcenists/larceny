@@ -133,6 +133,10 @@ void stk_flush( word *globals )
 
     size = roundup8( size+4 );
     stktop += size / 4;
+
+#if 0
+    annoyingmsg("Flush: %d", size );
+#endif
   }
   if (prev != 0)
     *(prev+HC_DYNLINK) = globals[ G_CONT ];
@@ -166,6 +170,10 @@ int stk_restore_frame( word *globals )
   }
   globals[ G_STKP ] = (word)stktop;
   globals[ G_STKUFLOW ] += 1;
+
+#if 0
+  annoyingmsg("Restore: %d", size);
+#endif
 
   /* copy the frame onto the stack */
   p = stktop;

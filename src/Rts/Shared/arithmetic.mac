@@ -301,8 +301,8 @@ double xr = compnum_real( x );
 double xi = compnum_imag( x );
 double yr = compnum_real( y );
 double yi = compnum_imag( y );
-double zr;
-double zi;
+double zr = 0;
+double zi = 0;
 if (xi != 0.0 && yi != 0.0) {
   zr = (xr * yr)-(xi * yi);
   zi = (xi * yr)+(xr * yi);

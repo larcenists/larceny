@@ -1326,14 +1326,16 @@ EXPORT bool sm_construction_progress( summ_matrix_t *summ,
 
     assert2( ! DATA(summ)->summarizing.waiting );
 
-    if (about_to_major)
+    if (about_to_major) {
       timingmsg ( "summarizing during major gc pause because "
                    "max(%f, %f) > %f",
                    m_cN, 1.0 - rdyF, rgnF );
-    else if (speedup * m_cN <= rgnF)
+    }
+    else if (speedup * m_cN <= rgnF) {
       supremely_annoyingmsg( "incremental summarization triggered by rdyF: "
                              "%f * %f > %f",
                              speedup, 1.0 - rdyF, rgnF );
+    }
 
     /*  If it's late in the summarization cycle, then we should be
      *  running ahead of schedule (thanks to incremental summarization)
