@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "larceny.h"
 
 static void confused( char * );
