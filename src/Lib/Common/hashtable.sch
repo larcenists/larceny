@@ -362,7 +362,7 @@
                                   (else
                                    (assertion-violation
                                     'hashtable
-                                    "illegal hash value" h))))))))))
+                                    "illegal hash value" h key))))))))))
              (make-safe-hasher
               (lambda (hf)
                 (lambda (key)
@@ -374,7 +374,7 @@
                           (else
                            (assertion-violation
                             'hashtable
-                            "illegal hash value" h)))))))
+                            "illegal hash value" h key)))))))
              (make-lock (lambda () (vector #f))))
          (lambda (hf equiv searcher size type)
            (let* ((n (max 1 size))
