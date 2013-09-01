@@ -1,0 +1,26 @@
+Some notes on ARM.
+
+On Android:
+
+- we have /system/lib/libc.so instead of just /lib/libc.so as on
+  standard Linuxen.
+
+- we can use the ARM-32 instruction set (not just Thumb/Thumb2).
+
+
+The ARM ABI is documented in the document known as the AAPCS,
+"Procedure Call Standard for the ARM Architecture", available from
+http://infocenter.arm.com.
+
+In summary, arguments are passed in r0..r3.  r0..r3 and r12 are
+caller-saves, r4..r11 are callee-saves, as is the stack pointer (r13).
+
+Currently, Larceny C code is compiled assuming that floating arguments
+are passed in the integer registers, -mfloat-abi=softfp -mfpu=vfp.  I
+think this means that any consecutive pair of r0..r3 can hold a
+double, but more investigation is needed.  It is also open whether
+Android libraries are compiled using that convention.
+
+Document: GCC ABI assumptions; -march=armv7-a; differences between
+Android and other ARM-Linux?
+

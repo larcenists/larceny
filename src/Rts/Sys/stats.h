@@ -236,6 +236,10 @@ void stats_add_gclib_stats( gclib_stats_t *stats );
   /* Add the gclib info the statistics variables.
      */
 
+void stats_add_gclib_stats_incremental( gclib_stats_t *stats );
+  /* TODO: documentation.
+     */
+
 void stats_add_gc_stats( gc_stats_t *stats );
   /* Add the gc info to the statistics variables.
      */

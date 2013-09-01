@@ -1,5 +1,7 @@
 ;; javadot-symbol? is exported in toplevel.sch
 
+($$trace "javadot-symbol")
+
 (let ((javadot-symbol-prop-name (gensym "javadot-symbol-prop-name")))
 
   ;; Mark the given symbol as a javadot symbol

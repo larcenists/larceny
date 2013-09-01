@@ -53,7 +53,7 @@
 		  (newline out)
 		  (newline out)
                   ;; hack to work around bug in heap dumping 
-                  ;; (can't have strings with length > 4092)
+                  ;; (cannot have strings with length > 4092)
 		  (display (string-append
                             make-template-rts-dependencies-1
                             make-template-rts-dependencies-2)
@@ -117,6 +117,10 @@
      . ,(lambda ()
 	  (values make-template-petit-osf1-decc
 		  make-template-target-petit-unix-static)))
+    (arm-linux-gcc-v4-gas
+     . ,(lambda ()
+          (values make-template-arm-linux
+                  make-template-target-arm-linux)))
     (x86-win32-static-visualc-nasm
      . ,(lambda ()
 	  (values make-template-petit-win32-visualc
@@ -213,6 +217,31 @@ LIBS=-ldl -lm
 AS=nasm
 ASFLAGS+=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX"))
 
+;; FIXME: There are references here not just to the Android tool chain,
+;; but to directories on lth's personal Windows computer.
+(define make-template-arm-linux
+  (template-common
+"ANDROID_NDK_ROOT=c:/android-ndk-r8
+PLATFORM_ROOT=$(ANDROID_NDK_ROOT)/platforms/android-9/arch-arm
+O=o
+CC=arm-linux-androideabi-gcc
+DEBUGINFO=#-g -gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+# FIXME (should clear up these warnings instead of turning them off)
+WARNINGS=-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-label
+CFLAGS+=-c -march=armv7-a -mfloat-abi=softfp -mfpu=vfp -ISys -IBuild -I$(PLATFORM_ROOT)/usr/include $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
+LDXFLAGS+=-B$(PLATFORM_ROOT)/usr/lib
+ASFLAGS+=-c
+default_target: larceny.bin
+smoke-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.smoke10.sh 
+quick-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.quick.sh 
+
+LIBS=-ldl -lm
+AS=$(CC)"))
 
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
@@ -324,13 +353,23 @@ larceny.bin: kill_version_o $(LARCENY_OBJECTS) Util/ffi-dummy.o
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
 
+; ARM-LINUX
+(define make-template-target-arm-linux
+"default_target: larceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+larceny.bin: kill_version_o $(ARM_LINUX_LARCENY_OBJECTS) Util/ffi-dummy.o
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(ARM_LINUX_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	/bin/rm -f Sys/version.o")
+
 ; X86-WIN32
 (define make-template-target-sassy-win32
 "default_target: larceny.bin.exe
 kill_version_o: 
 	del Sys\\version.$(O)
 larceny.bin.exe: kill_version_o $(X86_SASSY_LARCENY_OBJECTS) Util/ffi-dummy.o
-	$(CC) /NXCOMPAT:NO $(PROFILE) $(TCOV) -o larceny.bin.exe $(X86_SASSY_LARCENY_OBJECTS) \\
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin.exe $(X86_SASSY_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	del Sys\\version.$(O)")
 
@@ -468,12 +507,24 @@ X86_SASSY_OBJECTS=\\
 	IAssassin/i386-driver.$(O) Shared/i386-millicode.$(O) \\
 	Shared/multiply.$(O) IAssassin/syscall2.$(O) nasm-table.$(O)
 
+ARM_LINUX_OBJECTS=\\
+	Shared/arithmetic.$(O) Shared/multiply.$(O) \\
+	Fence/fence-driver.$(O) Fence/fence-millicode.$(O) Fence/fence-syscall2.$(O) \\
+	Fence/fence-config.$(O) Fence/arm-millicode.$(O) \\
+	fence-table.$(O) 
+
 X86_SASSY_LARCENY_OBJECTS=\\
 	Sys/larceny.$(O)\\
 	IAssassin/config.$(O)\\
 	$(COMMON_RTS_OBJECTS)\\
 	$(PRECISE_GC_OBJECTS)\\
 	$(X86_SASSY_OBJECTS)	
+
+ARM_LINUX_LARCENY_OBJECTS=\\
+	Sys/larceny.$(O)\\
+	$(COMMON_RTS_OBJECTS)\\
+	$(PRECISE_GC_OBJECTS)\\
+	$(ARM_LINUX_OBJECTS)
 
 # SPARC only
 LARCENY_OBJECTS=\\
@@ -512,9 +563,13 @@ X86_NASM_LARCENY_OBJECTS=\\
 ")
 
 (define make-template-rule-sets
-".SUFFIXES:	.asm
+".SUFFIXES:	.asm .sx
 .c.o:
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+# .sx is used for assembler source that is to be preprocessed by GCC,
+# the value for AS should be gcc.
+.sx.o:
+	$(AS) -o $*.o $< $(ASFLAGS)
 .s.o:
 	$(AS) -o $*.o $< $(ASFLAGS)
 .asm.o:

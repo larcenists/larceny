@@ -5,6 +5,8 @@
  * Stand-in procedures for the dynamic linking library functions.
  */
 
+#include <stdlib.h>
+
 int dlopen(void);
 int dlsym(void);
 int dlerror(void);

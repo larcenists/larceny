@@ -20,6 +20,7 @@
       ((constantvector)
        (link-constants (cadr c)))
       ((codevector)
+       (sys$codevector-iflush (cadr c))
        (cadr c))
       ((global)
        (environment-get-cell environment (cadr c)))
@@ -36,6 +37,7 @@
 
   (let ((code  (car lop-segment))
 	(const (link-constants (cdr lop-segment))))
+    (sys$codevector-iflush code)
     (let ((p (make-procedure 3)))
       (procedure-set! p 0 code)
       (procedure-set! p 1 const)

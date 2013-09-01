@@ -1,0 +1,504 @@
+2 August 2012 / lth@acm.org
+
+
+Overview.
+
+This file contains some information about the Fence platform for
+Larceny, and for native ports built on Fence.  The Fence is a
+"platform-independent platform".
+
+The Fence assembler is machine independent and takes a high-level
+intermediate code (MacScheme assembly instructions with many primitive
+operations) and translates it to a low-level intermediate code.  The
+low-level intermediate code is called the Cant; it is at the level of
+a real CPU.  The Cant assembler, in turn, is machine-dependent and
+translates Cant to machine code for a specific target machine.
+
+The Fence assembler supports many optimizations in a portable way and
+generates good code.  In particular, it open-codes many primitives,
+translates the rest to millicode calls, and performs many useful
+peephole optimizations.  All this code will work with any platform
+built on Fence/Cant without further work required.
+
+A simple Cant implementation (minimally about 500 lines of Scheme code
+and 200 lines of assembler in the millicode layer, see the last
+section of this document) will provide decent performance.  An
+optimizing Cant implementation will provide good performance, at least
+on systems that are not completely register-starved.
+
+The Cant instruction set is defined at the end of
+Asm/Fence/pass5p2.sch.  Some assumptions and simplifications are
+documented at the head of that file.
+
+At the time of writing one Cant implementation is operational, for the
+32-bit ARM instruction set on the ARMv7-A CPU.
+
+
+Quick start for developers.
+
+To build the heap image for ARM-Linux, which is the first Fence/Cant
+platform, start Larceny on a platform of your choice and do the normal
+thing:
+
+  > (load "setup.sch")
+  > (setup 'target: 'linux-arm-el 'native)
+  > (build-config-files)
+  > (load-compiler)
+  > (build-heap)
+
+To compile the files for larceny.heap and twobit.heap these commands
+also work as expected:
+
+  > (build-larceny-files)
+  > (build-twobit)
+
+To compile larceny.bin there are some complications due to the fact
+that the only build that has been tested is cross-compiling to Android
+from Windows (under Cygwin) using Google's Android NDK.  Building
+larceny.bin is a three-step process:
+
+1) Evaluate this form in the build system:
+
+  > (build-makefile)
+
+2) Edit src/Rts/Makefile to make sure that PLATFORM_ROOT and CC are
+   set appropriately, and, if building for Android, that
+   ANDROID_NDK_ROOT points to the root of the NDK.
+
+3) In a shell, cd to src/Rts and type "make".
+
+
+Status, 23 August 2012.
+
+- The little-endian ARM-32 Cant implementation is good enough for
+  Larceny to self-host on Arm Linux (really Android), with flat4
+  strings.  It is possible to dump larceny.heap and run with the
+  compiler installed as the evaluator.  Basically the port appears to
+  be working and the code is decent.
+
+- Peephole optimizations have been ported from IAssassin.  There is an
+  ARM-specific optimizer for branch elimination and an ARM
+  disassembler that eases debugging.
+
+- Tests passed
+   - System can rebuild its heap in both interpreted and compiled mode
+     (loading from fasl).
+   - Reloading the development system in larceny.heap from source and
+     rebuilding the heap works
+   - test/Lib:
+       - boolean-tests
+       - string-tests
+       - io-tests
+       - hashtable-tests
+       - predicate-tests
+       - number-tests
+       - fact-tests
+       - fib-tests
+       - ctak-tests
+       - dynamic-wind-tests
+       - regression-tests
+       - fixnum-tests
+       - wcm-tests
+       - record-tests
+       - condition-tests
+       - enumset-tests
+
+
+To-do, roughly in decreasing order of importance.
+
+- BUG (unknown cause):
+
+  Currently testing with test/Lib/load-all-tests.sch, but failing:
+   - crash:    bytevector-tests [ in test-char-range, testing 
+                 long string conversion, various iterations crash,
+                 not yet known whether in loops or subroutine calls.
+                 Looks random-ish.  It could be a memory overwrite, or
+                 the char ranges could trigger some sort of exn path
+                 that's poorly handled. More tracing needed.  ]
+
+     Run like this:
+
+    > (begin (load "test/Lib/test.sch") (load "test/Lib/bytevector.sch"))
+    > (exhaustive-string-bytevector-tests)
+
+     Then it crashes after "loop done" on iteration 8.
+
+     Breaking things out as a LET* perturbs it but it does crash,
+     apparently in string=?; the crash point is the same in two
+     back-to-back runs:
+
+       (Range 393216 458751)
+       Starting loop
+       Loop done
+       tobytevector done
+       tostring done
+
+     A bug like this could be any of these:
+
+       - rooting a non-pointer
+       - failing to root all pointers
+       - rarely taken exception path (passing bad data, etc)
+       - allocation error (too few bytes allocated)
+       - write past end (onto somebody's header)
+       - read past end (unavailable memory)
+       - missing barrier
+       - bad barrier
+       - gc bug
+       - generic code generation bug that strikes because ...
+
+     Building a new heap with the char and globals fixes, the bug does
+     not repro when running fasl compiled on Windows with heap
+     compiled on Windows.
+
+     (Rebooted device here)
+
+     Bug does not repro when running fasl compiled on Windows with
+     heap compiled on device (not bitwise identical to the previous
+     heap) (arm2.heap).  Heap compiled with the interpreter.
+
+     Recompiling test files on the device with interpreter: bug does
+     not repro.
+
+     Recompiling test files on the device with compiled compiler:
+     bug does not repro.  (Still using heap image created with
+     interpreted compiler.)
+
+     Recompiling the heap with the compiled compiler: still unable to
+     repro in the new heap (arm3.heap).  This new heap is the same size
+     as the one produced on Windows.
+
+     => Need to recompile the compiler with the compiled compiler, then
+        recompile the tests with the recompiled compiler.
+
+     => larceny.heap
+
+        => crashes when loading the .sch files into larceny.heap and
+           running exhaustive-string-bytevector-tests - 9th iteration,
+           after ->bytevector, before ->string.
+
+        => does it crash when loading .fasl compiled with that heap?  YES.
+
+        => do those fasls crash in earlier arm.heaps?
+             arm.heap => NO
+             arm2.heap => NO
+             arm3.heap => NO
+
+        => are arm.heap and arm3.heap identical?  YES
+
+        => are the fasls identical?  NO  (not even remotely)
+
+        => do the fasls created on Windows crash in larceny.heap?  YES!
+
+    => one big test would be to create the fasls for larceny.heap 
+       on Windows and push them, and then just run arm-larceny-heap.fasl
+       on the ARM box.  If we still crash then the error has nothing to
+       do with running the compiler on the ARM system (though the REPL
+       uses the compiler, of course).
+
+       => YES, crashes on the second run.
+
+       => Confirmed: creating arm.heap, all Larceny fasls, and test
+          fasls on Windows box is enough to provoke crash - no
+          compilation on ARM, apart from compiler running in REPL,
+          required.  larceny.heap created on ARM, though.
+
+       => Also with twobit.heap, which takes the interactive compiler
+          out of the equation.
+
+    => experiment: 10 iterations in arm.heap  => NO CRASH.
+
+    => experiment: load compiler with x.sch, then run test  => NO CRASH in 10 iterations.
+
+    => experiment: a different gc but one of the split heaps? 
+
+       YES.  With -stopcopy and twobit.heap we crash quickly.
+
+    => Experiment: nonsplit heap.  Dumped twobit.heap but did not run it
+       through reorganizer.
+
+       YES.  Crashes on second iteration with std collector.
+
+    => Tentatively it looks like dumped heaps are problematic but
+       there's the additional possibility that they must be "large".
+
+    => Experiment: re-dump arm.heap as small.heap  =>  YES.  Crashes.
+
+    => So dumped heaps, even small dumped heaps, have a problem, while
+       undumped heaps, even large undumped heaps, do not.
+
+         - uninitialized data that are scanned differently in static area?
+
+    => Crashes also with small.heap and -nostatic, so static area
+       scanning is not it (though static area non-scanning could
+       somehow be it?)
+
+    => CRASHES with arm.heap and -nostatic!  Important!!!!
+
+    => Re-testing with arm.heap and default settings: NO CRASH.
+
+    => -nostatic -stopcopy arm.heap: CRASH.  Ergo not a missing write
+       barrier, though it could be a broken barrier still.
+
+       => SETLEX was missing a barrier but fixing that does not help
+          the -nostatic -stopcopy case (as predicted).
+
+    => Compiling utf8->string and looking at the LAP, the only side
+       effect is really ustring-set!:trusted - no setlex, no setglbl.
+       The only globals referenced (and called) are the bitwise
+       functions, bitwise-and etc.  (Why these aren't inlined I've no
+       idea - probably a compiler bug.)  Allocation is with
+       make-ustring and cons - a lot of consing, probably for
+       arguments.
+
+    => Compiling string->utf8 and looking at the LAP, the only side
+       effect is bytevector-like-set!:trusted - no setlex, no setglbl.
+       The globals referenced are the bit operators.  Very bizarrely,
+       bytevector-u8-set! is inlined in some way that expands it into
+       calls to "write"/"newline"/"break", presumably some error case.
+       This looks really bad, filed ticket #677.  Lots of cons, also
+       make-bytevector to allocate.
+
+    => Of course, there is stack allocation too...
+
+    => Running (collect) 100 times in a clean heap does nothing bad.
+
+    => Running (collect) 100 times in a heap with the fasls loaded
+       does nothing bad.
+
+    => Commenting out string=? - we still crash
+
+    => Commenting out ->string - we still crash
+
+    => Commenting out both - no crash
+
+    => Commenting out ->string, but also commenting out the
+       string-set! - still crashes.
+
+    => replacing the make-string with a reference to a global string:
+       still crashes.
+
+    => (from this point on, cant optimization is off)
+
+    => Removing the entire initializing DO loop: still crashes.
+
+    => Replacing the entire function by a a small function that just
+       calls tobytevector: crashes.  And now it's repeatable, it
+       crashes on the last iteration of "3 outside", ie, UTF-16BE,
+       ie, string->utf16 'big.
+
+    => Changing the load changes the timing of the crash; with load
+       2.2, the crash comes quite a bit later.  Ergo it seems like a
+       GC timing bug - the GC observing some junk or overwritten data
+       structure.
+
+    => Disabling peephole optimization: Takes quite a bit longer, but
+       still crashes.  (And with L=2.2 it crashes more quickly.)  That
+       makes sense insofar that the test code without peephole
+       optimization is 15% larger: perturbation.
+
+    => The hot possibility is missing icache flushing during GC?
+
+    => What happens is that there's a GC that pretty much wipes out
+       the heap - we go from 5845408 words (pretty stable) to 546504,
+       and from 5639 icache flushes (constant across many collections)
+       to 6.  Then we crash.
+
+       Note this cannot be a barrier bug as such, the barrier is
+       disabled and I've checked that it is.
+
+       It almost has to be an overwrite, underallocation, missing
+       icache flush, or storing a stale value.
+
+       I found one case of a temp register being held across a trap
+       and used after (a stale / garbage value for sure), but that was
+       not critical (it was the timer).
+
+    => Compiling 0.98b1 for Cygwin (a little painful).  No crash so
+       far: running with -stopcopy -nostatic in the bootstrap heap
+       and loading fasl files for the test case.
+
+    => Stack overflow?  Does not look that way, the failing value is 8
+       bytes, certainly a cons.
+
+    => (peephole optimization and cant optimization disabled; heap
+       and tests rebuilt)
+
+    => Initializing the dynamic link pad word does not make a
+       difference, nor should it (though the iasn back-end does it),
+       -stopcopy -nostatic arm.heap.
+
+    => No evidence at all of stack overflow being triggered.
+
+    => The length of the continuation chain during the fatal GC
+       appears to be normal - same as before.
+
+
+- BUG (fixed, tested):
+
+  The timer code would use a stale register if the timer trap was
+  taken, subtracing 1 from garbage and storing it into the timer slot
+  of globals.  This could account for some of the weirdness in the
+  timer code (strange errors, etc).
+
+  It's not clear how it could cause other problems, though.
+
+- BUG (fixed, currently testing):
+
+  emit-save0 uses 'greater-or-equal to test for stack overflow but
+  that only works if the stack pointer and heap top appear as unsigned
+  values.  On ARM they do, but this is just luck.
+
+- BUG (collateral damage, not fixed, mustfix):
+
+  Building for Linux/Cygwin, I can't create larceny.heap: it crashes
+  during load because sys$codevector-iflush is not defined.
+
+- BUG (possibly very old, OK to just file the bug):
+
+  Looks like the stop-and-copy collector will never collect in
+  response to a stack overflow, but always expand the heap: passing 0
+  to collect_if_no_room() means it will always return 0 (no
+  collection).  Passing STACK_ROOM would have been more appropriate.
+
+- Currently rebuilding heap on the device using interpreter.
+   - Goal: bitwise identical heap
+
+- fence-millicode.c: mc_alloc_bv: some magic to "align" the bytevector
+  so that it is better for code.  Probably x86-specific but lacking a
+  proper ifdef and reasonable motivation.  There is similar code
+  lurking in cheney.c (at least) in forward(), also not ifdef'd.
+
+- The FFI has not yet been implemented for ARM
+
+- Integrate the ARM disassembler with disassemble-file, etc.  The FASL
+  format has changed a bit so there's surgery to be done to handle
+  FASL files.
+
+- Asm/Fence/*.sch
+
+  * Search for TODO in all these files to locate opportunities for
+    performance tweaks (better instruction selection, better
+    strategies) and some other spots that may need attention.
+
+- I have only compiled for Android level 9 (Android 2.3) and tested on
+  a Samsung Galaxy S (original model) running Android 2.3.  Broader
+  testing on ARM Linux would be useful.
+
+- Need to work around the use of MOVT in order to run on the ARMv6
+  CPU.  The ARM11 implementation is popular (eg Raspberry Pi, many
+  existing devices) and that uses the ARMv6 architecture.
+
+- The flat1 string representation has not been tested at all.
+
+- BUILD-RUNTIME and BUILD-EXECUTABLE are not really working according
+  to spec; it's not clear that this is a big deal and it's considered
+  low priority to fix it.  See notes in the "Quick start" section
+  above.
+
+
+Bugs.
+
+- Inline allocation issues:
+
+  The Fence assembler does not consistently emit code to take into
+  account any stack red zone ("sce_buffer").
+
+- Write barrier issues:
+
+  The Fence assembler only emits code for the "simple" barrier
+  (pointer check and then a call to partial_barrier), no code for the
+  full barrier.
+
+  The Fence millicode has been configured with
+  SSB_ENQUEUE_OFFSET_AS_FIXNUM=0 because the calls to the barrier do
+  not set up THIRD to hold the offset.  This is related to the
+  previous problem.
+
+- Timer issues:
+
+  There's a workaround in the Fence millicode for a problem seen on
+  ARM where disable_interrupts() would return a large negative number
+  or zero.  The underlying bug is not known, but it might be a problem
+  (discovered late) where a stale enregistered value was used after
+  the return from a timer trap.
+
+  Need to retest this now, when the bug has been fixed.
+
+
+Larceny bugs to file:
+
+- 674, 675, 676, and 677 were discovered during the porting to ARM
+
+- In src/Lib/Arch/Fence/toplevel-target.sch and primops.sch there are
+  commented-out definitions of eg fx+, fx-, fx* -- not clear why these
+  are disabled, the code comes from the IAssassin port.  Must
+  investigate.  There are alternate (and slow) definitions in
+  Lib/Common/fx.sch.
+
+- There is no primitive support for bitwise-and, etc, used in eg
+  string->utf8 and utf8->string, but it does not seem that it would be
+  hard to add fixnum fast cases?
+
+- There's a Twobit "bug" that's annoying, where it performs a
+  dead store of an intermediate boolean result, effectively disabling
+  some peephole optimization of boolean evaluation for control, eg in
+
+    (if (< x y) a b)
+
+  which compiles as this:
+
+    ((global b)
+     (setreg 5)
+     (global a)
+     (setreg 4)
+     (reg 4 \x2e;T2)
+     (op2 < 5)
+     (setreg 3)
+     (reg 3 \x2e;T3)
+     (branchf 1002 3)
+     (const 2)
+     (return)
+     (\x2e;label 1002)
+     (const 3)
+     (return))
+
+   However it seems to happen in global code, not obviously in
+   procedure-local code, so it may not be a big deal.
+
+
+Other optimization items and concerns.
+
+- Code size remains a concern, ARM-32 is about as bad as Sparc.
+
+- It would be better for both ARM and x86 if the value for UNDEFINED
+  could be represented in 8 bits.  Since the low two bits are 10 we
+  can't use a shifted constant on ARM, so it has to be a byte constant.
+  The payoff is smaller code when checking for undefined globals.
+  Unfortunately it looks like the immediate space does not have room for
+  that encoding.
+
+  It is possible to define undefined to me imm.misc + (0 << 8)
+  instead of imm.misc + (3 << 8) as now.  Nobody uses the former value.
+
+  Measurements shows that that would reduce the ARM heap by 42904 bytes.
+  Probably worth doing, eventually.
+
+
+How to port Larceny using Fence/Cant.
+
+TO BE WRITTEN.
+
+
+----------------------------------------
+
+Instruction cache flushing on ARM and elsewhere.
+
+Apparently ARM can use the same flushing method as on Sparc, where we
+flush individual addresses / cache lines as we generate code or copy
+bytevectors.  But the instructions to perform the flushing are
+privileged, so a system call is required.  On Linux, there is a system
+call "clear_cache" to clear a range of addresses in the instruction
+cache, but some noise on the web indicates that it is not properly
+implemented in libc on all Android platforms.  Right now
+fence-driver.c makes the system call with inline assembler but this
+could be investigated further.

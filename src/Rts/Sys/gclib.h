@@ -46,6 +46,13 @@
 
 /* Page number macros */
 
+/* Some Linux variants, notably Android, expose PAGESIZE as an alias for PAGE_SIZE,
+ * which in turn is defined in some assembly headers.
+ * We should probably clean up Larceny, even though it's really a problem
+ * with the system headers: /usr/include/limits.h should *not* contain this
+ * kind of junk.
+ */
+#undef PAGESIZE
 #define PAGESIZE           (4*1024)
 #define PAGEMASK           (PAGESIZE-1)
 #define PAGESHIFT          12

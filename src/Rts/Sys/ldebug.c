@@ -5,10 +5,14 @@
  * Larceny -- the run-time system debugger.
  */
 
+/* TODO: Support FOURTH as a register name */
+/* TODO: Support PC, STKP as register names */
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "larceny.h"
 
 static void confused( char * );
@@ -16,6 +20,7 @@ static void step( char * );
 static void breakpt( char * );
 static void backtrace( void );
 static void setreg( char * );
+static void trace( char* );
 static void help( void );
 static void examine( char * );
 static void dumpproc( void );
@@ -25,6 +30,43 @@ static void dumpcodevec( void );
 static void dump_top_frame( void );
 static int getreg( char ** );
 static unsigned int getuint( char **, int* );
+
+static int tracing = 0;
+static char tracing_until[100] = { 0 };
+
+void localdebugger_step(word* globals)
+{
+  char buf[ 300 ];
+  int l;
+  word s = globals[G_SECOND];
+  /* TODO: flat1/flat4 distinction */
+  if ((*ptrof(s) & 255) == USTR_HDR) {
+    /*flat4*/
+    int i;
+    char* p = buf;
+    uint32_t* q = (uint32_t*)(ptrof(s)+BVEC_HEADER_WORDS);
+    l = *ptrof(s) >> 10;
+    for ( i=0 ; i < l && i < sizeof(buf)-1 ; i++ )
+      *p++ = (*q++ >> 8) & 127;
+    *p++ = 0;
+  }
+  else {
+    l = string_length( s );
+    strncpy( buf, string_data( s ), min( l, sizeof( buf )-1 ) );
+    buf[ l ] = 0;
+  }
+  hardconsolemsg( "Step: %s", buf );
+  /* Trace until the string in tracing_until[] is a substring of the buffer */
+  if (tracing) {
+    if (tracing_until[0] == 0)
+      return;
+    if (strstr(buf, tracing_until) == NULL)
+      return;
+    tracing = 0;
+    tracing_until[0] = 0;
+  }
+  localdebugger();
+}
 
 void localdebugger( void )
 {
@@ -44,12 +86,14 @@ void localdebugger( void )
         case 'B' : backtrace(); break;
         case 'd' : dumpregs(); break;
 	case 'g' : dumpglob(); break;
+        case 't' : trace( cmd ); return;
         case 'r' : return;
 	case 'p' : dumpproc(); break;
 	case 'c' : dumpcodevec(); break;
 	case 'X' : examine( cmd ); break;
         case 'z' : step( cmd ); break;
 	case '?' : help(); break;
+        case 'a' : exit(0); break;
 	default  : confused( "cmd" ); break;
       }
     }
@@ -88,6 +132,27 @@ static void breakpt( char *cmd )
     globals[ G_BREAKPT_ENABLE ] = FALSE_CONST;
   else
     confused( "breakpt" );
+}
+
+static void trace( char* cmd )
+{
+  tracing = 1;
+  tracing_until[0] = 0;
+  while (*cmd != 't')
+    cmd++;
+  cmd++;
+  if (*cmd == '-') {
+    tracing = 0;
+    return;
+  }
+  while (isspace(*cmd))
+    cmd++;
+  if (*cmd == 0)
+    return;
+  int k=0;
+  while (k < sizeof(tracing_until)-1 && *cmd != 0 && *cmd != '\n' && *cmd != '\r')
+    tracing_until[k++] = *cmd++;
+  tracing_until[k] = 0;
 }
 
 /*
@@ -210,12 +275,15 @@ static void setreg( char *cmd )
 
 static void help( void )
 {
+  printf( "a        abort execution\n");
   printf( "b{+|-}   manipulate breakpoint enable\n" );
   printf( "B        stack backtrace\n" );
   printf( "c        dump the current code vector to /tmp/larceny\n" );
   printf( "d        display register values\n" );
   printf( "p        dump the current procedure (if possible)\n" );
   printf( "r        return\n" );
+  printf( "t [str]  enable tracing (until instruction has str as substring) and return\n" );
+  printf( "t-       stop tracing\n" );
   printf( "Xo <loc> examine object\n" );
   printf( "Xx <loc> <count>\n" );
   printf( "         examine w(ord),b(yte),c(har)\n" );
@@ -314,10 +382,17 @@ static void examine( char *cmdl )
       len = sizefield(hdr);
       tag = typetag( hdr );
       if (tag == STR_SUBTAG) {
-	printf( "String, length %d\n", len );
+	printf( "String (flat1), length %d\n", len );
 	for ( cp = ((char*)ptrof( loc ))+4 ; len ; cp++, len-- )
 	  putchar( *cp );
         putchar( '\n' );
+      }
+      else if (tag == USTR_SUBTAG) {
+	printf( "String (flat4), length %d\n", len/4 );
+	uint32_t* up;
+	for ( up = ((uint32_t*)ptrof(loc))+1 ; len ; up++, len-=4 )
+	  putchar( ((*up) >> 8) & 255 ); /* FIXME - would want to do better when we can */
+	putchar( '\n' );
       }
       else
 	printf( "Bytevector-like, length %d, tag %d\n", len, tag );
@@ -441,17 +516,12 @@ static void dumpregs( void )
 {
   int j, k;
 
-  for (j = 0 ; j < 8 ; j++ ) {
-    for (k = 0 ; k < 4 ; k++ )
-      printf( "REG %2d=0x%08x  ", j*4+k, globals[ G_REG0 + j*4+k ] );
-    putchar( '\n' );
-  }
 #ifdef G_SECOND
-  printf( "RESULT=0x%08x  SECOND=0x%08x   THIRD=0x%08x    RETADDR=0x%08x\n", 
+  printf( "RESULT=0x%08x  SECOND=0x%08x  THIRD= 0x%08x  FOURTH=0x%08x\n", 
 	  globals[ G_RESULT ],
 	  globals[ G_SECOND ],
 	  globals[ G_THIRD ],
-	  globals[ G_RETADDR ] );
+	  globals[ G_FOURTH ] );
 #else
   printf( "RESULT=0x%08x  ARGREG2=0x%08x  ARGREG3=0x%08x  RETADDR=0x%08x\n", 
 	  globals[ G_RESULT ],
@@ -459,6 +529,11 @@ static void dumpregs( void )
 	  globals[ G_ARGREG3 ],
 	  globals[ G_RETADDR ] );
 #endif
+  for (j = 0 ; j < 8 ; j++ ) {
+    for (k = 0 ; k < 4 ; k++ )
+      printf( "REG %2d=0x%08x  ", j*4+k, globals[ G_REG0 + j*4+k ] );
+    putchar( '\n' );
+  }
   printf( "TIMER=0x%08x  Flags=%c%c%c  PC=0x%08x  CONT=0x%08x\n",
 	  globals[ G_TIMER2 ] + globals[ G_TIMER ],
 	  (globals[ G_TIMER_ENABLE ] == TRUE_CONST ? 'T' : 't'),
@@ -466,12 +541,12 @@ static void dumpregs( void )
 	  (globals[ G_BREAKPT_ENABLE ] == TRUE_CONST ? 'B' : 'b'),
 	  globals[ G_RETADDR ],
           globals[ G_CONT ] );
-
   printf( "STKP=0x%08lx STKBOT=0x%08lx EBOT=0x%08lx ETOP=0x%08lx\n",
 	  (long unsigned int)globals[ G_STKP ],
 	  (long unsigned int)globals[ G_STKBOT ],
 	  (long unsigned int)globals[ G_EBOT ],
           (long unsigned int)globals[ G_ETOP ] );
+  printf( "CALLOUTS=0x%08x\n", globals[ G_CALLOUTS ] );
 }
 
 static void dumpglob( void )

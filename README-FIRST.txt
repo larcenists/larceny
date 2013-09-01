@@ -3,6 +3,7 @@ SYSTEM REQUIREMENTS
 Currently, this software is distributed for:
  - Windows on Intel x86 machines (native IA32 backend)
  - Linux on Intel x86 machines (native IA32 and C backends)
+ - Linux on little-endian ARMv7 machines (native ARM-32 backend)
  - Mac OS X (>= 10.4) on Intel x86 machines (native IA32 backend)
  - Mac OS X (>= 10.2) on PowerPC machines (C backend)
  - Solaris on SPARC machines (native SPARC and C backends)
@@ -23,7 +24,7 @@ Larceny, see the Common Larceny user's manual [2].)
 
 WHAT YOU NEED
 
-Native (SPARC, IA32): everything should work out of the box.
+Native (SPARC, IA32, ARM): everything should work out of the box.
 
 Petit Larceny (Solaris, Linux, Mac OS X): ensure that the GNU C
     Compiler (gcc) is in your execution path.  (If you are

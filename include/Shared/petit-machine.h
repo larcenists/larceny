@@ -20,8 +20,17 @@
 # define G_THIRD          G_ARGREG3
 # define G_FOURTH         G_SCHCALL_ARG4
 #endif
+
+/* This is a bad hack but it's backward compatible.  The underlying bug
+ * is that src/Rts/petit-regs.cfg was never created, so that there is
+ * a hack here to handle LASTREG and NREGS.
+ */
+#ifdef ARM
+#error "You should not be seeing this file for ARM Fence/Cant builds"
+#else
 #define LASTREG           31
 #define NREGS             32
+#endif
 
 /* Hacks to avoid having to mess with layouts.cfg yet */
 #define PROC_CODE         PROC_CODEPTR

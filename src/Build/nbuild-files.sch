@@ -31,6 +31,11 @@
    'compiler
    '("common.imp.sch" "standard-C.imp.sch" "standard-C.imp2.sch")))
 
+(define *nbuild:fence/twobit-files*
+  (param-filename
+   'compiler
+   '("common.imp.sch" "fence.imp.sch" "fence.imp2.sch")))
+
 (define *nbuild:dotnet/twobit-files*
   (if (eq? 'dotnet (nbuild-parameter 'target-machine))
       (append 
@@ -83,7 +88,7 @@
      "ecodes.sch"
      "layouts.sch"
      ,@(case *runtime-type* 
-        ((sparc-native sassy-native) '("regs.sch"))
+        ((sparc-native sassy-native arm-native) '("regs.sch"))
         (else '())))))
 
 (define *nbuild:sparcasm-files*
@@ -166,6 +171,18 @@
                         "md5.sch")))
       '()))
 
+(define *nbuild:arm-fence-files*
+  (if (eq? 'arm (nbuild-parameter 'target-machine))
+      (append
+       (param-filename 'arm-fence-asm
+                       `("asm-switches.sch"
+			 "pass5p2.sch"
+			 "peepopt.sch"
+			 "pass5p2-arm.sch"
+                         "arm-optimizer.sch"
+                         "arm-disassembler.sch")))
+      '()))
+
 (define *nbuild:dotnetasm-files* 
   (if (eq? 'dotnet (nbuild-parameter 'target-machine))
       (param-filename 'dotnet-asm
@@ -218,6 +235,7 @@
             ((standard-c) *nbuild:petit/twobit-files*)
             ((x86-sass)   *nbuild:iasn/twobit-files*)
             ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
+	    ((arm)        *nbuild:fence/twobit-files*)	; common to all fence ports
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
             (else (error "nbuild:twobit-files: bad architecture.")))
 
@@ -237,6 +255,7 @@
     ((standard-c) *nbuild:petitasm-files*)
     ((x86-nasm)   *nbuild:x86-nasm-files*)
     ((x86-sass)   *nbuild:x86-sass-files*)
+    ((arm)        *nbuild:arm-fence-files*)
     ((dotnet)     *nbuild:dotnetasm-files*) ; FIXME
     (else (error "nbuild:machine-asm-files: bad architecture."))))
 
@@ -246,6 +265,7 @@
     ((standard-c) *nbuild:petit-heap-dumper-files*)
     ((x86-sass)   *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
+    ((arm)        *nbuild:petit-heap-dumper-files*)
     ((dotnet)     *nbuild:dotnet-heap-dumper-files*) ; FIXME
     (else (error "nbuild:heap-dumper-files: bad architecture."))))
 
