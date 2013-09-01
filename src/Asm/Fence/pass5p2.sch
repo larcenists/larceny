@@ -1220,7 +1220,8 @@
     ((major-gc-counter)
      (cant.ldi as $r.globals $g.majorgccnt rd))
     ((machine-address)
-     (cant.shli as rs 2 rd))
+     (cant.andni as rs #b1111 rd)
+     (cant.shri as rd 2 rd))
 
     ;; Miscellaneous operations that call millicode.  In all cases
     ;; these are allowed to destroy RESULT and SECOND.
@@ -2440,7 +2441,7 @@
 ; Bitwise and.
 
 (define (cant.and as rs1 rs2 rd)
-  (list-cant "add" `(#f ,(list-regname rs1) ,(list-regname rs2) ,(list-regname rd)))
+  (list-cant "and" `(#f ,(list-regname rs1) ,(list-regname rs2) ,(list-regname rd)))
   (emit! as $cant$))
 
 ; Bitwise inclusive or.
