@@ -22,6 +22,7 @@
 ;                      standard-c      ANSI C
 ;                      dotnet          Microsoft Common Language Runtime
 ;                      x86-nasm        Intel 80x86, NASM assembler
+;                      arm             ARMv7-A   (32-bit, little endian)
 ;   target-endianness
 ;                   endianness of target, either 'big' or 'little'.
 ;   always-source?  if true, loads source files instead of compiled
@@ -31,6 +32,9 @@
 ;
 ; If target-machine = standard-c
 ;   standard-C-asm  the directory for the standard-C assembler
+;
+; If target-machine = arm:
+;   arm-fence-asm   the directory for the arm-fence assembler
 ;
 ; There might be other keys used by the compatibility packages.
 
@@ -102,7 +106,7 @@
 (initialize-help (nbuild-parameter 'compiler) 
                  'full
                  (case (nbuild-parameter 'target-machine)
-                   ((sparc x86-sass) 'native)
+                   ((sparc x86-sass arm) 'native)
                    (else 'petit)))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)
@@ -110,17 +114,6 @@
 ; Initialize heap dumper.
 
 (dumpheap.set-endianness! (nbuild-parameter 'target-endianness))
-
-;FIXME: this patch should go away when all systems have converted.
-
-(if (or (eq? 'sparc (nbuild-parameter 'target-machine))
-        (eq? 'x86-sass (nbuild-parameter 'target-machine))
-        (eq? 'x86-nasm (nbuild-parameter 'target-machine))
-        (eq? 'standard-c (nbuild-parameter 'target-machine)))
-    (begin (set! dump-char!
-                 (lambda (h c)
-                   (+ (* (char->integer c) twofiftysix) $imm.character)))
-           (unspecified)))
 
 ; And they're off!
 

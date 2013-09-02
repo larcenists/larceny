@@ -9,8 +9,8 @@
 #define INCLUDED_LARCENY_H
 
 #if WIN32
-	#define WIN32_LEAN_AND_MEAN
-	#include <windows.h>  /* required for DEP policy */
+       #define WIN32_LEAN_AND_MEAN
+       #include <windows.h>  /* required for DEP policy */
 #endif
 
 #include <limits.h>
@@ -86,7 +86,7 @@ extern opt_t command_line_options;
 
 extern int  panic_exit( const char *fmt, ... );
 extern int  panic_abort( const char *fmt, ... );
-extern void annoyingmsg( const char *fmt, ... );
+extern void annoyingmsg( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
 extern void supremely_annoyingmsg( const char *fmt, ... );
 extern void consolemsg( const char *fmt, ... );
 extern void hardconsolemsg( const char *fmt, ... );
@@ -182,6 +182,7 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
+extern void localdebugger_step( word* globals );
 extern void debugvsm( void );
 
 /* In Rts/Sys/osdep-*.c */

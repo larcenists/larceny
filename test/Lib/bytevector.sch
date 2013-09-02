@@ -1147,23 +1147,42 @@
 ; Tests string <-> bytevector conversion on strings
 ; that contain every Unicode scalar value.
 
+(define *s* (make-string 65536 #\space))
+
 (define (exhaustive-string-bytevector-tests)
 
   ; Tests throughout an inclusive range.
 
   (define (test-char-range lo hi tostring tobytevector)
-    (let* ((n (+ 1 (- hi lo)))
-           (s (make-string n))
-           (replacement-character (integer->char #xfffd)))
-      (do ((i lo (+ i 1)))
-          ((> i hi))
-        (let ((c (if (or (<= 0 i #xd7ff)
-                         (<= #xe000 i #x10ffff))
-                     (integer->char i)
-                     replacement-character)))
-          (string-set! s (- i lo) c)))
-      (test "test of long string conversion"
-            (string=? (tostring (tobytevector s)) s) #t)))
+    (display (list "Range" lo hi)) (newline)
+    (tobytevector *s*)
+    #t)
+
+  ;; (define (test-char-range lo hi tostring tobytevector)
+  ;;   (display (list "Range" lo hi)) (newline)
+  ;;   (let* ((n (+ 1 (- hi lo)))
+  ;;          (s *s*) ; (make-string n))
+  ;;          (replacement-character (integer->char #xfffd)))
+  ;;     (display "Starting loop") (newline)
+  ;;     '
+  ;;     (do ((i lo (+ i 1)))
+  ;;         ((> i hi))
+  ;;       (let ((c (if (or (<= 0 i #xd7ff)
+  ;;                        (<= #xe000 i #x10ffff))
+  ;;                    (integer->char i)
+  ;;                    replacement-character)))
+  ;;         ;(string-set! s (- i lo) c)
+  ;;         #t))
+  ;;     (display "Loop done") (newline)
+  ;;     (let* ((x1 (tobytevector s))
+  ;;            (xx (begin (display "tobytevector done") (newline)))
+  ;;            ;(x2 (tostring x1))
+  ;;            ;(xy (begin (display "tostring done") (newline)))
+  ;;            ;(x3 (string=? x2 s))
+  ;;            ;(xz (begin (display "string=? done") (newline)))
+  ;;            (x3 #t))
+  ;;       (test "test of long string conversion"
+  ;;             x3 #t))))
 
   (define (test-exhaustively name tostring tobytevector)
    ;(display "Testing ")
@@ -1192,24 +1211,31 @@
 
   (define (timeit x) x)
 
+  (display "1 outside") (newline)
   (timeit (test-exhaustively "UTF-8" utf8->string string->utf8))
 
+  (display "2 outside") (newline)
   (timeit (test-exhaustively "UTF-16" utf16->string string->utf16))
 
+  (display "3 outside") (newline)
   (timeit (test-exhaustively "UTF-16BE"
                              (lambda (bv) (utf16->string bv 'big))
                              (lambda (s) (string->utf16 s 'big))))
 
+  (display "4 outside") (newline)
   (timeit (test-exhaustively "UTF-16LE"
                              (lambda (bv) (utf16->string bv 'little))
                              (lambda (s) (string->utf16 s 'little))))
 
+  (display "5 outside") (newline)
   (timeit (test-exhaustively "UTF-32" utf32->string string->utf32))
 
+  (display "6 outside") (newline)
   (timeit (test-exhaustively "UTF-32BE"
                              (lambda (bv) (utf32->string bv 'big))
                              (lambda (s) (string->utf32 s 'big))))
 
+  (display "7 outside") (newline)
   (timeit (test-exhaustively "UTF-32LE"
                              (lambda (bv) (utf32->string bv 'little))
                              (lambda (s) (string->utf32 s 'little)))))

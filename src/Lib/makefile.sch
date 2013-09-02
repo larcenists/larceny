@@ -312,6 +312,41 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Project for building the ARM-larceny heap image.
+
+(define arm-heap-project
+  (let ((arm-heap-files
+         (objects (nbuild-parameter 'common-source)
+                  ".lop"
+                  common-heap-files
+                  `((primops . ,(param-filename 'source "Arch" "Fence" "primops.lop"))
+                    (toplevel-target . ,(param-filename 'source "Arch" "Fence" "toplevel-target.lop"))
+                    (flonum-endian . ,(common-relative "flonums-el.lop"))
+                    (bignum-endian . ,(common-relative "bignums-el.lop"))
+                    (osdep . ,(common-relative "sys-unix.lop"))
+                    (extra . #f))))
+        (arm-eval-files
+         (objects "" ".lop" eval-files)))
+    (make:project "arm.heap"
+      `(rules
+        (".lop" ".mal" ,make-assemble)
+        (".lop" ".lap" ,make-assemble)
+        (".lap" ".sch" ,make-compile))
+      `(targets
+        ("arm.heap" ,make-dumpheap))
+      `(dependencies                    ; Order matters.  [Why??!]
+        ("arm.heap" ,arm-heap-files)
+        ("arm.heap" ,arm-eval-files)))))
+
+(define (make-arm-heap . rest)
+  (make:pretend (not (null? rest)))
+  (parameterize ((integrate-procedures 'larceny)
+                 (compat:read-case-sensitive? #t))
+    (make:make arm-heap-project "arm.heap" 
+               (lambda (tgt) (error 'make-arm-heap tgt)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Project for building the dotNet-larceny heap image
 
 ;; set within def. of dotnet-heap-project because that's where
@@ -595,6 +630,7 @@
                    '("r5rs-heap"
 		     "sparc-larceny-heap" "sparc-twobit-heap"
                      "iasn-larceny-heap" "iasn-twobit-heap"
+                     "arm-larceny-heap" "arm-twobit-heap"
                      "petit-larceny-heap" "petit-twobit-heap"))))
         (compiler-target/no-keywords
          (lambda (name)

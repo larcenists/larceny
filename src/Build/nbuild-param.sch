@@ -85,6 +85,7 @@
     (apv 'x86-nasm-asm          (pathname-append dir "src" "Asm" "Nasm"))
     (apv 'x86-sass-asm          (pathname-append dir "src" "Asm" "IAssassin"))
     (apv 'standard-c-asm        (pathname-append dir "src" "Asm" "Standard-C"))
+    (apv 'arm-fence-asm         (pathname-append dir "src" "Asm" "Fence"))
     (apv 'dotnet-asm            (pathname-append dir "src" "Asm" "IL"))
 
     ;; 'compatibility varies with host scheme, but 'larceny-compatibility
@@ -122,6 +123,7 @@
          common-asm
          dotnet-asm
          sparc-asm
+         arm-fence-asm
          x86-nasm-asm
          x86-sass-asm
          standard-c-asm

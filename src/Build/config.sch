@@ -101,6 +101,10 @@
        (set! asm-table-generator sparc-table)
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))
+      ((arm)
+       (set! asm-table-generator arm-table)
+       (set! asm-comment-template "/* ~a */")
+       (set! asm-define-template  "#define ~a ~a~%"))
       ((x86-nasm x86-sass)
        (set! asm-table-generator x86-nasm-table)
        (set! asm-comment-template "; ~a")
@@ -232,6 +236,24 @@
 			   info)))
 		  (set! table-counter (+ table-counter 1))
 		  (loop (read inp) i)))
+               ((define-double)
+                (if (odd? table-counter)
+                    (begin
+                      (table-word 0 "padding")
+                      (set! table-counter (+ table-counter 1))))
+                (let ((name (or (cadr item)
+                                (caddr item)
+                                (cadddr item)
+                                "unnamed")))
+                  (table-word 0 (string-append name " #1"))
+                  (table-word 0 (string-append name " #2"))
+                  (let ((i (define-const (cons 'define-const
+                                               (cons (gensym "G_")
+                                                     (cons table-counter
+                                                           (cdr item))))
+                             info)))
+                    (set! table-counter (+ table-counter 2))
+                    (loop (read inp) i))))
 	       ((define-mproc)
 		(let ((size 
 		       (table-branch (list-ref item 4))))
@@ -444,6 +466,39 @@
     (define (table-branch name)
       (show `(#\tab "b" #\tab ,name #\newline #\tab "nop" #\newline))
       2)
+
+    (define (table-footer) #f)
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
+  ;; ARM-Linux Fence/Cant table, GNU assembler.
+
+  (define (arm-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '(#\tab ".data" #\newline
+	      #\tab ".global globals" #\newline
+	      #\tab ".align 8" #\newline
+	      "globals:" #\newline)))
+
+    (define (table-word value comment)
+      (show `(#\tab ".word" #\tab ,value #\tab "/* "
+		    ,(or comment "padding") " */"
+		    #\newline)))
+
+    (define (table-branch name)
+      (show `(#\tab "b" #\tab ,name #\newline))
+      1)
 
     (define (table-footer) #f)
 

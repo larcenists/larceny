@@ -57,10 +57,17 @@
   (if (nbuild-parameter 'always-source?)
       (loadit filename)
       (let ((fn (larc-new-extension filename "fasl")))
-	(if (and (file-exists? fn)
-		 (compat:file-newer? fn filename))
-	    (loadit fn)
-	    (loadit filename)))))
+	;; Allow the loading of the .fasl even if the .sch does not
+	;; exist, handy for cross-compilation.
+	(cond ((and (file-exists? fn)
+		    (file-exists? filename)
+		    (compat:file-newer? fn filename))
+	       (loadit fn))
+	      ((and (file-exists? fn) 
+		    (not (file-exists? filename)))
+	       (loadit fn))
+	      (else
+	       (loadit filename))))))
 
 (define (compat:file-newer? a b)
   (let* ((ta    (file-modification-time a))

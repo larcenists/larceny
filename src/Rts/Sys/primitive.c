@@ -220,6 +220,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       vector_set( v, 0, fixnum(2) );
     else if (strcmp( larceny_architecture, "IAssassin" ) == 0)
       vector_set( v, 0, fixnum(3) );
+    else if (strcmp( larceny_architecture, "ARM" ) == 0)
+      vector_set( v, 0, fixnum(5) );
     else
       vector_set( v, 0, fixnum(-1) );
     break;
