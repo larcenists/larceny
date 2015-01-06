@@ -25,6 +25,10 @@
   (environment-set! larc 'dump-heap dump-heap)
   (environment-set! larc 'dump-interactive-heap dump-interactive-heap)
 
+  ;; miscellaneous extensions and hacks
+
+  (environment-set! larc 'sys$codevector-iflush sys$codevector-iflush)
+
   ;; Support for loading compiled files as code-less FASL files with
   ;; the code vectors already linked into the executable or present
   ;; in dynamically loaded object files.
