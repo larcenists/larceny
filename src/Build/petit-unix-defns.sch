@@ -89,6 +89,7 @@
     ((sparc-native) (config (in-rts "sparc-regs.cfg")))
     ((sassy-native) (config (in-rts "iasn-regs.cfg")))
     ((arm-native) (config (in-rts "fence-arm-regs.cfg")))
+    ((petit) #t)
     (else (error "No registers config file for this runtime-type: " *runtime-type*)))
   (catfiles (map in-include
                  '("globals.ch"
