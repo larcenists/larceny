@@ -97,7 +97,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc ~a -rdynamic -o ~a ~a ~a"
+    "gcc -m32 ~a -rdynamic -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -107,7 +107,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc ~a -o ~a ~a ~a"
+    "gcc -m32 ~a -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -117,7 +117,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc ~a -Wl,-export-dynamic -o ~a ~a ~a"
+    "gcc -m32 ~a -Wl,-export-dynamic -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -127,7 +127,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc ~a -shared -o ~a ~a ~a"
+    "gcc -m32 ~a -shared -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -137,7 +137,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc ~a -shared -o ~a ~a ~a"
+    "gcc -m32 ~a -shared -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -149,7 +149,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
+    "gcc -m32 ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
