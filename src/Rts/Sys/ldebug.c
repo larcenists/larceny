@@ -41,7 +41,7 @@ void localdebugger_step(word* globals)
 #ifdef G_SECOND
   word s = globals[G_SECOND];
 #else
-  word s = globals[ARGREG2];
+  word s = globals[G_ARGREG2];
 #endif
   /* TODO: flat1/flat4 distinction */
   if ((*ptrof(s) & 255) == USTR_HDR) {
