@@ -1,0 +1,122 @@
+#!/bin/bash
+
+SETUP_ARGS="'exit-on-error 'quiet-load"
+
+# Setup options (based on script's name)
+case "`basename "$0"`" in
+
+    checkout-larceny-linux86-petit)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=petit
+    ;;
+    checkout-larceny-linux86-native)
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=native
+    ;;
+    *)
+    case "`uname`" in
+	Linux)
+	echo "Setup arguments not specified; assuming linux86 native build."
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=default
+	;;
+	Darwin)
+	echo "Setup arguments not specified; assuming macosx86 native build."
+	SCHEME_PGM=larceny
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-larceny-heap.sch
+	DIRNAME=default
+	;;
+	*)
+	echo "Setup arguments not specified; unknown target architecture."
+	exit 1
+	;;
+    esac
+    ;;
+esac
+
+# Perhaps add more to this, like the hour and minute?
+TODAY=`date +%Y-%m-%d` 
+DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}     # FIXME
+TEMPLOG="${DIR}/temp.log"
+
+# Checkout source tree
+mkdir -p ${DIR}
+pushd ${DIR} > /dev/null
+#svn checkout http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src
+git clone https://github.com/larcenists/larceny
+mv larceny larceny_src
+cd larceny_src
+
+# Build the bootstrap heap 
+$SCHEME_PGM <<EOF
+(begin 
+  (load "setup.sch")
+  (setup ${SETUP_ARGS} )
+  (build-config-files)
+  (load-compiler)
+  (set! *make-verbose* #f)
+  (build-heap)
+  (build-runtime)
+  (build-executable)
+  (build-larceny-files))
+EOF
+
+# Build the larceny heap
+echo | ./larceny.bin -stopcopy -- ${HEAP_DUMP_SCRIPT}
+
+# Library tests
+pushd test/Lib > /dev/null
+../../larceny <<EOF
+(begin 
+  (load "load-all-tests.sch")
+  (run-all-tests))
+EOF
+popd > /dev/null
+
+# Compiler tests (sanity switches only)
+pushd test/Compiler > /dev/null
+../../larceny <<EOF
+(begin 
+  (load "run-tests.sch")
+  (run-compiler-tests sanity-switches))
+EOF
+popd > /dev/null
+
+# Benchmarks
+pushd test/Benchmarking/CrossPlatform > /dev/null
+
+# Git does not preserve empty directories, so we have to recreate them.
+
+mkdir sys
+mkdir sys/larceny
+
+# usage: run_benchmarks SCRIPTNAME RNRS_BENCHNAME
+
+function run_benchmarks {
+  LARCENY=`pwd`/../../../$1
+  ./bench -r 1 -s $2 larceny all > ${TEMPLOG} 2>&1
+}
+
+echo "Benchmarking"
+
+run_benchmarks larceny  r5rs
+run_benchmarks larceny  r6rs
+
+../../../larceny <<EOF
+(begin
+  (load "summarize.sch")
+  ((summarize larceny-results) "results.Larceny-r5rs" "summary.r5rs.txt")
+  ((summarize larceny-results) "results.Larceny-r6rs" "summary.r6rs.txt"))
+EOF
+
+popd > /dev/null
+
+popd > /dev/null
+
