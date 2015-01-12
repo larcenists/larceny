@@ -1047,6 +1047,7 @@
   (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
   (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'write-shared write-shared)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
