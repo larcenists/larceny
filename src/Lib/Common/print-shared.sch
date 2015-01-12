@@ -6,6 +6,8 @@
 ;;; and <http://trac.sacrideo.us/wg/raw-attachment/wiki/WikiStart/r7rs.pdf>
 ;;; for specification and syntax.
 
+($$trace "print-shared")
+
 ;;; Copyright (C) Ray Dillinger 2003. All Rights Reserved. 
 ;;;
 ;;; This document and translations of it may be copied and furnished to
@@ -42,7 +44,8 @@
 ;;; the hashtable accesses are O(1).
 ;;;
 ;;; Modified January 2015 by Will Clinger to change the procedure name to
-;;; write-shared.
+;;; write-shared and to add a predicate that determines whether an object
+;;; contains circular structure.
 
 (define (write-shared obj . optional-port)
 
@@ -173,5 +176,86 @@
     (write-obj obj state outport)
     ;; We don't want to return the big state that write-obj just returned.
     (if #f #f)))
+
+;;; Is the given object circular?
+;;;
+;;; First see if a depth-first traversal completes in bounded time.
+;;; If not, perform a more expensive traversal that keeps track of
+;;; all possibly circular objects in scope.
+;;;
+;;; See implementation of the equal? procedure for a more complicated
+;;; example of this technique.
+
+(define circularity:bound-on-recursion 100000)
+
+(define (object-is-circular? x)
+
+  ; Fast traversal with bounded recursion.
+  ; Returns an exact integer n.
+  ; If n > 0, then x is not circular and the traversal performed
+  ; bound - n recursive calls.
+  ; If n <= 0, then the bound was exceeded before the traversal
+  ; could determine whether x is circular.
+
+  (define (small? x bound)
+    (cond ((<= bound 0)
+           bound)
+          ((pair? x)
+           (let ((result (small? (car x) (- bound 1))))
+             (if (> result 0)
+                 (small? (cdr x) result)
+                 result)))
+          ((vector? x)
+           (let ((nx (vector-length x)))
+             (let loop ((i 0)
+                        (bound (- bound 1)))
+               (if (< i nx)
+                   (let ((result (small? (vector-ref x i) bound)))
+                     (if (> result 0)
+                         (loop (+ i 1) result)
+                         result))
+                   bound))))
+          (else bound)))
+
+  ; Returns #t iff x contains circular structure or contains
+  ; any of the objects present within the given hashtable.
+
+  (define (circular? x table)
+    (cond ((hashtable-contains? table x)
+           #t)
+          ((pair? x)
+           (hashtable-set! table x #t)
+           (cond ((circular? (car x) table)
+                  #t)
+                 ((circular? (cdr x) table)
+                  #t)
+                 (else
+                  (hashtable-delete! table x)
+                  #f)))
+          ((vector? x)
+           (hashtable-set! table x #t)
+           (let ((nx (vector-length x)))
+             (let loop ((i 0))
+               (if (< i nx)
+                   (if (circular? (vector-ref x i) table)
+                       #t
+                       (loop (+ i 1)))
+                   (begin (hashtable-delete! table x)
+                          #f)))))
+          (else #f)))
+
+  (cond ((< 0 (small? x circularity:bound-on-recursion))
+         #f)
+        (else
+         (circular? x (make-eq-hashtable)))))
+
+;;; An R7RS-conforming write procedure.
+
+(define write
+  (lambda (x . rest)
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
+      (if (object-is-circular? x)
+          (write-shared x p)
+          (write-simple x p)))))
 
 ; eof

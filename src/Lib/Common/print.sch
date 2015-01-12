@@ -412,7 +412,9 @@
 
 (define **nonprinting-value** (unspecified))
 
-(define write
+;;; For the write procedure, see print-shared.sch
+
+(define write-simple
   (lambda (x . rest)
     (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (print x p #t)
