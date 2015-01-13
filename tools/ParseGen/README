@@ -1,0 +1,274 @@
+Documentation for ParseGen.  [Revision 3]
+Copyright 1993, 1995 William Clinger
+
+Permission to copy this software, in whole or in part, to use this
+software for any lawful purpose, and to redistribute this software
+is granted subject to the restriction that all copies made of this
+software must include this copyright notice in full.
+
+I also request that you send me a copy of any improvements that you
+make to this software so that they may be incorporated within it to
+the benefit of the Scheme community.
+
+
+ParseGen is a strong LL(1) parser generator designed for use in
+education and research.  It makes no attempt to convert a non-LL(1)
+grammar into LL(1) form; you have to do that yourself.  Unlike most
+parser generators, it can generate a parser in any of several different
+languages.  I have written code generators for Scheme, Pascal, C,
+and Java, and it should not be hard to modify these generators for
+other languages.  The generated parsers use recursive descent, so
+they are easy to read and modify.
+
+These peculiar characteristics are what I want when I teach a course
+on compiler construction.  Students must convert the grammar they are
+given into LL(1) form, write a lexical analyzer, design an intermediate
+representation, and write the action procedures that generate that
+representation, but are spared the trivial, tedious, and error-prone
+task of translating their LL(1) grammar into code.
+
+This directory contains the following files and subdirectories:
+
+    README                 this file
+    follow.sch             computes director sets and tests LL(1) condition
+    loadparsegen.sch       loads the entire parser generator
+    parsegen.c.sch         generates C code
+    parsegen.java.sch      generates Java code
+    parsegen.pascal.sch    generates Pascal code
+    parsegen.scheme.sch    generates Scheme code
+    parsegen.sch           parser generator (target-independent part)
+    parsegen0.pg           grammar for inputs to ParseGen
+    parsegen0.sch          parser for inputs to ParseGen
+    sets.sch               operations on sets represented as lists
+
+parsegen0.pg is an example of the input to ParseGen, and
+parsegen0.sch contains, among other things, the parser generated
+from parsegen0.pg.
+
+The parser generator can be loaded into Scheme by loading
+loadparsegen.sch.  There are four entry points, described below.
+
+If "mygrammar" is a file containing an LL(1) grammar in the format
+described below, then
+
+    (generate-scheme "mygrammar" "myparser.sch" "tables")
+    (generate-pascal "mygrammar" "myparser.pas" "tables")
+    (generate-c      "mygrammar" "myparser.c"   "tables")
+    (generate-java   "mygrammar" "myparser.c"   "tables")
+
+generates a recursive descent parser, written in IEEE/ANSI Scheme,
+ISO Pascal, ANSI C, or Java, respectively, writes the code for the
+parser to the file named by the second argument, and writes a table
+of symbolic names for tokens and a table of action procedures to the
+file named by the third argument.  The output files named by the
+second and third arguments must not already exist.  The third
+argument, or both the second and the third argument, may be omitted,
+in which case the current output port is used instead of a file.
+
+The generated parser communicates with a lexical analyzer, which
+must be supplied separately, through the following procedures:
+
+    (next-token)      returns the kind of the current lookahead token
+    (consume-token!)  consumes the lookahead token
+
+In Pascal, C, and Java, these procedures are named nextToken and
+consumeToken, in accord with the parser generator's general rules for
+translating Scheme identifiers into Pascal, C, and Java.
+
+In Scheme, the generated parser assumes that each token is represented
+as a symbol.  In Pascal, C, or Java, the parser generator generates
+declarations for three data types: token, tokens, and nonterminal.  In
+Pascal and C, the parser represents a token or nonterminal as an
+enumerated value; in Java, an int constant is used instead.
+
+
+Input to ParseGen.
+
+The input to ParseGen is very similar to the input accepted by the
+LLGen parser generator that is described in Appendix C of "Crafting
+a Compiler with C" by Fischer and LeBlanc Jr.  Most inputs that are
+accepted by LLGen will also be accepted by ParseGen, but ParseGen
+will ignore the *fmq and *define sections of the input to LLGen.
+
+The input is an LL(1) grammar in which each production is augmented by
+the name of a procedure that will perform any actions needed for that
+production and then return a synthesized value of type ast (which can
+be any type).  The arguments to the action procedure will be the values
+synthesized for the nonterminals that occur on the right hand side of
+the production.  These arguments can be suppressed by evaluating
+
+    (actions-take-arguments #f)
+
+before generating the parser.
+
+Tokens with attributes should be written as nonterminals in the
+grammar, with one production whose right hand side is a single
+terminal, and the action procedure associated with that production
+should collect the attributes through cooperation with the lexical
+analyzer.
+
+The input grammar must be written in the following form:
+
+        <comments>
+    *terminals
+        <list of terminals>
+    *productions
+        <list of productions>
+    *end
+        <comments>
+
+Each terminal must be named in the *terminals section.  If the
+name of the terminal is a reasonable identifier, then ParseGen
+will use it as it stands (Scheme) or prefix it with a z (C,
+Pascal, Java) to construct the symbol or enumerated value that
+must be returned for that terminal by the lexical analyzer.
+Special characters may also be used to name terminals, in which
+case ParseGen will choose the symbol or enumerated value itself.
+For example, ParseGen might choose the enumerated value "zassign"
+for a terminal named ":=", and the enumerated value "z97" for a
+terminal named "&&".
+
+The left hand side of the first production is assumed to be the
+start symbol.  Each production should be written on a separate
+line of the form
+
+    <lhs>  ::=  <rhs> #<actionproc>
+
+where <lhs> is a single nonterminal, <rhs> is a sequence of
+terminals and nonterminals, and <actionproc> is the name of
+the action procedure that will be called for that production.
+The <lhs> may be omitted for all but the first production, in
+which case it is assumed to be the same as for the previous
+production.
+
+If N is an unsigned integer, then #N is equivalent to
+#action-N.  The #<actionproc> may be omitted, in which case
+ParseGen will invent a name for the action procedure.  For
+convenience, an action procedure may also be specified in the
+middle of a production.  For example,
+
+    A  ::=  array of <type> #mk-type <id> #mk-arraydecl
+
+is equivalent to
+
+    A  ::=  B <id> #mk-arraydecl
+    B  ::=  array of <type> #mk-type
+
+where B is a new nonterminal.
+
+Here is a complete example of an input grammar for ParseGen:
+
+    Language of while loops.
+
+    *terminals
+
+    := ; ( )
+    addop begin do else end id if intcon mulop relop skip then while
+
+    *productions
+    <stmt>  ::=  <id> := <expr>                        #mk-assignment
+            ::=  skip                                  #mk-skip
+            ::=  if <boolexpr> then <stmt> else <stmt> #mk-if
+            ::=  while <boolexpr> do <stmt>            #mk-while
+            ::=  begin <stmt> <stmts> end              #cons
+    <stmts> ::=                                        #mk-empty
+            ::=  ; <stmt> <stmts>                      #cons
+
+    <boolexpr>  ::=  <expr> <relop> <expr>             #mk-boolexpr
+    <expr>      ::=  E                                 #identity
+
+    E  ::=  T E2                                       #leftassociate
+    E2 ::=                                             #mk-none
+       ::=  <addop> T E2                               #mk-partial
+    T  ::=  F T2                                       #leftassociate
+    T2 ::=                                             #mk-none
+       ::=  <mulop> F T2                               #mk-partial
+    F  ::=  <intcon>                                   #identity
+       ::=  <id>                                       #identity
+       ::=  ( E )                                      #identity
+
+    <intcon>  ::=  intcon                              #mk-intcon
+    <id>      ::=  id                                  #mk-id
+    <relop>   ::=  relop                               #mk-op
+    <addop>   ::=  addop                               #mk-op
+    <mulop>   ::=  mulop                               #mk-op
+
+    *end
+
+The names of the nonterminals and action procedures should be
+acceptable as identifiers to all programming languages for which
+ParseGen can generate code, except that:
+
+  *  Hyphenated identifiers, which are acceptable to Scheme, will
+     be translated into most other languages by dropping the
+     hyphen and capitalizing the letter that follows the hyphen.
+  *  Nonterminals and action procedures may be surrounded by
+     angle brackets, as in <stmt>.  Such identifiers may contain
+     spaces.  When translated, the angle brackets will be dropped
+     and the spaces will be replaced by underscores.
+
+
+Outputs from ParseGen.
+
+The file specified by the second argument will contain code for a
+recursive descent parser, together with declarations of the token,
+tokens, and nonterminal data types and a set of declarations and
+stubs for the action procedures.  To obtain a complete parser, you
+must add any other type and data declarations that are necessary,
+a lexical analyzer, code for the action procedures, and a parse-error
+procedure that takes as arguments the nonterminal being parsed and
+the tokens that were expected but not found.
+
+A table of tokens and their symbolic names is written to the file
+specified by the third argument.  This table specifies the symbolic
+names that the lexical analyzer must use to communicate the current
+token to the parser.
+
+A table listing the action procedures and their arguments is also
+written to the file specified by the third argument.
+
+
+Internal representations of grammars.
+
+The input to ParseGen is converted into a Scheme list of entries, one
+for each nonterminal.  Nonterminals are represented by symbols, terminals
+by strings.  Each entry is a list whose car is a nonterminal and whose
+cdr is a list of augmented productions for that nonterminal.  Each
+augmented production is a list whose car is the right hand side of a
+production and whose cadr is the name of the action procedure for that
+production.  Each right hand side is a list of terminals and
+nonterminals.  For example, the entry for the <stmt> nonterminal in
+the language of while loops might be represented as
+
+    (<stmt> ((<var> ":=" <expr>) mk-assignment)
+            (("skip") mk-skip)
+            (("if" <boolexpr> "then" <stmt> "else" <stmt>) mk-if)
+            (("while" <boolexpr> "do" <stmt>) mk-while)
+            (("(" <stmts> ")") identity)
+            (("begin" <stmts> "end") identity))
+
+The action procedure for a production may be the symbol *, in which
+case the right hand side of the production must consist of a single
+terminal and the production must be the only production for the
+nonterminal on its left hand side.  In this case, the nonterminal
+is taken to be an alias for the terminal.  For example, the above
+productions are equivalent to
+
+    (<stmt> ((<var> := <expr>) mk-assignment)
+            ((skip) mk-skip)
+            ((if <boolexpr> then <stmt> else <stmt>) mk-if)
+            ((while <boolexpr> do <stmt>) mk-while)
+            ((lparen <stmts> rparen) identity)
+            ((begin <stmts> end) identity))
+    (:= ((":=") *))
+    (if (("if") *))
+    (then (("then") *))
+    (else (("else") *))
+    (while (("while") *))
+    (do (("do") *))
+    (lparen (("(") *))
+    (rparen ((")") *))
+    (begin (("begin") *))
+    (end (("end") *))
+
+The first entry in the grammar is for the start symbol.
