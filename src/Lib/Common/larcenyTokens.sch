@@ -335,6 +335,11 @@
      (unsyntax (#\# #\,))
      (unsyntaxsplicing (#\# #\, #\@))
 
+     ; Extensions for SRFI 38.
+
+     (sharingdef (#\# %0..9 (* %0..9) #\=))
+     (sharinguse (#\# %0..9 (* %0..9) #\#))
+
      ; Larceny-specific extensions.
 
      ; Larceny has allowed identifiers to start with a dot;
