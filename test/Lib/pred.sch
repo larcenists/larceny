@@ -65,7 +65,7 @@
            '(#f #f))
      (test "(e (closure 1) (closure 1))"
            (let* ((n (- (expt 3 3) 27))
-                  (closure (lambda (ignored) n)))
+                  (closure (lambda (ignored) (lambda () n))))
              (e (closure 1) (closure 1)))
            '(#f #f))
      )))
