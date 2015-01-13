@@ -8258,23 +8258,35 @@
          ((r6rs)
           (set-port-switches input-port
                              port-folds-case! #f
+                             io/port-allows-r6rs-weirdness!        #t
+                             io/port-allows-r7rs-weirdness!        #f
                              io/port-allows-larceny-weirdness!     #f
                              io/port-allows-traditional-weirdness! #f
                              io/port-allows-mzscheme-weirdness!    #f
                              io/port-recognizes-javadot-symbols!   #f))
 
+         ((r7rs)
+          (set-port-switches input-port
+                             port-folds-case! #f
+                             io/port-allows-r7rs-weirdness!    #t))
+
          ((err5rs)
           (set-port-switches input-port
+                             io/port-allows-r6rs-weirdness!    #t
+                             io/port-allows-r7rs-weirdness!    #t
                              io/port-allows-larceny-weirdness! #t))
 
          ((r5rs)
           (set-port-switches input-port
                              port-folds-case! #t
+                             io/port-allows-r7rs-weirdness!    #t
                              io/port-allows-larceny-weirdness! #t))
 
          ((fasl larceny)
           (set-port-switches input-port
                              port-folds-case! #f
+                             io/port-allows-r6rs-weirdness!    #t
+                             io/port-allows-r7rs-weirdness!    #t
                              io/port-allows-larceny-weirdness! #t))
 
          ((fold-case)
@@ -8531,7 +8543,7 @@
                  (flag (string->symbol (substring tokenValue 2 n)))
                  (x (case flag
                      ((fold-case no-fold-case
-                       err5rs r5rs larceny slow fast safe unsafe)
+                       r7rs err5rs r5rs larceny slow fast safe unsafe)
                       (set-mode! flag)
                       (unspecified))
                      ((fasl)
