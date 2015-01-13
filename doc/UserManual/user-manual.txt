@@ -4,7 +4,7 @@ Larceny User Manual
 $Id$
 
 For documentation on AsciiDoc, see
-http://larceny.ccs.neu.edu/larceny-trac/wiki/AsciiDoc
+https://github.com/larcenists/larceny/wiki/AsciiDoc
 ////////////////////////////////////////////////////////////////
 
 Larceny User Manual

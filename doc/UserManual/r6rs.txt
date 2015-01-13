@@ -14,7 +14,7 @@ deprecated in Larceny.
 The most up-to-date listing of Larceny's known deviations
 from the R6RS standard can be found on the web page
 that describes the current status of
-http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode[Larceny's R6RS-compatible mode].
+https://github.com/larcenists/larceny/wiki/DargoMode[Larceny's R6RS-compatible mode].
 
 Larceny is R6RS-compatible but not R6RS-conforming.
 When Larceny is said to support a feature of the R6RS,
@@ -234,7 +234,7 @@ future version of Larceny.
 The most up-to-date list of known deviations from R6RS
 io semantics can be found on the web page
 that describes the current status of
-http://larceny.ccs.neu.edu/larceny-trac/wiki/DargoMode[Larceny's R6RS-compatible mode].
+https://github.com/larcenists/larceny/wiki/DargoMode[Larceny's R6RS-compatible mode].
 
 
 [[R6rsProgramsSection]]
