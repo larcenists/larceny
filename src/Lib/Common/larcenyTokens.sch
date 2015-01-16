@@ -172,7 +172,17 @@
 ;                  (#\\ #\x (! %0..9 %a..f %A..F) (* (! %0..9 %a..f %A..F)))
 ;                  %0..9 #\+ #\- #\. #\@ isNdMcMe)))))
 
-     (boolean (#\# (! #\t #\T #\f #\F)))
+     (boolean (! (#\# (! #\t #\T))
+                 (#\# (! #\f #\F))
+                 (#\# (! #\t #\T)
+                      (! #\r #\R)
+                      (! #\u #\U)
+                      (! #\e #\E))
+                 (#\# (! #\f #\F)
+                      (! #\a #\A)
+                      (! #\l #\L)
+                      (! #\s #\S)
+                      (! #\e #\E))))
 
      ; Scheme numbers are complicated.
      ; This simplifies by grouping binary, octal, and hexadecimal.
