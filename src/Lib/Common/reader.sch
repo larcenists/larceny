@@ -194,132 +194,58 @@
 (define raw-fixup-value! (rtd-mutator rtd:fixup-object 'value))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; This is the real parser.
-;
+;;;
+;;; Historical note:
+;;;
+;;; As the R7RS lexical syntax was added during development of v0.98,
+;;; the get-char code grew so large that Petit Larceny couldn't
+;;; use the v0.97 read procedure to compile reader.sch.
+;;; That problem was related to an issue of space efficiency in
+;;; the v0.97 implementation of get-char itself.  The Standard-C
+;;; assembler translated the MacScheme machine code for get-char
+;;; into a single C function whose textual representation was a
+;;; single string of about 2185727 characters.  With Larceny's
+;;; flat4 representation for Unicode strings, that becomes more
+;;; than 8 megabytes.  When the expand-accumulator procedure
+;;; tried to double the size of the token accumulator, it tried
+;;; to allocate a string object containing more than 16 megabytes,
+;;; which violated a hard limit in Larceny v0.97, causing a
+;;; Larceny Panic.
+;;;
+;;; The regional garbage collector needs some such hard limit
+;;; on the maximum size of a single object, so removing that
+;;; 16-megabyte limit wouldn't be the answer even if it were
+;;; easy to do.
+;;;
+;;; The solve the problem, we pulled the state machine out of
+;;; the get-char procedure so it can be compiled separately.
+;;; Fortunately, the state machine refers to only a few
+;;; procedures that manipulate the get-char procedure's
+;;; state.  (It also assigns to a local variable of get-char,
+;;; but a hack works around that.)
+;;;
+;;; Separating the state machine from the rest of the code for
+;;; get-char is something we needed to do anyway to make the
+;;; read procedure easier to customize.
+;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (get-datum input-port)
-  (get-datum-with-source-locations input-port #f))
+(define (make-state-machine clear-string-accumulator!
+                            scanChar consumeChar accept
+                            scannerError errIncompleteToken)
 
-(define (get-datum-with-source-locations input-port keep-source-locations?)
+  ;;; FIXME:  This is a hack, but it avoids any changes to LexGen.
 
-  ; Constants and local variables.
+  (define (set! ignored also-ignored)
+    (clear-string-accumulator!))
 
-  (let* (; Constants.
+  (define string_accumulator_length 'ignored)
 
-         ; initial length of string_accumulator
-
-         (initial_accumulator_length 64)
-
-         ; Encodings of error messages.
-
-         (errLongToken 1)                 ; extremely long token
-         (errIncompleteToken 2)      ; any lexical error, really
-         (errIllegalHexEscape 3)                 ; illegal \x...
-         (errIllegalNamedChar 4)                 ; illegal #\...
-         (errIllegalString 5)                   ; illegal string
-         (errIllegalSymbol 6)                   ; illegal symbol
-         (errNoDelimiter 7)      ; missing delimiter after token
-         (errSquareBracket 8)     ; square bracket when disabled
-         (errBug 9)            ; bug in reader, shouldn't happen
-         (errLexGenBug 10)                         ; can't happen
-
-         ; Named characters that MzScheme doesn't yet recognize.
-
-         (char:alarm  (integer->char 7))
-         (char:esc    (integer->char 27))
-         (char:delete (integer->char 127))
-
-         ; Important but unnamed non-Ascii characters.
-
-         (char:nel    (integer->char #x85))
-         (char:ls     (integer->char #x2028))
-
-         ; State for one-token buffering in lexical analyzer.
-
-         (kindOfNextToken 'z1)      ; valid iff nextTokenIsReady
-         (nextTokenIsReady #f)
-
-         (tokenValue "")  ; string associated with current token
-
-         ; A string buffer for the characters of the current token.
-         ; Resized as necessary.
-
-         (string_accumulator (make-string initial_accumulator_length))
-
-         ; Number of characters in string_accumulator.
-
-         (string_accumulator_length 0)
-
-         ; Source location for the start of the current token.
-
-         (locationStart
-          (if keep-source-locations?
-              (make-source-location input-port)
-              '#(0 0 0)))
-
-         ; Stack of source locations.
-
-         (locationStack '())
-
-         ; Association list of data and their source locations.
-
-         (locations '())
-
-         ; This variable will be false until a shared-structure
-         ; label (as in R7RS or SRFI 38) is encountered.
-         ; Then it becomes a hash table.
-
-         (shared-structures #f)
-
-        )
-
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;
-    ; Hand-coding scanner0 makes a small but worthwhile difference.
-    ;
-    ; The most common characters are spaces, parentheses, newlines,
-    ; semicolons, and lower case Ascii letters.
-    ;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-    ; Scanning for the start of a token.
-
-    (define (scanner0)
-      (define (loop c)
-        (cond ((not (char? c))
-               (accept 'eofobj))
-              ((or (char=? c #\space)
-                   (char=? c #\newline))
-               (read-char input-port)
-               (loop (peek-char input-port)))
-              ((char=? c #\;)
-               (scanner1))
-              (else
-               (if keep-source-locations?
-                   (set! locationStart
-                         (make-source-location input-port)))
-               (state0 c))))
-      (loop (peek-char input-port)))
-
-    ; Consuming a semicolon comment.
-
-    (define (scanner1)
-      (define (loop c)
-        (cond ((not (char? c))
-               (accept 'eofobj))
-              ((char=? c #\newline)
-               (scanner0))
-              (else
-               (loop (read-char input-port)))))
-      (loop (read-char input-port)))
-  
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;
-    ; LexGen generated the code for the state machine.
-    ;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;
+  ; LexGen generated the code for the state machine.
+  ;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   
   (define (state0 c)
     (case c
@@ -7487,12 +7413,136 @@
   (define (state233 c)
     (case c (else (accept 'string))))
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;
-    ; End of state machine generated by LexGen.
-    ;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;
+  ; End of state machine generated by LexGen.
+  ;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+  (lambda (c) (state0 c)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This is the real parser.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (get-datum input-port)
+  (get-datum-with-source-locations input-port #f))
+
+(define (get-datum-with-source-locations input-port keep-source-locations?)
+
+  ; Constants and local variables.
+
+  (let* (; Constants.
+
+         ; initial length of string_accumulator
+
+         (initial_accumulator_length 64)
+
+         ; Encodings of error messages.
+
+         (errLongToken 1)                 ; extremely long token
+         (errIncompleteToken 2)      ; any lexical error, really
+         (errIllegalHexEscape 3)                 ; illegal \x...
+         (errIllegalNamedChar 4)                 ; illegal #\...
+         (errIllegalString 5)                   ; illegal string
+         (errIllegalSymbol 6)                   ; illegal symbol
+         (errNoDelimiter 7)      ; missing delimiter after token
+         (errSquareBracket 8)     ; square bracket when disabled
+         (errBug 9)            ; bug in reader, shouldn't happen
+         (errLexGenBug 10)                         ; can't happen
+
+         ; Named characters that MzScheme doesn't yet recognize.
+
+         (char:alarm  (integer->char 7))
+         (char:esc    (integer->char 27))
+         (char:delete (integer->char 127))
+
+         ; Important but unnamed non-Ascii characters.
+
+         (char:nel    (integer->char #x85))
+         (char:ls     (integer->char #x2028))
+
+         ; State for one-token buffering in lexical analyzer.
+
+         (kindOfNextToken 'z1)      ; valid iff nextTokenIsReady
+         (nextTokenIsReady #f)
+
+         (tokenValue "")  ; string associated with current token
+
+         ; A string buffer for the characters of the current token.
+         ; Resized as necessary.
+
+         (string_accumulator (make-string initial_accumulator_length))
+
+         ; Number of characters in string_accumulator.
+
+         (string_accumulator_length 0)
+
+         ; Source location for the start of the current token.
+
+         (locationStart
+          (if keep-source-locations?
+              (make-source-location input-port)
+              '#(0 0 0)))
+
+         ; Stack of source locations.
+
+         (locationStack '())
+
+         ; Association list of data and their source locations.
+
+         (locations '())
+
+         ; This variable will be false until a shared-structure
+         ; label (as in R7RS or SRFI 38) is encountered.
+         ; Then it becomes a hash table.
+
+         (shared-structures #f)
+
+        )
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;
+    ; Hand-coding scanner0 makes a small but worthwhile difference.
+    ;
+    ; The most common characters are spaces, parentheses, newlines,
+    ; semicolons, and lower case Ascii letters.
+    ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+    ; Scanning for the start of a token.
+
+    (define (scanner0)
+      (define (loop c)
+        (cond ((not (char? c))
+               (accept 'eofobj))
+              ((or (char=? c #\space)
+                   (char=? c #\newline))
+               (read-char input-port)
+               (loop (peek-char input-port)))
+              ((char=? c #\;)
+               (scanner1))
+              (else
+               (if keep-source-locations?
+                   (set! locationStart
+                         (make-source-location input-port)))
+               (state0 c))))
+      (loop (peek-char input-port)))
+
+    ; Consuming a semicolon comment.
+
+    (define (scanner1)
+      (define (loop c)
+        (cond ((not (char? c))
+               (accept 'eofobj))
+              ((char=? c #\newline)
+               (scanner0))
+              (else
+               (loop (read-char input-port)))))
+      (loop (read-char input-port)))
+ 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
     ; ParseGen generated the code for the strong LL(1) parser.
@@ -9224,6 +9274,17 @@
         unsyntaxsplicing
         vecstart))
   
+    ;; The state machine is recreated for every call to get-char,
+    ;; but not for every token.
+
+    (define state0
+      (make-state-machine (lambda () (set! string_accumulator_length 0))
+                          (lambda () (scanChar))
+                          (lambda () (consumeChar))
+                          (lambda (t) (accept t))
+                          (lambda (m) (scannerError m))
+                          errIncompleteToken))
+
     (let ((x (srfi38-postpass (parse-outermost-datum))))
       (if keep-source-locations?
           (values x locations)
