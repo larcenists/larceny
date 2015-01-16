@@ -198,11 +198,11 @@
 ;;; Historical note:
 ;;;
 ;;; As the R7RS lexical syntax was added during development of v0.98,
-;;; the get-char code grew so large that Petit Larceny couldn't
+;;; the get-datum code grew so large that Petit Larceny couldn't
 ;;; use the v0.97 read procedure to compile reader.sch.
 ;;; That problem was related to an issue of space efficiency in
-;;; the v0.97 implementation of get-char itself.  The Standard-C
-;;; assembler translated the MacScheme machine code for get-char
+;;; the v0.97 implementation of get-datum itself.  The Standard-C
+;;; assembler translated the MacScheme machine code for get-datum
 ;;; into a single C function whose textual representation was a
 ;;; single string of about 2185727 characters.  With Larceny's
 ;;; flat4 representation for Unicode strings, that becomes more
@@ -217,15 +217,15 @@
 ;;; 16-megabyte limit wouldn't be the answer even if it were
 ;;; easy to do.
 ;;;
-;;; The solve the problem, we pulled the state machine out of
-;;; the get-char procedure so it can be compiled separately.
+;;; To solve the problem, we pulled the state machine out of
+;;; the get-datum procedure so it can be compiled separately.
 ;;; Fortunately, the state machine refers to only a few
-;;; procedures that manipulate the get-char procedure's
-;;; state.  (It also assigns to a local variable of get-char,
+;;; procedures that manipulate the get-datum procedure's
+;;; state.  (It also assigns to a local variable of get-datum,
 ;;; but a hack works around that.)
 ;;;
 ;;; Separating the state machine from the rest of the code for
-;;; get-char is something we needed to do anyway to make the
+;;; get-datum is something we needed to do anyway to make the
 ;;; read procedure easier to customize.
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -9274,7 +9274,7 @@
         unsyntaxsplicing
         vecstart))
   
-    ;; The state machine is recreated for every call to get-char,
+    ;; The state machine is recreated for every call to get-datum,
     ;; but not for every token.
 
     (define state0
