@@ -393,6 +393,7 @@
   (environment-set! larc 'read-traditional-weirdness?
                     read-traditional-weirdness?)
   (environment-set! larc 'read-mzscheme-weirdness? read-mzscheme-weirdness?)
+  (environment-set! larc 'read-r5rs-weirdness? read-r5rs-weirdness?)
   (environment-set! larc 'read-r6rs-weirdness? read-r6rs-weirdness?)
   (environment-set! larc 'read-r7rs-weirdness? read-r7rs-weirdness?)
   (environment-set! larc 'fasl-evaluator fasl-evaluator)

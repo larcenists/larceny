@@ -51,6 +51,7 @@
 ;     \v
 ;     \f
 ;     \r                  \r
+;                         \|
 ;
 ; FIXME:
 ;
@@ -8135,46 +8136,6 @@
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
-    ; Hand-coding scanner0 makes a small but worthwhile difference.
-    ;
-    ; The most common characters are spaces, parentheses, newlines,
-    ; semicolons, and lower case Ascii letters.
-    ;
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-    ; Scanning for the start of a token.
-
-    (define (scanner0)
-      (define (loop c)
-        (cond ((not (char? c))
-               (accept 'eofobj))
-              ((or (char=? c #\space)
-                   (char=? c #\newline))
-               (read-char input-port)
-               (loop (peek-char input-port)))
-              ((char=? c #\;)
-               (scanner1))
-              (else
-               (if keep-source-locations?
-                   (set! locationStart
-                         (make-source-location input-port)))
-               (state0 c))))
-      (loop (peek-char input-port)))
-
-    ; Consuming a semicolon comment.
-
-    (define (scanner1)
-      (define (loop c)
-        (cond ((not (char? c))
-               (accept 'eofobj))
-              ((char=? c #\newline)
-               (scanner0))
-              (else
-               (loop (read-char input-port)))))
-      (loop (read-char input-port)))
- 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;
     ; ParseGen generated the code for the strong LL(1) parser.
     ;
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -9189,6 +9150,26 @@
       (do ((settings settings (cddr settings)))
           ((null? settings))
         ((car settings) port (cadr settings))))
+
+    ; This makes source code lines shorter.
+
+    (define (r5rs-weirdness?)
+      (io/port-allows-r5rs-weirdness? input-port))
+  
+    (define (r6rs-weirdness?)
+      (io/port-allows-r6rs-weirdness? input-port))
+  
+    (define (r7rs-weirdness?)
+      (io/port-allows-r7rs-weirdness? input-port))
+  
+    (define (larceny-weirdness?)
+      (io/port-allows-larceny-weirdness? input-port))
+  
+    (define (traditional-weirdness?)
+      (io/port-allows-traditional-weirdness? input-port))
+  
+    (define (mzscheme-weirdness?)
+      (io/port-allows-mzscheme-weirdness? input-port))
   
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;
@@ -9216,10 +9197,20 @@
 
     ; Doubles the size of string_accumulator while
     ; preserving its contents.
+    ;
+    ; Insanely long tokens are not supported.
 
     (define (expand-accumulator)
+      (define maximum 4000000)
       (let* ((n (string-length string_accumulator))
-             (new (make-string (* 2 n))))
+             (newn (* 2 n))
+             (newn (cond ((< newn maximum)
+                          newn)
+                         ((< n maximum)
+                          maximum)
+                         (else
+                          (scannerError errLongToken))))
+             (new (make-string newn)))
         (do ((i 0 (+ i 1)))
             ((= i n))
           (string-set! new i (string-ref string_accumulator i)))
@@ -9244,6 +9235,8 @@
       (case c
        ((#\( #\) #\[ #\] #\" #\; #\#)
         #t)
+       ((#\#)
+        (r6rs-weirdness?))
        (else
         (or (not (char? c))
             (char-whitespace? c)))))         
@@ -9302,7 +9295,7 @@
     (define (list2bytevector octets) (u8-list->bytevector octets))
 
     (define (list2proc vals)
-      (if (io/port-allows-larceny-weirdness? input-port)
+      (if (larceny-weirdness?)
           (list->procedure vals)
           (parse-error '<datum> datum-starters)))
 
@@ -9328,18 +9321,44 @@
                                      (string-foldcase s)
                                      s))
                               (sym (string->symbol s)))
+                         (define (illegal)
+                           (scannerError errIllegalNamedChar))
                          (case sym
-                          ((nul)               #\nul)
                           ((alarm)             char:alarm)
                           ((backspace)         #\backspace)
                           ((tab)               #\tab)
-                          ((linefeed newline)  #\linefeed)
-                          ((vtab)              #\vtab)
-                          ((page)              #\page)
+                          ((newline)           #\linefeed)
                           ((return)            #\return)
-                          ((esc)               char:esc)
                           ((space)             #\space)
                           ((delete)            char:delete)
+                          ((nul)
+                           (if (r6rs-weirdness?)
+                               #\nul
+                               (illegal)))
+                          ((null)
+                           (if (r5rs-weirdness?)
+                               #\nul
+                               (illegal)))
+                          ((linefeed)
+                           (if (r6rs-weirdness?)
+                               #\linefeed
+                               (illegal)))
+                          ((vtab)
+                           (if (r6rs-weirdness?)
+                               #\vtab
+                               (illegal)))
+                          ((page)
+                           (if (r6rs-weirdness?)
+                               #\page
+                               (illegal)))
+                          ((esc)
+                           (if (r6rs-weirdness?)
+                               #\esc
+                               (illegal)))
+                          ((escape)
+                           (if (r7rs-weirdness?)
+                               #\esc
+                               (illegal)))
                           (else
                            (scannerError errIllegalNamedChar))))))))
         (record-source-location x locationStart)))
@@ -9374,7 +9393,7 @@
             (loop))
            (else
             (loop)))))
-      (if (io/port-allows-larceny-weirdness? input-port)
+      (if (larceny-weirdness?)
           (let ((c (scanChar)))
             (if (char=? c #\")
                 (begin (consumeChar)
@@ -9397,10 +9416,12 @@
               (consumeChar)
               (bytevector-set! bv i b)
               (loop bv (+ i 1) n))))
-      (let ((z (make-bytevector 20)))
-        (loop z 4 20)
-        (typetag-set! z sys$tag.compnum-typetag)
-        z))
+      (if (larceny-weirdness?)
+          (let ((z (make-bytevector 20)))
+            (loop z 4 20)
+            (typetag-set! z sys$tag.compnum-typetag)
+            z)
+          (parse-error '<datum> datum-starters)))
 
     (define (makeEOF) (eof-object))
 
@@ -9448,17 +9469,24 @@
               (consumeChar)
               (bytevector-set! bv i b)
               (loop bv (+ i 1) n))))
-      (let ((x (make-bytevector 12)))
-        (loop x 4 12)
-        (typetag-set! x sys$tag.flonum-typetag)
-        x))
+      (if (larceny-weirdness?)
+          (let ((x (make-bytevector 12)))
+            (loop x 4 12)
+            (typetag-set! x sys$tag.flonum-typetag)
+            x)
+          (parse-error '<datum> datum-starters)))
 
     (define (makeNum)
       (let ((x (string->number tokenValue)))
-        (if x
-            (record-source-location x locationStart)
-            (begin (accept 'number)
-                   (parse-error '<number> '(number))))))
+        (cond (x
+               (record-source-location x locationStart))
+              ((and (r7rs-weirdness?)
+                    (string->number (string-downcase tokenValue)))
+               =>
+               (lambda (x)
+                 (record-source-location x locationStart)))
+              (else (accept 'number)
+                    (parse-error '<number> '(number))))))
   
     (define (makeOctet)
       (let ((n (string->number tokenValue)))
@@ -9469,7 +9497,8 @@
   
     (define (makeString)
 
-      ; Must strip off outer double quotes and deal with escapes.
+      ; Must strip off outer double quotes and deal with escapes,
+      ; which differ between R7RS and R6RS.
       ;
       ; i is the next index into tokenValue
       ; n is the exclusive upper bound for i
@@ -9500,6 +9529,8 @@
                     ((char=? c #\\)
                      (if (< (+ i 1) n)
                          (let ((c2 (string-ref tokenValue (+ i 1))))
+                           (define (illegal)
+                             (scannerError errIllegalString))
                            (case c2
                             ((#\a)
                              (string-set! newstring j char:alarm)
@@ -9514,17 +9545,26 @@
                              (string-set! newstring j #\linefeed)
                              (loop (+ i 2) n newstring (+ j 1)))
                             ((#\v)
-                             (string-set! newstring j #\vtab)
-                             (loop (+ i 2) n newstring (+ j 1)))
-                            ((#\f)
-                             (string-set! newstring j #\page)
-                             (loop (+ i 2) n newstring (+ j 1)))
-                            ((#\r)
-                             (string-set! newstring j #\return)
-                             (loop (+ i 2) n newstring (+ j 1)))
+                             (if (r6rs-weirdness?)
+                                 (begin (string-set! newstring j #\vtab)
+                                        (loop (+ i 2) n newstring (+ j 1)))
+                                 (illegal)))
                             ((#\" #\\)
                              (string-set! newstring j c2)
                              (loop (+ i 2) n newstring (+ j 1)))
+                            ((#\f)
+                             (if (r6rs-weirdness?)
+                                 (begin (string-set! newstring j #\page)
+                                        (loop (+ i 2) n newstring (+ j 1)))
+                                 (illegal)))
+                            ((#\r)
+                             (string-set! newstring j #\return)
+                             (loop (+ i 2) n newstring (+ j 1)))
+                            ((#\|)
+                             (if (r7rs-weirdness?)
+                                 (begin (string-set! newstring j #\|)
+                                        (loop (+ i 2) n newstring (+ j 1)))
+                                 (illegal)))
                             ((#\x)
                              (call-with-values
                               (lambda () (hex-escape tokenValue (+ i 2)))
@@ -9569,7 +9609,7 @@
                                               i+1))
                                         i+1)))
                           (ignore-escaped-line-ending i+1 n newstring j #t)))
-                       ((io/port-allows-larceny-weirdness? input-port)
+                       ((larceny-weirdness?)
                         (string-set! newstring j c)
                         (loop (+ i 1) n newstring (+ j 1)))
                        (else
@@ -9586,23 +9626,139 @@
     (define (makeStructured loc0 x)
       (record-source-location x loc0))
 
-    ; Several Larceny-specific extensions are handled here:
-    ;     leading . or @ or +: or -:
-    ;     vertical bars at beginning and end (which quote the interior)
-    ;     vertical bars (embedded, which do not quote)
-    ;     backslashes for other than hex escapes
-    ;         (note: they disable *all* case folding)
-    ;     MzScheme randomness
-    ;     several peculiar identifiers
+    ;; The R7RS syntax for symbols is equivalent to
+    ;;
+    ;; <identifier>  ::=  <identifier-prefix> <subsequent>*
+    ;;                 |  <vline> <symbol element>* <vline>
+    ;;                 |  <explicit sign>
+    ;;
+    ;; <identifier-prefix>  ::=  <initial>
+    ;;                        |  <explicit sign> <sign subsequent>
+    ;;                        |  <explicit sign> . <sign subsequent>
+    ;;                        |  <explicit sign> . .
+    ;;                        |  . <sign subsequent>
+    ;;                        |  . .
+    ;;
+    ;; For R6RS, we add -> as another <identifier-prefix>.
+    ;;
+    ;; Larceny allows these extensions:
+    ;;     leading . or @ or +: or -:
+    ;;     vertical bars at beginning and end (as in R7RS)
+    ;;     vertical bars (embedded, which do not quote)
+    ;;     backslashes for other than hex or mnemonic escapes
+    ;;         (note: they disable *all* case folding)
+    ;;     MzScheme randomness
+    ;;     several peculiar identifiers
 
     (define (makeSym)
       (let ((n (string-length tokenValue)))
+
         (define (return sym)
           (let ((x (if (and (io/port-recognizes-javadot-symbols? input-port)
                             (javadot-syntax? sym))
                        (symbol->javadot-symbol! sym)
                        sym)))
             (record-source-location x locationStart)))
+
+        (define (identifier-prefix)
+          (let ((c (string-ref tokenValue 0)))
+            (cond 
+                  ((char=? c #\\)
+                   (if (or (larceny-weirdness?)
+                           (r6rs-weirdness?))
+                       (loop 0)
+                       (scannerError errIllegalSymbol)))
+                  ((char=? c #\@)
+                   (if (or (larceny-weirdness?)
+                           (r5rs-weirdness?))
+                       (loop 0)
+                       (scannerError errIllegalSymbol)))
+                  ((char=? c #\+)
+                   (if (or (= n 1)
+                           (larceny-weirdness?)
+                           (r7rs-weirdness?))
+                       (loop 0)
+                       (scannerError errIllegalSymbol)))
+                  ((char=? c #\-)
+                   (if (or (= n 1)
+                           (larceny-weirdness?)
+                           (and (r6rs-weirdness?)
+                                (char=? #\> (string-ref tokenValue 1)))
+                           (and (r7rs-weirdness?)
+                                ;; don't allow -1+
+                                (let ((c1 (string-ref tokenValue 1)))
+                                  (not (char=? c1 #\1)))))
+                       (loop 0)
+                       (scannerError errIllegalSymbol)))
+                  ((char=? c #\.)
+                   (if (or (larceny-weirdness?)
+                           (r7rs-weirdness?)
+                           (string=? "..." tokenValue))
+                       (loop 0)
+                       (scannerError errIllegalSymbol)))
+                  ((char=? c #\1)
+                   (if (and (larceny-weirdness?)
+                            (member tokenValue '("1+" "1-")))
+                       (loop 0)
+                       (scannerError errIllegalSymbol)))
+                  ((char=? c #\|)
+                   (if (or (r7rs-weirdness?)
+                           (traditional-weirdness?))
+                       (symbol-elements 1 '())
+                       (scannerError errIllegalSymbol)))
+                  (else
+                   (loop 0)))))
+
+        ;; Parsing the interior of a symbol surrounded by vertical lines.
+        ;; i is the start of the next character, and
+        ;; chars is a list of the characters seen so far in reverse order.
+        ;; The tokenValue was accepted by the state machine,
+        ;; which saves some checking here.
+
+        (define (symbol-elements i chars)
+          (let ((c (string-ref tokenValue i)))
+            (case c
+             ((#\|)
+              (if (not (= (+ i 1) n))
+                  (scannerError errBug))
+              (return (string->symbol (list->string (reverse chars)))))
+             ((#\\)
+              (if (not (< (+ i 1) n))
+                  (scannerError errBug))
+              (case (string-ref tokenValue (+ i 1))
+               ((#\x)
+                (call-with-values
+                 (lambda () (hex-escape tokenValue (+ i 2)))
+                 (lambda (sv i)
+                   (symbol-elements i
+                                    (cons (checked-integer->char sv)
+                                          chars)))))
+               ((#\a)
+                (symbol-elements (+ i 2)
+                                 (cons char:alarm chars)))
+               ((#\b)
+                (symbol-elements (+ i 2)
+                                 (cons #\backspace chars)))
+               ((#\t)
+                (symbol-elements (+ i 2)
+                                 (cons #\tab chars)))
+               ((#\n)
+                (symbol-elements (+ i 2)
+                                 (cons #\newline chars)))
+               ((#\r)
+                (symbol-elements (+ i 2)
+                                 (cons #\return chars)))
+               ((#\|)
+                (symbol-elements (+ i 2)
+                                 (cons #\| chars)))
+               (else
+                (scannerError errIllegalSymbol))))
+             (else
+              (symbol-elements (+ i 1) (cons c chars))))))
+
+        ;; Parsing <subsequent>* with additional knowledge:
+        ;; the tokenValue was accepted by the state machine.
+
         (define (loop i)
           (if (= i n)
               (return (string->symbol (if (port-folds-case? input-port)
@@ -9617,16 +9773,19 @@
                                   (port-folds-case? input-port)))
                       ((and (char=? c #\|)
                             (not
-                             (io/port-allows-larceny-weirdness? input-port)))
+                             (larceny-weirdness?)))
                        (scannerError errIllegalSymbol))
                       (else
                        (loop (+ i 1)))))))
+
         (define (slow-loop i chars fold-case?)
           (if (= i n)
               (return (string->symbol (list->string (reverse chars))))
               (let ((c (string-ref tokenValue i)))
                 (cond ((char=? c #\\)
-                       (cond ((and (< (+ i 1) n)
+                       (cond ((and (or (larceny-weirdness?)
+                                       (r6rs-weirdness?))
+                                   (< (+ i 1) n)
                                    (char=? (string-ref tokenValue (+ i 1))
                                            #\x))
                               (call-with-values
@@ -9637,61 +9796,31 @@
                                                   chars)
                                             fold-case?))))
                              ((and (< (+ i 1) n)
-                                   (io/port-allows-larceny-weirdness?
-                                    input-port))
+                                   (larceny-weirdness?))
                               (slow-loop (+ i 2)
                                          (cons (string-ref tokenValue (+ i 1))
                                                chars)
                                          #f))
                              (else
                               (scannerError errIllegalSymbol))))
+                      ((and (char=? c #\|)
+                            (not (larceny-weirdness?)))
+                       (scannerError errIllegalSymbol))
                       ((char=? c #\#)
                        (if (and (< (+ i 1) n)
-                                (io/port-allows-mzscheme-weirdness? input-port)
+                                (mzscheme-weirdness?)
                                 (char=? (string-ref tokenValue (+ i 1))
                                         #\%))
                            (slow-loop (+ i 1) (cons c chars) fold-case?)
                            (scannerError errIllegalSymbol)))
                       (else (slow-loop (+ i 1) (cons c chars) fold-case?))))))
-        (let ((c (string-ref tokenValue 0)))
-          (cond ((or (char=? c #\.) (char=? c #\@))
-                 (if (or (io/port-allows-larceny-weirdness? input-port)
-                         (string=? "..." tokenValue))
-                     (loop 0)
-                     (scannerError errIllegalSymbol)))
-                ((and (char=? c #\-)
-                      (< 1 (string-length tokenValue))
-                      (not (char=? (string-ref tokenValue 1) #\>)))
-                 (if (and (io/port-allows-larceny-weirdness? input-port)
-                          (or (member tokenValue '("--" "-1+"))
-                              (char=? #\: (string-ref tokenValue 1))))
-                     (loop 0)
-                     (scannerError errIllegalSymbol)))
-                ((and (char=? c #\+)
-                      (< 1 (string-length tokenValue)))
-                 (if (and (io/port-allows-larceny-weirdness? input-port)
-                          (char=? #\: (string-ref tokenValue 1)))
-                     (loop 0)
-                     (scannerError errIllegalSymbol)))
-                ((char=? c #\1)
-                 (if (and (io/port-allows-larceny-weirdness? input-port)
-                          (member tokenValue '("1+" "1-")))
-                     (loop 0)
-                     (scannerError errIllegalSymbol)))
-                ((char=? c #\|)
-                 (if (and (io/port-allows-traditional-weirdness? input-port)
-                          (< 1 n)
-                          (char=? (string-ref tokenValue (- n 1)) #\|))
-                     ; |...| symbols
-                     (return (string->symbol (substring tokenValue 1 (- n 1))))
-                     (scannerError errIllegalSymbol)))
-                (else
-                 (loop 0))))))
+
+        (identifier-prefix)))
 
     ; #"..." Ascii string syntax of MzScheme
 
     (define (makeXString)
-      (if (io/port-allows-mzscheme-weirdness? input-port)
+      (if (mzscheme-weirdness?)
           (begin (set! tokenValue
                        (substring
                         tokenValue 0 (- (string-length tokenValue) 1)))
@@ -9709,7 +9838,7 @@
     ; #.(...) read-time evaluation
 
     (define (sharpDot x)
-      (if (io/port-allows-traditional-weirdness? input-port)
+      (if (traditional-weirdness?)
           (eval x)
           (parse-error '<datum> datum-starters)))
 
@@ -9720,14 +9849,14 @@
     ; #^Gsym syntax used in .fasl files
 
     (define (sym2global sym)
-      (if (io/port-allows-larceny-weirdness? input-port)
+      (if (larceny-weirdness?)
           ((global-name-resolver) sym)
           (parse-error '<datum> datum-starters)))
 
     ; Oh, dear.  There's no excuse, but see lib/Standard/box.sch
 
     (define (symBox)
-      (if (and (io/port-allows-traditional-weirdness? input-port)
+      (if (and (traditional-weirdness?)
                (bound? box))
           (box (parse-datum))
           (parse-error '<datum> datum-starters)))
@@ -9904,6 +10033,46 @@
         unsyntaxsplicing
         vecstart))
   
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;
+    ; Hand-coding scanner0 makes a small but worthwhile difference.
+    ;
+    ; The most common characters are spaces, parentheses, newlines,
+    ; semicolons, and lower case Ascii letters.
+    ;
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+    ; Scanning for the start of a token.
+
+    (define (scanner0)
+      (define (loop c)
+        (cond ((not (char? c))
+               (accept 'eofobj))
+              ((or (char=? c #\space)
+                   (char=? c #\newline))
+               (read-char input-port)
+               (loop (peek-char input-port)))
+              ((char=? c #\;)
+               (scanner1))
+              (else
+               (if keep-source-locations?
+                   (set! locationStart
+                         (make-source-location input-port)))
+               (state0 c))))
+      (loop (peek-char input-port)))
+
+    ; Consuming a semicolon comment.
+
+    (define (scanner1)
+      (define (loop c)
+        (cond ((not (char? c))
+               (accept 'eofobj))
+              ((char=? c #\newline)
+               (scanner0))
+              (else
+               (loop (read-char input-port)))))
+      (loop (read-char input-port)))
+ 
     ;; The state machine is recreated for every call to get-datum,
     ;; but not for every token.
 

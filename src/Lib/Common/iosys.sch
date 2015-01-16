@@ -638,6 +638,12 @@
   (make-parameter "read-mzscheme-weirdness?" #f boolean?))
 
 ;; Enables:
+;; R5RS lexical syntax, including the now-deprecated weird parts
+
+(define read-r5rs-weirdness?
+  (make-parameter "read-r5rs-weirdness?" #t boolean?))
+
+;; Enables:
 ;; R6RS lexical syntax
 
 (define read-r6rs-weirdness?
@@ -686,15 +692,16 @@
 ;        16 means to allow Larceny weirdness
 ;        32 means to allow traditional weirdness
 ;        64 means to allow MzScheme weirdness
-;       128 means to allow R6RS weirdness
-;       256 means to allow R7RS weirdness
+;       128 means to allow R5RS weirdness
+;       256 means to allow R6RS weirdness
+;       512 means to allow R7RS weirdness
 ;
 ; If the weirdness is 0, then the port uses lexical conventions
 ; that approximate the intersection of R6RS and R7RS syntax.
 ; (For output ports, R7RS slashification may be necessary even
 ; when the weirdness is 0.)
 ;
-; If the weirdness is 128, then strict R6RS lexical syntax
+; If the weirdness is 256, then strict R6RS lexical syntax
 ; should be enforced (modulo case and javadot, which may be
 ; allowed or disallowed independently).
 ;
@@ -704,7 +711,7 @@
 (define readmode-mask:locations       2)
 (define readmode-mask:javadot         4)
 (define readmode-mask:flags           8)
-(define readmode-mask:weirdness     496)    ; (+ 16 32 64 128 256)
+(define readmode-mask:weirdness    1008)    ; (+ 16 32 64 128 256 512)
 
 (define readmode:binary               0)
 (define readmode:nofoldcase           0)
@@ -716,12 +723,12 @@
 (define readmode:noflags              0)
 (define readmode:flags                8)
 (define readmode:noweird              0)
-(define readmode:r6rs                 0)
 (define readmode:larceny             16)
 (define readmode:traditional         32)
 (define readmode:mzscheme            64)
-(define readmode:r6rs               128)
-(define readmode:r7rs               256)
+(define readmode:r5rs               128)
+(define readmode:r6rs               256)
+(define readmode:r7rs               512)
 
 (define (default-read-mode)
   (define (default parameter iftrue iffalse)
@@ -739,6 +746,8 @@
      (default read-traditional-weirdness? readmode:traditional
                                           readmode:noweird)
      (default read-mzscheme-weirdness?    readmode:mzscheme
+                                          readmode:noweird)
+     (default read-r5rs-weirdness?        readmode:r5rs
                                           readmode:noweird)
      (default read-r6rs-weirdness?        readmode:r6rs
                                           readmode:noweird)
@@ -865,6 +874,17 @@
                            bool
                            readmode:mzscheme
                            'io/port-allows-mzscheme-weirdness!))
+
+(define (io/port-allows-r5rs-weirdness? p)
+  (allows-weirdness-getter p
+                           readmode:r5rs
+                           'io/port-allows-r5rs-weirdness?))
+
+(define (io/port-allows-r5rs-weirdness! p bool)
+  (allows-weirdness-setter p
+                           bool
+                           readmode:r5rs
+                           'io/port-allows-r5rs-weirdness!))
 
 (define (io/port-allows-r6rs-weirdness? p)
   (allows-weirdness-getter p
