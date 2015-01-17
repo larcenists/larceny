@@ -8102,10 +8102,13 @@
          (errIllegalNamedChar 4)                 ; illegal #\...
          (errIllegalString 5)                   ; illegal string
          (errIllegalSymbol 6)                   ; illegal symbol
-         (errNoDelimiter 7)      ; missing delimiter after token
-         (errSquareBracket 8)     ; square bracket when disabled
-         (errBug 9)            ; bug in reader, shouldn't happen
-         (errLexGenBug 10)                         ; can't happen
+         (errIllegalBoolean 7)     ; disallowed #true or #!false
+         (errIllegalSharing 8)     ; disallowed shared structure
+         (errIllegalBytevector 9)          ; disallowed #u8(...)
+         (errNoDelimiter 10)     ; missing delimiter after token
+         (errSquareBracket 11)    ; square bracket when disabled
+         (errBug 12)           ; bug in reader, shouldn't happen
+         (errLexGenBug 13)                        ; can't happen
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -8992,6 +8995,12 @@
                "illegal string syntax")
               ((= msg errIllegalSymbol)
                "illegal symbol syntax")
+              ((= msg errIllegalBoolean)
+               "illegal boolean (strict R6RS mode)")
+              ((= msg errIllegalSharing)
+               "illegal SRFI 38 notation (strict R6RS mode)")
+              ((= msg errIllegalBytevector)
+               "illegal bytevector (strict R6RS mode)")
               ((= msg errNoDelimiter)
                "missing delimiter")
               ((= msg errSquareBracket)
@@ -9047,22 +9056,55 @@
         (parse-datum)
         (next-token))
 
-       ((id boolean number character string miscflag period
-         sharingdef sharinguse)
+       ;; R6RS forbids #u8(...)
+
+       ((bvecstart)
+        (if (and (char=? #\u (string-ref string_accumulator 1))
+                 (not (r7rs-weirdness?))
+                 (not (larceny-weirdness?))
+                 (not (traditional-weirdness?)))
+            (scannerError errIllegalBytevector)
+            (begin (set! kindOfNextToken t)
+                   (set! nextTokenIsReady #t)
+                   t)))
+
+       ;; R6RS forbids SRFI 38 and R7RS notation for shared structure
+
+       ((sharingdef sharinguse)
+        (set! tokenValue
+              (substring string_accumulator
+                         0 string_accumulator_length))
+        (if (and (not (r7rs-weirdness?))
+                 (not (larceny-weirdness?))
+                 (not (traditional-weirdness?)))
+            (scannerError errIllegalSharing)
+            (begin (set! kindOfNextToken t)
+                   (set! nextTokenIsReady #t)
+                   t)))
+
+       ((id boolean number character string miscflag period)
 
         (set! tokenValue
               (substring string_accumulator
                          0 string_accumulator_length))
 
         (cond ((and (eq? t 'miscflag)
-                    (string=? tokenValue "#!r6rs"))
-               (set-mode! 'r6rs)
+                    (member tokenValue
+                            '("#!r7rs"
+                              "#!r6rs"
+                              "#!r5rs"
+                              "#!larceny"
+                              "#!err5rs"
+                              "#!fold-case"
+                              "#!no-fold-case")))
+               (set-mode! (string->symbol
+                           (substring tokenValue
+                                      2
+                                      (string-length tokenValue))))
                (next-token))
 
               ((or (delimiter? (scanChar))
-                   (eq? t 'string)
-                   (eq? t 'sharingdef)                                ; SRFI 38
-                   (eq? t 'sharinguse))                               ; SRFI 38
+                   (eq? t 'string))
                (set! kindOfNextToken t)
                (set! nextTokenIsReady #t)
                t)
@@ -9073,11 +9115,13 @@
        ; FIXME: Do we really need to disable square brackets?
 
        ((lbracket)
-        (if (read-square-bracket-as-paren)
+        (if (or (r6rs-weirdness?)
+                (read-square-bracket-as-paren))
             (begin (set! kindOfNextToken t)
                    (set! nextTokenIsReady #t)
                    t)
             (scannerError errSquareBracket)))
+
        (else
         (set! kindOfNextToken t)
         (set! nextTokenIsReady #t)
@@ -9105,7 +9149,6 @@
                  (consumeChar)
                  (loop depth)))))
       (loop 1))
-
 
     ; Most reader modes are now port-specific.
     ; Some, but not all, can be changed by reading a flag.
@@ -9329,7 +9372,10 @@
                 ((#\t #\T) #t)
                 ((#\f #\F) #f)
                 (else (scannerError errBug)))))
-        (record-source-location x locationStart)))
+        (if (and (< 2 (string-length tokenValue))
+                 (not (r7rs-weirdness?)))
+            (scannerError errIllegalBoolean)
+            (record-source-location x locationStart))))
   
     (define (makeChar)
       (let* ((n (string-length tokenValue))
@@ -9454,14 +9500,18 @@
       ; of the form #!..., which are processed here.
       ; Note that the #!r6rs flag is a comment, handled by accept,
       ; so that flag will never be seen here.
+      ; As of v0.98, the #!r7rs, #!r5rs, #!larceny,
+      ; #!fold-case, and #!no-fold-case flags are also comments.
 
       (if (io/port-allows-flags? input-port)
 
           (let* ((n (string-length tokenValue))
                  (flag (string->symbol (substring tokenValue 2 n)))
                  (x (case flag
-                     ((fold-case no-fold-case
-                       r7rs err5rs r5rs larceny slow fast safe unsafe)
+                     ((; fold-case no-fold-case        ; these are now comments
+                       ; r7rs r6rs r5rs larceny        ; these are now comments
+                       ; err5rs                        ; these are now comments
+                       slow fast safe unsafe)
                       (set-mode! flag)
                       (unspecified))
                      ((fasl)

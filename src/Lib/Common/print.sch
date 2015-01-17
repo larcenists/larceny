@@ -52,6 +52,9 @@
    (lambda (weirdo port slashify)
      (print "#<WEIRD OBJECT>" port #f))))
 
+; If slashify is true, print something that can be read back in.
+; If slashify is false, use display semantics.
+
 (define (print x p slashify)
 
   (define write-char io/write-char)
@@ -156,9 +159,86 @@
     (loop s p 0 (string-length s)))
 
   (define (print-slashed-symbol x p)
-
     (let* ((s (symbol->string x))
            (n (string-length s)))
+      (cond ((vanilla-symbol? x s)
+             (printstr s p))
+            ((io/port-allows-r7rs-weirdness? p)
+             (write-char #\| p)
+             (print-slashed-symbol-string s p)
+             (write-char #\| p))
+            (else
+             (print-slashed-symbol-string s p)))))
+
+  ;; A symbol is vanilla if it's safe to print by displaying its string.
+
+  (define (vanilla-symbol? x s)
+
+    (let ((n (string-length s)))
+
+      (define (loop i)
+        (if (= i n)
+            #t
+            (let ((c (string-ref s i)))
+              (cond ((or (char<=? #\a c #\z)
+                         (char<=? #\A c #\Z)
+                         (case c
+                          ((#\! #\$ #\% #\& #\* #\/ #\: 
+                            #\< #\= #\> #\? #\^ #\_ #\~)
+                           ; special initial
+                           #t)
+                          ((#\0 #\1 #\2 #\3 #\4
+                            #\5 #\6 #\7 #\8 #\9)
+                           ; special subsequent
+                           (< 0 i))
+                          ((#\@)
+                           (or (< 0 i)
+                               (io/port-allows-r7rs-weirdness? p)))
+                          ((#\.)
+                           ; check for peculiar identifiers
+                           (or (< 0 i)
+                               (eq? x '...)
+                               (and (io/port-allows-r7rs-weirdness? p)
+                                    (< (+ i 1) n)
+                                    (let ((c (string-ref s (+ i 1))))
+                                      (case c
+                                       ((#\. #\+ #\- #\@)
+                                        #t)
+                                       ((#\0 #\1 #\2 #\3 #\4
+                                         #\5 #\6 #\7 #\8 #\9)
+                                        #f)
+                                       (else #t))))))
+                          ((#\+ #\-)
+                           ; check for peculiar identifiers
+                           (or (< 0 i)
+                               (eq? x '+)
+                               (eq? x '-)
+                               (and (io/port-allows-r6rs-weirdness? p)
+                                    (char=? c #\-)
+                                    (< (+ i 1) n)
+                                    (char=? (string-ref s (+ i 1)) #\>))))
+                          (else
+                           (if (memq (transcoder-codec (port-transcoder p))
+                                     '(utf-8 utf-16))
+                               (let ((cat (char-general-category c)))
+                                 (or (and (< 127 (char->integer c))
+                                          (memq cat
+                                                '(Lu Ll Lt Lm Lo Mn Nl No
+                                                  Pd Pc Po Sc Sm Sk So Co)))
+                                     (and (< 0 i)
+                                          (memq cat '(Nd Mc Me)))))
+                               #f))))
+                     (loop (+ i 1)))
+                    (else #f)))))
+
+      (loop 0)))
+
+  ;; Prints the string as though it were enclosed within vertical bars,
+  ;; using inline hex escapes for any odd characters.
+
+  (define (print-slashed-symbol-string s p)
+
+    (let* ((n (string-length s)))
 
       (define (loop i)
         (if (< i n)
@@ -172,16 +252,9 @@
                            #t)
                           ((#\0 #\1 #\2 #\3 #\4
                             #\5 #\6 #\7 #\8 #\9
-                            #\@)
+                            #\+ #\- #\. #\@)
                            ; special subsequent
                            (< 0 i))
-                          ((#\+ #\- #\.)
-                           ; check for peculiar identifiers
-                           (or (< 0 i)
-                               (memq x '(+ - ...))
-                               (and (char=? c #\-)
-                                    (< (+ i 1) n)
-                                    (char=? (string-ref s (+ i 1)) #\>))))
                           (else
                            (if (memq (transcoder-codec (port-transcoder p))
                                      '(utf-8 utf-16))
@@ -228,8 +301,8 @@
                     ((8) (write-char #\b p))
                     ((9) (write-char #\t p))
                     ((10) (write-char #\n p))
-                    ((11) (write-char #\v p))
-                    ((12) (write-char #\f p))
+                    ;((11) (write-char #\v p))     ; not legal in R7RS
+                    ;((12) (write-char #\f p))     ; not legal in R7RS
                     ((13) (write-char #\r p))
                     (else
                      (let ((hexstring (number->string sv 16)))
@@ -355,7 +428,10 @@
 	       (print-slashed-bytevector x p)
 	       (write-char #\" p))
         (begin (write-char #\# p)
-               (write-char #\v p)
+               (cond ((io/port-allows-r7rs-weirdness? p) #t)
+                     ((io/port-allows-r6rs-weirdness? p)
+                      (write-char #\v p))
+                     (else #t))
                (write-char #\u p)
                (write-char #\8 p)
                (print (bytevector->list x) p slashify (- level 1)))))

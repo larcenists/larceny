@@ -821,7 +821,7 @@
          (io/complain-of-illegal-argument 'io/port-allows-flags? p))))
 
 (define (allows-weirdness-getter p themode name)
-  (cond ((io/input-port? p)
+  (cond ((and (io/open-port? p) (io/textual-port? p))
          (eq? (fxlogand themode
                         (vector-like-ref p port.readmode))
               themode))
@@ -829,7 +829,7 @@
          (io/complain-of-illegal-argument name p))))
 
 (define (allows-weirdness-setter p bool themode name)
-  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
+  (cond ((and (io/open-port? p) (io/textual-port? p) (boolean? bool))
          (let* ((mode (vector-like-ref p port.readmode))
                 (mode (fxlogand mode (fxlognot themode)))
                 (mode (fxlogior mode
