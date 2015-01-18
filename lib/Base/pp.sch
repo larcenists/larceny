@@ -12,11 +12,11 @@
 ; (pretty-print obj [output-port])    => unspecified
 ; (pretty-line-length [length])       => length
 ;
+; Modified January 2015 by Will Clinger to honor print-length, print-level
+; and to use R7RS syntax when that appears to be appropriate.
+;
 ; FIXME:
-;  - does not honor print-length, print-level
-;  - does not support all the control characters supported by the reader 
-;    (return, linefeed, page, backspace).
-;  - does not support structures.
+;  - does not fully honor print-length, print-level
 ;
 ; '%generic-write' is a procedure that transforms a Scheme data value (or
 ; Scheme program expression) into its textual representation.  The interface
@@ -36,6 +36,8 @@
 ;   OUTPUT    Procedure of 1 argument of string type, called repeatedly
 ;               with successive substrings of the textual representation.
 ;               This procedure can return #f to stop the transformation.
+;   lvl0      If non-negative, maximum depth of printing.
+;   len0      If non-negative, maximum length of printing lists/vectors.
 ;
 ; The value returned by '%generic-write' is undefined.
 ;
@@ -51,7 +53,10 @@
 
 (let ()
 
-  (define (%generic-write obj display? unicode? width output)
+  ;; If non-negative, lvl0 and len0 are the maximum depth and length
+  ;; to use when printing structures.  If negative, there is no limit.
+
+  (define (%generic-write obj display? unicode? width output lvl0 len0)
 
     ;; Which characters are written in hex and which are not
     ;; is completely implementation-dependent, so long as
@@ -127,203 +132,77 @@
     (define (out str col)
       (and col (output str) (+ col (string-length str))))
 
-    (define (wr obj col)
+    ;; Writes everything on a single line.
 
-      (define (wr-expr expr col)
+    (define (wr obj col lvl)
+
+      (define (wr-expr expr col lvl)
         (if (read-macro? expr)
-            (wr (read-macro-body expr) (out (read-macro-prefix expr) col))
-            (wr-lst expr col)))
+            (wr (read-macro-body expr)
+                (out (read-macro-prefix expr) col)
+                lvl)
+            (wr-lst expr col lvl)))
 
-      (define (wr-lst l col)
+      ;; FIXME: still ignores print-level and print-length
+
+      (define (wr-lst l col lvl)
         (if (pair? l)
-            (let loop ((l (cdr l)) (col (wr (car l) (out "(" col))))
+            (let loop ((l (cdr l)) (col (wr (car l) (out "(" col) lvl)))
               (and col
-                   (cond ((pair? l) (loop (cdr l) (wr (car l) (out " " col))))
+                   (cond ((pair? l)
+                          (loop (cdr l)
+                                (wr (car l) (out " " col) lvl)))
                          ((null? l) (out ")" col))
-                         (else      (out ")" (wr l (out " . " col)))))))
+                         (else      (out ")"
+                                         (wr l (out " . " col) lvl))))))
             (out "()" col)))
 
+      ;; Let the standard display and write procedures do the work.
+
+      (define (wr-atom obj col)
+        (if display?
+            (out obj col)
+            (let ((q (open-output-string)))
+              (write obj q)
+              (out (get-output-string q) col))))
+
       (cond ((pair? obj) 
-             (wr-expr obj col))
+             (wr-expr obj col lvl))
             ((null? obj)
-             (wr-lst obj col))
-            ((environment? obj)
-             (out ">"
-                  (out (environment-name obj)
-                       (out "#<ENVIRONMENT " col))))
+             (wr-lst obj col lvl))
             ((vector? obj)
-             (wr-lst (vector->list obj) (out "#" col)))
-            ((boolean? obj)
-             (out (if obj "#t" "#f") col))
-            ((number? obj)
-             (out (number->string obj) col))
-            ((symbol? obj)
-             (let* ((s (symbol->string obj))
-                    (n (string-length s)))
-               (if display?
-                   (out s col)
-                   (let loop ((i 0) (j 0) (col col))
-                     (if (and col (< j n))
-                         (let* ((c (string-ref s j)))
-                           (cond ((or (and (char<=? #\a c) (char<=? c #\z))
-                                      (and (char<=? #\A c) (char<=? c #\Z))
-                                      (case c
-                                       ((#\! #\$ #\% #\& #\* #\/ #\: 
-                                         #\< #\= #\> #\? #\^ #\_ #\~)
-                                        ; special initial
-                                        #t)
-                                       ((#\0 #\1 #\2 #\3 #\4
-                                         #\5 #\6 #\7 #\8 #\9
-                                         #\@)
-                                        ; special subsequent
-                                        (< 0 j))
-                                       ((#\+ #\- #\.)
-                                        (or (< 0 j)
-                                            (memq obj '(+ - ...))
-                                            (and (char=? c #\-)
-                                                 (< 1 n)
-                                                 (char=? (string-ref s 1)
-                                                         #\>))))
-                                       (else
-                                        (if unicode?
-                                            (let ((cat
-                                                   (char-general-category c)))
-                                              (or (and (< 127
-                                                          (char->integer c))
-                                                       (memq cat
-                                                             '(Lu Ll Lt Lm Lo
-                                                               Mn Nl No
-                                                               Pd Pc Po
-                                                               Sc Sm Sk So
-                                                               Co)))
-                                                  (and (< 0 i)
-                                                       (memq cat
-                                                             '(Nd Mc Me)))))
-                                            #f))))
-                                  (loop i (+ j 1) col))
-                                 (else
-                                  (let* ((col (out (substring s i j) col))
-                                         (ssv (number->string
-                                               (char->integer c) 16))
-                                         (col (out "\\x" col))
-                                         (col (out ssv col))
-                                         (col (out ";" col))
-                                         (j+1 (+ j 1)))
-                                    (loop j+1 j+1 col)))))
-                         (out (substring s i j) col))))))
-            ((string? obj)      
-             (if display?
-                 (out obj col)
-                 (let loop ((i 0) (j 0) (col (out "\"" col)))
-                   (if (and col (< j (string-length obj)))
-                       (let* ((c (string-ref obj j))
-                              (k (char->integer c)))
-                         (cond ((or (char=? c #\\)
-                                    (char=? c #\"))
-                                (loop j
-                                      (+ j 1)
-                                      (out "\\"
-                                           (out (substring obj i j)
-                                                col))))
-                               ((< k 32)
-                                (let ((col (out (substring obj i j) col))
-                                      (j+1 (+ j 1)))
-                                  (case k
-                                   ((7) (loop j+1 j+1 (out "\\a" col)))
-                                   ((8) (loop j+1 j+1 (out "\\b" col)))
-                                   ((9) (loop j+1 j+1 (out "\\t" col)))
-                                   ((10) (loop j+1 j+1 (out "\\n" col)))
-                                   ((11) (loop j+1 j+1 (out "\\v" col)))
-                                   ((12) (loop j+1 j+1 (out "\\f" col)))
-                                   ((13) (loop j+1 j+1 (out "\\r" col)))
-                                   (else
-                                    (let ((s (number->string k 16)))
-                                      (loop j+1
-                                            j+1
-                                            (out ";"
-                                                 (out s
-                                                      (out "\\x" col)))))))))
-                               ((< k 127)
-                                (loop i (+ j 1) col))
-                               ((and (<= 128 k)
-                                     unicode?
-                                     (print-in-string-without-hexifying? c))
-                                (loop i (+ j 1) col))
-                               (else
-                                (let ((col (out (substring obj i j) col))
-                                      (j+1 (+ j 1))
-                                      (s (number->string k 16)))
-                                  (loop j+1
-                                        j+1
-                                        (out ";"
-                                             (out s
-                                                  (out "\\x" col))))))))
-                       (out "\""
-                            (out (substring obj i j) col))))))
-            ((char? obj) 
-             (if display?
-                 (out (make-string 1 obj) col)
-                 (out (let ((k (char->integer obj)))
-                        (cond ((<= k 32)
-                               (if (char=? obj #\newline)
-                                   "newline"
-                                   (case k
-                                     ((0) "nul")
-                                     ((7) "alarm")
-                                     ((8) "backspace")
-                                     ((9) "tab")
-                                     ((10) "linefeed")
-                                     ((11) "vtab")
-                                     ((12) "page")
-                                     ((13) "return")
-                                     ((27) "esc")
-                                     ((32) "space")
-                                     (else
-                                      (string-append
-                                       "x" (number->string k 16))))))
-                              ((< k 127)
-                               (make-string 1 obj))
-                              ((= k 127) "delete")
-                              ((and unicode?
-                                    (print-as-char-without-hexifying? obj))
-                               (make-string 1 obj))
-                              (else
-                               (string-append "x" (number->string k 16)))))
-                      (out "#\\" col))))
-            ((procedure? obj)
-             (let ((n (procedure-name obj)))
-               (if n
-                   (out ">"
-                        (out (symbol->string n)
-                             (out "#<PROCEDURE " col)))
-                   (out "#<PROCEDURE>" col))))
-            ((input-port? obj)
-             (out ">"
-                  (out (port-name obj)
-                       (out "#<INPUT PORT " col))))
-            ((output-port? obj)
-             (out ">"
-                  (out (port-name obj)
-                       (out "#<OUTPUT PORT " col))))
-            ((port? obj)
-             (out "#<PORT>" col))
-            ((eof-object? obj)
-             (out "#<EOF>" col))
-            ((eq? obj (unspecified))
-             (out "#!unspecified" col))
-            ((eq? obj (undefined))
-             (out "#!undefined" col))
-            ((structure? obj)
+             (wr-lst (vector->list obj) (out "#" col) lvl))
+            ((or (boolean? obj)
+                 (number? obj)
+                 (symbol? obj)
+                 (string? obj)
+                 (char? obj)
+                 (procedure? obj)
+                 (input-port? obj)
+                 (output-port? obj)
+                 (port? obj)
+                 (eof-object? obj)
+                 (eq? obj (unspecified))
+                 (eq? obj (undefined))
+                 (environment? obj))
+             (wr-atom obj col))
+            ((structure? obj)                                     ; FIXME
              (let ((temp (open-output-string)))
                ((structure-printer) obj temp #t)
                (out (get-output-string temp) col)))
             ((bytevector? obj)
-             (let ((col (out "#vu8" col)))
-               (wr-lst (bytevector->list obj) col)))
-            (else
+             (let* ((bvec-start
+                     (cond ((read-r7rs-weirdness?) "#u8")
+                           ((read-r6rs-weirdness?) "#vu8")
+                           (else "#u8")))
+                    (col (out bvec-start col)))
+               (wr-lst (bytevector->list obj) col lvl)))
+            (else                                                 ; FIXME
              (out "#<WEIRD>" col))))
 
-    (define (pp obj col)
+    ;; Pretty-prints using as many lines as needed.
+
+    (define (pp obj col lvl)
 
       (define (spaces n col)
         (if (> n 0)
@@ -338,7 +217,7 @@
                  (and (out (make-string 1 #\newline) col) (spaces to 0))
                  (spaces (- to col) col))))
 
-      (define (pr obj col extra pp-pair)
+      (define (pr obj col extra pp-pair lvl)
         (if (or (pair? obj) (vector? obj)) ; may have to split on mult. lines
             (let ((result '())
                   (left (min (+ (- (- width col) extra) 1) max-expr-width)))
@@ -346,128 +225,140 @@
                               (lambda (str)
                                 (set! result (cons str result))
                                 (set! left (- left (string-length str)))
-                                (> left 0)))
+                                (> left 0))
+                              lvl len0)
               (if (> left 0)            ; all can be printed on one line
                   (out (reverse-string-append result) col)
                   (if (pair? obj)
-                      (pp-pair obj col extra)
+                      (pp-pair obj col extra lvl)
                       (pp-list (vector->list obj) 
                                (out "#" col) 
                                extra 
-                               pp-expr))))
-            (wr obj col)))
+                               pp-expr lvl))))
+            (wr obj col lvl)))
 
-      (define (pp-expr expr col extra)
+      (define (pp-expr expr col extra lvl)
         (if (read-macro? expr)
             (pr (read-macro-body expr)
                 (out (read-macro-prefix expr) col)
                 extra
-                pp-expr)
+                pp-expr lvl)
             (let ((head (car expr)))
               (if (symbol? head)
                   (let ((proc (style head)))
                     (if proc
-                        (proc expr col extra)
+                        (proc expr col extra lvl)
                         (if (> (string-length (symbol->string head))
                                max-call-head-width)
-                            (pp-general expr col extra #f #f #f pp-expr)
-                            (pp-call expr col extra pp-expr))))
-                  (pp-list expr col extra pp-expr)))))
+                            (pp-general expr col extra #f #f #f pp-expr lvl)
+                            (pp-call expr col extra pp-expr lvl))))
+                  (pp-list expr col extra pp-expr lvl)))))
 
       ; (head item1
       ;       item2
       ;       item3)
-      (define (pp-call expr col extra pp-item)
-        (let ((col* (wr (car expr) (out "(" col))))
+      (define (pp-call expr col extra pp-item lvl)
+        (let ((col* (wr (car expr) (out "(" col) lvl)))
           (and col
-               (pp-down (cdr expr) col* (+ col* 1) extra pp-item))))
+               (pp-down (cdr expr) col* (+ col* 1) extra pp-item lvl len0))))
 
       ; (item1
       ;  item2
       ;  item3)
-      (define (pp-list l col extra pp-item)
-        (let ((col (out "(" col)))
-          (pp-down l col col extra pp-item)))
+      (define (pp-list l col extra pp-item lvl)
+        (if (= 0 lvl)
+            (out "..." col)
+            (let ((col (out "(" col)))
+              (pp-down l col col extra pp-item
+                       (- lvl 1)
+                       len0))))
 
-      (define (pp-down l col1 col2 extra pp-item)
-        (let loop ((l l) (col col1))
+      (define (pp-down l col1 col2 extra pp-item lvl len)
+        (let loop ((l l) (col col1) (len len))
           (and col
-               (cond ((pair? l)
+               (cond ((null? l)
+                      (out ")" col))
+                     ((not (pair? l))
+                      (out ")"
+                           (pr l
+                               (indent col2 (out "." (indent col2 col)))
+                               (+ extra 1)
+                               pp-item lvl)))
+                     ((= 0 len)
+                      (loop '() (out " ..." col) (- len 1)))
+                     (else
                       (let ((rest (cdr l)))
                         (let ((extra (if (null? rest) (+ extra 1) 0)))
                           (loop rest
                                 (pr (car l) 
                                     (indent col2 col)
                                     extra
-                                    pp-item)))))
-                     ((null? l)
-                      (out ")" col))
-                     (else
-                      (out ")"
-                           (pr l
-                               (indent col2 (out "." (indent col2 col)))
-                               (+ extra 1)
-                               pp-item)))))))
+                                    pp-item lvl)
+                                (- len 1)))))))))
 
-      (define (pp-general expr col extra named? pp-1 pp-2 pp-3)
+      (define (pp-general expr col extra named? pp-1 pp-2 pp-3 lvl)
 
-        (define (tail1 rest col1 col2 col3)
+        (define (tail1 rest col1 col2 col3 lvl)
           (if (and pp-1 (pair? rest))
               (let* ((val1 (car rest))
                      (rest (cdr rest))
                      (extra (if (null? rest) (+ extra 1) 0)))
-                (tail2 rest col1 (pr val1 (indent col3 col2) extra pp-1) col3))
-              (tail2 rest col1 col2 col3)))
+                (tail2 rest col1
+                            (pr val1 (indent col3 col2) extra pp-1 lvl)
+                            col3 lvl))
+              (tail2 rest col1 col2 col3 lvl)))
 
-        (define (tail2 rest col1 col2 col3)
+        (define (tail2 rest col1 col2 col3 lvl)
           (if (and pp-2 (pair? rest))
               (let* ((val1 (car rest))
                      (rest (cdr rest))
                      (extra (if (null? rest) (+ extra 1) 0)))
-                (tail3 rest col1 (pr val1 (indent col3 col2) extra pp-2)))
-              (tail3 rest col1 col2)))
+                (tail3 rest col1
+                            (pr val1 (indent col3 col2) extra pp-2 lvl)
+                            lvl))
+              (tail3 rest col1 col2 lvl)))
 
-        (define (tail3 rest col1 col2)
-          (pp-down rest col2 col1 extra pp-3))
+        (define (tail3 rest col1 col2 lvl)
+          (pp-down rest col2 col1 extra pp-3 lvl len0))
 
         (let* ((head (car expr))
                (rest (cdr expr))
-               (col* (wr head (out "(" col))))
+               (col* (wr head (out "(" col) lvl)))
           (if (and named? (pair? rest))
               (let* ((name (car rest))
                      (rest (cdr rest))
-                     (col** (wr name (out " " col*))))
-                (tail1 rest (+ col indent-general) col** (+ col** 1)))
-              (tail1 rest (+ col indent-general) col* (+ col* 1)))))
+                     (col** (wr name (out " " col*) lvl)))
+                (tail1 rest (+ col indent-general) col** (+ col** 1) lvl))
+              (tail1 rest (+ col indent-general) col* (+ col* 1) lvl))))
 
-      (define (pp-expr-list l col extra)
-        (pp-list l col extra pp-expr))
+      (define (pp-expr-list l col extra lvl)
+        (pp-list l col extra pp-expr lvl))
 
-      (define (pp-LAMBDA expr col extra)
-        (pp-general expr col extra #f pp-expr-list #f pp-expr))
+      (define (pp-LAMBDA expr col extra lvl)
+        (pp-general expr col extra #f pp-expr-list #f pp-expr lvl))
 
-      (define (pp-IF expr col extra)
-        (pp-general expr col extra #f pp-expr #f pp-expr))
+      (define (pp-IF expr col extra lvl)
+        (pp-general expr col extra #f pp-expr #f pp-expr lvl))
 
-      (define (pp-COND expr col extra)
-        (pp-call expr col extra pp-expr-list))
+      (define (pp-COND expr col extra lvl)
+        (pp-call expr col extra pp-expr-list lvl))
 
-      (define (pp-CASE expr col extra)
-        (pp-general expr col extra #f pp-expr #f pp-expr-list))
+      (define (pp-CASE expr col extra lvl)
+        (pp-general expr col extra #f pp-expr #f pp-expr-list lvl))
 
-      (define (pp-AND expr col extra)
-        (pp-call expr col extra pp-expr))
+      (define (pp-AND expr col extra lvl)
+        (pp-call expr col extra pp-expr lvl))
 
-      (define (pp-LET expr col extra)
+      (define (pp-LET expr col extra lvl)
         (let* ((rest (cdr expr))
                (named? (and (pair? rest) (symbol? (car rest)))))
-          (pp-general expr col extra named? pp-expr-list #f pp-expr)))
+          (pp-general expr col extra named? pp-expr-list #f pp-expr lvl)))
 
-      (define (pp-BEGIN expr col extra)
-        (pp-general expr col extra #f #f #f pp-expr))
+      (define (pp-BEGIN expr col extra lvl)
+        (pp-general expr col extra #f #f #f pp-expr lvl))
 
-      (define (pp-DO expr col extra)
-        (pp-general expr col extra #f pp-expr-list pp-expr-list pp-expr))
+      (define (pp-DO expr col extra lvl)
+        (pp-general expr col extra #f pp-expr-list pp-expr-list pp-expr lvl))
 
       ; define formatting style (change these to suit your style)
 
@@ -489,11 +380,11 @@
           ((do)                        pp-DO)
           (else                        #f)))
 
-      (pr obj col 0 pp-expr))
+      (pr obj col 0 pp-expr lvl0))
 
     (if width
-        (out (make-string 1 #\newline) (pp obj 0))
-        (wr obj 0)))
+        (out (make-string 1 #\newline) (pp obj 0 lvl0))
+        (wr obj 0 lvl0)))
 
   (define (pretty obj . opt)
     (let ((port (if (pair? opt) (car opt) (current-output-port))))
@@ -504,7 +395,9 @@
                       (line-length)
                       (lambda (s)
                         (display s port)
-                        #t))
+                        #t)
+                      (or (print-level) -1)
+                      (or (print-length) -1))
       (unspecified)))
 
   (define line-length 
