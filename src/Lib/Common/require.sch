@@ -88,7 +88,7 @@
       (error "Could not locate library: " name))))
 
 (define current-library-resolver
-  (make-parameter "current-library-resolver" require/resolve))
+  (make-parameter "current-library-resolver" require/resolve procedure?))
 
 (define current-larceny-root
   (make-env-parameter "LARCENY_ROOT"))

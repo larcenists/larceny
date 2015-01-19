@@ -1,71 +1,136 @@
 Parameters
 ~~~~~~~~~~
 
-Parameters are procedures that serve as containers for values; parts
-of the system that do not operate in the same namespace can still
-share parameters and thereby read and write shared state.
+Parameters are procedures that serve as containers for values.
 
-A parameter takes zero or one arguments. If called with no arguments,
-it returns the current value of the parameter. If called with one
-argument, it sets the parameter's value to that of the argument and
-returns the new value.
+When called with no arguments, a parameter returns its current value.
+The value of a parameter can be changed temporarily using the
+'parameterize' syntax described below.
 
-proc:make-parameter[args="name value",optarg="predicate",result="procedure"]
+The effect of passing arguments to a parameter is implementation-dependent.
+In Larceny, passing one argument to a parameter changes the current value
+of the parameter to the result of applying a _converter_ procedure to that
+argument, as described by SRFI 39.
 
-Create a parameter with name _name,_ initial value _value,_ and
-optional setter predicate _predicate._ When the parameter is set the
-new value is first passed to _predicate,_, and if it returns `#f` then
-an error is signalled. _Name_ can be a symbol or a string.
+proc:make-parameter[args="init",result="procedure"]
+proctempl:make-parameter[args="init converter",result="procedure"]
+proctempl:make-parameter[args="name init predicate",result="procedure"]
+
+Creates a parameter.
+
+When 'make-parameter' is called with one argument _init_,
+the parameter's initial value is _init_, and the parameter's
+_converter_ will be the identity function.
+
+When 'make-parameter' is called with two arguments,
+_converter_ must be a procedure that accepts one argument,
+and the parameter's initial value is the result of calling
+_converter_ on _init_.
+
+Larceny extends SRFI 39 and the R7RS specification of 'make-parameter'
+by allowing it to be called with three arguments.
+The first argument, _name,_ must be a symbol or string giving the
+print name of the parameter.
+The second argument, _init,_ will be the initial value of the parameter.
+The third argument is a _predicate_ from which Larceny constructs a
+_converter_ procedure that acts like the identity function on arguments
+that satisfy the _predicate_ but raises an exception on arguments that
+don't.
+
+proctempl:make-parameter[args="name init",result="procedure"]
+
+Larceny's parameter objects predate SRFI 39.
+For backward compatibility, Larceny's 'make-parameter' will
+accept two arguments even if the second is not a procedure,
+provided the first argument is a symbol or string.
+In that special case, the two arguments will be treated as the
+_name_ and _init_ arguments to Larceny's three-argument version,
+with the _predicate_ defaulting to the identity function.
+_This extension is strongly deprecated._
+
 
 _Syntax parameterize_
 
 ++ (parameterize ((parameter0 value0) ...) expr0 expr1 ...)++
 
-Parameterize overrides the values of a set of parameters in a dynamic
-scope -- it is like fluid-let for parameters.
+'Parameterize' temporarily overrides the values of a set of parameters
+while the expressions in the body of the 'parameterize' expression are
+evaluated.
+(It is like 'fluid-let' for parameters instead of variables.)
 
 ==== Larceny parameters
 
-The following list of parameters does not yet include the reader or
-compiler switches, which are also parameters.
-
-link:debugging.html#proc:break-handler[Parameter ++break-handler++]
-
-link:io.html#proc:console-input-port-factory[Parameter ++console-input-port-factory++]
-
-link:io.html#proc:console-output-port-factory[Parameter ++console-output-port-factory++]
+The following is a partial list of Larceny's parameters.
+The first three are described by the R7RS standard.
+Most of the others are intended for use by developers of Larceny;
+some are described in Wiki pages at Larceny's GitHub site,
+while others are described only by source code.
 
 link:io.html#proc:current-input-port[Parameter ++current-input-port++]
 
 link:io.html#proc:current-output-port[Parameter ++current-output-port++]
 
-link:control.html#proc:error-handler[Parameter ++error-handler++]
+link:io.html#proc:current-error-port[Parameter ++current-error-port++]
 
-link:control.html#proc:evaluator[Parameter ++evaluator++]
+link:io.html#proc:console-input-port-factory[Parameter ++console-input-port-factory++]
+
+link:io.html#proc:console-output-port-factory[Parameter ++console-output-port-factory++]
+
+[Parameter ++print-level++]
+
+[Parameter ++print-length++]
 
 link:repl.html#proc:herald[Parameter ++herald++]
 
+[Parameter ++issue-deprecated-warnings?++]
+
+[Parameter ++case-sensitive?++]
+
+[Parameter ++read-square-bracket-as-paren++]
+
+[Parameter ++read-r6rs-flags?++]
+
+[Parameter ++read-r7rs-weirdness?++]
+
+[Parameter ++read-r6rs-weirdness?++]
+
+[Parameter ++read-r5rs-weirdness?++]
+
+[Parameter ++read-larceny-weirdness?++]
+
+[Parameter ++read-traditional-weirdness?++]
+
+[Parameter ++read-mzscheme-weirdness?++]
+
+[Parameter ++load-verbose++]
+
 link:environ.html#proc:interaction-environment[Parameter ++interaction-environment++]
 
-link:control.html#proc:keyboard-interrupt-handler[Parameter ++keyboard-interrupt-handler++]
+link:control.html#proc:evaluator[Parameter ++evaluator++]
 
 link:control.html#proc:load-evaluator[Parameter ++load-evaluator++]
 
-link:control.html#proc:quit-handler[Parameter ++quit-handler++]
+link:repl.html#proc:repl-evaluator[Parameter ++repl-evaluator++]
 
 link:repl.html#proc:repl-level[Parameter ++repl-level++]
 
-link:repl.html#proc:repl-evaluator[Parameter ++repl-evaluator++]
-
 link:repl.html#proc:repl-printer[Parameter ++repl-printer++]
 
+link:debugging.html#proc:break-handler[Parameter ++break-handler++]
+
+link:control.html#proc:error-handler[Parameter ++error-handler++]
+
+link:control.html#proc:quit-handler[Parameter ++quit-handler++]
+
 link:control.html#proc:reset-handler[Parameter ++reset-handler++]
+
+link:control.html#proc:keyboard-interrupt-handler[Parameter ++keyboard-interrupt-handler++]
+
+link:control.html#proc:timer-interrupt-handler[Parameter ++timer-interrupt-handler++]
 
 link:control.html#proc:standard-timeslice[Parameter ++standard-timeslice++]
 
 link:structures.html#proc:structure-comparator[Parameter ++structure-comparator++]
 
 link:structures.html#proc:structure-printer[Parameter ++structure-printer++]
-
-link:control.html#proc:timer-interrupt-handler[Parameter ++timer-interrupt-handler++]
 

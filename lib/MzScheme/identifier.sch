@@ -291,7 +291,9 @@
 ;; and stack of expressions for source-object correlation:
 
 (define *current-meta-rename*
-  (make-parameter "*current-meta-rename*" (make-meta-renaming-procedure)))
+  (make-parameter "*current-meta-rename*"
+                  (make-meta-renaming-procedure)
+                  procedure?))
 
 ;; Substitution mechanism for lexical bindings:
 ;; For separate compilation, gensyms should be globally unique.

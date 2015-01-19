@@ -1050,6 +1050,7 @@
   (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
   (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'object-is-circular? object-is-circular?)
   (environment-set! larc 'write-simple write-simple)
   (environment-set! larc 'write-shared write-shared)
   (environment-set! larc 'lowlevel-write lowlevel-write)

@@ -26,7 +26,7 @@
        (define-parameters . more)))))
 
 (define-parameters
- (current-directory #f guard:current-directory)
+ (current-directory #f guard:current-directory (lambda (x) #t))
  (current-input-port)
  (current-output-port)
  (current-error-port)

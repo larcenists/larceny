@@ -20,7 +20,9 @@
 
 ;; Hook for instances
 (define procedure-hasher
-  (make-parameter "procedure-hasher" (lambda (procedure) 2321001)))
+  (make-parameter "procedure-hasher"
+                  (lambda (procedure) 2321001)
+                  procedure?))
 
 (let ((n 16777216)
       (n-1 16777215)

@@ -53,7 +53,8 @@
                     (parameterize ((print-length 7)
                                    (print-level 7))
                       (decode-error args))
-                    (reset))))
+                    (reset))
+                  procedure?))
 
 ; The reset handler is called by the RESET procedure.  It takes no arguments.
 ;
@@ -63,7 +64,8 @@
 (define reset-handler
   (make-parameter "reset-handler" 
                   (lambda ignored
-                    (exit))))
+                    (exit))
+                  procedure?))
 
 ; The timer interrupt handler is called with timer interrupts OFF.
 ; It takes no arguments.
@@ -100,7 +102,8 @@
                       (display proc out)
                       (display " @ " out)
                       (display code-address out)
-                      (newline out)))))
+                      (newline out)))
+                  procedure?))
 
 ; The system signal handler is called when an asynchronous signal is received
 ; for which a lowlevel handler has been installed.  It takes one argument:
@@ -115,7 +118,8 @@
                     (let ((out (current-error-port)))
                       (display "Signal: " out)
                       (display sig out)
-                      (newline out)))))
+                      (newline out)))
+                  procedure?))
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and

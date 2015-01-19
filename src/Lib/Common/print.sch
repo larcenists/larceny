@@ -15,7 +15,8 @@
                            (car (vector-ref co 0))
                            ">")
             port
-            #f))))
+            #f))
+   procedure?))
 
 (define environment-printer
   (make-parameter
@@ -25,13 +26,15 @@
                            (environment-name environment)
                            ">")
             port
-            #f))))
+            #f))
+   procedure?))
 
 (define hashtable-printer
   (make-parameter
    "hashtable-printer"
    (lambda (hashtable port slashify)
-     (print "#<HASHTABLE>" port #f))))
+     (print "#<HASHTABLE>" port #f))
+   procedure?))
 
 (define procedure-printer
   (make-parameter
@@ -44,13 +47,15 @@
                                  ""))
                            ">")
             port
-            #f))))
+            #f))
+   procedure?))
 
 (define weird-printer
   (make-parameter
    "weird-printer"
    (lambda (weirdo port slashify)
-     (print "#<WEIRD OBJECT>" port #f))))
+     (print "#<WEIRD OBJECT>" port #f))
+   procedure?))
 
 ; If slashify is true, print something that can be read back in.
 ; If slashify is false, use display semantics.

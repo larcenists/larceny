@@ -45,12 +45,17 @@
   (make-parameter "trace-level" 0))
 
 (define trace-entry-printer
-  (make-parameter "trace-entry-printer" (lambda (name expr args)
-					  (debug/default-trace-entry-printer name expr args))))
+  (make-parameter "trace-entry-printer"
+                  (lambda (name expr args)
+                    (debug/default-trace-entry-printer name expr args))
+                  procedure?))
 
 (define trace-exit-printer
-  (make-parameter "trace-exit-printer" (lambda (name expr args results)
-					 (debug/default-trace-exit-printer name expr args results))))
+  (make-parameter "trace-exit-printer"
+                  (lambda (name expr args results)
+                    (debug/default-trace-exit-printer
+                     name expr args results))
+                  procedure?))
 
 ; Invariant: a procedure is on each of these lists at most once.
 
