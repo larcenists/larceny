@@ -2441,11 +2441,7 @@
 ; Bitwise and.
 
 (define (cant.and as rs1 rs2 rd)
-<<<<<<< HEAD
-  (list-cant "add" `(#f ,(list-regname rs1) ,(list-regname rs2) ,(list-regname rd)))
-=======
   (list-cant "and" `(#f ,(list-regname rs1) ,(list-regname rs2) ,(list-regname rd)))
->>>>>>> 704fe7d751aeadd66301237aca1238205a1649c3
   (emit! as $cant$))
 
 ; Bitwise inclusive or.
