@@ -1,0 +1,203 @@
+#!/bin/bash
+
+# We should not have to do 'always-source here, but Larceny is
+# currently not smart enough to back off when encountering a fasl file
+# generated for a target that differs from the host.
+SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
+
+FINAL_LARCENY_SCRIPT=larceny
+FINAL_LARCENY_BIN=larceny.bin
+FINAL_TWOBIT_BIN=larceny.bin
+
+# Setup options (based on script's name)
+case "`basename "$0"`" in
+
+    checkout-larceny-linux86-petit)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=petit
+    ;;
+    checkout-larceny-linux86-native)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=native
+    ;;
+    checkout-larceny-macosx-native)  # IA32!
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=native
+	MAKETEXTSAFE=native2ascii
+    ;;
+    *)
+    case "`uname`" in
+	Linux)
+	echo "Setup arguments not specified; assuming linux86 native build."
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=default
+	;;
+	Darwin)
+	echo "Setup arguments not specified; assuming macosx86 native build."
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=default
+	;;
+	*)
+	echo "Setup arguments not specified; unknown target architecture."
+	exit 1
+	;;
+    esac
+    ;;
+esac
+
+# Perhaps add more to this, like the hour and minute?
+TODAY=`date +%Y-%m-%d` 
+DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TODAY}     # FIXME
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
+TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
+#COMPILE_STDLIB_SCRIPT="src/Build/compile-standard-libraries.sch"
+COMPILE_STDLIB_SCRIPT="/dev/null"  # FIXME
+
+# Checkout source tree
+mkdir -p ${DIR}
+pushd ${DIR} > /dev/null
+#svn checkout http://uighur.ccs.neu.edu:3457/larceny-svn/trunk/larceny_src
+git clone https://github.com/larcenists/larceny
+mv larceny larceny_src
+pushd larceny_src > /dev/null
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+	STATUS="passed" 
+    else
+	STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+function larceny_build {
+  cat > ${TEMPSCM} <<EOF
+(load "setup.sch")
+(setup ${SETUP_ARGS} )
+(build-config-files)
+(load-compiler)
+;(set! *make-verbose* #f)
+
+(build-heap)
+(build-runtime)
+(build-executable)
+(build-larceny-files)
+(build-twobit)
+
+(exit)
+EOF
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${TEMPSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_LARCENY_SCRIPT} -- ${COMPILE_STDLIB_SCRIPT} ; du -skh .; df -kh"
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+  if grep -qi warning ${TEMPLOG} ; then 
+     grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	 WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
+	 WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
+     done 
+  fi
+  cp ${TEMPLOG} ${DIR}/build.log
+}
+
+
+function library_test {
+    cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 115)))
+(compile-file "test.sch")
+(compile-file "$1.sch")
+(load "test.fasl")
+(load "$1.fasl")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-$2-tests)
+  (exit num-fails))
+EOF
+    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${TEMPSCM}"
+
+    pushd ${DIR}/larceny_src/test/Lib > /dev/null
+    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+    popd > /dev/null
+
+echo library_test $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+  cat ${TEMPLOG} >> ${DIR}/tests.log
+}
+
+function compiler_tests {
+    cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 116)))
+(load "run-tests.sch")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-compiler-tests $1)
+  (exit num-fails))
+EOF
+    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${TEMPSCM}"
+
+echo compiler_tests $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+    pushd ${DIR}/larceny_src/test/Compiler > /dev/null
+    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+    popd > /dev/null
+
+  cat ${TEMPLOG} >> ${DIR}/tests.log
+}
+
+function larceny_tests {
+  TEST_SECS_BEGIN=`date +%s`
+
+## Library tests
+library_test bool       boolean
+library_test char       char
+library_test string     string
+library_test normalization normalization
+## library_test complex
+library_test bytevector bytevector
+library_test io         io
+library_test hashtable  hashtable
+library_test pred       predicate
+library_test number     number
+library_test fact       fact 
+library_test fib        fib
+library_test ctak       ctak
+## library_test env       env
+library_test dynamic-wind dynamic-wind
+library_test regression regression
+library_test fixnums    fixnum
+library_test wcm        wcm
+library_test record     record
+library_test condition  condition
+library_test enum       enumset
+
+compiler_tests sanity-switches 
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+larceny_build;
+larceny_tests;
+
+################################################################
+
+popd > /dev/null
+
+# popd > /dev/null
+

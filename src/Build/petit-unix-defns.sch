@@ -17,7 +17,7 @@
 
 (define (unix-&-win32-initialize)
   (load (case *host:os*
-          ((unix macosx macosx-el solaris linux-el)
+          ((unix macosx macosx-el solaris linux-el linux-arm-el)
            "src/Build/sysdep-unix.sch")
           ((cygwin win32)
            "src/Build/sysdep-win32.sch")
@@ -89,6 +89,7 @@
     ((sparc-native) (config (in-rts "sparc-regs.cfg")))
     ((sassy-native) (config (in-rts "iasn-regs.cfg")))
     ((arm-native) (config (in-rts "fence-arm-regs.cfg")))
+    ((petit) #t)
     (else (error "No registers config file for this runtime-type: " *runtime-type*)))
   (catfiles (map in-include
                  '("globals.ch"

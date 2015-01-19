@@ -212,7 +212,7 @@
 (define port.linesread 14) ; integer: number of line endings read so far
 (define port.linestart 15) ; integer: character position after last line ending
 (define port.wasreturn 16) ; boolean: last line ending was #\return
-(define port.readmode  17) ; fixnum: see comment at io/port-folds-case?
+(define port.readmode  17) ; fixnum: see comment before default-read-mode
 
 ; all ports
 
@@ -331,7 +331,7 @@
     (vector-set! v port.linestart 0)
     (vector-set! v port.wasreturn #f)
     (vector-set! v port.readmode
-                   (if (and (not binary?) input?)
+                   (if (not binary?)
                        (default-read-mode)
                        readmode:binary))
 
@@ -600,7 +600,7 @@
 (define datum-source-locations?
   (make-parameter "datum-source-locations?" #f boolean?))
 
-;; Enables #!r5rs and #!larceny
+;; Enables flags such as #!r5rs and #!larceny
 
 (define read-r6rs-flags?
   (make-parameter "read-r6rs-flags?" #t boolean?))
@@ -629,13 +629,31 @@
 (define read-traditional-weirdness?
   (make-parameter "read-traditional-weirdness?" #f boolean?))
 
-;; Enables
+;; Enables:
 ;; MzScheme #\uXX character notation
 ;; MzScheme #% randomness
 ;; #"..." randomness
 
 (define read-mzscheme-weirdness?
   (make-parameter "read-mzscheme-weirdness?" #f boolean?))
+
+;; Enables:
+;; R5RS lexical syntax, including the now-deprecated weird parts
+
+(define read-r5rs-weirdness?
+  (make-parameter "read-r5rs-weirdness?" #t boolean?))
+
+;; Enables:
+;; R6RS lexical syntax
+
+(define read-r6rs-weirdness?
+  (make-parameter "read-r6rs-weirdness?" #t boolean?))
+
+;; Enables:
+;; R7RS lexical syntax
+
+(define read-r7rs-weirdness?
+  (make-parameter "read-r7rs-weirdness?" #t boolean?))
 
 ;; The following were supported in v0.93 but will not be in the
 ;; future:
@@ -651,10 +669,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Reader mode of a textual input port.
+; Reader/writer mode of a textual input or output port.
 ;
 ; A binary port always has mode 0.
-; The reader mode of a textual port is encoded by a fixnum
+; The reader/writer mode of a textual port is encoded by a fixnum
 ; that is the inclusive or of
 ;
 ;     nofoldcase/foldcase:
@@ -670,10 +688,22 @@
 ;         0 means recognize all flags
 ;         8 means recognize #!r6rs flag only
 ;     weirdness:
-;         0 means to enforce R6RS lexical syntax (modulo case, javadot)
+;         0 means to enforce minimal lexical syntax
 ;        16 means to allow Larceny weirdness
 ;        32 means to allow traditional weirdness
 ;        64 means to allow MzScheme weirdness
+;       128 means to allow R5RS weirdness
+;       256 means to allow R6RS weirdness
+;       512 means to allow R7RS weirdness
+;
+; If the weirdness is 0, then the port uses lexical conventions
+; that approximate the intersection of R6RS and R7RS syntax.
+; (For output ports, R7RS slashification may be necessary even
+; when the weirdness is 0.)
+;
+; If the weirdness is 256, then strict R6RS lexical syntax
+; should be enforced (modulo case and javadot, which may be
+; allowed or disallowed independently).
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -681,7 +711,7 @@
 (define readmode-mask:locations       2)
 (define readmode-mask:javadot         4)
 (define readmode-mask:flags           8)
-(define readmode-mask:weirdness     112)
+(define readmode-mask:weirdness    1008)    ; (+ 16 32 64 128 256 512)
 
 (define readmode:binary               0)
 (define readmode:nofoldcase           0)
@@ -693,10 +723,12 @@
 (define readmode:noflags              0)
 (define readmode:flags                8)
 (define readmode:noweird              0)
-(define readmode:r6rs                 0)
 (define readmode:larceny             16)
 (define readmode:traditional         32)
 (define readmode:mzscheme            64)
+(define readmode:r5rs               128)
+(define readmode:r6rs               256)
+(define readmode:r7rs               512)
 
 (define (default-read-mode)
   (define (default parameter iftrue iffalse)
@@ -714,7 +746,14 @@
      (default read-traditional-weirdness? readmode:traditional
                                           readmode:noweird)
      (default read-mzscheme-weirdness?    readmode:mzscheme
+                                          readmode:noweird)
+     (default read-r5rs-weirdness?        readmode:r5rs
+                                          readmode:noweird)
+     (default read-r6rs-weirdness?        readmode:r6rs
+                                          readmode:noweird)
+     (default read-r7rs-weirdness?        readmode:r7rs
                                           readmode:noweird)))
+
 
 (define (io/complain-of-illegal-argument proc arg)
   (error proc "illegal argument" arg)
@@ -781,75 +820,93 @@
         (else
          (io/complain-of-illegal-argument 'io/port-allows-flags? p))))
 
-(define (io/port-allows-larceny-weirdness? p)
-  (cond ((io/input-port? p)
-         (eq? (fxlogand readmode-mask:weirdness
+(define (allows-weirdness-getter p themode name)
+  (cond ((and (io/open-port? p) (io/textual-port? p))
+         (eq? (fxlogand themode
                         (vector-like-ref p port.readmode))
-              readmode:larceny))
+              themode))
         (else
-         (io/complain-of-illegal-argument 'io/port-allows-larceny-weirdness?
-                                          p))))
+         (io/complain-of-illegal-argument name p))))
+
+(define (allows-weirdness-setter p bool themode name)
+  (cond ((and (io/open-port? p) (io/textual-port? p) (boolean? bool))
+         (let* ((mode (vector-like-ref p port.readmode))
+                (mode (fxlogand mode (fxlognot themode)))
+                (mode (fxlogior mode
+                                (if bool
+                                    themode
+                                    readmode:noweird))))
+           (vector-like-set! p port.readmode mode)))
+        (else
+         (io/complain-of-illegal-argument
+          name
+          (if (boolean? bool) p bool)))))
+
+(define (io/port-allows-larceny-weirdness? p)
+  (allows-weirdness-getter p
+                           readmode:larceny
+                           'io/port-allows-larceny-weirdness?))
 
 (define (io/port-allows-larceny-weirdness! p bool)
-  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
-         (let* ((mode (vector-like-ref p port.readmode))
-                (mode (fxlogand mode (fxlognot readmode:larceny)))
-                (mode (fxlogior mode
-                                (if bool
-                                    readmode:larceny
-                                    readmode:noweird))))
-           (vector-like-set! p port.readmode mode)))
-        (else
-         (io/complain-of-illegal-argument
-          'io/port-allows-larceny-weirdness!
-          (if (boolean? bool) p bool)))))
+  (allows-weirdness-setter p
+                           bool
+                           readmode:larceny
+                           'io/port-allows-larceny-weirdness!))
 
 (define (io/port-allows-traditional-weirdness? p)
-  (cond ((io/input-port? p)
-         (eq? (fxlogand readmode-mask:weirdness
-                        (vector-like-ref p port.readmode))
-              readmode:traditional))
-        (else
-         (io/complain-of-illegal-argument
-          'io/port-allows-traditional-weirdness?
-          p))))
+  (allows-weirdness-getter p
+                           readmode:traditional
+                           'io/port-allows-traditional-weirdness?))
 
 (define (io/port-allows-traditional-weirdness! p bool)
-  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
-         (let* ((mode (vector-like-ref p port.readmode))
-                (mode (fxlogand mode (fxlognot readmode:traditional)))
-                (mode (fxlogior mode
-                                (if bool
-                                    readmode:traditional
-                                    readmode:noweird))))
-           (vector-like-set! p port.readmode mode)))
-        (else
-         (io/complain-of-illegal-argument
-          'io/port-allows-traditional-weirdness!
-          (if (boolean? bool) p bool)))))
+  (allows-weirdness-setter p
+                           bool
+                           readmode:traditional
+                           'io/port-allows-traditional-weirdness!))
 
 (define (io/port-allows-mzscheme-weirdness? p)
-  (cond ((io/input-port? p)
-         (eq? (fxlogand readmode-mask:weirdness
-                        (vector-like-ref p port.readmode))
-              readmode:mzscheme))
-        (else
-         (io/complain-of-illegal-argument 'io/port-allows-mzscheme-weirdness?
-                                          p))))
+  (allows-weirdness-getter p
+                           readmode:mzscheme
+                           'io/port-allows-mzscheme-weirdness?))
 
 (define (io/port-allows-mzscheme-weirdness! p bool)
-  (cond ((and (io/input-port? p) (io/textual-port? p) (boolean? bool))
-         (let* ((mode (vector-like-ref p port.readmode))
-                (mode (fxlogand mode (fxlognot readmode:mzscheme)))
-                (mode (fxlogior mode
-                                (if bool
-                                    readmode:mzscheme
-                                    readmode:noweird))))
-           (vector-like-set! p port.readmode mode)))
-        (else
-         (io/complain-of-illegal-argument
-          'io/port-allows-mzscheme-weirdness!
-          (if (boolean? bool) p bool)))))
+  (allows-weirdness-setter p
+                           bool
+                           readmode:mzscheme
+                           'io/port-allows-mzscheme-weirdness!))
+
+(define (io/port-allows-r5rs-weirdness? p)
+  (allows-weirdness-getter p
+                           readmode:r5rs
+                           'io/port-allows-r5rs-weirdness?))
+
+(define (io/port-allows-r5rs-weirdness! p bool)
+  (allows-weirdness-setter p
+                           bool
+                           readmode:r5rs
+                           'io/port-allows-r5rs-weirdness!))
+
+(define (io/port-allows-r6rs-weirdness? p)
+  (allows-weirdness-getter p
+                           readmode:r6rs
+                           'io/port-allows-r6rs-weirdness?))
+
+(define (io/port-allows-r6rs-weirdness! p bool)
+  (allows-weirdness-setter p
+                           bool
+                           readmode:r6rs
+                           'io/port-allows-r6rs-weirdness!))
+
+(define (io/port-allows-r7rs-weirdness? p)
+  (allows-weirdness-getter p
+                           readmode:r7rs
+                           'io/port-allows-r7rs-weirdness?))
+
+(define (io/port-allows-r7rs-weirdness! p bool)
+  (allows-weirdness-setter p
+                           bool
+                           readmode:r7rs
+                           'io/port-allows-r7rs-weirdness!))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

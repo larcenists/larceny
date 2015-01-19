@@ -18,7 +18,7 @@
              (,$.label 1001)
              (,$branch 1001))  ; just a precaution
             0
-            #f)
+            #(#f #f 3 #f #f #f))
   (,$setglbl @raw-apply@)
   (,$const @raw-apply@)
   (,$return))
@@ -64,7 +64,7 @@
              (,$reg 1)
              (,$return))
             0
-            #f)
+            #(#f #f 0.0 #f #f #f))
   (,$setglbl values)
   (,$const values)
   (,$return))
@@ -138,7 +138,7 @@
              (,$pop 2)
              (,$invoke 2))
             0
-            #f)
+            #(#f #f 2 #f #f #f))
   (,$setglbl call-with-values)
   (,$const call-with-values)
   (,$return))
@@ -171,7 +171,7 @@
              (,$global apply)
              (,$invoke 2))
             0
-            #f)
+            #(#f #f 0.0 #f #f #f))
   (,$setglbl trampoline-template)
   (,$const trampoline-template)
   (,$return))
@@ -207,13 +207,13 @@
                          (,$global  apply)
                          (,$invoke  2))        ; (apply values args)
                         3 ;; changed from 2 for continuation-marks
-                        #f)
+                        #(#f #f 0.0 #f #f #f))
              (,$setreg  3)
              (,$reg     1)
              (,$movereg 3 1)
              (,$invoke  1))
             0
-            #f)
+            #(#f #f 1 #f #f #f))
   (,$setglbl call-with-current-continuation)
   (,$const   call-with-current-continuation)
   (,$return))
@@ -240,7 +240,7 @@
              (,$op2     procedure-ref 2)
              (,$return))
             0
-            #f)
+            #(#f #f 1 #f #f #f))
   (,$setglbl sys$continuation-data-structure)
   (,$const   sys$continuation-data-structure)
   (,$return))
@@ -258,7 +258,7 @@
              (,$op1 syscall)
              (,$return))
             0
-            #f)
+            #(#f #f 1.0 #f #f #f))
   (,$setglbl %syscall)
   (,$const   %syscall)
   (,$return))
@@ -305,7 +305,7 @@
              (,$global error)
              (,$invoke 1))
             0
-            #f)
+            #(#f #f 0.0 #f #f #f))
   (,$setglbl read-char)
   (,$const read-char)
   (,$return))
@@ -346,7 +346,7 @@
              (,$global error)
              (,$invoke 1))
             0
-            #f)
+            #(#f #f 1.0 #f #f #f))
   (,$setglbl write-char)
   (,$const write-char)
   (,$return))
@@ -438,7 +438,7 @@
               (,$pop 1)
               (,$return))
              0
-             #f)
+             #(#f #f 3 #f #f #f))
    (,$setglbl call-with-continuation-mark)
    (,$const   call-with-continuation-mark)
    (,$return))
@@ -467,7 +467,7 @@
              (,$reg 2)
              (,$invoke 0))
             0
-            #f)
+            #(#f #f 2 #f #f #f))
   (,$setglbl call-if-continuation-mark-frame)
   (,$const   call-if-continuation-mark-frame)
   (,$return))

@@ -8,7 +8,7 @@
 ;     Larceny v0.94 or later.
 ;        (To modify for other systems, see FIXME comments.)
 ;     LexGen and ParseGen
-;        ( http://www.ccs.neu.edu/home/will/Research/SW2006/*.tar.gz )
+;        ( https://github.com/larcenists/larceny/tree/master/tools )
 ;     larcenyTokens.sch (regular syntax of Larceny)
 ;     larceny.pg (context-free syntax of Larceny)
 ;
@@ -24,13 +24,13 @@
 ; reader.sch.
 
 
-; Change these path names for your system.
+; Change these path names as needed for your system and build process.
 
-(define input:lexgen "/proj/will/LarcenyDev/lib/LexGen/loadlexgen.sch")
-(define input:parsegen "/proj/will/LarcenyDev/lib/ParseGen/loadparsegen.sch")
+(define input:lexgen "./tools/LexGen/loadlexgen.sch")
+(define input:parsegen "./tools/ParseGen/loadparsegen.sch")
 
-(define input:regexps "larcenyTokens.sch")
-(define input:grammar "larceny.pg")
+(define input:regexps "./src/Lib/Common/larcenyTokens.sch")
+(define input:grammar "./src/Lib/Common/larceny.pg")
 
 (define output:dfa "dfaLarceny.sch")
 (define output:parser "parserLarceny.sch")

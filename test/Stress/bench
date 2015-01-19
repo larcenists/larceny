@@ -180,12 +180,12 @@ chez_exec ()
 
 larceny_comp ()
 {
-  echo "(begin (load \"../../switches.scm\") (compile-file \"$1.scm\") (exit))" | ../../larceny ../../twobit.heap
+  echo "(begin (load \"../../switches.scm\") (compile-file \"$1.scm\") (exit))" | ../../larceny -heap ../../twobit.heap
 }
 
 larceny_exec ()
 {
-  echo "(load \"$1.fasl\")" | time ../../larceny ../../r5rs.heap
+  echo "(load \"$1.fasl\")" | time ../../larceny -heap ../../r5rs.heap
 }
 
 # -----------------------------------------------------------------------------

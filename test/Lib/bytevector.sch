@@ -1149,6 +1149,9 @@
 
 (define *s* (make-string 65536 #\space))
 
+; Tests string <-> bytevector conversion on strings
+; that contain every Unicode scalar value.
+
 (define (exhaustive-string-bytevector-tests)
 
   ; Tests throughout an inclusive range.
@@ -1239,5 +1242,3 @@
   (timeit (test-exhaustively "UTF-32LE"
                              (lambda (bv) (utf32->string bv 'little))
                              (lambda (s) (string->utf32 s 'little)))))
-
-

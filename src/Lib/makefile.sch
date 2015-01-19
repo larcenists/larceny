@@ -201,6 +201,7 @@
     "portio"            ; user-level procedures for R6RS
     "stdio"             ; user-level procedures
     "print"             ; write/display
+    "print-shared"      ; write-shared
     "ioboot"            ; one-time initialization
 
     "format"            ; `format' procedure.

@@ -128,7 +128,7 @@ bars and read-time evaluation.
 
 For the current semantics of these parameters, please consult
 the Larceny developers' web page that describes
-http://larceny.ccs.neu.edu/larceny-trac/wiki/LexicalConversion[Larceny's
+https://github.com/larcenists/larceny/wiki/LexicalConversion[Larceny's
 lexical syntax].
 
 

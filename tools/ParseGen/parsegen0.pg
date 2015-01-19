@@ -1,0 +1,51 @@
+Grammar for inputs to ParseGen
+
+*terminals
+
+    goesto
+    newline
+    sharpsign
+
+    end
+    productions
+    terminals
+
+    id
+    number
+
+*productions
+
+<input>  ::=  <garbage> terminals <terminals> productions <productions> end #make-grammar0
+
+<garbage>  ::=                                                  #list
+           ::=  <anything_but_terminals> <garbage>              #ignore2
+<anything_but_terminals>  ::=  goesto                           #list
+                          ::=  newline                          #list
+                          ::=  sharpsign                        #list
+                          ::=  end                              #list
+                          ::=  productions                      #list
+                          ::=  id                               #list
+                          ::=  number                           #list
+
+<terminals>  ::=                                                #list
+             ::=  newline <terminals>                           #identity
+             ::=  <id> <terminals>                              #cons
+
+<productions>  ::=                                              #list
+               ::=  newline <productions>                       #identity
+               ::=  <production> newline <productions>          #cons
+
+<production>  ::=  <id> goesto <rhs>                            #make-production
+              ::=       goesto <rhs>                            #make-default-lhs
+
+<rhs>         ::=                                               #list
+              ::=  sharpsign <actionproc> <rhs>                 #cons
+              ::=  <id> <rhs>                                   #cons
+
+<actionproc>  ::=  <id>                                         #make-actionproc
+              ::=  <number>                                     #make-actionnum
+
+<id>  ::=  id                                                   #make-identifier
+<number>  ::=  number                                           #make-number
+
+*end

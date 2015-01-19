@@ -71,6 +71,16 @@ static int calc_cN( gc_t *gc );
 static int calc_mutator_activity_sumz( gc_t *gc );
 
 
+/*  FIXME:  This hack suppresses some console messages used to debug
+ *  Will's port of of the regional collector to Windows.
+ */
+
+void summary_vs_remset_msg( char *msg ) {
+#ifndef UNIX
+  consolemsg( msg );
+#endif
+}
+
 gc_t *create_gc( gc_param_t *info, int *generations )
 {
   gc_t *gc;
@@ -1486,7 +1496,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
 
     if (summarization_active_rgn_next) {
       DATA(gc)->use_summary_instead_of_remsets = TRUE;
-      consolemsg( "FIXME: setting TRUE" );
+      summary_vs_remset_msg( "FIXME: setting TRUE" );
     } else {
       DATA(gc)->enumerate_major_with_minor_remsets = TRUE;
     }
@@ -1504,7 +1514,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
                      DATA(gc)->ephemeral_area[ rgn_to-1 ] );
     /* at this point, rrof_to_region and rgn_to have no guaranteed relationship */
     DATA(gc)->use_summary_instead_of_remsets = FALSE;
-    consolemsg( "FIXME: setting FALSE" );
+    summary_vs_remset_msg( "FIXME: setting FALSE" );
     DATA(gc)->enumerate_major_with_minor_remsets = FALSE;
 
     if (gc->smircy_completion != NULL) {
@@ -1720,7 +1730,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
     sm_init_summary_from_nursery_alone( DATA(gc)->summaries, &(DATA(gc)->summary));
     gc_phase_shift( gc, gc_log_phase_summarize, gc_log_phase_misc_memmgr );
     DATA(gc)->use_summary_instead_of_remsets = TRUE;
-    consolemsg( "FIXME: setting TRUE" );
+    summary_vs_remset_msg( "FIXME: setting TRUE" );
   }
   {
     region_group_t grp;
@@ -1744,7 +1754,7 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   DATA(gc)->ephemeral_area[ rgn_to-1 ]->was_target_during_gc = TRUE;
   oh_collect( DATA(gc)->ephemeral_area[ rgn_to-1 ], GCTYPE_PROMOTE );
   DATA(gc)->use_summary_instead_of_remsets = FALSE;
-  consolemsg( "FIXME: setting FALSE" );
+  summary_vs_remset_msg( "FIXME: setting FALSE" );
   gc->scan_update_remset = TRUE; /* undo hack above */
 
   urs_copy_minor_to_major( gc->the_remset );
@@ -4188,7 +4198,7 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
   data->rrof_last_gc_rolled_cycle = FALSE;
 
   data->use_summary_instead_of_remsets = FALSE;       /* FIXME */
-  consolemsg( "FIXME: setting FALSE (initially)" );
+  summary_vs_remset_msg( "FIXME: setting FALSE (initially)" );
 
   data->last_live_words = 0;
   data->max_live_words = 0;

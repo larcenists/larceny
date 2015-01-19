@@ -37,6 +37,8 @@ syntax
 quasisyntax
 unsyntax
 unsyntaxsplicing
+sharingdef
+sharinguse
 
 xfaslb
 xfaslc
@@ -51,7 +53,10 @@ xstring
 
 <outermost-datum> ::=  eofobj                                   #makeEOF
                   ::=  <datum>                                  #identity
-<datum>           ::=  boolean                                  #makeBool
+<datum>           ::=  <udatum>                                 #identity
+                  ::=  <sharingdef> <udatum>                    #makeSharingDef
+                  ::=  <sharinguse>                             #makeSharingUse
+<udatum>          ::=  boolean                                  #makeBool
                   ::=  number                                   #makeNum
                   ::=  xfaslc                                   #makeCompnum
                   ::=  xfaslf                                   #makeFlonum
@@ -105,5 +110,8 @@ xstring
 <octet>           ::=  number                                   #makeOctet
 
 <location>        ::=                                           #sourceLocation
+
+<sharingdef>      ::=  sharingdef                               #sharingDef
+<sharinguse>      ::=  sharinguse                               #sharingUse
 
 *end

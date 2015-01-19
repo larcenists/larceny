@@ -32,11 +32,14 @@
 ;;;     impact performance.
 ;;;   - 'add r, -1' generates a 32-bit datum; 'sub' might be better
 ;;;     if you know your constant is negative.
-;;;   - the exception handling code is large.  Can we shrink further,
+;;;   - The exception handling code is large.  Can we shrink further,
 ;;;     eg by encoding registers with arguments as well as restart
 ;;;     address in a literal following the call point?  Must pack 
 ;;; 	very densely to fit all in 4 bytes, but that would be a major
 ;;;     win; 3 would be better still.  Use variable-length encoding? 
+;;;     (The great primop cleanup should convert almost all of the
+;;;     continuable exceptions to noncontinuable traps, which should
+;;;     help a lot with both speed and space.)
 ;;;   - Generally search for OPTIMIZEME below
 ;;;
 ;;; Defines affecting the generated code:
@@ -293,6 +296,10 @@
 ;;; exception_noncontinuable excode
 ;;;	Jump to exception handler with code without destroying
 ;;;	any registers; exception is noncontinuable
+;;;
+;;;     The register known variously as $r.temp or $r.second
+;;;     must contain a valid tagged pointer (or fixnum) when
+;;;     the code generated here is executed.  See ticket #686.
 	
 (define-sassy-instr (ia86.exception_noncontinuable excode)
   ;; `(comment -- exception ,excode)
@@ -313,6 +320,10 @@
 ;;;
 ;;;	Important that M_EXCEPTION is at short offset from
 ;;;	globals, to save 3 bytes!  (It can be a negative offset.)
+;;;
+;;;     The register known variously as $r.temp or $r.second
+;;;     must contain a valid tagged pointer (or fixnum) when
+;;;     the code generated here is executed.  See ticket #686.
 
 (define-sassy-instr (ia86.exception_continuable excode short? restart)
   ;; `(comment -- exception ,excode)
@@ -973,6 +984,9 @@
 ;;; single_tag_test ptrtag
 ;;;	Leave zero flag set if hwreg contains a value with the given
 ;;;     3-bit tag.
+;;;
+;;;     Can leave $r.temp ($r.second, TEMP, SECOND, eax) in invalid state.
+;;;     See ticket #686.
 
 (define-sassy-instr (ia86.single_tag_test hwreg x)
   (assert-intel-reg hwreg)
@@ -990,8 +1004,9 @@
     (let ((l0 (fresh-label))
           (l1 (fresh-label)))
       `(label ,l0)
-      (ia86.single_tag_test hwreg x)
+      (ia86.single_tag_test hwreg x)               ; puts garbage in $r.temp
       `(jz short ,l1)
+      `(xor ,$r.temp ,$r.temp)                     ; see ticket #686
       (ia86.exception_continuable y 'short l0)
       `(label ,l1)))))
 
@@ -1010,21 +1025,28 @@
     `(label ,l1)))
 	
 ;;; fixnum_arithmetic regno, operation, undo-operation, ex
-	
+;;;	
+;;; The previous version of this code generator left an invalid pointer
+;;; in $r.temp (aka $r.second, TEMP, SECOND, eax) when one of the
+;;; operands is not a fixnum.  See ticket #686.
+;;;
+;;; FIXME: not tested because this appears to be semi-dead code.
+;;; See src/Compiler/common.imp.sch.
+
 (define-sassy-instr (ia86.fixnum_arithmetic regno y z ex)
   (cond ((not (unsafe-code))
          (let ((l0 (fresh-label))
                (l1 (fresh-label))
                (l2 (fresh-label)))
            `(label ,l0)
-           (ia86.loadr	$r.temp regno)
-           `(or	,$r.temp ,$r.result)
-           `(test	,$r.temp.low ,$tag.fixtagmask)
+           (ia86.loadr $r.temp regno)
+           `(test     ,$r.temp.low ,$tag.fixtagmask)
            `(jnz short ,l1)
-           (ia86.loadr	$r.temp regno)
-           `(,y	,$r.result ,$r.temp)
+           `(test     ,$r.result.low ,$tag.fixtagmask)
+           `(jnz short ,l1)
+           `(,y	,$r.result ,$r.temp)    ; perform operation
            `(jno short ,l2)
-           `(,z	,$r.result ,$r.temp)
+           `(,z	,$r.result ,$r.temp)    ; undo operation following overflow
            `(label ,l1)
            (ia86.exception_continuable ex 'short l0)	; second is tmp so 2nd arg is in place
            `(label ,l2)))
@@ -1032,7 +1054,7 @@
          `(,y	,$r.result ,(reg regno)))
         (else
          `(,y	,$r.result (& ,$r.globals ,(g-reg regno))))))
-	
+
 (define-sassy-instr (ia86.trusted_fixnum_compare sregno dregno regno y)
   (cond ((is_hwreg regno)
          `(cmp	,(reg sregno) ,(reg regno)))
@@ -1042,19 +1064,27 @@
 
 ;;; fixnum_compare reg, cc, ex
 ;;; OPTIMIZEME for whenever ,x is a hwreg
+;;;	
+;;; The previous version of this code generator left an invalid pointer
+;;; in $r.temp (aka $r.second, TEMP, SECOND, eax) when one of the
+;;; operands is not a fixnum.  See ticket #686.
+;;;
+;;; FIXME: not tested because this appears to be semi-dead code.
+;;; See src/Compiler/common.imp.sch.
 
 (define-sassy-instr (ia86.fixnum_compare regno y z)
   (cond ((not (unsafe-code))
          (let ((l0 (fresh-label))
                (l1 (fresh-label)))
            `(label ,l0)
-           (ia86.loadr	$r.temp regno)
-           `(or	,$r.temp ,$r.result)
-           `(test	,$r.temp.low ,$tag.fixtagmask)
-           `(jz short ,l1)
-           (ia86.loadr	$r.second regno)
+           (ia86.loadr $r.temp regno)
+           `(test     ,$r.temp.low ,$tag.fixtagmask)
+           `(jnz short ,l1)
+           `(test     ,$r.result.low ,$tag.fixtagmask)
+           `(jz short ,l2)
+           `(label ,l1)
            (ia86.exception_continuable z 'short l0)         ; second is tmp so 2nd arg is in place
-           `(label ,l1 ))))
+           `(label ,l2 ))))
   (cond
    ((is_hwreg regno)
     `(cmp	,$r.result ,(reg regno)))
@@ -1076,7 +1106,7 @@
            (ia86.loadr	$r.temp x)
            `(or	,$r.temp ,$r.result)
            `(test	,$r.temp.low ,$tag.fixtagmask)
-           (ia86.loadr	$r.second x)
+           (ia86.loadr	$r.second x)            ; essential; see ticket #686
            `(jz short ,l2)
            `(label ,l1)
            (ia86.exception_continuable z 'short l0)
@@ -1568,6 +1598,8 @@
 ;;;     hold a char value to be used for initialization (a check is
 ;;;     performed that is a char).  If regno is #f, no initialization 
 ;;; 	is performed.
+;;;
+;;; FIXME: This may be nearly-dead code.  The char assumes flat1 strings.
 
 (define-sassy-instr (ia86.make_indexed_structure_byte regno hdrtag ex)
   (let ((l0 (fresh-label))
@@ -2963,17 +2995,23 @@
   `(cmp	,$r.result 0)
   (ia86.setcc $r.result 'l))
 
+;;; The previous version of this code generator left an invalid pointer
+;;; in $r.temp (aka $r.second, TEMP, SECOND, eax) when the operand
+;;; is not a fixnum.  See ticket #686.
+;;;
+;;; FIXME: not tested because this appears to be semi-dead code.
+;;; See src/Compiler/common.imp.sch.
+
 (define-sassy-instr (ia86.fixnum_imm_arithmetic imm y z ex)
+  (assert (fixnum? imm))
   (cond ((not (unsafe-code))
          (let ((l0 (fresh-label))
                (l1 (fresh-label))
                (l2 (fresh-label)))
            `(label ,l0)
            (ia86.const2regf $r.temp imm)
-           `(or	,$r.temp ,$r.result)
-           `(test	,$r.temp.low ,$tag.fixtagmask)
+           `(test          ,$r.result.low ,$tag.fixtagmask)
            `(jnz short ,l1)
-           (ia86.const2regf $r.temp imm)
            `(,y	,$r.result ,$r.temp)
            `(jno short ,l2)
            `(,z	,$r.result ,$r.temp)

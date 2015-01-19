@@ -393,6 +393,9 @@
   (environment-set! larc 'read-traditional-weirdness?
                     read-traditional-weirdness?)
   (environment-set! larc 'read-mzscheme-weirdness? read-mzscheme-weirdness?)
+  (environment-set! larc 'read-r5rs-weirdness? read-r5rs-weirdness?)
+  (environment-set! larc 'read-r6rs-weirdness? read-r6rs-weirdness?)
+  (environment-set! larc 'read-r7rs-weirdness? read-r7rs-weirdness?)
   (environment-set! larc 'fasl-evaluator fasl-evaluator)
 
   ;; pairs and lists
@@ -1047,6 +1050,8 @@
   (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
   (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
+  (environment-set! larc 'write-simple write-simple)
+  (environment-set! larc 'write-shared write-shared)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
