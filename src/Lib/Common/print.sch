@@ -170,10 +170,10 @@
              (printstr s p))
             ((io/port-allows-r7rs-weirdness? p)
              (write-char #\| p)
-             (print-slashed-symbol-string s p)
+             (print-slashed-symbol-string s p #t)
              (write-char #\| p))
             (else
-             (print-slashed-symbol-string s p)))))
+             (print-slashed-symbol-string s p #f)))))
 
   ;; A symbol is vanilla if it's safe to print by displaying its string.
 
@@ -236,20 +236,21 @@
                      (loop (+ i 1)))
                     (else #f)))))
 
-      (loop 0)))
+      (and (> n 0) (loop 0))))
 
-  ;; Prints the string as though it were enclosed within vertical bars,
-  ;; using inline hex escapes for any odd characters.
+  ;; Prints the string as though it were enclosed within vertical bars.
+  ;; If r7rs? is true, rely on R7RS lexical syntax for strings and symbols.
+  ;; Otherwise use inline hex escapes for all odd characters.
 
-  (define (print-slashed-symbol-string s p)
+  (define (print-slashed-symbol-string s p r7rs?)
 
     (let* ((n (string-length s)))
 
       (define (loop i)
         (if (< i n)
             (let ((c (string-ref s i)))
-              (cond ((or (and (char<=? #\a c) (char<=? c #\z))
-                         (and (char<=? #\A c) (char<=? c #\Z))
+              (cond ((or (char<=? #\a c #\z)
+                         (char<=? #\A c #\Z)
                          (case c
                           ((#\! #\$ #\% #\& #\* #\/ #\: 
                             #\< #\= #\> #\? #\^ #\_ #\~)
@@ -259,7 +260,7 @@
                             #\5 #\6 #\7 #\8 #\9
                             #\+ #\- #\. #\@)
                            ; special subsequent
-                           (< 0 i))
+                           (or r7rs? (< 0 i)))
                           (else
                            (if (memq (transcoder-codec (port-transcoder p))
                                      '(utf-8 utf-16))
@@ -268,18 +269,41 @@
                                           (memq cat
                                                 '(Lu Ll Lt Lm Lo Mn Nl No
                                                   Pd Pc Po Sc Sm Sk So Co)))
-                                     (and (< 0 i)
+                                     (and (or r7rs? (< 0 i))
                                           (memq cat '(Nd Mc Me)))))
                                #f))))
                      (write-char c p)
                      (loop (+ i 1)))
-                    (else
-                     (let ((hexstring (number->string (char->integer c) 16)))
+                    (r7rs?
+                     (case c
+                      ((#\\ #\|)
                        (write-char #\\ p)
-                       (write-char #\x p)
-                       (print-slashed-string hexstring p)
-                       (write-char #\; p)
-                       (loop (+ i 1))))))))
+                       (write-char c p))
+                      ((#\alarm #\backspace #\tab #\newline #\return)
+                       (write-char #\\ p)
+                       (write-char (cdr (assq c mnemonic-escape-table)) p))
+                      (else
+                       (if (char<=? #\space c #\~)
+                           (write-char c p)
+                           (print-inline-hex-escape c))))
+                     (loop (+ i 1)))
+                    (else
+                     (print-inline-hex-escape c)
+                     (loop (+ i 1)))))))
+
+      (define (print-inline-hex-escape c)
+        (let ((hexstring (number->string (char->integer c) 16)))
+          (write-char #\\ p)
+          (write-char #\x p)
+          (print-slashed-string hexstring p)
+          (write-char #\; p)))
+
+      (define mnemonic-escape-table
+        '((#\alarm . #\a)
+          (#\backspace . #\b)
+          (#\tab . #\t)
+          (#\newline . #\n)
+          (#\return . #\r)))
 
       (loop 0)))
 
@@ -461,33 +485,24 @@
 
   (print x p slashify (+ (or (print-level) -2) 1)))
 
+;;; Don't print more than (print-length) elements of a list or vector,
+;;; and don't print more than (print-level) nested lists or vectors.
+;;;
+;;; FIXME: Not sure if (print-level) is being respected.
+
 (define print-length
-  (let ((*print-length* #f))
-    (lambda rest
-      (cond ((null? rest) *print-length*)
-            ((null? (cdr rest))
-             (let ((x (car rest)))
-               (if (not (or (not x)
-                            (and (fixnum? x) (>= x 0))))
-                   (error "Bad argument " x " to print-length."))
-               (set! *print-length* x)
-               x))
-            (else
-             (error "Wrong number of arguments to print-length."))))))
+  (make-parameter "print-length"
+                  #f
+                  (lambda (x)
+                    (or (not x)
+                        (and (fixnum? x) (>= x 0))))))
 
 (define print-level
-  (let ((*print-level* #f))
-    (lambda rest
-      (cond ((null? rest) *print-level*)
-            ((null? (cdr rest))
-             (let ((x (car rest)))
-               (if (not (or (not x)
-                            (and (fixnum? x) (>= x 0))))
-                   (error "Bad argument " x " to print-level."))
-               (set! *print-level* x)
-               x))
-            (else
-             (error "Wrong number of arguments to print-level."))))))
+  (make-parameter "print-level"
+                  #f
+                  (lambda (x)
+                    (or (not x)
+                        (and (fixnum? x) (>= x 0))))))
 
 (define **lowlevel** (list 0))   ; any unforgeable value
 
@@ -502,7 +517,9 @@
       (io/discretionary-flush p)
       **nonprinting-value**)))
 
-(define display
+;;; For the display procedure, see print-shared.sch
+
+(define display-simple
   (lambda (x . rest)
     (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (print x p #f)

@@ -43,11 +43,15 @@
 ;;; and to recognize R6RS data structures.  Now runs in O(n) time if
 ;;; the hashtable accesses are O(1).
 ;;;
-;;; Modified January 2015 by Will Clinger to change the procedure name to
-;;; write-shared and to add a predicate that determines whether an object
-;;; contains circular structure.
+;;; Modified January 2015 by Will Clinger:
+;;;     changed the procedure name to print-with-shared-structure
+;;;     made the port argument mandatory
+;;;     added a third argument that will be used to write simple structure
+;;; 
+;;; Also added a predicate that determines whether an object contains
+;;; circular structure.
 
-(define (write-shared obj . optional-port)
+(define (print-with-shared-structure obj outport write)
 
   (define (lookup key state)
     (hashtable-ref state key #f))
@@ -169,10 +173,7 @@
 
   (let* ((state (make-eq-hashtable))
          (state (scan obj state))
-         (state (updated-state 'counter 0 state))
-         (outport (if (eq? '() optional-port)
-                      (current-output-port)
-                      (car optional-port))))
+         (state (updated-state 'counter 0 state)))
     (write-obj obj state outport)
     ;; We don't want to return the big state that write-obj just returned.
     (if #f #f)))
@@ -249,13 +250,29 @@
         (else
          (circular? x (make-eq-hashtable)))))
 
+;;; An R7RS-conforming write-shared procedure.
+
+(define write-shared
+  (lambda (x . rest)
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
+      (print-with-shared-structure x p write-simple))))
+
 ;;; An R7RS-conforming write procedure.
 
 (define write
   (lambda (x . rest)
     (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (if (object-is-circular? x)
-          (write-shared x p)
+          (print-with-shared-structure x p write-simple)
           (write-simple x p)))))
+
+;;; An R7RS-conforming display procedure.
+
+(define display
+  (lambda (x . rest)
+    (let ((p (if (pair? rest) (car rest) (current-output-port))))
+      (if (object-is-circular? x)
+          (print-with-shared-structure x p display-simple)
+          (display-simple x p)))))
 
 ; eof

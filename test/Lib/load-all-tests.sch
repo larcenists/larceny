@@ -6,6 +6,7 @@
 (compile-file "test.sch")
 
 (compile-file "bool.sch")
+(compile-file "print.sch")
 (compile-file "char.sch")
 (compile-file "string.sch")
 (compile-file "normalization.sch")
@@ -30,6 +31,7 @@
 (load "test.fasl")			; Scaffolding
 
 (load "bool.fasl")			; Booleans
+(load "print.fasl")                     ; Printing
 (load "char.fasl")			; Characters
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
@@ -53,6 +55,7 @@
 
 (define (run-all-tests)
   (run-boolean-tests)
+  (run-print-tests)
   (run-char-tests)
   (run-string-tests)
 
