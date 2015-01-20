@@ -165,6 +165,7 @@ function larceny_tests {
 
 ## Library tests
 library_test bool       boolean
+library_test print      print
 library_test char       char
 library_test string     string
 library_test normalization normalization
