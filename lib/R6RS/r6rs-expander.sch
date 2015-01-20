@@ -1060,8 +1060,9 @@
     ;; exported identifiers.
     ;;
     ;; <body-type> ::= toplevel | library | program | lambda | expression-sequence
+    ;;               | define-library                                  ; [R7RS]
     ;;
-    ;; All but TOPLEVEL are as in r6rs.
+    ;; All but TOPLEVEL are as in r6rs or r7rs.                        ; [R7RS]
     ;; TOPLEVEL is meant for the REPL.
     ;; At TOPLEVEL, we may have a sequence of expressions, definitions, macros,
     ;; import declarations, libraries and programs wrapped in (program ---).
@@ -1137,6 +1138,11 @@
                       ((library)
                        (loop (cdr ws)
                              (cons (list #f #f (expand-library form)) forms)
+                             syntax-defs
+                             bound-variables))
+                      ((define-library)                                ; [R7RS]
+                       (loop (cdr ws)
+                             (cons (list #f #f (expand-define-library form)) forms)
                              syntax-defs
                              bound-variables))
                       ((define)
@@ -1236,26 +1242,55 @@
          (values x e body))))
 
     (define (check-expression-sequence body-type type form)
+#;    (if (memq 'define-library (list body-type type))                  ; FIXME
+          (begin (display "check-expression-sequence: ")
+                 (write (list body-type type))
+                 (newline)
+                 (pretty-print form)
+                 (newline)))
       (and (eq? body-type 'expression-sequence)
-           (memq type '(import program library define define-syntax))
+           (memq type '(import program library define define-syntax
+                        define-library))                               ; [R7RS]
            (syntax-violation type "Invalid form in expression sequence" form)))
 
+    ;; Revised for R7RS.                                               ; [R7RS]
+
     (define (check-toplevel body-type type form)
+#;    (if (memq 'define-library (list body-type type))                  ; FIXME
+          (begin (display "check-toplevel: ")
+                 (write (list body-type type))
+                 (newline)
+                 (pretty-print form)
+                 (newline)))
       (and (not (eq? body-type 'toplevel))
-           (memq type '(import program library))
+           (memq type '(import program library define-library))        ; [R7RS]
+           (not (and (eq? body-type 'define-library)                   ; [R7RS]
+                     (eq? type 'import)))                              ; [R7RS]
            (syntax-violation type "Expression may only occur at toplevel" form)))
 
     (define (check-valid-definition id common-env body-type form forms type)
+#;    (if (memq 'define-library (list body-type type))                  ; FIXME
+          (begin (display "check-valid-definition: ")
+                 (write (list body-type type))
+                 (newline)
+                 (pretty-print form)
+                 (newline)))
       (and (not (eq? body-type 'toplevel))
            (duplicate? id common-env)
            (syntax-violation type "Redefinition of identifier in body" form id))
       (check-used id body-type form)
-      (and (not (memq body-type `(toplevel program)))
+      (and (not (memq body-type `(toplevel program define-library)))    ; FIXME
            (not (null? forms))
            (not (symbol? (car (car forms))))
            (syntax-violation type "Definitions may not follow expressions in a body" form)))
 
     (define (check-expression-body body-type forms body-forms)
+#;    (if (memq 'define-library (list body-type))                       ; FIXME
+          (begin (display "check-expression-body: ")
+                 (write (list body-type))
+                 (newline)
+                 (pretty-print body-forms)
+                 (newline)))
       (and (eq? body-type 'lambda)
            (or (null? forms)
                (symbol? (caar forms)))
@@ -1606,7 +1641,33 @@
     (define (expand-library t)
       (expand-library-or-program t 'library))
 
-    ;; <library-type> ::= library | program
+    ;; New for R7RS.
+    ;; Creates empty export and import declaration as necessary
+    ;; to make a define-library start out like an R6RS library.
+
+    (define (expand-define-library t)                                  ; [R7RS]
+      (match t
+        ((keyword name ((syntax export) sets ___) ((syntax import) specs ___) body-forms ___)
+         (expand-library-or-program t 'define-library))
+        ((keyword name ((syntax export) sets ___) body-forms ___)
+         (expand-define-library
+          `(,keyword ,name
+                     ,(caddr t)                         ; export declaration
+                     (,(datum->syntax keyword 'import)) ; empty import decl
+                     ,@(cdddr t))))
+        ((keyword name ((syntax import) specs ___) body-forms ___)
+         (expand-define-library
+          `(,keyword ,name
+                     (,(datum->syntax keyword 'export)) ; empty export decl
+                     ,@(cdddr t))))
+        ((keyword name body-forms ___)
+         (expand-define-library
+          `(,keyword ,name
+            (,(datum->syntax keyword 'export))          ; empty export decl
+            (,(datum->syntax keyword 'import))          ; empty import decl
+            ,@(cddr t))))))
+
+    ;; <library-type> ::= define-library | library | program           ; [R7RS]
 
     (define (expand-library-or-program t library-type)
       (match t
@@ -1621,6 +1682,10 @@
                              (*syntax-reflected* #f))       ; +++ space
 
                    (import-libraries-for-expand imported-libraries (map not imported-libraries) 0)
+                   (if (eq? library-type 'define-library)              ; [R7RS]
+                       (env-import! keyword
+                                    (make-library-language) ; FIXME
+                                    *usage-env*))
                    (env-import! keyword imports *usage-env*)
 
                    (let ((initial-env-table *env-table*))   ; +++ space
@@ -1649,7 +1714,8 @@
                                                                                  ',(current-builds imported-libraries)
                                                                                  0)
                                                     ,@(emit-body forms 'define)))
-                                                ((library)
+                                                ((library
+                                                  define-library)      ; [R7RS]
                                                  `(begin
                                                     #\L ; [Larceny]
                                                     ,@(map (lambda (var)
@@ -2404,7 +2470,7 @@
             (reverse normalized)
             (if (pair? (car exps))
                 (case (caar exps)
-                  ((library)
+                  ((library define-library)                            ; [R7RS]
                    (loop (cdr exps)
                          (cons (car exps) normalized)))
                   ((import)
@@ -2455,7 +2521,8 @@
     ;;===================================================================
 
     (define library-language-names
-      `(program library export import for run expand meta only
+      `(program define-library                                         ; [R7RS]
+                library export import for run expand meta only
                 except prefix rename primitives >= <= and or not))
 
     (define (make-library-language)
@@ -2517,6 +2584,7 @@
     ;; Import only the minimal library language into the toplevel:
 
     (env-import! toplevel-template (make-library-language) *toplevel-env*)
+    (register-macro! 'define-library (make-expander invalid-form))     ; [R7RS]
     (register-macro! 'library (make-expander invalid-form))
     (register-macro! 'program (make-expander invalid-form))
     (register-macro! 'import  (make-expander invalid-form))
