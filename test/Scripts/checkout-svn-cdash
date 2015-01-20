@@ -21,13 +21,6 @@ set -o errexit
 #
 ########################################################################
 
-# Solaris machines are no longer being maintained properly, so Subversion
-# no longer works on Solaris.  As a workaround, we do the Subversion part
-# on a Linux machine, and everything else on Solaris.
-UPDATE_ONLY="no"
-SKIP_UPDATE="no"
-STATUS="passed"
-
 # Override this variable to submit to other tracks, e.g. Nightly or Continuous
 TRACK=${TRACK:-"Experimental"}
 
@@ -38,7 +31,8 @@ SETUP_ARGS="'exit-on-error 'quiet-load 'always-source"
 
 WARNINGNUM=1
 # SVNTRUNK="http://larceny.ccs.neu.edu/svn/trunk/larceny_src"
-SVNTRUNK=${SVNTRUNK:-"https://trac.ccs.neu.edu/svn/larceny/trunk/larceny_src"}
+# SVNTRUNK=${SVNTRUNK:-"https://trac.ccs.neu.edu/svn/larceny/trunk/larceny_src"}
+SVNTRUNK=${SVNTRUNK:-"https://github.com/larcenists/larceny"}
 
 FINAL_LARCENY_SCRIPT=larceny
 FINAL_LARCENY_ROF_SCRIPT=larceny-np # (only for autobuilds)
@@ -49,17 +43,12 @@ FINAL_TWOBIT_BIN=larceny.bin
 # Setup options (based on script's name)
 case "`basename "$0"`" in
 
-    checkout-only)
-	DIRNAME=native
-        UPDATE_ONLY="yes"
-    ;;
     checkout-larceny-solaris-native)
 	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=native
 	MAKETEXTSAFE=native2ascii
-        SKIP_UPDATE="yes"
     ;;
     checkout-mzscheme-solaris-native)
 	SCHEME_PGM="mzscheme -f "
@@ -67,7 +56,6 @@ case "`basename "$0"`" in
 	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
 	DIRNAME=mznative
 	MAKETEXTSAFE=native2ascii
-        SKIP_UPDATE="yes"
     ;;
     checkout-larceny-solaris-petit)
 	SCHEME_PGM="larceny -- "
@@ -77,7 +65,6 @@ case "`basename "$0"`" in
 	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=petit
 	MAKETEXTSAFE=native2ascii
-        SKIP_UPDATE="yes"
     ;;
     checkout-mzscheme-solaris-petit)
 	SCHEME_PGM="mzscheme -f "
@@ -87,7 +74,6 @@ case "`basename "$0"`" in
 	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
 	DIRNAME=mzpetit
 	MAKETEXTSAFE=native2ascii
-        SKIP_UPDATE="yes"
     ;;
 
     checkout-larceny-linux86-petit)
@@ -376,14 +362,9 @@ function remove {
 }
 
 function update_from_subversion {
+  CMD="svn checkout --non-interactive ${SVNTRUNK}"
   # CMD="svn checkout --non-interactive -q ${SVNTRUNK}"
-  CMD="svn up --non-interactive ../shared-checkout/larceny_src && cp -fpR ../shared-checkout/larceny_src ."
-  if [ $UPDATE_ONLY == "yes" ]
-    then CMD="svn up --non-interactive ../shared-checkout/larceny_src" ;
-  fi
-  if [ $SKIP_UPDATE == "yes" ]
-    then CMD="cp -fpR ../shared-checkout/larceny_src ." ;
-  fi
+  # CMD="svn up --non-interactive ../shared-checkout/larceny_src && cp -fpR ../shared-checkout/larceny_src ."
   remove $MY_CDASHUPDATELOG
   cdashupdatelog '<?xml version="1.0" encoding="utf-8"?>'
   
@@ -398,6 +379,8 @@ function update_from_subversion {
 
   pushd ${DIR} > /dev/null
   cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  mv larceny/trunk larceny_src
+  rm -rf larceny
   popd         > /dev/null
 
   cdashupdatelog '  <EndDateTime>'"`date`"'</EndDateTime>	           '
@@ -645,6 +628,7 @@ function larceny_tests {
 
 ## Library tests
 library_test bool       boolean
+library_test print      print
 library_test char       char
 library_test string     string
 library_test normalization normalization
@@ -783,9 +767,6 @@ function larceny_bench {
 update_from_subversion;
 if [ $STATUS == "failed" ] 
 then echo UPDATE FAILED ; exit 1;
-fi
-if [ $UPDATE_ONLY == "yes" ]
-then exit 0;
 fi
 larceny_setup;
 if [ $STATUS == "failed" ] 
