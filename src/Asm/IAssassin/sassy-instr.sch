@@ -531,14 +531,21 @@
          (ia86.loadr $r.temp regno1)
          (ia86.storer regno2 $r.temp))))
 
+;;; If r < *lastreg*, then store general registers 0 through r into
+;;; the newly allocated closure, which will be in $r.result.
+;;; If r >= *lastreg*, then the last register contains a list of values
+;;; to be stored into the closure at slot *lastreg* and following,
+;;; and all other general registers (including $r.reg0) will be stored
+;;; into the corresponding slots of the closure.
+
 (define-sassy-instr (ia86.init_closure r)
-  (let ((regno (cond ((> r *lastreg*)
+  (let ((regno (cond ((>= r *lastreg*)
                       (- *lastreg* 1))
                      (else 
                       r)))
         (l1 (fresh-label)))
     (cond 
-     ((> r *lastreg*)
+     ((>= r *lastreg*)
 ;;;   ;; Using $r.cont here is sketchy when it can alias esp
       `(mov (& ,$r.globals ,$g.stkp) ,$r.cont)     ; Need a working register!
       `(mov (& ,$r.globals ,$g.result) ,$r.result) ; Save for later
