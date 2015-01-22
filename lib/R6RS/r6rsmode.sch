@@ -62,16 +62,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; R6RS initialization.
+; R6RS/R7RS initialization.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Compiles Larceny's basic support for ERR5RS/R6RS and the
-; standard ERR5RS/R6RS libraries.
+; Compiles Larceny's basic support for ERR5RS/R6RS/R7RS and the
+; standard ERR5RS/R6RS/R7RS libraries.
 ;
 ; FIXME:  Should use the (current-require-path) instead of
-; hard-wiring the names of the standard directories that
-; contain ERR5RS/R6RS libraries, but the (current-require-path)
+; hard-wiring names of the standard directories that contain
+; ERR5RS/R6RS/R7RS libraries, but the (current-require-path)
 ; might contain directories that overlap, causing libraries
 ; to be compiled twice, causing build inconsistencies.
 
@@ -81,9 +81,11 @@
       (parameterize ((current-directory
                       (larceny:canonical-path "lib/R6RS")))
         (compile-file "r6rsmode.sch")
+        (compile-file "../R7RS/r7rs-includer.sch")                      ; FIXME
         (compile-file "r6rs-compat-larceny.sch")
         (compile-file "r6rs-runtime.sch")
         (compile-file "r6rs-expander.sch")
+        (require 'r7rs-includer)                                        ; FIXME
         (require 'r6rs-compat-larceny)
         (require 'r6rs-runtime)
         (require 'r6rs-expander)
@@ -113,6 +115,7 @@
   (require 'r6rs-standard-libraries))
 
 (define (larceny:load-r6rs-package)
+  (require 'r7rs-includer)                                              ; FIXME
   (require 'r6rs-compat-larceny)
   (require 'r6rs-runtime)
   (require 'r6rs-expander)
@@ -506,7 +509,7 @@
 
 ; Suffixes that get rewritten when compiling a file.
 
-(define *scheme-file-types* '(".sls" ".sch" ".scm"))
+(define *scheme-file-types* '(".sld" ".sls" ".sch" ".scm"))
 (define *slfasl-file-type*    ".slfasl")
 
 ; Suffixes recognized during the search for ERR5RS/R6RS libraries.

@@ -526,6 +526,18 @@
       (io/discretionary-flush p)
       **nonprinting-value**)))
 
+;;; Printing fasl files with shared structures as below does work,
+;;; but it doesn't appear to save enough space to justify the
+;;; compile-time overhead of detecting shared structures.
+
+;(define lowlevel-write
+;  (lambda (x . rest)
+;    (let ((p (if (pair? rest) (car rest) (current-output-port)))
+;          (simple-printer (lambda (x p) (print x p **lowlevel**))))
+;      (print-with-shared-structure x p simple-printer)
+;      (io/discretionary-flush p)
+;      **nonprinting-value**)))
+
 (define lowlevel-write
   (lambda (x . rest)
     (let ((p (if (pair? rest) (car rest) (current-output-port))))
