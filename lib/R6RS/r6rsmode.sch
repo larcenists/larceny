@@ -515,7 +515,7 @@
 ; Suffixes recognized during the search for ERR5RS/R6RS libraries.
 ; Note: no initial period here.
 
-(define *library-suffixes-source*   '("larceny.sls"    "sls"))
+(define *library-suffixes-source*   '("larceny.sls"    "sls"    "sld"))
 (define *library-suffixes-compiled* '("larceny.slfasl" "slfasl"))
 
 (define (generate-fasl-name fn)
