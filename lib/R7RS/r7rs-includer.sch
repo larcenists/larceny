@@ -87,12 +87,9 @@
 ;;; where <token> is a specific object allocated below.
 
 (define (larceny:included-forms? x)
-  (begin (display "larceny:included-forms?")
-         (newline)
-         (pretty-print x))
   (and (list? x)
        (<= 5 (length x))
-       (eq? (car x) 'begin)
+;      (eq? (car x) 'begin)    ; FIXME
        (eq? (cadr x) #\I)
        (eq? (caddr x) *inclusion-token*)))
 
@@ -130,12 +127,8 @@
 (define *inclusion-token* (string-copy "included from "))
 
 (define (larceny:make-included-begin-form forms dirname basename)
-(let ((result ; FIXME
   (append (list 'begin #\I *inclusion-token* dirname basename)
           forms))
-)
-(pretty-print result)
-result))
 
 ;;; Suffixes recognized during the search for R7RS source files
 ;;; to be included within an R7RS define-library (so the "sls"
@@ -198,7 +191,7 @@ result))
         (assertion-violation 'include "file not found" filename))))
 
 (define (larceny:include-file-forms filename)
-  (begin (display "Reading ")
+  (begin (display "Reading ") ; FIXME: temporary aid to debugging
          (display filename)
          (newline))
   (call-with-input-file
