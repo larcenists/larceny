@@ -57,7 +57,6 @@ cd to Larceny's root directory and do this:
 
     % ./larceny
     Larceny v0.98
-    larceny.heap, built on Wed Jan 21 17:56:10 EST 2015
 
     > (require 'r6rsmode)
     > (larceny:compile-r6rs-runtime)

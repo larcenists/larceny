@@ -336,8 +336,14 @@
               require-paths)
              #f))))
     (if fname
-        (parameterize ((larceny:r6rs-expand-only #f))
-          (load-r6rs-library fname))
+        (let* ((srcdir (larceny:directory-of fname))
+               (paths (current-require-path))
+               (paths (if (member srcdir paths)
+                          paths
+                          (cons srcdir paths))))
+          (parameterize ((larceny:r6rs-expand-only #f)
+                         (current-require-path paths))
+            (load-r6rs-library fname)))
         (assertion-violation 'lookup-library "library not loaded" libname))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

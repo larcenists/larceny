@@ -69,6 +69,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (larceny:include filenames)
+  (display "larceny:include ") (write filenames) (newline)
   (cons 'begin
         (map larceny:include-file filenames)))
 
