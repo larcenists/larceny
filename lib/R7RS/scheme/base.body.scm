@@ -1,4 +1,5 @@
-;;; Definitions for things in (scheme base) that aren't in (rnrs).
+;;; Definitions for things in (scheme base) that aren't in (rnrs)
+;;; or some other R6RS or SRFI library.
 
 ;;; FIXME: assoc now takes optional third argument
 
@@ -12,17 +13,11 @@
 
 ;;; FIXME: char-ready? needs to be improved
 
-(define char-ready? 'FIXME)
-
 ;;; FIXME: cond-expand has to be magic
 
 ;(define cond-expand 'FIXME)
 
-(define define-record-type 'FIXME)
-
 ;;; FIXME: check semantics of define-syntax
-
-(define define-values 'FIXME)
 
 ;;; FIXME: check semantics of eq?, equal?, eqv?
 
@@ -41,9 +36,6 @@
 (define floor-quotient 'FIXME)
 (define floor-remainder 'FIXME)
 (define floor/ 'FIXME)
-
-(define get-output-bytevector 'FIXME)
-(define get-output-string 'FIXME)
 
 ;;; FIXME: check semantics for guard
 
@@ -64,39 +56,17 @@
 
 ;;; FIXME: check semantics for letrec-syntax
 
-(define list-copy 'FIXME)
-
-(define list-set! 'FIXME)
-
-(define make-list 'FIXME)
-(define make-parameter 'FIXME)
-
-;;; FIXME: not in (rnrs), and should check its semantics
-
-(define modulo 'FIXME)
-
 ;;; FIXME: map is different
 
 ;;; FIXME: member takes optional third argument
 
 ;;; FIXME: check semantics for number->string
 
-(define open-input-bytevector 'FIXME)
-(define open-input-string 'FIXME)
-(define open-output-bytevector 'FIXME)
-(define open-output-string 'FIXME)
-
 (define output-port-open? 'FIXME)
-
-(define parameterize 'FIXME)
 
 (define peek-u8 'FIXME)
 
 ;;; FIXME: check semantics of quasiquote
-
-;;; FIXME: not in (rnrs), and should check its semantics
-
-(define quotient 'FIXME)
 
 ;;; FIXME: check semantics of raise
 
@@ -107,18 +77,8 @@
 
 (define read-error? 'FIXME)
 
-(define read-line 'FIXME)
 (define read-string 'FIXME)
 (define read-u8 'FIXME)
-
-;;; FIXME: not in (rnrs), and should check its semantics
-
-(define remainder 'FIXME)
-
-;;; FIXME: not in (rnrs)
-
-(define set-car! 'FIXME)
-(define set-cdr! 'FIXME)
 
 ;;; FIXME: check semantics of real?
 
@@ -136,10 +96,6 @@
 ;;; FIXME: check semantics of string-for-each (probably the same)
 
 (define string-map 'FIXME)
-
-;;; FIXME: not in (rnrs)
-
-(define string-set! 'FIXME)
 
 ;;; FIXME: check semantics of substring
 
@@ -166,6 +122,10 @@
 ;;; FIXME: check semantics of with-exception-handler
 
 (define write-bytevector 'FIXME)
-(define write-string 'FIXME)
 (define write-u8 'FIXME)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; FIXME: should check semantics of modulo, quotient, remainder
+
 

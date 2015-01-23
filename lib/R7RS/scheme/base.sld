@@ -241,7 +241,16 @@
    zero?
    )
 
-  (import (except (rnrs) define-record-type))
+  (import (except (rnrs) define-record-type)
+          (only (rnrs r5rs) modulo quotient remainder)
+          (only (rnrs mutable-pairs) set-car! set-cdr!)
+          (only (rnrs mutable-strings) string-set!)
+          (only (srfi :6 basic-string-ports)
+                open-input-string
+                open-output-string get-output-string)
+          (only (srfi :9 records) define-record-type)
+          (only (larceny r7rs macros) parameterize define-values)
+          (larceny r7rs primitives))
 
   (include "scheme/base.body.scm"))   ; FIXME: scheme/ shouldn't be necessary
 
