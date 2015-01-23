@@ -1,15 +1,21 @@
-This directory implements an R6RS mode for Larceny.  It should
-be part of the current-require-path when R6RS-style programs
+This directory contains the core of Larceny's R7RS and R6RS
+modes (see also src/Lib/Repl/main.sch).  It should be part
+of the current-require-path when R7RS- or R6RS-style programs
 are being developed or executed.
 
-FIXME: no longer quite true
+These files implement R7RS define-library, R6RS library,
+define-syntax, syntax-rules, syntax-case, and Andre van Tonder's
+explicit-renaming macro system.
 
-The files in this directory are derived from Andre van Tonder's
+Most of these files were derived from Andre van Tonder's
 implementation of R6RS programs, libraries, and macros.
-The starting point was van Tonder's version 6.0, dated
-29 October 2007, downloaded from
+The starting point was van Tonder's version 6.0.2, dated
+27 December 2007, downloaded from
 
     http://www.het.brown.edu/people/andre/macros/
+
+In January 2015, Will Clinger modified the expander to support
+R7RS define-library.
 
 To avoid potential name clashes when using Larceny's require
 feature, "r6rs-" has been prefixed to van Tonder's file names.
@@ -33,12 +39,42 @@ feature, "r6rs-" has been prefixed to van Tonder's file names.
         same as van Tonder's expander.scm except for the
         definitions of repl and syntax-violation
 
-    standard-libraries.sch
+    r6rs-standard-libraries.sch
 
         extensively customized for Larceny, starting
         from van Tonder's standard-libraries.scm
 
-What follows is the contents of van Tonder's readme.txt file.
+    r7rs-includer.sch
+
+        defines procedures that support the include feature
+        of R7RS define-library (may be present in ../R7RS
+        instead of this directory)
+
+To compile those files followed by all libraries and programs
+found in the current-require-path (which by default includes
+the standard libraries in lib/R7RS, lib/R6RS, and lib/SRFI),
+cd to Larceny's root directory and do this:
+
+    % ./larceny
+    Larceny v0.98
+    larceny.heap, built on Wed Jan 21 17:56:10 EST 2015
+
+    > (require 'r6rsmode)
+    > (larceny:compile-r6rs-runtime)
+    > (exit)
+
+If Larceny has been built and installed normally, then the
+above can be done by invoking Larceny from any directory.
+Recompiling the standard libraries as above will disable
+all programs and libraries that had imported any previously
+compiled version of the standard libraries, so it may be a
+good idea to write-protect the compiled files (or their
+directories) afterwards.  If the lib/R6RS directory is protected
+against writes, then larceny:compile-r6rs-runtime will fail
+immediately without doing any harm.
+
+What follows is the contents of van Tonder's readme.txt file
+for version 6.0.2 (december-27-07).
 
 
 ;;;===============================================================================
@@ -123,18 +159,22 @@ LIBRARIES:
                would disagree, thus ensuring that a program blessed by this
                expander will be maximally portable.  
                 
-       - We start each expansion of a library form by removing visits of libraries 
-         in any phase and instances of libraries in phases above 0. 
-         We start each execution of a toplevel program by removing instances of
-         libraries in phase 0.
-                
+       - Any given library is visited at most once per session, and 
+         is invoked at most once per session, unless the library is redefined.
+         Thus, any state the library may have will persist during the session
+         until it is redefined.  
+
+         This behaviour, which is R6RS-compliant, avoids possible quadratic 
+         growth in the number of library invocations when importing many libraries 
+         with lots of dependencies.  
+       
        - While expanding a library form, we use an instance/visit at any phase as 
          an instance/visit at any other phase.     
                    
-       - We may create instances/visits of a library at more phases than 
+       - We may create instances/visits of more libraries than are 
          strictly required to satisfy references, but only in the case - of 
          which the semantics is unspecified in r6rs - where a library is imported 
-         for some phase but none of its bindings is used in that phase.  
+         but none of its bindings is used.  
          Specifically:
                 
          During expansion of a library or program, each library imported 
@@ -195,6 +235,42 @@ ADDITIONAL FEATURES:
  
 CHANGELOG:
 ========== 
+
+CHANGES SINCE VERSION OF NOV 6, 2007:
+-------------------------------------
+
+- ONCE PER SESSION SEMANTICS:
+  Libraries are now visited/invoked at most ONCE PER SESSION unless
+  they get redefined.  This prevents possible quadratic growth in the 
+  number of library invocations when importing many libraries with
+  lots of dependencies.  
+- LOAD ON IMPORT: 
+  Fixed issue preventing expander from being called reentrantly by
+  ex:load, ex:compile-file, etc.  These can now be used, for example, 
+  to compile/load libraries automatically on import.  
+  See example code in ex:lookup-library in runtime.scm
+  for how to do this.  
+- Fixed bug preventing certain R6RS template extensions from working.  
+  Now the following will work correctly: 
+   (syntax-case '((1 2 3) (4 5 6) (7 8 9)) ()
+     (((Var ...) 
+       (Var2 ...) ...)
+      (syntax
+       ((Var ... Var2 ...) ...))))  ;==> ((1 2 3 4 5 6) (1 2 3 7 8 9)) 
+- Improved definition of procedure LOAD in (rnrs load).
+- Now raises proper error message when using R6RS-invalid syntax
+  (define-syntax (foo x) ----) instead of (define-syntax foo (lambda (x) ----))
+- Removed identifiers ending in ":" so that code may run on Gambit.
+
+
+CHANGES SINCE VERSION OF OCT 29, 2007:
+--------------------------------------
+
+- Fixed bug where lists denoted by pattern variables in 
+  templates like ((x y) ...) were not being checked for being 
+  equal in length 
+- Fixed bug causing inconsistent/useless toplevel when syntax error
+  happened while expanding library
 
 CHANGES SINCE VERSION OF AUG 19, 2007:
 --------------------------------------

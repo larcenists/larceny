@@ -24,7 +24,7 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; ERR5RS and R6RS programs may need to require or to load
+; R7RS and R6RS programs may need to require or to load
 ; R5RS libraries.
 
 (define r5rs:load-evaluator (load-evaluator))
@@ -37,11 +37,16 @@
   (parameterize ((load-evaluator r5rs:load-evaluator))
     (apply require args)))
 
-; Larceny's ERR5RS and R6RS modes.
+; Larceny's R7RS and R6RS modes.
 ; Code names:
-;     Aeryn    ERR5RS
+;     Aeryn    R7RS and ERR5RS
 ;     D'Argo   R6RS-compatible
 ;     Spanky   R6RS-conforming (not yet implemented)
+;
+; R7RS is implemented as a veneer over ERR5RS.
+; The only difference between R7RS and ERR5RS modes is that
+; R7RS mode automatically imports at least (scheme base) while
+; ERR5RS imports nothing.
 
 (define (aeryn-evaluator exp . rest)
   (ex:repl (list exp)))
@@ -69,7 +74,7 @@
 ; Compiles Larceny's basic support for ERR5RS/R6RS/R7RS and the
 ; standard ERR5RS/R6RS/R7RS libraries.
 ;
-; FIXME:  Should use the (current-require-path) instead of
+; FIXME: Should use the (current-require-path) instead of
 ; hard-wiring names of the standard directories that contain
 ; ERR5RS/R6RS/R7RS libraries, but the (current-require-path)
 ; might contain directories that overlap, causing libraries
@@ -99,7 +104,7 @@
                   (parameterize ((current-directory
                                   (larceny:canonical-path dir)))
                     (compile-stale-libraries)))
-                '("lib/R6RS" "lib/SRFI")))
+                    '("lib")))                                          ; FIXME
     (time (compile-r6rs-runtime-core))
     (time (compile-source-libraries))))
 
@@ -217,15 +222,16 @@
 (define larceny:autoloaded-r6rs-library-files '())
 
 (define (larceny:register! fname)
-  (if (larceny:registered? fname)
-      (begin (display "Already registered: ")
-             (write fname)
-             (newline)
-             (display "Continue? ")
-             (read)))
-  (set! larceny:autoloaded-r6rs-library-files
-        (cons (larceny:absolute-path fname)
-              larceny:autoloaded-r6rs-library-files)))
+  (let ((path (larceny:absolute-path fname)))
+    (if (larceny:registered? fname)
+        (begin (display "Already registered: ")
+               (write path)
+               (newline)
+               (display "Continue? ")
+               (read)))
+    (set! larceny:autoloaded-r6rs-library-files
+          (cons path
+                larceny:autoloaded-r6rs-library-files))))
 
 (define (larceny:registered? fname)
   (member (larceny:absolute-path fname)
@@ -244,27 +250,34 @@
           ((compile-libraries-older-than-this-file)
            =>
            (lambda (reference-file)
-             (cond ((file-type=? fname ".sls")
+             (cond ((exists (lambda (suffix) (file-type=? fname suffix))
+                            *library-file-types*)
                     (compile-r6rs-file fname #f #t)
-                    (let ((fname (rewrite-file-type fname ".sls" ".slfasl")))
+                    (let ((fasl (generate-fasl-name fname)))
                       (larceny:register! fname)
-                      (load fname)
+                      (larceny:register! fasl)
+                      (load fasl)
                       #t))
-                   ((file-type=? fname ".slfasl")
-                    (let ((src (rewrite-file-type fname ".slfasl" ".sls")))
-                      (if (and (file-exists? src)
-                               (or (file-newer? src fname)
-                                   (and
-                                    (in-same-directory? reference-file fname)
-                                    (file-newer? reference-file fname))))
-                          (begin (larceny:register! src)
-                                 (compile-r6rs-file src fname #t)
-                                 (larceny:register! fname)
-                                 (load fname)
-                                 #t)
+                   ((file-type=? fname *slfasl-file-type*)
+                    (let loop ((srcnames (generate-source-names fname)))
+                      (if (null? srcnames)
+                          ;; FIXME: compiled file, no matching source
                           (begin (larceny:register! fname)
                                  (load fname)
-                                 #t))))
+                                 #t)
+                          (let ((src (car srcnames)))
+                            (if (and (file-exists? src)
+                                     (or (file-newer? src fname)
+                                         (and
+                                          (in-same-directory? reference-file
+                                                              fname)
+                                          (file-newer? reference-file fname))))
+                                (begin (larceny:register! src)
+                                       (compile-r6rs-file src fname #t)
+                                       (larceny:register! fname)
+                                       (load fname)
+                                       #t)
+                                (loop (cdr srcnames)))))))
                    (else
                     (larceny:register! fname)
                     (load fname)
@@ -413,6 +426,16 @@
 
 (define (larceny:compile-libraries path)
   (let ((basefile (compile-libraries-older-than-this-file)))
+    (define (compiled-name file)
+      (and (exists (lambda (suffix) (file-type=? file suffix))
+                   *library-file-types*)
+           (let ((slfasl
+                  (generate-fasl-name file)))
+             (cond ((not (file-exists? slfasl))
+                    slfasl)
+                   ((file-newer? basefile slfasl)
+                    slfasl)
+                   (else #f)))))
     (parameterize ((fasl-evaluator aeryn-fasl-evaluator)
                    (load-evaluator aeryn-evaluator)
                    (repl-evaluator aeryn-evaluator))
@@ -421,25 +444,15 @@
         (let ()
           (define (compile-libraries path)
             (if (larceny:directory? path)
-                (let ((files (larceny:list-directory path)))
+                (let* ((files (larceny:list-directory path))
+                       (files (larceny:sort-by-suffix-priority files)))
                   (parameterize ((current-directory path))
                     (for-each (lambda (file)
                                 (if (larceny:directory? file)
                                     (compile-libraries file)))
                               files)
                     (for-each (lambda (file)
-                                (let ((slfasl
-                                       (and (file-type=? file ".sls")
-                                            (let ((slfasl
-                                                   (rewrite-file-type
-                                                    file ".sls" ".slfasl")))
-                                              (cond ((not
-                                                      (file-exists? slfasl))
-                                                     slfasl)
-                                                    ((file-newer? basefile
-                                                                  slfasl)
-                                                     slfasl)
-                                                    (else #f))))))
+                                (let ((slfasl (compiled-name file)))
                                   (if slfasl
                                       (begin (larceny:register! file)
                                              (compile-r6rs-file file slfasl #t)
@@ -488,6 +501,8 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define *library-keywords* '(library define-library))
+
 (define (contains-libraries-only? fn)
   (let* ((nothing-but-libraries?
           (lambda (in)
@@ -495,7 +510,7 @@
                 ((or (eof-object? x)
                      (and (not (eq? x (unspecified))) ; flags are permitted
                           (not (and (pair? x)
-                                    (eq? 'library (car x))))))
+                                    (memq (car x) *library-keywords*)))))
                  (eof-object? x)))))
          (nothing-but-libraries?
           (make-file-processer/preserve-reader-state nothing-but-libraries?)))
@@ -507,21 +522,58 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Suffixes recognized during the search for R7RS/R6RS libraries.
+;
+; Order matters.  If "sld" is listed before "sls", then a file
+; named "foo.sld" will be used instead of a file named "foo.sls".
+; Although "foo.sld" and "foo.sls" both compile to "foo.slfasl",
+; compile-libraries and compile-stale-libraries will compile
+; "foo.sld" before "foo.sls" and will then skip compilation of
+; "foo.sls" because "foo.slfasl" will already exist.
+
+; Note: no initial periods here.
+
+(define *library-suffixes-source*
+  '("larceny.sld" "larceny.sls" "sld" "sls"))
+
+(define *library-suffixes-compiled*
+  '("larceny.slfasl" "slfasl"))
+
+(define (larceny:sort-by-suffix-priority filenames)
+  (define (priority filename suffixes)
+    (cond ((null? suffixes) 0)
+          ((file-type=? filename (car suffixes))
+           (length suffixes))
+          (else
+           (priority filename (cdr suffixes)))))
+  (define (greater? fn1 fn2)
+    (let ((p1 (priority fn1 *library-suffixes-source*))
+          (p2 (priority fn2 *library-suffixes-source*)))
+      (cond ((> p1 p2) #t)
+            ((= p1 p2) (string<? fn1 fn2))
+            (else #f))))
+  (list-sort greater? filenames))
+
 ; Suffixes that get rewritten when compiling a file.
+; There is only one suffix we need to recognize for compiled libraries,
+; and we need to keep it that way or autoloading will get out of hand.
 
-(define *scheme-file-types* '(".sld" ".sls" ".sch" ".scm"))
-(define *slfasl-file-type*    ".slfasl")
-
-; Suffixes recognized during the search for ERR5RS/R6RS libraries.
-; Note: no initial period here.
-
-(define *library-suffixes-source*   '("larceny.sls"    "sls"    "sld"))
-(define *library-suffixes-compiled* '("larceny.slfasl" "slfasl"))
+(define *library-file-types* '(".sld" ".sls"))
+(define *scheme-file-types*  (append *library-file-types* '(".sch" ".scm")))
+(define *slfasl-file-type*   ".slfasl")
 
 (define (generate-fasl-name fn)
   (rewrite-file-type fn
                      *scheme-file-types*
                      *slfasl-file-type*))
+
+; Returns a list of all source file names that generate-fasl-name
+; might have converted to the given fasl name.
+
+(define (generate-source-names fn)
+  (map (lambda (suffix)
+         (rewrite-file-type fn *slfasl-file-type* suffix))
+       *library-file-types*))
 
 ; Given a string that is one component of an ERR5RS/R6RS library,
 ; replaces any funny characters by a possibly Larceny-specific
