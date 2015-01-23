@@ -12,8 +12,6 @@ include/mprocs.ah
 include/mprocs.ch
 include/regs.ah
 include/regs.ch
-larceny
-twobit
 larceny.bin
 larceny.heap
 twobit.heap

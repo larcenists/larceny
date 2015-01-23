@@ -252,5 +252,5 @@
           (only (larceny r7rs macros) parameterize define-values)
           (larceny r7rs primitives))
 
-  (include "scheme/base.body.scm"))   ; FIXME: scheme/ shouldn't be necessary
+  (include "base.body.scm"))
 

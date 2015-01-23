@@ -203,7 +203,13 @@
                      #f)))))
          (unspecified))
         (else
-         (ex:load filename))))
+         (let* ((srcdir (larceny:directory-of filename))
+                (paths (current-require-path))
+                (paths (if (member srcdir paths)
+                           paths
+                           (cons srcdir paths))))
+           (parameterize ((current-require-path paths))
+            (ex:load filename))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -473,7 +479,12 @@
           'compile-library
           "contains non-library code" src))
         (dst
-         (let ((tempfile (generate-temporary-name dst)))
+         (let* ((tempfile (generate-temporary-name dst))
+                (srcdir (larceny:directory-of src))
+                (paths (current-require-path))
+                (paths (if (member srcdir paths)
+                           paths
+                           (cons srcdir paths))))
            (display "Compiling ")
            (display src)
            (newline)
@@ -486,7 +497,8 @@
             (lambda ()
               (parameterize ((fasl-evaluator aeryn-fasl-evaluator)
                              (load-evaluator aeryn-evaluator)
-                             (repl-evaluator aeryn-evaluator))
+                             (repl-evaluator aeryn-evaluator)
+                             (current-require-path paths))
                 (expand-r6rs-program src tempfile))
               (compile-file tempfile dst))
             (lambda () (delete-file tempfile)))))
@@ -796,8 +808,8 @@
 ;
 ; FIXME: the parameterize form is a workaround for OS conversions
 ; from /tmp to /private/tmp and the like.
-
-(define (larceny:directory-of fname)
+(
+define (larceny:directory-of fname)
   (case (larceny:os)
    ((unix)
     (if (absolute-path-string? fname)
