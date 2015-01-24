@@ -1182,6 +1182,33 @@
                                     bound-variables
                                     exports
                                     defs-okay?)))))))
+                      ((include-library-declarations)
+                       (match form
+                        ((keyword filenames ___)
+                         (let* ((decls-as-begin
+                                 (larceny:include-library-declarations
+                                  filenames))
+                                (decls-as-list (cdr decls-as-begin))
+                                (decls (datum->syntax keyword decls-as-list))
+                                (wraps (map (lambda (decl)
+                                              (make-wrap *usage-env* decl))
+                                            decls)))
+                           (call-with-values
+                            (lambda ()
+                              (loop wraps
+                                    forms
+                                    syntax-defs
+                                    bound-variables
+                                    exports
+                                    defs-okay?))
+                            (lambda (forms
+                                     syntax-defs bound-variables exports)
+                              (loop (cdr ws)
+                                    forms
+                                    syntax-defs
+                                    bound-variables
+                                    exports
+                                    defs-okay?)))))))
                       ((include-library-declarations cond-expand)
                        (assert (begin "FIXME: not yet implemented" #f)))
                       ((export)
@@ -1209,7 +1236,7 @@
                          ;; Returns four values to which the continue
                          ;; procedure can be applied.
 
-                         (define (process-begin-body form)
+                         (define (process-begin-body form defs-okay?)
                            (loop (map (lambda (exp)
                                         (make-wrap *usage-env* exp))
                                       (cdr form))
@@ -1217,8 +1244,7 @@
                                  syntax-defs
                                  bound-variables
                                  exports
-                                 (or defs-okay?
-                                     (eq? body-type 'define-library))))
+                                 defs-okay?))
 
                          ;; Given the values returned by process-begin-body,
                          ;; continues the loop.
@@ -1232,16 +1258,20 @@
                                   exports
                                   defs-okay?))
 
+                         ;; If it was an ordinary begin (not a begin
+                         ;; produced by include-library-declarations),
+                         ;; then definitions and expressions are okay.
+
                          (define (usual-action)
                            (call-with-values
-                            (lambda () (process-begin-body form))
+                            (lambda () (process-begin-body form #t))
                             continue))
 
                          (define (parameterized-action paths form)
                            (call-with-values
                             (lambda ()
                              (parameterize ((current-require-path paths))
-                              (process-begin-body form)))
+                              (process-begin-body form defs-okay?)))
                             continue))
 
                          (define (extend-search-path)
@@ -2844,6 +2874,7 @@
     (register-macro! 'include-ci (make-expander invalid-form))         ; [R7RS]
     (register-macro! 'include-library-declarations                     ; [R7RS]
                      (make-expander invalid-form))                     ; [R7RS]
+    (register-macro! 'begin (make-expander invalid-form))              ; [R7RS]
     (register-macro! 'cond-expand (make-expander invalid-form))        ; [R7RS]
 
     ;;==========================================================================
