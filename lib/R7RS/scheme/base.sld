@@ -250,7 +250,8 @@
                 open-output-string get-output-string)
           (only (srfi :9 records) define-record-type)
           (only (larceny r7rs macros) parameterize define-values)
-          (larceny r7rs primitives))
+          (larceny r7rs primitives)
+          (larceny r7rs primitives lowlevel))
 
   (include "base.body.scm"))
 

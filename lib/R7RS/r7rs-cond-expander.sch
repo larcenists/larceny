@@ -226,7 +226,7 @@
 
 ;;; Given the name of an R7RS/R6RS library and the name of the file
 ;;; in which the autoloader expects to find it (based on file naming
-;;; conventions, returns true if and only if the library is actually
+;;; conventions), returns true if and only if the library is actually
 ;;; defined within the file.
 ;;;
 ;;; FIXME: for compiled files, this remains heuristic.
@@ -314,6 +314,8 @@
     (string<? (symbol->string sym1)
               (symbol->string sym2)))
 
+  ;; ignores versions
+
   (define (lexicographic lib1 lib2)
     (cond ((null? lib1)
            (not (null? lib2)))
@@ -324,9 +326,13 @@
            (or (symbol<? (car lib1) (car lib2))
                (and (eq? (car lib1) (car lib2))
                     (lexicographic (cdr lib1) (cdr lib2)))))
-          ((symbol? (car lib1))
-           #f)
-          ((symbol? (car lib2))
+          ((and (integer? (car lib1))
+                (integer? (car lib2)))
+           (or (< (car lib1) (car lib2))
+               (and (= (car lib1) (car lib2))
+                    (lexicographic (cdr lib1) (cdr lib2)))))
+          ((and (integer? (car lib1))
+                (symbol? (car lib2)))
            #t)
           (else
            #f)))

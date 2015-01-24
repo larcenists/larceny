@@ -29,7 +29,7 @@
 
 (define exact-integer? 'FIXME)
 
-(define features 'FIXME)
+(define features larceny:features)
 
 (define file-error? 'FIXME)
 
