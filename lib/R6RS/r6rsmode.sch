@@ -87,10 +87,12 @@
                       (larceny:canonical-path "lib/R6RS")))
         (compile-file "r6rsmode.sch")
         (compile-file "../R7RS/r7rs-includer.sch")                      ; FIXME
+        (compile-file "../R7RS/r7rs-cond-expander.sch")                 ; FIXME
         (compile-file "r6rs-compat-larceny.sch")
         (compile-file "r6rs-runtime.sch")
         (compile-file "r6rs-expander.sch")
         (require 'r7rs-includer)                                        ; FIXME
+        (require 'r7rs-cond-expander)                                   ; FIXME
         (require 'r6rs-compat-larceny)
         (require 'r6rs-runtime)
         (require 'r6rs-expander)
@@ -121,6 +123,7 @@
 
 (define (larceny:load-r6rs-package)
   (require 'r7rs-includer)                                              ; FIXME
+  (require 'r7rs-cond-expander)
   (require 'r6rs-compat-larceny)
   (require 'r6rs-runtime)
   (require 'r6rs-expander)
@@ -299,6 +302,27 @@
              (write libname)
              (newline)))
 
+  (let ((fname (larceny:find-r6rs-library libname)))
+    (if fname
+        (let* ((srcdir (larceny:directory-of fname))
+               (paths (current-require-path))
+               (paths (if (member srcdir paths)
+                          paths
+                          (cons srcdir paths))))
+          (parameterize ((larceny:r6rs-expand-only #f)
+                         (current-require-path paths))
+            (load-r6rs-library fname)))
+        (assertion-violation 'lookup-library "library not loaded" libname))))
+
+;;; Returns the name of a file that can reasonably be expected
+;;; to define the given library, or returns #f if no such file
+;;; is found.
+;;;
+;;; FIXME:  It might be a good idea to look at the contents of
+;;; the file instead of relying entirely on file naming conventions.
+
+(define (larceny:find-r6rs-library libname)
+
   (let* ((libpath (map symbol->string libname))
          (libpath (map larceny:filename-mangler libpath))
          (libpaths (do ((libpath (reverse libpath) (cdr libpath))
@@ -335,16 +359,39 @@
                           libpaths))
               require-paths)
              #f))))
-    (if fname
-        (let* ((srcdir (larceny:directory-of fname))
-               (paths (current-require-path))
-               (paths (if (member srcdir paths)
-                          paths
-                          (cons srcdir paths))))
-          (parameterize ((larceny:r6rs-expand-only #f)
-                         (current-require-path paths))
-            (load-r6rs-library fname)))
-        (assertion-violation 'lookup-library "library not loaded" libname))))
+    fname))
+
+;;; Given the name of an R7RS/R6RS library and the name of the file
+;;; in which the autoloader expects to find it (based on file naming
+;;; conventions, returns true if and only if the library is actually
+;;; defined within the file.
+;;;
+;;; FIXME: for compiled files, this remains heuristic.
+
+(define (larceny:find-r6rs-library-really? libname fname)
+
+  (define (search-source-library-file fname)
+    (call-with-input-file
+     fname
+     (lambda (p)
+       (let loop ()
+         (let ((x (read p)))
+           (cond ((eof-object? x)
+                  #f)
+                 ((and (pair? x)
+                       (memq (car x) *library-keywords*)
+                       (pair? (cdr x))
+                       (equal? (cadr x) libname))
+                  #t)
+                 (else (loop))))))))
+
+  (cond ((file-type=? fname *slfasl-file-type*)
+         (let loop ((srcnames (generate-source-names fname)))
+           (cond ((null? srcnames) #f)
+                 ((file-exists? (car srcnames))
+                  (search-source-library-file (car srcnames)))
+                 (else (loop (cdr srcnames))))))
+        (else (search-source-library-file fname))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

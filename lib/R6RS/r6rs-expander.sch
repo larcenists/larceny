@@ -1209,8 +1209,18 @@
                                     bound-variables
                                     exports
                                     defs-okay?)))))))
-                      ((include-library-declarations cond-expand)
-                       (assert (begin "FIXME: not yet implemented" #f)))
+                      ((cond-expand)
+                       (let* ((decls
+                               (larceny:cond-expand (syntax->datum form)))
+                              (wraps (map (lambda (decl)
+                                              (make-wrap *usage-env* decl))
+                                            decls)))
+                         (loop (append wraps (cdr ws))
+                               forms
+                               syntax-defs
+                               bound-variables
+                               exports
+                               defs-okay?)))
                       ((export)
                        (match form
                         ((- sets ___)
