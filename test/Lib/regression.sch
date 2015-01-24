@@ -568,6 +568,12 @@
    (test "Ticket #688"                  ; Bug in Larceny 0.97 and previous
          ((apply bug-688 bug-688-input))
          bug-688-input)
+
+   (test "Ticket #681"                  ; Bug in Larceny 0.97 and previous
+         (let ((a 'hi))
+           (define-values (a weird) (let ((w (not a))) (values '_ w)))
+           weird)
+         #f)
    ))
 
 (define (bug-105-test1)

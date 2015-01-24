@@ -53,11 +53,32 @@
    ;; Note: There is no R7RS-compatible output syntax for these identifiers
    ;; that could be read by a strict R6RS read procedure, so we might as
    ;; well have the write procedure produce the most readable R7RS syntax.
+   ;;
+   ;; FIXME:  The results of the following test aren't mandated by R7RS,
+   ;; so it's commented out and replaced by two tests the current write
+   ;; procedure can pass.
 
+   ' ; FIXME
    (print-test "R7RS peculiar identifiers"
                write
                '(+ - ++ -@ +: -? +%1 -!. +@@ +.- -.@ -.. .. ... ..+ .@)
                "(+ - ++ -@ +: -? +%1 -!. +@@ +.- -.@ -.. .. ... ..+ .@)")
+
+   (print-test "R7RS peculiar identifiers"
+               write
+               '(+ - .. ... ..+ .@)
+               "(+ - .. ... ..+ .@)")
+
+   (print-test "R7RS peculiar identifiers"
+               (lambda (x out)
+                 (let* ((q (open-output-string))
+                        (s (begin (write x q) (get-output-string q)))
+                        (p (open-input-string s)))
+                   (if (equal? x (read p))
+                       (display "okay" out)
+                       (display "not okay" out))))
+               '(+ - ++ -@ +: -? +%1 -!. +@@ +.- -.@ -.. .. ... ..+ .@)
+               "okay")
 
    (print-test "R7RS two-character identifiers"
                write

@@ -2,4 +2,4 @@
 
   (export read)
 
-  (import (rnrs base)))
+  (import (rnrs io simple)))

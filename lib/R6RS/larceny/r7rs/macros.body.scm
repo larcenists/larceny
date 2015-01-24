@@ -1,28 +1,39 @@
-;;; From src/Compiler/usual.sch
+;;; From R7RS 7.3
 
 (define-syntax define-values
   (syntax-rules ()
-    ((define-values (<name> ...) <body> ...)
-     ; =>
-     (define-values helper (<name> ...) () (<name> ...) <body> ...))
-    ((define-values helper () (<temp> ...) (<name> ...) <body> ...)
-     ; =>
+    ((define-values () expr)
+     (define dummy
+       (call-with-values
+         (lambda () expr)
+         (lambda args #f))))
+    ((define-values (var) expr)
+     (define var expr))
+    ((define-values (var0 var1 ... varn) expr)
      (begin
-       (define <name> #f) 
+       (define var0
+         (call-with-values (lambda () expr) list))
+       (define var1
+         (let ((v (cadr var0)))
+           (set-cdr! var0 (cddr var0))
+           v))
        ...
-       (define <ignored>
-         (call-with-values
-          (lambda () <body> ...)
-          (lambda (<temp> ...)
-            (set! <name> <temp> ) 
-            ...
-            )))
-       ))
-    ((define-values helper (<var1> <var2> ...) <temp>s
-       (<name> ...) <body> ...)
-     ; =>
-     (define-values helper (<var2> ...) (<temp> . <temp>s)
-       (<name> ...) <body> ...))))
+       (define varn
+         (let ((v (cadr var0))) (set! var0 (car var0)) v))))
+    ((define-values (var0 var1 ... . varn) expr)
+     (begin
+       (define var0
+         (call-with-values (lambda () expr) list))
+       (define var1
+         (let ((v (cadr var0)))
+           (set-cdr! var0 (cddr var0))
+           v))
+       ...
+       (define varn
+         (let ((v (cdr var0))) (set! var0 (car var0)) v))))
+    ((define-values var expr)
+     (define var
+       (call-with-values (lambda () expr) list)))))
 
 ;;; From src/Compiler/usual.sch
 
