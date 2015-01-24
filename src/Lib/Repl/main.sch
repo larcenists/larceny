@@ -165,7 +165,7 @@
          (emode (get-feature 'execution-mode)))
 
     (case emode
-     ((r5rs err5rs)
+     ((r5rs err5rs r7rs)
       (failsafe-load-init-files)
       (failsafe-process-arguments)
       (if (herald)
@@ -174,9 +174,14 @@
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
       (add-require-path!)
-      (if (eq? emode 'err5rs)
-          (begin (aeryn-mode!)
-                 (writeln "ERR5RS mode (no libraries have been imported)")))
+      (case emode
+       ((err5rs r7rs)
+        (aeryn-mode!)))
+      (case emode
+       ((err5rs)
+        (writeln "ERR5RS mode (no libraries have been imported)"))
+       ((r7rs)
+        ((repl-evaluator) '(import (scheme base)))))
       (r5rs-entry-point argv))
 
      ; R6RS modes are batch modes, so we want to exit rather
@@ -357,6 +362,9 @@
            ((member arg '("-fold-ccase" "--fold-case" "/fold-case"))
             (set! clr:case-sensitivity? #f)
             (loop (+ i 1) args))
+
+           ;; FIXME: ("-r7rs" "--r7rs" "/r7rs") goes here eventually
+
            ((member arg '("-err5rs" "--err5rs" "/err5rs"))
             (set! clr:execution-mode 'err5rs)
             (loop (+ i 1) args))

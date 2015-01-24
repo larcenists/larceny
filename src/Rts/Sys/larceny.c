@@ -144,6 +144,7 @@ int main( int argc, char **os_argv )
   command_line_options.nofoldcase = 0;
   command_line_options.r5rs = 0;
   command_line_options.err5rs = 0;
+  command_line_options.r7rs = 0;
   command_line_options.r6rs = 0;
   command_line_options.ignore1 = 0;
   command_line_options.r6fast = 0;
@@ -728,6 +729,8 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (hstrcmp( *argv, "-err5rs" ) == 0)
       o->err5rs = 1;
+    else if (hstrcmp( *argv, "-r7rs" ) == 0)
+      o->r7rs = 1;
     else if (hstrcmp( *argv, "-r6rs" ) == 0) {
       o->r6rs = 1;
       o->nobanner = 1;
@@ -812,10 +815,11 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->foldcase && o->nofoldcase)
     param_error( "Both -foldcase and -nofoldcase selected." );
 
-  if ((o->r5rs && (o->err5rs || o->r6rs)) ||
-      (o->err5rs && (o->r5rs || o->r6rs)) ||
-      (o->r6rs && (o->r5rs || o->err5rs)))
-    param_error( "More than one of -r5rs -err5rs -r6rs selected." );
+  if ((o->r5rs && (o->err5rs || o->r6rs || o->r7rs)) ||
+      (o->err5rs && (o->r5rs || o->r6rs || o->r7rs)) ||
+      (o->r6rs && (o->r5rs || o->err5rs || o->r7rs)) ||
+      (o->r7rs && (o->r5rs || o->err5rs || o->r6rs)))
+    param_error( "More than one of -r5rs -err5rs -r6rs -r7rs selected." );
 
   if ((o->r6slow || o->r6pedantic) &&
       ((! (o->r6rs)) || (! (o->r6slow)) ||
@@ -828,8 +832,8 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->r6slow && (strcmp (o->r6path, "") != 0))
     param_error( "The -slow and -path options are incompatible." );
 
-  if ((strcmp (o->r6program, "") != 0) && (! (o->r6rs)))
-    param_error( "Missing -r6rs option." );
+  if ((strcmp (o->r6program, "") != 0) && (! (o->r6rs)) && (! (o->r7rs)))
+    param_error( "Missing -r6rs or -r7rs option." );
 
   if (o->ignore1 && (! (o->r6program)))
     param_error( "Missing -program option." );
@@ -1260,10 +1264,10 @@ static char *helptext[] = {
   "     Use UTF-8 as default for console and file io.",
   "  -utf16",
   "     Use UTF-16 as default for console and file io (not yet allowed).",
+  "  -r7rs",
+  "     Enter an R7RS read/eval/print loop.",
   "  -r5rs",
-  "     Enter Larceny's traditional read/eval/print loop (the default).",
-  "  -err5rs",
-  "     Enter an ERR5RS read/eval/print loop.",
+  "     Enter an R5RS-style read/eval/print loop (the default, for now).",
   "  -r6rs",
   "     Execute an R6RS-style program in batch mode.",
   "     The following option should also be specified:",
@@ -1279,7 +1283,7 @@ static char *helptext[] = {
   "  -- <argument> ...",
   "     Tell (command-line-arguments) to return #(<argument> ...)",
   "     This option, if present, must come last.",
-  "     In R5RS and ERR5RS modes, Larceny's standard heap interprets",
+  "     In R5RS, ERR5RS, and R7RS modes, Larceny's standard heap interprets",
   "     these command line arguments:",
   "         -e <expr>",
   "           Evaluate <expr> at startup.",
@@ -1294,11 +1298,18 @@ static char *helptext[] = {
 
 static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
+  "  -err5rs",
+  "     Enter an ERR5RS read/eval/print loop.",
+  "  -transcoder nn",
+  "     Use transcoder nn for console io.",
+#if 0
   "  -unsafe",
   "     Crash spectacularly when errors occur.",
-  "  These five options may accompany the -r6rs option:",
+#endif
+  "  This options may accompany the -r6rs or -r7rs option:",
   "       -ignore1",
   "          Ignore the first line of the file specified by -program.",
+#if 0
   "       -fast",
   "          Execute the R6RS-style program as compiled code (the default).",
   "       -slow",
@@ -1307,8 +1318,7 @@ static char *wizardhelptext[] = {
   "          Execute in Spanky mode; must be accompanied by -slow.",
   "       -but-not-that-pedantic",
   "          Modifies -pedantic, which must also be specified.",
-  "  -transcoder nn",
-  "     Use transcoder nn for console io.",
+#endif
 #if !defined(BDW_GC)
   "  -annoy-user",
   "     Print a bunch of annoying debug messages, usually about GC.",
@@ -1463,7 +1473,7 @@ static char *wizardhelptext[] = {
   "  -rhashrep",
   "     Use a hashtable (array) representation of the remembered set.",
   "  -rbitsrep",
-  "     Use a bitmap (tree) representation of the remembred set.",
+  "     Use a bitmap (tree) representation of the remembered set.",
 #endif
   "  -ticks nnnn",
   "     Set the initial countdown timer interval value.",

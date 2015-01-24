@@ -247,6 +247,7 @@
     ((execmode)
      (case (get-feature feature$execmode)
       ((0)   'r5rs)
+      ((5)   'r7rs)
       ((1)   'err5rs)
       ((2 3) 'dargo)
       (else  'spanky)))

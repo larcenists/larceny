@@ -69,6 +69,7 @@ struct opt {
   bool       nofoldcase;        /* case-sensitive mode */
   bool       r5rs;              /* R5RS mode */
   bool       err5rs;            /* ERR5RS mode */
+  bool       r7rs;              /* R7RS mode */
   bool       r6rs;              /* R6RS (batch/script) mode */
   bool       ignore1;           /* R6RS ignore-line-1 mode; requires r6rs */
   bool       r6fast;            /* R6RS-compatible mode; requires r6rs */
