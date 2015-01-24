@@ -361,38 +361,6 @@
              #f))))
     fname))
 
-;;; Given the name of an R7RS/R6RS library and the name of the file
-;;; in which the autoloader expects to find it (based on file naming
-;;; conventions, returns true if and only if the library is actually
-;;; defined within the file.
-;;;
-;;; FIXME: for compiled files, this remains heuristic.
-
-(define (larceny:find-r6rs-library-really? libname fname)
-
-  (define (search-source-library-file fname)
-    (call-with-input-file
-     fname
-     (lambda (p)
-       (let loop ()
-         (let ((x (read p)))
-           (cond ((eof-object? x)
-                  #f)
-                 ((and (pair? x)
-                       (memq (car x) *library-keywords*)
-                       (pair? (cdr x))
-                       (equal? (cadr x) libname))
-                  #t)
-                 (else (loop))))))))
-
-  (cond ((file-type=? fname *slfasl-file-type*)
-         (let loop ((srcnames (generate-source-names fname)))
-           (cond ((null? srcnames) #f)
-                 ((file-exists? (car srcnames))
-                  (search-source-library-file (car srcnames)))
-                 (else (loop (cdr srcnames))))))
-        (else (search-source-library-file fname))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Expands an R6RS program into an R5RS program that can be
@@ -527,7 +495,7 @@
 (define (compile-r6rs-file src dst libraries-only?)
 
   (cond ((and libraries-only?
-              (not (contains-libraries-only? src)))
+              (not (larceny:contains-libraries-only? src)))
          (assertion-violation
           'compile-library
           "contains non-library code" src))
@@ -568,7 +536,7 @@
 
 (define *library-keywords* '(library define-library))
 
-(define (contains-libraries-only? fn)
+(define (larceny:contains-libraries-only? fn)
   (let* ((nothing-but-libraries?
           (lambda (in)
             (do ((x (read in) (read in)))
@@ -781,6 +749,8 @@
             (loop (cdr probe))
             (list->string chars))))))
 
+;;; FIXME: this shouldn't have to write into the current directory.
+
 (define (larceny:list-directory path)
   (if (not (larceny:directory? path))
       '()
@@ -861,8 +831,8 @@
 ;
 ; FIXME: the parameterize form is a workaround for OS conversions
 ; from /tmp to /private/tmp and the like.
-(
-define (larceny:directory-of fname)
+
+(define (larceny:directory-of fname)
   (case (larceny:os)
    ((unix)
     (if (absolute-path-string? fname)
