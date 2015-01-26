@@ -1,12 +1,15 @@
-;;; FIXME:  Although this is R7RS-conformant, it isn't very good.
-;;; We could provide millisecond resolution via memstats, but
-;;; memstats does an awful lot of allocation, and the whole point
-;;; of using jiffies is to avoid excessive allocation.
-
-(define (current-second)
-  (inexact (current-seconds)))
-
-(define (current-jiffy)
-  (current-seconds))
+;;; Jiffies have one-second resolution, and are reckoned with
+;;; zero jiffies corresponding to the time this library was loaded.
 
 (define (jiffies-per-second) 1)
+
+(define jiffies-per-second-as-float (inexact (jiffies-per-second)))
+
+(define arbitrary-basetime (current-second))
+
+(define (current-jiffy)
+  (let* ((t (current-second))
+         (j (- t arbitrary-basetime))
+         (j (* jiffies-per-second-as-float j)))
+    (exact (round j))))
+

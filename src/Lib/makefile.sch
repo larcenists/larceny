@@ -175,6 +175,7 @@
     "errmsg"            ; error messages
     "error"             ; error/reset system
     "raise"             ; R6RS exception mechanism
+    "time"              ; time in seconds
     "timer"             ; timer interrupts
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure

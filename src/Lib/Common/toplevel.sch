@@ -1711,6 +1711,7 @@
   (environment-set! larc 'unspecified unspecified)
   (environment-set! larc 'undefined undefined)
 
+  (environment-set! larc 'current-second current-second)
   (environment-set! larc 'current-seconds current-seconds)
   (environment-set! larc 'twobit-timer-hook twobit-timer-hook)
 
