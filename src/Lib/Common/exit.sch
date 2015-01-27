@@ -16,11 +16,9 @@
 	(else
          (sys$exit (if (car rest) 0 1)))))
 
-;;; FIXME: this runs exit procedures before the after procedures
 ;;; FIXME: doesn't guard against exceptions in exit or after procedures
 
 (define (exit . rest)
-  (run-exit-procedures)
   ((exit-continuation)
    (if (pair? rest)
        (car rest)

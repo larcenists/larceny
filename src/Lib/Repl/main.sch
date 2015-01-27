@@ -36,6 +36,7 @@
      (for-each eval *interactive-eval-list*) ; FIXME: used only for JavaDot?
      ($$trace "In interactive-entry-point")
      (interactive-entry-point0 argv)))
+  (run-exit-procedures)
   (emergency-exit))
 
 (define (interactive-entry-point0 argv)

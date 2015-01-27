@@ -753,7 +753,12 @@
             (loop (cdr probe))
             (list->string chars))))))
 
-;;; FIXME: this shouldn't have to write into the current directory.
+;;; FIXME:  This writes into the current directory.
+;;; That's almost okay when compiling, because the compiler
+;;; will probably write into the directory anyway.
+;;; After Larceny's list-directory procedure has been tested
+;;; under Windows and any other weird operating systems, this
+;;; can probably be replaced by a call to list-directory.
 
 (define (larceny:list-directory path)
   (if (not (larceny:directory? path))

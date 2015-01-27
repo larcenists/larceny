@@ -346,7 +346,7 @@
     (define (find-available-libraries! path)
       (if (and (larceny:directory? path)
                (not (member path directories-searched)))
-          (let* ((files (larceny:list-directory path))
+          (let* ((files (list-directory path))
                  (files (larceny:sort-by-suffix-priority files)))
             (set! directories-searched
                   (cons path directories-searched))

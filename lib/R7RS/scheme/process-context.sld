@@ -11,6 +11,6 @@
 
   (import (rnrs base)
           (rnrs programs)
-          (larceny r7rs primitives lowlevel))
+          (larceny r7rs primitives))
 
   (include "process-context.body.scm"))
