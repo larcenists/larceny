@@ -300,6 +300,26 @@
     (error "setenv: not a string: " value))
   (unspecified))
 
+(define (get-environment-variables)
+  (define (name-part s)
+    (let* ((n (string-length s))
+           (chars (string->list s))
+           (probe (memv #\= chars)))
+      (if (not probe)
+          s
+          (substring s 0 (- n (length probe))))))
+  (let ((generator (syscall syscall:listenv-init)))
+    (if generator
+        (let loop ((entries '()))
+          (let ((result (syscall syscall:listenv generator)))
+            (cond ((bytevector-like? result)
+                   (loop (cons (sys$cstring->string result) entries)))
+                  (else
+                   (let* ((names (map name-part entries)))
+                     (map (lambda (name) (list name (getenv name)))
+                          (reverse names)))))))
+        '())))
+
 (define (get-errno)
   (syscall syscall:errno))
 
@@ -345,6 +365,30 @@
         (if (not (string? path))
             (error "current-directory: " path " is not a string."))
         (syscall syscall:chdir (sys$string->cstring path)))))
+
+(define (list-directory . rest)
+  (define excluded-names '("." ".."))
+  (if (null? rest)
+      (list-directory (current-directory))
+      (let ((path (car rest)))
+        (cond ((string? path)
+               (let ((generator
+                      (syscall syscall:listdir-open
+                               (sys$string->cstring path))))
+                 (and generator
+                      (let loop ((filenames '()))
+                        (let ((result (syscall syscall:listdir generator)))
+                          (cond ((bytevector-like? result)
+                                 (let* ((name (sys$cstring->string result))
+                                        (filenames
+                                         (if (member name excluded-names)
+                                             filenames
+                                             (cons name filenames))))
+                                   (loop filenames)))
+                                (else
+                                 (syscall syscall:listdir-close generator)
+                                 (list-sort string<? filenames))))))))
+              (else (error 'list-directory (errmsg 'msg:notstring) path))))))
 
 (define (sys$c-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:c-ffi-apply trampoline arg-encoding ret-encoding actuals))

@@ -231,7 +231,7 @@
              (newline out))))))
 
 (define url:deprecated
-  "http://larceny.ccs.neu.edu/larceny-trac/wiki/DeprecatedFeatures")
+  "https://github.com/larcenists/larceny/wiki/DeprecatedFeatures")
 
 ; List of deprecated features for which a warning has already
 ; been issued.

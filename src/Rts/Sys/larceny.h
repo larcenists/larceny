@@ -146,6 +146,8 @@ extern void primitive_get_stats( word );
 extern void primitive_dumpheap( word, word );
 extern void primitive_getenv( word );
 extern void primitive_setenv( word, word );
+extern void primitive_listenv_init( void );
+extern void primitive_listenv( word );
 extern void primitive_garbage_collect( word, word );
 extern void primitive_iflush( word );
 extern void primitive_flonum_exp( word, word );

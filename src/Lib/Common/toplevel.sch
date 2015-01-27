@@ -305,6 +305,7 @@
   (environment-set! r4rs 'close-output-port close-output-port)
   (environment-set! r4rs 'read read)
   (environment-set! r4rs 'read-char read-char)
+
   (environment-set! r4rs 'peek-char peek-char)
   (environment-set! r4rs 'eof-object? eof-object?)
   (environment-set! r4rs 'char-ready? char-ready?)
@@ -1300,6 +1301,7 @@
   (environment-set! larc 'reset-handler reset-handler)
   (environment-set! larc 'call-with-reset-handler call-with-reset-handler)
   (environment-set! larc 'exit exit)
+  (environment-set! larc 'emergency-exit emergency-exit)
   (environment-set! larc 'add-exit-procedure! add-exit-procedure!)
   (environment-set! larc 'add-init-procedure! add-init-procedure!)
   (environment-set! larc 'quit quit)
@@ -1579,11 +1581,14 @@
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
   (environment-set! larc 'setenv setenv)
+  (environment-set! larc 'get-environment-variables get-environment-variables)
   (environment-set! larc 'get-errno get-errno)
   (environment-set! larc 'set-errno! set-errno!)
   (environment-set! larc 'make-env-parameter make-env-parameter)
   (environment-set! larc 'system system)
   (environment-set! larc 'current-directory current-directory)
+  (environment-set! larc 'list-directory list-directory)
+
 
   ;; Low-level API to the interpreter
 

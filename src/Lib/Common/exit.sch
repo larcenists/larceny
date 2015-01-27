@@ -8,17 +8,24 @@
 
 ; Exit: leave the system.
 
-(define (exit . rest)
-  (run-exit-procedures)
+(define (emergency-exit . rest)
   (cond ((null? rest)
 	 (sys$exit 0))
 	((and (null? (cdr rest)) (fixnum? (car rest)))
 	 (sys$exit (car rest)))
-	((null? (cdr rest))
-         (sys$exit (if (car rest) 0 1)))
 	(else
-	 (error "exit: too many arguments.")
-	 #t)))
+         (sys$exit (if (car rest) 0 1)))))
+
+;;; FIXME: this runs exit procedures before the after procedures
+;;; FIXME: doesn't guard against exceptions in exit or after procedures
+
+(define (exit . rest)
+  (run-exit-procedures)
+  ((exit-continuation)
+   (if (pair? rest)
+       (car rest)
+       0)))
+      
 
 (define *init-procedures* '())
 (define *exit-procedures* '())
@@ -43,6 +50,16 @@
 (define (run-exit-procedures)
   (for-each (lambda (x) (x)) *exit-procedures*))
 
+
+; The exit procedure calls the value of this parameter.
+; If that value is a continuation, then any outstanding
+; dynamic-wind procedures will be run.
+
+(define exit-continuation
+  (make-parameter "exit-continuation"
+                  (lambda args
+                    (apply emergency-exit args))
+                  procedure?))
 
 ; Quit: do something system-defined.  The REPL overrides this to allow
 ; QUIT at a nested REPL to return from the REPL.

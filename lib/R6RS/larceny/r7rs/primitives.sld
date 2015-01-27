@@ -45,7 +45,10 @@
 
   (export
 
+   emergency-exit
    ex:interaction-environment
+   exit
+   get-environment-variables
    getenv
    larceny:features
    )
@@ -54,6 +57,9 @@
 
    (primitives
 
+    emergency-exit
     ex:interaction-environment
+    exit
+    get-environment-variables
     getenv
     larceny:features)))

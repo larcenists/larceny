@@ -254,6 +254,25 @@ extern void osdep_cwd( void );
      Returns #f on error or if unimplemented, otherwise the string.
      */
 
+extern void osdep_listdir_open( word w_path );
+  /* Opens the directory and returns its state in a new bytevector.
+
+     Returns false on error.
+     */
+
+extern void osdep_listdir( word generator );
+  /* Given a generator created by osdep_listdir_open, returns
+     the next filename in the directory as a C string.
+
+     Returns false on error.
+     */
+
+extern void osdep_listdir_close( word generator );
+  /* Given a generator created by osdep_listdir_open, closes it.
+
+     Returns false on error, true on success.
+     */
+
 extern word osdep_dlopen( char *path );
   /* 'path' is an untagged pointer to a string.
       
