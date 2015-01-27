@@ -157,6 +157,9 @@ void osdep_cwd( void )
   }
 }
 
+/* FIXME: this should work with gcc and many other compilers, */
+/* but probably won't work with Microsoft compilers.          */
+
 /* returns a freshly allocated bytevector containing dp */
 
 void osdep_listdir_open( word w_path )
@@ -177,9 +180,6 @@ void osdep_listdir_open( word w_path )
   *((word *) string_data( q )) = (word *) dp;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
-
-/* FIXME: this should work with gcc and many other compilers, */
-/* but probably won't work with Microsoft compilers.          */
 
 /* given a bytevector created by osdep_listenv_init, returns */
 /* the next file inthe directory and updates the bytevector  */

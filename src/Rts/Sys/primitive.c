@@ -73,7 +73,6 @@ void primitive_listenv_init( void )
 /* given a bytevector created by primitive_listenv_init, returns */
 /* the next environment variable and updates the bytevector      */
 /* FIXME: hard-codes 4 as the header size (in bytes)             */
-/* FIXME: doesn't update the generator                           */
 
 void primitive_listenv( generator )
 word generator;

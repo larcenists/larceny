@@ -71,28 +71,12 @@ void osdep_cwd( void )
   globals[G_RESULT] = FALSE_CONST;
 }
 
-/* returns a freshly allocated bytevector containing dp */
+/* returns #f */
 
 void osdep_listdir_open( word w_path )
 {
-  DIR *dp;
-  char *path = string2asciiz( w_path );
-  word *q;
-
-  dp = opendir( path );
-
-  if (dp == NULL) {
-    globals[G_RESULT] = FALSE_CONST;
-    return;
-  }
-
-  q = alloc_from_heap( sizeof(word) + sizeof(DIR *) );
-  *q = mkheader( sizeof(DIR *), BV_HDR );
-  *((word *) string_data( q )) = (word *) dp;
-  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+  globals[G_RESULT] = FALSE_CONST;
 }
-
-/* returns #f */
 
 void osdep_listdir( generator )
 word generator;
@@ -103,6 +87,7 @@ word generator;
 void osdep_listdir_close( generator )
 word generator;
 {
+  globals[G_RESULT] = FALSE_CONST;
 }
 
 /* Return 0.0 */

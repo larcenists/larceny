@@ -305,7 +305,6 @@
   (environment-set! r4rs 'close-output-port close-output-port)
   (environment-set! r4rs 'read read)
   (environment-set! r4rs 'read-char read-char)
-
   (environment-set! r4rs 'peek-char peek-char)
   (environment-set! r4rs 'eof-object? eof-object?)
   (environment-set! r4rs 'char-ready? char-ready?)
