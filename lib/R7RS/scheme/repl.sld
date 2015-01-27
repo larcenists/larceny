@@ -13,4 +13,7 @@
 
   (export interaction-environment)
 
-  (import (larceny r7rs primitives lowlevel)))
+  (import (rnrs base)
+          (larceny r7rs primitives lowlevel))
+
+  (include "repl.body.scm"))

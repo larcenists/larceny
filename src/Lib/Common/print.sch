@@ -374,6 +374,11 @@
 		      (write-char #\" p))
 	       (printstr x p)))
 
+          ;; FIXME: The environment?, code-object?, and hashtable? clauses
+          ;; look silly and probably are.  The code-object? part appears
+          ;; to have come from a pre-2006 version of Twobit (see
+          ;; src/Compiler/pass2.aux.sch).
+
 	  ((vector? x) (cond ((environment? x) (printenvironment x p slashify))
                              ((code-object? x) (printcodeobject x p slashify))
                              ((hashtable? x)   (printhashtable x p slashify))
@@ -386,6 +391,8 @@
 	  ((port? x)                (printport x p slashify))
 	  ((eq? x (unspecified))    (printstr "#!unspecified" p))
 	  ((eq? x (undefined))      (printstr "#!undefined" p))
+          ((environment? x)
+           ((environment-printer) x p slashify))
 	  ((structure? x)
 	   ((structure-printer) x p slashify))
 	  (else                     (printweird x p slashify))))

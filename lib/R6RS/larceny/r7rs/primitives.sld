@@ -45,8 +45,8 @@
 
   (export
 
+   ex:interaction-environment
    getenv
-   interaction-environment
    larceny:features
    )
 
@@ -54,6 +54,6 @@
 
    (primitives
 
+    ex:interaction-environment
     getenv
-    interaction-environment
     larceny:features)))

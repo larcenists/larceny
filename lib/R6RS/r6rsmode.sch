@@ -184,13 +184,15 @@
         (else
          (ex:run-r6rs-program filename))))
 
-(define (load-r6rs-library-or-program filename)
+(define (load-r6rs-library-or-program filename . rest)
+  (define env (and (pair? rest) (car rest)))
   (larceny:load-r6rs-package)
   (cond ((call-with-port
           (open-raw-latin-1-input-file filename)
           (lambda (p)
             (let ((first-line (get-line p)))
-              (cond ((and (string? first-line)
+              (cond ((and (not env)
+                          (string? first-line)
                           (string=? first-line "#!fasl"))
 
                      ;; FIXME: resetting the port to position 0
@@ -212,7 +214,9 @@
                            paths
                            (cons srcdir paths))))
            (parameterize ((current-require-path paths))
-            (ex:load filename))))))
+            (if env
+                (ex:load filename env)
+                (ex:load filename)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

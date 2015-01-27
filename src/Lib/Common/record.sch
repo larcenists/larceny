@@ -36,8 +36,6 @@
 ; records and R6RS records should both be layered on top of
 ; the ERR5RS API.
 ;
-; FIXME:  This file belongs in src/Lib/Common.
-;
 ; FIXME:
 ;     make-record-constructor-descriptor should check its arguments
 ;         and should create sealed and immutable records
