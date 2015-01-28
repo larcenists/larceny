@@ -190,8 +190,19 @@
   (bitwise-arithmetic-shift x y))
 
 (define (bitwise-arithmetic-shift-right x y)
+  (define (accelerate n)
+    (bitwise-arithmetic-shift-right (div x (expt 2 n)) (- y n)))
   (assert (<= 0 y))
-  (bitwise-arithmetic-shift x (- y)))
+  (cond ((= x 0) x)
+        ((= x -1) x)
+        ((> y 256)
+         (accelerate 256))
+        ((> y 16)
+         (accelerate 16))
+        ((> y 2)
+         (accelerate 2))
+        (else
+         (div x (expt 2 y)))))
 
 (define (bitwise-rotate-bit-field n start end count)
   (assert (>= start 0))
