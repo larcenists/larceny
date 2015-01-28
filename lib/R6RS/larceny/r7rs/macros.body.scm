@@ -1,3 +1,59 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; To simplify interoperability between R7RS and R6RS, this
+;;; implementation of define-record-type supports all four of
+;;; these specifications of define-record-type:
+;;;
+;;;     SRFI 9
+;;;     ERR5RS
+;;;     R6RS      (deprecated)
+;;;     R7RS
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax define-record-type
+
+  (syntax-rules (fields parent protocol
+                 sealed opaque nongenerative
+                 parent-rtd)
+
+   ;; R6RS syntax (deprecated)
+
+   ((_ (<name> <constructor> <predicate>) stuff ...)
+    (r6rs-define-record-type (<name> <constructor> <predicate>) stuff ...))
+
+   ((_ <name> (fields <spec> ...) stuff ...)
+    (r6rs-define-record-type <name> (fields <spec> ...) stuff ...))
+
+   ((_ <name> (parent <pname>) stuff ...)
+    (r6rs-define-record-type <name> (parent <pname>) stuff ...))
+
+   ((_ <name> (protocol <exp>) stuff ...)
+    (r6rs-define-record-type <name> (protocol <exp>) stuff ...))
+
+   ((_ <name> (sealed <boolean>) stuff ...)
+    (r6rs-define-record-type <name> (sealed <boolean>) stuff ...))
+
+   ((_ <name> (opaque <boolean>) stuff ...)
+    (r6rs-define-record-type <name> (opaque <boolean>) stuff ...))
+
+   ((_ <name> (nongenerative) stuff ...)
+    (r6rs-define-record-type <name> (nongenerative) stuff ...))
+
+   ((_ <name> (nongenerative <uid>) stuff ...)
+    (r6rs-define-record-type <name> (nongenerative <uid>) stuff ...))
+
+   ((_ <name> (parent-rtd <rtd> <cd>) stuff ...)
+    (r6rs-define-record-type <name> (parent-rtd <rtd> <cd>) stuff ...))
+
+   ((_ <name>)
+    (r6rs-define-record-type <name>))
+
+   ;; R7RS, ERR5RS, and SRFI 9 syntax
+
+   ((_ <name> <constructor> <pred> <field> ...)
+    (r7rs-define-record-type <name> <constructor> <pred> <field> ...))))
+
 ;;; From R7RS 7.3
 
 (define-syntax define-values

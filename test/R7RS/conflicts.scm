@@ -18,8 +18,7 @@
         (rnrs r5rs)
 
         (except (scheme base)
-                string-fill!
-                define-record-type)
+                string-fill!)
         (scheme case-lambda)
         (scheme char)
         (scheme complex)

@@ -753,14 +753,39 @@
             (loop (cdr probe))
             (list->string chars))))))
 
-;;; FIXME:  This writes into the current directory.
-;;; That's almost okay when compiling, because the compiler
-;;; will probably write into the directory anyway.
-;;; After Larceny's list-directory procedure has been tested
-;;; under Windows and any other weird operating systems, this
-;;; can probably be replaced by a call to list-directory.
+;;; Attempts to use Larceny's built-in list-directory, but
+;;; that procedure may not work on all platforms.  Falls back
+;;; on using ls or dir to write directories to a temporary
+;;; file, which can then be read.
+;;;
+;;; That's almost okay when compiling, which is the only use
+;;; for this procedure, because the compiler will probably
+;;; write into the directory anyway.
+;;;
+;;; This procedure is always called during execution of
+;;; compile-r6rs-runtime, so the assignments seen below
+;;; will always be performed at that time.  The directory
+;;; listed at that time should never be empty.  If it is,
+;;; a warning message will be printed and the runtime will
+;;; still be compiled.
 
-(define (larceny:list-directory path)
+(define larceny:list-directory
+  (lambda (path)
+    (let ((files (list-directory path)))
+      (if (null? files)
+          (begin (newline)
+                 (display "***** list-directory doesn't work *****\n")
+                 (display "Falling back on ls or dir\n\n")
+                 (set! larceny:list-directory larceny:list-directory-using-ls))
+          (set! larceny:list-directory larceny:list-directory-using-syscalls))
+      files)))
+
+(define (larceny:list-directory-using-syscalls path)
+  (list-directory path))
+
+;;; FIXME:  This writes into the current directory.
+
+(define (larceny:list-directory-using-ls path)
   (if (not (larceny:directory? path))
       '()
       (let* ((tempfile
@@ -791,6 +816,10 @@
         (delete-file tempfile)
         files)))
 
+;;; FIXME: larceny:list-subdirectories is no longer used by anyone,
+;;; so it's commented out.
+
+#;
 (define (larceny:list-subdirectories path)
   (case (larceny:os)
    ((unix)
