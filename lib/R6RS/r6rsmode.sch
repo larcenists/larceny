@@ -240,8 +240,11 @@
         (begin (display "Already registered: ")
                (write path)
                (newline)
-               (display "Continue? ")
-               (read)))
+               (error 'larceny:register!
+                      (string-append
+                       "circular dependency between library files\n"
+                       "(putting each library in its own file might help)")
+                      fname)))
     (set! larceny:autoloaded-r6rs-library-files
           (cons path
                 larceny:autoloaded-r6rs-library-files))))
@@ -548,10 +551,10 @@
                      (and (not (eq? x (unspecified))) ; flags are permitted
                           (not (and (pair? x)
                                     (memq (car x) *library-keywords*)))))
-                 (eof-object? x)))))
-         (nothing-but-libraries?
-          (make-file-processer/preserve-reader-state nothing-but-libraries?)))
-    (call-with-input-file fn nothing-but-libraries?)))
+                 (eof-object? x))))))
+    (call-without-errors
+     (lambda ()
+       (call-with-input-file fn nothing-but-libraries?)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -919,12 +922,4 @@
          (string=? type-name
                    (substring file-name (- fl tl) fl)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; FIXME: from src/Compiler/driver-larceny.sch
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (make-file-processer/preserve-reader-state a-process-file)
-  (lambda args
-   (apply a-process-file args)))
+; eof

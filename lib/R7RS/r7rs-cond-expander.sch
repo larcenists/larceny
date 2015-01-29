@@ -234,19 +234,21 @@
 (define (larceny:find-r6rs-library-really? libname fname)
 
   (define (search-source-library-file fname)
-    (call-with-input-file
-     fname
-     (lambda (p)
-       (let loop ()
-         (let ((x (read p)))
-           (cond ((eof-object? x)
-                  #f)
-                 ((and (pair? x)
-                       (memq (car x) *library-keywords*)
-                       (pair? (cdr x))
-                       (equal? (cadr x) libname))
-                  #t)
-                 (else (loop))))))))
+    (call-without-errors
+     (lambda ()
+       (call-with-input-file
+        fname
+        (lambda (p)
+          (let loop ()
+            (let ((x (read p)))
+              (cond ((eof-object? x)
+                     #f)
+                    ((and (pair? x)
+                          (memq (car x) *library-keywords*)
+                          (pair? (cdr x))
+                          (equal? (cadr x) libname))
+                     #t)
+                    (else (loop))))))))))
 
   (cond ((file-type=? fname *slfasl-file-type*)
          (let loop ((srcnames (generate-source-names fname)))
@@ -363,15 +365,16 @@
             ((and (exists (lambda (type) (file-type=? file type))
                           *library-suffixes-source*)
                   (larceny:contains-libraries-only? file))
-             (call-with-input-file file (make-process-libraries! file)))
+             (call-without-errors
+              (lambda ()
+                (call-with-input-file file (make-process-libraries! file)))))
             (else #t)))
 
     (define (make-process-libraries! fname)
-      (make-file-processer/preserve-reader-state
-       (lambda (in)
-         (do ((x (read in) (read in)))
-             ((eof-object? x))
-           (process-library! x fname)))))
+      (lambda (in)
+        (do ((x (read in) (read in)))
+            ((eof-object? x))
+          (process-library! x fname))))
 
     (define (process-library! library fname)
       (and (list? library)
@@ -403,8 +406,14 @@
                                                  libraries-found))))))))))
 
     (or (larceny:cache-of-available-source-libraries)
-        (begin
-         (for-each find-available-libraries! (current-require-path))
+        (let* ((make-absolute
+                (lambda (dir)
+                  (if (absolute-path-string? dir)
+                      dir
+                      (string-append (current-larceny-root) "/" dir))))
+               (require-paths (current-require-path))
+               (require-paths (map make-absolute require-paths)))
+         (for-each find-available-libraries! require-paths)
          (set! libraries-found
                (list-sort by-name libraries-found))
          (larceny:cache-available-source-libraries! libraries-found)
