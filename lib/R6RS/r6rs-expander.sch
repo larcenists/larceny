@@ -1210,11 +1210,12 @@
                                     exports
                                     defs-okay?)))))))
                       ((cond-expand)
-                       (let* ((decls
+                       (let* ((decls-raw
                                (larceny:cond-expand (syntax->datum form)))
+                              (decls (datum->syntax (car form) decls-raw))
                               (wraps (map (lambda (decl)
-                                              (make-wrap *usage-env* decl))
-                                            decls)))
+                                            (make-wrap *usage-env* decl))
+                                          decls)))
                          (loop (append wraps (cdr ws))
                                forms
                                syntax-defs
