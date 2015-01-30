@@ -698,6 +698,10 @@ parse_options( int argc, char **argv, opt_t *o )
       help(0);
     else if (hstrcmp( *argv, "-wizard" ) == 0)
       help(1);
+    else if (hstrcmp( *argv, "-version" ) == 0) {
+      print_banner();
+      exit(0);
+    }
     else if (hstrcmp( *argv, "-quiet" ) == 0) 
       o->quiet = 1;
     else if (hstrcmp( *argv, "-annoy-user" ) == 0)
@@ -1252,8 +1256,21 @@ static void usage( void )
 #define STR2(x) #x
 
 static char *helptext[] = {
+  "  -r7rs",
+  "     Execute in Larceny's R7RS mode (superset of both R7RS and R6RS).",
+  "     Enters a read/eval/print loop (REPL) unless -program is specified.",
+  "  -r6rs",
+  "     Execute the R6RS program specified by the -program option.",
+  "     (An \"absolute requirement\" of the R6RS forbids REPLs).",
+  "  -r5rs",
+  "     Enter an R5RS-style read/eval/print loop (the default, for now).",
+  "  -path <directories>",
+  "     Search the directories when importing libraries.",
+  "     Use colon (Unix) or semicolon (Windows) to separate directories.",
+  "  -program <filename>",
+  "     Execute the R7RS or R6RS program found in the file; then exit.",
   "  -heap <filename>",
-  "     Select the initial heap image.",
+  "     Select an initial heap image other than the default.",
   "  -nofoldcase",
   "     Symbols are case-sensitive (the default; #!fold-case overrides).",
   "  -foldcase",
@@ -1262,29 +1279,19 @@ static char *helptext[] = {
   "     Use Latin-1 as default for console and file io.",
   "  -utf8",
   "     Use UTF-8 as default for console and file io.",
+#if 0
   "  -utf16",
   "     Use UTF-16 as default for console and file io (not yet allowed).",
-  "  -r7rs",
-  "     Enter an R7RS read/eval/print loop.",
-  "  -r5rs",
-  "     Enter an R5RS-style read/eval/print loop (the default, for now).",
-  "  -r6rs",
-  "     Execute an R6RS-style program in batch mode.",
-  "     The following option should also be specified:",
-  "       -program <filename>",
-  "          Execute the R6RS-style program found in the file.",
-  "  -path <directories>",
-  "     Search the directories when using require or import.",
-  "     Use colon (Unix) or semicolon (Windows) to separate directories.",
+#endif
   "  -quiet",
   "     Suppress nonessential messages.",
   "  -nobanner",
-  "     Suppress runtime startup banner (implied by -r6rs).",
+  "     Suppress runtime startup banner (implied by -program, -r6rs).",
   "  -- <argument> ...",
-  "     Tell (command-line-arguments) to return #(<argument> ...)",
+  "     Tell (command-line) to return (<larcenyname> <argument> ...)",
   "     This option, if present, must come last.",
-  "     In R5RS, ERR5RS, and R7RS modes, Larceny's standard heap interprets",
-  "     these command line arguments:",
+  "     With the -r5rs option, Larceny's standard heap interprets",
+  "     these command line arguments specially:",
   "         -e <expr>",
   "           Evaluate <expr> at startup.",
   "         <file>",
@@ -1299,7 +1306,7 @@ static char *helptext[] = {
 static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
   "  -err5rs",
-  "     Enter an ERR5RS read/eval/print loop.",
+  "     Similar to -r7rs but doesn't import any libraries at startup.",
   "  -transcoder nn",
   "     Use transcoder nn for console io.",
 #if 0
