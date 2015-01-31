@@ -39,13 +39,15 @@ the build process (SCHEME) and which OS you are using as
 both the host and target of the build (HOST):
 
         SCHEME      ::= 'larceny | 'mzscheme | 'petite | 'chez
-        HOST        ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32
+        HOST        ::= 'macosx | 'macosx-el | 'solaris | 'linux86 | 'win32 | 'linux-arm-el
         STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
 
-The optional 'native flag will build native Larceny (SPARC)
-on Solaris.
+The HOST option linux-arm-el is for most ARM-based Linux systems.
+
+The optional 'native flag will build native Larceny on
+Solaris (SPARC) and Linux (ARM).
 
 The optional 'sassy flag will build native Larceny (x86-32) on
 Linux, Windows, or Mac OS X.  The 'sassy flag is necessary if
@@ -71,7 +73,8 @@ x86-32) can be built to use either the flat4 or flat1
 representations; be sure to perform a full build when
 switching from one representation to the other.  (In the
 future, we expect to support yet another representation
-of Unicode strings.)
+of Unicode strings.)  Native Larceny (ARM) currently can only
+be built with the flat4 representation.
 
 Some useful examples which are known to work:
 
@@ -82,6 +85,11 @@ To build native Larceny:
     > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)
     > (setup 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat1)
     > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy)
+
+To build native Larceny on little-endian ARMv7 on any Linux
+system an explicit target: is required to specify the floating
+point ABI for the runtime [6]:
+  > (setup 'scheme: 'larceny 'host: 'linux-arm-el 'target: 'linux-arm-el-hardfp 'native)
 
 To build Petit Larceny:
     > (setup 'scheme: 'mzscheme 'host: 'linux86)
@@ -112,7 +120,6 @@ Petit, you must build it separately:
     > (build-twobit)
 
 
-
 3. Create heap images
 
 Step 2 above creates a bootstrap heap (petit.heap, sparc.heap, or
@@ -135,6 +142,13 @@ On IAssassin Larceny (Intel) [5]:
     > (exit)
 
     % "./larceny.bin" -stopcopy -- src/Build/iasn-twobit-heap.fasl
+    > (exit)
+
+On Native Larceny (ARM):
+    % ./larceny.bin -stopcopy -- src/Build/arm-larceny-heap.fasl
+    > (exit)
+
+    % ./larceny.bin -stopcopy -- src/Build/arm-twobit-heap.fasl
     > (exit)
 
 On Petit Larceny:
@@ -228,3 +242,13 @@ given to setup have changed, but it should be safe to do every time.
 [5] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is
 left as an exercise for the reader.
+
+[6] Several sub-ABIs exist for floating point on the ARM architecture.
+Larceny requires CPU support for floating point instructions so the
+two APIs are known as "soft" (hardware instructions are generated but
+the calling convention is as for software floating point; gcc calls
+this "softfp") and "hard" (hardware instructions are generated and the
+calling convention uses FPU registers).  Larceny needs to know the ABI
+when it compiles C code, and the target name therefore contains either
+"softfp" or "hardfp".  Generally the operating system sets the ABI and
+all programs on the system use it; check your local documentation.
