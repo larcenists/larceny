@@ -574,6 +574,10 @@
            (define-values (a weird) (let ((w (not a))) (values '_ w)))
            weird)
          #f)
+
+   (test "Ticket #698"                  ; Bug in Larceny 0.97 and previous
+         (bitwise-arithmetic-shift-right 42 (greatest-fixnum))
+         0)
    ))
 
 (define (bug-105-test1)

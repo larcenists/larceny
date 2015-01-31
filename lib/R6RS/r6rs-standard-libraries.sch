@@ -223,28 +223,77 @@
                   ((e0 e1 e2 ...) (syntax (if e0 (begin e1 e2 ...) rest)))
                   (_              (syntax-violation
                                    'cond "Invalid expression" x)))))))))))
+
+  ;; Andre van Tonder's case macro has been replaced by the R7RS definition.
+  ;; This is, strictly speaking, an incompatible change to the R6RS semantics,
+  ;; which is of course forbidden, but it won't break anything and most
+  ;; people would regard the R7RS semantics as an improvement.
+  ;; Besides, using the same definition for R6RS as for R7RS is essential
+  ;; for smooth interoperability.
   
+;  (define-syntax case
+;    (lambda (x)
+;      (syntax-case x ()
+;        ((_ e c1 c2 ...)
+;         (with-syntax ((body
+;                        (let f ((c1 (syntax c1))
+;                                (cmore (syntax (c2 ...))))
+;                          (if (null? cmore)
+;                              (syntax-case c1 (else)
+;                                ((else e1 e2 ...)
+;                                 (syntax (begin e1 e2 ...)))
+;                                (((k ...) e1 e2 ...)
+;                                 (syntax (if (memv t '(k ...))
+;                                             (begin e1 e2 ...)))))
+;                              (with-syntax ((rest (f (car cmore) (cdr cmore))))
+;                                (syntax-case c1 ()
+;                                  (((k ...) e1 e2 ...)
+;                                   (syntax (if (memv t '(k ...))
+;                                               (begin e1 e2 ...)
+;                                               rest)))))))))
+;           (syntax (let ((t e)) body)))))))
+
+  ;; From R7RS (small) section 7.3
+
   (define-syntax case
-    (lambda (x)
-      (syntax-case x ()
-        ((_ e c1 c2 ...)
-         (with-syntax ((body
-                        (let f ((c1 (syntax c1))
-                                (cmore (syntax (c2 ...))))
-                          (if (null? cmore)
-                              (syntax-case c1 (else)
-                                ((else e1 e2 ...)
-                                 (syntax (begin e1 e2 ...)))
-                                (((k ...) e1 e2 ...)
-                                 (syntax (if (memv t '(k ...))
-                                             (begin e1 e2 ...)))))
-                              (with-syntax ((rest (f (car cmore) (cdr cmore))))
-                                (syntax-case c1 ()
-                                  (((k ...) e1 e2 ...)
-                                   (syntax (if (memv t '(k ...))
-                                               (begin e1 e2 ...)
-                                               rest)))))))))
-           (syntax (let ((t e)) body)))))))
+    (syntax-rules (else =>)
+
+     ((case (key ...)
+       clauses ...)
+      (let ((atom-key (key ...)))
+        (case atom-key clauses ...)))
+
+     ((case key
+       (else => result))
+      (result key))
+
+     ((case key
+       (else result1 result2 ...))
+      (begin result1 result2 ...))
+
+     ((case key
+       ((atoms ...) result1 result2 ...))
+      (if (memv key '(atoms ...))
+          (begin result1 result2 ...)))
+
+     ((case key
+       ((atoms ...) => result))
+      (if (memv key '(atoms ...))
+          (result key)))
+  
+     ((case key
+       ((atoms ...) => result)
+       clause clauses ...)
+      (if (memv key '(atoms ...))
+          (result key)
+          (case key clause clauses ...)))
+
+     ((case key
+       ((atoms ...) result1 result2 ...)
+       clause clauses ...)
+      (if (memv key '(atoms ...))
+          (begin result1 result2 ...)
+          (case key clause clauses ...)))))
   
   (define-syntax =>
     (lambda (x)

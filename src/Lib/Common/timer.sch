@@ -8,11 +8,6 @@
 
 ; FIXME:  This seems out of place.
 
-(define (current-seconds)
-  (inexact->exact (round (flonum:time))))
-
-; FIXME:  This also seems out of place.
-
 (define twobit-timer-hook
   (make-parameter "twobit-timer-hook" #f))
 

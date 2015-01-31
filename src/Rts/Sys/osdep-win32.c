@@ -33,6 +33,7 @@
 #include <io.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <dirent.h>             /* for listing directories */
 
 #include "larceny.h"
 
@@ -153,6 +154,80 @@ void osdep_cwd( void )
     *p = mkheader( k, BV_HDR );
     memcpy( p+1, buf, k );
     globals[G_RESULT] = tagptr(p,BVEC_TAG);
+  }
+}
+
+/* FIXME: this should work with gcc and many other compilers, */
+/* but probably won't work with Microsoft compilers.          */
+
+/* returns a freshly allocated bytevector containing dp */
+
+void osdep_listdir_open( word w_path )
+{
+  DIR *dp;
+  char *path = string2asciiz( w_path );
+  word *q;
+
+  dp = opendir( path );
+
+  if (dp == NULL) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+
+  q = alloc_from_heap( sizeof(word) + sizeof(DIR *) );
+  *q = mkheader( sizeof(DIR *), BV_HDR );
+  *((word **) string_data( q )) = (word *) dp;
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+}
+
+/* given a bytevector created by osdep_listenv_init, returns */
+/* the next file inthe directory and updates the bytevector  */
+/* FIXME: hard-codes 4 as the header size (in bytes)         */
+
+void osdep_listdir( generator )
+word generator;
+{
+  DIR *dp = (DIR *) *((word *) (string_data ( generator )));
+  struct dirent *entry;
+  char *p;
+  word *q;
+  int l;
+
+  if (dp == NULL) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+
+  entry = readdir( dp );
+  if (entry == NULL) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+  
+  p = entry->d_name;
+  if (p == NULL) {
+    globals[ G_RESULT ] = FALSE_CONST;
+    return;
+  }
+
+  l = strlen( p );
+  q = alloc_from_heap( sizeof(word) + l );
+  *q = mkheader( l, BV_HDR );
+  memcpy( string_data( q ), p, l );
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+}
+
+void osdep_listdir_close( generator )
+word generator;
+{
+  DIR *dp = (DIR *) *((word *) (string_data ( generator )));
+
+  if ((dp == NULL) || closedir( dp )) {
+    globals[G_RESULT] = FALSE_CONST;
+  }
+  else {
+    globals[G_RESULT] = TRUE_CONST;
   }
 }
 

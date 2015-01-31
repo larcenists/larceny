@@ -4,7 +4,7 @@
 
 (export current-jiffy)
 
-(import (primitives current-seconds))
+(import (primitives current-second current-seconds))
 
 (include "time.body.scm")
 

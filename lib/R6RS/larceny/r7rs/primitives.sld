@@ -6,11 +6,17 @@
 
    char-ready?
    display
+   emergency-exit
+   exit
+   get-environment-variables
+   getenv
    get-output-bytevector
    list-copy
    list-set!
    make-list
    make-parameter
+   open-binary-input-file
+   open-binary-output-file
    open-input-bytevector
    open-output-bytevector
    read-line
@@ -25,11 +31,17 @@
 
     char-ready?
     display
+    emergency-exit
+    exit
+    get-environment-variables
+    getenv
     get-output-bytevector
     list-copy
     list-set!
     make-list
     make-parameter
+    open-binary-input-file
+    open-binary-output-file
     open-input-bytevector
     open-output-bytevector
     read-line
@@ -38,6 +50,7 @@
     write-simple
     write-string)))
 
+
 ;;; Other procedures imported from Larceny's R5RS substrate
 ;;; so they can be used to define R7RS procedures.
 
@@ -45,8 +58,7 @@
 
   (export
 
-   getenv
-   interaction-environment
+   ex:interaction-environment
    larceny:features
    )
 
@@ -54,6 +66,5 @@
 
    (primitives
 
-    getenv
-    interaction-environment
+    ex:interaction-environment
     larceny:features)))

@@ -71,6 +71,25 @@ void osdep_cwd( void )
   globals[G_RESULT] = FALSE_CONST;
 }
 
+/* returns #f */
+
+void osdep_listdir_open( word w_path )
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
+void osdep_listdir( generator )
+word generator;
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
+void osdep_listdir_close( generator )
+word generator;
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
 /* Return 0.0 */
 void osdep_os_version( int *major, int *minor )
 {

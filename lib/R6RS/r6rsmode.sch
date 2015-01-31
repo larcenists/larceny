@@ -184,13 +184,15 @@
         (else
          (ex:run-r6rs-program filename))))
 
-(define (load-r6rs-library-or-program filename)
+(define (load-r6rs-library-or-program filename . rest)
+  (define env (and (pair? rest) (car rest)))
   (larceny:load-r6rs-package)
   (cond ((call-with-port
           (open-raw-latin-1-input-file filename)
           (lambda (p)
             (let ((first-line (get-line p)))
-              (cond ((and (string? first-line)
+              (cond ((and (not env)
+                          (string? first-line)
                           (string=? first-line "#!fasl"))
 
                      ;; FIXME: resetting the port to position 0
@@ -212,7 +214,9 @@
                            paths
                            (cons srcdir paths))))
            (parameterize ((current-require-path paths))
-            (ex:load filename))))))
+            (if env
+                (ex:load filename env)
+                (ex:load filename)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -236,8 +240,11 @@
         (begin (display "Already registered: ")
                (write path)
                (newline)
-               (display "Continue? ")
-               (read)))
+               (error 'larceny:register!
+                      (string-append
+                       "circular dependency between library files\n"
+                       "(putting each library in its own file might help)")
+                      fname)))
     (set! larceny:autoloaded-r6rs-library-files
           (cons path
                 larceny:autoloaded-r6rs-library-files))))
@@ -544,10 +551,10 @@
                      (and (not (eq? x (unspecified))) ; flags are permitted
                           (not (and (pair? x)
                                     (memq (car x) *library-keywords*)))))
-                 (eof-object? x)))))
-         (nothing-but-libraries?
-          (make-file-processer/preserve-reader-state nothing-but-libraries?)))
-    (call-with-input-file fn nothing-but-libraries?)))
+                 (eof-object? x))))))
+    (call-without-errors
+     (lambda ()
+       (call-with-input-file fn nothing-but-libraries?)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -749,9 +756,39 @@
             (loop (cdr probe))
             (list->string chars))))))
 
-;;; FIXME: this shouldn't have to write into the current directory.
+;;; Attempts to use Larceny's built-in list-directory, but
+;;; that procedure may not work on all platforms.  Falls back
+;;; on using ls or dir to write directories to a temporary
+;;; file, which can then be read.
+;;;
+;;; That's almost okay when compiling, which is the only use
+;;; for this procedure, because the compiler will probably
+;;; write into the directory anyway.
+;;;
+;;; This procedure is always called during execution of
+;;; compile-r6rs-runtime, so the assignments seen below
+;;; will always be performed at that time.  The directory
+;;; listed at that time should never be empty.  If it is,
+;;; a warning message will be printed and the runtime will
+;;; still be compiled.
 
-(define (larceny:list-directory path)
+(define larceny:list-directory
+  (lambda (path)
+    (let ((files (list-directory path)))
+      (if (null? files)
+          (begin (newline)
+                 (display "***** list-directory doesn't work *****\n")
+                 (display "Falling back on ls or dir\n\n")
+                 (set! larceny:list-directory larceny:list-directory-using-ls))
+          (set! larceny:list-directory larceny:list-directory-using-syscalls))
+      files)))
+
+(define (larceny:list-directory-using-syscalls path)
+  (list-directory path))
+
+;;; FIXME:  This writes into the current directory.
+
+(define (larceny:list-directory-using-ls path)
   (if (not (larceny:directory? path))
       '()
       (let* ((tempfile
@@ -782,6 +819,10 @@
         (delete-file tempfile)
         files)))
 
+;;; FIXME: larceny:list-subdirectories is no longer used by anyone,
+;;; so it's commented out.
+
+#;
 (define (larceny:list-subdirectories path)
   (case (larceny:os)
    ((unix)
@@ -881,12 +922,4 @@
          (string=? type-name
                    (substring file-name (- fl tl) fl)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; FIXME: from src/Compiler/driver-larceny.sch
-;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (make-file-processer/preserve-reader-state a-process-file)
-  (lambda args
-   (apply a-process-file args)))
+; eof

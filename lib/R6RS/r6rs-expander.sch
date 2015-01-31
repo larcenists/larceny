@@ -1133,9 +1133,9 @@
         ;; bound-variables, and exports, all in reverse order.
 
         ;; The R7RS define-library syntax does not allow definitions   ; [R7RS]
-        ;; outside of a begin.  To enforce that restriction, the
-        ;; loop maintains a flag indicating whether definitions
-        ;; are allowed.
+        ;; or expressions (other than begin) outside of a begin.  To
+        ;; enforce that restriction, the loop maintains a flag
+        ;; indicating whether definitions/expressions are allowed.
 
         (define (loop ws                                               ; [R7RS]
                       forms syntax-defs bound-variables exports
@@ -1210,11 +1210,12 @@
                                     exports
                                     defs-okay?)))))))
                       ((cond-expand)
-                       (let* ((decls
+                       (let* ((decls-raw
                                (larceny:cond-expand (syntax->datum form)))
+                              (decls (datum->syntax (car form) decls-raw))
                               (wraps (map (lambda (decl)
-                                              (make-wrap *usage-env* decl))
-                                            decls)))
+                                            (make-wrap *usage-env* decl))
+                                          decls)))
                          (loop (append wraps (cdr ws))
                                forms
                                syntax-defs
@@ -2406,10 +2407,24 @@
                        0
                        `(anonymous)))
 
+    ;; The R7RS adds a mutable interaction environment, so             ; [R7RS]
+    ;; a boolean flag indicates whether the environment is mutable.
+
+    (define (make-r7rs-environment imported-libraries mutable? env)    ; [R7RS]
+      (cons imported-libraries (cons mutable? env)))                   ; [R7RS]
     (define (make-r6rs-environment imported-libraries env)
-      (cons imported-libraries env))
+      (make-r7rs-environment imported-libraries #f env))               ; [R7RS]
     (define r6rs-environment-imported-libraries car)
-    (define r6rs-environment-env                cdr)
+    (define r7rs-environment-is-mutable?        cadr)                  ; [R7RS]
+    (define r6rs-environment-env                cddr)                  ; [R7RS]
+
+    ;; FIXME
+    ;;
+    ;; The R7RS standard library (scheme repl) exposes the             ; [R7RS]
+    ;; interaction environment.
+
+    (define (r7rs-interaction-environment)                             ; [R7RS]
+      (make-r7rs-environment '() #t *usage-env*))                      ; [R7RS]
 
     (define (environment . import-specs)
       (fluid-let ((*usage-env* (make-unit-env)))
@@ -2427,16 +2442,23 @@
                                      (env-import! eval-template imports env)
                                      env))))))
 
+    ;; FIXME: the mutable case assumes there's only one mutable        ; [R7RS]
+    ;; environment, and it's the R7RS interaction environment.
+    ;; That should work for now, but it might break in R7RS large.
+
     (define (r6rs-eval exp env)
       (fluid-let ((*usage-env* (r6rs-environment-env env)))
         (let ((exp (datum->syntax eval-template exp))
               (imported-libraries (r6rs-environment-imported-libraries env)))
           (import-libraries-for-expand (r6rs-environment-imported-libraries env) (map not imported-libraries) 0)
           (ex:import-libraries-for-run (r6rs-environment-imported-libraries env) (map not imported-libraries) 0)
-          (eval (expand-begin
-                 ;; wrap in expression begin so no definition can occur as required by r6rs
-                 `(,(rename 'macro 'begin) ,exp))
-                (interaction-environment)))))
+          (if (r7rs-environment-is-mutable? env)                       ; [R7RS]
+              (repl (list exp))                                        ; [R7RS]
+              (eval (expand-begin
+                     ;; wrap in expression begin so no definition
+                     ;; can occur as required by r6rs
+                     `(,(rename 'macro 'begin) ,exp))
+                    (interaction-environment))))))
 
     ;;==========================================================================
     ;;
@@ -2686,19 +2708,29 @@
                               no-exports)                              ; [R7RS]
                        (emit-body forms 'define))))
 
-    ;; ERR5RS load:
+    ;; R7RS load takes an optional second argument.                    ; [R7RS]
     ;; We take some care to make this reentrant so that 
     ;; it can be used to recursively load libraries while
     ;; expanding a client library or program.
+    ;;
+    ;; FIXME: It should be possible to use (r6rs-eval exp env)
+    ;; even if no second argument is given, defaulting to the
+    ;; interaction environment defined by (scheme repl).  By
+    ;; the way, that R7RS environment is very different from
+    ;; the R5RS (interaction-environment) used following macro
+    ;; expansion.
     
-    (define (r6rs-load filename)
-      (with-toplevel-parameters
-       (lambda ()
-         (for-each (lambda (exp)
-                     (for-each (lambda (exp)
-                                 (eval exp (interaction-environment)))
-                               (expand-toplevel-sequence (list exp))))
-                   (read-file filename)))))
+    (define (r6rs-load filename . rest)                                ; [R7RS]
+      (let ((env (and (pair? rest) (car rest))))                       ; [R7RS]
+        (with-toplevel-parameters
+         (lambda ()
+           (for-each (lambda (exp)
+                       (if env                                         ; [R7RS]
+                           (r6rs-eval exp env)                         ; [R7RS]
+                           (for-each (lambda (exp)
+                                       (eval exp (interaction-environment)))
+                                     (expand-toplevel-sequence (list exp)))))
+                     (read-file filename))))))
       
     ;; This may be used as a front end for the compiler.
     ;; It expands a file consisting of a possibly empty sequence
@@ -2911,6 +2943,7 @@
     (set! ex:expand-r5rs-file          expand-r5rs-file)
     (set! ex:run-r6rs-sequence         run-r6rs-sequence)
     (set! ex:run-r6rs-program          run-r6rs-program)
+    (set! ex:interaction-environment   r7rs-interaction-environment)   ; [R7RS]
 
     (set! ex:invalid-form              invalid-form)
     (set! ex:register-macro!           register-macro!)

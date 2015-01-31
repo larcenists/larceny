@@ -56,6 +56,47 @@ word w_envvar;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
+/* returns a freshly allocated bytevector initialized to environ */
+/* FIXME: hard-codes 4 as the header size (in bytes)             */
+
+void primitive_listenv_init( void )
+{
+  extern char **environ;
+  word *q;
+
+  q = (word*)gc_allocate( the_gc(globals), (4 + sizeof(char**)), 0, 1 );
+  *q = mkheader( sizeof(char**), BV_HDR );
+  *((word **) string_data( q )) = (word *) environ;
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+}
+
+/* given a bytevector created by primitive_listenv_init, returns */
+/* the next environment variable and updates the bytevector      */
+/* FIXME: hard-codes 4 as the header size (in bytes)             */
+
+void primitive_listenv( generator )
+word generator;
+{
+  char **next;
+  char *p = *next;
+  word *q;
+  int l;
+
+  next = (char **) *((word *) (string_data ( generator )));
+  p = *next;
+  next++;
+  *((word **) (string_data ( generator ))) = (word *) next;
+  if (p == 0) {
+    globals[ G_RESULT ] = FALSE_CONST;
+    return;
+  }
+  l = strlen( p );
+  q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+  *q = mkheader( l, BV_HDR );
+  memcpy( string_data( q ), p, l );
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+}
+
 void primitive_setenv( word w_name, word w_value )
 {
   int rv;
