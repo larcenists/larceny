@@ -525,7 +525,7 @@
     "HAVE_STAT"
     ))
 
-(define features-arm-el-linux
+(define features-arm-el-hardfp-linux
   '("ARM"
     "BITS_32"
     "ENDIAN_LITTLE"

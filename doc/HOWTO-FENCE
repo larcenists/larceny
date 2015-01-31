@@ -36,36 +36,11 @@ At the time of writing one Cant implementation is operational, for the
 
 Quick start for developers.
 
-To build the heap image for ARM-Linux, which is the first Fence/Cant
-platform, start Larceny on a platform of your choice and do the normal
-thing:
+The build procedure is standard, see HOWTO-BUILD for the details.  I
+use the following command for setting up the build system, there is at
+present no "softfp" target but one is easy to create.
 
-  > (load "setup.sch")
-  > (setup 'target: 'linux-arm-el 'native)
-  > (build-config-files)
-  > (load-compiler)
-  > (build-heap)
-
-To compile the files for larceny.heap and twobit.heap these commands
-also work as expected:
-
-  > (build-larceny-files)
-  > (build-twobit)
-
-To compile larceny.bin there are some complications due to the fact
-that the only build that has been tested is cross-compiling to Android
-from Windows (under Cygwin) using Google's Android NDK.  Building
-larceny.bin is a three-step process:
-
-1) Evaluate this form in the build system:
-
-  > (build-makefile)
-
-2) Edit src/Rts/Makefile to make sure that PLATFORM_ROOT and CC are
-   set appropriately, and, if building for Android, that
-   ANDROID_NDK_ROOT points to the root of the NDK.
-
-3) In a shell, cd to src/Rts and type "make".
+  > (setup 'target: 'linux-arm-el-hardfp 'native)
 
 
 Status, 23 August 2012.

@@ -204,7 +204,9 @@
            (cond 
 
             ((and (equal? os-name "Linux") (eq? arch-endianness 'little)) 
-             (set! host: 'linux-el))
+             (if (equal? arch-name "ARM")
+                 (set! host: 'linux-arm-el)
+                 (set! host: 'linux-el)))
             
             ((and (equal? os-name "Linux") (eq? arch-endianness 'big)) 
              (set! host: 'linux-be))
@@ -231,14 +233,16 @@
          (let* ((host:   (case host: 
                            ;; Felix prefers "linux86" and "macosx86",
                            ;; so those aliases are supported here
-			   ;;
-			   ;; Lars notes that "linux-el" as a synonym for "linux-x86-el"
-			   ;; is unreasonable given that Linux runs on so many platforms.
+                           ;;
+                           ;; Lars notes that "linux-el" as a synonym for "linux-x86-el"
+                           ;; is unreasonable given that Linux runs on so many platforms.
                            ((linux86) 'linux-el)
                            ((macosx86) 'macosx-el)
                            (else host:)))
                 (target: (cond (target: target:)
                                (common 'clr-el)   ; FIXME
+                               ((eq? host: 'linux-arm-el)
+                                (error 'setup.sch "An explicit target: value is required for ARM Linux, either linux-arm-el-hardfp or linux-arm-el-softfp"))
                                (else host:))))
            (setup-real! scheme: host: target: c-compiler: string-rep:
             (or native sassy nasm) code-cov rebuild-code-cov
@@ -259,11 +263,11 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris clr-be)                  'big)
-      ((macosx-el linux-el linux-arm-el cygwin win32 clr-el) 'little)
+      ((macosx-el linux-el linux-arm-el linux-arm-el-hardfp cygwin win32 clr-el) 'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx macosx-el solaris linux-el cygwin linux-arm-el) 'unix)
+      ((macosx macosx-el solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp) 'unix)
       ((win32) 'win32)
       ((clr-be) 'unix)     ; FIXME
       ((clr-el) 'win32)    ; FIXME
@@ -316,8 +320,9 @@
           ((macosx)       'features-petit-macosx)
           ((solaris)      (cond (native 'features-sparc-solaris)
                                 (else 'features-petit-solaris)))
-	  ((linux-arm-el) (cond (native    'features-arm-el-linux)
-				(else      (error 'setup.sch "Only the native system is supported on ARM Linux"))))
+          ((linux-arm-el-hardfp)
+                           (cond (native    'features-arm-el-hardfp-linux)
+                                 (else      (error 'setup.sch "Only the native system is supported on ARM Linux"))))
           ((linux-el)     (cond (sassy     'features-x86-sassy-linux)
                                 (nasm      'features-x86-nasm-linux)
                                 (native    'features-x86-nasm-linux)
@@ -349,7 +354,7 @@
             macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
-          ((linux-el linux-arm-el) "petitdebianlinux")
+          ((linux-el linux-arm-el-hardfp) "petitdebianlinux")
           ((clr-be clr-le) "common")))        ; FIXME
 
   (set! *host:endianness* (platform->endianness host-arch))
@@ -386,12 +391,12 @@
             (set! *heap-type* 'sparc-native)
             (set! *runtime-type* 'sparc-native))
 
-	   ((linux-arm-el)
-	    (set! *target:machine* 'arm)
-	    (set! *target:machine-source* "Fence")
-	    (set! *makefile-configuration* 'arm-linux-gcc-v4-gas)
-	    (set! *heap-type* 'arm-native)
-	    (set! *runtime-type* 'arm-native))
+           ((linux-arm-el-hardfp)
+            (set! *target:machine* 'arm)
+            (set! *target:machine-source* "Fence")
+            (set! *makefile-configuration* 'arm-hardfp-linux-gcc-v4-gas)
+            (set! *heap-type* 'arm-native)
+            (set! *runtime-type* 'arm-native))
 
            ;; Win32 native is just Petit with extasm of NASM rather than C
 

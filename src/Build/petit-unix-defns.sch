@@ -138,7 +138,7 @@
      features-x86-sassy-linux
      features-x86-nasm-win32
      features-x86-sassy-win32
-     features-arm-el-linux	        ; Tested on Android 2.3 but pretty generic
+     features-arm-el-hardfp-linux	; Hardfp is modern
      features-petit-linux-redhat5       ; Very old, Redhat linux 5.1
      features-sparc-linux-debian        ; Very old, SPARC Debian v2(?)
      features-petit-macos9-cw3          ; Very old (ca v0.48), CW Pro 3
