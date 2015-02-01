@@ -66,7 +66,7 @@ void primitive_listenv_init( void )
 
   q = (word*)gc_allocate( the_gc(globals), (4 + sizeof(char**)), 0, 1 );
   *q = mkheader( sizeof(char**), BV_HDR );
-  *((word *) string_data( q )) = (word *) environ;
+  *((word **) string_data( q )) = (word *) environ;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
@@ -85,7 +85,7 @@ word generator;
   next = (char **) *((word *) (string_data ( generator )));
   p = *next;
   next++;
-  *((word *) (string_data ( generator ))) = (word *) next;
+  *((word **) (string_data ( generator ))) = (word *) next;
   if (p == 0) {
     globals[ G_RESULT ] = FALSE_CONST;
     return;

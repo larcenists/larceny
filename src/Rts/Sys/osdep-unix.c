@@ -290,7 +290,7 @@ void osdep_listdir_open( word w_path )
 
   q = alloc_from_heap( sizeof(word) + sizeof(DIR *) );
   *q = mkheader( sizeof(DIR *), BV_HDR );
-  *((word *) string_data( q )) = (word *) dp;
+  *((word **) string_data( q )) = (word *) dp;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
