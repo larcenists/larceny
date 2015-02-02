@@ -658,6 +658,8 @@ static int ilog2( unsigned n )
   return -1;
 }
 
+/* FIXME: sum_sqrcount is declared and incremented but never used. */
+
 void rs_describe_self( remset_t *rs ) 
 {
   word *tbl, *b, mask, h; 
@@ -675,6 +677,7 @@ void rs_describe_self( remset_t *rs )
 
   maxcount = -1;
   sum_count = 0;
+  sum_sqrcount = 0;
   num_nonzero = 0;
   for( i = 0; i < HIST_LEN; i++ ) {
     counthist[i] = 0;

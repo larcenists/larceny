@@ -78,7 +78,7 @@ void primitive_listenv( generator )
 word generator;
 {
   char **next;
-  char *p = *next;
+  char *p;
   word *q;
   int l;
 

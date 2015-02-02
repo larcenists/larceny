@@ -373,8 +373,10 @@ extern int memfail( int code, char *fmt, ... );
 #define debug2msg  1?(void)0:(void)
 #endif
 
-/* self-initialize so that GCC -Wuninitialized does not complain. */
-#define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name
+/* self-initialize so that GCC -Wuninitialized does not complain.   */
+/* but that no longer works with gcc 4.2.1 (Apple LLVM version 5.1) */
+/* FIXME: this hack should be removed                               */
+/* #define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name */
 
 #endif /* if INCLUDED_LARCENY_H */
 
