@@ -261,29 +261,53 @@ export MAKETEXTSAFE
 
 LOGDIR=${HOME}/logs
 
+XMLFILE_GIT=${LOGDIR}/cdash-update-sub.xml
+XMLFILE_CONFIG=${LOGDIR}/cdash-config-sub.xml
+XMLFILE_BUILD=${LOGDIR}/cdash-build-sub.xml
+XMLFILE_TESTS=${LOGDIR}/cdash-tests-sub.xml
+XMLFILE_BENCH=${LOGDIR}/cdash-bench-sub.xml
+
 LOGFILE_GIT=${LOGDIR}/git.log
-LOGFILE_BUILD=${LOGDIR}/build.log
-LOGFILE_TEST=${LOGDIR}/tests.log
+LOGFILE_BUILD_BASIC=${LOGDIR}/build.log
+LOGFILE_BUILD_R7RS=${LOGDIR}/buildR7RS.log
+LOGFILE_TEST_BASIC=${LOGDIR}/basic.log
+LOGFILE_TEST_RACKET=${LOGDIR}/racketR6RS.log
+LOGFILE_TEST_CHIBI=${LOGDIR}/chibiR7RS.log
+LOGFILE_TEST_LARCENY=${LOGDIR}/larcenyR7RS.log
+LOGFILE_TEST_CLISP=${LOGDIR}/clispNumbers.log
+LOGFILE_TEST_TRIG=${LOGDIR}/trigTest.log
+LOGFILE_TEST_SRFI=${LOGDIR}/srfi.log
 LOGFILE_BENCHMARK=${LOGDIR}/benchmarks.log
 
-LOGFILE_GIT_TODAY=${LOGDIR}/git.${TODAY}.log
-LOGFILE_BUILD_TODAY=${LOGDIR}/build.${TODAY}.log
-LOGFILE_TEST_TODAY=${LOGDIR}/tests.${TODAY}.log
-LOGFILE_BENCHMARK_TODAY=${LOGDIR}/benchmarks.${TODAY}.log
+# Make undated log files empty, so we can't submit a previous set of logs.
 
-# Make undated log files empty, so we can't publish a previous set of logs.
+cat /dev/null > ${XMLFILE_GIT}
+cat /dev/null > ${XMLFILE_CONFIG}
+cat /dev/null > ${XMLFILE_BUILD}
+cat /dev/null > ${XMLFILE_TESTS}
+cat /dev/null > ${XMLFILE_BENCH}
 
 cat /dev/null > ${LOGFILE_GIT}
-cat /dev/null > ${LOGFILE_BUILD}
-cat /dev/null > ${LOGFILE_TEST}
+cat /dev/null > ${LOGFILE_BUILD_BASIC}
+cat /dev/null > ${LOGFILE_BUILD_R7RS}
+cat /dev/null > ${LOGFILE_TEST_BASIC}
+cat /dev/null > ${LOGFILE_TEST_RACKET}
+cat /dev/null > ${LOGFILE_TEST_CHIBI}
+cat /dev/null > ${LOGFILE_TEST_LARCENY}
+cat /dev/null > ${LOGFILE_TEST_CLISP}
+cat /dev/null > ${LOGFILE_TEST_TRIG}
+cat /dev/null > ${LOGFILE_TEST_SRFI}
 cat /dev/null > ${LOGFILE_BENCHMARK}
 
 ${HOME}/bin/clone-only >> ${LOGFILE_GIT} 2>&1
 
-${HOME}/bin/build-only >> ${LOGFILE_BUILD} 2>&1
+${HOME}/bin/build-only >> ${LOGFILE_BUILD_BASIC} 2>&1
 
-${HOME}/bin/test-only >> ${LOGFILE_TEST} 2>&1
+${HOME}/bin/test-only >> ${LOGFILE_TEST_BASIC} 2>&1
 
 ${HOME}/bin/benchmark-only >> ${LOGFILE_BENCHMARK} 2>&1
+
+cp ${DIR}/*.xml ${LOGDIR}
+cp ${DIR}/*.log ${LOGDIR}
 
 ################################################################
