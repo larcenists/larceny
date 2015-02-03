@@ -5,6 +5,7 @@
   (export
 
    char-ready?
+   current-second
    display
    emergency-exit
    exit
@@ -30,6 +31,7 @@
    (primitives
 
     char-ready?
+    current-second
     display
     emergency-exit
     exit
@@ -50,21 +52,3 @@
     write-simple
     write-string)))
 
-
-;;; Other procedures imported from Larceny's R5RS substrate
-;;; so they can be used to define R7RS procedures.
-
-(define-library (larceny r7rs primitives lowlevel)
-
-  (export
-
-   ex:interaction-environment
-   larceny:features
-   )
-
-  (import
-
-   (primitives
-
-    ex:interaction-environment
-    larceny:features)))

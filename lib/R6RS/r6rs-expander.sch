@@ -2081,7 +2081,7 @@
       (match spec
         ((? identifier? x)
          `((,x ,x 0)))
-        (((syntax rename) (? identifier? xs) (? identifier? ys))       ; [R7RS]
+        (((syntax rename) (? identifier? x) (? identifier? y))         ; [R7RS]
          (if (eq? body-type 'library)                                  ; [R7RS]
              (complain))                                               ; [R7RS]
          `((,y ,x 0)))                                                 ; [R7RS]

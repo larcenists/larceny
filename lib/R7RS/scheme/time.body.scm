@@ -1,15 +1,29 @@
-;;; Jiffies have one-second resolution, and are reckoned with
-;;; zero jiffies corresponding to the time this library was loaded.
+;;; Jiffies have one-second resolution or better, and are reckoned with
+;;; zero jiffies corresponding to the approximate time this library was
+;;; loaded.
 
-(define (jiffies-per-second) 1)
+(define arbitrary-baseline
+  (call-with-values
+   current-utc-time
+   (lambda (secs usecs)
+     secs)))
 
-(define jiffies-per-second-as-float (inexact (jiffies-per-second)))
-
-(define arbitrary-basetime (current-second))
-
-(define (current-jiffy)
-  (let* ((t (current-second))
-         (j (- t arbitrary-basetime))
-         (j (* jiffies-per-second-as-float j)))
-    (exact (round j))))
-
+(define current-jiffy
+  (case (jiffies-per-second)
+   ((1)
+    (lambda () (- (current-seconds) arbitrary-baseline)))
+   ((1000000)
+    (lambda ()
+      (call-with-values
+       current-utc-time
+       (lambda (secs usecs)
+         (+ (* 1000000 (- secs arbitrary-baseline))
+            usecs)))))
+   (else
+    (lambda ()
+      (call-with-values
+       current-utc-time
+       (lambda (secs usecs)
+         (let ((j/s (jiffies-per-second)))
+           (+ (* j/s (- secs arbitrary-baseline))
+              (quotient (* j/s usecs) 1000000)))))))))
