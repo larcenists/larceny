@@ -27,6 +27,11 @@
 #include "gc_t.h"
 #include "young_heap_t.h" /* for yh_create_initial_stack() */
 
+#if WIN32
+/* FIXME: this didn't help */
+#define _WIN32_WINNT 0x0600
+#endif
+
 opt_t command_line_options;
 
 static void param_error( char *s );
@@ -82,6 +87,9 @@ int main( int argc, char **os_argv )
   
   /* FIXME: this allows us to (temporarily) circumvent DEP problems for the
    majority of windows users */
+#if 0
+  /* FIXME: linker can't find _SetProcessDEPPolicy and _GetProcessDEPPolicy, */
+  /* so I'm commenting this out for now. */
 #if WIN32
   /* there are four possible returns to this function.  We care about AlwaysOn and
      OptOut.  If the policy is set to AlwaysOn then larceny cannot run.  Otherwise
@@ -103,6 +111,7 @@ int main( int argc, char **os_argv )
 	break;
   }  
 #endif /* WIN32 */
+#endif /* 0 */
 
 #if defined(DEC_ALPHA_32BIT)
   /* I know this looks weird.  When running Petit Larceny on the Alpha

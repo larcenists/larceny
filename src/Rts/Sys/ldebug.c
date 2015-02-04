@@ -12,7 +12,9 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef ARM
 #include <stdint.h>
+#endif
 #include "larceny.h"
 
 static void confused( char * );
@@ -34,6 +36,7 @@ static unsigned int getuint( char **, int* );
 static int tracing = 0;
 static char tracing_until[100] = { 0 };
 
+#ifdef ARM
 void localdebugger_step(word* globals)
 {
   char buf[ 300 ];
@@ -71,6 +74,7 @@ void localdebugger_step(word* globals)
   }
   localdebugger();
 }
+#endif /* ARM */
 
 void localdebugger( void )
 {
@@ -140,6 +144,7 @@ static void breakpt( char *cmd )
 
 static void trace( char* cmd )
 {
+  int k;
   tracing = 1;
   tracing_until[0] = 0;
   while (*cmd != 't')
@@ -153,7 +158,7 @@ static void trace( char* cmd )
     cmd++;
   if (*cmd == 0)
     return;
-  int k=0;
+  k=0;
   while (k < sizeof(tracing_until)-1 && *cmd != 0 && *cmd != '\n' && *cmd != '\r')
     tracing_until[k++] = *cmd++;
   tracing_until[k] = 0;
@@ -392,10 +397,19 @@ static void examine( char *cmdl )
         putchar( '\n' );
       }
       else if (tag == USTR_SUBTAG) {
-	printf( "String (flat4), length %d\n", len/4 );
+#ifdef ARM
 	uint32_t* up;
+#else
+        unsigned int *up;   /* FIXME: must be 32 bits */
+#endif
+	printf( "String (flat4), length %d\n", len/4 );
+#ifdef ARM
 	for ( up = ((uint32_t*)ptrof(loc))+1 ; len ; up++, len-=4 )
 	  putchar( ((*up) >> 8) & 255 ); /* FIXME - would want to do better when we can */
+#else
+	for ( up = ((unsigned int*)ptrof(loc))+1 ; len ; up++, len-=4 )
+	  putchar( ((*up) >> 8) & 255 ); /* FIXME - would want to do better when we can */
+#endif
 	putchar( '\n' );
       }
       else

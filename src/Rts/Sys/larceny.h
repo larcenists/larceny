@@ -87,7 +87,11 @@ extern opt_t command_line_options;
 
 extern int  panic_exit( const char *fmt, ... );
 extern int  panic_abort( const char *fmt, ... );
+#ifdef __GNUC__
 extern void annoyingmsg( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
+#else
+extern void annoyingmsg( const char *fmt, ... );
+#endif
 extern void supremely_annoyingmsg( const char *fmt, ... );
 extern void consolemsg( const char *fmt, ... );
 extern void hardconsolemsg( const char *fmt, ... );
@@ -185,7 +189,9 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
+#ifdef ARM
 extern void localdebugger_step( word* globals );
+#endif
 extern void debugvsm( void );
 
 /* In Rts/Sys/osdep-*.c */

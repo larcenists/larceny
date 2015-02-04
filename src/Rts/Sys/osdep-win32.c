@@ -33,7 +33,9 @@
 #include <io.h>
 #include <ctype.h>
 #include <stdarg.h>
+#if 0
 #include <dirent.h>             /* for listing directories */
+#endif
 
 #include "larceny.h"
 
@@ -157,6 +159,7 @@ void osdep_cwd( void )
   }
 }
 
+#if 0
 /* FIXME: this should work with gcc and many other compilers, */
 /* but probably won't work with Microsoft compilers.          */
 
@@ -230,6 +233,31 @@ word generator;
     globals[G_RESULT] = TRUE_CONST;
   }
 }
+#endif
+
+/* FIXME: extracted from osdep-generic.c */
+
+/* returns #f */
+
+void osdep_listdir_open( word w_path )
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
+void osdep_listdir( generator )
+word generator;
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
+void osdep_listdir_close( generator )
+word generator;
+{
+  globals[G_RESULT] = FALSE_CONST;
+}
+
+/* end of FIXME above */
+
 
 void osdep_os_version( int *major, int *minor )
 {

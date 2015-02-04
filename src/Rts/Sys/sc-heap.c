@@ -235,10 +235,12 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
     create_semispace( GC_CHUNK_SIZE, data->gen_no );
 
 #if 1
-  int i;
-  for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
-    if (!(i >= G_REG5 && i <= G_REG31))
-      annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+  {
+    int i;
+    for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
+      if (!(i >= G_REG5 && i <= G_REG31))
+        annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+    }
   }
 #endif
 
