@@ -18,9 +18,6 @@
 
   (begin
 
-   (define (larceny:current-utc-time)
-     (careful:current-utc-time))
-
    ;; FIXME: add other systems where we can trust the FFI.
 
    (define *trusted-os* '("SunOS" "Linux"))
@@ -35,7 +32,7 @@
             (member (cdr os) *trusted-os*)
             (member (cdr arch) *trusted-arch*))))
 
-   (define careful:current-utc-time
+   (define larceny:current-utc-time
      (if can-use:current-utc-time
          (lambda () (current-utc-time))
          (lambda () (values (current-seconds) 0))))
