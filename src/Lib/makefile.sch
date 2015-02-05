@@ -229,6 +229,7 @@
     "str2num"           ; Number parser
     "javadot-symbol"    ; reader depends on this
     "javadot-syntax"    ;        and this
+    "reader-dfa"        ; Reader's state machine
     "reader"            ; Reader
     "env"               ; R5RS environments
     "procinfo"          ; Heuristic procedure information
