@@ -341,7 +341,7 @@
       (else (scannerError errIncompleteToken))))
   (define (state7 c)
     (case c
-      ((#\a #\b #\t #\n #\r #\|)
+      ((#\a #\b #\t #\n #\r #\\ #\" #\|)
        (consumeChar)
        (state8 (scanChar)))
       ((#\x) (consumeChar) (state6 (scanChar)))
