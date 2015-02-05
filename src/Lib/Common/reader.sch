@@ -2312,12 +2312,15 @@
       (define (loop c)
         (cond ((not (char? c))
                (accept 'eofobj))
-              ((char=? c #\newline)
+              ((or (char=? c #\newline)
+                   (char=? c #\return)
+                   (char=? c (integer->char #x85))     ; Next Line, NEL
+                   (char=? c (integer->char #x2028)))  ; Line Separator, LS
                (scanner0))
               (else
                (loop (read-char input-port)))))
       (loop (read-char input-port)))
- 
+
     ;; The state machine is recreated for every call to get-datum,
     ;; but not for every token.
 

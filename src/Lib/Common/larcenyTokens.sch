@@ -60,7 +60,11 @@
     (isNotNewline
      (lambda (c)
        (and (char? c)
-            (not (char=? c (integer->char 10))))))
+            (not (char=? c (integer->char 10)))  ; linefeed
+            (not (char=? c (integer->char 13)))  ; return
+            (not (char=? c (integer->char 133))) ; Next Line, NEL, #\x85
+            (not
+             (char=? c (integer->char 8232)))))) ; Line Separator, LS, #\x2028
     (isNotVLineOrBackslash
      (lambda (c)
        (and (char? c)

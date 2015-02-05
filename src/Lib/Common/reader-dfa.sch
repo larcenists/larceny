@@ -7776,7 +7776,10 @@
       (else
        (if ((lambda (c)
               (and (char? c)
-                   (not (char=? c (integer->char 10)))))
+                   (not (char=? c (integer->char 10)))
+                   (not (char=? c (integer->char 13)))
+                   (not (char=? c (integer->char 133)))
+                   (not (char=? c (integer->char 8232)))))
             c)
            (begin (consumeChar) (state206 (scanChar)))
            (begin
