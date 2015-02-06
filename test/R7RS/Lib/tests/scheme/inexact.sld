@@ -25,25 +25,11 @@
 
 (define-library (tests scheme inexact)
   (export run-inexact-tests)
-  (import (except (scheme base) ; FIXME
-                  floor-quotient floor-remainder floor/
-                  truncate-quotient truncate-remainder truncate/)
+  (import (scheme base)
           (scheme inexact)
           (tests scheme test))
 
   (begin
-
-   ;; FIXME: these belong in (scheme base) and aren't right anyway.
-
-   (define floor-quotient quotient)
-   (define floor-remainder remainder)
-   (define (floor/ n)
-     (values (floor-quotient n) (floor-remainder n)))
-
-   (define truncate-quotient quotient)
-   (define truncate-remainder remainder)
-   (define (truncate/ n)
-     (values (truncate-quotient n) (truncate-remainder n)))
 
    (define pi-approx (/ 103993 33102))
 
@@ -389,12 +375,17 @@
      (test (sqrt +inf.0)                +inf.0)
      (test (sqrt -inf.0)                +inf.0i)
 
-     (test (expt 0 5+.0000312i) 0)
+     ;; R6RS example is wrong, because roundoff error in second argument
+     ;; can affect the result (changing result to 1.0 instead of 0.0).
+     ;; According to general principles stated in both the R7RS and R6RS,
+     ;; therefore, the result of this computation should be inexact.
+
+     (test/approx (expt 0 5+.0000312i) 0.0)
 
      (test/approx (expt 0.0 5+.0000312i) 0.0)
      (test (inexact? (expt 0.0 5+.0000312i)) #t)
 
-     (test (expt 0 0.0) 1)
+     (test (expt 0 0.0) 1.0)
 
      (test/approx (expt 0.0 0.0) 1.0)
      (test (inexact? (expt 0.0 0.0)) #t)

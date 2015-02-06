@@ -707,6 +707,13 @@
   (environment-set! larc 'div0-and-mod0 div0-and-mod0)
   (environment-set! larc 'exact-integer-sqrt exact-integer-sqrt)
 
+  (environment-set! larc 'floor/ floor/)
+  (environment-set! larc 'floor-quotient floor-quotient)
+  (environment-set! larc 'floor-remainder floor-remainder)
+  (environment-set! larc 'truncate/ truncate/)
+  (environment-set! larc 'truncate-quotient truncate-quotient)
+  (environment-set! larc 'truncate-remainder truncate-remainder)
+
   ;; Unicode characters
 
   (environment-set! larc 'char-titlecase char-titlecase)

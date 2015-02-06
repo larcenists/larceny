@@ -1,0 +1,46 @@
+#! /usr/bin/env bash
+
+# For running Larceny's R7RS test suite (derived from Racket's R6RS tests).
+#
+# Usage: ./testall
+
+R7PATH="`pwd`"
+SRC="./tests/scheme/run"
+
+LARCENY=${LARCENY:-"../../../larceny"}
+
+TESTS="case-lambda.sps  char.sps  complex.sps  cxr.sps  inexact.sps  read.sps"
+
+# missing from the list above:
+# base.sps
+# eval.sps
+# file.sps
+# lazy.sps
+# load.sps
+# process-context.sps
+# repl.sps
+# time.sps
+# write.sps
+# r5rs.sps
+# run.sps
+# test.sps
+
+echo ${LARCENY} > testresults
+echo `${LARCENY} < /dev/null` >> testresults
+echo >> testresults
+
+runtest ()
+{
+    sleep 1
+    {
+        echo "${SRC}/$1"
+        time ${LARCENY} --path "${R7PATH}" --r7rs --program "${SRC}/$1"
+    } 2>&1 | tee -a testresults
+}
+
+for program in ${TESTS} ; do
+{
+    echo $program
+    runtest $program
+}
+done

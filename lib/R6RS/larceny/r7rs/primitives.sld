@@ -4,11 +4,16 @@
 
   (export
 
+   bytevector
    char-ready?
    current-second
    display
    emergency-exit
+   exact-integer?
    exit
+   floor-quotient
+   floor-remainder
+   floor/
    get-environment-variables
    getenv
    get-output-bytevector
@@ -21,21 +26,20 @@
    open-input-bytevector
    open-output-bytevector
    read-line
+   square
+   truncate-quotient
+   truncate-remainder
+   truncate/
    write
    write-shared
    write-simple
    write-string
 
-   bytevector
    bytevector-append
    error-object-irritants
    error-object-message
    error-object?
-   exact-integer?
    file-error?
-   floor-quotient
-   floor-remainder
-   floor/
    input-port-open?
    output-port-open?
    peek-u8
@@ -44,15 +48,11 @@
    read-error?
    read-string
    read-u8
-   square
    string->vector
    string-copy!
    string-fill!
    string-map
    syntax-error
-   truncate-quotient
-   truncate-remainder
-   truncate/
    u8-ready?
    vector->string
    vector-append

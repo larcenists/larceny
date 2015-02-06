@@ -280,12 +280,13 @@
      (error "sys$system-feature: " name " is not a system feature name"))))
 
 ; For deciding whether to use R7RS, R6RS, or R5RS semantics.
+; Must keep in sync with src/Rts/Sys/primitive.c (which explains encodings).
 
 (define (larceny:execution-mode)
   (case (get-feature feature$execmode)
-   ((0)   'r5rs)
-   ((1 5) 'r7rs)
-   (else  'r6rs)))
+   ((0)     'r5rs)
+   ((1 3 5) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
+   (else    'r6rs)))
 
 ; Get the value of an environment variable.
 

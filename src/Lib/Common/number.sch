@@ -619,4 +619,54 @@
            (values s (- k (* s s)))))
       (assertion-violation 'exact-integer-sqrt "illegal argument" k)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; New for R7RS.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (square x) (* x x))
+
+(define (exact-integer? x)
+  (or (fixnum? x)
+      (bignum? x)))
+
+;;; m = n * q + r
+
+(define (larceny:first-of-two-values x y) x)
+(define (larceny:second-of-two-values x y) y)
+
+(define (floor-quotient m n)
+  (call-with-values
+   (lambda () (floor/ m n))
+   larceny:first-of-two-values))
+
+(define (floor-remainder m n)
+  (call-with-values
+   (lambda () (floor/ m n))
+   larceny:second-of-two-values))
+
+(define (floor/ m n)
+  (cond ((and (<= 0 m) (<= 0 n))
+         (let* ((q (quotient m n))
+                (r (- m (* n q))))
+           (values q r)))
+        ((and (< m 0) (< n 0))
+         (let* ((q (quotient (- m) (- n)))
+                (r (- m (* n q))))
+           (values q r)))
+        (else
+         (let* ((q (- (quotient (abs m) (abs n))))
+                (nq (* n q))
+                (q (if (= m nq) q (- q 1)))
+                (r (- m (* n q))))
+           (values q r)))))
+
+(define (truncate-quotient m n)
+  (quotient m n))
+(define (truncate-remainder m n)
+  (remainder m n))
+(define (truncate/ m n)
+  (values (quotient m n) (remainder m n)))
+
 ; eof
