@@ -52,7 +52,7 @@
 
     bytevector? make-bytevector bytevector-length
     bytevector=?
-    bytevector-fill! bytevector-copy! bytevector-copy
+    bytevector-fill! r6rs:bytevector-copy! bytevector-copy
 
     bytevector-u8-ref bytevector-s8-ref
     bytevector-u8-set! bytevector-s8-set!
@@ -89,6 +89,8 @@
 
     string->utf8 string->utf16 string->utf32
     utf8->string utf16->string utf32->string))
+
+  (define bytevector-copy! r6rs:bytevector-copy!)
 
   ; [Larceny]
   ; In Larceny, *every* symbol describes an endianness.

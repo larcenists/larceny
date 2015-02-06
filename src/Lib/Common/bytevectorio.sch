@@ -81,7 +81,7 @@
          (bv    (vector-ref data bytevector-io.bv))
          (limit (vector-ref data bytevector-io.limit))
          (r     (make-bytevector limit)))
-    (bytevector-copy! bv 0 r 0 limit)
+    (r6rs:bytevector-copy! bv 0 r 0 limit)
     r))
 
 (define (bytevector-io/reset-output-bytevector port)
@@ -129,7 +129,7 @@
          (count (max (min n (- limit i)))))
     (if (<= count 0)
         'eof
-        (begin (bytevector-copy! b i buffer 0 count)
+        (begin (r6rs:bytevector-copy! b i buffer 0 count)
                (vector-like-set! data bytevector-io.i (+ i count))
                count))))
 
@@ -143,7 +143,7 @@
          (count (max 0 (min n (- limit i)))))
     (if (<= count 0)
         'eof
-        (begin (bytevector-copy! b i buffer 0 count)
+        (begin (r6rs:bytevector-copy! b i buffer 0 count)
                (vector-like-set! data bytevector-io.i (+ i count))
                count))))
 
@@ -156,7 +156,7 @@
     (if (< n new-i)
         (begin (bytevector-io/expand-buffer! data count)
                (bytevector-io/flush-buffer data buffer count))
-        (begin (bytevector-copy! buffer 0 bv i count)
+        (begin (r6rs:bytevector-copy! buffer 0 bv i count)
                (vector-set! data bytevector-io.i new-i)
                (if (< limit new-i)
                    (vector-set! data bytevector-io.limit new-i))
@@ -186,7 +186,7 @@
          (n     (bytevector-length bv))
          (new-i (+ i count)))
     (let ((bv2 (make-bytevector (+ (* 2 new-i) bytevector-io:headroom) 0)))
-      (bytevector-copy! bv 0 bv2 0 limit)
+      (r6rs:bytevector-copy! bv 0 bv2 0 limit)
       (vector-set! data bytevector-io.bv bv2))))
 
 (define (bytevector-input-port? port)

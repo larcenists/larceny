@@ -1352,9 +1352,9 @@
 
           (vector-like-set! newport port.mainpos 0)
 
-          (bytevector-copy! mainbuf1
-                            mainptr1
-                            mainbuf2 0 mainlim2)
+          (r6rs:bytevector-copy! mainbuf1
+                                 mainptr1
+                                 mainbuf2 0 mainlim2)
           (vector-like-set! newport port.mainbuf mainbuf2)
           (vector-like-set! newport port.mainptr 0)
           (vector-like-set! newport port.mainlim mainlim2))
@@ -1387,9 +1387,9 @@
          (mainlim1 (vector-like-ref p port.mainlim))
          (mainbuf2 (make-bytevector (bytevector-length mainbuf1))))
 
-      (bytevector-copy! mainbuf1
-                        mainptr1
-                        mainbuf2 0 (fx- mainlim1 mainptr1))
+      (r6rs:bytevector-copy! mainbuf1
+                             mainptr1
+                             mainbuf2 0 (fx- mainlim1 mainptr1))
       (vector-like-set! newport port.mainbuf mainbuf2)
 
       ; close original port, destroying original mainbuf
@@ -1520,7 +1520,7 @@
                   (n      (- auxlim auxptr))
                   (mainbuf (vector-like-ref p port.mainbuf)))
              (assert (fx< auxptr auxlim))
-             (bytevector-copy! auxbuf auxptr mainbuf 0 n)
+             (r6rs:bytevector-copy! auxbuf auxptr mainbuf 0 n)
              (bytevector-set! mainbuf n port.sentinel)
              (vector-like-set! p
                                port.mainpos
@@ -1712,7 +1712,7 @@
            (error 'get-char "Read attempted on closed port " p))
           ((> mainlim 0)
            (let* ((bv (make-bytevector mainlim))
-                  (s  (begin (bytevector-copy! mainbuf 0 bv 0 mainlim)
+                  (s  (begin (r6rs:bytevector-copy! mainbuf 0 bv 0 mainlim)
                              (utf8->string bv))))
              (if (not lookahead?)
                  (let ((mainpos (vector-like-ref p port.mainpos)))
@@ -1723,7 +1723,7 @@
            (let ((n ((ioproc 'read) iodata mainbuf)))
              (cond ((and (fixnum? n) (> n 0))
                     (let* ((bv (make-bytevector n))
-                           (s  (begin (bytevector-copy! mainbuf 0 bv 0 n)
+                           (s  (begin (r6rs:bytevector-copy! mainbuf 0 bv 0 n)
                                       (utf8->string bv))))
                       (if (not lookahead?)
                           (let ((mainpos (vector-like-ref p port.mainpos)))
@@ -2247,8 +2247,8 @@
        ((auxend)
         (assert (eq? buf mainbuf))
         (assert (fx< 0 n))
-        (bytevector-copy! mainbuf mainptr mainbuf 0 m)
-        (bytevector-copy! auxbuf auxptr mainbuf m n)
+        (r6rs:bytevector-copy! mainbuf mainptr mainbuf 0 m)
+        (r6rs:bytevector-copy! auxbuf auxptr mainbuf m n)
         (bytevector-set! mainbuf (+ m n) port.sentinel)
 
         (vector-like-set! p
@@ -2265,7 +2265,7 @@
         (assert (eq? buf mainbuf))
         (assert (fx= 0 auxlim))
         (assert (< m 4))
-        (bytevector-copy! mainbuf mainptr auxbuf 0 m)
+        (r6rs:bytevector-copy! mainbuf mainptr auxbuf 0 m)
         (vector-like-set! p
                           port.mainpos
                           (+ (vector-like-ref p port.mainpos) mainptr))
@@ -2288,7 +2288,7 @@
              ; FIXME:  This is grossly inefficient, but works for now.
 
              (bytevector-set! auxbuf auxlim (bytevector-ref mainbuf 1))
-             (bytevector-copy! mainbuf 2 mainbuf 1 (- m 2))
+             (r6rs:bytevector-copy! mainbuf 2 mainbuf 1 (- m 2))
              (vector-like-set! p port.mainlim (- mainlim 1))
              (vector-like-set! p port.auxlim (+ auxlim 1))
              (io/get-char p lookahead?))
@@ -2507,7 +2507,7 @@
              (vector-like-set! p port.mainptr (+ mainptr 1)))
             ((eq? state 'auxend)
              (assert (fx< auxptr auxlim))
-             (bytevector-copy! auxbuf auxptr mainbuf 0 (- auxlim auxptr))
+             (r6rs:bytevector-copy! auxbuf auxptr mainbuf 0 (- auxlim auxptr))
              (bytevector-set! mainbuf (- auxlim auxptr) port.sentinel)
              (vector-like-set! p
                                port.mainpos

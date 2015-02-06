@@ -10,6 +10,7 @@
    ex:interaction-environment
    jiffies-per-second
    larceny:features
+   r7rs:bytevector-copy!
    )
 
   (import
@@ -20,4 +21,5 @@
 
     current-seconds
     ex:interaction-environment
-    larceny:features)))
+    larceny:features
+    r7rs:bytevector-copy!)))

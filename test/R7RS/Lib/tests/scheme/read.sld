@@ -8,22 +8,11 @@
 
 (define-library (tests scheme read)
   (export run-read-tests)
-  (import (except (scheme base) bytevector)  ; FIXME
+  (import (scheme base)
           (scheme read)
           (tests scheme test))
 
   (begin
-
-   ;; FIXME
-
-   (define (bytevector . args)
-     (let* ((n (length args))
-            (bv (make-bytevector n)))
-       (do ((i 0 (+ i 1))
-            (args args (cdr args)))
-           ((= i n)
-            bv)
-         (bytevector-u8-set! bv i (car args)))))
 
    (define (read-data str)
      (let loop ((p (open-input-string str))

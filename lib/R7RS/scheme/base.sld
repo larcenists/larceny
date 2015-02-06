@@ -242,7 +242,7 @@
    zero?
    )
 
-  (import (except (rnrs) define-record-type)
+  (import (except (rnrs) bytevector-copy! define-record-type)
           (only (rnrs r5rs) modulo quotient remainder)
           (only (rnrs mutable-pairs) set-car! set-cdr!)
           (only (rnrs mutable-strings) string-set!)

@@ -492,7 +492,7 @@
                bv)
               (else
                (let ((bv2 (make-bytevector n)))
-                 (bytevector-copy! bv 0 bv2 0 n)
+                 (r6rs:bytevector-copy! bv 0 bv2 0 n)
                  bv2))))
       (portio/illegal-arguments 'get-bytevector-n p count)))
 
