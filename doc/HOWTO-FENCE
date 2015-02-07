@@ -43,13 +43,13 @@ present no "softfp" target but one is easy to create.
   > (setup 'target: 'linux-arm-el-hardfp 'native)
 
 
-Status, 23 August 2012.
+Status, 7 February 2015:
 
 - The little-endian ARM-32 Cant implementation is good enough for
-  Larceny to self-host on Arm Linux (really Android), with flat4
-  strings.  It is possible to dump larceny.heap and run with the
-  compiler installed as the evaluator.  Basically the port appears to
-  be working and the code is decent.
+  Larceny to self-host on Arm Linux, with flat4 strings.  It is
+  possible to dump larceny.heap and run with the compiler installed as
+  the evaluator.  Basically the port appears to be working and the
+  code is decent.
 
 - Peephole optimizations have been ported from IAssassin.  There is an
   ARM-specific optimizer for branch elimination and an ARM
@@ -60,273 +60,10 @@ Status, 23 August 2012.
      (loading from fasl).
    - Reloading the development system in larceny.heap from source and
      rebuilding the heap works
-   - test/Lib:
-       - boolean-tests
-       - string-tests
-       - io-tests
-       - hashtable-tests
-       - predicate-tests
-       - number-tests
-       - fact-tests
-       - fib-tests
-       - ctak-tests
-       - dynamic-wind-tests
-       - regression-tests
-       - fixnum-tests
-       - wcm-tests
-       - record-tests
-       - condition-tests
-       - enumset-tests
+   - The test suite in test/Lib passes
 
 
 To-do, roughly in decreasing order of importance.
-
-- BUG (unknown cause):
-
-  Currently testing with test/Lib/load-all-tests.sch, but failing:
-   - crash:    bytevector-tests [ in test-char-range, testing 
-                 long string conversion, various iterations crash,
-                 not yet known whether in loops or subroutine calls.
-                 Looks random-ish.  It could be a memory overwrite, or
-                 the char ranges could trigger some sort of exn path
-                 that's poorly handled. More tracing needed.  ]
-
-     Run like this:
-
-    > (begin (load "test/Lib/test.sch") (load "test/Lib/bytevector.sch"))
-    > (exhaustive-string-bytevector-tests)
-
-     Then it crashes after "loop done" on iteration 8.
-
-     Breaking things out as a LET* perturbs it but it does crash,
-     apparently in string=?; the crash point is the same in two
-     back-to-back runs:
-
-       (Range 393216 458751)
-       Starting loop
-       Loop done
-       tobytevector done
-       tostring done
-
-     A bug like this could be any of these:
-
-       - rooting a non-pointer
-       - failing to root all pointers
-       - rarely taken exception path (passing bad data, etc)
-       - allocation error (too few bytes allocated)
-       - write past end (onto somebody's header)
-       - read past end (unavailable memory)
-       - missing barrier
-       - bad barrier
-       - gc bug
-       - generic code generation bug that strikes because ...
-
-     Building a new heap with the char and globals fixes, the bug does
-     not repro when running fasl compiled on Windows with heap
-     compiled on Windows.
-
-     (Rebooted device here)
-
-     Bug does not repro when running fasl compiled on Windows with
-     heap compiled on device (not bitwise identical to the previous
-     heap) (arm2.heap).  Heap compiled with the interpreter.
-
-     Recompiling test files on the device with interpreter: bug does
-     not repro.
-
-     Recompiling test files on the device with compiled compiler:
-     bug does not repro.  (Still using heap image created with
-     interpreted compiler.)
-
-     Recompiling the heap with the compiled compiler: still unable to
-     repro in the new heap (arm3.heap).  This new heap is the same size
-     as the one produced on Windows.
-
-     => Need to recompile the compiler with the compiled compiler, then
-        recompile the tests with the recompiled compiler.
-
-     => larceny.heap
-
-        => crashes when loading the .sch files into larceny.heap and
-           running exhaustive-string-bytevector-tests - 9th iteration,
-           after ->bytevector, before ->string.
-
-        => does it crash when loading .fasl compiled with that heap?  YES.
-
-        => do those fasls crash in earlier arm.heaps?
-             arm.heap => NO
-             arm2.heap => NO
-             arm3.heap => NO
-
-        => are arm.heap and arm3.heap identical?  YES
-
-        => are the fasls identical?  NO  (not even remotely)
-
-        => do the fasls created on Windows crash in larceny.heap?  YES!
-
-    => one big test would be to create the fasls for larceny.heap 
-       on Windows and push them, and then just run arm-larceny-heap.fasl
-       on the ARM box.  If we still crash then the error has nothing to
-       do with running the compiler on the ARM system (though the REPL
-       uses the compiler, of course).
-
-       => YES, crashes on the second run.
-
-       => Confirmed: creating arm.heap, all Larceny fasls, and test
-          fasls on Windows box is enough to provoke crash - no
-          compilation on ARM, apart from compiler running in REPL,
-          required.  larceny.heap created on ARM, though.
-
-       => Also with twobit.heap, which takes the interactive compiler
-          out of the equation.
-
-    => experiment: 10 iterations in arm.heap  => NO CRASH.
-
-    => experiment: load compiler with x.sch, then run test  => NO CRASH in 10 iterations.
-
-    => experiment: a different gc but one of the split heaps? 
-
-       YES.  With -stopcopy and twobit.heap we crash quickly.
-
-    => Experiment: nonsplit heap.  Dumped twobit.heap but did not run it
-       through reorganizer.
-
-       YES.  Crashes on second iteration with std collector.
-
-    => Tentatively it looks like dumped heaps are problematic but
-       there's the additional possibility that they must be "large".
-
-    => Experiment: re-dump arm.heap as small.heap  =>  YES.  Crashes.
-
-    => So dumped heaps, even small dumped heaps, have a problem, while
-       undumped heaps, even large undumped heaps, do not.
-
-         - uninitialized data that are scanned differently in static area?
-
-    => Crashes also with small.heap and -nostatic, so static area
-       scanning is not it (though static area non-scanning could
-       somehow be it?)
-
-    => CRASHES with arm.heap and -nostatic!  Important!!!!
-
-    => Re-testing with arm.heap and default settings: NO CRASH.
-
-    => -nostatic -stopcopy arm.heap: CRASH.  Ergo not a missing write
-       barrier, though it could be a broken barrier still.
-
-       => SETLEX was missing a barrier but fixing that does not help
-          the -nostatic -stopcopy case (as predicted).
-
-    => Compiling utf8->string and looking at the LAP, the only side
-       effect is really ustring-set!:trusted - no setlex, no setglbl.
-       The only globals referenced (and called) are the bitwise
-       functions, bitwise-and etc.  (Why these aren't inlined I've no
-       idea - probably a compiler bug.)  Allocation is with
-       make-ustring and cons - a lot of consing, probably for
-       arguments.
-
-    => Compiling string->utf8 and looking at the LAP, the only side
-       effect is bytevector-like-set!:trusted - no setlex, no setglbl.
-       The globals referenced are the bit operators.  Very bizarrely,
-       bytevector-u8-set! is inlined in some way that expands it into
-       calls to "write"/"newline"/"break", presumably some error case.
-       This looks really bad, filed ticket #677.  Lots of cons, also
-       make-bytevector to allocate.
-
-    => Of course, there is stack allocation too...
-
-    => Running (collect) 100 times in a clean heap does nothing bad.
-
-    => Running (collect) 100 times in a heap with the fasls loaded
-       does nothing bad.
-
-    => Commenting out string=? - we still crash
-
-    => Commenting out ->string - we still crash
-
-    => Commenting out both - no crash
-
-    => Commenting out ->string, but also commenting out the
-       string-set! - still crashes.
-
-    => replacing the make-string with a reference to a global string:
-       still crashes.
-
-    => (from this point on, cant optimization is off)
-
-    => Removing the entire initializing DO loop: still crashes.
-
-    => Replacing the entire function by a a small function that just
-       calls tobytevector: crashes.  And now it's repeatable, it
-       crashes on the last iteration of "3 outside", ie, UTF-16BE,
-       ie, string->utf16 'big.
-
-    => Changing the load changes the timing of the crash; with load
-       2.2, the crash comes quite a bit later.  Ergo it seems like a
-       GC timing bug - the GC observing some junk or overwritten data
-       structure.
-
-    => Disabling peephole optimization: Takes quite a bit longer, but
-       still crashes.  (And with L=2.2 it crashes more quickly.)  That
-       makes sense insofar that the test code without peephole
-       optimization is 15% larger: perturbation.
-
-    => The hot possibility is missing icache flushing during GC?
-
-    => What happens is that there's a GC that pretty much wipes out
-       the heap - we go from 5845408 words (pretty stable) to 546504,
-       and from 5639 icache flushes (constant across many collections)
-       to 6.  Then we crash.
-
-       Note this cannot be a barrier bug as such, the barrier is
-       disabled and I've checked that it is.
-
-       It almost has to be an overwrite, underallocation, missing
-       icache flush, or storing a stale value.
-
-       I found one case of a temp register being held across a trap
-       and used after (a stale / garbage value for sure), but that was
-       not critical (it was the timer).
-
-    => Compiling 0.98b1 for Cygwin (a little painful).  No crash so
-       far: running with -stopcopy -nostatic in the bootstrap heap
-       and loading fasl files for the test case.
-
-    => Stack overflow?  Does not look that way, the failing value is 8
-       bytes, certainly a cons.
-
-    => (peephole optimization and cant optimization disabled; heap
-       and tests rebuilt)
-
-    => Initializing the dynamic link pad word does not make a
-       difference, nor should it (though the iasn back-end does it),
-       -stopcopy -nostatic arm.heap.
-
-    => No evidence at all of stack overflow being triggered.
-
-    => The length of the continuation chain during the fatal GC
-       appears to be normal - same as before.
-
-
-- BUG (fixed, tested):
-
-  The timer code would use a stale register if the timer trap was
-  taken, subtracing 1 from garbage and storing it into the timer slot
-  of globals.  This could account for some of the weirdness in the
-  timer code (strange errors, etc).
-
-  It's not clear how it could cause other problems, though.
-
-- BUG (fixed, currently testing):
-
-  emit-save0 uses 'greater-or-equal to test for stack overflow but
-  that only works if the stack pointer and heap top appear as unsigned
-  values.  On ARM they do, but this is just luck.
-
-- BUG (collateral damage, not fixed, mustfix):
-
-  Building for Linux/Cygwin, I can't create larceny.heap: it crashes
-  during load because sys$codevector-iflush is not defined.
 
 - BUG (possibly very old, OK to just file the bug):
 
@@ -355,20 +92,20 @@ To-do, roughly in decreasing order of importance.
     performance tweaks (better instruction selection, better
     strategies) and some other spots that may need attention.
 
-- I have only compiled for Android level 9 (Android 2.3) and tested on
-  a Samsung Galaxy S (original model) running Android 2.3.  Broader
-  testing on ARM Linux would be useful.
-
 - Need to work around the use of MOVT in order to run on the ARMv6
   CPU.  The ARM11 implementation is popular (eg Raspberry Pi, many
   existing devices) and that uses the ARMv6 architecture.
 
 - The flat1 string representation has not been tested at all.
 
-- BUILD-RUNTIME and BUILD-EXECUTABLE are not really working according
-  to spec; it's not clear that this is a big deal and it's considered
-  low priority to fix it.  See notes in the "Quick start" section
-  above.
+- Performance: No performance testing has been done.  Performance
+  should be good when we stay in native code; bad when we trap to
+  millicode because the millicode traps to C in almost all cases,
+  notably for generic arithmetic.
+
+- The test suite in test/Lib fails with an error in the Record tests
+  if run twice in the same system ("nongenerative record type").
+  This could be by design but needs to be investigated.
 
 
 Bugs.
@@ -401,8 +138,6 @@ Bugs.
 
 
 Larceny bugs to file:
-
-- 674, 675, 676, and 677 were discovered during the porting to ARM
 
 - In src/Lib/Arch/Fence/toplevel-target.sch and primops.sch there are
   commented-out definitions of eg fx+, fx-, fx* -- not clear why these

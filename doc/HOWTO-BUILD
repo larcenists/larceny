@@ -145,6 +145,7 @@ On IAssassin Larceny (Intel) [5]:
     > (exit)
 
 On Native Larceny (ARM):
+
     % ./larceny.bin -stopcopy -- src/Build/arm-larceny-heap.fasl
     > (exit)
 
