@@ -871,7 +871,7 @@
         ("gc-testsuite.date" ,(lambda args #t)))
       `(dependencies
         ("gc-testsuite.date"
-         ,(objects "Testsuite/GC/" ".fasl" gc-testsuite-files))))))
+         ,(objects "test/GC/" ".fasl" gc-testsuite-files))))))
 
 (define (make-gc-testsuite . rest)
   (make:pretend (not (null? rest)))
@@ -894,7 +894,7 @@
         ("regression-test.date" ,(lambda args #t)))
       `(dependencies
         ("regression-test.date"
-         ,(objects "Testsuite/Lib/" ".fasl" regression-test-files))))))
+         ,(objects "test/Lib/" ".fasl" regression-test-files))))))
 
 (define (make-regression-test . rest)
   (make:pretend (not (null? rest)))
