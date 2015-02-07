@@ -28,7 +28,7 @@
 (let ()
     
   (load "setup.sch")
-  (setup 'target: 'linux-arm-el 
+  (setup 'target: 'linux-arm-el-hardfp
 	 'native
          'string-rep: (cdr (assq 'string-representation (system-features))))
   (load-compiler 'release)
