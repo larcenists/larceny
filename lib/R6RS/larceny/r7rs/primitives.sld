@@ -33,22 +33,21 @@
    read-error?
    read-line
    square
+   string->vector
    string-copy!
    string-fill!
    string-map
    truncate-quotient
    truncate-remainder
    truncate/
-   write
-   write-shared
-   write-simple
-   write-string
-
-   string->vector
    vector->string
    vector-append
    vector-copy
    vector-copy!
+   write
+   write-shared
+   write-simple
+   write-string
 
    input-port-open?
    output-port-open?

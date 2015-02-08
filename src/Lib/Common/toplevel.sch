@@ -265,9 +265,7 @@
   (environment-set! r4rs 'string->list string->list)
   (environment-set! r4rs 'list->string list->string)
   (environment-set! r4rs 'string-copy string-copy)
-  (environment-set! r4rs 'string-copy! string-copy!)
   (environment-set! r4rs 'string-fill! string-fill!)
-  (environment-set! r4rs 'string-map string-map)
 
   ;; vectors
 
@@ -830,6 +828,9 @@
 
   ;; strings
 
+  (environment-set! larc 'string-copy! string-copy!)
+
+  (environment-set! larc 'string-map string-map)
   (environment-set! larc 'string-for-each string-for-each)
 
   (environment-set! larc 'string-hash string-hash)
@@ -852,8 +853,11 @@
 
   (environment-set! larc 'vector-map vector-map)
   (environment-set! larc 'vector-for-each vector-for-each)
-
   (environment-set! larc 'vector-copy vector-copy)
+  (environment-set! larc 'vector-copy! vector-copy!)
+  (environment-set! larc 'vector-append vector-append)
+  (environment-set! larc 'vector->string vector->string)
+  (environment-set! larc 'string->vector string->vector)
 
   ;; sorting
 

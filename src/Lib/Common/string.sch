@@ -124,9 +124,9 @@
 
 (define string-copy-into-up!
   (lambda (x i j y k)
-    (do ((j j (- j 1))
-         (k (+ k (- j i)) (- k 1)))
-        ((<= i j))
+    (do ((j (- j 1) (- j 1))
+         (k (+ k (- j i) -1) (- k 1)))
+        ((> i j))
       (string-set! y k (string-ref x j)))))
 
 (define string-copy
@@ -192,7 +192,9 @@
                                      result-string position)
              result-string))
           ((null? tail) (make-string position))
-          (else (error "concatenate-strings: improper list") #t)))
+          (else (error 'concatenate-strings
+                       (errmsg 'msg:notlist)
+                       string-list))))
   (concatenate-strings1 0 string-list))
 
 (define (string-append . args)
@@ -208,7 +210,7 @@
         (let ((y (make-string (- n m))))
           (string-copy-into-down! s m n y 0)
           y)
-        (error "substring: bad operands: " s " " m " " n))))
+        (error 'substring (errmsg 'msg:illegalargs) s m n))))
 
 (define string-fill!
   (lambda (s c . rest)
