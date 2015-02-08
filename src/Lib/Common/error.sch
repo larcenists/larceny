@@ -239,6 +239,7 @@
              (who (if colon
                       (substring msg 0 (- (string-length msg) (length colon)))
                       #f))
+             (who (if (equal? who "?") #f who))
              (msg (if (and r6rs? colon) (list->string (cdr colon)) msg))
              (c0 (make-assertion-violation))
              (c1 (make-message-condition msg)))

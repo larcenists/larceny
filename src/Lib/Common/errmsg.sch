@@ -49,6 +49,13 @@
 (define messages:english '())
 (define messages:non-english '())
 
+;;; This version can be imported into R7RS and R6RS libraries and programs.
+
+(define (larceny:errmsg msgid . rest)
+  (apply errmsg msgid rest))
+
+;;; FIXME: the non-English case is untested and looks wrong
+
 (define (errmsg msgid . rest)
   (if (null? rest)
       (let ((probe (assq msgid messages:english)))
@@ -56,7 +63,7 @@
             (errmsg:uncompress (cdr probe))
             (let* ((msg (symbol->string msgid))
                    (n (string-length msg))
-                   (usual-prefix "msg")
+                   (usual-prefix "msg:")
                    (nprefix (string-length usual-prefix)))
               (if (and (>= n nprefix)
                        (string=? usual-prefix (substring msg 0 nprefix)))
@@ -128,14 +135,19 @@
 
 (msg:assert                     "assertion failure")
 
+(msg:notbyte                    "not a byte")
 (msg:notbytevector              "not a bytevector")
 (msg:notchar                    "not a char")
 (msg:notexactintegers           "not an exact integer")
 (msg:notfixnum                  "not a fixnum")
+(msg:notflonum                  "not a flonum")
 (msg:nothashtable               "not a hashtable")
 (msg:notindex                   "not an index")
+(msg:notinteger                 "not an integer")
 (msg:notlist                    "not a (proper) list")
+(msg:notnaturalnumber           "not an exact nonnegative integer")
 (msg:notnumber                  "not a number")
+(msg:notpair                    "not a pair")
 (msg:notport                    "not a port")
 (msg:notproc                    "not a procedure")
 (msg:notreal                    "not a real number")
@@ -144,7 +156,7 @@
 (msg:notrectnum                 "not a rectnum")
 (msg:notstring                  "not a string")
 (msg:notsymbol                  "not a symbol")
-(msg:notnaturalnumber           "not an exact nonnegative integer")
+(msg:notvector                  "not a vector")
 
 (msg:illegalarg1                "illegal first argument")
 (msg:illegalarg2                "illegal second argument")
@@ -182,6 +194,8 @@
 
 (msg:printing
  "error during printing; reverting to the ur-printer")
+
+(msg:confused                   "confused by")
 
 ; Errors detected by subsystems
 

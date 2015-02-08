@@ -1311,6 +1311,7 @@
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
   (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)
+  (environment-set! larc 'larceny:errmsg larceny:errmsg)
   (environment-set! larc 'error-handler error-handler)
   (environment-set! larc 'decode-error decode-error)
   (environment-set! larc 'call-with-error-handler call-with-error-handler)
