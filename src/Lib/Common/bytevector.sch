@@ -365,10 +365,12 @@
 ; FIXME: should use word-at-a-time when possible
 
 (define (bytevector-fill! b fill)
-  (let ((n (bytevector-length b)))
-    (do ((i 0 (+ i 1)))
-        ((= i n))
-      (bytevector-u8-set! b i fill))))        
+  (if (<= -128 fill -1)
+      (bytevector-fill! b (+ fill 256))
+      (let ((n (bytevector-length b)))
+        (do ((i 0 (+ i 1)))
+            ((= i n))
+          (bytevector-u8-set! b i fill)))))
 
 (define (r6rs:bytevector-copy! source source-start target target-start count)
   (if (>= source-start target-start)
