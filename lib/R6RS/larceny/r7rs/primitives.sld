@@ -5,12 +5,17 @@
   (export
 
    bytevector
+   bytevector-append
    char-ready?
    current-second
    display
    emergency-exit
+   error-object-irritants
+   error-object-message
+   error-object?
    exact-integer?
    exit
+   file-error?
    floor-quotient
    floor-remainder
    floor/
@@ -25,6 +30,7 @@
    open-binary-output-file
    open-input-bytevector
    open-output-bytevector
+   read-error?
    read-line
    square
    truncate-quotient
@@ -35,17 +41,11 @@
    write-simple
    write-string
 
-   bytevector-append
-   error-object-irritants
-   error-object-message
-   error-object?
-   file-error?
    input-port-open?
    output-port-open?
    peek-u8
    read-bytevector
    read-bytevector!
-   read-error?
    read-string
    read-u8
    string->vector

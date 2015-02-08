@@ -249,7 +249,7 @@
       ((0)   'r5rs)
       ((5)   'r7rs)
       ((1)   'err5rs)
-      ((2 3) 'dargo)
+      ((2 3) 'r6rs)
       (else  'spanky)))
     ((ignore1)
      (case (get-feature feature$execmode)
@@ -281,12 +281,14 @@
 
 ; For deciding whether to use R7RS, R6RS, or R5RS semantics.
 ; Must keep in sync with src/Rts/Sys/primitive.c (which explains encodings).
+;
+; FIXME: this should be faster
 
 (define (larceny:execution-mode)
-  (case (get-feature feature$execmode)
-   ((0)     'r5rs)
-   ((1 3 5) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
-   (else    'r6rs)))
+  (case (sys$system-feature 'execmode)
+   ((r5rs)        'r5rs)
+   ((r7rs err5rs) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
+   (else          'r6rs)))
 
 ; Get the value of an environment variable.
 

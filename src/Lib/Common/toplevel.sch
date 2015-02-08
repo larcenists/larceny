@@ -799,6 +799,7 @@
                     bytevector-ieee-double-native-set!)
   (environment-set! larc 'bytevector-ieee-double-set!
                     bytevector-ieee-double-set!)
+  (environment-set! larc 'bytevector-append bytevector-append)
   (environment-set! larc 'bytevector-copy! bytevector-copy!)
   (environment-set! larc 'r6rs:bytevector-copy! r6rs:bytevector-copy!)
   (environment-set! larc 'r7rs:bytevector-copy! r7rs:bytevector-copy!)
@@ -954,6 +955,14 @@
 
   (environment-set! larc 'rtd-printer rtd-printer)
   (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
+
+  ;; R7RS exception mechanism
+
+  (environment-set! larc 'error-object? error-object?)
+  (environment-set! larc 'error-object-message error-object-message)
+  (environment-set! larc 'error-object-irritants error-object-irritants)
+  (environment-set! larc 'read-error? read-error?)
+  (environment-set! larc 'file-error? file-error?)
 
   ;; R6RS exception mechanism
 

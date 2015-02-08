@@ -76,6 +76,16 @@
          bv)
       (bytevector-u8-set! bv i (car args)))))
 
+(define (bytevector-append . args)
+  (let* ((lengths (map bytevector-length args))
+         (n (apply + lengths))
+         (bv (make-bytevector n)))
+    (do ((j j (+ j (car lengths)))
+         (args args (cdr args))
+         (lengths lengths (cdr lengths)))
+        ((null? args) bv)
+      (r7rs:bytevector-copy! bv j src))))
+
 ;;; R7RS version of bytevector-copy! is incompatible with R6RS
 ;;; when five arguments are passed.
 
