@@ -33,6 +33,9 @@
    read-error?
    read-line
    square
+   string-copy!
+   string-fill!
+   string-map
    truncate-quotient
    truncate-remainder
    truncate/
@@ -41,6 +44,12 @@
    write-simple
    write-string
 
+   string->vector
+   vector->string
+   vector-append
+   vector-copy
+   vector-copy!
+
    input-port-open?
    output-port-open?
    peek-u8
@@ -48,16 +57,8 @@
    read-bytevector!
    read-string
    read-u8
-   string->vector
-   string-copy!
-   string-fill!
-   string-map
    syntax-error
    u8-ready?
-   vector->string
-   vector-append
-   vector-copy
-   vector-copy!
    write-bytevector
    write-u8
 

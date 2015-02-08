@@ -265,7 +265,9 @@
   (environment-set! r4rs 'string->list string->list)
   (environment-set! r4rs 'list->string list->string)
   (environment-set! r4rs 'string-copy string-copy)
+  (environment-set! r4rs 'string-copy! string-copy!)
   (environment-set! r4rs 'string-fill! string-fill!)
+  (environment-set! r4rs 'string-map string-map)
 
   ;; vectors
 

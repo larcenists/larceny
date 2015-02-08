@@ -111,21 +111,71 @@
 ; Copies (substring x i j) into y starting at k.
 ; Used only within this file.
 ; Performs no checking.
-; Assumes x and y are distinct strings.
+; Assumes x and y are distinct strings, or that k <= i.
 
-(define string-copy-into!
+(define string-copy-into-down!
   (lambda (x i j y k)
     (do ((i i (.+:idx:idx i 1))
          (k k (.+:idx:idx k 1)))
         ((.>=:fix:fix i j))
       (.string-set!:trusted y k (.string-ref:trusted x i)))))
 
+; As above, but assumes k >= i.
+
+(define string-copy-into-up!
+  (lambda (x i j y k)
+    (do ((j j (- j 1))
+         (k (+ k (- j i)) (- k 1)))
+        ((<= i j))
+      (string-set! y k (string-ref x j)))))
+
 (define string-copy
-  (lambda (x)
-    (let* ((length (string-length x))
-           (y (make-string length)))
-      (string-copy-into! x 0 length y 0)
-      y)))
+  (lambda (x . rest)
+    (let* ((start (if (null? rest) 0 (car rest)))
+           (end  (if (or (null? rest) (null? (cdr rest)))
+                     (string-length x)
+                     (cadr rest))))
+      (substring x start end))))
+
+(define string-copy!
+  (lambda (dst at src . rest)
+
+    (define (complain0 msgcode)
+      (assertion-violation 'string-copy!
+                           (errmsg msgcode)
+                           (cons dst (cons at (cons src rest)))))
+
+    (define (complain msgcode culprit)
+      (assertion-violation 'string-copy!
+                           (errmsg msgcode)
+                           culprit))
+
+    (let* ((start (if (null? rest)
+                      0
+                      (car rest)))
+           (end (if (or (null? rest) (null? (cdr rest)))
+                    (string-length src)
+                    (cadr rest))))
+      (cond ((not (string? dst))
+             (complain 'msg:notstring dst))
+            ((not (string? src))
+             (complain 'msg:notstring src))
+            ((not (fixnum? at))
+             (complain 'msg:notfixnum at))
+            ((not (fixnum? start))
+             (complain 'msg:notfixnum start))
+            ((not (fixnum? end))
+             (complain 'msg:notfixnum end))
+            ((not (and (<= 0 at (string-length dst))
+                       (<= 0 start (string-length src))
+                       (<= start end (string-length src))
+                       (<= (+ at (- end start)) (string-length dst))))
+             (complain0 'msg:rangeerror))
+            (else
+             ((if (<= at start)
+                  string-copy-into-down!
+                  string-copy-into-down!)
+              src start end dst at))))))
 
 (define string
   (lambda chars
@@ -138,8 +188,8 @@
                   (length (string-length this-string))
                   (result-string
                    (concatenate-strings1 (+ position length) (cdr tail))))
-             (string-copy-into! this-string 0 length
-                                result-string position)
+             (string-copy-into-down! this-string 0 length
+                                     result-string position)
              result-string))
           ((null? tail) (make-string position))
           (else (error "concatenate-strings: improper list") #t)))
@@ -156,13 +206,17 @@
              (fx<= m n)
              (fx<= n length))
         (let ((y (make-string (- n m))))
-          (string-copy-into! s m n y 0)
+          (string-copy-into-down! s m n y 0)
           y)
         (error "substring: bad operands: " s " " m " " n))))
 
 (define string-fill!
-  (lambda (s c)
-    (substring-fill! s 0 (string-length s) c)))
+  (lambda (s c . rest)
+    (let* ((start (if (null? rest) 0 (car rest)))
+           (end (if (or (null? rest) (null? (cdr rest)))
+                    (string-length end)
+                    (cadr rest))))
+      (substring-fill! s start end c))))
 
 (define substring-fill!
   (lambda (s start end c)
@@ -171,13 +225,6 @@
         (string-set! s i c))))
 
 ; Make-string is now a primitive; see primops.sch.
-
-;(define (make-string n . rest)
-;  (let ((init (char->integer (if (null? rest) #\space (car rest))))
-;	(s    (make-bytevector n)))
-;    (bytevector-fill! s init)
-;    (typetag-set! s sys$tag.string-typetag)
-;    s))
 
 (define list->string
   (letrec ((loop
@@ -189,14 +236,16 @@
     (lambda (l)
       (loop (make-string (length l)) 0 l))))
 
-(define string->list
-  (letrec ((loop
-             (lambda (bv i l)
-               (if (< i 0)
-                   l
-                   (loop bv (- i 1) (cons (string-ref bv i) l))))))
-    (lambda (bv)
-      (loop bv (- (string-length bv) 1) '()))))
+(define (string->list s . rest)
+  (define (loop s start i chars)
+    (if (< i start)
+        chars
+        (loop s start (- i 1) (cons (string-ref s i) chars))))
+  (let* ((start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest)))
+                  (string-length s)
+                  (cadr rest))))
+    (loop s start (- end 1) '())))
 
 ;;; String hash based on
 ;;;
@@ -210,8 +259,8 @@
 
 ;;; Note, the stepping function is this:
 ;;;   hash_n+1 <- (fxlogxor hash_n (+ (shift-left hash_n 5)
-;;;                                 (shift-right hash_n 2)
-;;;                                 (string-ref string index)))
+;;;                                   (shift-right hash_n 2)
+;;;                                   (string-ref string index)))
 ;;;
 
 ;;; The end result is a > 25% speedup in hashing, and a better
@@ -432,6 +481,27 @@
                      (assertion-violation 'string-for-each
                                           "illegal-arguments"
                                           (cons f args))))))))))
+
+;;; Added for R7RS.
+
+; FIXME:  The performance of string-map can be improved, but
+; this implementation plays well with first class continuations.
+
+(define (string-map f x . rest)
+
+  (define (string-map1 f x)
+    (list->string (map f (string->list x))))
+
+  (define (string-map2 f x y)
+    (list->string (map f (string->list x) (string->list y))))
+
+  (define (string-mapn f lists)
+    (list->string (apply map f (map string->list lists))))
+
+  (case (length rest)
+    ((0)  (string-map1 f x))
+    ((1)  (string-map2 f x (car rest)))
+    (else (string-mapn f (cons x rest)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
