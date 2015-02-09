@@ -251,7 +251,7 @@ DEBUGINFO=#-g -gstabs+
 OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
 # FIXME (should clear up these warnings instead of turning them off)
 WARNINGS=-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-label
-CFLAGS+=-c -march=armv7-a -marm -mfloat-abi=hard -mfpu=vfp -ISys -IBuild $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
+CFLAGS+=-c -march=armv7-a -marm -mfloat-abi=hard -mfpu=vfp -DARM -ISys -IBuild $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
 LDXFLAGS=
 ASFLAGS+=-c -march=armv7-a -marm
 default_target: larceny.bin
