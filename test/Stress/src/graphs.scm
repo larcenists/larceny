@@ -47,9 +47,9 @@
 ; 		(begin e-first
 ; 		    e-rest ...)))))
 
-(define assert
-  (lambda (test . info)
-    #f))
+;; (define assert
+;;   (lambda (test . info)
+;;     #f))
 
 ;;; ==== util.ss ====
 
@@ -346,7 +346,8 @@
 			    ((more)
 				(accross state))
 			    (else
-				(assert #F))))
+			        ???
+				'(assert #F))))
 		    0
 		    (lambda (leaf-depth state accross)
 			'(assert (eqv? leaf-depth size)
@@ -448,7 +449,8 @@
 					((equal more)
 					    (accross #T))
 					(else
-					    (assert #F))))))
+					    ???
+					    '(assert #F))))))
 			(lambda ()
 			    (minimal-folder root
 				edge?

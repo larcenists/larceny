@@ -237,8 +237,6 @@ then echo skipping larceny_bench as Petit is slooow.
 else larceny_bench;
 fi
 
-BUILD_STATUS=${STATUS}
-
-if [ "${BUILD_STATUS}" == "failed" ] 
+if [ "${STATUS}" == "failed" ] 
 then exit 1
 fi

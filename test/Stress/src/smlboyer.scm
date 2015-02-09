@@ -199,8 +199,8 @@
 (define (CProp.terms x) (cadr x))
 
 (define (cterm_to_term x)
-  (if (Cvar? x)
-      (Var (Cvar.i x))
+  (if (CVar? x)
+      (Var (CVar.i x))
       (Prop (get (CProp.name x))
             (map cterm_to_term (CProp.terms x)))))
 

@@ -152,6 +152,48 @@
          (error "char-ready?: too many arguments.")
          #t)))
 
+;;; New for R7RS.  FIXME: Performance could be improved.
+
+(define (read-string k . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (get-string-n p k)))
+
+(define (read-u8 . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (get-u8 p)))
+
+(define (peek-u8 . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (lookahead-u8 p)))
+
+(define (u8-ready? . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (io/u8-ready? p)))
+
+(define (write-u8 n . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (put-u8 p n)))
+
+(define (read-bytevector k . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (get-bytevector-n p k)))
+
+(define (read-bytevector! bv . rest)
+  (let* ((p (if (null? rest) (current-input-port) (car rest)))
+         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
+         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
+                  (bytevector-length bv)
+                  (caddr rest))))
+    (get-bytevector-n! p bv start (- end start))))
+
+(define (write-bytevector bv . rest)
+  (let* ((p (if (null? rest) (current-input-port) (car rest)))
+         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
+         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
+                  (bytevector-length bv)
+                  (caddr rest))))
+    (put-bytevector p bv start (- end start))))
+
 ; Write-char has been re-coded in MAL for performance; see Lib/malcode.mal.
 ;
 ;(define (write-char c . rest)
@@ -185,6 +227,14 @@
 
 (define (output-port? p)
   (io/output-port? p))
+
+(define (input-port-open? p)
+  (and (input-port? p)
+       (io/open-port? p)))
+
+(define (output-port-open? p)
+  (and (output-port? p)
+       (io/open-port? p)))
 
 (define (port-name p)
   (io/port-name p))

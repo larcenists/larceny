@@ -1186,11 +1186,12 @@
              (msgtxt (string-append msgtxt
                                     " in line "
                                     (number->string line)))
+             (irritant1 (substring string_accumulator
+                                   0
+                                   string_accumulator_length))
              (msgtxt (string-append msgtxt
                                     ": "
-                                    (substring string_accumulator
-                                               0
-                                               string_accumulator_length)
+                                    irritant1
                                     next)))
 
         ; must avoid infinite loop on current input port
@@ -1203,8 +1204,8 @@
         (raise-r6rs-exception
          (make-lexical-violation)
          'get-datum
-          (string-append "lexical error: " msgtxt " ")
-          input-port))
+         (string-append "lexical error: " msgtxt " ")
+         (list irritant1 next input-port)))
       (next-token))
   
     ; Accepts a token of the given kind, returning that kind.
@@ -2252,7 +2253,9 @@
                                   expected-terminals)))))
                    (string #\newline))))
         (raise-r6rs-exception (make-lexical-violation)
-                              'get-datum msg input-port)))
+                              'get-datum
+                              msg
+                              (list culprit-as-string input-port))))
 
     ; The list of tokens that can start a datum in R6RS or R7RS mode.
 
