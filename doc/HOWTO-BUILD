@@ -137,10 +137,10 @@ On IAssassin Larceny (Intel) [6]:
 
 On Native Larceny (ARM):
 
-    % ./larceny.bin -stopcopy -- src/Build/arm-larceny-heap.fasl
+    % ./larceny.bin -stopcopy -- src/Build/arm-el-hardfp-larceny-heap.fasl
     > (exit)
 
-    % ./larceny.bin -stopcopy -- src/Build/arm-twobit-heap.fasl
+    % ./larceny.bin -stopcopy -- src/Build/arm-el-hardfp-twobit-heap.fasl
     > (exit)
 
 On Petit Larceny:
