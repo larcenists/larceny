@@ -105,7 +105,7 @@
         ((call? expr)
          (interpret/make-call expr env find-global expr proc-doc))
         (else
-         (error "INTERPRET/PREPROCESS: unknown expression: " expr)
+         (error 'interpret/preprocess (errmsg 'msg:badexpr) expr)
          #t)))
 
 
@@ -187,7 +187,7 @@
        (let ((v (car cell)))
          (if (eq? v (undefined))
              (begin
-               (error "Reference to undefined global variable \"" name "\".")
+               (error "undefined global variable" name)
                #t)
              v)))
      (cons src proc-doc))))
@@ -347,7 +347,7 @@
         ((4) (interpret/invoke4 proc (car args) (cadr args) (caddr args)
                                 (cadddr args) doc))
         (else
-         (error "impossible case in interpret/invoke-short: " n op))))))
+         (error 'interpret/invoke-short (errmsg 'msg:internalerror) n op))))))
 
 
 (define (interpret/invoke0 proc doc)
@@ -546,14 +546,14 @@
      src)))
 
 (define (interpret/too-few proc required got exact?)
-  (error "Too few arguments to procedure "
-         (procedure-name proc)
-         "; got "
-         got
-         ", wanted "
-         (if exact? "" "at least ")
-         required
-         "."))
+  (error (errmsg 'msg:wna)
+         proc
+         (string-append
+          " got "
+          (number->string got)
+          " but wanted "
+          (if exact? "" "at least ")
+          (number->string required))))
 
 ; Debugger support
 
@@ -661,7 +661,7 @@
 (define (interpreted-expression-source proc)
   (if (interpreted-expression? proc)
       (make-readable (car (interpreted-procedure-documentation proc)))
-      (begin (error "Not an expression: " proc)
+      (begin (error (errmsg 'msg:badexpr) proc)
              #t)))
 
 ; eof
