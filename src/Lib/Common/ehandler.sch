@@ -587,13 +587,13 @@
        ((= code $ex.argc)
         (let ((name (and (procedure? arg3) (procedure-name arg3))))
           (error name (errmsg 'msg:wna)
-                      ",\n"
+                      "\n"
                       "    expected " (list arg2) " but got " (list arg1))))
        
        ((= code $ex.vargc)
         (let ((name (and (procedure? arg3) (procedure-name arg3))))
           (error name (errmsg 'msg:wna)
-                      ",\n"
+                      "\n"
                       "    expected at least " (list arg2)
                       " but got " (list arg1))))
 
