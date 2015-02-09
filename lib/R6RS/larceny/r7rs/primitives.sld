@@ -58,8 +58,6 @@
    write-simple
    write-string
    write-u8
-
-   syntax-error
    )
 
   (import
@@ -111,7 +109,6 @@
     string-copy!
     string-fill!
     string-map
-    syntax-error
     truncate-quotient
     truncate-remainder
     truncate/
@@ -160,8 +157,6 @@
     string-copy!
     string-fill!
     string-map
-
-    syntax-error
 
     vector->string
     vector-append
