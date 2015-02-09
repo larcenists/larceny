@@ -2,6 +2,8 @@
 ;;;
 ;;; Known conflicts:
 ;;;
+;;;     bytevector-copy!    (unresolvable; requires renaming)
+;;;
 ;;;     map                 (resolved by mode-dependent behavior)
 ;;;     for-each            (resolved by mode-dependent behavior)
 ;;;     string-fill!        (resolved by using R7RS extended semantics)
@@ -12,7 +14,7 @@
 ;;;
 ;;;     
 
-(import (rnrs)
+(import (except (rnrs) bytevector-copy!)
         (rnrs eval)
         (rnrs mutable-pairs)
         (rnrs mutable-strings)
@@ -37,5 +39,7 @@
         (scheme r5rs)
         )
 
-(display "All libraries loaded without name conflicts.")
+(display "All libraries loaded with these name conflicts:\n")
+(for-each (lambda (name) (display "    ") (write name) (newline))
+          '(bytevector-copy! string-fill!))
 (newline)

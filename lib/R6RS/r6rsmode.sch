@@ -775,12 +775,16 @@
 (define larceny:list-directory
   (lambda (path)
     (let ((files (list-directory path)))
-      (if (null? files)
+      (if (or (not files) (null? files) (boolean? (car files))) ; FIXME
           (begin (newline)
                  (display "***** list-directory doesn't work *****\n")
+                 (display files)
                  (display "Falling back on ls or dir\n\n")
-                 (set! larceny:list-directory larceny:list-directory-using-ls))
-          (set! larceny:list-directory larceny:list-directory-using-syscalls))
+                 (set! files (larceny:list-directory-using-ls path))
+                 (set! larceny:list-directory
+                       larceny:list-directory-using-ls))
+          (set! larceny:list-directory
+                larceny:list-directory-using-syscalls))
       files)))
 
 (define (larceny:list-directory-using-syscalls path)

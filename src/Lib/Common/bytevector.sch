@@ -63,6 +63,42 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; New for R7RS
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (bytevector . args)
+  (let* ((n (length args))
+         (bv (make-bytevector n)))
+    (do ((i 0 (+ i 1))
+         (args args (cdr args)))
+        ((= i n)
+         bv)
+      (bytevector-u8-set! bv i (car args)))))
+
+;;; R7RS version of bytevector-copy! is incompatible with R6RS
+;;; when five arguments are passed.
+
+(define (r7rs:bytevector-copy! dst j src . rest)
+  (let* ((i (if (null? rest) 0 (car rest)))
+         (rest (if (null? rest) rest (cdr rest)))
+         (k (if (null? rest) (bytevector-length src)))
+         (kount (- k j)))
+    (r6rs:bytevector-copy! src i dst j kount)))
+
+;;; FIXME: this is the R6RS version with a temporary hack.
+
+(define *someone-has-used-bytevector-copy!* #f)
+
+(define (bytevector-copy! src i dst j kount)
+  (if (not *someone-has-used-bytevector-copy!*)
+      (begin (set! *someone-has-used-bytevector-copy!* #t)
+             (display "***** Someone used bytevector-copy! *****\n"
+                      (current-error-port))))
+  (r6rs:bytevector-copy! src i dst j kount))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Bytevector procedures that have been proposed for R6RS.
 ; FIXME:  These should be bummed for performance.
 ; In particular, they could use some fixnum arithmetic.
@@ -324,7 +360,7 @@
         ((= i n))
       (bytevector-u8-set! b i fill))))        
 
-(define (bytevector-copy! source source-start target target-start count)
+(define (r6rs:bytevector-copy! source source-start target target-start count)
   (if (>= source-start target-start)
       (do ((i 0 (+ i 1)))
           ((>= i count))
@@ -340,7 +376,7 @@
 (define (bytevector-copy b)
   (let* ((n (bytevector-length b))
          (b2 (make-bytevector n)))
-    (bytevector-copy! b 0 b2 0 n)
+    (r6rs:bytevector-copy! b 0 b2 0 n)
     b2))
 
 (define (bytevector->u8-list b)
@@ -614,7 +650,7 @@
       (if (= 0 (bytevector:mod k 4))
           (bytevector-ieee-single-native-ref bytevector k)
           (let ((b (make-bytevector 4)))
-            (bytevector-copy! bytevector k b 0 4)
+            (r6rs:bytevector-copy! bytevector k b 0 4)
             (bytevector-ieee-single-native-ref b 0)))
       (let ((b (make-bytevector 4)))
         (bytevector-u8-set! b 0 (bytevector-u8-ref bytevector (+ k 3)))
@@ -628,7 +664,7 @@
       (if (= 0 (bytevector:mod k 8))
           (bytevector-ieee-double-native-ref bytevector k)
           (let ((b (make-bytevector 8)))
-            (bytevector-copy! bytevector k b 0 8)
+            (r6rs:bytevector-copy! bytevector k b 0 8)
             (bytevector-ieee-double-native-ref b 0)))
       (let ((b (make-bytevector 8)))
         (bytevector-u8-set! b 0 (bytevector-u8-ref bytevector (+ k 7)))
@@ -647,7 +683,7 @@
           (bytevector-ieee-single-native-set! bytevector k x)
           (let ((b (make-bytevector 4)))
             (bytevector-ieee-single-native-set! b 0 x)
-            (bytevector-copy! b 0 bytevector k 4)))
+            (r6rs:bytevector-copy! b 0 bytevector k 4)))
       (let ((b (make-bytevector 4)))
         (bytevector-ieee-single-native-set! b 0 x)
         (bytevector-u8-set! bytevector k (bytevector-u8-ref b 3))
@@ -661,7 +697,7 @@
           (bytevector-ieee-double-native-set! bytevector k x)
           (let ((b (make-bytevector 8)))
             (bytevector-ieee-double-native-set! b 0 x)
-            (bytevector-copy! b 0 bytevector k 8)))
+            (r6rs:bytevector-copy! b 0 bytevector k 8)))
       (let ((b (make-bytevector 8)))
         (bytevector-ieee-double-native-set! b 0 x)
         (bytevector-u8-set! bytevector k (bytevector-u8-ref b 7))

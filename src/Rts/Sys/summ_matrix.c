@@ -2891,7 +2891,7 @@ static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset,
         loc_t loc;
         loc = make_loc( src, byte_offset );
         assert2( byte_offset < 0 || ((byte_offset % sizeof(word)) == 0));
-        if ( ((summaries[ tgt_gen ] == NULL ) )) {
+        if ( summaries[ tgt_gen ] == NULL ) {
           assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
@@ -2911,7 +2911,7 @@ static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset,
             || gen_of(src) >= DATA(summ)->summarizing.cursor )) {
         loc_t loc;
         loc = make_loc( src, byte_offset );
-        if ( ((summaries[ tgt_gen ] == NULL ) )) {
+        if ( summaries[ tgt_gen ] == NULL ) {
           assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {

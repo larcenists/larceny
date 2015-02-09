@@ -190,7 +190,12 @@
         (writeln "ERR5RS mode (no libraries have been imported)"))
        ((r7rs)
         ((repl-evaluator) '(import (scheme base)))))
-      (r5rs-entry-point argv))
+      (let ((pgm (get-feature 'top-level-program)))
+        (if (and (eq? emode 'r7rs)
+                 (not (string=? pgm "")))
+            (eval (list 'run-r6rs-program pgm)
+                  (interaction-environment))
+            (r5rs-entry-point argv))))
 
      ; R6RS modes are batch modes, so we want to exit rather
      ; than enter the debugger.
@@ -211,6 +216,7 @@
                                        (print-level 7))
                           (decode-and-raise-r6rs-exception the-error))))
                      (issue-deprecated-warnings? #f)
+                     (read-r7rs-weirdness? #f)
                      (read-larceny-weirdness? #f)
                      (read-traditional-weirdness? #f)
                      (read-mzscheme-weirdness? #f))
@@ -238,6 +244,7 @@
       (display "Please use Larceny's R6RS-compatible mode instead.")
       (newline)
       (exit 1))
+
      (else
       (display "Unrecognized execution mode: ")
       (write (get-feature 'execution-mode))

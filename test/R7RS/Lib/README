@@ -1,0 +1,97 @@
+This directory contains an R7RS test suite obtained by modifying
+Racket's R6RS test suite.  Racket's R6RS test suite is covered by
+the LGPL, so this derivative work is also covered by the LGPL.
+See README2 for more information on copyright and licensing.
+
+Matthew Flatt wrote most of Racket's R6RS test suite, and Will
+Clinger rewrote that test suite as necessary for R7RS.  There
+have been other contributors as well.
+
+------------------------- An R7RS Test Suite -------------------------
+
+======================================================================
+Requirements
+======================================================================
+
+It should be possible to run the test suite in any implementation of
+R7RS (small) that provides the standard libraries (scheme base) and
+(scheme write) and implements R7RS include and cond-expand correctly.
+Tests of unavailable libraries and unsupported number syntax will be
+bypassed using cond-expand and include.
+
+======================================================================
+Files and libraries
+======================================================================
+
+The "testall-larceny" shell script runs all tests in Larceny, with
+console output duplicated into a file named "testresults".  To run
+the tests in other systems, edit a suitably named copy of that file
+(or just use the system to run the "run.sps" program).
+
+Files that end with ".sps" are R7RS programs. The "run.sps" program
+runs all the tests. Programs that test just one library can be found
+in the "tests/scheme/run" directory.
+
+Files that end with ".sld" are R7RS libraries. For example,
+"base.sld" is a library that implements `(tests scheme base)', which
+is a set of tests for `(scheme base)'. Many R7RS implementations
+will auto-load these ".sld" files if you tell them to search the
+"tests" subdirectory (or its parent directory "tests/..").
+
+For each `(scheme <id>)' library described by the R7RS (small)
+standard:
+
+ * There's a library of tests named "tests/scheme/<id>.sld". It
+   defines and exports a procedure named `run-<id>-tests'.
+
+ * There may be a file named "tests/scheme/<id>.body.scm".  If it
+   exists, it contains source code to be included by "<id>.sld".
+
+ * There's also a program "tests/scheme/run/<id>.sps" that imports
+   `(tests scheme <id>)', runs the exported `run-<id>-tests'
+   procedure, and reports the results.
+
+And then there's 
+
+ * "tests/scheme/run.sps", which runs all the tests (as noted above)
+
+ * "tests/scheme/run-via-eval.sps", which is similar to "run.ss" but
+   runs each set of tests via `eval'
+
+ * "tests/scheme/test.sld", containing `(tests scheme test)', which
+   implements the testing utilities used by all the other libraries
+
+ * "tests/schemecontrib.sld" and "tests/scheme/run/contrib.sps",
+   which implement and run contributed tests; these tests might be
+   contributed when someone finds a bug in an implementation that
+   seems worth testing in other implementations; also, they may be
+   difficult to pin to a particular R7RS library; finally, they may
+   use extra libraries from the "contrib" sub-directory
+
+======================================================================
+Limitations and feedback
+======================================================================
+
+The test suite tries to cover all of the bindings of R7RS, and tries
+to check a variety of uses.
+
+One goal of this test suite is to avoid using `eval' (except when
+specifically testing `eval'). Avoiding `eval' makes the test suite as
+useful as possible to ahead-of-time compilers that implement `eval'
+with a separate interpreter. A drawback of the current approach,
+however, is that if an R7RS implementation doesn't supply one binding
+or does not support a bit of syntax used by a set of tests, then the
+whole set of tests fails to load.
+
+A related problem is that each set of tests is placed into one
+function that runs all the tests. This format creates a block of code
+that is much larger than in a typical program, which might give some
+compilers trouble.
+
+In any case, reports of bugs (in the tests) and new tests would be
+very much appreciated. Please send bug reports and new tests to
+larceny@ccs.neu.edu.
+
+======================================================================
+Hints on running the tests
+======================================================================

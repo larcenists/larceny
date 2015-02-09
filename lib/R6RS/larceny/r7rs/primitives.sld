@@ -4,10 +4,16 @@
 
   (export
 
+   bytevector
    char-ready?
+   current-second
    display
    emergency-exit
+   exact-integer?
    exit
+   floor-quotient
+   floor-remainder
+   floor/
    get-environment-variables
    getenv
    get-output-bytevector
@@ -20,16 +26,49 @@
    open-input-bytevector
    open-output-bytevector
    read-line
+   square
+   truncate-quotient
+   truncate-remainder
+   truncate/
    write
    write-shared
    write-simple
-   write-string)
+   write-string
+
+   bytevector-append
+   error-object-irritants
+   error-object-message
+   error-object?
+   file-error?
+   input-port-open?
+   output-port-open?
+   peek-u8
+   read-bytevector
+   read-bytevector!
+   read-error?
+   read-string
+   read-u8
+   string->vector
+   string-copy!
+   string-fill!
+   string-map
+   syntax-error
+   u8-ready?
+   vector->string
+   vector-append
+   vector-copy
+   vector-copy!
+   write-bytevector
+   write-u8
+
+   )
 
   (import
 
    (primitives
 
     char-ready?
+    current-second
     display
     emergency-exit
     exit
@@ -48,23 +87,85 @@
     write
     write-shared
     write-simple
-    write-string)))
+    write-string
 
+    bytevector
+    bytevector-append
+    error-object-irritants
+    error-object-message
+    error-object?
+    exact-integer?
+    file-error?
+    floor-quotient
+    floor-remainder
+    floor/
+    input-port-open?
+    output-port-open?
+    peek-u8
+    read-bytevector
+    read-bytevector!
+    read-error?
+    read-string
+    read-u8
+    square
+    string->vector
+    string-copy!
+    string-fill!
+    string-map
+    syntax-error
+    truncate-quotient
+    truncate-remainder
+    truncate/
+    u8-ready?
+    vector->string
+    vector-append
+    vector-copy
+    vector-copy!
+    write-bytevector
+    write-u8
 
-;;; Other procedures imported from Larceny's R5RS substrate
-;;; so they can be used to define R7RS procedures.
+    )))
 
-(define-library (larceny r7rs primitives lowlevel)
+#|
+    bytevector
+    bytevector-append
 
-  (export
+    error-object-irritants
+    error-object-message
+    error-object?
+    file-error?
+    read-error?
 
-   ex:interaction-environment
-   larceny:features
-   )
+    exact-integer?
+    floor-quotient
+    floor-remainder
+    floor/
+    truncate-quotient
+    truncate-remainder
+    truncate/
+    square
 
-  (import
+    input-port-open?
+    output-port-open?
+    peek-u8
+    u8-ready?
 
-   (primitives
+    read-bytevector
+    read-bytevector!
+    read-string
+    read-u8
+    write-bytevector
+    write-u8
 
-    ex:interaction-environment
-    larceny:features)))
+    string->vector
+    string-copy!
+    string-fill!
+    string-map
+
+    syntax-error
+
+    vector->string
+    vector-append
+    vector-copy
+    vector-copy!
+|#

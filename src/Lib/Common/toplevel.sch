@@ -707,6 +707,13 @@
   (environment-set! larc 'div0-and-mod0 div0-and-mod0)
   (environment-set! larc 'exact-integer-sqrt exact-integer-sqrt)
 
+  (environment-set! larc 'floor/ floor/)
+  (environment-set! larc 'floor-quotient floor-quotient)
+  (environment-set! larc 'floor-remainder floor-remainder)
+  (environment-set! larc 'truncate/ truncate/)
+  (environment-set! larc 'truncate-quotient truncate-quotient)
+  (environment-set! larc 'truncate-remainder truncate-remainder)
+
   ;; Unicode characters
 
   (environment-set! larc 'char-titlecase char-titlecase)
@@ -735,6 +742,7 @@
   (environment-set! larc 'native-endianness native-endianness)
   (environment-set! larc 'bytevector? bytevector?)
   (environment-set! larc 'make-bytevector make-bytevector)
+  (environment-set! larc 'bytevector bytevector)
   (environment-set! larc 'bytevector-length bytevector-length)
   (environment-set! larc 'bytevector-u8-ref bytevector-u8-ref)
   (environment-set! larc 'bytevector-s8-ref bytevector-s8-ref)
@@ -792,6 +800,8 @@
   (environment-set! larc 'bytevector-ieee-double-set!
                     bytevector-ieee-double-set!)
   (environment-set! larc 'bytevector-copy! bytevector-copy!)
+  (environment-set! larc 'r6rs:bytevector-copy! r6rs:bytevector-copy!)
+  (environment-set! larc 'r7rs:bytevector-copy! r7rs:bytevector-copy!)
   (environment-set! larc 'bytevector-copy bytevector-copy)
   (environment-set! larc 'bytevector->u8-list bytevector->u8-list)
   (environment-set! larc 'u8-list->bytevector u8-list->bytevector)
@@ -1341,6 +1351,7 @@
   (environment-set! larc 'collect collect)
   (environment-set! larc 'gcctl gcctl)
   (environment-set! larc 'sro sro)
+  (environment-set! larc 'larceny:execution-mode larceny:execution-mode)
   (environment-set! larc 'system-features system-features)
   (environment-set! larc 'stats-dump-on stats-dump-on)
   (environment-set! larc 'stats-dump-off stats-dump-off)

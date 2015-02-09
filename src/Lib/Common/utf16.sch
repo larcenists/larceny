@@ -67,7 +67,7 @@
                      (bytevector-set! buf 1 byte2)
                      (let* ((bv2 (string->utf8 (utf16->string buf)))
                             (n (bytevector-length bv2)))
-                       (bytevector-copy! bv2 0 bv start n)
+                       (r6rs:bytevector-copy! bv2 0 bv start n)
                        n)))))))))
 
 (define (utf16/make-read-method-endian p endianness)
