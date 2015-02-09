@@ -193,7 +193,7 @@
                         (expt -x i)
                         (expt -y j)
                         (expt -z k)
-                        (1/prod-fac i j k))))))
+                        (one/prod-fac i j k))))))
 
 (define (spherical-make-multipole-expansion pt strength)
   (let ((r (pt-r pt))
@@ -252,22 +252,22 @@
 
 (define (cartesian-multipole-to-local-convert pt multipole-expansion)
   (define pt-expansion
-    (let* ((1/radius (/ (pt-r pt))) ; lth: was: vect, not pt, but that's wrong
-	   (2cosines (pt-scalar* (* 2 1/radius) pt))  ; lth: ditto
-	   (x (pt-x 2cosines))
-	   (y (pt-y 2cosines))
-	   (z (pt-z 2cosines)))
+    (let* ((one/radius (/ (pt-r pt))) ; lth: was: vect, not pt, but that's wrong
+	   (Twocosines (pt-scalar* (* 2 one/radius) pt))  ; lth: ditto
+	   (x (pt-x Twocosines))
+	   (y (pt-y Twocosines))
+	   (z (pt-z Twocosines)))
       (make-cartesian-expansion
        (lambda (i j k)
 	 (define ijk (+ i j k))
 	 (* (expt -1 ijk)
-	    (expt 1/radius (+ 1 ijk))
+	    (expt one/radius (+ 1 ijk))
 	    (prod-fac i j k)
 	    (sum-3d (/ i 2) (/ j 2) (/ k 2)
 		    (lambda (l m n)
 		      (* (fac-1 (- ijk l m n))
-			 (1/prod-fac l m n)
-			 (1/prod-fac (- i (* 2 l))
+			 (one/prod-fac l m n)
+			 (one/prod-fac (- i (* 2 l))
 				     (- j (* 2 m))
 				     (- k (* 2 n)))
 			 (expt x (- i (* 2 l)))
@@ -323,7 +323,7 @@
 		(lambda (l m n)
 		  (* (array-ref local-expansion (+ i l) (+ j m) (+ k n))
 		     (array-ref expts l m n)
-		     (1/prod-fac l m n))))))))
+		     (one/prod-fac l m n))))))))
 
 (define (spherical-local-shift pt local-expansion)
   (let* ((pt (pt- (make-pt 0 0 0) pt))
@@ -365,7 +365,7 @@
 	  (make-cartesian-expansion
 	   (lambda (i j k)
 	     (* (array-ref local-expansion i j k)
-		(1/prod-fac i j k)))))
+		(one/prod-fac i j k)))))
 	 (expts (make-cartesian-expansion
 		 (lambda (i j k)
 		   (* (expt x i) (expt y j) (expt z k))))))
@@ -1240,7 +1240,7 @@
                 (lambda (i j k) (* (fac i) (fac j) (fac k))))))
     (lambda (i j k) (array-ref table i j k))))
 
-(define 1/prod-fac
+(define one/prod-fac
   (let ((table (make-cartesian-expansion
                 (lambda (i j k) (/ (prod-fac i j k))))))
     (lambda (i j k) (array-ref table i j k))))
