@@ -76,6 +76,16 @@
          bv)
       (bytevector-u8-set! bv i (car args)))))
 
+(define (bytevector-append . args)
+  (let* ((lengths (map bytevector-length args))
+         (n (apply + lengths))
+         (bv (make-bytevector n)))
+    (do ((j j (+ j (car lengths)))
+         (args args (cdr args))
+         (lengths lengths (cdr lengths)))
+        ((null? args) bv)
+      (r7rs:bytevector-copy! bv j src))))
+
 ;;; R7RS version of bytevector-copy! is incompatible with R6RS
 ;;; when five arguments are passed.
 
@@ -355,10 +365,12 @@
 ; FIXME: should use word-at-a-time when possible
 
 (define (bytevector-fill! b fill)
-  (let ((n (bytevector-length b)))
-    (do ((i 0 (+ i 1)))
-        ((= i n))
-      (bytevector-u8-set! b i fill))))        
+  (if (<= -128 fill -1)
+      (bytevector-fill! b (+ fill 256))
+      (let ((n (bytevector-length b)))
+        (do ((i 0 (+ i 1)))
+            ((= i n))
+          (bytevector-u8-set! b i fill)))))
 
 (define (r6rs:bytevector-copy! source source-start target target-start count)
   (if (>= source-start target-start)

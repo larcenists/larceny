@@ -84,8 +84,8 @@
 
          (adjust-safety!
           (lambda (safety)
-            (let* ((emode (get-feature 'execution-mode))
-                   (dargo? (eq? 'dargo emode)) 
+            (let* ((emode (larceny:execution-mode))
+                   (r6rs? (eq? 'r6rs emode)) 
                    (settings
                     (if (and (eq? emode 'r5rs) (= safety 1))
                         #f
@@ -93,7 +93,7 @@
                          ((0)  `(begin (runtime-safety-checking #f)
                                        (faster-arithmetic #t)))
                          ((1)  `(begin (runtime-safety-checking #t)
-                                       (catch-undefined-globals (not ,dargo?))
+                                       (catch-undefined-globals (not ,r6rs?))
                                        (faster-arithmetic #f)))
                          (else `(begin (runtime-safety-checking #t)
                                        (catch-undefined-globals #t)
@@ -190,17 +190,25 @@
         (writeln "ERR5RS mode (no libraries have been imported)"))
        ((r7rs)
         ((repl-evaluator) '(import (scheme base)))))
-      (let ((pgm (get-feature 'top-level-program)))
-        (if (and (eq? emode 'r7rs)
-                 (not (string=? pgm "")))
-            (eval (list 'run-r6rs-program pgm)
-                  (interaction-environment))
-            (r5rs-entry-point argv))))
+      (let ((pgm (get-feature 'top-level-program))
+            (original-handler (error-handler)))
+        (parameterize ((error-handler
+                        (case emode
+                         ((r5rs) original-handler)
+                         (else
+                          (lambda the-error
+                            (parameterize ((error-handler original-handler))
+                             (decode-and-raise-r6rs-exception the-error)))))))
+         (if (and (eq? emode 'r7rs)
+                  (not (string=? pgm "")))
+             (eval (list 'run-r6rs-program pgm)
+                   (interaction-environment))
+             (r5rs-entry-point argv)))))
 
-     ; R6RS modes are batch modes, so we want to exit rather
+     ; R6RS mode is a batch mode, so we want to exit rather
      ; than enter the debugger.
 
-     ((dargo)
+     ((r6rs)
       (if clr?                                            ; FIXME
           (begin (failsafe-load-init-files)
                  (failsafe-process-arguments)))
@@ -238,16 +246,9 @@
                     (interaction-environment))))
         (exit 0)))
 
-     ((spanky)
-      (display "Larceny's R6RS-conforming mode isn't implemented yet.")
-      (newline)
-      (display "Please use Larceny's R6RS-compatible mode instead.")
-      (newline)
-      (exit 1))
-
      (else
       (display "Unrecognized execution mode: ")
-      (write (get-feature 'execution-mode))
+      (write (larceny:execution-mode))
       (newline)
       (exit 1)))))
 
@@ -384,7 +385,7 @@
             (set! clr:execution-mode 'err5rs)
             (loop (+ i 1) args))
            ((member arg '("-r6rs" "--r6rs" "/r6rs"))
-            (set! clr:execution-mode 'dargo)
+            (set! clr:execution-mode 'r6rs)
             (loop (+ i 1) args))
            ((and (member arg '("-path" "--path" "/path"))
                  (< (+ i 1) (vector-length argv)))

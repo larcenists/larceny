@@ -874,7 +874,7 @@
                        (bytevector-set! bv (+ start i) 33)))
                    (lambda (bv start count)
                      (let ((bv2 (make-bytevector count)))
-                       (bytevector-copy! bv start bv2 0 count)
+                       (r6rs:bytevector-copy! bv start bv2 0 count)
                        count))
                    #f
                    (lambda (posn) #t)

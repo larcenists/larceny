@@ -104,7 +104,8 @@
   )
 
 (library (core syntax-rules)
-  (export syntax-rules)
+  (export syntax-rules
+          (rename (syntax-error r7rs:syntax-error)))
   (import (for (core primitives)        expand run)
           (for (core with-syntax)       expand)
           (for (primitives for-all map) expand))
@@ -113,7 +114,14 @@
     (lambda (x)
       (define clause
         (lambda (y)
-          (syntax-case y ()
+          (syntax-case y (syntax-error) ; syntax-error hack added for R7RS
+            (((keyword . pattern)
+              (syntax-error msg irritant1 ...))
+             (syntax ((dummy . pattern)
+                      (syntax-violation 'syntax-error
+                                        (syntax msg)
+                                        (syntax (dummy . pattern))
+                                        (syntax (irritants: irritant1 ...))))))
             (((keyword . pattern) template)
              (syntax ((dummy . pattern) (syntax template))))
             (_
@@ -123,7 +131,18 @@
          (for-all identifier? (syntax (k ...)))
          (with-syntax (((cl ...) (map clause (syntax (cl ...)))))
            (syntax
-            (lambda (x) (syntax-case x (k ...) cl ...))))))))
+            (lambda (x) (syntax-case x (k ...) cl ...)))))
+        ((_ ellipsis (k ...) cl ...)
+         (identifier? (syntax ellipsis))
+         (syntax-violation 'syntax-rules
+                           "R7RS ellipsis feature is not yet implemented"
+                           x)))))
+
+  (define-syntax syntax-error
+    (lambda (exp)
+      (syntax-violation 'syntax-error
+                        "R7RS syntax-error used outside template position"
+                        exp)))
   )
 
 (library (core let)

@@ -337,3 +337,48 @@
           (newline out)))))
 
 )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; New for R7RS
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (error-object? x) (condition? x))
+
+(define (error-object-message c)
+  (define (loop cs)
+    (if (null? cs)
+        ""
+        (let ((c (car cs)))
+          (cond ((message-condition? c)
+                 (let* ((msg (condition-message c))
+                        (msg2 (loop (cdr cs))))
+                   (if (string=? msg2 "")
+                       msg
+                       (string-append msg "\n" msg2))))
+                (else
+                 (loop (cdr cs)))))))
+  (loop (simple-conditions c)))
+
+(define (error-object-irritants c)
+  (define (loop cs)
+    (if (null? cs)
+        '()
+        (let ((c (car cs)))
+          (cond ((irritants-condition? c)
+                 (append (condition-irritants c)
+                         (loop (cdr cs))))
+                (else
+                 (loop (cdr cs)))))))
+  (loop (simple-conditions c)))
+
+(define (read-error? x)
+  (or (lexical-violation? x)
+      (i/o-read-error? x)
+      (i/o-decoding-error? x)))
+
+(define (file-error? x)
+  (i/o-filename-error? x))
+
+; eof

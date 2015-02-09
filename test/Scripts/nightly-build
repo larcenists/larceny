@@ -305,6 +305,8 @@ ${HOME}/bin/build-only >> ${LOGFILE_BUILD_BASIC} 2>&1
 
 ${HOME}/bin/test-only >> ${LOGFILE_TEST_BASIC} 2>&1
 
+${HOME}/bin/test2-only >> ${LOGFILE_TEST_LARCENY} 2>&1
+
 ${HOME}/bin/benchmark-only >> ${LOGFILE_BENCHMARK} 2>&1
 
 cp ${DIR}/*.xml ${LOGDIR}

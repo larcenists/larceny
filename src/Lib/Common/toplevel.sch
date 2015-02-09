@@ -799,6 +799,7 @@
                     bytevector-ieee-double-native-set!)
   (environment-set! larc 'bytevector-ieee-double-set!
                     bytevector-ieee-double-set!)
+  (environment-set! larc 'bytevector-append bytevector-append)
   (environment-set! larc 'bytevector-copy! bytevector-copy!)
   (environment-set! larc 'r6rs:bytevector-copy! r6rs:bytevector-copy!)
   (environment-set! larc 'r7rs:bytevector-copy! r7rs:bytevector-copy!)
@@ -827,6 +828,9 @@
 
   ;; strings
 
+  (environment-set! larc 'string-copy! string-copy!)
+
+  (environment-set! larc 'string-map string-map)
   (environment-set! larc 'string-for-each string-for-each)
 
   (environment-set! larc 'string-hash string-hash)
@@ -849,8 +853,11 @@
 
   (environment-set! larc 'vector-map vector-map)
   (environment-set! larc 'vector-for-each vector-for-each)
-
   (environment-set! larc 'vector-copy vector-copy)
+  (environment-set! larc 'vector-copy! vector-copy!)
+  (environment-set! larc 'vector-append vector-append)
+  (environment-set! larc 'vector->string vector->string)
+  (environment-set! larc 'string->vector string->vector)
 
   ;; sorting
 
@@ -954,6 +961,14 @@
 
   (environment-set! larc 'rtd-printer rtd-printer)
   (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
+
+  ;; R7RS exception mechanism
+
+  (environment-set! larc 'error-object? error-object?)
+  (environment-set! larc 'error-object-message error-object-message)
+  (environment-set! larc 'error-object-irritants error-object-irritants)
+  (environment-set! larc 'read-error? read-error?)
+  (environment-set! larc 'file-error? file-error?)
 
   ;; R6RS exception mechanism
 
@@ -1076,6 +1091,17 @@
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'port-folds-case? port-folds-case?)
   (environment-set! larc 'port-folds-case! port-folds-case!)
+
+  (environment-set! larc 'input-port-open? input-port-open?)
+  (environment-set! larc 'output-port-open? output-port-open?)
+  (environment-set! larc 'u8-ready? u8-ready?)
+  (environment-set! larc 'peek-u8 peek-u8)
+  (environment-set! larc 'read-u8 read-u8)
+  (environment-set! larc 'write-u8 write-u8)
+  (environment-set! larc 'read-bytevector read-bytevector)
+  (environment-set! larc 'read-bytevector! read-bytevector!)
+  (environment-set! larc 'write-bytevector write-bytevector)
+  (environment-set! larc 'read-string read-string)
 
   ; FIXME (lib/MzScheme/dotnet.sch)
 
@@ -1302,6 +1328,7 @@
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
   (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)
+  (environment-set! larc 'larceny:errmsg larceny:errmsg)
   (environment-set! larc 'error-handler error-handler)
   (environment-set! larc 'decode-error decode-error)
   (environment-set! larc 'call-with-error-handler call-with-error-handler)

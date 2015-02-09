@@ -5,62 +5,57 @@
   (export
 
    bytevector
+   bytevector-append
    char-ready?
    current-second
    display
    emergency-exit
+   error-object-irritants
+   error-object-message
+   error-object?
    exact-integer?
    exit
+   file-error?
    floor-quotient
    floor-remainder
    floor/
    get-environment-variables
    getenv
    get-output-bytevector
+   input-port-open?
    list-copy
    list-set!
    make-list
    make-parameter
-   open-binary-input-file
-   open-binary-output-file
    open-input-bytevector
    open-output-bytevector
-   read-line
-   square
-   truncate-quotient
-   truncate-remainder
-   truncate/
-   write
-   write-shared
-   write-simple
-   write-string
-
-   bytevector-append
-   error-object-irritants
-   error-object-message
-   error-object?
-   file-error?
-   input-port-open?
    output-port-open?
    peek-u8
    read-bytevector
    read-bytevector!
    read-error?
+   read-line
    read-string
    read-u8
+   square
    string->vector
    string-copy!
    string-fill!
    string-map
-   syntax-error
+   truncate-quotient
+   truncate-remainder
+   truncate/
    u8-ready?
    vector->string
    vector-append
    vector-copy
    vector-copy!
+   write
    write-bytevector
+   write-shared
+   write-simple
+   write-string
    write-u8
-
    )
 
   (import
@@ -79,8 +74,6 @@
     list-set!
     make-list
     make-parameter
-    open-binary-input-file
-    open-binary-output-file
     open-input-bytevector
     open-output-bytevector
     read-line
@@ -112,7 +105,6 @@
     string-copy!
     string-fill!
     string-map
-    syntax-error
     truncate-quotient
     truncate-remainder
     truncate/
@@ -161,8 +153,6 @@
     string-copy!
     string-fill!
     string-map
-
-    syntax-error
 
     vector->string
     vector-append

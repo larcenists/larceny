@@ -35,9 +35,12 @@
   (lambda args
     (fl:check-args! name args)
     (let ((result (apply proc args)))
-      (if (flonum? result)
-          result
-          +nan.0))))
+      (cond ((flonum? result)
+             result)
+            ((exact? result)
+             (inexact result))
+            (else
+             +nan.0)))))
 
 ; flonum? is a primop; see Lib/Arch/*/primops.sch
 
@@ -67,10 +70,10 @@
 (define flmax (flonum-restricted max 'flmax))
 (define flmin (flonum-restricted min 'flmin))
 
-(define fl+ (flonum-restricted + 'fl+))
-(define fl* (flonum-restricted * 'fl*))
-(define fl- (flonum-restricted - 'fl-))
-(define fl/ (flonum-restricted / 'fl/))
+(define fl+ (flonum-doubly-restricted + 'fl+))
+(define fl* (flonum-doubly-restricted * 'fl*))
+(define fl- (flonum-doubly-restricted - 'fl-))
+(define fl/ (flonum-doubly-restricted / 'fl/))
 
 (define flabs (flonum-restricted1 abs 'flabs))
 

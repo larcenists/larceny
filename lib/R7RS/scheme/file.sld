@@ -24,9 +24,11 @@
          with-input-from-file
          with-output-to-file)
 
-   (rnrs files)
+   (rename (only (rnrs io ports)
+                 open-file-input-port
+                 open-file-output-port)
+           (open-file-input-port open-binary-input-file)
+           (open-file-output-port open-binary-output-file))
 
-   (only (larceny r7rs primitives)
-         open-binary-input-file
-         open-binary-output-file)))
+   (rnrs files)))
 

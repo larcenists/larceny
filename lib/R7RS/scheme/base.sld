@@ -252,7 +252,8 @@
           (only (larceny r7rs macros)
                 define-record-type
                 define-values
-                parameterize)
+                parameterize
+                syntax-error)
           (larceny r7rs primitives)
           (larceny r7rs primitives lowlevel))
 
