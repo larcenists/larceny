@@ -27,8 +27,6 @@
    list-set!
    make-list
    make-parameter
-   open-binary-input-file
-   open-binary-output-file
    open-input-bytevector
    open-output-bytevector
    output-port-open?
@@ -76,8 +74,6 @@
     list-set!
     make-list
     make-parameter
-    open-binary-input-file
-    open-binary-output-file
     open-input-bytevector
     open-output-bytevector
     read-line

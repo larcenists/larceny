@@ -9,12 +9,18 @@ SRC="./tests/scheme/run"
 
 LARCENY=${LARCENY:-"../../../larceny"}
 
-TESTS="case-lambda.sps  char.sps  complex.sps  cxr.sps  inexact.sps  read.sps"
+TESTS="                            \
+    case-lambda.sps                \
+    char.sps                       \
+    complex.sps                    \
+    cxr.sps                        \
+    eval.sps                       \
+    file.sps                       \
+    inexact.sps                    \
+    read.sps"
 
 # missing from the list above:
 # base.sps
-# eval.sps
-# file.sps
 # lazy.sps
 # load.sps
 # process-context.sps
