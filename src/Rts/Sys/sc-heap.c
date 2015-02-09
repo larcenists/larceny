@@ -294,12 +294,6 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
                used_space( heap ) );
-#ifdef ARM
-  {
-    extern int flushes;
-    annoyingmsg( "  Flushes=%d", flushes );
-  }
-#endif
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( 
