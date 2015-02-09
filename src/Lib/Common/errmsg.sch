@@ -216,8 +216,11 @@
 (msg:weirdtranscoder            "weird transcoder")
 (msg:decoding                   "decoding error")
 (msg:encoding                   "encoding error")
+(msg:notbinaryinput             "not a binary input port")
+(msg:notbinaryoutput            "not a binary output port")
 (msg:nottextualinput            "not a textual input port")
 (msg:notoutput                  "not an output port")
+(msg:nottestualoutput           "not a textual output port")
 (msg:i/oport:nosetportposition  "input/output port without set-port-position!")
 (msg:uncachedposition           "position not obtained from port-position")
 

@@ -1092,6 +1092,17 @@
   (environment-set! larc 'port-folds-case? port-folds-case?)
   (environment-set! larc 'port-folds-case! port-folds-case!)
 
+  (environment-set! larc 'input-port-open? input-port-open?)
+  (environment-set! larc 'output-port-open? output-port-open?)
+  (environment-set! larc 'u8-ready? u8-ready?)
+  (environment-set! larc 'peek-u8 peek-u8)
+  (environment-set! larc 'read-u8 read-u8)
+  (environment-set! larc 'write-u8 write-u8)
+  (environment-set! larc 'read-bytevector read-bytevector)
+  (environment-set! larc 'read-bytevector! read-bytevector!)
+  (environment-set! larc 'write-bytevector write-bytevector)
+  (environment-set! larc 'read-string read-string)
+
   ; FIXME (lib/MzScheme/dotnet.sch)
 
   (environment-set! larc 'io/port-recognizes-javadot-symbols?

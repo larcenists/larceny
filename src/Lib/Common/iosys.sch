@@ -445,7 +445,21 @@
                      (eq? (vector-like-ref p port.state)
                           'eof))))
               (else #f)))
-      (error 'char-ready? "not a textual input port" p)))
+      (error 'char-ready? (errmsg 'msg:nottextualinput) p)))
+
+; FIXME: same limitations as io/char-ready?
+
+(define (io/u8-ready? p)
+  (if (port? p)
+      (let ((type (vector-like-ref p port.type))
+            (ptr  (vector-like-ref p port.mainptr))
+            (lim  (vector-like-ref p port.mainlim)))
+        (cond ((eq? type type:binary-input)
+               (or (< ptr lim)
+                   (eq? (vector-like-ref p port.state)
+                        'eof)))
+              (else #f)))
+      (error 'u8-ready? (errmsg 'msg:notbinaryinput) p)))
 
 ; FIXME:  For v0.94 only, io/write-char can write to binary
 ; ports, treating them as Latin-1.

@@ -22,6 +22,7 @@
    get-environment-variables
    getenv
    get-output-bytevector
+   input-port-open?
    list-copy
    list-set!
    make-list
@@ -30,8 +31,14 @@
    open-binary-output-file
    open-input-bytevector
    open-output-bytevector
+   output-port-open?
+   peek-u8
+   read-bytevector
+   read-bytevector!
    read-error?
    read-line
+   read-string
+   read-u8
    square
    string->vector
    string-copy!
@@ -40,27 +47,19 @@
    truncate-quotient
    truncate-remainder
    truncate/
+   u8-ready?
    vector->string
    vector-append
    vector-copy
    vector-copy!
    write
+   write-bytevector
    write-shared
    write-simple
    write-string
-
-   input-port-open?
-   output-port-open?
-   peek-u8
-   read-bytevector
-   read-bytevector!
-   read-string
-   read-u8
-   syntax-error
-   u8-ready?
-   write-bytevector
    write-u8
 
+   syntax-error
    )
 
   (import
