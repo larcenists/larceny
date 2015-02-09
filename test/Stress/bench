@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 # $Id$
 #
@@ -124,12 +124,12 @@ gambit_comp ()
   DIR=`pwd`
   cp $1.scm /proj/will/Apps/Gambit/gambc30/gsc/temp.scm
   cd /proj/will/Apps/Gambit/gambc30/gsc
-  {
+  time {
 # echo LD_LIBRARY_PATH=../../../lib GAMBCDIR=../../../lib ../../../gsc/gsc $1.scm
 # echo gcc -I../../../lib -L../../../lib -O1 -D___SINGLE_HOST -o $1 $1.c $1_.c -lgambc -lm -ldl
     echo LD_LIBRARY_PATH=../lib GAMBCDIR=../lib ./gsc temp.scm
     echo gcc -I../lib -L../lib -O1 -D___SINGLE_HOST -o temp temp.c temp_.c ../lib/libgambc.so.1.1 -lm -ldl
-  } | time sh
+  } | sh
   rm temp.scm temp.c temp_.c
   cd $DIR
 }
@@ -172,7 +172,7 @@ chez_comp ()
 
 chez_exec ()
 {
-  echo "(load \"$1.scm\")" | time scheme
+  time echo "(load \"$1.scm\")" | scheme
 }
 
 # -----------------------------------------------------------------------------
@@ -185,7 +185,7 @@ larceny_comp ()
 
 larceny_exec ()
 {
-  echo "(load \"$1.fasl\")" | time ../../larceny -heap ../../r5rs.heap
+  time echo "(load \"$1.fasl\")" | ../../larceny -heap ../../r5rs.heap
 }
 
 # -----------------------------------------------------------------------------
@@ -216,7 +216,7 @@ bigloo_int_comp ()
 
 bigloo_int_exec ()
 {
-  echo "(load \"$1.scm\")" | time bigloo
+  time echo "(load \"$1.scm\")" | bigloo
 }
 
 # -----------------------------------------------------------------------------
@@ -266,9 +266,9 @@ stk_exec ()
 
 cc_comp ()
 {
-  {
+  time {
      echo cc -O2 -o $1 $1.c -lm
-  } | time sh
+  } | sh
   ls -l $1
 }
 
@@ -282,9 +282,9 @@ cc_exec ()
 
 gcc_comp ()
 {
-  {
+  time {
      echo gcc -O2 -o $1 $1.c -lm
-  } | time sh
+  } | sh
   ls -l $1
 }
 

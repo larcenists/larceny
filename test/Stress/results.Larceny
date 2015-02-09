@@ -1,0 +1,1250 @@
+
+****************************
+Benchmarking Larceny on Mon Feb 9 19:36:13 UTC 2015 under Linux tegra-ubuntu 3.10.24-g6a2d13a #1 SMP PREEMPT Fri Apr 18 15:56:45 PDT 2014 armv7l armv7l armv7l GNU/Linux
+
+Testing boyer under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+boyer
+Words allocated: 4194264
+Elapsed time...: 398 ms (User: 375 ms; System: 3 ms)
+Elapsed GC time: 7 ms (CPU: 7 in 4 collections (4 minor).)
+{Max pause elapsed: 6 ms, CPU: 4 ms } 
+{Max cheney elapsed: 5 ms, CPU: 4 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 2 ms, CPU: 1 ms, entries: 2114} 
+{Avg remset scan elapsed: 1/2 ms, CPU: 1/3 ms, entries: 4219/2} 
+{Max words, Mem: 3036160 Heap: 2891776 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.592s
+user	0m0.468s
+sys	0m0.022s
+
+Testing browse under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+browse
+Words allocated: 22019794
+Elapsed time...: 1034 ms (User: 1003 ms; System: 2 ms)
+Elapsed GC time: 10 ms (CPU: 7 in 21 collections (21 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2114} 
+{Avg remset scan elapsed: 5/11 ms, CPU: 4/11 ms, entries: 4215/2} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.171s
+user	0m1.069s
+sys	0m0.023s
+
+Testing conform under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+conform
+Words allocated: 11534196
+Elapsed time...: 1047 ms (User: 1018 ms; System: 2 ms)
+Elapsed GC time: 11 ms (CPU: 7 in 11 collections (11 minor).)
+{Max pause elapsed: 4 ms, CPU: 4 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2427} 
+{Avg remset scan elapsed: 4/15 ms, CPU: 4/15 ms, entries: 33229/15} 
+{Max words, Mem: 3040256 Heap: 2895872 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.235s
+user	0m1.153s
+sys	0m0.015s
+
+Testing cpstak under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+cpstak
+Words allocated: 95418742
+Elapsed time...: 802 ms (User: 779 ms; System: 7 ms)
+Elapsed GC time: 29 ms (CPU: 30 in 91 collections (91 minor).)
+{Max pause elapsed: 4 ms, CPU: 4 ms } 
+{Max cheney elapsed: 4 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2107} 
+{Avg remset scan elapsed: 25/91 ms, CPU: 2/7 ms, entries: 2107} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.882s
+user	0m0.820s
+sys	0m0.029s
+
+Testing ctak under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+ctak
+Words allocated: 83884632
+Elapsed time...: 923 ms (User: 910 ms; System: 1 ms)
+Elapsed GC time: 23 ms (CPU: 4 in 80 collections (80 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2111} 
+{Avg remset scan elapsed: 7/27 ms, CPU: 5/81 ms, entries: 170671/81} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.994s
+user	0m0.958s
+sys	0m0.020s
+
+Testing dderiv under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+dderiv
+Words allocated: 97516362
+Elapsed time...: 1827 ms (User: 1796 ms; System: 2 ms)
+Elapsed GC time: 32 ms (CPU: 2 in 93 collections (93 minor).)
+{Max pause elapsed: 4 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 29/94 ms, CPU: 3/94 ms, entries: 99032/47} 
+{Max words, Mem: 2774016 Heap: 2629632 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.918s
+user	0m1.860s
+sys	0m0.012s
+
+Testing deriv under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+deriv
+Words allocated: 97516354
+Elapsed time...: 1592 ms (User: 1563 ms; System: 0 ms)
+Elapsed GC time: 40 ms (CPU: 28 in 93 collections (93 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2111} 
+{Avg remset scan elapsed: 39/94 ms, CPU: 14/47 ms, entries: 99031/47} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.686s
+user	0m1.613s
+sys	0m0.021s
+
+Testing destruc under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+destruc
+Words allocated: 25165440
+Elapsed time...: 1340 ms (User: 1188 ms; System: 2 ms)
+Elapsed GC time: 8 ms (CPU: 5 in 24 collections (24 minor).)
+{Max pause elapsed: 4 ms, CPU: 3 ms } 
+{Max cheney elapsed: 4 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2119} 
+{Avg remset scan elapsed: 1/5 ms, CPU: 6/25 ms, entries: 52951/25} 
+{Max words, Mem: 2842624 Heap: 2698240 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.432s
+user	0m1.243s
+sys	0m0.018s
+
+Testing diviter under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+diviter
+Words allocated: 79690560
+Elapsed time...: 1299 ms (User: 1278 ms; System: 3 ms)
+Elapsed GC time: 23 ms (CPU: 19 in 76 collections (76 minor).)
+{Max pause elapsed: 4 ms, CPU: 4 ms } 
+{Max cheney elapsed: 4 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2110} 
+{Avg remset scan elapsed: 3/11 ms, CPU: 18/77 ms, entries: 162242/77} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.378s
+user	0m1.328s
+sys	0m0.019s
+
+Testing divrec under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+divrec
+Words allocated: 79691622
+Elapsed time...: 1453 ms (User: 1432 ms; System: 1 ms)
+Elapsed GC time: 18 ms (CPU: 26 in 76 collections (76 minor).)
+{Max pause elapsed: 3 ms, CPU: 4 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2111} 
+{Avg remset scan elapsed: 17/77 ms, CPU: 24/77 ms, entries: 162243/77} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.535s
+user	0m1.480s
+sys	0m0.019s
+
+Testing earley under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+earley
+Words allocated: 263188682
+Elapsed time...: 4799 ms (User: 4685 ms; System: 43 ms)
+Elapsed GC time: 426 ms (CPU: 404 in 251 collections (244 minor).)
+{Max pause elapsed: 6 ms, CPU: 6 ms } 
+{Max cheney elapsed: 6 ms, CPU: 6 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 3 ms, CPU: 1 ms, entries: 2115} 
+{Avg remset scan elapsed: 89/254 ms, CPU: 39/127 ms, entries: 535207/254} 
+{Max words, Mem: 6386688 Heap: 6242304 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m4.961s
+user	0m4.787s
+sys	0m0.061s
+
+Testing fft under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+fft
+Words allocated: 297791048
+Elapsed time...: 4792 ms (User: 4702 ms; System: 20 ms)
+Elapsed GC time: 108 ms (CPU: 94 in 284 collections (283 minor).)
+{Max pause elapsed: 4 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 20/57 ms, CPU: 83/285 ms, entries: 200261/95} 
+{Max words, Mem: 4152320 Heap: 4007936 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m4.897s
+user	0m4.757s
+sys	0m0.036s
+
+Testing fib under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+fib
+Words allocated: 0
+Elapsed time...: 178 ms (User: 171 ms; System: 0 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 0 ms, CPU: 0 ms } 
+{Max cheney elapsed: 0 ms, CPU: 0 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Avg remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Max words, Mem: 0 Heap: 0 Remset: 0 Summaries: 0 Marking: 0 Rts: 0 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.250s
+user	0m0.216s
+sys	0m0.016s
+
+Testing fibfp under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+fibfp
+Words allocated: 73399252
+Elapsed time...: 1227 ms (User: 1208 ms; System: 3 ms)
+Elapsed GC time: 33 ms (CPU: 4 in 70 collections (70 minor).)
+{Max pause elapsed: 4 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2107} 
+{Avg remset scan elapsed: 2/5 ms, CPU: 1/35 ms, entries: 2107} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.300s
+user	0m1.254s
+sys	0m0.018s
+
+Testing maze under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+maze
+Words allocated: 26213988
+Elapsed time...: 1773 ms (User: 1741 ms; System: 0 ms)
+Elapsed GC time: 10 ms (CPU: 3 in 25 collections (25 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2200} 
+{Avg remset scan elapsed: 9/28 ms, CPU: 5/28 ms, entries: 14837/7} 
+{Max words, Mem: 3044352 Heap: 2899968 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.949s
+user	0m1.864s
+sys	0m0.018s
+
+Testing mazefun under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+mazefun
+Words allocated: 5242838
+Elapsed time...: 190 ms (User: 180 ms; System: 0 ms)
+Elapsed GC time: 1 ms (CPU: 1 in 5 collections (5 minor).)
+{Max pause elapsed: 3 ms, CPU: 4 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 1/3 ms, CPU: 1/6 ms, entries: 2108} 
+{Max words, Mem: 2706432 Heap: 2562048 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.323s
+user	0m0.255s
+sys	0m0.015s
+
+Testing mbrot under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+mbrot
+Words allocated: 187692084
+Elapsed time...: 2091 ms (User: 2062 ms; System: 3 ms)
+Elapsed GC time: 61 ms (CPU: 47 in 179 collections (179 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 59/180 ms, CPU: 11/45 ms, entries: 63211/30} 
+{Max words, Mem: 2976768 Heap: 2832384 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m2.175s
+user	0m2.118s
+sys	0m0.019s
+
+Testing nucleic under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+nucleic
+Words allocated: 360704568
+Elapsed time...: 7066 ms (User: 6907 ms; System: 18 ms)
+Elapsed GC time: 135 ms (CPU: 114 in 344 collections (343 minor).)
+{Max pause elapsed: 6 ms, CPU: 5 ms } 
+{Max cheney elapsed: 6 ms, CPU: 5 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 19/60 ms, CPU: 91/360 ms, entries: 63217/30} 
+{Max words, Mem: 5164032 Heap: 5019648 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m7.557s
+user	0m7.331s
+sys	0m0.046s
+
+Testing peval under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+peval
+Words allocated: 54525394
+Elapsed time...: 1514 ms (User: 1477 ms; System: 3 ms)
+Elapsed GC time: 22 ms (CPU: 19 in 52 collections (52 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2131} 
+{Avg remset scan elapsed: 21/55 ms, CPU: 19/55 ms, entries: 116167/55} 
+{Max words, Mem: 3191808 Heap: 3047424 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.689s
+user	0m1.593s
+sys	0m0.027s
+
+Testing pnpoly under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+pnpoly
+Words allocated: 22019750
+Elapsed time...: 599 ms (User: 591 ms; System: 1 ms)
+Elapsed GC time: 7 ms (CPU: 2 in 21 collections (21 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 4/11 ms, CPU: 3/22 ms, entries: 23180/11} 
+{Max words, Mem: 2844672 Heap: 2700288 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.688s
+user	0m0.645s
+sys	0m0.016s
+
+Testing puzzle under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+puzzle
+Words allocated: 8388466
+Elapsed time...: 3225 ms (User: 3138 ms; System: 4 ms)
+Elapsed GC time: 7 ms (CPU: 8 in 8 collections (8 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 2 ms, CPU: 2 ms, entries: 2114} 
+{Avg remset scan elapsed: 7/9 ms, CPU: 8/9 ms, entries: 18970/9} 
+{Max words, Mem: 2910208 Heap: 2765824 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m3.367s
+user	0m3.205s
+sys	0m0.029s
+
+Testing ray under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+ray
+Words allocated: 430957418
+Elapsed time...: 7363 ms (User: 7191 ms; System: 37 ms)
+Elapsed GC time: 122 ms (CPU: 122 in 411 collections (411 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2114} 
+{Avg remset scan elapsed: 17/59 ms, CPU: 17/59 ms, entries: 124316/59} 
+{Max words, Mem: 2775040 Heap: 2630656 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m7.511s
+user	0m7.283s
+sys	0m0.056s
+
+Testing scheme under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+scheme
+Words allocated: 6291374
+Elapsed time...: 295 ms (User: 281 ms; System: 0 ms)
+Elapsed GC time: 2 ms (CPU: 3 in 6 collections (6 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2123} 
+{Avg remset scan elapsed: 5/13 ms, CPU: 6/13 ms, entries: 27463/13} 
+{Max words, Mem: 2914304 Heap: 2769920 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.569s
+user	0m0.503s
+sys	0m0.015s
+
+Testing simplex under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+simplex
+Words allocated: 131069422
+Elapsed time...: 3098 ms (User: 3041 ms; System: 8 ms)
+Elapsed GC time: 42 ms (CPU: 29 in 125 collections (125 minor).)
+{Max pause elapsed: 4 ms, CPU: 5 ms } 
+{Max cheney elapsed: 4 ms, CPU: 4 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 4 ms, CPU: 1 ms, entries: 2115} 
+{Avg remset scan elapsed: 43/127 ms, CPU: 29/127 ms, entries: 268316/127} 
+{Max words, Mem: 3080192 Heap: 2935808 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m3.236s
+user	0m3.119s
+sys	0m0.032s
+
+Testing slatex under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+slatex
+Words allocated: 10485252
+Elapsed time...: 628 ms (User: 447 ms; System: 151 ms)
+Elapsed GC time: 5 ms (CPU: 3 in 10 collections (10 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2123} 
+{Avg remset scan elapsed: 9/20 ms, CPU: 1/5 ms, entries: 42337/20} 
+{Max words, Mem: 3851264 Heap: 3706880 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.984s
+user	0m0.738s
+sys	0m0.177s
+
+Testing sum under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+sum
+Words allocated: 0
+Elapsed time...: 630 ms (User: 623 ms; System: 0 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 0 ms, CPU: 0 ms } 
+{Max cheney elapsed: 0 ms, CPU: 0 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Avg remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Max words, Mem: 0 Heap: 0 Remset: 0 Summaries: 0 Marking: 0 Rts: 0 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.705s
+user	0m0.670s
+sys	0m0.012s
+
+Testing sumfp under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+sumfp
+Words allocated: 800049755
+Elapsed time...: 6406 ms (User: 6302 ms; System: 17 ms)
+Elapsed GC time: 236 ms (CPU: 200 in 763 collections (763 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2107} 
+{Avg remset scan elapsed: 230/763 ms, CPU: 188/763 ms, entries: 2107} 
+{Max words, Mem: 2771968 Heap: 2627584 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m6.484s
+user	0m6.348s
+sys	0m0.031s
+
+Testing tak under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+tak
+Words allocated: 0
+Elapsed time...: 650 ms (User: 643 ms; System: 0 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 0 ms, CPU: 0 ms } 
+{Max cheney elapsed: 0 ms, CPU: 0 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Avg remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Max words, Mem: 0 Heap: 0 Remset: 0 Summaries: 0 Marking: 0 Rts: 0 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.723s
+user	0m0.690s
+sys	0m0.015s
+
+Testing takl under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+takl
+Words allocated: 0
+Elapsed time...: 850 ms (User: 843 ms; System: 0 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 4 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 0 ms, CPU: 1 ms, entries: 2107} 
+{Avg remset scan elapsed: 0 ms, CPU: 1 ms, entries: 2107} 
+{Max words, Mem: 2706432 Heap: 2562048 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.933s
+user	0m0.892s
+sys	0m0.018s
+
+Testing triangl under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+triangl
+Words allocated: 0
+Elapsed time...: 2637 ms (User: 2587 ms; System: 2 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 4 ms, CPU: 4 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 0 ms, CPU: 1 ms, entries: 2107} 
+{Avg remset scan elapsed: 0 ms, CPU: 1 ms, entries: 2107} 
+{Max words, Mem: 2774016 Heap: 2629632 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m2.746s
+user	0m2.639s
+sys	0m0.026s
+
+Testing trav1 under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+trav1
+Words allocated: 7339920
+Elapsed time...: 713 ms (User: 692 ms; System: 5 ms)
+Elapsed GC time: 28 ms (CPU: 29 in 7 collections (6 minor).)
+{Max pause elapsed: 5 ms, CPU: 5 ms } 
+{Max cheney elapsed: 5 ms, CPU: 5 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2209} 
+{Avg remset scan elapsed: 4/9 ms, CPU: 2/9 ms, entries: 19300/9} 
+{Max words, Mem: 3558400 Heap: 3414016 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.844s
+user	0m0.769s
+sys	0m0.022s
+
+Testing trav2 under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+trav2
+Words allocated: 0
+Elapsed time...: 979 ms (User: 948 ms; System: 2 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 3 ms, CPU: 4 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 1/2 ms, CPU: 1/2 ms, entries: 2110} 
+{Max words, Mem: 2706432 Heap: 2562048 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.118s
+user	0m1.035s
+sys	0m0.022s
+
+Testing smlboyer under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+Error: Undefined global variable "Cvar?".
+
+> 
+
+real	0m0.143s
+user	0m0.104s
+sys	0m0.016s
+
+Testing nboyer under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+nboyer3
+Words allocated: 26214130
+Elapsed time...: 1133 ms (User: 1049 ms; System: 44 ms)
+Elapsed GC time: 300 ms (CPU: 288 in 25 collections (22 minor).)
+{Max pause elapsed: 48 ms, CPU: 48 ms } 
+{Max cheney elapsed: 48 ms, CPU: 47 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2114} 
+{Avg remset scan elapsed: 10/27 ms, CPU: 7/27 ms, entries: 56921/27} 
+{Max words, Mem: 9147392 Heap: 8986624 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.273s
+user	0m1.135s
+sys	0m0.064s
+
+Testing dynamic under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+dynamic
+Words allocated: 4194260
+Elapsed time...: 250 ms (User: 229 ms; System: 5 ms)
+Elapsed GC time: 25 ms (CPU: 23 in 4 collections (3 minor).)
+{Max pause elapsed: 12 ms, CPU: 12 ms } 
+{Max cheney elapsed: 12 ms, CPU: 11 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 3275} 
+{Avg remset scan elapsed: 4/7 ms, CPU: 5/21 ms, entries: 45559/21} 
+{Max words, Mem: 5361664 Heap: 5215232 Remset: 120832 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.775s
+user	0m0.696s
+sys	0m0.024s
+
+Testing graphs under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+Error: environment-get-cell: denotes a macro: assert
+
+> 
+
+real	0m0.072s
+user	0m0.046s
+sys	0m0.011s
+
+Testing lattice under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+Lattice
+Words allocated: 25165576
+Elapsed time...: 2669 ms (User: 2636 ms; System: 1 ms)
+Elapsed GC time: 9 ms (CPU: 3 in 24 collections (24 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2113} 
+{Avg remset scan elapsed: 9/25 ms, CPU: 4/25 ms, entries: 52684/25} 
+{Max words, Mem: 2706432 Heap: 2562048 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m2.777s
+user	0m2.701s
+sys	0m0.019s
+
+Testing quicksort under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+quicksort30
+Words allocated: 31456424
+Elapsed time...: 2715 ms (User: 2673 ms; System: 4 ms)
+Elapsed GC time: 18 ms (CPU: 5 in 30 collections (29 minor).)
+{Max pause elapsed: 3 ms, CPU: 3 ms } 
+{Max cheney elapsed: 3 ms, CPU: 3 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2115} 
+{Avg remset scan elapsed: 13/31 ms, CPU: 2/31 ms, entries: 65343/31} 
+{Max words, Mem: 4664320 Heap: 4519936 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m2.818s
+user	0m2.731s
+sys	0m0.021s
+
+Testing perm9 under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+5perm9
+Words allocated: 15728486
+Elapsed time...: 1285 ms (User: 1196 ms; System: 75 ms)
+Elapsed GC time: 452 ms (CPU: 446 in 15 collections (12 minor).)
+{Max pause elapsed: 96 ms, CPU: 96 ms } 
+{Max cheney elapsed: 96 ms, CPU: 96 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2112} 
+{Avg remset scan elapsed: 3/8 ms, CPU: 1/2 ms, entries: 33743/16} 
+{Max words, Mem: 17697792 Heap: 17504256 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m1.399s
+user	0m1.267s
+sys	0m0.101s
+
+****************************
+Benchmarking Larceny on Mon Feb 9 19:40:41 UTC 2015 under Linux tegra-ubuntu 3.10.24-g6a2d13a #1 SMP PREEMPT Fri Apr 18 15:56:45 PDT 2014 armv7l armv7l armv7l GNU/Linux
+
+Testing smlboyer under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+smlboyer
+Words allocated: 12600202
+Elapsed time...: 608 ms (User: 579 ms; System: 7 ms)
+Elapsed GC time: 28 ms (CPU: 25 in 12 collections (11 minor).)
+{Max pause elapsed: 12 ms, CPU: 6 ms } 
+{Max cheney elapsed: 11 ms, CPU: 6 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 1 ms, CPU: 1 ms, entries: 2116} 
+{Avg remset scan elapsed: 3/8 ms, CPU: 1/16 ms, entries: 8435/4} 
+{Max words, Mem: 3806208 Heap: 3661824 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.794s
+user	0m0.710s
+sys	0m0.024s
+
+****************************
+Benchmarking Larceny on Mon Feb 9 19:42:52 UTC 2015 under Linux tegra-ubuntu 3.10.24-g6a2d13a #1 SMP PREEMPT Fri Apr 18 15:56:45 PDT 2014 armv7l armv7l armv7l GNU/Linux
+
+Testing graphs under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+graphs6
+Words allocated: 375384610
+Elapsed time...: 5721 ms (User: 5563 ms; System: 18 ms)
+Elapsed GC time: 166 ms (CPU: 160 in 358 collections (357 minor).)
+{Max pause elapsed: 5 ms, CPU: 4 ms } 
+{Max cheney elapsed: 5 ms, CPU: 4 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 2 ms, CPU: 1 ms, entries: 2114} 
+{Avg remset scan elapsed: 29/90 ms, CPU: 5/18 ms, entries: 84321/40} 
+{Max words, Mem: 4151296 Heap: 4006912 Remset: 118784 Summaries: 0 Marking: 0 Rts: 25600 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m5.861s
+user	0m5.647s
+sys	0m0.035s
+
+****************************
+Benchmarking Larceny on Mon Feb 9 19:58:18 UTC 2015 under Linux tegra-ubuntu 3.10.24-g6a2d13a #1 SMP PREEMPT Fri Apr 18 15:56:45 PDT 2014 armv7l armv7l armv7l GNU/Linux
+
+Testing fib under Larceny
+Compiling...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+twobit.heap, built on Sat Feb  7 15:12:20 UTC 2015
+
+> 
+real	0m0.224s
+user	0m0.075s
+sys	0m0.064s
+Running...
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+
+> 
+--------------------------------------------------------
+fib
+Words allocated: 0
+Elapsed time...: 182 ms (User: 156 ms; System: 0 ms)
+Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
+{Max pause elapsed: 0 ms, CPU: 0 ms } 
+{Max cheney elapsed: 0 ms, CPU: 0 ms} 
+{Max sumz elapsed: 0 ms, CPU: 0 ms} 
+{Max mark elapsed: 0 ms, CPU: 0 ms, refine: 0 ms, CPU: 0 ms} 
+{Max remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Avg remset scan elapsed: 0 ms, CPU: 0 ms, entries: 0} 
+{Max words, Mem: 0 Heap: 0 Remset: 0 Summaries: 0 Marking: 0 Rts: 0 Waste: 0}
+Elapsed mark time: 0 ms (CPU: 0 in 0 marks.)
+Elapsed summarization time: 0 ms (CPU: 0 in 0 summarization.)
+
+> 
+
+real	0m0.271s
+user	0m0.204s
+sys	0m0.011s

@@ -13,7 +13,7 @@
 ; the memory system.
 ;
 ;    perm8            storage allocation
-;    10perm8          storage allocation and garbage collection
+;    Tenperm8         storage allocation and garbage collection
 ;    sumperms         sequential traversal
 ;    mergesort        side effects
 ;
@@ -27,7 +27,7 @@
 ; The sumperms benchmark computes the sum of the permuted integers
 ; over all permutations.
 ;
-; The 10perm8 benchmark repeats the perm8 benchmark 10 times, so it
+; The Tenperm8 benchmark repeats the perm8 benchmark 10 times, so it
 ; allocates and reclaims 1499120 pairs (typically 11,992,960 bytes).
 ;
 ; The mergesort! benchmark destructively sorts the generated permutations
@@ -214,8 +214,8 @@
                  (lambda ()
                    (sumlists *perms*))))
 
-(define (10perm8-benchmark)
-  (run-benchmark "10perm8"
+(define (Tenperm8-benchmark)
+  (run-benchmark "Tenperm8"
                  (lambda ()
                    (set! *perms* (permutations '(1 2 3 4 5 6 7 8)))
                    #t)
