@@ -298,6 +298,8 @@
 (define (failsafe-load-init-files)
   (map failsafe-load-file (osdep/find-init-files)))
 
+;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
+
 (define (failsafe-process-arguments)
   (let ((argv (command-line-arguments)))
     (let loop ((i 0))

@@ -85,7 +85,7 @@
           ((r7rs)
            ;; Should ERR5RS mode count as R7RS?
            (boolean (memq (larceny:get-feature 'execution-mode)
-                          '(r7rs err5rs))))
+                          '(r7rs r6rs err5rs))))
           ((larceny exact-closed exact-complex ieee-float ratios)
            #t)
           ((larceny-0.98 larceny-0.99 larceny-2.0)
@@ -156,19 +156,19 @@
           ((and)
            (if (null? (cdr feature))
                #t
-               (and (larceny:evaluate-feature (car feature))
-                    (larceny:evaluate-feature `(and ,@(cdr feature))))))
+               (and (larceny:evaluate-feature (cadr feature))
+                    (larceny:evaluate-feature `(and ,@(cddr feature))))))
           ((or)
            (if (null? (cdr feature))
                #f
-               (or (larceny:evaluate-feature (car feature))
-                   (larceny:evaluate-feature `(and ,@(cdr feature))))))
+               (or (larceny:evaluate-feature (cadr feature))
+                   (larceny:evaluate-feature `(or ,@(cddr feature))))))
           ((not)
            (cond ((or (null? (cdr feature))
                       (not (null? (cddr feature))))
                   (complain))
                  (else
-                  (not (larceny:evaluate-feature (car feature))))))
+                  (not (larceny:evaluate-feature (cadr feature))))))
           (else (complain))))
         (else (complain))))
 
@@ -213,6 +213,7 @@
         (larceny-version
          (string->symbol (larceny:name-of-this-implementation-version))))
     (append (list (car standard-features)
+                  'r6rs
                   'larceny
                   larceny-version)
             (cdr standard-features)

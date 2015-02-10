@@ -38,8 +38,8 @@
           (tests scheme test))
 
   (cond-expand
-   (unicode (include "char.body.scm"))
-   ((not unicode)
+   (full-unicode (include "char.body.scm"))
+   ((not full-unicode)
     (begin
      (define (run-char-tests-for-unicode) #t))))
 
@@ -117,6 +117,9 @@
      (test (string-ci>=? "z" "A") #t)
      (test (string-ci>=? "z" "Z") #t)
      (test (string-ci>=? "Z" "z") #t)
+
+     (test (map digit-value (string->list "0123456789abcDEF"))
+           '(0 1 2 3 4 5 6 7 8 9 #f #f #f #f #f #f))
 
      (run-char-tests-for-unicode)
 

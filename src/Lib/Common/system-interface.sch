@@ -327,7 +327,7 @@
                    (loop (cons (sys$cstring->string result) entries)))
                   (else
                    (let* ((names (map name-part entries)))
-                     (map (lambda (name) (list name (getenv name)))
+                     (map (lambda (name) (cons name (getenv name)))
                           (reverse names)))))))
         '())))
 
