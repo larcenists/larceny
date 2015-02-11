@@ -22,12 +22,12 @@ TESTS="                            \
     read.sps                       \
     repl.sps                       \
     time.sps                       \
+    write.sps                      \
     process-context.sps"
 
 # missing from the list above:
 #
 # base.sps
-# write.sps
 # r5rs.sps
 # run.sps
 # test.sps
