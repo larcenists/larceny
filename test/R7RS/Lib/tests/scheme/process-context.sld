@@ -49,7 +49,8 @@
                       (lambda () (emergency-exit 1))
                       emergency-exit)
                   (lambda ()
-                    (test "shouldn't get here" #f)))
+                    (test "shouldn't get here" #f)
+                    (report-test-results)))
                  "irrelevant")))
 
      (let* ((probe (member "--test-exit" cmds))

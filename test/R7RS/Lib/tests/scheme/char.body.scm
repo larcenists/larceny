@@ -14,6 +14,17 @@
       ((= i #x110000)
        (reverse chars))))
 
+;;; Given a unary predicate and a list, returns a list of
+;;; all elements of the given list that satisfy the predicate.
+
+(define (filter p? xs)
+  (do ((xs (reverse xs) (cdr xs))
+       (ys '() (if (p? (car xs))
+                   (cons (car xs) ys)
+                   ys)))
+      ((null? xs)
+       ys)))             
+
 (define (run-char-tests-for-unicode)
     
   (test (char-upcase #\xDF) #\xDF)
@@ -94,19 +105,27 @@
         #t)
 
   (test (let* ((chars (filter-all-chars char-numeric?))
-               (vals (map digit-value chars)))
-          (equal? (map (lambda (n)
-                         (and (exact-integer? n)
-                              (<= 0 n 9)))
-                       vals)
-                  (map (lambda (n) #t) vals)))
-        #t)
+               (vals (map digit-value chars))
+               (mask (map (lambda (n)
+                            (and (exact-integer? n)
+                                 (<= 0 n 9)))
+                          vals))
+               (mask (map not mask))
+               (bad  (filter values
+                             (map (lambda (char is-bad?)
+                                    (and is-bad? char))
+                                  chars mask))))
+          bad)
+        '())
 
   (test (let* ((chars (filter-all-chars (lambda (c) (not (char-numeric? c)))))
-               (vals (map digit-value chars)))
-          (equal? vals
-                  (map (lambda (n) #f) vals)))
-        #t)
+               (vals (map digit-value chars))
+               (bad  (filter values
+                             (map (lambda (char is-bad?)
+                                    (and is-bad? char))
+                                  chars vals))))
+          bad)
+        '())
 
   )
 

@@ -40,6 +40,16 @@
 
 (define (list . x) x)
 
+(define (make-list k . rest)
+  (if (not (and (fixnum? k)
+                (<= 0 k)))
+      (assertion-violation 'make-list (errmsg 'msg:notindex) k))
+  (let ((fill (if (null? rest) (unspecified) (car rest))))
+    (do ((k k (- k 1))
+         (x '() (cons fill x)))
+        ((<= k 0)
+         x))))
+
 ;; (list* a b c tail) => (cons a (cons b (cons c tail)))
 ;; Note that (list* x) = x
 

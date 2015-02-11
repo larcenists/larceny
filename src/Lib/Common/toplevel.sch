@@ -431,6 +431,7 @@
   (environment-set! larc 'length>=? length>=?)                          ; FIXME
   (environment-set! larc 'length>? length>?)                            ; FIXME
   (environment-set! larc 'list* list*)                                  ; FIXME
+  (environment-set! larc 'make-list make-list)
   (environment-set! larc 'list-copy list-copy)
   (environment-set! larc 'list-head list-head)
   (environment-set! larc 'list-set! list-set!)                          ; FIXME
@@ -707,6 +708,8 @@
   (environment-set! larc 'div0-and-mod0 div0-and-mod0)
   (environment-set! larc 'exact-integer-sqrt exact-integer-sqrt)
 
+  (environment-set! larc 'square square)
+  (environment-set! larc 'exact-integer? exact-integer?)
   (environment-set! larc 'floor/ floor/)
   (environment-set! larc 'floor-quotient floor-quotient)
   (environment-set! larc 'floor-remainder floor-remainder)
@@ -1215,6 +1218,8 @@
   (environment-set! larc 'get-string-all  get-string-all)
   (environment-set! larc 'get-line        get-line)
   (environment-set! larc 'get-datum get-datum)
+
+  (environment-set! larc 'read-line read-line)
 
   ; FIXME
   (environment-set! larc 'get-datum-with-source-locations

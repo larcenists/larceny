@@ -154,6 +154,9 @@
 
 ;;; New for R7RS.  FIXME: Performance could be improved.
 
+(define (read-line . rest)
+  (get-line (if (null? rest) (current-input-port) (car rest))))
+
 (define (read-string k . rest)
   (let ((p (if (null? rest) (current-input-port) (car rest))))
     (get-string-n p k)))
