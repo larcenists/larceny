@@ -45,7 +45,10 @@
 ;    char-whitespace?
 ;    char-upper-case?
 ;    char-lower-case?
-;    char-title-case?)
+;    char-title-case?
+;
+;    make-comparison-predicate    ; for creating n-ary predicates from binary
+;    )
 ;
 ;  (import (r6rs base)
 ;          (r6rs bytevector)
@@ -57,22 +60,48 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; Adapted from make-nary-comparison in ../Arch/*/primops.sch
+
+(define (make-comparison-predicate binop)
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((binop first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (binop a b)
+	  (and (binop a b)
+	       (loop b rest))))))
+
 ; Case-insensitive comparisons.
 
-(define (char-ci=? c1 c2)
-  (char=? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci=?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char=? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci<? c1 c2)
-  (char<? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci<?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char<? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci>? c1 c2)
-  (char>? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci>?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char>? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci<=? c1 c2)
-  (char<=? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci<=?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char<=? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci>=? c1 c2)
-  (char>=? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci>=?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char>=? (char-foldcase c1) (char-foldcase c2)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

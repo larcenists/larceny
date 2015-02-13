@@ -63,20 +63,30 @@
 
 ; Case-insensitive comparisons.
 
-(define (string-ci=? s1 s2)
-  (string=? (string-foldcase s1) (string-foldcase s2)))
+(define string-ci=?
+  (make-comparison-predicate
+   (lambda (s1 s2)
+     (string=? (string-foldcase s1) (string-foldcase s2)))))
 
-(define (string-ci<? s1 s2)
-  (string<? (string-foldcase s1) (string-foldcase s2)))
+(define string-ci<?
+  (make-comparison-predicate
+   (lambda (s1 s2)
+     (string<? (string-foldcase s1) (string-foldcase s2)))))
 
-(define (string-ci>? s1 s2)
-  (string>? (string-foldcase s1) (string-foldcase s2)))
+(define string-ci>?
+  (make-comparison-predicate
+   (lambda (s1 s2)
+     (string>? (string-foldcase s1) (string-foldcase s2)))))
 
-(define (string-ci<=? s1 s2)
-  (string<=? (string-foldcase s1) (string-foldcase s2)))
+(define string-ci<=?
+  (make-comparison-predicate
+   (lambda (s1 s2)
+     (string<=? (string-foldcase s1) (string-foldcase s2)))))
 
-(define (string-ci>=? s1 s2)
-  (string>=? (string-foldcase s1) (string-foldcase s2)))
+(define string-ci>=?
+  (make-comparison-predicate
+   (lambda (s1 s2)
+     (string>=? (string-foldcase s1) (string-foldcase s2)))))
 
 (define (string-upcase s)
   (let* ((n (string-length s))
