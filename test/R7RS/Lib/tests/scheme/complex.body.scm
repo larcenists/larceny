@@ -26,6 +26,19 @@
 
 (define (run-complex-tests-inexact)
 
+  (test (finite? 3.0+inf.0i) #f)
+  (test (infinite? 3.0+inf.0i) #t)
+
+  ;; R6RS example is wrong, because roundoff error in second argument
+  ;; can affect the result (changing result to 1.0 instead of 0.0).
+  ;; According to general principles stated in both the R7RS and R6RS,
+  ;; therefore, the result of this computation should be inexact.
+
+  (test/approx (expt 0 5+.0000312i) 0.0)
+
+  (test/approx (expt 0.0 5+.0000312i) 0.0)
+  (test (inexact? (expt 0.0 5+.0000312i)) #t)
+
   (test/approx (make-rectangular 1.1 0.0) 1.1+0.0i)
   (test/approx (make-rectangular 1.1 2.2) 1.1+2.2i)
   (test/approx (make-polar 1.1 0.0) 1.1+0.0i)

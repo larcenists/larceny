@@ -476,23 +476,26 @@
   (set-car! (last-pair l) x))
 
 ; This is pretty much optimal for Larceny.
+; FIXME: but it doesn't implement R7RS semantics.
+;
+;(define (list-copy l)
+;  (define (loop l prev)
+;    (if (pair? l)
+;        (let ((q (cons (car l) '())))
+;          (set-cdr! prev q)
+;          (loop (cdr l) q))
+;        #t))
+;  (if (pair? l)
+;      (let ((first (cons (car l) '())))
+;        (loop (cdr l) first)
+;        first)
+;      l))
+
+;;; The inlining here is designed to prevent the recursion
+;;; from consuming more space than the result.  The deepest
+;;; recursion depth precedes allocation of heap storage.
 
 (define (list-copy l)
-  (define (loop l prev)
-    (if (pair? l)
-        (let ((q (cons (car l) '())))
-          (set-cdr! prev q)
-          (loop (cdr l) q))
-        #t))
-  (if (pair? l)
-      (let ((first (cons (car l) '())))
-        (loop (cdr l) first)
-        first)
-      l))
-
-(define (list-copy l)
-  (define (complain)
-    (assertion-violation 'list-copy "illegal argument" l))
   (define (list-copy l)
     (cond ((pair? l)
            (let ((a (car l))
@@ -507,17 +510,13 @@
                                       (let ((d (car l4))
                                             (x (list-copy (cdr l4))))
                                         (cons a (cons b (cons c (cons d x))))))
-                                     ((null? l4)
-                                      (list a b c))
-                                     (else (complain)))))
-                            ((null? l3)
-                             (list a b))
-                            (else (complain)))))
-                   ((null? l2)
-                    (list a))
-                   (else (complain)))))
-          ((null? l) '())
-          (else (complain))))
+                                     (else
+                                      (cons a (cons b (cons c l4)))))))
+                            (else
+                             (cons a (cons b l3))))))
+                   (else
+                    (cons a l2)))))
+          (else l)))
   (list-copy l))
 
 (define member

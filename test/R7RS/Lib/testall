@@ -10,6 +10,7 @@ SRC="./tests/scheme/run"
 LARCENY=${LARCENY:-"../../../larceny"}
 
 TESTS="                            \
+    base.sps                       \
     case-lambda.sps                \
     char.sps                       \
     complex.sps                    \
@@ -27,7 +28,6 @@ TESTS="                            \
 
 # missing from the list above:
 #
-# base.sps
 # r5rs.sps
 # run.sps
 # test.sps

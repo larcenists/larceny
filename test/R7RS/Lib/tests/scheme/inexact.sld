@@ -86,16 +86,6 @@
         (test (truncate-remainder x1 x2) (remainder x1 x2))
         (test (modulo x1 x2) (floor-remainder x1 x2))))))
 
-   (define-syntax try-bad-divs
-     (syntax-rules ()
-       ((_ op)
-        (begin
-          (test/unspec-flonum-or-exn (op 1 0) &assertion)
-          (test/unspec-flonum-or-exn (op 1 0.0) &assertion)
-          (test/unspec-flonum-or-exn (op +inf.0 1) &assertion)
-          (test/unspec-flonum-or-exn (op -inf.0 1) &assertion)
-          (test/unspec-flonum-or-exn (op +nan.0 1) &assertion)))))
-
    (define-syntax test-string-to-number
      (syntax-rules ()
        ((_ (str num) ...) (begin (test (string->number str) num) ...))))
@@ -106,6 +96,7 @@
 
    (define (run-inexact-tests)
 
+     (test (eqv? 0.0 +nan.0) #f)
      (test/unspec (eqv? +nan.0 +nan.0))
 
      (test (real? -2.5+0.0i)                       #f)
@@ -115,9 +106,7 @@
      (test (rational? 6/10)                        #t)
      (test (rational? 6/3)                         #t)
      (test (rational? 2)                           #t)
-     (test (integer? 3+0i)                         #t)
      (test (integer? 3.0)                          #t)
-     (test (integer? 8/4)                          #t)
 
      (test (number? +nan.0)                        #t)
      (test (complex? +nan.0)                       #t)
@@ -128,42 +117,18 @@
      (test (rational? -inf.0)                      #f)
      (test (integer? -inf.0)                       #f)
 
-     (test (inexact? +inf.0)             #t)
+     (test (exact? 3.0)                            #f)
+     (test (exact? #e3.0)                          #t)
+     (test (inexact? 3.)                           #t)
+
+     (test (inexact? +inf.0)                       #t)
+
+     (test (exact-integer? 32.0)                   #f)
 
      (test (inexact 2) 2.0)
      (test (inexact 2.0) 2.0)
      (test (exact 2) 2)
      (test (exact 2.0) 2)
-
-     (for-each
-      (lambda (x y)
-        (let ((try-one
-               (lambda (x y)
-                 (let ((try-x
-                        (lambda (x x2)
-                          (test (= x x2) #t)
-                          (test (< x x2) #f)
-                          (test (> x x2) #f)
-                          (test (<= x x2) #t)
-                          (test (>= x x2) #t))))
-                   (try-x x x)
-                   (when (exact? x)
-                     (try-x x (inexact x))
-                     (try-x (inexact x) x)))
-                 (test (< x y) #t)
-                 (test (<= x y) #t)
-                 (test (> x y) #f)
-                 (test (>= x y) #f)
-                 (test (< y x) #f)
-                 (test (<= y x) #f)
-                 (test (> y x) #t)
-                 (test (>= y x) #t))))
-          (try-one x y)
-          (try-one (inexact x) y)
-          (try-one x (inexact y))
-          (try-one (inexact x) (inexact y))))
-      (list 1/2 1 3/2 (expt 2 100) (expt 2 100))
-      (list 1 2 51/20 (expt 2 102) (/ (* 4 (expt 2 100)) 3)))
 
      (test (= +inf.0 +inf.0)            #t)
      (test (= -inf.0 +inf.0)            #f)
@@ -200,6 +165,7 @@
      (test (finite? 5.0)                  #t)
      (test (infinite? 5.0)                #f)
      (test (infinite? +inf.0)             #t)
+     (test (infinite? +nan.0)             #f)
      (test (nan? +nan.0)                  #t)
      (test (nan? +inf.0)                  #f)
      (test (nan? 1020.0)                  #f)
@@ -274,6 +240,8 @@
 
      (test (abs -inf.0)                            +inf.0)
 
+     (test/values (truncate/ -5.0 -2)              2.0 -1.0)
+
      (divmod-test +17.0 +3.0)
      (divmod-test +17.0 -3.0)
      (divmod-test -17.0 +3.0)
@@ -303,6 +271,13 @@
      (divmod-test +10.0 -4.0)
      (divmod-test -10.0 +4.0)
      (divmod-test -10.0 -4.0)
+
+;    (divmod-test/? +17.0 +nan.0)
+;    (divmod-test/? -17.0 +nan.0)
+;    (divmod-test/? +17.0 +inf.0)
+;    (divmod-test/? +17.0 -inf.0)
+;    (divmod-test/? -17.0 +inf.0)
+;    (divmod-test/? -17.0 -inf.0)
 
      (test (denominator (inexact (/ 6 4))) 2.0)
 
@@ -375,16 +350,6 @@
      (test (sqrt +inf.0)                +inf.0)
      (test (sqrt -inf.0)                +inf.0i)
 
-     ;; R6RS example is wrong, because roundoff error in second argument
-     ;; can affect the result (changing result to 1.0 instead of 0.0).
-     ;; According to general principles stated in both the R7RS and R6RS,
-     ;; therefore, the result of this computation should be inexact.
-
-     (test/approx (expt 0 5+.0000312i) 0.0)
-
-     (test/approx (expt 0.0 5+.0000312i) 0.0)
-     (test (inexact? (expt 0.0 5+.0000312i)) #t)
-
      (test (expt 0 0.0) 1.0)
 
      (test/approx (expt 0.0 0.0) 1.0)
@@ -396,8 +361,6 @@
      (test (expt 0 0)                   1)
      (test (expt 0.0 0.0)               1.0)
     
-     ;; FIXME: the 1/2 presupposes the ratios feature
-
      (for-each 
       (lambda (n)
         (test (string->number (number->string n)) n)
@@ -412,7 +375,7 @@
           (test (string->number (number->string n 10) 10) n)
           (test (string->number (string-append "#d" (number->string n 10)))
                 n)))
-      '(1 15 1023 -5 2.0 1/2 2e200 1+2i))
+      '(1 15 1023 -5 2.0 2e200))
      (test (string->number "nope") #f)
 
      (test (string->number "1e2")                  100.0)
@@ -426,25 +389,18 @@
       ("10" 10)
       ("1" 1)
       ("-17" -17)
-      ("+13476238746782364786237846872346782364876238477" 
-      13476238746782364786237846872346782364876238477)
-      ("1/2" (/ 1 2))                          ; FIXME: ratios
-      ("-1/2" (/ 1 -2))                        ; FIXME: ratios
       ("#x24" 36)
       ("#x-24" -36)
       ("#b+00000110110" 54)
-      ("#b-00000110110/10" -27)                ; FIXME: ratios
       ("#e10" 10)
       ("#e1" 1)
       ("#e-17" -17)
       ("#e#x24" 36)
       ("#e#x-24" -36)
       ("#e#b+00000110110" 54)
-      ("#e#b-00000110110/10" -27)
       ("#x#e24" 36)
       ("#x#e-24" -36)
       ("#b#e+00000110110" 54)
-      ("#b#e-00000110110/10" -27)              ; FIXME: ratios
       ("#e1e1000" (expt 10 1000))
       ("#e-1e1000" (- (expt 10 1000)))
       ("#e1e-1000" (expt 10 -1000))
