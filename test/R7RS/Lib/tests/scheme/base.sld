@@ -1804,7 +1804,7 @@
        ;(string-set! (g) 0 #\?) ; is an error
        ;(string-set! (symbol->string 'immutable) 0 #\?) ; is an error
        (let ((s (f)))
-         (test/unspec (string-set! (f) 0 #\?))
+         (test/unspec (string-set! s 0 #\?))
          (test (string-ref s 0) #\?)
          (test (string-ref s 1) #\*)
          (test (string-ref s 2) #\*)))
