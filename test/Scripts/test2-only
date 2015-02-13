@@ -26,7 +26,14 @@ set -o errexit
 ##
 ########################################################################
 
-MY_CDASHLOG="${DIR}/cdash-tests2-sub.xml"
+RACKET_TESTS="${DIR}/../../RacketTests"
+
+MY_CDASHLOG1="${DIR}/cdash-tests1-sub.xml"
+MY_CDASHLOG2="${DIR}/cdash-tests2-sub.xml"
+MY_CDASHLOG3="${DIR}/cdash-tests3-sub.xml"
+MY_CDASHLOG4="${DIR}/cdash-tests4-sub.xml"
+
+MY_CDASHLOG=${MY_CDASHLOG1}
 
 ################################################################
 ##
@@ -95,14 +102,51 @@ function remove {
 
 export LARCENY=../../../${FINAL_LARCENY_SCRIPT}
 
+function r6rs_test {
+  MY_CDASHLOG=${MY_CDASHLOG1}
+  CMD="./testall"
+
+  pushd ${RACKET_TESTS} > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd > /dev/null
+
+  echo r6rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+  cdashlog '  <Test Status="'"${STATUS}"'">                                   '
+  cdashlog '   <Name>R7RS</Name>                                              '
+  cdashlog '   <Path>test/R7RS/Lib</Path>                                     '
+  cdashlog '   <FullName>R7RS tests (Larceny)</FullName>                      '
+  cdashlog '   <FullCommandLine>'"$CMD"'</FullCommandLine>                    '
+  cdashlog '   <Results>                                                      '
+  cdashlog '    <NamedMeasurement type="numeric/double" name="Execution Time">'
+  cdashlog '     <Value>'"${SECS_ELAPSED}"'</Value>                           '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Completion Status">'
+  cdashlog '     <Value>Completed</Value>                                     '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Command Line">     '
+  cdashlog '     <Value>'"$CMD"'</Value>                                      '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <Measurement>                                                 '
+  cdashlog '     <Value>                                                      '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '     </Value>                                                     '
+  cdashlog '    </Measurement>                                                '
+  cdashlog '   </Results>                                                     '
+  cdashlog '  </Test>                                                         '
+
+  cat ${TEMPLOG} >> ${DIR}/tests1.log
+}
+
 function r7rs_test {
-    CMD="./testall"
+  MY_CDASHLOG=${MY_CDASHLOG2}
+  CMD="./testall"
 
-    pushd ${DIR}/larceny_src/test/R7RS/Lib > /dev/null
-    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
-    popd > /dev/null
+  pushd ${DIR}/larceny_src/test/R7RS/Lib > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd > /dev/null
 
-    echo r7rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+  echo r7rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
 
   cdashlog '  <Test Status="'"${STATUS}"'">                                   '
   cdashlog '   <Name>R7RS</Name>                                              '
@@ -146,6 +190,7 @@ function conformance_tests {
 
   TEST_SECS_BEGIN=`date +%s`
 
+  r6rs_test
   r7rs_test
 
   TEST_SECS_FINIS=`date +%s`
