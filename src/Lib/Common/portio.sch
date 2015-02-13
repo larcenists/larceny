@@ -171,9 +171,16 @@
         #f
         t)))
 
-(define (textual-port? p) (io/textual-port? p))
+;;; The R6RS says textual-port? and binary-port? take a port as argument.
+;;; The R7RS says they accept any argument.
 
-(define (binary-port? p) (io/binary-port? p))
+(define (textual-port? p)
+  (and (port? p)
+       (io/textual-port? p)))
+
+(define (binary-port? p)
+  (and (port? p)
+       (io/binary-port? p)))
 
 (define (transcoded-port p t)
   (if (and (binary-port? p)
