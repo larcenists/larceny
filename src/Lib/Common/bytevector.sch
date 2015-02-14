@@ -80,21 +80,34 @@
   (let* ((lengths (map bytevector-length args))
          (n (apply + lengths))
          (bv (make-bytevector n)))
-    (do ((j j (+ j (car lengths)))
+    (do ((j 0 (+ j (car lengths)))
          (args args (cdr args))
          (lengths lengths (cdr lengths)))
         ((null? args) bv)
-      (r7rs:bytevector-copy! bv j src))))
+      (r7rs:bytevector-copy! bv j (car args)))))
 
 ;;; R7RS version of bytevector-copy! is incompatible with R6RS
 ;;; when five arguments are passed.
 
-(define (r7rs:bytevector-copy! dst j src . rest)
-  (let* ((i (if (null? rest) 0 (car rest)))
+;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
+;;; the length of to.  It is also an error if (- (bytevector-length to) at)
+;;; is less than (- end start)."
+;;; That second sentence makes vector-copy! considerably less useful than
+;;; it should be.  The R7RS also fails to say what the last argument (end)
+;;; defaults to if omitted.
+;;; Larceny ignores the second sentence, copying exactly (- end start)
+;;; elements.  If end is not specified, Larceny uses the largest index
+;;; that will work.
+
+(define (r7rs:bytevector-copy! dst at src . rest)
+  (let* ((start (if (null? rest) 0 (car rest)))
          (rest (if (null? rest) rest (cdr rest)))
-         (k (if (null? rest) (bytevector-length src)))
-         (kount (- k j)))
-    (r6rs:bytevector-copy! src i dst j kount)))
+         (end (if (null? rest)
+                  (min (bytevector-length src)
+                       (+ start (- (bytevector-length dst) at)))
+                  (car rest)))
+         (kount (- end start)))
+    (r6rs:bytevector-copy! src start dst at kount)))
 
 ;;; FIXME: this is the R6RS version with a temporary hack.
 
@@ -385,10 +398,15 @@
                        (+ target-start i)
                        (bytevector-u8-ref source (+ source-start i))))))
 
-(define (bytevector-copy b)
+;;; Generalized from one argument for R7RS.
+
+(define (bytevector-copy b . rest)
   (let* ((n (bytevector-length b))
-         (b2 (make-bytevector n)))
-    (r6rs:bytevector-copy! b 0 b2 0 n)
+         (start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
+         (k (- end start))
+         (b2 (make-bytevector k)))
+    (r6rs:bytevector-copy! b start b2 0 k)
     b2))
 
 (define (bytevector->u8-list b)

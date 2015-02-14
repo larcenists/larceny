@@ -101,6 +101,10 @@
            ;; Larceny can always represent every Unicode character,
            ;; but Unicode strings are a different story.
            (eq? (larceny:get-feature 'char-representation) 'unicode))
+          ((full-unicode-strings)
+           ;; Larceny can always represent every Unicode character,
+           ;; but Unicode strings are a different story.
+           (eq? (larceny:get-feature 'string-representation) 'flat4))
           ((posix)
            (boolean (member (larceny:get-feature 'os-name)
                             '("SunOS"
