@@ -775,10 +775,10 @@
             (raise (list (cons 'b 23))))
            '(b . 23))
 
-    (let ([v '()])
-      (test (guard (exn [(equal? exn 5) 'five])
+    (let ((v '()))
+      (test (guard (exn ((equal? exn 5) 'five))
                    ;; `guard' should jump back in before re-raising
-                   (guard (exn [(equal? exn 6) 'six])
+                   (guard (exn ((equal? exn 6) 'six))
                           (dynamic-wind
                               (lambda () (set! v (cons 'in v)))
                               (lambda () (raise 5))
@@ -813,10 +813,10 @@
                (list x (get-output-string q)))
              '(#f "error opening file"))))
     
-     (let ([v '()])
-       (test (guard (exn [(equal? exn 5) 'five])
+     (let ((v '()))
+       (test (guard (exn ((equal? exn 5) 'five))
                     ;; `guard' should jump back in before re-raising
-                    (guard (exn [(equal? exn 6) 'six])
+                    (guard (exn ((equal? exn 6) 'six))
                            (dynamic-wind
                                (lambda () (set! v (cons 'in v)))
                                (lambda () (raise 5))
@@ -1124,14 +1124,9 @@
      ;; particular, it is an error for quasiquote (section 4.2.8)
      ;; to contain them."  So this next test is legal.
 
-     (cond-expand
-      (larceny
-       (test "FIXME: '#1=(a b . #1#" "doesn't work in Larceny"))
-      ((not larceny)
-       ;; FIXME
-       #;(test (equal? '#1=(a b . #1#)
-                     '#2=(a b a b . #2#))
-             #t)))
+     (test (equal? '#1=(a b . #1#)
+                   '#2=(a b a b . #2#))
+           #t)
 
      (test/unspec (equal? (lambda (x) x)
                           (lambda (y) y)))
@@ -1584,7 +1579,7 @@
                    (lambda (ignored n) (even? n)))
            '(4 1 5 9 2 6 5))
 
-     (let ([e '((a 1) (b 2) (c 3))])
+     (let ((e '((a 1) (b 2) (c 3))))
        (test (assq 'a e)      '(a 1))
        (test (assq 'b e)      '(b 2))
        (test (assq 'd e)      #f))
@@ -1596,7 +1591,7 @@
      (test/unspec (assq 5 '((2 3) (5 7) (11 13))))
      (test (assv 5 '((2 3) (5 7) (11 13))) '(5 7))
 
-     (let ([d '((3 a) (1 b) (4 c))])
+     (let ((d '((3 a) (1 b) (4 c))))
        (test (assoc 'irrelevant
                     d
                     (lambda (x y) (even? y)))
@@ -1937,7 +1932,7 @@
      (test (list->string (list #\a #\p #\p #\l #\e)) "apple")
 
      (test "apple" (string-copy "apple"))
-     (let ([s "apple"])
+     (let ((s "apple"))
        (test (eq? s (string-copy s)) #f))
 
      (test (eqv? (string-copy "apple") "apple") #f)
@@ -2167,19 +2162,49 @@
        (test (bytevector-copy a 2)   #u8(3 4 5))
        (test (bytevector-copy a)     #u8(1 2 3 4 5)))
 
+     ;; R7RS 6.7 says "It is an error if at is less than zero or greater than
+     ;; the length of to.  It is also an error if (- (bytevector-length to) at)
+     ;; is less than (- end start)."
+     ;; That second sentence makes vector-copy! considerably less useful than
+     ;; it should be.  The R7RS also fails to say what the last argument (end)
+     ;; defaults to if omitted.
+     ;; Larceny ignores the second sentence, copying exactly (- end start)
+     ;; elements.  If end is not specified, Larceny uses the largest index
+     ;; that will work.
+
+     (cond-expand
+      (larceny
+       (let ()
+         (define a (bytevector 1 2 3 4 5))
+         (define b (bytevector 10 20 30 40 50))
+         (test/unspec (bytevector-copy! b 1 a 0 2))
+         (test b '#u8(10 1 2 40 50))
+         (test/unspec (bytevector-copy! b 2 b 3 5))
+         (test b '#u8(10 1 40 50 50))
+         (test/unspec (bytevector-copy! b 2 b 0 3))
+         (test b '#u8(10 1 10 1 40))
+         (test/unspec (bytevector-copy! b 1 a))    ; FIXME: is this legal?
+         (test b '#u8(10 1 2 3 4))
+         (test/unspec (bytevector-copy! b 1 a 3))  ; FIXME: is this legal?
+         (test b '#u8(10 4 5 3 4)))))
+
+     ;; Here's a test of the non-error cases for vector-copy!
+     ;; Although the R7RS talks about the need to copy in the correct
+     ;; direction when the source and destination overlap, copying
+     ;; downward is an error, hence can't be tested here.  For a test
+     ;; of that situation, see the Larceny-specific test above.
+
      (let ()
        (define a (bytevector 1 2 3 4 5))
        (define b (bytevector 10 20 30 40 50))
-       (test/unspec (bytevector-copy! b 1 a 0 2))
-       (test b '#u8(10 1 2 40 50))
-       (test/unspec (bytevector-copy! b 2 b 3 5))
-       (test b '#u8(10 1 40 50 50))
+       (test/unspec (bytevector-copy! b 2 a 0 3))
+       (test b '#u8(10 20 1 2 3))
        (test/unspec (bytevector-copy! b 2 b 0 3))
-       (test b '#u8(10 1 10 1 40))
-       (test/unspec (bytevector-copy! b 1 a))    ; FIXME: is this legal?
-       (test b '#u8(10 1 2 3 4))
-       (test/unspec (bytevector-copy! b 1 a 3))  ; FIXME: is this legal?
-       (test b '#u8(10 4 5 3 4)))
+       (test b '#u8(10 20 10 20 1))
+       (test/unspec (bytevector-copy! b 3 a 3))
+       (test b '#u8(10 20 10 4 5))
+       (test/unspec (bytevector-copy! b 0 a))
+       (test b '#u8(1 2 3 4 5)))
 
      (test (bytevector-append)                       '#u8())
      (test (bytevector-append #u8(0 1 2) #u8(3 4 5)) '#u8(0 1 2 3 4 5))
@@ -2326,7 +2351,7 @@
 
      (test/unspec (for-each even? '()))
 
-     (let ([accum '()])
+     (let ((accum '()))
        (test/unspec (string-for-each
                      (lambda (a) (set! accum (cons a accum)))
                      "elppa"))
@@ -2352,7 +2377,7 @@
              v)
            '(0 1 4 9 16))
 
-     (let ([accum '()])
+     (let ((accum '()))
        (test/unspec (vector-for-each
                      (lambda (a) (set! accum (cons a accum)))
                      '#(e l p p a)))

@@ -4,14 +4,15 @@
 ;;;
 ;;;     bytevector-copy!    (unresolvable; requires renaming)
 ;;;
-;;;     string-fill!        (resolved by using R7RS extended semantics) (FIXME)
-;;;
-;;;     map                 (resolved by mode-dependent behavior)
-;;;     for-each            (resolved by mode-dependent behavior)
-;;;     textual-port?       (resolved by using R7RS extended semantics)
-;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;     define-record-type  (resolved by allowing both R7RS and R6RS syntax)
 ;;;     error               (resolved by heuristic overloading)
+;;;     map                 (resolved by mode-dependent behavior)
+;;;     for-each            (resolved by mode-dependent behavior)
+;;;     string-copy         (resolved by using R7RS extended semantics)
+;;;     vector-copy         (resolved by using R7RS extended semantics)
+;;;     bytevector-copy     (resolved by using R7RS extended semantics)
+;;;     textual-port?       (resolved by using R7RS extended semantics)
+;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;
 ;;; Possible conflicts:
 ;;;
@@ -44,5 +45,5 @@
 
 (display "All libraries loaded with these name conflicts:\n")
 (for-each (lambda (name) (display "    ") (write name) (newline))
-          '(bytevector-copy! string-fill!))
+          '(bytevector-copy!))
 (newline)

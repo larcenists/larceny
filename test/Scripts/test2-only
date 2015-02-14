@@ -100,7 +100,7 @@ function remove {
 ##
 ################################################################
 
-export LARCENY=../../../${FINAL_LARCENY_SCRIPT}
+export LARCENY=${DIR}/larceny_src/${FINAL_LARCENY_SCRIPT}
 
 function r6rs_test {
   MY_CDASHLOG=${MY_CDASHLOG1}

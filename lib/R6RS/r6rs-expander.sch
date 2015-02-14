@@ -883,6 +883,8 @@
                 ((identifier? t) (make-free-name (id-name t)))
                 ((pair? t)       (syntax-violation #f "Invalid procedure call syntax" t))
                 ((symbol? t)     (syntax-violation #f "Symbol may not appear in syntax object" t))
+                ((vector? t)                                           ; [R7RS]
+                 (syntax->datum t))                                    ; [R7RS]
                 (else t)))))
 
     ;; Only expands while t is a user macro invocation.
@@ -2488,7 +2490,16 @@
                              (flatten (cdr l))))
             (else (list l))))
 
-    (define (sexp-map f s)
+    ;; In R7RS Scheme, circular constants can be quoted.               ; [R7RS]
+    ;; FIXME: Unclear whether all shared structure must be preserved.  ; [R7RS]
+
+    (define (sexp-map f s)                                             ; [R7RS]
+      (cond ((object-is-circular? s)                                   ; [R7RS]
+             (larceny:object-map f s))                                 ; [R7RS]
+            (else                                                      ; [R7RS]
+             (sexp-map-simple f s))))                                  ; [R7RS]
+             
+    (define (sexp-map-simple f s)                                      ; [R7RS]
       (cond ((null? s) '())
             ((pair? s) (cons (sexp-map f (car s))
                              (sexp-map f (cdr s))))
