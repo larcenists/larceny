@@ -925,11 +925,12 @@
         (begin
           (cant.mov as $r.result $r.tmp)
           (cant.mov as $r.second $r.result)
-          (cant.mov as $r.tmp $r.second)))
-    (if (not (= r1 $r.result))
-        (cant.mov as r1 $r.result))
-    (if (not (= r2 $r.second))
-        (cant.mov as r2 $r.second)))
+          (cant.mov as $r.tmp $r.second))
+	(begin
+	  (if (not (= r1 $r.result))
+	      (cant.mov as r1 $r.result))
+	  (if (not (= r2 $r.second))
+	      (cant.mov as r2 $r.second)))))
 
   (let ((L (fence.make-label as)))
     (cant.bcci as 'low1-equal r_val 0 L)        ; Skip if value is not pointer
