@@ -299,15 +299,25 @@
   (map failsafe-load-file (osdep/find-init-files)))
 
 ;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
+;;; It now parses past -- only in R5RS mode.
 
 (define (failsafe-process-arguments)
-  (let ((argv (command-line-arguments)))
+  (let ((argv (command-line-arguments))
+        (emode (larceny:execution-mode)))
     (let loop ((i 0))
       (cond 
        ((>= i (vector-length argv)) #t)
        (else
         (let ((arg (vector-ref argv i)))
           (cond
+           ((and (string=? arg "--")
+                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
+            ; FIXME: Common Larceny is the oddball here
+            (command-line-arguments
+             (list->vector
+              (cdr (member "--" (vector->list argv))))))
+           ((not (eq? emode 'r5rs))
+            #t)
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))
             (failsafe-eval-thunk 
@@ -316,12 +326,6 @@
                 (read (open-input-string (vector-ref argv (+ i 1))))))
              (list "Error parsing argument " (+ i 1)))
             (loop (+ i 2)))
-           ((and (string=? arg "--")
-                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
-            ; FIXME: Common Larceny is the oddball here
-            (command-line-arguments
-             (list->vector
-              (cdr (member "--" (vector->list argv))))))
            ((and (> (string-length arg) 0)
                  (char=? (string-ref arg 0) #\-))
             (writeln "Error unrecognized option " arg)
