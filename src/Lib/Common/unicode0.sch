@@ -17,6 +17,11 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; FIXME: none of these temporary definitions are needed in Larceny,
+;;; so they're commented out.
+
+#|
+
 ; Given exact integers n and k, with k >= 0, return (* n (expt 2 k)).
 
 (define (arithmetic-shift n k)
@@ -100,6 +105,8 @@
 (define bytevector-u8-set! bytevector-set!)
 (define u8-list->bytevector list->bytevector)
 
+|#
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; End of temporary code extracted from larceny.sch
@@ -134,7 +141,10 @@
 ;
 ;    binary-search-of-vector
 ;    binary-search
-;    binary-search-16bit)
+;    binary-search-16bit
+;
+;    make-comparison-predicate    ; for creating n-ary predicates from binary
+;    )
 ;
 ;  (import (r6rs base)
 ;          (r6rs bytevector))
@@ -225,5 +235,21 @@
     (if (or (= hi 0) (< key (bytevector-ref16 bvec 0)))
         #f
         (loop 0 hi))))
+
+;;; Adapted from make-nary-comparison in ../Arch/*/primops.sch
+
+(define (make-comparison-predicate binop)
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((binop first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (binop a b)
+	  (and (binop a b)
+	       (loop b rest))))))
 
 ;)

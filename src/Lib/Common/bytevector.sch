@@ -785,18 +785,20 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (string->utf8 string)
+(define (string->utf8 string . rest)
   (let* ((n (string-length string))
-         (k (do ((i 0 (+ i 1))
+         (start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
+         (k (do ((i start (+ i 1))
                  (k 0 (+ k (let ((sv (char->integer (string-ref string i))))
                              (cond ((<= sv #x007f) 1)
                                    ((<= sv #x07ff) 2)
                                    ((<= sv #xffff) 3)
                                    (else 4))))))
-                ((= i n) k)))
+                ((= i end) k)))
          (bv (make-bytevector k)))
     (define (loop i j)
-      (if (= i n)
+      (if (>= i end)
           bv
           (let ((sv (char->integer (string-ref string i))))
             (cond ((<= sv #x007f)
@@ -835,7 +837,7 @@
                      (bytevector-u8-set! bv (+ j 2) u2)
                      (bytevector-u8-set! bv (+ j 3) u3)
                      (loop (+ i 1) (+ j 4))))))))
-    (loop 0 0)))
+    (loop start 0)))
 
 ; Given a bytevector containing the UTF-8 encoding
 ; of a string, decodes and returns a newly allocated
@@ -882,27 +884,30 @@
 ;
 ; q3 --- expecting three more bytes, the first in range lower..upper
 
-(define (utf8->string bv)
+(define (utf8->string bv . rest)
   (let* ((n (bytevector-length bv))
+         (start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
          (replacement-character (integer->char #xfffd))
-         (bits->char (lambda (bits)
-                       (cond ((<= 0 bits #xd7ff)
-                              (integer->char bits))
-                             ((<= #xe000 bits #x10ffff)
-                              (integer->char bits))
-                             (else
-                              replacement-character))))
          (begins-with-bom?
           (and (<= 3 n)
                (= #xef (bytevector-u8-ref bv 0))
                (= #xbb (bytevector-u8-ref bv 1))
                (= #xbf (bytevector-u8-ref bv 2)))))
 
+    (define bits->char (lambda (bits)
+                         (cond ((<= 0 bits #xd7ff)
+                                (integer->char bits))
+                               ((<= #xe000 bits #x10ffff)
+                                (integer->char bits))
+                               (else
+                                replacement-character))))
+
     (define (result-length)
       ; i is index of the next byte
       ; k is the number of characters encoded by bytes 0 through i-1
       (define (q0 i k)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1))
@@ -928,7 +933,7 @@
                      ; illegal
                      (q0 i1 k1))))))
       (define (q1 i k)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -941,7 +946,7 @@
                      ; illegal
                      (q0 i k))))))
       (define (q2 i k lower)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -954,7 +959,7 @@
                      ; illegal
                      (q0 i k))))))
       (define (q3 i k lower upper)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -966,9 +971,9 @@
                     (else
                      ; illegal
                      (q0 i k))))))
-      (if begins-with-bom?
+      (if (and begins-with-bom? (= start 0))
           (q0 3 0)
-          (q0 0 0)))
+          (q0 start 0)))
 
     (let* ((k (result-length))
            (s (make-string k)))
@@ -977,7 +982,7 @@
       ; k is index of the next character in s
 
       (define (q0 i k)
-        (if (< i n)
+        (if (< i end)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1))
                   (k1 (+ k 1)))
@@ -1005,7 +1010,7 @@
                      (string-set! s k replacement-character)
                      (q0 i1 k1))))))
       (define (q1 i k bits)
-        (if (= i n)
+        (if (= i end)
             (string-set! s k replacement-character)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1))
@@ -1025,7 +1030,7 @@
                      (string-set! s k replacement-character)
                      (q0 i k1))))))
       (define (q2 i k lower bits)
-        (if (= i n)
+        (if (= i end)
             (string-set! s k replacement-character)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -1042,7 +1047,7 @@
                      (string-set! s k replacement-character)
                      (q0 i (+ k 1)))))))
       (define (q3 i k lower upper bits)
-        (if (= i n)
+        (if (= i end)
             (string-set! s k replacement-character)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -1058,9 +1063,9 @@
                      ; illegal
                      (string-set! s k replacement-character)
                      (q0 i (+ k 1)))))))
-      (if begins-with-bom?
+      (if (and begins-with-bom? (= start 0))
           (q0 3 0)
-          (q0 0 0))
+          (q0 start 0))
       s)))
 
 ; (utf-16-codec) might write a byte order mark,

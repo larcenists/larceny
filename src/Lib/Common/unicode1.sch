@@ -46,8 +46,6 @@
 ;    char-upper-case?
 ;    char-lower-case?
 ;    char-title-case?
-;
-;    make-comparison-predicate    ; for creating n-ary predicates from binary
 ;    )
 ;
 ;  (import (r6rs base)
@@ -59,22 +57,6 @@
 ; Procedures that operate on characters.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Adapted from make-nary-comparison in ../Arch/*/primops.sch
-
-(define (make-comparison-predicate binop)
-  (letrec ((loop (lambda (first rest)
-		   (cond ((null? rest)
-			  #t)
-			 ((binop first (car rest))
-			  (loop (car rest) (cdr rest)))
-			 (else
-			  #f)))))
-    (lambda (a b . rest)
-      (if (null? rest)
-	  (binop a b)
-	  (and (binop a b)
-	       (loop b rest))))))
 
 ; Case-insensitive comparisons.
 
