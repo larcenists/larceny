@@ -283,7 +283,7 @@
   (import (scheme base)
           (tests scheme test))
 
-  ;; For testing R7RS 4.2.1
+  ;; For testing R7RS 4.2.1 and 4.2.7
 
   (cond-expand
    ((library (scheme write))
@@ -800,6 +800,7 @@
 
      (cond-expand
       ((and (library (scheme read))
+            (library (scheme write))
             (library (scheme file)))
        (test (let* ((q (open-output-string))
                     (x (guard (con
@@ -809,7 +810,7 @@
                                ((read-error? con)
                                 (display "error reading file" q)
                                 #f))
-                        (open-input-file "foo-must-not-exist.scm" read))))
+                        (open-input-file "foo-must-not-exist.scm"))))
                (list x (get-output-string q)))
              '(#f "error opening file"))))
     
@@ -2318,13 +2319,14 @@
 
      (test (vector-map + '#(1 2 3) '#(4 5 6))         '#(5 7 9))
 
-     (test (let ((count 0))
-             (vector-map (lambda (ignored)
-                           (set! count (+ count 1))
-                           count)
-                         '#(a b))
-             (and (member count '(#(1 2) #(2 1)))
-                  #t))
+     (test ((lambda (x)
+              (and (member x '(#(1 2) #(2 1)))
+                   #t))
+            (let ((count 0))
+              (vector-map (lambda (ignored)
+                            (set! count (+ count 1))
+                            count)
+                          '#(a b))))
            #t)
 
      (test (vector-map (lambda (x) (+ 1 x)) 
@@ -2508,7 +2510,7 @@
                            (k 'exception))
                          (lambda ()
                            (+ 1 (raise 'an-error))))))))
-             (list x (get-output-string)))
+             (list x (get-output-string q)))
            '(exception "condition: an-error\n"))
 
      (test (let* ((q (open-output-string))
@@ -2524,7 +2526,7 @@
                               (display "something went wrong\n" q))
                             (lambda ()
                               (+ 1 (raise 'an-error))))))))))
-             (list x (get-output-string)))
+             (list x (get-output-string q)))
            '(done (string-append "something went wrong\n"
                                  "threw second exception\n")))
 
@@ -2561,7 +2563,7 @@
                   (list (error-object-message exn)
                         (error-object-irritants exn))))
            '("null-list?: argument out of domain"
-             bad))
+             (bad)))
 
      (test (read-error? (call/cc
                          (lambda (k)
@@ -2929,7 +2931,7 @@
                                              melville))
               (test/unspec (write-u8 46 melville))
               (flush-output-port melville)
-              (utf8->string (get-output-bytevector))))
+              (utf8->string (get-output-bytevector melville))))
            "Call me Ishmael.")
 
      ;;     features                                ; R7RS 6.14
