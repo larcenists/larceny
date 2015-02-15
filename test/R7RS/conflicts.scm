@@ -6,8 +6,11 @@
 ;;;
 ;;;     define-record-type  (resolved by allowing both R7RS and R6RS syntax)
 ;;;     error               (resolved by heuristic overloading)
-;;;     map                 (resolved by mode-dependent behavior)
-;;;     for-each            (resolved by mode-dependent behavior)
+;;;     map                 (resolved by using R7RS extended semantics)
+;;;     for-each            (resolved by using R7RS extended semantics)
+;;;     finite?             (resolved by using R7RS extended semantics)
+;;;     infinite?           (resolved by using R7RS extended semantics)
+;;;     nan?                (resolved by using R7RS extended semantics)
 ;;;     string-copy         (resolved by using R7RS extended semantics)
 ;;;     vector-copy         (resolved by using R7RS extended semantics)
 ;;;     bytevector-copy     (resolved by using R7RS extended semantics)

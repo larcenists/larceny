@@ -415,7 +415,9 @@
                (error "log: domain error" (list x y)))))
         ((and (flonum? z) (> z 0.0))
 	 (flonum:log z))
-	((or (not (real? z)) (< z 0))
+	((or (not (real? z))
+             (< z 0)
+             (eqv? z -0.0))
 	 (+ (log (magnitude z)) (* +1.0i (angle z))))
 	((zero? z)
          (if (exact? z)
@@ -504,21 +506,33 @@
 (define (exact z) (inexact->exact z))
 (define (inexact z) (exact->inexact z))
 
-(define (finite? x)
-  (if (real? x)
-      (and (not (infinite? x))
-           (not (nan? x)))
-      (assertion-violation 'finite? (errmsg 'msg:notreal) x)))
+(define (finite? z)
+  (cond ((real? z)
+         (and (not (infinite? z))
+              (not (nan? z))))
+        ((complex? z)
+         (and (finite? (real-part z))
+              (finite? (imag-part z))))
+        (else
+         (assertion-violation 'finite? (errmsg 'msg:notnumber) z))))
 
-(define (infinite? x)
-  (if (real? x)
-      (and (inexact? x) (or (= x 1e500) (= x -1e500)))
-      (assertion-violation 'infinite? (errmsg 'msg:notreal) x)))
+(define (infinite? z)
+  (cond ((real? z)
+         (and (inexact? z) (or (= z 1e500) (= z -1e500))))
+        ((complex? z)
+         (or (infinite? (real-part z))
+             (infinite? (imag-part z))))
+        (else
+         (assertion-violation 'infinite? (errmsg 'msg:notnumber) z))))
 
-(define (nan? x)
-  (if (real? x)
-      (and (inexact? x) (not (= x x)))
-      (assertion-violation 'nan? (errmsg 'msg:notreal) x)))
+(define (nan? z)
+  (cond ((real? z)
+         (and (inexact? z) (not (= z z))))
+        ((complex? z)
+         (or (nan? (real-part z))
+             (nan? (imag-part z))))
+        (else
+         (assertion-violation 'nan? (errmsg 'msg:notnumber) z))))
 
 ; FIXME: all of these should be faster
 
