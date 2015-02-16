@@ -13,7 +13,6 @@
           report-test-results)
   (import (scheme base)
           (scheme cxr)
-          (only (rnrs lists) for-all exists)  ; FIXME
           (scheme write))
 
   (cond-expand
@@ -43,6 +42,24 @@
 
   (begin
 
+   ;; Good enough for this file.
+
+   (define (for-all f xs . others)
+     (cond ((null? xs)
+            #t)
+           ((apply f (car xs) (map car others))
+            (apply for-all f (cdr xs) (map cdr others)))
+           (else
+            #f)))
+
+   (define (exists f xs . others)
+     (cond ((null? xs)
+            #f)
+           ((apply f (car xs) (map car others))
+            #t)
+           (else
+            (apply exists f (cdr xs) (map cdr others)))))
+
    (define (get-string-n p n)
      (let loop ((chars '())
                 (i 0))
@@ -54,20 +71,26 @@
                        (+ i 1))
                  (loop chars n))))))
 
-   (define-record-type err make-err err?
+   (define-record-type err
+     (make-err err-c)
+     err?
      (err-c err-err-c))
 
    (define-record-type expected-exception
-                       make-expected-exception
+                       (make-expected-exception)
                        expected-exception?)
 
-   (define-record-type multiple-results make-multiple-results multiple-results?
+   (define-record-type multiple-results
+     (make-multiple-results values)
+     multiple-results?
      (values multiple-results-values))
 
-   (define-record-type approx make-approx approx?
+   (define-record-type approx
+     (make-approx value)
+     approx?
      (value approx-value))
 
-   (define-record-type alts make-alts alts?
+   (define-record-type alts (make-alts values) alts?
      (values alts-values))
 
    (define-syntax test

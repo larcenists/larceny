@@ -373,6 +373,24 @@
            ((name expr (... ...))
             (begin expr (... ...))))))))
 
+   (cond-expand
+    (larceny
+     (define-syntax be-like-begin-alt
+       (syntax-rules ()
+        ((be-like-begin-alt name)
+         (define-syntax name
+           (syntax-rules ()
+            ((name exp (... ...))
+             "R7RS ellipsis feature is not yet implemented")))))))
+    ((not larceny)
+     (define-syntax be-like-begin-alt
+       (syntax-rules &etc ()
+        ((be-like-begin-alt name)
+         (define-syntax name
+           (syntax-rules ()
+             ((name expr (&etc ...))
+              (begin expr (&etc ...))))))))))
+
    ;; For a test of R7RS 5.3.1
 
    (define add3
@@ -913,7 +931,17 @@
              foo)
            42)
 
-     (test (let ()
+     ;; FIXME: The following test is commented out.
+     ;; It's legal in R6RS, but probably isn't in R7RS.
+     ;;
+     ;; The reason I'm uncertain is that the R7RS description of let-syntax
+     ;; in section 4.3.1 is almost certainly wrong and looks like a
+     ;; copy/paste error:  "<body> is a sequence of one or more definitions
+     ;; followed by one or more expressions."
+     ;; Surely the first "one or more" should be "zero or more", but was
+     ;; the same mistake made with the second "one or more"?
+
+#;   (test (let ()
              (let-syntax ())
              5) 
            5)
@@ -958,6 +986,11 @@
 
      (test (let ()
              (be-like-begin sequence)
+             (sequence 1 2 3 4))
+           4)
+
+     (test (let ()
+             (be-like-begin-alt sequence)
              (sequence 1 2 3 4))
            4)
 
