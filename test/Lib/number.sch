@@ -827,6 +827,7 @@
 
   (define big 4294967296)
   (define two^32 4294967296)
+  (define exact-two^16 65536)
   (define inexact-two^16 65536.0)
 
   (define (square x)
@@ -864,11 +865,11 @@
    ; lose some precision along the way.  Should test whether the answer
    ; is within some tolerance, but how do we compute the tolerance?
 
-   (test "(sqrt 4)" (sqrt 4) 2.0)	       ; Always inexact
+   (test "(sqrt 4)" (sqrt 4) 2)                    ; now exact
    (test "(sqrt 16.0)" (sqrt 16.0) 4.0)
-   (test "(sqrt -4)" (sqrt -4) 0.0+2.0i)
+   (test "(sqrt -4)" (sqrt -4) 0+2i)               ; now exact
    (test "(sqrt -16.0)" (sqrt -16.0) 0.0+4.0i)
-   (test "(sqrt two^32)" (sqrt two^32) inexact-two^16)
+   (test "(sqrt two^32)" (sqrt two^32) exact-two^16)
    (test "(sqrt 0.9...)" (sqrt 0.9999999999999998) 0.9999999999999999)
    (test "(gcd 33495 1085)" (gcd 33495 1085) 35)
    (test "(gcd 1085 33495)" (gcd 1085 33495) 35)

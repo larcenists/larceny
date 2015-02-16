@@ -147,6 +147,8 @@
 (msg:notlist                    "not a (proper) list")
 (msg:notnaturalnumber           "not an exact nonnegative integer")
 (msg:notnumber                  "not a number")
+(msg:notopeninputport           "not an open input port")
+(msg:notopenoutputport          "not an open output port")
 (msg:notpair                    "not a pair")
 (msg:notport                    "not a port")
 (msg:notproc                    "not a procedure")

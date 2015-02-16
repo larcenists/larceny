@@ -14,6 +14,8 @@
 ;;;     string-copy         (resolved by using R7RS extended semantics)
 ;;;     vector-copy         (resolved by using R7RS extended semantics)
 ;;;     bytevector-copy     (resolved by using R7RS extended semantics)
+;;;     utf8->string        (resolved by using R7RS extended semantics)
+;;;     string->utf8        (resolved by using R7RS extended semantics)
 ;;;     textual-port?       (resolved by using R7RS extended semantics)
 ;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;

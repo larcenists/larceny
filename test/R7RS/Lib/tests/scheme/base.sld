@@ -2527,8 +2527,7 @@
                             (lambda ()
                               (+ 1 (raise 'an-error))))))))))
              (list x (get-output-string q)))
-           '(done (string-append "something went wrong\n"
-                                 "threw second exception\n")))
+           '(done "something went wrong\nthrew second exception\n"))
 
      (test (let* ((q (open-output-string))
                   (x

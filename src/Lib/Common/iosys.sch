@@ -218,8 +218,9 @@
 
 (define port.setposn   18) ; boolean: true iff supports set-port-position!
 (define port.alist     19) ; association list: used mainly by custom ports
+(define port.r7rstype  20) ; copy of port.type but unaltered by closing
 
-(define port.structure-size 20)      ; size of port structure
+(define port.structure-size 21)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -337,6 +338,7 @@
 
     (vector-set! v port.setposn set-position?)
     (vector-set! v port.alist '())
+    (vector-set! v port.r7rstype (vector-ref v port.type))
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -355,6 +357,18 @@
   (and (port? p)
        (let ((direction (fxlogand type-mask:direction
                                   (vector-like-ref p port.type))))
+         (fx= type:output (fxlogand direction type:output)))))
+
+(define (io/r7rs-input-port? p)
+  (and (port? p)
+       (let ((direction (fxlogand type-mask:direction
+                                  (vector-like-ref p port.r7rstype))))
+         (fx= type:input (fxlogand direction type:input)))))
+
+(define (io/r7rs-output-port? p)
+  (and (port? p)
+       (let ((direction (fxlogand type-mask:direction
+                                  (vector-like-ref p port.r7rstype))))
          (fx= type:output (fxlogand direction type:output)))))
 
 (define (io/open-port? p)
@@ -1188,9 +1202,19 @@
   (not (fx= 0 (fxlogand type-mask:binary/textual
                         (vector-like-ref p port.type)))))
 
+(define (io/r7rs-textual-port? p)
+  (assert (port? p))
+  (not (fx= 0 (fxlogand type-mask:binary/textual
+                        (vector-like-ref p port.r7rstype)))))
+
 (define (io/binary-port? p)
   (assert (port? p))
   (fx= 0 (fxlogand type-mask:binary/textual (vector-like-ref p port.type))))
+
+(define (io/r7rs-binary-port? p)
+  (assert (port? p))
+  (fx= 0 (fxlogand type-mask:binary/textual
+                   (vector-like-ref p port.r7rstype))))
 
 ; Transcoders et cetera.
 ;
@@ -1347,6 +1371,9 @@
                           port.type
                           (fxlogior type:textual
                                     (vector-like-ref p port.type)))
+        (vector-like-set! newport
+                          port.r7rstype
+                          (vector-like-ref newport port.type))
         (vector-like-set! newport port.transcoder t)
         (vector-like-set! newport port.state 'textual)
         (vector-like-set! newport port.readmode (default-read-mode))

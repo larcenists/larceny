@@ -16,10 +16,10 @@
 ; works (to some extent) by going through an error handler.
 
 (define current-input-port 
-  (make-parameter "current-input-port" #f (lambda (x) (input-port? x))))
+  (make-parameter "current-input-port" #f (lambda (x) (io/input-port? x))))
 
 (define current-output-port 
-  (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
+  (make-parameter "current-output-port" #f (lambda (x) (io/output-port? x))))
 
 ; Rebinding the current-error-port can cause an infinite loop
 ; when errors occur, so current-error-port isn't a parameter.
@@ -225,11 +225,18 @@
                  #t))
       (io/write-string string (current-output-port))))
 
+;;; The R7RS says these next two procedures accept any argument.
+
 (define (input-port? p)
-  (io/input-port? p))
+  (and (port? p)
+       (io/r7rs-input-port? p)))
 
 (define (output-port? p)
-  (io/output-port? p))
+  (and (port? p)
+       (io/r7rs-output-port? p)))
+
+;;; The next two procedures still require a port as their argument,
+;;; but no great harm should come from generalizing that.
 
 (define (input-port-open? p)
   (and (input-port? p)
@@ -312,18 +319,18 @@
   (bytevector-io/reset-output-bytevector port))
 
 (define (close-input-port p) 
-  (cond ((input-port? p)
+  (cond ((io/input-port? p)
          (io/close-port p))
-        ((not (output-port? p)) ; HACK: port is closed
+        ((input-port? p)    ; port is closed
          (unspecified))
         (else
          (error "close-input-port: not an input port: " p)
          #t)))
 
 (define (close-output-port p)
-  (cond ((output-port? p)
+  (cond ((io/output-port? p)
          (io/close-port p))
-        ((not (input-port? p)) ; HACK: port is closed
+        ((output-port? p)    ; port is closed
          (unspecified))
         (else
          (error "close-output-port: not an output port: " p)

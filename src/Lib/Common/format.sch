@@ -19,9 +19,9 @@
 ($$trace "format")
 
 (define (format port format-string . args)
-  (let ((port (cond ((output-port? port) port)
+  (let ((port (cond ((io/output-port? port) port)
                     ((eq? port #t) (current-output-port))
-                    (else (error "format: not a port: " port)
+                    (else (error (errmsg 'msg:notopenoutputport) port)
                           #t)))
         (n    (string-length format-string)))
 
