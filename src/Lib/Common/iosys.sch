@@ -438,15 +438,16 @@
       (begin (error 'peek-char "not a textual input port" p)
              #t)))
 
-; FIXME: deprecated in Larceny.  This was dropped in R6RS
-; because its semantics as specified by the R5RS aren't
-; really useful.  See below.
+; This was dropped in R6RS because its semantics as specified
+; by the R5RS aren't really useful.  See below.
 ;
-; FIXME: works only when an Ascii character is ready on a
+; FIXME: reliable only when an Ascii character is ready on a
 ; textual port, which is a restriction permitted by the R5RS.
+; The problem here is that a non-Ascii character might have
+; been read in part, but attempting to read the full character
+; might hang.  A more complex implementation is needed.
 ;
-; FIXME: makes no effort to fill a depleted buffer, which
-; is a limitation permitted by the R5RS.
+; FIXME: trusts the ioproc, which might be unwise.
 
 (define (io/char-ready? p)
   (if (port? p)
@@ -457,11 +458,13 @@
                (let ((unit (bytevector-ref buf ptr)))
                  (or (< unit 128)
                      (eq? (vector-like-ref p port.state)
-                          'eof))))
+                          'eof)
+                     (((vector-like-ref p port.ioproc) 'ready?)
+                      (vector-like-ref p port.iodata)))))
               (else #f)))
       (error 'char-ready? (errmsg 'msg:nottextualinput) p)))
 
-; FIXME: same limitations as io/char-ready?
+; FIXME: trusts the ioproc, which might be unwise.
 
 (define (io/u8-ready? p)
   (if (port? p)
@@ -471,7 +474,9 @@
         (cond ((eq? type type:binary-input)
                (or (< ptr lim)
                    (eq? (vector-like-ref p port.state)
-                        'eof)))
+                        'eof)
+                   (((vector-like-ref p port.ioproc) 'ready?)
+                    (vector-like-ref p port.iodata))))
               (else #f)))
       (error 'u8-ready? (errmsg 'msg:notbinaryinput) p)))
 
