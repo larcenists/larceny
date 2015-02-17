@@ -19,7 +19,7 @@
 
   (begin
 
-   (define cmds)
+   (define cmds '())
 
    (define (run-process-context-tests)
 

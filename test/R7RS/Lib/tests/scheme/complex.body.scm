@@ -48,12 +48,19 @@
   (test/approx (imag-part 1.1+2.2i)              2.2)
   (test/approx (magnitude 1.1@2.2)              1.1)
 
+  ;; These are commented out because the R7RS doesn't require
+  ;; the imaginary part of a real number to be exact.
+
+#|
+
   (test (exact? (imag-part 0.0)) #t)
   (test (exact? (imag-part 1.0)) #t)
   (test (exact? (imag-part 1.1)) #t)
   (test (exact? (imag-part +nan.0)) #t)
   (test (exact? (imag-part +inf.0)) #t)
   (test (exact? (imag-part -inf.0)) #t)
+
+|#
 
   (test (zero? (imag-part 0.0)) #t)
   (test (zero? (imag-part 1.0)) #t)

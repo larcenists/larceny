@@ -102,9 +102,42 @@ function remove {
 
 export LARCENY=${DIR}/larceny_src/${FINAL_LARCENY_SCRIPT}
 
+function test_prologue {
+  remove $MY_CDASHLOG
+
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
+  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
+  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
+  cdashlog '      Name="'"`hostname`"'"                                       '
+  cdashlog '      Generator="'"${MY_GENERATOR}"'">                            '
+  cdashlog ' <Testing>                                                        '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>                       '
+  cdashlog '  <TestList>                                                      '
+  cdashlog '   <Test>R7RS (Larceny)</Test>                                    '
+  cdashlog '  </TestList>                                                     '
+
+  TEST_SECS_BEGIN=`date +%s`
+
+}
+
+function test_epilogue {
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>                           '
+  cdashlog '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>       '
+  cdashlog ' </Testing>                                                       '
+  cdashlog '</Site>                                                           '
+  
+  cdash_submit $MY_CDASHLOG
+}
+
 function r6rs_test {
   MY_CDASHLOG=${MY_CDASHLOG1}
   CMD="./testall"
+
+  test_prologue
 
   pushd ${RACKET_TESTS} > /dev/null
   cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
@@ -135,12 +168,16 @@ function r6rs_test {
   cdashlog '   </Results>                                                     '
   cdashlog '  </Test>                                                         '
 
+  test_epilogue
+
   cat ${TEMPLOG} >> ${DIR}/tests1.log
 }
 
 function r7rs_test {
   MY_CDASHLOG=${MY_CDASHLOG2}
   CMD="./testall"
+
+  test_prologue
 
   pushd ${DIR}/larceny_src/test/R7RS/Lib > /dev/null
   cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
@@ -171,37 +208,18 @@ function r7rs_test {
   cdashlog '   </Results>                                                     '
   cdashlog '  </Test>                                                         '
 
+  test_epilogue
+
   cat ${TEMPLOG} >> ${DIR}/tests2.log
 }
 
 function conformance_tests {
-  remove $MY_CDASHLOG
-
-  cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
-  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
-  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
-  cdashlog '      Name="'"`hostname`"'"                                       '
-  cdashlog '      Generator="'"${MY_GENERATOR}"'">                            '
-  cdashlog ' <Testing>                                                        '
-  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>                       '
-  cdashlog '  <TestList>                                                      '
-  cdashlog '   <Test>R7RS (Larceny)</Test>                                    '
-  cdashlog '  </TestList>                                                     '
-
-  TEST_SECS_BEGIN=`date +%s`
+  remove $MY_CDASHLOG1
+  remove $MY_CDASHLOG2
 
   r6rs_test
   r7rs_test
 
-  TEST_SECS_FINIS=`date +%s`
-  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
-
-  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>                           '
-  cdashlog '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>       '
-  cdashlog ' </Testing>                                                       '
-  cdashlog '</Site>                                                           '
-  
-  cdash_submit $MY_CDASHLOG
 }
 
 conformance_tests;
