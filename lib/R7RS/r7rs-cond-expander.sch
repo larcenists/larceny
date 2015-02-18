@@ -82,11 +82,10 @@
   (define (boolean x) (if x #t #f))
   (cond ((symbol? feature)
          (case feature
-          ((r7rs)
-           ;; Should ERR5RS mode count as R7RS?
+          ((r7rs r6rs)
            (boolean (memq (larceny:get-feature 'execution-mode)
-                          '(r7rs r6rs err5rs))))
-          ((larceny exact-closed exact-complex ieee-float ratios)
+                          '(r7rs r7r6 r6rs err5rs))))
+          ((larceny complex exact-closed exact-complex ieee-float ratios)
            #t)
           ((larceny-0.98 larceny-0.99 larceny-2.0)
            ;; FIXME: should strip off trailing beta version, etc
@@ -201,13 +200,18 @@
 
 (define *standard-feature-keywords*
   '(r7rs
+    r6rs                   ; nonstandard
+    larceny                ; nonstandard
     exact-closed
+    ratios
     exact-complex
+    complex                ; nonstandard
     ieee-float
     full-unicode
     full-unicode-strings   ; nonstandard
     unicode-5              ; nonstandard
-    ratios
+    unicode-6              ; nonstandard
+    unicode-7              ; nonstandard
     posix
     windows
     unix darwin gnu-linux bsd freebsd solaris
@@ -220,11 +224,11 @@
          (filter larceny:evaluate-feature *standard-feature-keywords*))
         (larceny-version
          (string->symbol (larceny:name-of-this-implementation-version))))
-    (append (list (car standard-features)
-                  'r6rs
-                  'larceny
+    (append (list (car standard-features)    ; r7rs
+                  (cadr standard-features)   ; r6rs
+                  (caddr standard-features)  ; larceny
                   larceny-version)
-            (cdr standard-features)
+            (cdddr standard-features)
             (map car (larceny:available-source-libraries)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -358,6 +362,7 @@
       (if (and (larceny:directory? path)
                (not (member path directories-searched)))
           (let* ((files (list-directory path))
+                 (files (or files '())) ; be careful here
                  (files (larceny:sort-by-suffix-priority files)))
             (set! directories-searched
                   (cons path directories-searched))

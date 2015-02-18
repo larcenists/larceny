@@ -479,6 +479,7 @@
           (define (compile-libraries path)
             (if (larceny:directory? path)
                 (let* ((files (larceny:list-directory path))
+                       (files (or files '())) ; be careful here
                        (files (larceny:sort-by-suffix-priority files)))
                   (parameterize ((current-directory path))
                     (for-each (lambda (file)

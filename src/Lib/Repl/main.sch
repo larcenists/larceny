@@ -173,7 +173,7 @@
          (emode (get-feature 'execution-mode)))
 
     (case emode
-     ((r5rs err5rs r7rs)
+     ((r5rs err5rs r7rs r7r6)
       (failsafe-load-init-files)
       (failsafe-process-arguments)
       (if (herald)
@@ -183,13 +183,15 @@
       (adjust-safety! (get-feature 'safety))
       (add-require-path!)
       (case emode
-       ((err5rs r7rs)
+       ((err5rs r7rs r7r6)
         (aeryn-mode!)))
       (case emode
        ((err5rs)
         (writeln "ERR5RS mode (no libraries have been imported)"))
        ((r7rs)
-        ((repl-evaluator) '(import (scheme base)))))
+        ((repl-evaluator) '(import (scheme base))))
+       ((r7r6)
+        ((repl-evaluator) '(import (larceny r7r6)))))
       (let ((pgm (get-feature 'top-level-program))
             (original-handler (error-handler)))
         (parameterize ((error-handler
@@ -199,7 +201,7 @@
                           (lambda the-error
                             (parameterize ((error-handler original-handler))
                              (decode-and-raise-r6rs-exception the-error)))))))
-         (if (and (eq? emode 'r7rs)
+         (if (and (memq emode '(r7rs r7r6))
                   (not (string=? pgm "")))
              (eval (list 'run-r6rs-program pgm)
                    (interaction-environment))
@@ -381,11 +383,12 @@
        (else
         (let ((arg (vector-ref argv i)))
           (cond
-           ((member arg '("-fold-ccase" "--fold-case" "/fold-case"))
+           ((member arg '("-fold-case" "--fold-case" "/fold-case"))
             (set! clr:case-sensitivity? #f)
             (loop (+ i 1) args))
 
-           ;; FIXME: ("-r7rs" "--r7rs" "/r7rs") goes here eventually
+           ;; FIXME: ("-r7rs" "--r7rs" "/r7rs" "-r7r6" "--r7r6" "/r7r6")
+           ;; goes here eventually
 
            ((member arg '("-err5rs" "--err5rs" "/err5rs"))
             (set! clr:execution-mode 'err5rs)

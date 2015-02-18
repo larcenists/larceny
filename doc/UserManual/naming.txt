@@ -13,23 +13,34 @@ In Larceny, file names generally follow Unix conventions,
 even on Windows.  The following suffixes have special
 meanings to some components of Larceny.
 
-`.sls`
-is the preferred suffix for files that consist
-of ERR5RS/R6RS-compatible library definitions.
+`.sld`
+is the preferred suffix for files that contain libraries
+defined by the R7RS `define-library` syntax.
 
-`.sch`
-is the preferred suffix for files that contain R5RS
-source code.
+`.sls`
+is the preferred suffix for files that contain libraries
+defined by the R6RS `library` syntax.
+
+`.sps`
+is the preferred suffix for files that contain R7RS/R6RS
+top-level programs (which consist of an `import` declaration
+followed by definitions and expressions).
 
 `.scm`
-is an alternative suffix for files that contain R5RS source code.
+is the preferred suffix for files that contain R7RS/R5RS
+definitions and expressions but don't contain any `import`
+declarations and don't define any R7RS/R6RS libraries.
+
+`.sch`
+is an alternative to `.scm` used by Larceny developers.
 
 `.slfasl`
-is the suffix for files that contain the pre-compiled
-form of ERR5RS/R6RS-compatible code.
+is the suffix for files that contain the compiled form of
+a `.sld`, `.sls`, or `.sps` file.
 
 `.fasl`
-is the suffix for files that contain the pre-compiled form of R5RS code.
+is the suffix for files that contain the compiled form of
+R5RS source code (usually `.scm` or `.sch`).
 
 `.mal`
 is the preferred suffix for files that contain MacScheme
@@ -46,6 +57,45 @@ segments in the form expected by Larceny's heap linker.
 is the suffix for files that contain an executable heap
 image (must be combined with the
 <<InstallationSection,`larceny.bin`>> runtime).
+
+[NOTE]
+================================================================
+In Larceny, R7RS `define-library` and R6RS `library` syntaxes
+are mostly interchangeable.  The R6RS `for` and `meta` keywords
+may be needed when defining `syntax-case` macros, but the R7RS
+syntax is otherwise more versatile because of its `include` and
+`cond-expand` features.  For new code, we recommend the R7RS
+`define-library` syntax.
+================================================================
+
+[NOTE]
+================================================================
+Although the R7RS `define-library` syntax allows `export` and
+`import` declarations to be placed anywhere at the top level of
+the syntax, it is standard practice to use only one `export`
+declaration per library, placed immediately following the name
+of the library, and to use only one `import` declaration per
+library, placed immediately following the `export` declaration.
+================================================================
+
+[WARNING]
+================================================================
+Some of Larceny's compilation tools rely upon the convention
+described within the note above, and may not work if that
+convention is not followed.
+================================================================
+
+[TIP]
+================================================================
+An R7RS library definition may be split into two or more files,
+with the primary `.sld` file containing one or more `include`
+declarations that include `.scm` files.  If `foo.sld` is the
+primary file, then it is standard practice for the included
+file to be named `foo.body.scm` and to be placed within the
+same directory as `foo.sld`.  If more than one `.scm` file
+is included, we recommend `foo.body1.scm`, `foo.body2.scm`,
+and so on.
+================================================================
 
 
 [[DirectorySection]]

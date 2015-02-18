@@ -330,6 +330,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       mode = 4;
     if (command_line_options.r7rs)
       mode = 5;
+    if (command_line_options.r7r6)
+      mode = 6;
     vector_set( v, 0, fixnum( mode ) );
     break;
   }

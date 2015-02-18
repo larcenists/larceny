@@ -12,6 +12,7 @@
 ;;;     infinite?           (resolved by using R7RS extended semantics)
 ;;;     nan?                (resolved by using R7RS extended semantics)
 ;;;     string-copy         (resolved by using R7RS extended semantics)
+;;;     string-fill!        (resolved by using R7RS extended semantics)
 ;;;     vector-copy         (resolved by using R7RS extended semantics)
 ;;;     bytevector-copy     (resolved by using R7RS extended semantics)
 ;;;     utf8->string        (resolved by using R7RS extended semantics)
@@ -29,8 +30,7 @@
         (rnrs mutable-strings)
         (rnrs r5rs)
 
-        (except (scheme base)
-                string-fill!)
+        (scheme base)
         (scheme case-lambda)
         (scheme char)
         (scheme complex)

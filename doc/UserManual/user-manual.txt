@@ -19,7 +19,7 @@ Larceny
 implements the Scheme programming language
 as defined by
 the
-<<Standards, Revised^7 Report>>,
+<<Standards, Revised^7^ Report>>,
 the
 <<Standards, Revised^6^ Report>>,
 the

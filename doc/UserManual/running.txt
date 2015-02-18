@@ -10,22 +10,26 @@ Larceny can run in any of these distinct modes:
     R7RS              R7RS read/eval/print loop or batch execution
     Scheme script     batch execution of R7RS/R6RS Scheme scripts
 
-R5RS mode extends the Scheme language described by the R5RS and
-IEEE/ANSI Std 1178 by adding R7RS/R6RS lexical syntax and many
-of the procedures described by the newer R7RS and R6RS standards.
+<<R5rsSection,R5RS mode>>
+extends the Scheme language described by the R5RS and
+IEEE/ANSI Std 1178 by adding R7RS/R6RS lexical syntax and most
+of the procedures described by the newer R6RS and R7RS standards.
 
-R6RS mode is largely redundant with Larceny's R7RS mode because
+<<R6rsSection,R6RS mode>>
+is largely redundant with Larceny's R7RS mode (because
 every reasonable R6RS library and program could just as well be
-executed in R7RS mode.  There is only one difference between
-those two modes: R6RS mode enforces R6RS mandates that, among
+executed in R7RS mode).  There is only one difference between
+those two modes: R6RS mode enforces the R6RS mandates that, among
 other things, forbid read/eval/print loops and most extensions
 to R6RS lexical syntax.
 
-Scheme scripts are directly executable R7RS/R6RS programs.
-
-R7RS mode will accept any combination of R7RS and R6RS libraries
+<<R7rsSection,R7RS mode>>
+will accept any combination of R7RS and R6RS libraries
 and programs.  In Larceny, R6RS Scheme becomes a proper subset of
 R7RS Scheme.
+
+<<SchemeScriptsSection,Scheme scripts>>
+are directly executable R7RS/R6RS programs.
 
 [[R5rsSection]]
 
@@ -150,18 +154,39 @@ For example:
               (scheme load))
 ----------------------------------------------------------------
 
-The `features` procedure will return a list of all features and
-libraries available to you.  That procedure reads the source code
-for all library files found in your current library path, so don't
-be surprised if it takes a few seconds.
+If you'd rather have Larceny import all of the standard R7RS and
+R6RS libraries at startup, along with a few Larceny-specific
+procedures, you can use the `-r7r6` option instead of `r7rs`:
+
+----------------------------------------------------------------
+    % larceny -r7r6
+    Larceny v0.98 "General Ripper" (...)
+----------------------------------------------------------------
+
+Using the `-r7r6` option is equivalent to using the `-r7rs`
+option and then importing the `(larceny r7r6)` library.
+
+[NOTE]
+================================================================
+One name conflict could not be resolved by adding R7RS extensions
+to the conflicting R6RS procedure or syntax.  When the `-r7r6`
+option is used, the `bytevector-copy!` procedure is imported with
+R7RS semantics, and the older R6RS version of that procedure is
+renamed to `r6rs:bytevector-copy!`.
+================================================================
+
+The `features` procedure will return a list of all `cond-expand`
+features and libraries available to you.  That procedure reads
+the source code for all library files found in your current
+<<R7rsLibraryPathSection,Larceny library path>>, so don't be
+surprised if it takes a few seconds.
 
 ----------------------------------------------------------------
     > (features)
     (r7rs r6rs larceny larceny-0.98
      exact-closed ratios exact-complex complex ieee-float
      full-unicode full-unicode-strings unicode-5
-     posix unix gnu-linux
-     i386 ilp32 little-endian
+     posix unix gnu-linux i386 ilp32 little-endian
      ...
      (rnrs arithmetic bitwise (6))
      (rnrs arithmetic fixnums (6))
@@ -209,8 +234,8 @@ can be autoloaded.
 To enable autoloading of other R7RS/R6RS libraries,
 including libraries you've written yourself, you can:
 
-- use the <<R7RSLibraryPathSection, `-path` command-line option>>
-- use the <<R7RSLibraryVariableSection, `LARCENY_LIBPATH`>> environment variable
+- use the <<R7RSLibraryPathSection,`-path` command-line option>>
+- use the <<R7RSLibraryVariableSection,`LARCENY_LIBPATH`>> environment variable
 - use <<current-require-path,`current-require-path`>>
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
@@ -219,7 +244,7 @@ including libraries you've written yourself, you can:
 [[Err5rsDynamicLoadingSection]]
 [[R7rsDynamicLoadingSection]]
 
-==== Dynamic loading
+==== Explicit loading
 
 Larceny automatically loads R7RS/R6RS libraries when
 they are first imported.  This is usually the most
@@ -393,7 +418,6 @@ R6RS syntax or libraries:
     (srfi :69 basic-hash-tables)           ; basic hash tables
     (srfi :71 let)                         ; extensions of let, let*, letrec
     (srfi :74 blobs)                       ; octet-addressed binary blocks
-    (srfi :86 mu-and-nu)                   ; mu and nu simulating values etc
     (srfi :95 sorting-and-merging)         ; sorting and merging
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
