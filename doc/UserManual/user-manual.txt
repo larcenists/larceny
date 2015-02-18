@@ -18,27 +18,28 @@ Larceny
 Larceny
 implements the Scheme programming language
 as defined by
-<<Standards, IEEE Standard 1178-1990>>,
 the
-<<Standards, Revised^5^ Report>>,
+<<Standards, Revised^7 Report>>,
 the
 <<Standards, Revised^6^ Report>>,
+the
+<<Standards, Revised^5^ Report>>,
 and
-<<Standards, ERR5RS>>.
+<<Standards, IEEE Standard 1178-1990>>.
 Those language standards serve as Larceny's primary documentation.
 
 This manual describes aspects of Larceny that are not described
-by the IEEE standard, the Revised Reports, or ERR5RS.
+by the Revised Reports or IEEE-1178.
 For the most current version of this manual, please see
 http://larceny.ccs.neu.edu/doc[Larceny's online documentation page].
 For links to the Common Larceny User Manual and the Larceny
 mailing list, please visit
-http://larceny.ccs.neu.edu/[Larceny's main web page].
+http://www.larcenists.org/[Larceny's main web page].
 
 To report bugs, please send email to the Larceny
 developers at `<larceny@ccs.neu.edu>`, or submit a
-bug ticket using Larceny's
-http://larceny.ccs.neu.edu/trac/[Trac system].
+bug ticket at Larceny's
+https://github.com/larcenists/larceny[GitHub site].
 
 
 include::intro.txt[]
