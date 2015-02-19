@@ -16,6 +16,7 @@ Petit Larceny does not have a just-in-time compiler,
 so compiling ahead of time is the only way to enjoy
 the speed of native machine code in Petit Larceny.
 
+////////////////////////////////////////////////////////////////
 Common Larceny uses an interpreter for expressions
 that are typed at the interactive read/eval/print
 loop, but files will be compiled as they are loaded
@@ -23,6 +24,7 @@ if you specify +Larceny.fasl+ on the command line.
 For more information on compiling files in Common
 Larceny, please consult the
 http://larceny.ccs.neu.edu[Common Larceny User Manual].
+////////////////////////////////////////////////////////////////
 
 The main disadvantage of compiling files and libraries
 is that compiled code goes _stale_ when its original
@@ -35,19 +37,20 @@ or program.
 
 
 [[CompilingErr5rsSection]]
+[[CompilingR7rsSection]]
 
-Compiling ERR5RS/R6RS libraries
+Compiling R7RS/R6RS libraries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 On Unix machines, the most convenient way to compile
-a group of ERR5RS/R6RS libraries and top-level programs
+a group of R7RS/R6RS libraries and top-level programs
 is to use the +compile-stale+ script in Larceny's root
 directory.
 If Larceny's root directory is in your execution path,
 then there are just two steps:
 
 1.  Use +cd+ to change to the directory that contains
-the ERR5RS/R6RS files you want to compile.  (Files
+the R7RS/R6RS files you want to compile.  (Files
 that lie within subdirectories of that directory will
 be compiled also.)
 
@@ -55,18 +58,17 @@ be compiled also.)
 
 For example:
 ----------------------------------------------------------------
-    % cd lib/R6RS
+    % cd lib/R7RS
     % compile-stale
 ----------------------------------------------------------------
 
 On non-Unix machines, you can accomplish the same thing
-using Larceny's ERR5RS mode and the +(larceny compiler)+
+using Larceny's R7RS mode and the +(larceny compiler)+
 library:
 ----------------------------------------------------------------
-    % pushd lib\R6RS
-    % ..\..\larceny.bat -err5rs
-    Larceny v0.96 "Fluoridation"
-    ERR5RS mode (no libraries have been imported)
+    % pushd lib\R7RS
+    % ..\..\larceny.bat -r7rs
+    Larceny v0.98 "General Ripper"
 
     > (import (larceny compiler))
 
@@ -94,5 +96,5 @@ the compiled file is obtained from _sourcefile_
 by replacing the "`.sch`" or "`.scm`" suffix with
 "`.fasl`".
 
-For ERR5RS/R6RS libraries and top-level programs,
+For R7RS/R6RS libraries and top-level programs,
 <<CompilingErr5rsSection,see above>>.

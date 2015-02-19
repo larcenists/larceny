@@ -1,0 +1,43 @@
+[[R7rsChapter]]
+
+R7RS standard libraries
+-----------------------
+
+The R7RS standard libraries are described by
+<<Standards,the R7RS (small) standard>> approved in 2013.
+
+Larceny provides all of the R7RS standard libraries,
+supports the full numeric tower, and can represent all
+Unicode characters.
+
+Binary releases of Larceny also support Unicode strings.
+(When built from source code, Larceny can be configured to
+use Latin-1 strings instead of Unicode.)
+
+When Larceny is invoked with the `-r7r6` option on its
+command line, all of the standard R7RS and R6RS libraries
+are imported at startup.  When invoked with the `-r7rs`
+option, only `(scheme base)` is imported at startup.
+
+Known deviations from the R7RS standard
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Larceny v0.98 does not implement these two features of
+the R7RS standard:
+
+- the second (arbitrary ellipsis) form of `syntax-rules`
+  described in R7RS section 4.3.2
+- `cond-expand` at expression level
+
+`cond-expand` is fully supported at the top-level declaration
+and definition levels of R7RS libraries.
+
+To simplify interoperability with R6RS libraries and
+programs, the `integer?`, `rational?`, and `real?`
+procedures exported by `(scheme base)` have R6RS semantics.
+It is not clear whether that is fully compatible with the
+R7RS (small) standard, because the R7RS specification of
+those procedures appears to contradict itself.
+
+If any other R7RS feature is missing or incompatible with
+the R7RS (small) standard, it's a bug.

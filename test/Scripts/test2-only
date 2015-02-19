@@ -106,6 +106,7 @@ function test_prologue {
   remove $MY_CDASHLOG
 
   cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
+  cdashlog '<?xml-stylesheet type="text/xsl" href="../cdash-tests.xsl"?>      '
   cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
   cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
   cdashlog '      Name="'"`hostname`"'"                                       '

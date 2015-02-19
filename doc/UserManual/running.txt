@@ -314,6 +314,10 @@ to the standard R7RS and R6RS libraries, and autoloads them
 for your convenience.  The predefined, autoloadable libraries
 include:
 
+Composite library:
+
+    (larceny r7r6)                         ; all R7RS/R6RS standard libraries
+
 R7RS standard libraries:
 
     (scheme base)
