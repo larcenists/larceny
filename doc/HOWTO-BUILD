@@ -1,5 +1,6 @@
 Building Larceny
 18 August 2009
+19 February 2015
 
 
 WHAT YOU NEED
@@ -45,9 +46,10 @@ both the host and target of the build (HOST):
         STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
+The HOST option macosx is for PowerPC-based Macintosh computers.
 
 The optional 'sassy flag will build native Larceny (x86-32) on
-Linux, Windows, or Mac OS X.  The 'sassy flag is necessary if
+Linux, Windows, or MacOS X.  The 'sassy flag is necessary if
 you want to use dynamic loading on Win32, and is strongly
 recommended for that operating system.  There are several
 other optional flags that change the compiler's behavior [4].
@@ -66,17 +68,13 @@ switching from one representation to the other.
 Some useful examples which are known to work:
 
 To build native Larceny:
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native)
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat1)
-    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat1)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy)
+    > (setup 'scheme: 'larceny 'host: 'win32 'sassy)
+    > (setup 'scheme: 'larceny 'host: 'linux86 'sassy)
+    > (setup 'scheme: 'larceny 'host: 'linux86 'sassy 'string-rep: 'flat1)
+    > (setup 'scheme: 'larceny 'host: 'macosx-el 'sassy)
 
 To build Petit Larceny:
-    > (setup 'scheme: 'mzscheme 'host: 'linux86)
-    > (setup 'scheme: 'larceny  'host: 'solaris)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx)
+    > (setup 'scheme: 'larceny 'host: 'linux86 'always-source)
 
 
 2. Build Larceny components
@@ -100,6 +98,10 @@ You may want the Twobit compiler development environment; on
 Petit, you must build it separately:
 
     > (build-twobit)
+
+After all that, it's time to exit from your host Scheme:
+
+    > (exit)
 
 
 
@@ -184,7 +186,7 @@ likely to work any more.  MzScheme v4.x.x may work, but we regard
 Larceny's support for v4.x.x as experimental;
 see src/Compat/PLT-R5RS/README.
 
-[2] http://sourceforge.net/projects/nasm
+[2] http://www.nasm.us/
 
 Some versions of nasm may not work.  For Ubuntu Linux, we use NASM
 version 2.  For MacOS X, we use NASM version 0.98.40, which is

@@ -29,17 +29,18 @@ the R6RS.  These deviations do not affect the execution
 of production code, and do not compromise Larceny's
 traditional safety.
 
-In particular, Larceny extends several R6RS procedures
-as specified by the newer R7RS (small) standard.
+In particular, Larceny extends several R6RS procedures so
+they behave as specified by the newer R7RS (small) standard.
 In Larceny, for example, the `utf8->string` procedure
-accepts one, two, or three arguments as described by the R7RS,
+accepts one, two, or three arguments,
 and the `finite?` procedure accepts any object as its argument.
 According to the R6RS, `utf8->string` _must_ raise an
 exception when passed more than one argument, and
 `finite?` _must_ raise an exception if it detects an
-argument that is not a real number.  These R6RS "absolute
-requirements" interfere with interoperability between R6RS
-and R7RS code, and are best honored in the breach.
+argument that is not a real number.  Although the R6RS
+says these exceptions are "absolute requirements", they
+interfere with interoperability between R6RS and R7RS code,
+and are best honored in the breach.
 
 
 
@@ -150,7 +151,7 @@ with the procedural layer.
 Larceny extends the R7RS `define-record-type` syntax exported
 by `(scheme base)` to accept the deprecated R6RS syntax, and
 extends the deprecated `define-record-type` syntax exported
-by `(rnrs records syntactic)` to accept the R7RS syntax.
+by `(rnrs records syntactic)` to accept R7RS syntax.
 Larceny's unification of the two syntaxes within a single
 implementation of `define-record-type` allows libraries and
 programs to import both `(scheme base)` and `(rnrs)` without

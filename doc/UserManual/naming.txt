@@ -152,7 +152,7 @@ Resolving references to libraries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The R7RS and R6RS standards do not specify any mapping from
-library names to files or to other locations at which the code
+library names to files or other locations at which the code
 for a library might be found.
 
 R6RS non-normative appendix E emphasizes the arbitrariness of
@@ -169,24 +169,25 @@ a means for importing libraries....
 ________________________________________________________________
 
 [WARNING]
-----------------------------------------------------------------
+================================================================
 Although implementations of the R6RS _may_ "provide a means for
 importing libraries", they don't have to.  In other words, R6RS
 libraries may be completely useless, even in implementations
 that satisfy all of the many "absolute requirements" mandated
 by the R6RS.
-----------------------------------------------------------------
+================================================================
 
 R7RS section 5.1 urges implementations to be reasonable:
 
-----------------------------------------------------------------
+________________________________________________________________
 Implementations which store libraries in files should document
 the mapping from the name of a library to its location in the
 file system.
-----------------------------------------------------------------
+________________________________________________________________
 
-_De facto_ standards have been emerging.  Most are compatible
-with these five Larceny-specific mechanisms:
+_De facto_ standards have been emerging.
+In Larceny, those _de facto_ standards are supported by
+these Larceny-specific mechanisms:
 
 1.  R7RS/R6RS standard libraries may be imported.
 Their code is located automagically.
@@ -324,7 +325,7 @@ by LARCENY_LIBPATH and the `-path` option:
 
 These files are expected to contain R5RS code, not
 library definitions.  Otherwise the search proceeds
-much the same as when searching for an ERR5RS/R6RS
+much the same as when searching for an R7RS/R6RS
 library.
 
 [NOTE]
@@ -355,7 +356,7 @@ proctempl:current-require-path[args="stringlist"]
 
 The optional argument is a list of directory names
 (without slashes at the end) that should be searched
-by <<require,`require`>> and (in ERR5RS/R6RS modes)
+by <<require,`require`>> and (in R7RS/R6RS modes)
 by Larceny's <<ERR5RSLibraryPathSection,autoload>>
 feature.
 Returns the list of directory names that will be

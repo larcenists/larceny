@@ -108,6 +108,7 @@ setup ()
   LARCENY=${LARCENY:-"../../../larceny"}
   PETIT=${PETIT:-"../../../../PetitGit/larceny"}
   CHIBI=${CHIBI:-"chibi-scheme"}
+  CHICKEN_CSC=${CHICKEN_CSC:-"csc"}
   FOMENT=${FOMENT:-"foment"}
   GAUCHE=${GAUCHE:-"gosh"}
   KAWA=${KAWA:-"kawa"}
@@ -129,6 +130,7 @@ Usage: bench [-r runs] <system> <benchmark>
 <system> is the abbreviated name of the implementation to benchmark:
 
   chibi            for Chibi
+  chicken          for Chicken
   foment           for Foment
   gauche           for Gauche
   kawa             for Kawa
@@ -180,7 +182,7 @@ evaluate ()
     echo Testing $1 under ${NAME}
     make_src_code $1
     echo Compiling...
-    $COMP "${TEMP}/$1.${EXTENSION}"
+    $COMP "${TEMP}/$1.${EXTENSION}" "${TEMP}/$1.${EXTENSIONCOMP}"
     i=0
     while [ "$i" -lt "$NB_RUNS" ]
     do
@@ -248,6 +250,20 @@ chibi_comp ()
 chibi_exec ()
 {
   time "${CHIBI}" -m scheme.load -e "(load \"$1\")" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Chicken
+
+chicken_comp ()
+{
+  
+  ${CHICKEN_CSC} -extend r7rs -require-extension r7rs -block $1 -o $2
+}
+
+chicken_exec ()
+{
+  time "$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -399,6 +415,16 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+   chicken) NAME='Chicken'
+            COMP=chicken_comp
+            EXEC=chicken_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="chicken"
 	    COMPCOMMANDS=""
 	    EXECCOMMANDS=""
             ;;

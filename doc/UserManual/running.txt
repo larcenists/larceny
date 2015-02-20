@@ -257,8 +257,12 @@ and for libraries that are defined in files whose names
 do not follow Larceny's
 <<NamingChapter,standard naming conventions>>.
 
-Explicit loading is the only portable way for R7RS/R6RS
-programs to load a library.
+Explicit loading is the only portable way for R7RS
+programs to load a library.  (Incredible as it may sound,
+<<LibraryResolutionSection,
+there is no portable way for R6RS programs to load or to import libraries,>>
+so R6RS programs must rely upon implementation-specific
+mechanisms such as Larceny's autoloading.)
 
 ////////////////////////////////////////////////////////////////
 Explicit loading also makes it possible to write portable
@@ -291,7 +295,7 @@ library, you must import that library explicitly:
 
 In Larceny, you may omit the call to `load` because the
 `(larceny benchmarking)` library will be autoloaded when
-it is imported.  In other R7RS/R6RS systems, however, you
+it is imported.  In other implementations of the R7RS, you
 may have to load all of the nonstandard libraries that will
 be imported by a top-level program or library before you
 load that top-level program or library.
@@ -495,7 +499,7 @@ any libraries that are
 
 ==== Library path
 
-As another extension to the R7RS and R6RS, Larceny allows
+As an extension to the R7RS and R6RS, Larceny allows
 R7RS/R6RS top-level programs to import any libraries
 that can be found in the directories specified by the
 `-path` option on Larceny's command line using

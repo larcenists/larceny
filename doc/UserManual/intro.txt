@@ -26,6 +26,45 @@ to the .NET libraries from Scheme.
 ////////////////////////////////////////////////////////////////////////
 
 
+[[SystemRequirementsSection]]
+
+System requirements
+~~~~~~~~~~~~~~~~~~~
+
+Binary distributions of native Larceny are available for
+just about any Intel x86-compatible microprocessor
+running a Linux, Apple OS X, or Windows operating system.
+Although Larceny still uses 32-bit pointers, it will run
+on 64-bit machines provided the appropriate 32-bit
+libraries have been installed.
+
+Binary distributions of Petit Larceny are available for
+x86 machines running Linux and for PowerPC machines running
+MacOS X.  Petit Larceny requires the `gcc` compiler as well
+as the appropriate 32-bit libraries.
+
+////////////////////////////////////////////////////////////////
+To use some features of the FFI, you'll need the appropriate
+C compiler (`gcc` except on Windows) and 32-bit libraries.
+////////////////////////////////////////////////////////////////
+
+For more details, see
+http://larceny.ccs.neu.edu/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].
+If you want to build Larceny or Petit Larceny from source code, see
+http://larceny.ccs.neu.edu/doc/HOWTO-BUILD[`doc/HOWTO-BUILD`].
+
+////////////////////////////////////////////////////////////////
+To build Larceny or Petit Larceny from source code, you
+will need a binary distribution of Larceny for your build
+machine plus the C compiler and 32-bit libraries appropriate
+for your target machine.
+To build the native variety of Larceny, you will also need
+the http://www.nasm.us/[Netwide Assembler] (`nasm`).
+For more details, see
+http://larceny.ccs.neu.edu/doc/HOWTO-BUILD[`doc/HOWTO-BUILD`].
+////////////////////////////////////////////////////////////////
+
+
 [[DownloadingSection]]
 
 Downloading
@@ -40,6 +79,7 @@ binary, or as source code that can be used to reconstruct
 any of the precompiled binary distributions.
 Unless you intend to modify Larceny yourself, you do not
 need to download the source code.
+
 
 [[InstallationSection]]
 
@@ -79,10 +119,17 @@ OS X, the `larceny` directory will contain the following files:
 If you unpacked a binary distribution, then you should be able to
 run it immediately by making the `larceny` directory your current
 working directory and invoking `./larceny`.
+(If that does not work, you may need to install some 32-bit libraries
+on your machine.  See
+http://larceny.ccs.neu.edu/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`]).
 
 Binary distributions for Windows will include a `larceny.bat` file
 in addition to the files listed above, so you can run Larceny by
 invoking `larceny`.
+(If that does not work, you may need to tell the
+http://www.thewindowsclub.com/turn-off-data-execution-prevention-dep[DEP
+ feature]
+to let Larceny opt out.)
 
 If you unpacked the source code there will be many other files and
 directories, but `larceny.bin` and `larceny.heap` will not be present.

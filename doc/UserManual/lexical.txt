@@ -51,7 +51,7 @@ the port using the +read+ or +get-datum+ procedures:
 The +\#!fold-case+ flag enables case-folding on data read from
 the port by the +read+ and +get-datum+ procedures, while the
 +\#!no-fold-case+ flag disables case-folding.  The behavior
-established by one of these flags extends to the next flag
+established by one of these flags extends to the next such flag
 read from the port by +read+ or +get-datum+.
 
 Both +\#!fold-case+ and +\#!no-fold-case+ are treated as comments
@@ -83,7 +83,7 @@ All of those flags are treated as comments by Larceny's `read`
 and `get-datum` procedures.  (This is a change from Larceny
 v0.97.)
 
-[Note]
+[NOTE]
 ================================================================
 The `#!r6rs` flag is the only flag that _disables_ lexical
 extensions.  To disable R6RS lexical extensions when new ports
