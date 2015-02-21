@@ -27,9 +27,10 @@ Michael Sperber, R Kent Dybvig, Matthew Flatt, and Anton van Straaten
 http://www.r6rs.org/[Revised^6 Report
 on the Algorithmic Language Scheme].
 
-Various SchemePunks [editors].
-http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS]
-is under construction.
+Alex Shinn, John Cowan, and Arthur A Gleckler [editors].
+http://www.scheme-reports.org/[Revised^6 Report
+on the Algorithmic Language Scheme].
+
 
 Other relevant standards
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -38,9 +39,9 @@ IEEE Standard 754-1985,
 "IEEE Standard for Binary Floating-Point Arithmetic",
 IEEE, 1985.
 
-A
+Revision of
 http://en.wikipedia.org/wiki/IEEE_754r[revision of IEEE Std 754-1985]
-has been underway since 2000.
+began in 2000.
 The IEEE Microprocessor Standards Committee (MSC)
 accepted a candidate draft on 9 October 2006.
 The candidate draft 1.2.6 was approved by 79% of 70 votes,
@@ -57,11 +58,10 @@ Committee decided in May 2008 that
 http://www.validlab.com/754R/[maximum possible timely
 consensus has been obtained], and the consensus draft was
 submitted to IEEE-SA RevCom.
-IEEE-754r was approved on 12 June 2008.
+IEEE-754-2008 was approved on 12 June 2008.
 
 The Unicode Consortium.
-http://www.unicode.org/[The Unicode 5.0 Standard].
-Addison-Wesley Professional, 2006.
+http://www.unicode.org/[The Unicode Standard].
 
 ////////////////////////////////////////////////////////////////
 [1]: mailto:larceny@ccs.neu.edu

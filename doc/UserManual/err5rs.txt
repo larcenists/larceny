@@ -3,9 +3,8 @@
 ERR5RS standard libraries
 -------------------------
 
-<<Standards,ERR5RS>> is still being developed, so the specifications
-described below are subject to change as its standard libraries
-are revised.
+<<Standards,ERR5RS>> has been superseded by the R7RS, so the
+libraries described below are now deprecated.
 
 
 [[Err5rsLoadSection]]
@@ -13,7 +12,9 @@ are revised.
 Load
 ~~~~
 
-This section describes the `(err5rs load)` library.
+The `(err5rs load)` library has been superseded by the
+`(scheme load)` library, and continues to exist only for
+backward compatibility.
 
 proc:load[args="filename"]
 
@@ -35,6 +36,13 @@ separately; use the `library` and `import` syntaxes instead.
 
 Records
 ~~~~~~~
+
+The ERR5RS record facility described below incorporates all
+optional features of SRFI 99 and is otherwise identical to
+the facilities described by SRFI 99.
+SRFI 99 is itself an extension of SRFI 9, whose
+`define-record-type` syntax is identical to that defined by
+the R7RS.
 
 When a procedure is said to be equivalent to an R6RS
 procedure, the equivalence holds only when all arguments

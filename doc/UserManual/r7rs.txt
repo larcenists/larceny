@@ -22,15 +22,17 @@ option, only `(scheme base)` is imported at startup.
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Larceny v0.98 does not implement these two features of
+Larceny v0.98 does not implement these features of
 the R7RS standard:
 
 - the second (arbitrary ellipsis) form of `syntax-rules`
   described in R7RS section 4.3.2
+- `include` and `include-ci` at expression level
 - `cond-expand` at expression level
 
-`cond-expand` is fully supported at the top-level declaration
-and definition levels of R7RS libraries.
+`include`, `include-ci`, and `cond-expand` are fully supported
+at the top-level declaration and definition levels of R7RS
+libraries.
 
 To simplify interoperability with R6RS libraries and
 programs, the `integer?`, `rational?`, and `real?`

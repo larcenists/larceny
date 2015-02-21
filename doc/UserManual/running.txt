@@ -451,13 +451,16 @@ Other autoloadable libraries:
 
 
 [[ERR5RSLibraryPathSection]]
+[[R6RSLibraryPathSection]]
+[[R6rsLibraryVariableSection]]
 [[R7rsLibraryPathSection]]
 
 ==== Library path
 
 Larceny's autoload feature locates R7RS/R6RS libraries
-by performing a depth-first search of the directories
-that belong to Larceny's
+by performing a
+<<LibraryTranslationSection, depth-first search>>
+of the directories that belong to Larceny's
 <<current-require-path,`current-require-path`>>.
 Libraries will not be autoloaded unless they are defined
 in files whose names follow
@@ -471,12 +474,16 @@ directory.
 <<R6RSLibraryPathSection, Larceny's `-path` command-line option>>
 adds one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
+On most systems, you can specify multiple directories
+by separating them with a colon; under Windows, use a
+semicolon as separator instead.  The first directory
+listed will be searched first.
 
 The <<R6rsLibraryVariableSection, `LARCENY_LIBPATH`>>
 environment variable can also be used to add one or more directories
 to the directories in the
 <<current-require-path,`current-require-path`>>.
-
+Multiple directories should be specified as with the `-path` option.
 
 ////////////////////////////////////////////////////////////////
 [[R6rsPreDefinedSection]]
@@ -494,21 +501,6 @@ any libraries that are
 <<Err5rsPreDefinedSection,predefined in Larceny's ERR5RS mode>>.
 ////////////////////////////////////////////////////////////////
 
-
-[[R6RSLibraryPathSection]]
-
-==== Library path
-
-As an extension to the R7RS and R6RS, Larceny allows
-R7RS/R6RS top-level programs to import any libraries
-that can be found in the directories specified by the
-`-path` option on Larceny's command line using
-<<LibraryTranslationSection, Larceny's standard translation>>
-from library names to file names.
-On most systems, you can specify multiple directories
-by separating them with a colon; under Windows, use a
-semicolon as separator instead.  The first directory
-listed will be searched first.
 
 [TIP]
 ================================================================
@@ -529,32 +521,10 @@ script without being interpreted by the `scheme-script` processor.
 
 [WARNING]
 ================================================================
-We emphasize that this extension is non-portable.
+We emphasize that these extensions are non-portable.
 Other implementations of the R7RS or R6RS may not provide
-anything comparable to Larceny's `-path` option.
-Even if they do, their mappings from library names
-to file names may be incompatible with Larceny's.
-================================================================
-
-
-[[R6rsLibraryVariableSection]]
-
-==== Library environment variable
-
-As another extension to the R6RS, Larceny allows
-R6RS top-level programs to import any libraries
-that can be found in directories specified by the
+anything comparable to Larceny's `-path` option or
 `LARCENY_LIBPATH` environment variable.
-The value of that environment variable should be
-a string in the same format as for Larceny's `-path`
-command-line option, described above.
-
-[WARNING]
-================================================================
-We emphasize that this extension is non-portable.
-Other implementations of the R7RS or R6RS may not support
-anything comparable to Larceny's `LARCENY_LIBPATH`
-environment variable.
 Even if they do, their mappings from library names
 to file names may be incompatible with Larceny's.
 ================================================================
@@ -579,6 +549,7 @@ We emphasize that this extension is non-portable.
 
 
 [[ERR5RSprimitivesSection]]
+[[R7rsPrimitivesSection]]
 
 ==== Importing procedures from Larceny's underlying R5RS system
 

@@ -93,7 +93,9 @@ declarations that include `.scm` files.  If `foo.sld` is the
 primary file, then the included file is ordinarily named
 `foo.body.scm` and placed within the same directory as `foo.sld`.
 If more than one `.scm` file is included, we recommend
-`foo.body1.scm`, `foo.body2.scm`, and so on.
+`foo.body1.scm`, `foo.body2.scm`, and so on.  A Larceny-specific
+version of `foo.body2.scm`` that's conditionally included using
+the `cond-expand` feature might be named `foo.body2.larceny.scm`.
 ================================================================
 
 [TIP]

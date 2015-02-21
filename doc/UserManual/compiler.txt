@@ -15,7 +15,7 @@ procedures described below,
 and the
 <<compiler-switches,`compiler-switches`>> procedure.
 
-These procedures can be used to compile ERR5RS/R6RS
+These procedures can be used to compile R7RS/R6RS
 libraries and top-level programs before they are imported
 or executed.
 This is especially important for Petit Larceny, which
@@ -41,18 +41,18 @@ proctempl:compile-file[args="sourcefile",optarg="slfaslfile"]
 
 Compiles _sourcefile_, which must be a string naming
 a file that contains source code for one or more
-ERR5RS/R6RS libraries or a top-level program.
+R7RS/R6RS libraries or a top-level program.
 If _slfaslfile_ is supplied as a second argument,
 then it must be a string naming the file that will
 contain the compiled code; otherwise the name of
 the compiled file is obtained from _sourcefile_
-by replacing the "`.sls`" suffix with "`.slfasl`".
+by replacing the "`.sld`" or "`.sls`" suffix with "`.slfasl`".
 
 proc:compile-library[args="sourcefile",optarg="slfaslfile"]
 
 Compiles _sourcefile_, which must be a string naming
 a file that contains source code for one or more
-ERR5RS/R6RS libraries.
+R7RS/R6RS libraries.
 Apart from its unwillingness to compile top-level
 programs, `compile-library` behaves the same as
 `compile-file` above.
@@ -60,7 +60,7 @@ programs, `compile-library` behaves the same as
 proc:compile-stale-libraries[args=""]
 proctempl:compile-stale-libraries[args="changedfile"]
 
-If no argument is supplied, then all "`.sls`" files that
+If no argument is supplied, then all "`.sld`" and "`.sls`" files that
 lie within the current directory or a subdirectory are
 recompiled.
 
@@ -69,7 +69,7 @@ giving the absolute pathname of a file.
 (In typical usage, _changedfile_ is a source file that
 has been modified, making it necessary to recompile all
 files that depend upon it.)
-Compiles all ERR5RS/R6RS library files that lie within
+Compiles all R7RS/R6RS library files that lie within
 the same directory as _changedfile_ or a subdirectory,
 and have not yet been compiled or whose compiled files
 are older than _changedfile_.
@@ -125,11 +125,11 @@ inline standard procedures), disables most compile-time
 checking (because the R6RS forbids rejection of programs
 with obvious errors unless the R6RS classifies the errors
 as syntactic), and may also compromise the portability or
-interoperability of ERR5RS/R6RS libraries and programs
+interoperability of R7RS/R6RS libraries and programs
 (because the R6RS outlaws several extensions that Larceny
 uses to improve its compatibility with other implementations
-of the R5RS and R6RS as well as interoperability between
-Larceny's own R5RS and ERR5RS/R6RS modes).
+of the R5RS, R6RS, and R7RS as well as interoperability between
+Larceny's own R5RS and R7RS/R6RS modes).
 ================================================================
 
 [TIP]
@@ -146,4 +146,6 @@ and `global-optimization` switches to false will eliminate a
 couple of minor conformance issues with only a small loss
 of performance and without sacrificing compile-time checking
 or portability.
+For R7RS libraries and programs, the compiler's default settings
+already conform to the R7RS.
 ================================================================

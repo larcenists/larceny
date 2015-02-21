@@ -80,7 +80,7 @@ Larceny's R5RS libraries
 ------------------------
 
 The procedures described in this chapter are nonstandard.
-Some are deprecated after being rendered obsolete by ERR5RS
+Some are deprecated after being rendered obsolete by R7RS
 or R6RS standard libraries.
 Others still provide useful capabilities that the standard
 libraries don't.

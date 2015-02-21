@@ -29,7 +29,7 @@ the R6RS.  These deviations do not affect the execution
 of production code, and do not compromise Larceny's
 traditional safety.
 
-In particular, Larceny extends several R6RS procedures so
+In particular, Larceny has extended several R6RS procedures so
 they behave as specified by the newer R7RS (small) standard.
 In Larceny, for example, the `utf8->string` procedure
 accepts one, two, or three arguments,
