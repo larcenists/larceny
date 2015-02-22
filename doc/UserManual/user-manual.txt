@@ -56,8 +56,6 @@ include::r7rs.txt[]
 
 include::r6rs.txt[]
 
-include::err5rs.txt[]
-
 [[LarcenyErr5rsLibrariesChapter]]
 
 Larceny's R7RS/R6RS libraries
@@ -73,6 +71,8 @@ include::compiler.txt[]
 include::benchmarking.txt[]
 
 include::recprinter.txt[]
+
+include::err5rs.txt[]
 
 [[LarcenyR5rsLibrariesChapter]]
 

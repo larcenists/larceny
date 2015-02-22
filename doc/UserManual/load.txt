@@ -27,7 +27,8 @@ These procedures should be used only at an interactive top
 level and in files that will be loaded into an interactive top
 level.  Calls to these procedures have no effect at compile
 time, and should not appear in files that will be compiled
-separately; use the `library` and `import` syntaxes instead.
+separately; use the `define-library` and `import` syntaxes
+instead.
 ================================================================
 
 

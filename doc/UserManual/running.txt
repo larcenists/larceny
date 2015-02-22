@@ -260,7 +260,7 @@ do not follow Larceny's
 Explicit loading is the only portable way for R7RS
 programs to load a library.  (Incredible as it may sound,
 <<LibraryResolutionSection,
-there is no portable way for R6RS programs to load or to import libraries,>>
+there is no portable way for R6RS programs to load or to import libraries>>,
 so R6RS programs must rely upon implementation-specific
 mechanisms such as Larceny's autoloading.)
 
@@ -441,7 +441,7 @@ Other autoloadable libraries:
 
     (rnrs load)                            ; equivalent to (err5rs load)
     (larceny load)                         ; extension of (err5rs load)
-    (larceny compiler)                     ; separate compilation (ERR5RS/R6RS)
+    (larceny compiler)                     ; separate compilation (R7RS/R6RS)
     (larceny benchmarking)                 ; timing facilities
     (larceny profiling)                    ; profiling of Scheme code
     (larceny records printer)              ; custom printing of records
@@ -464,7 +464,7 @@ of the directories that belong to Larceny's
 <<current-require-path,`current-require-path`>>.
 Libraries will not be autoloaded unless they are defined
 in files whose names follow
-<<LibraryTranslationSection, Larceny's standard conventions>>.
+<<NamingChapter, Larceny's standard conventions>>.
 
 The
 <<current-require-path,`current-require-path`>>
@@ -722,6 +722,32 @@ Troubleshooting
 ~~~~~~~~~~~~~~~
 
 ==== Errors when starting Larceny
+
+Although Larceny runs on x86-64 machines, it requires 32-bit
+libraries that are not always installed on Linux and MacOS X
+machines.  If those libraries are absent, the operating system
+will probably give you a mysterious or misleading error message
+when you try to run Larceny.  For example, the operating system's
+loader may tell you "larceny.bin not found" even though it's
+perfectly obvious that `larceny.bin` is present within Larceny's
+root directory.  To install the necessary 32-bit libraries on
+Linux machines with x86-compatible processors, someone with root
+privileges must incant
+
+----------------------------------------------------------------
+    sudo apt-get install lib32z1
+    sudo apt-get install libc6-i386
+----------------------------------------------------------------
+
+[WARNING]
+================================================================
+The names of those 32-bit packages have changed over time, and
+may change again.
+================================================================
+
+For Macintosh machines, someone with administrative privileges
+must install the
+https://developer.apple.com/opensource/[Apple Developer Command Line Tools].
 
 When attempting to run an R7RS/R6RS program, you may see
 a warning about "`loading source in favor of stale

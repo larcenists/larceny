@@ -13,47 +13,48 @@ In Larceny, file names generally follow Unix conventions,
 even on Windows.  The following suffixes have special
 meanings to some components of Larceny.
 
-`.sld`
+[horizontal]
+`.sld`::
 is the preferred suffix for files that contain libraries
 defined by the R7RS `define-library` syntax.
 
-`.sls`
+`.sls`::
 is the preferred suffix for files that contain libraries
 defined by the R6RS `library` syntax.
 
-`.sps`
+`.sps`::
 is the preferred suffix for files that contain R7RS/R6RS
 top-level programs (which consist of an `import` declaration
 followed by definitions and expressions).
 
-`.scm`
+`.scm`::
 is the preferred suffix for files that contain R7RS/R5RS
 definitions and expressions but don't contain any `import`
 declarations and don't define any R7RS/R6RS libraries.
 
-`.sch`
+`.sch`::
 is an alternative to `.scm` used by Larceny developers.
 
-`.slfasl`
+`.slfasl`::
 is the suffix for files that contain the compiled form of
 a `.sld`, `.sls`, or `.sps` file.
 
-`.fasl`
+`.fasl`::
 is the suffix for files that contain the compiled form of
 R5RS source code (usually `.scm` or `.sch`).
 
-`.mal`
+`.mal`::
 is the preferred suffix for files that contain MacScheme
 assembly language in symbolic form.
 
-`.lap`
+`.lap`::
 is the suffix for files that contain MacScheme assembly language.
 
-`.lop`
+`.lop`::
 is the suffix for files that contain machine code
 segments in the form expected by Larceny's heap linker.
 
-`.heap`
+`.heap`::
 is the suffix for files that contain an executable heap
 image (must be combined with the
 <<InstallationSection,`larceny.bin`>> runtime).
@@ -94,7 +95,7 @@ primary file, then the included file is ordinarily named
 `foo.body.scm` and placed within the same directory as `foo.sld`.
 If more than one `.scm` file is included, we recommend
 `foo.body1.scm`, `foo.body2.scm`, and so on.  A Larceny-specific
-version of `foo.body2.scm`` that's conditionally included using
+version of `foo.body2.scm` that's conditionally included using
 the `cond-expand` feature might be named `foo.body2.larceny.scm`.
 ================================================================
 
@@ -166,17 +167,27 @@ storing source code for libraries, among them: files in the
 file system where each file contains an arbitrary number of
 library forms, files in the file system where each file
 contains exactly one library form, records in a database,
-and data structures in memory....Implementations may provide
-a means for importing libraries....
+and data structures in memory.
+
+Similarly, programs and scripts may be stored in a variety of
+formats. Platform constraints may restrict the choices available
+to an implementation, which is why the report neither mandates
+nor recommends a specific method for storage.
+
+Implementations may provide a means for importing libraries....
+
+Similarly, implementations may provide a means for executing a
+program represented as a UTF-8 text file containing its source
+code....
 ________________________________________________________________
+
+To put it more starkly:
 
 [WARNING]
 ================================================================
 Although implementations of the R6RS _may_ "provide a means for
-importing libraries", they don't have to.  In other words, R6RS
-libraries may be completely useless, even in implementations
-that satisfy all of the many "absolute requirements" mandated
-by the R6RS.
+importing libraries" or "executing a program", they don't have
+to.
 ================================================================
 
 R7RS section 5.1 urges implementations to be reasonable:
@@ -187,9 +198,9 @@ the mapping from the name of a library to its location in the
 file system.
 ________________________________________________________________
 
-_De facto_ standards have been emerging.
-In Larceny, those _de facto_ standards are supported by
-these Larceny-specific mechanisms:
+Fortunately, _de facto_ standards have been emerging.
+Larceny supports those _de facto_ standards by providing these
+Larceny-specific mechanisms:
 
 1.  R7RS/R6RS standard libraries may be imported.
 Their code is located automagically.

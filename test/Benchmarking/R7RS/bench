@@ -257,8 +257,8 @@ chibi_exec ()
 
 chicken_comp ()
 {
-  
-  ${CHICKEN_CSC} -extend r7rs -require-extension r7rs -block $1 -o $2
+  OPTS="-optimize-leaf-routines -block -inline -inline-global -specialize"
+  ${CHICKEN_CSC} -extend r7rs -require-extension r7rs ${OPTS} $1 -o $2
 }
 
 chicken_exec ()

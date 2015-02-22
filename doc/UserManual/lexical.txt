@@ -108,7 +108,8 @@ as specified by the argument.
 The initial values of these parameters are determined by the
 `-r7r6`, `-r7rs`, `-r6rs`, or `-r5rs` options on Larceny's
 command line.  The `-r6rs` option disables non-R6RS lexical
-syntax; the other options allow both R7RS and R6RS syntax.
+syntax; the `-r7r6`, `-r7rs`, and `-r5rs` options allow both
+R7RS and R6RS syntax.
 
 proc:case-sensitive?[args="",result="boolean"]
 proctempl:case-sensitive?[args="boolean"]
@@ -166,10 +167,14 @@ proctempl:read-traditional-weirdness?[args="boolean"]
 Determines whether newly created textual ports allow
 certain lexical extensions that are deprecated in Larceny.
 
+[NOTE]
+================================================================
+The semantics of `read-larceny-weirdness?` and
+`read-traditional-weirdness?` will change over time as
+deprecated misfeatures are added or dropped in response to
+popular demand or apathy.
 For the current semantics of these parameters, please consult
 the Larceny developers' web page that describes
 https://github.com/larcenists/larceny/wiki/LexicalConversion[Larceny's
 lexical syntax].
-
-
-
+================================================================
