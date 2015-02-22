@@ -11,9 +11,10 @@ function maybe_mv () {
 
 TEMPSCM=${TEMPSCM:-${HOME}/package-temp.scm}
 
-# The nightly builds use svn checkout instead of svn export. Thus you
-# need to remove the .svn directories that are littered in the tree.
+# The nightly builds use git clone or svn checkout instead of svn export,
+# so you need to remove the .svn directories that are littered in the tree.
 find . -name .svn -type d | xargs rm -rf
+rm -rf .git .gitignore
 
 # Remove README-COMMON-LARCENY.txt from the non Common Larceny
 # distributions; make it README-FIRST.txt in Common Larceny.
@@ -33,6 +34,7 @@ if [ -e Larceny.fasl ]; then
     done
 else
     rm -f README-COMMON-LARCENY.txt
+    rm -rf examples/CommonLarceny
 fi
 
 # Remove the src directory, since that's not part of the binary distribution.
@@ -40,6 +42,9 @@ rm -rf src
 
 # Remove the test directory, since that's not part of the binary distribution.
 rm -rf test
+
+# Remove the tools directory, since that's not part of the binary distribution.
+rm -rf tools
 
 # Remove the bin directory, since we don't use that yet
 rm -rf bin
@@ -114,9 +119,8 @@ EOF
 # standard libraries.  We have documentation on how to build them in
 # doc/HOWTO-BUILD; the below is adapted from the steps there.
 cat > ${TEMPSCM} <<EOF
-(current-directory "lib/R6RS")
-(require 'r6rsmode)
-(larceny:compile-r6rs-runtime)
+(require 'r7rsmode)
+(larceny:compile-r7rs-runtime)
 (exit)
 EOF
     ./larceny -- ${TEMPSCM}
