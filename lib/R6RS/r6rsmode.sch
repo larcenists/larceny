@@ -339,7 +339,14 @@
 
 (define (larceny:find-r6rs-library libname)
 
-  (let* ((libpath (map symbol->string libname))
+  (let* ((->string (lambda (x)
+                     (cond ((symbol? x) (symbol->string x))
+                           ((number? x) (number->string x))
+                           (else
+                            (error 'larceny:find-r6rs-library
+                                   "bad library name"
+                                   libname)))))
+         (libpath (map ->string libname))
          (libpath (map larceny:filename-mangler libpath))
          (libpaths (do ((libpath (reverse libpath) (cdr libpath))
                         (libpaths '() (cons libpath libpaths)))

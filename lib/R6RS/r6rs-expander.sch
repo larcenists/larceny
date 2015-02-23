@@ -1929,7 +1929,8 @@
     (define (expand-library-or-program t library-type)
       (match t
         ((keyword name ((syntax export) sets ___) ((syntax import) specs ___) body-forms ___)
-         (let ((name (syntax->datum (scan-library-name name))))
+         (let ((name (syntax->datum
+                      (scan-library-name name library-type))))         ; [R7RS]
            (let ((exports (scan-exports sets library-type)))           ; [R7RS]
              (call-with-values
                  (lambda () (scan-imports specs))
@@ -2017,7 +2018,10 @@
                                         ;; Register library for any further expansion.
                                         ;; FIXME: expand-file shouldn't do this
                                         ;; [Larceny]
-                                        (if (and (eq? library-type 'library)
+                                        (if (and (memq
+                                                  library-type
+                                                  '(library
+                                                    define-library))   ; [R7RS]
                                                  (not
                                                   (larceny:r6rs-expand-only)))
                                             (eval expanded-library (interaction-environment)))
@@ -2278,8 +2282,8 @@
                     (set! seen (cons mapping seen)))
                 (loop (cdr imports)))))))
 
-    (define (scan-library-name e)
-      (library-ref-helper e version?))
+    (define (scan-library-name e library-type)                         ; [R7RS]
+      (library-ref-helper e version? library-type))                    ; [R7RS]
 
     (define (library-ref e)
       (library-ref-helper
@@ -2287,13 +2291,25 @@
          (((syntax library) name) name)
          (((syntax library) . -)  (invalid-form e))
          (- e))
-       version-reference?))
+       version-reference?
+       'define-library))                                               ; [R7RS]
 
-    (define (library-ref-helper e version?)
+    (define (library-ref-helper e version? library-type)               ; [R7RS]
+      (define (complain)
+        (syntax-violation 'library "Invalid library reference" e))
       (match e
         (((? identifier? ids) ___)                ids)
         (((? identifier? ids) ___ (? version? -)) ids)
-        (- (syntax-violation 'library "Invalid library reference" e))))
+        (((? library-name-component? ids) ___)                         ; [R7RS]
+         (if (eq? library-type 'define-library)                        ; [R7RS]
+             ids                                                       ; [R7RS]
+             (complain)))                                              ; [R7RS]
+        (- (complain))))
+
+    (define (library-name-component? e)                                ; [R7RS]
+      (or (identifier? e)                                              ; [R7RS]
+          (and (exact-integer? e)                                      ; [R7RS]
+               (<= 0 e))))                                             ; [R7RS]
 
     (define (version? e)
       (and (list? e)
