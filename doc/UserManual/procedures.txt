@@ -15,11 +15,14 @@ proc:procedure-copy[args="procedure",result="procedure"]
 
 Returns a shallow copy of the procedure.
 
+[WARNING]
+================================================================
 The procedures above are deprecated because they
 violate abstraction barriers and make your code
 representation-dependent; they are useful mainly to
 Larceny developers, who might otherwise be tempted to
 write some low-level operations in C or assembly language.
+================================================================
 
 The rest of this section describes some procedures that
 reach through abstraction barriers in a more controlled way

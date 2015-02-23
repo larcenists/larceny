@@ -121,7 +121,7 @@ run it immediately by making the `larceny` directory your current
 working directory and invoking `./larceny`.
 (If that does not work, you may need to install some 32-bit libraries
 on your machine.  See
-http://larceny.ccs.neu.edu/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`]).
+http://larceny.ccs.neu.edu/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].)
 
 Binary distributions for Windows will include a `larceny.bat` file
 in addition to the files listed above, so you can run Larceny by

@@ -257,12 +257,12 @@ and for libraries that are defined in files whose names
 do not follow Larceny's
 <<NamingChapter,standard naming conventions>>.
 
-Explicit loading is the only portable way for R7RS
-programs to load a library.  (Incredible as it may sound,
+In theory, explicit loading is the only portable way for R7RS
+programs to load a library.
 <<LibraryResolutionSection,
-there is no portable way for R6RS programs to load or to import libraries>>,
+There is no portable way for R6RS programs to load or import libraries>>,
 so R6RS programs must rely upon implementation-specific
-mechanisms such as Larceny's autoloading.)
+mechanisms such as Larceny's autoloading.
 
 ////////////////////////////////////////////////////////////////
 Explicit loading also makes it possible to write portable
@@ -731,8 +731,8 @@ when you try to run Larceny.  For example, the operating system's
 loader may tell you "larceny.bin not found" even though it's
 perfectly obvious that `larceny.bin` is present within Larceny's
 root directory.  To install the necessary 32-bit libraries on
-Linux machines with x86-compatible processors, someone with root
-privileges must incant
+Linux machines with x86-compatible processors, someone with
+superuser privileges must incant
 
 ----------------------------------------------------------------
     sudo apt-get install lib32z1

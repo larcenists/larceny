@@ -116,18 +116,27 @@
 ; but it might be useful when running an application that
 ; doesn't need eval.
 
+(define *r6rs-runtime-is-loaded* #f)
+(define *r6rs-package-is-loaded* #f)
+
 (define (larceny:load-r6rs-runtime)
-  (require 'r6rs-compat-larceny)
-  (require 'r6rs-runtime)
-  (require 'r6rs-standard-libraries))
+  (if (not *r6rs-runtime-is-loaded*)
+      (begin
+       (set! *r6rs-runtime-is-loaded* #t)
+       (require 'r6rs-compat-larceny)
+       (require 'r6rs-runtime)
+       (require 'r6rs-standard-libraries))))
 
 (define (larceny:load-r6rs-package)
-  (require 'r7rs-includer)                                              ; FIXME
-  (require 'r7rs-cond-expander)
-  (require 'r6rs-compat-larceny)
-  (require 'r6rs-runtime)
-  (require 'r6rs-expander)
-  (require 'r6rs-standard-libraries))
+  (if (not *r6rs-package-is-loaded*)
+      (begin (set! *r6rs-package-is-loaded* #t)
+             (set! *r6rs-runtime-is-loaded* #t)
+             (require 'r7rs-includer)                                 ; FIXME
+             (require 'r7rs-cond-expander)
+             (require 'r6rs-compat-larceny)
+             (require 'r6rs-runtime)
+             (require 'r6rs-expander)
+             (require 'r6rs-standard-libraries))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

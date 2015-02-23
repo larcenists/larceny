@@ -67,8 +67,10 @@
 
   (import (rnrs base)
           (rnrs lists)
-          (rnrs io ports)
-          (rnrs io simple)
+          (except (rnrs io ports) output-port?)
+          (rename (only (scheme base) output-port-open?)
+                  (output-port-open? output-port?))
+          (except (rnrs io simple) output-port?)
           (rnrs eval)
           (rnrs mutable-pairs)
           (srfi :6 basic-string-ports))
