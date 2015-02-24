@@ -85,7 +85,7 @@
 gclib_desc_t *gclib_desc_g;	/* generation owner */
 #if !GCLIB_LARGE_TABLE
 gclib_desc_t *gclib_desc_b;	/* attribute bits */
-caddr_t      gclib_pagebase;	/* page address of lowest known word */
+caddr_t      gclib_pagebase;	/* address of lowest known word */
 #endif
 
 /* Private globals */
@@ -379,7 +379,7 @@ static void allocation_above_memtop( byte *ptr, int bytes )
 static void grow_table( byte *new_bot, byte *new_top )
 {
   gclib_desc_t *desc_g, *desc_b;
-  int slots, dest;
+  int slots, dest, slots_to_copy;
 
   assert( (word)new_bot % PAGESIZE == 0 &&
           (word)new_top % PAGESIZE == 0 &&
@@ -394,15 +394,20 @@ static void grow_table( byte *new_bot, byte *new_top )
   data.mem_bytes += sizeof(gclib_desc_t)*slots*2;
   data.rts_bytes += sizeof(gclib_desc_t)*slots*2;
   
-  /* The slot in the new table at which to start copying the old table */
+  /* The slot in the new table at which to start copying the old table. */
   dest = pageof_pb( gclib_pagebase, new_bot );
 
+  /* The number of slots to copy. */
+  slots_to_copy
+    = pageof_pb( data.memtop, gclib_pagebase )
+    - pageof_pb( data.membot, gclib_pagebase );
+
   assert( dest < slots && 
-          dest+data.descriptor_slots-1 < slots );
+          dest+slots_to_copy <= slots );
 
   memset( desc_b, 0, sizeof(gclib_desc_t)*slots );
   memcpy( desc_b+dest, gclib_desc_b, 
-	  sizeof(gclib_desc_t)*data.descriptor_slots );
+	  sizeof(gclib_desc_t)*slots_to_copy );
   free( gclib_desc_b );
   data.mem_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   data.rts_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
@@ -410,7 +415,7 @@ static void grow_table( byte *new_bot, byte *new_top )
 
   memset( desc_g, 0, sizeof(gclib_desc_t)*slots );
   memcpy( desc_g+dest, gclib_desc_g,
-	  sizeof(gclib_desc_t)*data.descriptor_slots );
+	  sizeof(gclib_desc_t)*slots_to_copy );
   free( gclib_desc_g );
   data.mem_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   data.rts_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;

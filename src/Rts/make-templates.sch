@@ -270,11 +270,12 @@ LIBS=-lm
   (template-common
 "O=obj
 CC=cl
-AS=nasmw
+CFLAGS+=/arch:IA32 
+AS=nasm
 .asm.obj: 
-	nasmw -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Nasm -I$(INC_ROOT)/ -o $*.obj $<
+	nasm -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Nasm -I$(INC_ROOT)/ -o $*.obj $<
 .c.obj:
-	cl /c /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT)/Standard-C /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<"))
+	cl /c /arch:IA32 /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT)/Standard-C /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<"))
 
 ; Petit Larceny: DEC Alpha OSF/1: DEC C compiler
 ; Probably not up-to-date, has not been tested for some time!
@@ -334,9 +335,9 @@ ASFLAGS+=-P -ISparc
 "O=obj
 CC=cl
 .asm.obj: 
-	nasmw -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/ -I$(INC_ROOT)/ -o $*.obj $<
+	nasm -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/ -I$(INC_ROOT)/ -o $*.obj $<
 .c.obj:
-	cl /c /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<
+	cl /c /arch:IA32 /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<
 "))
 
 ;;;;;
