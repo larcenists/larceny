@@ -3510,6 +3510,8 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
     strcat( buf, gc->static_area->id );
   }
 
+  gc->satb_ssb = NULL;
+
   gc->id = strdup( buf );
   return (info->use_static_area ? 2 : 1);
 }

@@ -4,7 +4,8 @@
 #
 # Usage: ./testall
 
-R7PATH="`pwd`"
+#R7PATH="`pwd`"
+R7PATH="."
 SRC="./tests/scheme/run"
 
 LARCENY=${LARCENY:-"../../../larceny"}

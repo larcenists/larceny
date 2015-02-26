@@ -406,6 +406,11 @@ static void grow_table( byte *new_bot, byte *new_top )
           dest+slots_to_copy <= slots );
 
   memset( desc_b, 0, sizeof(gclib_desc_t)*slots );
+#if GCLIB_LARGE_TABLE
+  memset( desc_b, 0, sizeof(gclib_desc_t)*slots );
+#else
+  memset( desc_b, MB_FOREIGN, sizeof(gclib_desc_t)*slots );
+#endif
   memcpy( desc_b+dest, gclib_desc_b, 
 	  sizeof(gclib_desc_t)*slots_to_copy );
   free( gclib_desc_b );
@@ -413,7 +418,7 @@ static void grow_table( byte *new_bot, byte *new_top )
   data.rts_bytes -= sizeof(gclib_desc_t)*data.descriptor_slots;
   gclib_desc_b = desc_b;
 
-  memset( desc_g, 0, sizeof(gclib_desc_t)*slots );
+  memset( desc_g, FOREIGN_PAGE, sizeof(gclib_desc_t)*slots );
   memcpy( desc_g+dest, gclib_desc_g,
 	  sizeof(gclib_desc_t)*slots_to_copy );
   free( gclib_desc_g );

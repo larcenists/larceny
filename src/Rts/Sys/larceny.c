@@ -27,11 +27,6 @@
 #include "gc_t.h"
 #include "young_heap_t.h" /* for yh_create_initial_stack() */
 
-#if WIN32
-/* FIXME: this didn't help */
-#define _WIN32_WINNT 0x0600
-#endif
-
 opt_t command_line_options;
 
 static void param_error( char *s );
@@ -87,31 +82,30 @@ int main( int argc, char **os_argv )
   
   /* FIXME: this allows us to (temporarily) circumvent DEP problems for the
    majority of windows users */
-#if 0
-  /* FIXME: linker can't find _SetProcessDEPPolicy and _GetProcessDEPPolicy, */
-  /* so I'm commenting this out for now. */
+
 #if WIN32
-  /* there are four possible returns to this function.  We care about AlwaysOn and
-     OptOut.  If the policy is set to AlwaysOn then larceny cannot run.  Otherwise
-	 we can opt out of the restriction.  The other two cases (AlwaysOff and OptIn)
-	 have no affect */
+  /* There are four possible values GetSystemDEPPolicy can return.
+   * We care about AlwaysOn and OptOut.
+   * If the policy is set to AlwaysOn then larceny cannot run.
+   * Otherwise we can opt out of the restriction.
+   * The other two cases (AlwaysOff and OptIn) have no effect on larceny.
+   */
    
-  switch(GetSystemDEPPolicy())
+  switch ( GetSystemDEPPolicy() )
   {
   case 0: break; /* AlwaysOff: we don't care about this */
   case 1:  /* DEP has been set in the windows boot.ini to be always on */
-	panic_exit("The system DEP Policy is to restrictive to allow larceny to run");
-	break;
+    panic_exit( "Larceny cannot run with DEP set to AlwaysOn." );
+    break;
   case 2: break; /* OptIn: we don't care about this either */
   case 3:  /* DEP has been set to be OptOut, which is what we do */
-    if(!SetProcessDEPPolicy(0))
-	{
-		consolemsg("Failed to set DEP policy");
-	}
-	break;
+    if( !SetProcessDEPPolicy(0) )
+      {
+          consolemsg("Failed to set DEP policy");
+      }
+    break;
   }  
 #endif /* WIN32 */
-#endif /* 0 */
 
 #if defined(DEC_ALPHA_32BIT)
   /* I know this looks weird.  When running Petit Larceny on the Alpha
