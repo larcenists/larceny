@@ -69,8 +69,8 @@
 
 int  larceny_major_version = 0;
 int  larceny_minor_version = 98;
-/* char *larceny_version_qualifier = " \"General Ripper\""; */
-char *larceny_version_qualifier = "b3";
+char *larceny_version_qualifier = " \"General Ripper\"";
+/* char *larceny_version_qualifier = "b3"; */
 
 char *date = DATE " " TIME;
 char *user = USER;

@@ -2,6 +2,7 @@
 *.fasl
 *.slfasl
 *.o
+*.obj
 *.lap
 *.lop
 include/asmdefs.h

@@ -878,11 +878,8 @@
 
 (define (larceny:directory? path)
   (case (larceny:os)
-   ((unix)
-    (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
-   ((windows)
-    (zero? (system (string-append
-                    "dir /AD /B \"" (larceny:canonical-path path) "\""))))
+   ((unix windows)
+    (and (list-directory path) #t))
    (else
     (larceny:unsupported-os))))
 
