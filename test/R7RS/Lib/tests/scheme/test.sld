@@ -102,13 +102,13 @@
                    (catch-exns (lambda () expr))
                    expected)))))
 
-    (define (catch-exns thunk)
-       (guard (c (#t (make-err c)))
-        (call-with-values thunk
-          (lambda x
-            (if (= 1 (length x))
-                (car x)
-                (make-multiple-results x))))))
+   (define (catch-exns thunk)
+     (guard (c (#t (make-err c)))
+      (call-with-values thunk
+       (lambda x
+         (if (= 1 (length x))
+             (car x)
+             (make-multiple-results x))))))
 
    (define-syntax test/approx
      (syntax-rules ()
