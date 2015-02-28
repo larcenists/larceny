@@ -2,12 +2,11 @@
 ;;;
 ;;; $Id$
 ;;;
-;;; Delegates to (srfi 14 char-sets), which is normally configured for
-;;; full Unicode.
-;;; See also (srfi 14 unicode), (srfi 14 bmp), and (srfi 14 latin-1).
+;;; This library supports the BMP subset of Unicode.
+;;; See also (srfi 14 unicode) and (srfi 14 latin-1).
+;;;
 
-
-(define-library (srfi 14)
+(define-library (srfi 14 bmp)
 
   (export
 
@@ -21,8 +20,8 @@
    list->char-set  string->char-set 
    list->char-set! string->char-set! 
 
-   ucs-range->char-set  ->char-set
-   ucs-range->char-set!
+   char-set-filter ucs-range->char-set  ->char-set
+   char-set-filter! ucs-range->char-set!
 
    char-set->list char-set->string
 
@@ -45,6 +44,30 @@
    char-set:hex-digit           char-set:blank          char-set:ascii
    char-set:empty               char-set:full)
 
-  (import (srfi 14 char-sets)))
+  (import (except (rnrs base) error)
+          (except (scheme base) error)
+          (rnrs unicode)
+          (rnrs lists)
+          (rnrs control)
+          (rnrs arithmetic fixnums)
+          (only (rnrs arithmetic bitwise) bitwise-and)
+          (rnrs sorting)
+          (larceny deprecated)
+          (primitives bytevector-ref bytevector-set!))
 
-;eof
+  (begin
+
+   (define %excluded:min #xd800)    ; The range from #xd800 through #xdfff
+   (define %excluded:max #xdfff)    ; (inclusive) is reserved for surrogates
+   (define %unicode:limit #x110000) ; all Unicode characters are less than this
+
+   (define %excluded:min/8 (div %excluded:min 8))
+   (define %excluded:max/8 (div %excluded:max 8))
+
+   (define (%char-set:minsize) 128)
+   (define (%char-set:minsize-in-bytes) (/ (%char-set:minsize) 8))
+
+   (define (%char-set:maxsize) #x10000)
+   (define (%char-set:maxsize-in-bytes) (/ (%char-set:maxsize) 8))
+
+   (include "char-sets.body.scm")))

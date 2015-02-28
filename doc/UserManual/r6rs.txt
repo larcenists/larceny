@@ -21,7 +21,8 @@ https://github.com/larcenists/larceny/wiki/DargoMode[Larceny's R6RS-compatible m
 Larceny is R6RS-compatible but not R6RS-conforming.
 When Larceny is said to support a feature of the R6RS,
 that means the feature is present and will behave as
-specified by the R6RS so long as no exception is raised.
+specified by the R6RS so long as no exception is raised
+or expected.
 Larceny does not always raise the specific conditions
 specified by the R6RS, and does not perform all of the
 checking for portability problems that is mandated by
@@ -29,7 +30,12 @@ the R6RS.  These deviations do not affect the execution
 of production code, and do not compromise Larceny's
 traditional safety.
 
-In particular, Larceny has extended several R6RS procedures so
+For example, Larceny has extended the R6RS `library` syntax to
+allow R6RS libraries to import R7RS libraries even when the
+names of those imported libraries use the more liberal R7RS
+syntax.
+
+Furthermore, Larceny has extended several R6RS procedures so
 they behave as specified by the newer R7RS (small) standard.
 In Larceny, for example, the `utf8->string` procedure
 accepts one, two, or three arguments,

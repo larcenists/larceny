@@ -10,6 +10,7 @@
         (rnrs unicode)
         (rnrs lists)
         (rnrs io simple)
+        (larceny deprecated)
         (srfi :14 char-sets))
 
 (define (writeln . xs)
@@ -18,7 +19,15 @@
 
 (define (fail token . more)
   (writeln "Error: test failed: " token)
+  (for-each (lambda (x) (write x) (newline))
+            more)
   #f)
+
+(issue-deprecated-warnings? #f)
+
+(or (= (- #x110000 (- #xe000 #xd800))
+       (char-set-size char-set:full))
+    (fail 'full-unicode))
 
 (or (equal? #t (char-set? (char-set)))
     (fail 'char-set?:1))
@@ -58,7 +67,7 @@
 	    (char-set-hash (char-set #\b #\c #\a)))
     (fail 'char-set-hash:2))
 
-(or (equal? '(#\G #\T #\a #\c #\e #\h)
+(or (equal? '(#\h #\e #\c #\a #\T #\G)
 	    (let ((cs (char-set #\G #\a #\T #\e #\c #\h)))
 	      (let lp ((cur (char-set-cursor cs)) (ans '()))
 		(if (end-of-char-set? cur) ans
@@ -77,10 +86,14 @@
 (or (char-set= (char-set-unfold null? car cdr (string->list "abracadabra"))
 	       (string->char-set "abracadabra"))
     (fail 'char-set-unfold:1))
-(or (char-set= (char-set-unfold null? car cdr (string->list "abracadabra") (char-set #\f))
+(or (char-set= (char-set-unfold null? car cdr
+                                (string->list "abracadabra")
+                                (char-set #\f))
 	       (string->char-set "abracadabraf"))
     (fail 'char-set-unfold:2))
-(or (char-set= (char-set-unfold! null? car cdr (string->list "abracadabra") (char-set #\f))
+(or (char-set= (char-set-unfold! null? car cdr
+                                 (string->list "abracadabra")
+                                 (char-set #\f))
 	       (string->char-set "abracadabraf"))
     (fail 'char-set-unfold!:1))
 
@@ -147,7 +160,8 @@
 
      (char-set= (string->char-set "eiaou2468013579999")
 		(char-set-unfold null? car cdr '(#\a #\e #\i #\o #\u #\u #\u)
-				 char-set:digit))
+				 (char-set-intersection char-set:digit
+                                                        char-set:ascii)))
 
      (char-set= (string->char-set "eiaou246801357999")
 		(char-set-unfold! null? car cdr '(#\a #\e #\i #\o #\u)

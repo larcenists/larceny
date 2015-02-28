@@ -377,56 +377,75 @@ facilities:
 
 SRFI libraries (which follow the SRFI 97 naming convention):
 
-    (srfi :1 lists)                        ; list library
-    (srfi :2 and-let*)                     ; extended `and` and `let*`
-    (srfi :5 let)                          ; extended version of `let`
-    (srfi :6 basic-string-ports)           ; basic string ports
-    (srfi :8 receive)                      ; binding to multiple values
-    (srfi :9 records)                      ; defining record types
-    (srfi :11 let-values)                  ; syntax for multiple values
-    (srfi :13 strings)                     ; string libraries
-    (srfi :14 char-set)                    ; character-set library
-    (srfi :16 case-lambda)                 ; syntax for variable arity
-    (srfi :17 generalized-set!)            ; generalized set!
-    (srfi :19 time)                        ; time data types and procedures
-    (srfi :23 error)                       ; error reporting mechanism
-    (srfi :25 multi-dimensional-arrays)    ; multi-dimensional array primitives
-    (srfi :26 cut)                         ; specializing without currying
-    (srfi :27 random-bits)                 ; sources of random bits
-    (srfi :28 basic-format-strings)        ; basic format strings
-    (srfi :29 localization)                ; localization
-    (srfi :38 with-shared-structure)       ; i/o for data with shared structure
-    (srfi :39 parameters)                  ; parameter objects
-    (srfi :41 streams)                     ; streams
-    (srfi :42 eager-comprehensions)        ; eager comprehensions
-    (srfi :43 vectors)                     ; vector library
-    (srfi :45 lazy)                        ; iterative lazy algorithms
-    (srfi :48 intermediate-format-strings) ; format
-    (srfi :51 rest-values)                 ; rest values hackery
-    (srfi :54 cat)                         ; still more formatting
-    (srfi :59 vicinities)                  ; vicinity
-    (srfi :61 cond)                        ; a more general cond clause
-    (srfi :63 arrays)                      ; homogeneous, heterogeneous arrays
-    (srfi :64 testing)                     ; an API for test suites
-    (srfi :67 compare-procedures)          ; three-way comparison procedures
-    (srfi :78 lightweight-testing)         ; lightweight testing
-    (srfi :87 case)                        ; a more general case clause
-    (srfi :98 os-environment-variables)    ; environment variables
-    (srfi :99 records)                     ; (composite library)
-    (srfi :99 records procedural)          ; (procedural API)
-    (srfi :99 records inspection)          ; (inspection API)
-    (srif :99 records syntactic)           ; (syntactic API)
+    (srfi 1 lists)                         ; list library
+    (srfi 2 and-let*)                      ; extended `and` and `let*`
+    (srfi 5 let)                           ; extended version of `let`
+    (srfi 6 basic-string-ports)            ; basic string ports
+    (srfi 8 receive)                       ; binding to multiple values
+    (srfi 9 records)                       ; defining record types
+    (srfi 11 let-values)                   ; syntax for multiple values
+    (srfi 13 strings)                      ; string libraries
+    (srfi 14 char-sets)                    ; character-set library
+    (srfi 14 unicode)                      ;   for all Unicode characters
+    (srfi 14 bmp)                          ;   for the Basic Multilingual Plane
+    (srfi 14 latin-1)                      ;   for ISO 8859-1 (Latin-1)
+    (srfi 16 case-lambda)                  ; syntax for variable arity
+    (srfi 17 generalized-set!)             ; generalized set!
+    (srfi 19 time)                         ; time data types and procedures
+    (srfi 23 error)                        ; error reporting mechanism
+    (srfi 25 multi-dimensional-arrays)     ; multi-dimensional array primitives
+    (srfi 26 cut)                          ; specializing without currying
+    (srfi 27 random-bits)                  ; sources of random bits
+    (srfi 28 basic-format-strings)         ; basic format strings
+    (srfi 29 localization)                 ; localization
+    (srfi 38 with-shared-structure)        ; i/o for data with shared structure
+    (srfi 39 parameters)                   ; parameter objects
+    (srfi 41 streams)                      ; streams
+    (srfi 42 eager-comprehensions)         ; eager comprehensions
+    (srfi 43 vectors)                      ; vector library
+    (srfi 45 lazy)                         ; iterative lazy algorithms
+    (srfi 48 intermediate-format-strings)  ; format
+    (srfi 51 rest-values)                  ; rest values hackery
+    (srfi 54 cat)                          ; still more formatting
+    (srfi 59 vicinities)                   ; vicinity
+    (srfi 61 cond)                         ; a more general cond clause
+    (srfi 63 arrays)                       ; homogeneous, heterogeneous arrays
+    (srfi 64 testing)                      ; an API for test suites
+    (srfi 67 compare-procedures)           ; three-way comparison procedures
+    (srfi 78 lightweight-testing)          ; lightweight testing
+    (srfi 87 case)                         ; a more general case clause
+    (srfi 98 os-environment-variables)     ; environment variables
+    (srfi 99 records)                      ; (composite library)
+    (srfi 99 records procedural)           ; (procedural API)
+    (srfi 99 records inspection)           ; (inspection API)
+    (srfi 99 records syntactic)            ; (syntactic API)
+    (srfi 101 random-access-lists)         ; fast and purely functional lists
+    (srfi 111 boxes)                       ; boxes
+    (srfi 112)                             ; environment inquiry
+    (srfi 113 sets)                        ; sets and bags
+    (srfi 114 comparators)                 ; comparators
+    (srfi 115 regexp)                      ; regular expressions
+
+For backward compatibility,
+`(srfi 1 lists)` through `(srfi 101 random-access-lists)` are also
+available with the SRFI 97 naming convention in which the number is
+preceded by a colon, as in `(srfi :1 lists)`.
+With the more liberal R7RS syntax, the SRFI 97 naming convention is
+now unnecessary.
+Larceny has extended the R6RS `library` syntax to allow R6RS libraries
+to import R7RS libraries that follow the R7RS naming convention shown
+in the list above.
 
 SRFI libraries that are autoloadable but deprecated in Larceny,
 usually because they have been superseded in whole or in part by
 R6RS syntax or libraries:
 
-    (srfi :60 integer-bits)                ; integers as bits
-    (srfi :66 octet-vectors)               ; octet vectors
-    (srfi :69 basic-hash-tables)           ; basic hash tables
-    (srfi :71 let)                         ; extensions of let, let*, letrec
-    (srfi :74 blobs)                       ; octet-addressed binary blocks
-    (srfi :95 sorting-and-merging)         ; sorting and merging
+    (srfi 60 integer-bits)                 ; integers as bits
+    (srfi 66 octet-vectors)                ; octet vectors
+    (srfi 69 basic-hash-tables)            ; basic hash tables
+    (srfi 71 let)                          ; extensions of let, let*, letrec
+    (srfi 74 blobs)                        ; octet-addressed binary blocks
+    (srfi 95 sorting-and-merging)          ; sorting and merging
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
 because they have been superseded by the R7RS and SRFI 99 record
@@ -439,11 +458,11 @@ facilities:
 
 Other autoloadable libraries:
 
-    (rnrs load)                            ; equivalent to (err5rs load)
     (larceny load)                         ; extension of (err5rs load)
     (larceny compiler)                     ; separate compilation (R7RS/R6RS)
     (larceny benchmarking)                 ; timing facilities
     (larceny profiling)                    ; profiling of Scheme code
+    (larceny r7r6)                         ; all R7RS/R6RS standard libraries
     (larceny records printer)              ; custom printing of records
     (larceny shivers-syntax)               ; syntax favored by Olin Shivers
     (r5rs)                                 ; approximates the R5RS top level

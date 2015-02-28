@@ -11,7 +11,14 @@
         (rnrs lists)
         (rnrs io simple)
         (larceny deprecated)
-        (srfi 14 char-sets))
+
+        ;; import just one of these four
+
+        (srfi 14 char-sets)
+        ;(srfi 14 unicode)
+        ;(srfi 14 bmp)
+        ;(srfi 14 latin-1)
+        )
 
 (define (writeln . xs)
   (for-each display xs)

@@ -2,12 +2,11 @@
 ;;;
 ;;; $Id$
 ;;;
-;;; Delegates to (srfi 14 char-sets), which is normally configured for
-;;; full Unicode.
+;;; This library supports full Unicode.
 ;;; See also (srfi 14 unicode), (srfi 14 bmp), and (srfi 14 latin-1).
+;;;
 
-
-(define-library (srfi 14)
+(define-library (srfi 14 char-sets)
 
   (export
 
@@ -21,8 +20,8 @@
    list->char-set  string->char-set 
    list->char-set! string->char-set! 
 
-   ucs-range->char-set  ->char-set
-   ucs-range->char-set!
+   char-set-filter ucs-range->char-set  ->char-set
+   char-set-filter! ucs-range->char-set!
 
    char-set->list char-set->string
 
@@ -45,6 +44,6 @@
    char-set:hex-digit           char-set:blank          char-set:ascii
    char-set:empty               char-set:full)
 
-  (import (srfi 14 char-sets)))
+  (import (srfi 14 unicode)))
 
-;eof
+; eof
