@@ -189,10 +189,6 @@
 ;;; See the end of the file for porting and performance-tuning notes.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; FIXME: %string-copy should never be used.
-
-(define (%string-copy s) (substring s 0 (string-length s)))
-
 ;;; Parse, type-check & default a final optional BASE-CS parameter from
 ;;; a rest argument. Return a *fresh copy* of the underlying string.
 ;;; The default is the empty set. The PROC argument is to help us
@@ -242,11 +238,9 @@
         (else
          #f)))
 
-;;; FIXME: these shouldn't be necessary anymore.
+;; FIXME: no longer used
 
-(define c0 0)
-(define c1 1)
-
+#;
 (define (si bitv i)
   (cond ((fx<? i (%char-set:minsize))
          (bitvector-ref bitv i))
@@ -257,17 +251,6 @@
 
 (define (%set0! s i) (bitvector-set! s i 0))
 (define (%set1! s i) (bitvector-set! s i 1))
-
-;;; These do various "s[i] := s[i] op val" operations -- see 
-;;; %CHAR-SET-ALGEBRA. They are used to implement the various
-;;; set-algebra procedures.
-(define (setv!   bitv i v) (bitvector-set! bitv i v))
-(define (%not!   bitv i v) (setv! bitv i (- 1 v)))
-(define (%and!   bitv i v) (if (zero? v) (%set0! bitv i)))
-(define (%or!    bitv i v) (if (not (zero? v)) (%set1! bitv i)))
-(define (%minus! bitv i v) (if (not (zero? v)) (%set0! bitv i)))
-(define (%xor!   bitv i v)
-  (if (not (zero? v)) (setv! bitv i (- 1 (si bitv i)))))
 
 ;;; Exported procedures.
 
@@ -608,12 +591,17 @@
                                %excluded:min
                                error? bs proc))
         ((< (%char-set:maxsize) upper)
-         (error
-          (string-append
-           "this instance of SRFI 14 is limited to Unicode characters below U+"
-           (number->string (%char-set:maxsize) 16)
-           "\nFor character sets over full Unicode, import (srfi 14 unicode).")
-          proc lower upper))
+         (if error?
+             (error (string-append
+                     "this instance of SRFI 14 is limited to "
+                     "Unicode characters below U+"
+                     (number->string (%char-set:maxsize) 16)
+                     "\nFor character sets over full Unicode, "
+                     "import (srfi 14 unicode).")
+                    proc lower upper))
+         (%ucs-range->char-set (min lower (%char-set:maxsize))
+                              (%char-set:maxsize)
+                              error? bs proc))
         ((= lower upper)
          bs)
         (else
@@ -712,31 +700,9 @@
 ;;; first arguments are "dead" at the point of call. In return, we promise a
 ;;; more efficient result, plus allowing you to always assume char-sets are
 ;;; unchangeable values.
-
-;;; Apply P to each index and its char code in S: (P I VAL).
-;;; Used by the set-algebra ops.
-
-(define (%string-iter p s)
-  (let lp ((i (- (string-length s) 1)))
-    (cond ((>= i 0)
-           (p i (char->integer (string-ref s i)))
-           (lp (- i 1))))))
-
-;;; String S represents some initial char-set. (OP s i val) does some
-;;; kind of s[i] := s[i] op val update. Do
-;;;     S := S OP CSETi
-;;; for all the char-sets in the list CSETS. The n-ary set-algebra ops
-;;; all use this internal proc.
-
-(define (%char-set-algebra s csets op proc)
-  (for-each (lambda (cset)
-              (let ((s2 (%char-set:bitv/check cset proc)))
-                (let lp ((i 255))
-                  (cond ((>= i 0)
-                         (op s i (si s2 i))
-                         (lp (- i 1)))))))
-            csets))
-
+;;;
+;;; In Larceny's implementation, the "linear update" versions are identical
+;;; to the purely functional versions.
 
 ;;; -- Complement
 
@@ -864,16 +830,6 @@
 
 
 ;;; -- Difference & intersection
-
-(define (%char-set-diff+intersection! diff int csets proc)
-  (for-each (lambda (cs)
-              (%string-iter (lambda (i v)
-                              (if (not (zero? v))
-                                  (cond ((si=1? diff i)
-                                         (%set0! diff i)
-                                         (%set1! int  i)))))
-                            (%char-set:bitv/check cs proc)))
-            csets))
 
 ;;; More likely to be correct this way.
 
