@@ -82,6 +82,8 @@
   (define (boolean x) (if x #t #f))
   (cond ((symbol? feature)
          (case feature
+          ((else)
+           #t)
           ((r7rs r6rs)
            (boolean (memq (larceny:get-feature 'execution-mode)
                           '(r7rs r7r6 r6rs err5rs))))
