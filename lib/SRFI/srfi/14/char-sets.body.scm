@@ -568,9 +568,6 @@
 
 ;;; -- UCS-range -> char-set
 
-;;; Larceny can represent all Unicode characters, so the error? argument
-;;; is ignored.
-
 (define (%ucs-range->char-set lower upper error? bs proc)
   (check-arg (lambda (x) (and (integer? x) (exact? x) (<= 0 x)))
              lower
@@ -583,12 +580,12 @@
         ((< %unicode:limit upper)
          (%ucs-range->char-set lower %unicode:limit error? bs proc))
         ((<= %excluded:min lower %excluded:max)
-         (%ucs-range->char-set %excluded:max
-                               (max upper %excluded:max)
+         (%ucs-range->char-set (+ 1 %excluded:max)
+                               (max upper (+ 1 %excluded:max))
                                error? bs proc))
         ((<= %excluded:min upper %excluded:max)
-         (%ucs-range->char-set (min lower %excluded:min)
-                               %excluded:min
+         (%ucs-range->char-set (min lower (- %excluded:min 1))
+                               (- %excluded:min 1)
                                error? bs proc))
         ((< (%char-set:maxsize) upper)
          (if error?
