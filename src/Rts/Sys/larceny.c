@@ -761,6 +761,7 @@ parse_options( int argc, char **argv, opt_t *o )
       ++argv;
       --argc;
       o->r6program = *argv;
+      o->nobanner = 1;
     }
     else if (hstrcmp( *argv, "-path" ) == 0) {
       ++argv;
