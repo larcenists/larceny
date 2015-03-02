@@ -425,7 +425,10 @@ SRFI libraries (which follow the SRFI 97 naming convention):
     (srfi 113 sets)                        ; sets and bags
     (srfi 114 comparators)                 ; comparators
     (srfi 115 regexp)                      ; regular expressions
+    (srfi 116 ilists)                      ; immutable lists
 
+[NOTE]
+================================================================
 For backward compatibility,
 `(srfi 1 lists)` through `(srfi 101 random-access-lists)` are also
 available with the SRFI 97 naming convention in which the number is
@@ -435,6 +438,7 @@ now unnecessary.
 Larceny has extended the R6RS `library` syntax to allow R6RS libraries
 to import R7RS libraries that follow the R7RS naming convention shown
 in the list above.
+================================================================
 
 SRFI libraries that are autoloadable but deprecated in Larceny,
 usually because they have been superseded in whole or in part by

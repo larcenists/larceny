@@ -28,7 +28,7 @@
 ;;; In the productions for <cset-sre>, SRFI 115 fails to list |\|| as
 ;;; a synonym for or.
 ;;;
-;;; SRFI 115 says a <cset-sre> can be an "embedded SRFI 14 char set),
+;;; SRFI 115 says a <cset-sre> can be an "embedded SRFI 14 char set",
 ;;; but SRFI 14 character sets have no external representation so
 ;;; that's useless.
 ;;;
