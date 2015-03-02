@@ -60,28 +60,13 @@
 (define (flag-join a b) (if b (bitwise-ior a b) a))
 (define (flag-clear a b) (bitwise-and a (bitwise-not b)))
 
-;; BUG in reference implementation of SRFI 115:
-
-#;
 (define (char-set-ci cset)
-  (let ((res (char-set)))
-    (char-set-for-each
-     (lambda (ch)
-       (char-set-adjoin! res (char-upcase ch))
-       (char-set-adjoin! res (char-downcase ch)))
-     cset)
-    res))
-
-;; That code is incorrect because it assumes char-set-adjoin!
-;; has a side effect.  SRFI 14 says char-set-adjoin! and char-set-delete!
-;; "are allowed, but not required, to side-effect their first parameter."
-;;
-;; Here is a corrected definition:
-
-(define (char-set-ci cset)
-  (char-set-union cset
-                  (char-set-map char-upcase cset)
-                  (char-set-map char-downcase cset)))
+  (char-set-fold
+   (lambda (ch res)
+     (char-set-adjoin! (char-set-adjoin! res (char-upcase ch))
+                       (char-downcase ch)))
+   (char-set)
+   cset))
 
 (define (make-char-state ch flags next)
   (if (flag-set? flags ~ci?)
@@ -572,6 +557,7 @@
       ((numeric num digit) %char-set:digit)
       ((alphanumeric alphanum alnum) %char-set:letter+digit)
       ((punctuation punct) %char-set:punctuation)
+      ((symbol) %char-set:symbol)
       ((graphic graph) %char-set:graphic)
       ((word-constituent) %char-set:word-constituent)
       ((whitespace white space) %char-set:whitespace)
@@ -594,6 +580,7 @@
       ((numeric num digit) char-set:digit)
       ((alphanumeric alphanum alnum) char-set:letter+digit)
       ((punctuation punct) char-set:punctuation)
+      ((symbol) %char-set:symbol)
       ((graphic graph) char-set:graphic)
       ((word-constituent) char-set:word-constituent)
       ((whitespace white space) char-set:whitespace)
@@ -667,26 +654,27 @@
 (define (sre->char-set sre . o)
   (let ((flags (if (pair? o) (car o) ~none)))
     (define (->cs sre) (sre->char-set sre flags))
+    (define (maybe-ci sre)
+      (if (flag-set? flags ~ci?) (char-set-ci sre) sre))
     (cond
      ((lookup-char-set sre flags))
-     ((char-set? sre) (char-set-ci sre))
-     ((char? sre) (char-set-ci (char-set sre)))
+     ((char-set? sre) (maybe-ci sre))
+     ((char? sre) (maybe-ci (char-set sre)))
      ((string? sre)
       (if (= 1 (string-length sre))
-          (string->char-set sre)
+          (maybe-ci (string->char-set sre))
           (error "only single char strings can be char-sets")))
      ((pair? sre)
       (if (string? (car sre))
-          (string->char-set (car sre))
+          (maybe-ci (string->char-set (car sre)))
           (case (car sre)
-            ((char-set) (string->char-set (cadr sre)))
+            ((char-set) (maybe-ci (string->char-set (cadr sre))))
             ((/ char-range)
              (->cs
               `(or ,@(map (lambda (x)
-                            (char-set-ci
-                             (ucs-range->char-set
-                              (char->integer (car x))
-                              (+ 1 (char->integer (cdr x))))))
+                            (ucs-range->char-set
+                             (char->integer (car x))
+                             (+ 1 (char->integer (cdr x)))))
                           (sre-flatten-ranges (cdr sre))))))
             ((& and) (apply char-set-intersection (map ->cs (cdr sre))))
             ((|\|| or) (apply char-set-union (map ->cs (cdr sre))))
@@ -698,13 +686,13 @@
             ;; reference implementation
 
             ((w/case)
-             (sre->char-set `(or ,@(cdr sre)) (flag-clear flags ~ci?)))
+             (sre->char-set (cadr sre) (flag-clear flags ~ci?)))
             ((w/nocase)
-             (sre->char-set `(or ,@(cdr sre)) (flag-join flags ~ci?)))
+             (sre->char-set (cadr sre) (flag-join flags ~ci?)))
             ((w/unicode)
-             (sre->char-set `(or ,@(cdr sre)) (flag-clear flags ~ascii?)))
+             (sre->char-set (cadr sre) (flag-clear flags ~ascii?)))
             ((w/ascii)
-             (sre->char-set `(or ,@(cdr sre)) (flag-join flags ~ascii?)))
+             (sre->char-set (cadr sre) (flag-join flags ~ascii?)))
 
             (else (error "invalid sre char-set" sre)))))
      (else (error "invalid sre char-set" sre)))))
@@ -989,6 +977,21 @@
        (reverse (if (< from end) (cons (substring str from end) a) a)))
      start
      end)))
+
+(define (regexp-partition rx str . o)
+  (let ((start (if (pair? o) (car o) 0))
+        (end (if (and (pair? o) (pair? (cdr o)))
+                 (car o)
+                 (string-length str))))
+    (define (kons from md str a)
+      (let ((left (substring str from (regexp-match-submatch-start md 0))))
+        (cons (regexp-match-submatch md 0)
+              (cons left a))))
+    (define (final from md str a)
+      (if (or (< from end) (null? a))
+          (cons (substring str from end) a)
+          a))
+    (reverse (regexp-fold rx kons '() str final start end))))
 
 (define (regexp-replace rx str subst . o)
   (let* ((start (if (and (pair? o) (car o)) (car o) 0))

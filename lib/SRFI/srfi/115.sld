@@ -118,7 +118,7 @@
   (export regexp regexp? valid-sre? rx regexp->sre char-set->sre
           regexp-matches regexp-matches? regexp-search
           regexp-replace regexp-replace-all
-          regexp-fold regexp-extract regexp-split
+          regexp-fold regexp-extract regexp-split regexp-partition
           regexp-match? regexp-match-count
           regexp-match-submatch regexp-match-submatch/list
           regexp-match-submatch-start regexp-match-submatch-end
@@ -158,6 +158,8 @@
         (char-set-intersection char-set:ascii char-set:letter+digit))
       (define %char-set:punctuation
         (char-set-intersection char-set:ascii char-set:punctuation))
+      (define %char-set:symbol
+        (char-set-intersection char-set:ascii char-set:symbol))
       (define %char-set:graphic
         (char-set-intersection char-set:ascii char-set:graphic))
       (define %char-set:whitespace
@@ -215,7 +217,7 @@
   (export regexp regexp? valid-sre? rx regexp->sre char-set->sre
           regexp-matches regexp-matches? regexp-search
           regexp-replace regexp-replace-all
-          regexp-fold regexp-extract regexp-split
+          regexp-fold regexp-extract regexp-split regexp-partition
           regexp-match? regexp-match-count
           regexp-match-submatch regexp-match-submatch/list
           regexp-match-submatch-start regexp-match-submatch-end
@@ -227,7 +229,7 @@
   (export regexp regexp? valid-sre? rx regexp->sre char-set->sre
           regexp-matches regexp-matches? regexp-search
           regexp-replace regexp-replace-all
-          regexp-fold regexp-extract regexp-split
+          regexp-fold regexp-extract regexp-split regexp-partition
           regexp-match? regexp-match-count
           regexp-match-submatch regexp-match-submatch/list
           regexp-match-submatch-start regexp-match-submatch-end

@@ -70,7 +70,7 @@
 (test-assert (regexp? (regexp 'num)))
 (test-assert (regexp? (regexp 'punctuation)))
 (test-assert (regexp? (regexp 'punct)))
-;(test-assert (regexp? (regexp 'symbol)))                               ; FIXME
+(test-assert (regexp? (regexp 'symbol)))
 (test-assert (regexp? (regexp 'graphic)))
 (test-assert (regexp? (regexp 'graph)))
 (test-assert (regexp? (regexp 'whitespace)))
@@ -189,7 +189,7 @@
 (test-assert (valid-sre? (values 'num)))
 (test-assert (valid-sre? (values 'punctuation)))
 (test-assert (valid-sre? (values 'punct)))
-;(test-assert (valid-sre? (values 'symbol)))                            ; FIXME
+(test-assert (valid-sre? (values 'symbol)))
 (test-assert (valid-sre? (values 'graphic)))
 (test-assert (valid-sre? (values 'graph)))
 (test-assert (valid-sre? (values 'whitespace)))
@@ -284,9 +284,6 @@
 (test (regexp-split '(+ space) " fee fi  fo\tfum\n")
       '("fee" "fi" "fo" "fum"))
 
-;;; FIXME: reference implementation doesn't define or export regexp-partition
-
-#|
 (test (regexp-partition '(+ (or space punct)) "")
       '(""))
 
@@ -295,7 +292,6 @@
 
 (test (regexp-partition '(+ (or space punct)) "¿Dónde Estás?")
       '("" "¿" "Dónde" " " "Estás" "?"))
-|#
 
 (test (regexp-replace '(+ space) "one two three" "_")
       '"one_two three")
@@ -361,16 +357,12 @@
 (test-deny (regexp-search "needle" "haynEEdlehay"))
 (test-assert (regexp-search '(w/nocase "needle") "haynEEdlehay"))
 
-;;; BUG: reference implementation rejects (w/case ("Aab")) and similar
-;;; with an "invalid sre char-set" message.
-
-
 (test-assert (regexp-search '(~ ("Aab")) "B"))
 (test-deny   (regexp-search '(~ ("Aab")) "b"))
 
-;;; BUG: SRFI 115 examples say all of the next four should succeed,
+;;; SRFI 115 examples say all of the next four should succeed,
 ;;; but the second of the four paragraphs preceding these examples
-;;; implies all four should fail.
+;;; implies all four should fail.  (Confirmed by Alex Shinn.)
 
 (test-deny   (regexp-search '(w/nocase (~ ("Aab"))) "B"))
 (test-deny   (regexp-search '(w/nocase (~ ("Aab"))) "b"))
@@ -382,8 +374,8 @@
 (test-deny (regexp-search '(w/nocase (~ (w/case ("Aab")))) "b"))
 
 
-;;; BUG: letter is not an SRFI 115 <cset-sre>, even though it is used
-;;; as such by several examples shown in SRFI 115.
+;;; letter is not an SRFI 115 <cset-sre>, even though it is used
+;;; as such by several examples shown in SRFI 115.  (Confirmed by Alex Shinn.)
 
 #|
 (test-assert (regexp-search '(w/ascii bos (* letter) eos) "English"))
@@ -392,6 +384,14 @@
 (test-assert (regexp-search '(w/unicode bos (* letter) eos) "English"))
 (test-assert (regexp-search '(w/unicode bos (* letter) eos) "Ελληνική"))
 |#
+
+(test-assert (regexp-search '(w/ascii bos (* alpha) eos) "English"))
+(test-deny   (regexp-search '(w/ascii bos (* alpha) eos) "Ελληνική"))
+
+(test-assert (regexp-search '(w/unicode bos (* alpha) eos) "English"))
+(test-assert (regexp-search '(w/unicode bos (* alpha) eos) "Ελληνική"))
+
+;;; End of the four corrected tests.
 
 (test-assert (regexp-search '(w/ascii bos (* alpha) eos) "English"))
 (test-deny   (regexp-search '(w/ascii bos (* alpha) eos) "Ελληνική"))
@@ -441,11 +441,9 @@
 (test-assert (regexp-matches '(* #\-) "---"))
 (test-deny   (regexp-matches '(* #\-) "-_-"))
 
-;;; FIXME: reference implementation doesn't define or export regexp-partition
-
-#;
-(test (regexp-partition `(+ ,char-set:vowels) "vowels")
-      '("v" "o" "w" "e" "ls"))
+(let ((char-set:vowels (char-set #\a #\e #\i #\o #\u)))
+  (test (regexp-partition `(+ ,char-set:vowels) "vowels")
+        '("v" "o" "w" "e" "ls")))
 
 (test-assert (regexp-matches '(* ("aeiou")) "oui"))
 (test-deny   (regexp-matches '(* ("aeiou")) "ouais"))
@@ -469,10 +467,11 @@
 
 (test-assert (regexp-search '(: bow "foo") "foo"))
 
-;; FIXME: the following example appears to be incorrect in SRFI 115.
+;; The following example is incorrect in SRFI 115.  (Confirmed by Alex Shinn.)
 
 #;
 (test-assert (regexp-search '(: bow "foo") ""))
+(test-deny   (regexp-search '(: bow "foo") ""))    ; corrected
 
 (test-deny   (regexp-search '(: bow "foo") "snafoo"))
 (test-assert (regexp-search '(: "foo" eow) "foo"))
