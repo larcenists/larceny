@@ -28,15 +28,11 @@
 ;;; In the productions for <cset-sre>, SRFI 115 fails to list |\|| as
 ;;; a synonym for or.
 ;;;
-;;; SRFI 115 says a <cset-sre> can be an "embedded SRFI 14 char set",
-;;; but SRFI 14 character sets have no external representation so
-;;; that's useless.
-;;;
 ;;; SRFI 115 does not list letter as a <cset-sre>, but several examples
-;;; assume letter is a <cset-sre>.
+;;; assume letter is a <cset-sre>.  Those examples should be corrected
+;;; to use alpha instead.
 ;;;
-;;; SRFI 115 says the following example should match, but that appears
-;;; to be incorrect.
+;;; SRFI 115 says the following example should match, but that's wrong:
 ;;;
 ;;;     (regexp-search '(: bow "foo") "")
 ;;;
@@ -48,25 +44,6 @@
 ;;;     (regexp-search '(w/nocase (~ ("Aab"))) "b")
 ;;;     (regexp-search '(~ (w/nocase ("Aab"))) "B")
 ;;;     (regexp-search '(~ (w/nocase ("Aab"))) "b")
-;;;
-;;; The reference implementation rejects the last two examples above
-;;; with an "invalid sre char-set" message.  (See discussion of
-;;; char-set-sre? below.)
-;;;
-;;; In the reference implementation, char-set-sre? is apparently intended
-;;; to return true if and only if its argument is a <cset-sre>.  It fails
-;;; to do that, mainly because it doesn't treat all of these the same:
-;;;     or and - difference ~ complement w/case w/nocase w/ascii w/unicode
-;;; 
-;;; Reference implementation does not accept symbol as a <cset-sre>.
-;;;
-;;; Reference implementation does not define or export regexp-partition.
-;;; 
-;;; Reference implementation calls string-index->offset with the wrong
-;;; number of arguments.  (That's fixed below; search for "BUG".)
-;;;
-;;; Reference implementation assumes SRFI 14's char-set-adjoin! has
-;;; a side effect.  (That's fixed in 115.body.scm; search for "BUG".)
 ;;;
 ;;; Reference implementation does not implement the following optional stuff:
 ;;;   "...only supported if the feature regexp-non-greedy is provided."
@@ -85,6 +62,9 @@
 ;; Character sets for Unicode boundaries, TR29.
 
 (define-library (chibi char-set boundary)
+
+  (cond-expand (else)) ; keeps this library from showing up in (features)
+
   (export char-set:regional-indicator
           char-set:extend-or-spacing-mark
           char-set:hangul-l
@@ -111,10 +91,10 @@
 ;; and importation of SRFI 33 (withdrawn) was replaced by importation
 ;; of (rnrs arithmetic bitwise).
 
-;; BUGS:
-;; reference implementation does not define or export regexp-partition
-
 (define-library (chibi regexp)
+
+  (cond-expand (else)) ; keeps this library from showing up in (features)
+
   (export regexp regexp? valid-sre? rx regexp->sre char-set->sre
           regexp-matches regexp-matches? regexp-search
           regexp-replace regexp-replace-all
@@ -186,15 +166,8 @@
     (begin
       (define (string-start-arg s o)
         (if (pair? o) (string-index->offset s (car o)) 0))
-
-      ;; BUG:
-      #;
-      (define (string-end-arg s o)
-        (if (pair? o) (string-index->offset (car o)) (string-length s)))
-
       (define (string-end-arg s o)
         (if (pair? o) (string-index->offset s (car o)) (string-length s)))
-
       (define string-cursor=? =)
       (define string-cursor<? <)
       (define string-cursor<=? <=)
