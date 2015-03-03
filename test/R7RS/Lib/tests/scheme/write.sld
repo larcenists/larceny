@@ -13,15 +13,20 @@
           (scheme write)
           (tests scheme test))
 
+   (cond-expand
+    ((library (scheme read))
+     (import (scheme read)))
+    (else))
+
   (begin
 
    (cond-expand
     ((library (scheme read))
-     (import (scheme read))
      (begin (define (run-write-tests-using-read)
               (run-write-tests-using-read-really))))
     ((not (library (scheme read)))
-     (begin (define (run-write-tests-using-read) #t))))
+     (begin (define (read . args) #t)
+            (define (run-write-tests-using-read) #t))))
 
    (define (write-data writer data)
      (map (lambda (datum) (write-datum writer datum))

@@ -95,3 +95,45 @@ larceny@ccs.neu.edu.
 ======================================================================
 Hints on running the tests
 ======================================================================
+
+The testall shell script runs all of the tests in Larceny.  See also
+
+    testall-chicken
+    testall-chibi
+    testall-foment
+    testall-gauche
+    testall-kawa
+
+Chicken version 4.9.0 does not complete the following tests:
+
+    base            apparently does not implement datum labels
+    complex         runs out of heap memory
+    inexact         runs out of heap memory
+    read            equal? fails on circular structures
+
+Chibi version FIXME does not complete the following tests:
+
+    base            apparently does not implement datum labels
+    complex         apparently does not implement polar syntax
+    write           apparently does not allow the symbol +.!
+
+Foment 0.4 (debug) does not complete the following tests:
+
+    base            could not open included file base-test1.scm
+
+Gauche version 0.9.4 does not complete the following tests:
+
+    base            restricts define-record-type to top level
+    inexact         internal assertion fails ("libnum.scm", line 347)
+    process-context apparently interprets --test-getenv as a file
+
+Kawa 2.0 does not complete the following tests:
+
+    base            does not allow @baz as a symbol
+    eval            ArrayIndexOutOfBoundsException in PrettyWriter
+    load            ArrayIndexOutOfBoundsException in PrettyWriter
+    read            StackOverflowError in IsEqual.apply
+    repl            ArrayIndexOutOfBoundsException in PrettyWriter
+    write           complains about invalid characters
+    process-context goes into infinite loop when given --test-getenv option
+

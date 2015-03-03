@@ -140,13 +140,9 @@
 ;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
 ;;; the length of to.  It is also an error if (- (string-length to) at)
 ;;; is less than (- end start)."
-;;; That second sentence makes string-copy! considerably less useful than
-;;; it should be.  (I assume this is a concession to UTF-8 and UTF-16
-;;; representations.)  The R7RS also fails to say what the last argument
-;;; (end) defaults to if omitted.
-;;; Larceny ignores the second sentence, copying exactly (- end start)
-;;; characters.  If end is not specified, Larceny uses the largest
-;;; index that will work.
+;;; The R7RS does not say what the last argument (end) defaults to if
+;;; omitted.  If end is not specified, Larceny uses the largest index
+;;; that will work.
 
 (define string-copy!
   (lambda (dst at src . rest)

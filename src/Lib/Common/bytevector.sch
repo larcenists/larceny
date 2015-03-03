@@ -92,20 +92,17 @@
 ;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
 ;;; the length of to.  It is also an error if (- (bytevector-length to) at)
 ;;; is less than (- end start)."
-;;; That second sentence makes vector-copy! considerably less useful than
-;;; it should be.  The R7RS also fails to say what the last argument (end)
-;;; defaults to if omitted.
-;;; Larceny ignores the second sentence, copying exactly (- end start)
-;;; elements.  If end is not specified, Larceny uses the largest index
+;;; The R7RS does not say what the last argument (end) defaults to if
+;;; omitted.  If end is not specified, Larceny uses the largest index
 ;;; that will work.
 
 (define (r7rs:bytevector-copy! dst at src . rest)
   (let* ((start (if (null? rest) 0 (car rest)))
          (rest (if (null? rest) rest (cdr rest)))
-         (end (if (null? rest)
+         (end (if (or (null? rest) (null? (cdr rest)))
                   (min (bytevector-length src)
                        (+ start (- (bytevector-length dst) at)))
-                  (car rest)))
+                  (cadr rest)))
          (kount (- end start)))
     (r6rs:bytevector-copy! src start dst at kount)))
 

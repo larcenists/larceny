@@ -14,11 +14,20 @@
           (scheme repl)
           (tests scheme test))
 
+  (cond-expand
+   ((library (scheme eval))
+    (import (scheme eval)))
+   (else))
+
+  (cond-expand
+   ((library (scheme load))
+    (import (scheme load)))
+   (else))
+
   (begin
 
    (cond-expand
     ((library (scheme eval))
-     (import (scheme eval))
      (begin (define (run-tests-using-eval)
               (run-tests-assuming-scheme-eval))))
     ((not (library (scheme eval)))
@@ -28,11 +37,10 @@
 
    (cond-expand
     ((library (scheme load))
-     (import (scheme load))
      (begin (define (run-tests-using-load)
               (run-tests-assuming-scheme-load))))
     ((not (library (scheme load)))
-     (begin (define (interaction-environment) #f)
+     (begin (define (load . args) #t)
             (define (run-tests-using-load) #t))))
 
    (define (run-repl-tests)

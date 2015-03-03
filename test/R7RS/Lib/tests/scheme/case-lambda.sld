@@ -5,7 +5,7 @@
 ;;;     case-lambda
 
 
-(library (tests scheme case-lambda)
+(define-library (tests scheme case-lambda)
  (export run-case-lambda-tests)
  (import (scheme base)
          (scheme case-lambda)
