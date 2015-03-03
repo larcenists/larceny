@@ -1979,37 +1979,25 @@
      ;; R7RS 6.7 says "It is an error if at is less than zero or greater than
      ;; the length of to.  It is also an error if (- (string-length to) at)
      ;; is less than (- end start)."
-     ;; That second sentence makes string-copy! considerably less useful than
-     ;; it should be.  (I assume this is a concession to UTF-8 and UTF-16
-     ;; representations.)  The R7RS also fails to say what the last argument
-     ;; (end) defaults to if omitted.
-     ;; Larceny ignores the second sentence, copying exactly (- end start)
-     ;; characters.  If end is not specified, Larceny uses the largest
-     ;; index that will work.
+     ;; The R7RS does not say what the last argument (end) defaults to if
+     ;; omitted.  If end is not specified, Larceny uses the largest index
+     ;; that will work.
 
-     (cond-expand
-      (larceny
-       (let ((s (make-string 6 #\!)))
-         (test/unspec (string-copy! s 0 "apple"))
-         (test s "apple!")
-         (test/unspec (string-copy! s 2 "pears are nice too" 0 4))
-         (test s "appear")
-         (test/unspec (string-copy! s 0 "blink" 1 4))
-         (test s "linear")
-         (test/unspec (string-copy! s 4 "  "))
-         (test s "line  ")
-         (test/unspec (string-copy! s 2 "past" 2))
-         (test s "list  ")
-         (test/unspec (string-copy! s 2 s 0))
-         (test s "lilist")
-         (test/unspec (string-copy! s 0 s 1))
-         (test s "ilistt"))))
-
-     ;; Here's a test of the non-error cases for string-copy!
-     ;; Although the R7RS talks about the need to copy in the correct
-     ;; direction when the source and destination overlap, copying
-     ;; downward is an error, hence can't be tested here.  For a test
-     ;; of that situation, see the Larceny-specific test above.
+     (let ((s (make-string 6 #\!)))
+       (test/unspec (string-copy! s 0 "apple"))
+       (test s "apple!")
+       (test/unspec (string-copy! s 2 "pears are nice too" 0 4))
+       (test s "appear")
+       (test/unspec (string-copy! s 0 "blink" 1 4))
+       (test s "linear")
+       (test/unspec (string-copy! s 4 "  "))
+       (test s "line  ")
+       (test/unspec (string-copy! s 2 "past" 2))
+       (test s "list  ")
+       (test/unspec (string-copy! s 2 s 0 4))
+       (test s "lilist")
+       (test/unspec (string-copy! s 0 s 1))
+       (test s "ilistt"))
 
      (let ((s (make-string 6 #\*)))
        (test/unspec (string-copy! s 0 "apple!"))
@@ -2101,32 +2089,21 @@
      ;; R7RS 6.7 says "It is an error if at is less than zero or greater than
      ;; the length of to.  It is also an error if (- (vector-length to) at)
      ;; is less than (- end start)."
-     ;; That second sentence makes vector-copy! considerably less useful than
-     ;; it should be.  The R7RS also fails to say what the last argument (end)
-     ;; defaults to if omitted.
-     ;; Larceny ignores the second sentence, copying exactly (- end start)
-     ;; elements.  If end is not specified, Larceny uses the largest index
+     ;; The R7RS does not say what the last argument (end) defaults to if
+     ;; omitted.  If end is not specified, Larceny uses the largest index
      ;; that will work.
 
-     (cond-expand
-      (larceny
-       (let ()
-         (define a (vector 1 2 3 4 5))
-         (define b (vector 10 20 30 40 50))
-         (test/unspec (vector-copy! b 1 a 0 2))
-         (test b '#(10 1 2 40 50))
-         (test/unspec (vector-copy! b 1 b 2))
-         (test b '#(10 2 40 50 50))
-         (test/unspec (vector-copy! b 1 b))
-         (test b '#(10 10 2 40 50))
-         (test/unspec (vector-copy! a 2 a 0))
-         (test a '#(1 2 1 2 3)))))
-
-     ;; Here's a test of the non-error cases for vector-copy!
-     ;; Although the R7RS talks about the need to copy in the correct
-     ;; direction when the source and destination overlap, copying
-     ;; downward is an error, hence can't be tested here.  For a test
-     ;; of that situation, see the Larceny-specific test above.
+     (let ()
+       (define a (vector 1 2 3 4 5))
+       (define b (vector 10 20 30 40 50))
+       (test/unspec (vector-copy! b 1 a 0 2))
+       (test b '#(10 1 2 40 50))
+       (test/unspec (vector-copy! b 1 b 2))
+       (test b '#(10 2 40 50 50))
+       (test/unspec (vector-copy! b 1 b 0 4))
+       (test b '#(10 10 2 40 50))
+       (test/unspec (vector-copy! a 2 a 0 3))
+       (test a '#(1 2 1 2 3)))
 
      (let ()
        (define a (vector 1 2 3 4 5))
@@ -2199,34 +2176,9 @@
      ;; R7RS 6.7 says "It is an error if at is less than zero or greater than
      ;; the length of to.  It is also an error if (- (bytevector-length to) at)
      ;; is less than (- end start)."
-     ;; That second sentence makes vector-copy! considerably less useful than
-     ;; it should be.  The R7RS also fails to say what the last argument (end)
-     ;; defaults to if omitted.
-     ;; Larceny ignores the second sentence, copying exactly (- end start)
-     ;; elements.  If end is not specified, Larceny uses the largest index
+     ;; The R7RS does not say what the last argument (end) defaults to if
+     ;; omitted.  If end is not specified, Larceny uses the largest index
      ;; that will work.
-
-     (cond-expand
-      (larceny
-       (let ()
-         (define a (bytevector 1 2 3 4 5))
-         (define b (bytevector 10 20 30 40 50))
-         (test/unspec (bytevector-copy! b 1 a 0 2))
-         (test b '#u8(10 1 2 40 50))
-         (test/unspec (bytevector-copy! b 2 b 3 5))
-         (test b '#u8(10 1 40 50 50))
-         (test/unspec (bytevector-copy! b 2 b 0 3))
-         (test b '#u8(10 1 10 1 40))
-         (test/unspec (bytevector-copy! b 1 a))    ; FIXME: is this legal?
-         (test b '#u8(10 1 2 3 4))
-         (test/unspec (bytevector-copy! b 1 a 3))  ; FIXME: is this legal?
-         (test b '#u8(10 4 5 3 4)))))
-
-     ;; Here's a test of the non-error cases for vector-copy!
-     ;; Although the R7RS talks about the need to copy in the correct
-     ;; direction when the source and destination overlap, copying
-     ;; downward is an error, hence can't be tested here.  For a test
-     ;; of that situation, see the Larceny-specific test above.
 
      (let ()
        (define a (bytevector 1 2 3 4 5))
