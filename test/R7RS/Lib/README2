@@ -1,0 +1,21 @@
+Racket's source code currently resides at
+
+    https://github.com/racket/r6rs
+
+The R6RS tests are r6rs-test/tests/r6rs within that repository:
+
+    https://github.com/racket/r6rs/tree/master/r6rs-test/tests/r6rs
+
+The LICENSE.txt file within the r6rs-test directory says:
+
+r6rs
+Copyright (c) 2010-2014 PLT Design Inc.
+
+This package is distributed under the GNU Lesser General Public
+License (LGPL).  This means that you can link this package into proprietary
+applications, provided you follow the rules stated in the LGPL.  You
+can also modify this package; if you distribute a modified version,
+you must distribute it under the terms of the LGPL, which in
+particular means that you must release the source code for the
+modified software.  See http://www.gnu.org/copyleft/lesser.html
+for more information.
