@@ -24,7 +24,9 @@
 
     binary-search-of-vector
     binary-search
-    binary-search-16bit)
+    binary-search-16bit
+
+    make-comparison-predicate)
 
   (import (rnrs base)
           (rnrs bytevectors))
@@ -115,5 +117,22 @@
     (if (or (= hi 0) (< key (bytevector-ref16 bvec 0)))
         #f
         (loop 0 hi))))
+
+; Given a binary comparison predicate, returns a predicate
+; that accepts two or more arguments.
+
+(define (make-comparison-predicate binop)
+  (letrec ((loop (lambda (first rest)
+		   (cond ((null? rest)
+			  #t)
+			 ((binop first (car rest))
+			  (loop (car rest) (cdr rest)))
+			 (else
+			  #f)))))
+    (lambda (a b . rest)
+      (if (null? rest)
+	  (binop a b)
+	  (and (binop a b)
+	       (loop b rest))))))
 
 )

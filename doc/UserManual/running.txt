@@ -185,7 +185,7 @@ surprised if it takes a few seconds.
     > (features)
     (r7rs r6rs larceny larceny-0.98
      exact-closed ratios exact-complex complex ieee-float
-     full-unicode full-unicode-strings unicode-5
+     full-unicode full-unicode-strings unicode-7
      posix unix gnu-linux i386 ilp32 little-endian
      ...
      (rnrs arithmetic bitwise (6))

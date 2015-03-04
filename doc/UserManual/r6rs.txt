@@ -79,7 +79,7 @@ All of Larceny's modes support all features of the `(rnrs unicode)`
 library.
 
 Larceny v0.98 tries to conform to
-<<Standards, The Unicode Standard>>, Version 5.0.
+<<Standards, The Unicode Standard>>, Version 7.0.
 
 
 [[BytevectorsLibrary]]

@@ -5,15 +5,13 @@
 ; Permission to copy this software, in whole or in part, to use this
 ; software for any lawful purpose, and to redistribute this software
 ; is granted subject to the restriction that all copies made of this
-; software must include this copyright notice in full.
+; software must include this copyright and permission notice in full.
 ;
 ; I also request that you send me a copy of any improvements that you
 ; make to this software so that they may be incorporated within it to
 ; the benefit of the Scheme community.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; (proto-unicode3)
 ;
 ; This file contains all of the code for R6RS library section 1.2
 ; except for the four normalization procedures, which are in
@@ -22,20 +20,12 @@
 ; strings.
 ;
 ; The tables in this file were generated from the
-; Unicode Character Database, revision 5.0.0.
+; Unicode Character Database, revision 7.0.0.
 ;
 ; This file does not rely on any lexical syntax for
 ; non-Ascii characters and strings.
-;
-; FIXME:
-;
-;     The normalization procedures have been tested on
-;     the standard tests in NormalizationTests.txt, and
-;     that exercises some of the the procedures in this
-;     file, but other procedures haven't been tested
-;     very thoroughly.
 
-;(library (proto-unicode3)
+;(library (local unicode3)
 ;  (export
 ;
 ;    string-upcase
@@ -49,11 +39,13 @@
 ;    string-ci<=?
 ;    string-ci>=?)
 ;
-;  (import (r6rs base)
-;          (r6rs bytevector)
-;          (proto-unicode0)
-;          (proto-unicode1)
-;          (proto-unicode2))
+;  (import (rnrs base)
+;          (rnrs control)
+;          (rnrs bytevectors)
+;          (rnrs mutable-strings)
+;          (local unicode0)
+;          (local unicode1)
+;          (local unicode2))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -63,30 +55,20 @@
 
 ; Case-insensitive comparisons.
 
-(define string-ci=?
-  (make-comparison-predicate
-   (lambda (s1 s2)
-     (string=? (string-foldcase s1) (string-foldcase s2)))))
+(define (string-ci=? s1 s2)
+  (string=? (string-foldcase s1) (string-foldcase s2)))
 
-(define string-ci<?
-  (make-comparison-predicate
-   (lambda (s1 s2)
-     (string<? (string-foldcase s1) (string-foldcase s2)))))
+(define (string-ci<? s1 s2)
+  (string<? (string-foldcase s1) (string-foldcase s2)))
 
-(define string-ci>?
-  (make-comparison-predicate
-   (lambda (s1 s2)
-     (string>? (string-foldcase s1) (string-foldcase s2)))))
+(define (string-ci>? s1 s2)
+  (string>? (string-foldcase s1) (string-foldcase s2)))
 
-(define string-ci<=?
-  (make-comparison-predicate
-   (lambda (s1 s2)
-     (string<=? (string-foldcase s1) (string-foldcase s2)))))
+(define (string-ci<=? s1 s2)
+  (string<=? (string-foldcase s1) (string-foldcase s2)))
 
-(define string-ci>=?
-  (make-comparison-predicate
-   (lambda (s1 s2)
-     (string>=? (string-foldcase s1) (string-foldcase s2)))))
+(define (string-ci>=? s1 s2)
+  (string>=? (string-foldcase s1) (string-foldcase s2)))
 
 (define (string-upcase s)
   (let* ((n (string-length s))
@@ -156,76 +138,32 @@
           s2))
     (fast 0)))
 
-; The string-titlecase procedure converts the first cased character
-; in each word to titlecase, and downcases all other cased characters
-; using string-downcase.
+; From Section 3.13 of the Unicode 7.0.0 standard:
 ;
-; Algorithm, from The Unicode Standard 5.0 section 3.13:
-;     toTitlecase(X): Find the word boundaries in X according
-;     to Unicode Standard Annex #29, "Text Boundaries."  For
-;     each word boundary, find the first cased character F
+;     toTitlecase(X):  Find the word boundaries in X according to
+;     Unicode Standard Annex #29, "Unicode Text Segmentation."
+;     For each word boundary, find the first cased character F
 ;     following the word boundary.  If F exists, map F to
-;     Titlecase_Mapping(F); then map all characters C
-;     between F and the following word boundary to
-;     Lowercase_Mapping(C).
+;     Titlecase_Mapping(F); then map all characters C between F
+;     and the following word boundary to Lowercase_Mapping(C).
 
 (define (string-titlecase s)
   (let ((n (string-length s)))
 
-    ; 0 <= i <= k <= n
-    ;
-    ; i is the index of the next character in s to be mapped.
-    ;
-    ; k is the index in s of the next word break.
-    ;
-    ; isFirst is true if s[i] might be the first cased character
-    ; of a word.
-    ;
-    ; chars is a list of characters and strings that, when reversed
-    ; and appended together, would form toTitlecase(X), where X is
-    ; the sequence of characters in s whose index is less than i.
-    ;
-    ; If i is less than k, then:
-    ;     if isFirst is true, and s[i] is cased, then s[i] is
-    ;         the first cased character within a word and should
-    ;         be mapped to titlecase;
-    ;     if isFirst is true, but s[i] is not cased, then s[i]
-    ;         should be mapped to lowercase and the search for
-    ;         the first cased character should continue at s[i+1];
-    ;     if isFirst is false, then s[i] should be mapped to lowercase.
-    ;
-    ; The cased characters are those that satisfy one of:
-    ;     char-upper-case?
-    ;     char-lower-case?
-    ;     char-title-case?
+    (define (next-title-cased s i)
+      (let ((j (string-next-word-break s i)))
+        (define (loop j)
+          (cond ((= j n) n)
+                ((cased? (string-ref s j)) j)
+                (else (loop (+ j 1)))))
+        (loop j)))
 
-    (define (loop i k isFirst chars)
-      (cond ((< i k)
-             (let* ((c (string-ref s i))
-                    (cp (char->integer c)))
-               (if isFirst
-                   (if (or (char-upper-case? c)
-                           (char-lower-case? c)
-                           (char-title-case? c))
-                       (let* ((probe (if (< cp #x00df)
-                                         #f
-                                         (binary-search-16bit
-                                          cp special-case-chars)))
-                              (x (if probe
-                                     (vector-ref special-titlecase-mapping
-                                                 probe)
-                                     (char-titlecase c))))
-                         (loop (+ i 1) k #f (cons x chars)))
-                       (loop (+ i 1)
-                             k
-                             #t
-                             (cons (string-downcase (string c)) chars)))
-                   (loop k
-                         (string-next-word-break s k)
-                         #t
-                         (cons (string-downcase (substring s i k)) chars)))))
+    ;; iF is the index of the next cased character F to be converted
+    ;; to title case.  chars is a list of characters and strings.
 
-            ((= i n)
+    (define (loop i iF chars)
+
+      (cond ((= i n)
 
              ; Concatenate the characters and strings.
              (let* ((n2 (do ((mapped chars (cdr mapped))
@@ -246,21 +184,28 @@
                            (do ((j (- (string-length c2) 1) (- j 1))
                                 (i (- i 1) (- i 1)))
                                ((< j 0)
-                                (loop (+ i 1) (cdr mapped)))
+                                (loop i (cdr mapped)))
                              (string-set! s2 i (string-ref c2 j)))))))
                (loop n2 chars)))
 
-            ((= i k)
-             (loop i
-                   (string-next-word-break s i)
-                   #t
-                   chars))
-
             (else
-             (assertion-violation 'string-titlecase
-                                  "bug in string-titlecase" s))))
+             (let* ((c (string-ref s i))
+                    (cp (char->integer c)))
+               (let ((probe (if (< cp #x00df)
+                                #f
+                                (binary-search-16bit cp special-case-chars))))
+                 (if (= i iF)
+                     (let ((x (if probe
+                                  (vector-ref special-titlecase-mapping probe)
+                                  (char-titlecase c)))
+                           (iF (next-title-cased s i)))
+                       (loop (+ i 1) iF (cons x chars)))
+                     (let ((x (if probe
+                                  (vector-ref special-lowercase-mapping probe)
+                                  (char-downcase c))))
+                       (loop (+ i 1) iF (cons x chars)))))))))
 
-    (loop 0 (string-next-word-break s 0) #t '())))
+    (loop 0 (next-title-cased s -1) '())))
 
 ; Returns the case-folded version of a string.
 ; If the string is already case-folded, then it may be returned.
@@ -437,6 +382,12 @@
 ;
 ; Note:  A character is cased if and only if
 ; it is uppercase, lowercase, or titlecase.
+; That is not the same as Lu + Ll + Lt.
+
+(define (cased? c)
+  (or (char-lower-case? c)
+      (char-upper-case? c)
+      (eq? 'Lt (char-general-category c))))
 
 (define (final-cased? s i)
   (and (not (cased-after? s i))
@@ -449,9 +400,8 @@
       (if (= j k)
           #f
           (let ((c (string-ref s j)))
-            (case (char-general-category c)
-             ((Lu Ll Lt) #t)
-             (else (loop (+ j 1)))))))
+            (or (cased? c)
+                (loop (+ j 1))))))
     (loop i)))
 
 (define (cased-after? s i)
@@ -460,9 +410,8 @@
       (if (= j k)
           #f
           (let ((c (string-ref s j)))
-            (case (char-general-category c)
-             ((Lu Ll Lt) #t)
-             (else (loop (+ j 1)))))))
+            (or (cased? c)
+                (loop (+ j 1))))))
     (loop (+ i 1))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -867,30 +816,51 @@
 ; All other scalar values fold to their (simple)
 ; downcased values.
 ;
-; Each of those tables contains 156 elements.
+; Each of those tables contains 326 elements.
 
 (define full-foldcase-exceptions
   '#(
-        #xb5 #xdf #x130 #x149 #x17f #x1f0 #x345 #x390 
-        #x3b0 #x3c2 #x3d0 #x3d1 #x3d5 #x3d6 #x3f0 #x3f1 
-        #x3f5 #x587 #x1e96 #x1e97 #x1e98 #x1e99 #x1e9a #x1e9b 
-        #x1f50 #x1f52 #x1f54 #x1f56 #x1f80 #x1f81 #x1f82 #x1f83 
-        #x1f84 #x1f85 #x1f86 #x1f87 #x1f88 #x1f89 #x1f8a #x1f8b 
-        #x1f8c #x1f8d #x1f8e #x1f8f #x1f90 #x1f91 #x1f92 #x1f93 
-        #x1f94 #x1f95 #x1f96 #x1f97 #x1f98 #x1f99 #x1f9a #x1f9b 
-        #x1f9c #x1f9d #x1f9e #x1f9f #x1fa0 #x1fa1 #x1fa2 #x1fa3 
-        #x1fa4 #x1fa5 #x1fa6 #x1fa7 #x1fa8 #x1fa9 #x1faa #x1fab 
-        #x1fac #x1fad #x1fae #x1faf #x1fb2 #x1fb3 #x1fb4 #x1fb6 
-        #x1fb7 #x1fbc #x1fbe #x1fc2 #x1fc3 #x1fc4 #x1fc6 #x1fc7 
-        #x1fcc #x1fd2 #x1fd3 #x1fd6 #x1fd7 #x1fe2 #x1fe3 #x1fe4 
-        #x1fe6 #x1fe7 #x1ff2 #x1ff3 #x1ff4 #x1ff6 #x1ff7 #x1ffc 
-        #xfb00 #xfb01 #xfb02 #xfb03 #xfb04 #xfb05 #xfb06 #xfb13 
-        #xfb14 #xfb15 #xfb16 #xfb17 #x10400 #x10401 #x10402 #x10403 
-        #x10404 #x10405 #x10406 #x10407 #x10408 #x10409 #x1040a #x1040b 
-        #x1040c #x1040d #x1040e #x1040f #x10410 #x10411 #x10412 #x10413 
-        #x10414 #x10415 #x10416 #x10417 #x10418 #x10419 #x1041a #x1041b 
-        #x1041c #x1041d #x1041e #x1041f #x10420 #x10421 #x10422 #x10423 
-        #x10424 #x10425 #x10426 #x10427 ))
+        #xb5 #xdf #x130 #x149 #x17f #x1f0 #x345 #x370 
+        #x372 #x376 #x37f #x390 #x3b0 #x3c2 #x3cf #x3d0 
+        #x3d1 #x3d5 #x3d6 #x3f0 #x3f1 #x3f5 #x514 #x516 
+        #x518 #x51a #x51c #x51e #x520 #x522 #x524 #x526 
+        #x528 #x52a #x52c #x52e #x587 #x10c7 #x10cd #x1e96 
+        #x1e97 #x1e98 #x1e99 #x1e9a #x1e9b #x1e9e #x1efa #x1efc 
+        #x1efe #x1f50 #x1f52 #x1f54 #x1f56 #x1f80 #x1f81 #x1f82 
+        #x1f83 #x1f84 #x1f85 #x1f86 #x1f87 #x1f88 #x1f89 #x1f8a 
+        #x1f8b #x1f8c #x1f8d #x1f8e #x1f8f #x1f90 #x1f91 #x1f92 
+        #x1f93 #x1f94 #x1f95 #x1f96 #x1f97 #x1f98 #x1f99 #x1f9a 
+        #x1f9b #x1f9c #x1f9d #x1f9e #x1f9f #x1fa0 #x1fa1 #x1fa2 
+        #x1fa3 #x1fa4 #x1fa5 #x1fa6 #x1fa7 #x1fa8 #x1fa9 #x1faa 
+        #x1fab #x1fac #x1fad #x1fae #x1faf #x1fb2 #x1fb3 #x1fb4 
+        #x1fb6 #x1fb7 #x1fbc #x1fbe #x1fc2 #x1fc3 #x1fc4 #x1fc6 
+        #x1fc7 #x1fcc #x1fd2 #x1fd3 #x1fd6 #x1fd7 #x1fe2 #x1fe3 
+        #x1fe4 #x1fe6 #x1fe7 #x1ff2 #x1ff3 #x1ff4 #x1ff6 #x1ff7 
+        #x1ffc #x2c6d #x2c6e #x2c6f #x2c70 #x2c72 #x2c7e #x2c7f 
+        #x2ceb #x2ced #x2cf2 #xa640 #xa642 #xa644 #xa646 #xa648 
+        #xa64a #xa64c #xa64e #xa650 #xa652 #xa654 #xa656 #xa658 
+        #xa65a #xa65c #xa65e #xa660 #xa662 #xa664 #xa666 #xa668 
+        #xa66a #xa66c #xa680 #xa682 #xa684 #xa686 #xa688 #xa68a 
+        #xa68c #xa68e #xa690 #xa692 #xa694 #xa696 #xa698 #xa69a 
+        #xa722 #xa724 #xa726 #xa728 #xa72a #xa72c #xa72e #xa732 
+        #xa734 #xa736 #xa738 #xa73a #xa73c #xa73e #xa740 #xa742 
+        #xa744 #xa746 #xa748 #xa74a #xa74c #xa74e #xa750 #xa752 
+        #xa754 #xa756 #xa758 #xa75a #xa75c #xa75e #xa760 #xa762 
+        #xa764 #xa766 #xa768 #xa76a #xa76c #xa76e #xa779 #xa77b 
+        #xa77d #xa77e #xa780 #xa782 #xa784 #xa786 #xa78b #xa78d 
+        #xa790 #xa792 #xa796 #xa798 #xa79a #xa79c #xa79e #xa7a0 
+        #xa7a2 #xa7a4 #xa7a6 #xa7a8 #xa7aa #xa7ab #xa7ac #xa7ad 
+        #xa7b0 #xa7b1 #xfb00 #xfb01 #xfb02 #xfb03 #xfb04 #xfb05 
+        #xfb06 #xfb13 #xfb14 #xfb15 #xfb16 #xfb17 #x10400 #x10401 
+        #x10402 #x10403 #x10404 #x10405 #x10406 #x10407 #x10408 #x10409 
+        #x1040a #x1040b #x1040c #x1040d #x1040e #x1040f #x10410 #x10411 
+        #x10412 #x10413 #x10414 #x10415 #x10416 #x10417 #x10418 #x10419 
+        #x1041a #x1041b #x1041c #x1041d #x1041e #x1041f #x10420 #x10421 
+        #x10422 #x10423 #x10424 #x10425 #x10426 #x10427 #x118a0 #x118a1 
+        #x118a2 #x118a3 #x118a4 #x118a5 #x118a6 #x118a7 #x118a8 #x118a9 
+        #x118aa #x118ab #x118ac #x118ad #x118ae #x118af #x118b0 #x118b1 
+        #x118b2 #x118b3 #x118b4 #x118b5 #x118b6 #x118b7 #x118b8 #x118b9 
+        #x118ba #x118bb #x118bc #x118bd #x118be #x118bf ))
 
 (define full-foldcase-mappings
   (let ((str (lambda args
@@ -905,9 +875,14 @@
         (str #x73)
         (str #x6a #x30c)
         (str #x3b9)
+        (str #x371)
+        (str #x373)
+        (str #x377)
+        (str #x3f3)
         (str #x3b9 #x308 #x301)
         (str #x3c5 #x308 #x301)
         (str #x3c3)
+        (str #x3d7)
         (str #x3b2)
         (str #x3b8)
         (str #x3c6)
@@ -915,13 +890,33 @@
         (str #x3ba)
         (str #x3c1)
         (str #x3b5)
+        (str #x515)
+        (str #x517)
+        (str #x519)
+        (str #x51b)
+        (str #x51d)
+        (str #x51f)
+        (str #x521)
+        (str #x523)
+        (str #x525)
+        (str #x527)
+        (str #x529)
+        (str #x52b)
+        (str #x52d)
+        (str #x52f)
         (str #x565 #x582)
+        (str #x2d27)
+        (str #x2d2d)
         (str #x68 #x331)
         (str #x74 #x308)
         (str #x77 #x30a)
         (str #x79 #x30a)
         (str #x61 #x2be)
         (str #x1e61)
+        (str #x73 #x73)
+        (str #x1efb)
+        (str #x1efd)
+        (str #x1eff)
         (str #x3c5 #x313)
         (str #x3c5 #x313 #x300)
         (str #x3c5 #x313 #x301)
@@ -1002,6 +997,119 @@
         (str #x3c9 #x342)
         (str #x3c9 #x342 #x3b9)
         (str #x3c9 #x3b9)
+        (str #x251)
+        (str #x271)
+        (str #x250)
+        (str #x252)
+        (str #x2c73)
+        (str #x23f)
+        (str #x240)
+        (str #x2cec)
+        (str #x2cee)
+        (str #x2cf3)
+        (str #xa641)
+        (str #xa643)
+        (str #xa645)
+        (str #xa647)
+        (str #xa649)
+        (str #xa64b)
+        (str #xa64d)
+        (str #xa64f)
+        (str #xa651)
+        (str #xa653)
+        (str #xa655)
+        (str #xa657)
+        (str #xa659)
+        (str #xa65b)
+        (str #xa65d)
+        (str #xa65f)
+        (str #xa661)
+        (str #xa663)
+        (str #xa665)
+        (str #xa667)
+        (str #xa669)
+        (str #xa66b)
+        (str #xa66d)
+        (str #xa681)
+        (str #xa683)
+        (str #xa685)
+        (str #xa687)
+        (str #xa689)
+        (str #xa68b)
+        (str #xa68d)
+        (str #xa68f)
+        (str #xa691)
+        (str #xa693)
+        (str #xa695)
+        (str #xa697)
+        (str #xa699)
+        (str #xa69b)
+        (str #xa723)
+        (str #xa725)
+        (str #xa727)
+        (str #xa729)
+        (str #xa72b)
+        (str #xa72d)
+        (str #xa72f)
+        (str #xa733)
+        (str #xa735)
+        (str #xa737)
+        (str #xa739)
+        (str #xa73b)
+        (str #xa73d)
+        (str #xa73f)
+        (str #xa741)
+        (str #xa743)
+        (str #xa745)
+        (str #xa747)
+        (str #xa749)
+        (str #xa74b)
+        (str #xa74d)
+        (str #xa74f)
+        (str #xa751)
+        (str #xa753)
+        (str #xa755)
+        (str #xa757)
+        (str #xa759)
+        (str #xa75b)
+        (str #xa75d)
+        (str #xa75f)
+        (str #xa761)
+        (str #xa763)
+        (str #xa765)
+        (str #xa767)
+        (str #xa769)
+        (str #xa76b)
+        (str #xa76d)
+        (str #xa76f)
+        (str #xa77a)
+        (str #xa77c)
+        (str #x1d79)
+        (str #xa77f)
+        (str #xa781)
+        (str #xa783)
+        (str #xa785)
+        (str #xa787)
+        (str #xa78c)
+        (str #x265)
+        (str #xa791)
+        (str #xa793)
+        (str #xa797)
+        (str #xa799)
+        (str #xa79b)
+        (str #xa79d)
+        (str #xa79f)
+        (str #xa7a1)
+        (str #xa7a3)
+        (str #xa7a5)
+        (str #xa7a7)
+        (str #xa7a9)
+        (str #x266)
+        (str #x25c)
+        (str #x261)
+        (str #x26c)
+        (str #x29e)
+        (str #x287)
         (str #x66 #x66)
         (str #x66 #x69)
         (str #x66 #x6c)
@@ -1053,6 +1161,38 @@
         (str #x1044c)
         (str #x1044d)
         (str #x1044e)
-        (str #x1044f))))
+        (str #x1044f)
+        (str #x118c0)
+        (str #x118c1)
+        (str #x118c2)
+        (str #x118c3)
+        (str #x118c4)
+        (str #x118c5)
+        (str #x118c6)
+        (str #x118c7)
+        (str #x118c8)
+        (str #x118c9)
+        (str #x118ca)
+        (str #x118cb)
+        (str #x118cc)
+        (str #x118cd)
+        (str #x118ce)
+        (str #x118cf)
+        (str #x118d0)
+        (str #x118d1)
+        (str #x118d2)
+        (str #x118d3)
+        (str #x118d4)
+        (str #x118d5)
+        (str #x118d6)
+        (str #x118d7)
+        (str #x118d8)
+        (str #x118d9)
+        (str #x118da)
+        (str #x118db)
+        (str #x118dc)
+        (str #x118dd)
+        (str #x118de)
+        (str #x118df))))
 
 ;)

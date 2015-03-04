@@ -57,20 +57,30 @@
 
 ; Case-insensitive comparisons.
 
-(define (char-ci=? c1 c2)
-  (char=? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci=?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char=? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci<? c1 c2)
-  (char<? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci<?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char<? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci>? c1 c2)
-  (char>? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci>?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char>? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci<=? c1 c2)
-  (char<=? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci<=?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char<=? (char-foldcase c1) (char-foldcase c2)))))
 
-(define (char-ci>=? c1 c2)
-  (char>=? (char-foldcase c1) (char-foldcase c2)))
+(define char-ci>=?
+  (make-comparison-predicate
+   (lambda (c1 c2)
+     (char>=? (char-foldcase c1) (char-foldcase c2)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
