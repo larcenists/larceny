@@ -16,8 +16,7 @@ for Intel x86 microprocessors running Linux, Apple OS X,
 or Windows operating systems.
 
 Petit Larceny compiles to C instead of machine code.  It
-runs on most Unix machines, including PowerPC Macintoshes
-with MacOS X.
+can be made to run on most Unix machines.
 
 ////////////////////////////////////////////////////////////////////////
 Common Larceny compiles to JIT-compiled IL on Microsoft's
@@ -39,9 +38,8 @@ on 64-bit machines provided the appropriate 32-bit
 libraries have been installed.
 
 Binary distributions of Petit Larceny are available for
-x86 machines running Linux and for PowerPC machines running
-MacOS X.  Petit Larceny requires the `gcc` compiler as well
-as the appropriate 32-bit libraries.
+x86 machines running Linux.  Petit Larceny requires the `gcc`
+compiler as well as the appropriate 32-bit libraries.
 
 ////////////////////////////////////////////////////////////////
 To use some features of the FFI, you'll need the appropriate

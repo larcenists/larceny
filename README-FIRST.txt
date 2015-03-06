@@ -5,7 +5,6 @@ Currently, this software is distributed for:
  - Linux on Intel x86 machines (native IA32 and C backends)
  - Linux on little-endian ARMv7 machines (native ARM-32 backend)
  - Mac OS X (>= 10.4) on Intel x86 machines (native IA32 backend)
- - Mac OS X (>= 10.2) on PowerPC machines (C backend)
 
 The current version of Larceny always runs in 32-bit mode, but the
 native IA32 variety of Larceny is known to work on x86-64 hardware
@@ -104,7 +103,7 @@ and is online at http://larceny.ccs.neu.edu/doc/
 NOTES
 
 [1] You may be able to make Petit Larceny work on other platforms
-(e.g. Linux/PowerPC or Solaris/IA32 with the C backend) but we do
+(e.g. MacOSX/PowerPC or Linux/PowerPC with the C backend) but we do
 not support those systems.
 
 [2] http://larceny.ccs.neu.edu/doc/CommonLarceny/user-manual.html
