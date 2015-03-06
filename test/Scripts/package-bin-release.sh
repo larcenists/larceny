@@ -37,6 +37,9 @@ else
     rm -rf examples/CommonLarceny
 fi
 
+# Remove README.md because that only makes sense for the development site.
+rm README.md
+
 # Remove the src directory, since that's not part of the binary distribution.
 rm -rf src
 

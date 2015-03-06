@@ -6,13 +6,12 @@ Currently, this software is distributed for:
  - Linux on little-endian ARMv7 machines (native ARM-32 backend)
  - Mac OS X (>= 10.4) on Intel x86 machines (native IA32 backend)
  - Mac OS X (>= 10.2) on PowerPC machines (C backend)
- - Solaris on SPARC machines (native SPARC and C backends)
 
 The current version of Larceny always runs in 32-bit mode, but the
-native varieties of Larceny are known to work on 64-bit SPARC and
-x86-64 hardware.
+native IA32 variety of Larceny is known to work on x86-64 hardware
+provided the necessary 32-bit libraries are installed (see below).
 
-A binary distribution of Larceny will occupy about 25 megabytes
+A binary distribution of Larceny will occupy about 40 megabytes
 of disk when unpacked.  A source distribution of Larceny will
 expand to almost 200 megabytes as it is built.
 
@@ -24,16 +23,18 @@ Larceny, see the Common Larceny user's manual [2].)
 
 WHAT YOU NEED
 
-Native (SPARC, IA32, ARM): everything should work out of the box.
+Native (IA32, ARM): everything should work out of the box.  If not,
+you may need to install some 32-bit libraries or (on Windows) allow
+Larceny to opt out of DEP.  See doc/HOWTO-INSTALL.
 
-Petit Larceny (Solaris, Linux, Mac OS X): ensure that the GNU C
-    Compiler (gcc) is in your execution path.  (If you are
-    building from source, see doc/HOWTO-BUILD.)
+Petit Larceny (Linux, Mac OS X): ensure that the GNU C Compiler (gcc)
+    is in your execution path.  (If you are building from source, see
+    doc/HOWTO-BUILD.)
 
     Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
 
     After gcc is in your execution path, you should install
-    the R6RS runtime and standard libraries by performing
+    the R7RS runtime and standard libraries by performing
     step 4 of the process described in doc/HOWTO-BUILD.
 
 
@@ -104,8 +105,8 @@ NOTES
 
 [1] You may be able to make Petit Larceny work on other platforms
 (e.g. Linux/PowerPC or Solaris/IA32 with the C backend) but we do
-not yet offer support for those systems.
+not support those systems.
 
-[2] http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/user-manual.html
+[2] http://larceny.ccs.neu.edu/doc/CommonLarceny/user-manual.html
 
-[3] See doc/UserManual or http://larceny.ccs.neu.edu/doc/
+[3] http://larceny.ccs.neu.edu/doc/

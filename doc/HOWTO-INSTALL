@@ -37,7 +37,7 @@ On Linux machines, the 32-bit libraries can be installed by
     sudo apt-get install libc6-i386
 
 (The second of those should be unnecessary because libc6-i386
-should be installed automatically whe lib32z1 is installed.)
+should be installed automatically when lib32z1 is installed.)
 To build Larceny from source, you would also need to install
 libc6-dev-i386.
 
