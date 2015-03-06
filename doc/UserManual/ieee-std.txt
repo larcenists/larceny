@@ -25,11 +25,11 @@ http://www.schemers.org/Documents/Standards/R5RS/[in various formats].
 Michael Sperber, R Kent Dybvig, Matthew Flatt, and Anton van Straaten
 [editors].
 http://www.r6rs.org/[Revised^6 Report
-on the Algorithmic Language Scheme].
+on the Algorithmic Language Scheme], 2007.
 
 Alex Shinn, John Cowan, and Arthur A Gleckler [editors].
-http://www.scheme-reports.org/[Revised^6 Report
-on the Algorithmic Language Scheme].
+http://www.scheme-reports.org/[Revised^7 Report
+on the Algorithmic Language Scheme], 2013.
 
 
 Other relevant standards
@@ -39,8 +39,10 @@ IEEE Standard 754-1985,
 "IEEE Standard for Binary Floating-Point Arithmetic",
 IEEE, 1985.
 
-Revision of
-http://en.wikipedia.org/wiki/IEEE_754r[revision of IEEE Std 754-1985]
+IEEE Standard 754-2008,
+"IEEE Standard for Floating-Point Arithmetic",
+IEEE, 2008.
+(http://en.wikipedia.org/wiki/IEEE_754r[Revision of IEEE Std 754-1985]
 began in 2000.
 The IEEE Microprocessor Standards Committee (MSC)
 accepted a candidate draft on 9 October 2006.
@@ -58,7 +60,7 @@ Committee decided in May 2008 that
 http://www.validlab.com/754R/[maximum possible timely
 consensus has been obtained], and the consensus draft was
 submitted to IEEE-SA RevCom.
-IEEE-754-2008 was approved on 12 June 2008.
+IEEE-754-2008 was approved on 12 June 2008.)
 
 The Unicode Consortium.
 http://www.unicode.org/[The Unicode Standard].

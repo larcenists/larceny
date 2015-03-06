@@ -44,13 +44,12 @@ For license information, see the copyright files at the top
 of each file.
 
 This reference implementation is written in R6RS Scheme and
-has been tested in Larceny v0.97.
+has been tested in Larceny v0.98 and Petite Chez 8.4.
 
 Two of the three test programs, unicode-tests.sch and
 check-normalization.scm, are easily modified to test the
 standard (rnrs unicode) library instead of the reference
-implementation's (local unicode) library; so modified,
-those two test programs have been run in Larceny v0.97.
+implementation's (local unicode) library.
 
                                 * * *
 

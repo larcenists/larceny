@@ -111,6 +111,7 @@ setup ()
   CHICKEN_CSC=${CHICKEN_CSC:-"csc"}
   FOMENT=${FOMENT:-"foment"}
   GAUCHE=${GAUCHE:-"gosh"}
+  HUSKI=${HUSKI:-"huski"}
   KAWA=${KAWA:-"kawa"}
   PICRIN=${PICRIN:-"picrin"}
   MOSH=${MOSH:-"mosh"}
@@ -133,6 +134,7 @@ Usage: bench [-r runs] <system> <benchmark>
   chicken          for Chicken
   foment           for Foment
   gauche           for Gauche
+  husk             for Husk
   kawa             for Kawa
   larceny          for Larceny
   mosh             for Mosh
@@ -219,6 +221,11 @@ larceny_exec ()
 
 petit_comp ()
 {
+  rm "`dirname "$1"`"/*.slfasl
+  rm "`dirname "$1"`"/*.slfasl.c
+  rm "`dirname "$1"`"/*.slfasl.o
+  rm "`dirname "$1"`"/*.slfasl.so
+  rm "`dirname "$1"`"/*.slfasl.*.so
   echo "(import (larceny compiler)) (compile-file \"$1\")" \
   | time "${PETIT}" -err5rs -- -e "(repl-prompt values)"
 }
@@ -290,6 +297,27 @@ gauche_comp ()
 gauche_exec ()
 {
   time "${GAUCHE}" -r7 -b "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Kawa
+
+# I could not get huskc to work:
+#
+# % ./huskc /tmp/larcenous/fib.scm
+#
+# /tmp/larcenous/fib.hs:14:8:
+#     Could not find module `Language.Scheme.Variables'
+#     Use -v to see a list of the files searched for.
+
+husk_comp ()
+{
+  :
+}
+
+husk_exec ()
+{
+  time "${HUSKI}" "$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -389,7 +417,7 @@ for system in $systems ; do
 	    EXECCOMMANDS=""
             ;;
 
-     petit) NAME='PetitLarceny'
+     petit) NAME='Petit'
             COMP=petit_comp
             EXEC=petit_exec
             COMPOPTS=""
@@ -442,6 +470,16 @@ for system in $systems ; do
     gauche) NAME='Gauche'
             COMP=gauche_comp
             EXEC=gauche_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+      husk) NAME='Husk'
+            COMP=husk_comp
+            EXEC=husk_exec
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
