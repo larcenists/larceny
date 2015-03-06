@@ -1,0 +1,61 @@
+This directory contains a reference implementation for
+the (rnrs unicode) library of R6RS.
+
+This reference implementation consists of the following files:
+
+    README              what you're reading
+
+    local               directory containing:
+        unicode.sls           (local unicode), equivalent to (rnrs unicode)
+        unicode0.sls          general utility procedures
+        unicode1.sls          character procedures
+        unicode2.sls          word-breaking algorithm defined by UAX #29
+        unicode3.sls          string casing and comparison procedures
+        unicode4.sls          the four normalization procedures
+
+    unicode-tests.sch         basic tests
+    check-wordbreaking.scm    tests of word boundaries (unicode2.sls)
+    check-normalization.scm   tests of normalization (unicode4.sls)
+
+    parseUCD.sch        almost-R5RS code to generate the tables
+                            in unicode*.sls
+    strategy.sch        definition of decision-strategy, which was used
+                            to write several hand-coded unary predicates
+
+This version of the reference implementation should be
+compatible with Unicode revision 7.0.0.  It passes all
+normalization and word-breaking tests for Unicode 7.0.0.
+
+To change the reference implementation to support a more
+recent version of Unicode, you will have to regenerate the
+tables using parseUCD.sch.
+
+To reduce the number of tables and to increase the speed
+of certain operations, many numeric constants of revision
+7.0.0 are hard-wired into the code; to find all such places
+(except for ASCII characters, whose properties should never
+change), search the unicode*.sls files for "FIXME" comments.
+Most of the hard-wired constants were generated from Unicode
+data files by the decision-strategy procedure defined in
+strategy.sch, but some constants were obtained by inspecting
+Unicode data files.  See the FIXME comments.
+
+For license information, see the copyright files at the top
+of each file.
+
+This reference implementation is written in R6RS Scheme and
+has been tested in Larceny v0.98 and Petite Chez 8.4.
+
+Two of the three test programs, unicode-tests.sch and
+check-normalization.scm, are easily modified to test the
+standard (rnrs unicode) library instead of the reference
+implementation's (local unicode) library.
+
+                                * * *
+
+Enjoy!
+
+William D Clinger
+29 May 2007
+revised 5 August 2008
+revised 3 March 2015

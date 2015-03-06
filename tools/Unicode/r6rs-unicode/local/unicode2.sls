@@ -1,5 +1,3 @@
-($$trace "unicode2")
-
 ; Copyright 2006 William D Clinger.
 ;
 ; Permission to copy this software, in whole or in part, to use this
@@ -24,17 +22,17 @@
 ; This file does not rely on any lexical syntax for
 ; non-Ascii characters and strings.
 
-;(library (local unicode2)
-;  (export
-;
-;    string-next-word-break
-;    string-previous-word-break)
-;
-;  (import (rnrs base)
-;          (rnrs bytevectors)
-;          (rnrs lists)
-;          (local unicode0)
-;          (local unicode1))
+(library (local unicode2)
+  (export
+
+    string-next-word-break
+    string-previous-word-break)
+
+  (import (rnrs base)
+          (rnrs bytevectors)
+          (rnrs lists)
+          (local unicode0)
+          (local unicode1))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -575,4 +573,4 @@
 (define (char-regionalindicator? c)
   (<= #x1f1e6 (char->integer c) #x1f1ff))
 
-;)
+)

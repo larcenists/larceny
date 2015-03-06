@@ -355,9 +355,13 @@
          -1)
    (test "Ticket #526"                  ; Bug in Larceny 0.96
                                         ; contributed by Abdulaziz Ghuloum
+                                        ;
+                                        ; In Unicode 7.0.0, #\x180e does not
+                                        ; have the "White_Space" property.
          (let ((s0 (string
                     #\"
-                    #\a #\\ #\tab #\xa0 #\newline #\x1680 #\x180e #\x2000
+                    #\a #\\ #\tab #\xa0 #\newline #\x1680 ; #\x180e
+                                                            #\x2000
                     #\b #\\ #\x2001 #\x2002 #\x2003 #\x2004 #\x2005 #\return
                     #\c #\\ #\x2006 #\x2006 #\x2006 #\return #\linefeed #\x2007
                     #\d #\\ #\x2008 #\x2009 #\x200a #\x85 #\x202f #\x205f

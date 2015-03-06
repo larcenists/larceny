@@ -102,7 +102,7 @@
            ;; Larceny can always represent every Unicode character,
            ;; but Unicode strings are a different story.
            (eq? (larceny:get-feature 'char-representation) 'unicode))
-          ((full-unicode-strings unicode-5)
+          ((full-unicode-strings unicode-7)
            ;; Larceny can always represent every Unicode character,
            ;; but Unicode strings are a different story.
            (eq? (larceny:get-feature 'string-representation) 'flat4))

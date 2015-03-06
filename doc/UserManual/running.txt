@@ -185,7 +185,7 @@ surprised if it takes a few seconds.
     > (features)
     (r7rs r6rs larceny larceny-0.98
      exact-closed ratios exact-complex complex ieee-float
-     full-unicode full-unicode-strings unicode-5
+     full-unicode full-unicode-strings unicode-7
      posix unix gnu-linux i386 ilp32 little-endian
      ...
      (rnrs arithmetic bitwise (6))
@@ -210,8 +210,8 @@ surprised if it takes a few seconds.
      (scheme repl)
      (scheme time)
      (scheme write)
-     (srfi :1)
-     (srfi :1 lists)
+     (srfi 1)
+     (srfi 1 lists)
      ...)
 ----------------------------------------------------------------
 
@@ -234,8 +234,8 @@ can be autoloaded.
 To enable autoloading of other R7RS/R6RS libraries,
 including libraries you've written yourself, you can:
 
-- use the <<R7RSLibraryPathSection,`-path` command-line option>>
-- use the <<R7RSLibraryVariableSection,`LARCENY_LIBPATH`>> environment variable
+- use the <<R7rsLibraryPathSection,`-path` command-line option>>
+- use the <<R7rsLibraryVariableSection,`LARCENY_LIBPATH`>> environment variable
 - use <<current-require-path,`current-require-path`>>
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
@@ -375,7 +375,7 @@ facilities:
     (rnrs records inspection (6))          ; R6RS library section 6.4
     (rnrs records syntactic (6))           ; R6RS library section 6.2
 
-SRFI libraries (which follow the SRFI 97 naming convention):
+SRFI libraries:
 
     (srfi 1 lists)                         ; list library
     (srfi 2 and-let*)                      ; extended `and` and `let*`
@@ -385,7 +385,7 @@ SRFI libraries (which follow the SRFI 97 naming convention):
     (srfi 9 records)                       ; defining record types
     (srfi 11 let-values)                   ; syntax for multiple values
     (srfi 13 strings)                      ; string libraries
-    (srfi 14 char-sets)                    ; character-set library
+    (srfi 14 char-sets)                    ; character-set library (default)
     (srfi 14 unicode)                      ;   for all Unicode characters
     (srfi 14 bmp)                          ;   for the Basic Multilingual Plane
     (srfi 14 latin-1)                      ;   for ISO 8859-1 (Latin-1)
@@ -433,8 +433,8 @@ For backward compatibility,
 `(srfi 1 lists)` through `(srfi 101 random-access-lists)` are also
 available with the SRFI 97 naming convention in which the number is
 preceded by a colon, as in `(srfi :1 lists)`.
-With the more liberal R7RS syntax, the SRFI 97 naming convention is
-now unnecessary.
+With the more liberal R7RS syntax, that SRFI 97 naming convention
+is now unnecessary.
 Larceny has extended the R6RS `library` syntax to allow R6RS libraries
 to import R7RS libraries that follow the R7RS naming convention shown
 in the list above.
@@ -474,9 +474,10 @@ Other autoloadable libraries:
 
 
 [[ERR5RSLibraryPathSection]]
-[[R6RSLibraryPathSection]]
+[[R6rsLibraryPathSection]]
 [[R6rsLibraryVariableSection]]
 [[R7rsLibraryPathSection]]
+[[R7rsLibraryVariableSection]]
 
 ==== Library path
 
@@ -494,7 +495,7 @@ The
 is initialized by the `startup.sch` file in Larceny's root
 directory.
 
-<<R6RSLibraryPathSection, Larceny's `-path` command-line option>>
+<<R6rsLibraryPathSection, Larceny's `-path` command-line option>>
 adds one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
 On most systems, you can specify multiple directories

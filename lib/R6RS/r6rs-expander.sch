@@ -946,6 +946,10 @@
       (match exp
         ((- (? identifier? id) e)
          (let ((binding (binding id)))
+           (if (not binding)
+               (syntax-violation
+                'set!
+                "Assignment to undefined variable" exp id))
            (check-binding-level id binding)
            (register-use! id binding)
            (case (binding-type binding)

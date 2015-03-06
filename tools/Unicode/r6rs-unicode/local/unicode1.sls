@@ -1,5 +1,3 @@
-($$trace "unicode1")
-
 ; Copyright 2006 William D Clinger.
 ;
 ; Permission to copy this software, in whole or in part, to use this
@@ -23,33 +21,33 @@
 ; This file does not rely on any lexical syntax for
 ; non-Ascii characters and strings.
 
-;(library (local unicode1)
-;  (export
-;
-;    char-upcase
-;    char-downcase
-;    char-titlecase
-;    char-foldcase
-;
-;    char-ci=?
-;    char-ci<?
-;    char-ci>?
-;    char-ci<=?
-;    char-ci>=?
-;
-;    char-general-category
-;    char-alphabetic?
-;    char-numeric?
-;    char-whitespace?
-;    char-upper-case?
-;    char-lower-case?
-;    char-title-case?)
-;
-;  (import (rnrs base)
-;          (rnrs control)
-;          (rnrs bytevectors)
-;          (rnrs lists)
-;          (local unicode0))
+(library (local unicode1)
+  (export
+
+    char-upcase
+    char-downcase
+    char-titlecase
+    char-foldcase
+
+    char-ci=?
+    char-ci<?
+    char-ci>?
+    char-ci<=?
+    char-ci>=?
+
+    char-general-category
+    char-alphabetic?
+    char-numeric?
+    char-whitespace?
+    char-upper-case?
+    char-lower-case?
+    char-title-case?)
+
+  (import (rnrs base)
+          (rnrs control)
+          (rnrs bytevectors)
+          (rnrs lists)
+          (local unicode0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1248,9 +1246,7 @@
 ; This table contains 2056 elements.
 
 (define simple-upcase-chars-16bit
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         #x0 #x61 #x0 #x62 #x0 #x63 #x0 #x64 
         #x0 #x65 #x0 #x66 #x0 #x67 #x0 #x68 
         #x0 #x69 #x0 #x6a #x0 #x6b #x0 #x6c 
@@ -1508,7 +1504,6 @@
         #xff #x4f #xff #x50 #xff #x51 #xff #x52 
         #xff #x53 #xff #x54 #xff #x55 #xff #x56 
         #xff #x57 #xff #x58 #xff #x59 #xff #x5a ))
-)
 
 ; This vector contains all other code points,
 ; in increasing order, that have a simple
@@ -1535,9 +1530,7 @@
 ; This table contains 2040 elements.
 
 (define simple-downcase-chars-16bit
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         #x0 #x41 #x0 #x42 #x0 #x43 #x0 #x44 
         #x0 #x45 #x0 #x46 #x0 #x47 #x0 #x48 
         #x0 #x49 #x0 #x4a #x0 #x4b #x0 #x4c 
@@ -1793,7 +1786,6 @@
         #xff #x2f #xff #x30 #xff #x31 #xff #x32 
         #xff #x33 #xff #x34 #xff #x35 #xff #x36 
         #xff #x37 #xff #x38 #xff #x39 #xff #x3a ))
-)
 
 ; This vector contains all other code points,
 ; in increasing order, that have a simple
@@ -1821,9 +1813,7 @@
 ; This table contains 1100 elements.
 
 (define simple-upcase-adjustments
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
@@ -1962,7 +1952,6 @@
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 ))
-)
 
 ; The bytes of this bytevector are indexes into
 ; the simple-case-adjustments vector, and correspond
@@ -1972,9 +1961,7 @@
 ; This table contains 1092 elements.
 
 (define simple-downcase-adjustments
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
@@ -2112,7 +2099,6 @@
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 #x25 #x25 #x25 #x25 
         #x25 #x25 #x25 #x25 ))
-)
 
 ; The scalar values in this vector fold to the
 ; scalar values in the simple-foldcase-mappings
@@ -2183,4 +2169,4 @@
         #x118D1 #x118D2 #x118D3 #x118D4 #x118D5 #x118D6 #x118D7 #x118D8 
         #x118D9 #x118DA #x118DB #x118DC #x118DD #x118DE #x118DF ))
 
-;)
+)

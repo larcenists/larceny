@@ -77,7 +77,9 @@
 
   ;; Systematic testing on every Unicode character.
   ;; The counts are believed to be correct for Unicode 5.0,
-  ;; and should increase monotonically (if at all) in later versions.
+  ;; except for char-whitespace? (which has dropped to 25 in Unicode 7.0).
+  ;; The counts are likely to increase monotonically (if at all) in later
+  ;; versions, but that's not a given.
 
   (test (length (filter-all-chars (lambda (c)
                                     (and (char? c)
@@ -95,7 +97,7 @@
   (test (<= 282 (length (filter-all-chars char-numeric?)))
         #t)
 
-  (test (<= 26 (length (filter-all-chars char-whitespace?)))
+  (test (<= 25 (length (filter-all-chars char-whitespace?)))
         #t)
 
   (test (<= 1362 (length (filter-all-chars char-upper-case?)))

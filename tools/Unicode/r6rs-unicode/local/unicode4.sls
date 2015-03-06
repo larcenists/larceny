@@ -1,5 +1,3 @@
-($$trace "unicode4")
-
 ; Copyright (c) 2006 Michael Sperber
 ; All rights reserved.
 ; 
@@ -67,22 +65,22 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;(library (local unicode4)
-;
-;  (export
-;
-;    string-normalize-nfd
-;    string-normalize-nfkd
-;    string-normalize-nfc
-;    string-normalize-nfkc)
-;
-;  (import (rnrs base)
-;          (rnrs bytevectors)
-;          (rnrs mutable-strings)
-;          (local unicode0)
-;          (local unicode1)
-;          (local unicode2)
-;          (local unicode3))
+(library (local unicode4)
+
+  (export
+
+    string-normalize-nfd
+    string-normalize-nfkd
+    string-normalize-nfc
+    string-normalize-nfkc)
+
+  (import (rnrs base)
+          (rnrs bytevectors)
+          (rnrs mutable-strings)
+          (local unicode0)
+          (local unicode1)
+          (local unicode2)
+          (local unicode3))
 
 ; Normalization Form D (NFD): Canonical Decomposition
 
@@ -607,9 +605,7 @@
 ; This table contains 745 elements.
 
 (define combining-class-values
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         230 230 230 230 230 230 230 230 
         230 230 230 230 230 230 230 230 
         230 230 230 230 230 232 220 220 
@@ -704,7 +700,6 @@
         230 220 220 230 230 230 230 230 
         230 230 220 220 220 220 220 220 
         220 ))
-)
 
 ; This bytevector uses two bytes per code point
 ; to list 16-bit code points, in increasing order,
@@ -713,9 +708,7 @@
 ; This table contains 7766 elements.
 
 (define decomposition-chars-16bit
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         #x0 #xa0 #x0 #xa8 #x0 #xaa #x0 #xaf 
         #x0 #xb2 #x0 #xb3 #x0 #xb4 #x0 #xb5 
         #x0 #xb8 #x0 #xb9 #x0 #xba #x0 #xbc 
@@ -1687,7 +1680,6 @@
         #xff #xe3 #xff #xe4 #xff #xe5 #xff #xe6 
         #xff #xe8 #xff #xe9 #xff #xea #xff #xeb 
         #xff #xec #xff #xed #xff #xee ))
-)
 
 ; This vector contains all other code points,
 ; in increasing order, that have a canonical
@@ -1939,9 +1931,7 @@
 ; This table contains 11444 elements.
 
 (define decomposition-indexes
-  ;'#vu8(
-  (list->bytevector
-   '(
+  '#vu8(
         #x80 #x0 #x80 #x1 #x80 #x3 #x80 #x4 
         #x80 #x6 #x80 #x7 #x80 #x8 #x80 #xa 
         #x80 #xb #x80 #xd #x80 #xe #x80 #xf 
@@ -3373,7 +3363,6 @@
         #x21 #x43 #x21 #x44 #x21 #x45 #x21 #x46 
         #x21 #x47 #x21 #x48 #x21 #x49 #x21 #x4a 
         #x21 #x4b #x21 #x4c))
-)
 
 ; This vector contains sequences of code points
 ; for canonical and compatibility decompositions.
@@ -5155,4 +5144,4 @@
         #x115ba #x115bb ))
 ))
 
-;)
+)
