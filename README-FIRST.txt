@@ -27,14 +27,14 @@ you may need to install some 32-bit libraries or (on Windows) allow
 Larceny to opt out of DEP.  See doc/HOWTO-INSTALL.
 
 Petit Larceny (Linux, Mac OS X): ensure that the GNU C Compiler (gcc)
-    is in your execution path.  (If you are building from source, see
-    doc/HOWTO-BUILD.)
+is in your execution path.  (If you are building from source, see
+doc/HOWTO-BUILD.)
 
     Mac OS X: Use Apple's Developer Tools, http://developer.apple.com/
 
-    After gcc is in your execution path, you should install
-    the R7RS runtime and standard libraries by performing
-    step 4 of the process described in doc/HOWTO-BUILD.
+    Petit Larceny only:  After gcc is in your execution path,
+    you should install the R7RS runtime and standard libraries
+    by performing step 4 of the process described in doc/HOWTO-BUILD.
 
 
 QUICK START
@@ -51,12 +51,12 @@ Win32:
 EXECUTION MODES
 
     R5RS              traditional read/eval/print loop (the default)
-    ERR5RS            see doc/HOWTO-ERR5RS
     R6RS              see doc/HOWTO-R6RS
+    R7RS              see doc/HOWTO-R7RS
     Scheme script     see doc/HOWTO-SCRIPT
 
 The precompiled distributions of native Larceny should work
-out of the box in all four modes, but the ERR5RS, R6RS, and
+out of the box in all four modes, but the R6RS, R7RS, and
 Scheme script modes will not work in Petit Larceny until
 you have performed step 4 of the process described in
 doc/HOWTO-BUILD.
@@ -82,10 +82,9 @@ To precompile files that contain R5RS Scheme code:
  - (load "target.fasl")
      loads the compiled code in "target.fasl"
 
-To precompile ERR5RS/R6RS libraries, top-level programs, and
-Scheme scripts, use the compile-stale Scheme script that is
-in Larceny's root directory.  Please see the Larceny User
-Manual [3] for details.
+To precompile R7RS/R6RS libraries, programs, and Scheme scripts,
+use the compile-stale Scheme script that is in Larceny's root
+directory.  Please see the Larceny User Manual [3] for details.
 
 
 FURTHER READING
