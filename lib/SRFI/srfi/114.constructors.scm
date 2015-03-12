@@ -196,7 +196,7 @@
 (define (make-vectorwise-hash hash length ref)
   (lambda (obj)
     (let loop ((index (- (length obj) 1)) (result 5381))
-      (if (= index 0)
+      (if (<= index 0)
         result
         (let* ((prod (modulo (* result 33) limit))
                (sum (modulo (+ prod (hash (ref obj index))) limit)))
