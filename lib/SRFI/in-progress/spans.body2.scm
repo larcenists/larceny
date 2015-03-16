@@ -185,7 +185,9 @@
              (loop (span-cursor-prev sp1 curs1)
                    (span-cursor-prev sp2 curs2)))
             (else
-             (subspan/cursors sp1 curs1 (span-cursor-end sp1)))))))
+             (subspan/cursors sp1
+                              (span-cursor-next sp1 curs1)
+                              (span-cursor-end sp1)))))))
 
 (define (span-prefix-length sp1 sp2)
   (let ((start1 (span-cursor-start sp1))
@@ -289,7 +291,7 @@
              (loop (span-cursor-next sp curs)))))))
 
 (define (span-find-right pred sp)
-  (let ((last (span-cursor-prev sp (span-cursor-end sp))))
+  (let ((last (span-cursor-prev sp (span-cursor-start sp))))
     (let loop ((curs (span-cursor-prev sp (span-cursor-end sp))))
       (cond ((span-cursor=? sp curs last)
              curs)
@@ -309,7 +311,7 @@
              curs)))))
 
 (define (span-skip-right pred sp)
-  (let ((last (span-cursor-prev sp (span-cursor-end sp))))
+  (let ((last (span-cursor-prev sp (span-cursor-start sp))))
     (let loop ((curs (span-cursor-prev sp (span-cursor-end sp))))
       (cond ((span-cursor=? sp curs last)
              curs)
@@ -354,7 +356,8 @@
       (cond ((span-cursor>=? haystack curs end1)
              #f)
             (else
-             (or (at? curs start2)
+             (if (at? curs start2)
+                 curs
                  (loop (span-cursor-next haystack curs))))))))
 
 ;;; The whole character span or string.
@@ -586,7 +589,11 @@
                                       (span-cursor-start sp)
                                       curs)
                      (span-split-using-word
-                      (subspan/cursors sp curs (span-cursor-end sp))
+                      (subspan/cursors sp
+                                       (span-cursor-forward sp
+                                                            curs
+                                                            (span-length sep))
+                                       (span-cursor-end sp))
                       sep
                       (- limit 1)))
                (list sp))))))

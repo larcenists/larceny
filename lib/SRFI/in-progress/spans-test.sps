@@ -15,9 +15,11 @@
   (newline))
 
 (define (fail token . more)
-  (displayln "Error: test failed: " token)
+  (displayln "Error: test failed: ")
+  (writeln token)
   (if (not (null? more))
       (for-each writeln more))
+  (newline)
   #f)
 
 ;;; FIXME
@@ -650,13 +652,13 @@
                                  integer->char
                                  (lambda (n) (+ n 2))
                                  100))
-      "dfhjlnprtv")
+      "dfhjl")
 
 (test (span->string (span-unfold-right (lambda (n) (>= n 110))
                                        integer->char
                                        (lambda (n) (+ n 2))
                                        100))
-      "vtrpnljhfd")
+      "ljhfd")
 
 ;;; FIXME: deprecated because the order of arguments was a mistake
 
@@ -737,7 +739,7 @@
         ("abc" "")))
 
 (test (span->string (span-replicate (make-whole-span "abcdef") 2 7))
-      "cdefab")
+      "cdefa")
 
 (test (span->string (span-replicate (make-whole-span "abcdef") -2 4))
       "efabcd")
@@ -767,7 +769,7 @@
       "bcdef")
 
 (test (span->string (subspan (string->span "abcdef") 1 4))
-      "bcde")
+      "bcd")
 
 
 (test (let ((sp (string->span "abcdef")))
@@ -798,7 +800,7 @@
         (span->string (subspan/cursors sp
                                        (span-index->cursor sp 1)
                                        (span-index->cursor sp 4))))
-      "bcde")
+      "bcd")
 
 ;;; Padding, trimming, and compressing.
 
@@ -815,10 +817,10 @@
       "")
 
 (test (span->string (span-pad (string->span "abcd") 3))
-      "abc")
+      "bcd")
 
 (test (span->string (span-pad (string->span "abcd") 3 #\a))
-      "abc")
+      "bcd")
 
 (test (span->string (span-pad (string->span "abcd") 4))
       "abcd")
@@ -845,10 +847,10 @@
       "")
 
 (test (span->string (span-pad-right (string->span "abcd") 3))
-      "bcd")
+      "abc")
 
 (test (span->string (span-pad-right (string->span "abcd") 3 #\a))
-      "bcd")
+      "abc")
 
 (test (span->string (span-pad-right (string->span "abcd") 4))
       "abcd")
@@ -979,9 +981,9 @@
              spans))
       '(("" "" "" "" "" "" "")                         ; ""
         ("" "a" "" "" "a" "" "a")                      ; "a"
-        ("" "" "abc" "" "" "c" "a")                    ; "abc"
-        ("" "" "" "abcdef" "" "" "a")                  ; "abcdef"
-        ("" "a" "" "" "abracadabra" "" "a")            ; "abracadabra"
+        ("" "" "abc" "" "" "c" "")                     ; "abc"
+        ("" "" "" "abcdef" "" "" "")                   ; "abcdef"
+        ("" "a" "" "" "abracadabra" "" "bra")          ; "abracadabra"
         ("" "" "c" "" "" "magic" "")                   ; "magic"
         ("" "a" "" "" "bra" "" "algebra")))            ; "algebra"
 
@@ -1009,9 +1011,9 @@
              spans))
       '((0 0 0 0 0 0 0)                                ; ""
         (0 1 0 0 1 0 1)                                ; "a"
-        (0 0 3 0 0 1 1)                                ; "abc"
-        (0 0 0 6 0 0 1)                                ; "abcdef"
-        (0 1 0 0 11 0 1)                               ; "abracadabra"
+        (0 0 3 0 0 1 0)                                ; "abc"
+        (0 0 0 6 0 0 0)                                ; "abcdef"
+        (0 1 0 0 11 0 3)                               ; "abracadabra"
         (0 0 1 0 0 5 0)                                ; "magic"
         (0 1 0 0 3 0 7)))                              ; "algebra"
 
@@ -1072,10 +1074,10 @@
              spans))
       '((-1 0 2 5 10 4 6)                              ; ""
         (-1 -1 2 5 9 4 5)                              ; "a"
-        (-1 0 -1 5 9 3 6)                              ; "abc"
+        (-1 0 -1 5 10 3 6)                             ; "abc"
         (-1 0 2 -1 10 4 6)                             ; "abcdef"
-        (-1 -1 2 5 -1 4 5)                             ; "abracadabra"
-        (-1 -1 1 5 10 -1 6)                            ; "magic"
+        (-1 -1 2 5 -1 4 3)                             ; "abracadabra"
+        (-1 0 1 5 10 -1 6)                             ; "magic"
         (-1 -1 2 5 7 4 -1)))                           ; "algebra"
 
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "magic" "algebra"))
@@ -1122,7 +1124,7 @@
 ;;; using span-cursor->index on a cursor that's before or after the span
 ;;; is an error.
 
-(test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "syzygy" "algebra"))
+(test (let* ((inputs '("" "a" "abc" "bcdef" "abracadabra" "syzygy" "algebra"))
              (spans (map string->span inputs))
              (vowel? (lambda (c) (memv c (string->list "aeiou"))))
              (cursor->index
@@ -1142,7 +1144,7 @@
         (map (lambda (span1)
                (cursor->index span1 (span-find vowel? span1)))
              spans))
-      '(1 0 0 0 0 6 0))
+      '(0 0 0 3 0 6 0))
 
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "syzygy" "algebra"))
              (spans (map string->span inputs))
@@ -1286,7 +1288,7 @@
         ( 0  0  0 #f #f #f #f)     ; "abc"
         ( 0  2 #f  0 #f #f #f)     ; "bra"
         ( 0  3  3 #f  0 #f #f)     ; "defabc"
-        ( 0  0 #f  8 #f  0 #f)     ; "abracadabra"
+        ( 0  0 #f  1 #f  0 #f)     ; "abracadabra"
         ( 0  0 #f  4 #f #f  0)))   ; "algebra"
 
 ;;; The whole character span or string.
@@ -1444,7 +1446,7 @@
       '(#\c #\f (#\b #\e (#\a #\d ()))))
 
 (test (span-fold-right list '(x) (string->span "abc") (string->span "de"))
-      '(#\a #\d (#\b #\e (x))))
+      '(#\b #\d (#\c #\e (x))))
 
 ;;; Parsing and unparsing.
 
@@ -1480,7 +1482,7 @@
            (span-split (string->span " --r7rs--annoy-user--path . ")
                        (string->span "--")
                        2))
-      '(" " "r7rs" "annoy-user"))
+      '(" " "r7rs" "annoy-user--path . "))
 
 (test (span->string
        (span-join '("He" "loved" "Big" "Brother.")))
@@ -1659,15 +1661,15 @@
                 list2))
          list1))
   (test (mm span=? spans spans)
-        (map string=? inputs inputs))
+        (mm string=? inputs inputs))
   (test (mm span<? spans spans)
-        (map string<? inputs inputs))
+        (mm string<? inputs inputs))
   (test (mm span>? spans spans)
-        (map string>? inputs inputs))
+        (mm string>? inputs inputs))
   (test (mm span<=? spans spans)
-        (map string<=? inputs inputs))
+        (mm string<=? inputs inputs))
   (test (mm span>=? spans spans)
-        (map string>=? inputs inputs)))
+        (mm string>=? inputs inputs)))
 
 (let* ((inputs1 '("" "a" "aBc" "abCdef" "abRacadAbra" "magIc" "alGebra"))
        (spans1 (map string->span inputs1))
