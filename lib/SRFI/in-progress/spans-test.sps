@@ -1735,4 +1735,6 @@
                (comparator-hash string-comparator x))
              inputs1)))
 
+(writeln "Done.")
+
 ; eof

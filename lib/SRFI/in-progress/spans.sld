@@ -166,11 +166,18 @@
           (scheme char)
           (srfi 114))
 
-  ;; A sane mod procedure is needed by span-replicate.
+  (cond-expand
+   (larceny
+    (import (larceny records printer)))
+   (else))
+
+  ;; A sane mod procedure is needed by span-replicate,
+  ;; and the R6RS error procedure will be used if available.
 
   (cond-expand
    ((library (rnrs base))
-    (import (only (rnrs base) mod)))
+    (import (only (rnrs base) mod)
+            (rename (only (rnrs base) error) (error %error))))
    (else
     (begin
      (define (mod x y)
@@ -191,7 +198,14 @@
                      (r (- x (* q y))))
                 (if (= r 0)
                     0
-                    (+ r y)))))))))
+                    (+ r y))))))
+     (define (%error who msg . irritants)
+       (cond ((symbol? who)
+              (apply %error (symbol->string who) msg irritants))
+             ((string? who)
+              (apply error (string-append who ": " msg) irritants))
+             (else
+              (apply error msg irritants)))))))
 
   ;; The representation-dependent part of the implementation.
 
