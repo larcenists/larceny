@@ -6,6 +6,8 @@
 ;;; This implementation is suitable for systems in which
 ;;; string-ref runs in constant time.
 
+(define (%debugging) #f)
+
 ;;; A :span represents the characters in (substring s i j).
 
 (define-record-type :span
@@ -36,8 +38,50 @@
 
 ;;; Returns an empty span.
 
-(define (%span:empty)
+(define (%span:empty) %the-empty-span)
+
+(define %the-empty-span
   (%make-raw-span "" 0 0))
+
+;;; The main advantage of this representation is that subspans
+;;; can share the same base string, which can make the subspan
+;;; operation faster and more space-efficient.  On the other
+;;; hand, just one tiny subspan can retain the storage of an
+;;; enormous base string.  To eliminate that possibility, this
+;;; implementation of the subspan operation creates a new base
+;;; string whenever:
+;;;
+;;;     the length of the subspan is less than a threshold
+;;;     the length of the subspan is less than a certain fraction
+;;;         of the length of the base string
+
+(define %subspan:absolute-threshold 20)
+(define %subspan:threshold-multiplier 10)
+
+(define (%subspan sp start end)
+  (%check-span sp 'subspan)
+  (let ((s (%span:string sp))
+        (i (%span:start sp))
+        (j (%span:end sp)))
+    (if (and (exact-integer? start)
+             (exact-integer? end)
+             (<= 0 start end (- j i)))
+        (cond ((and (= start 0)
+                    (= end (- j i)))
+               sp)
+              ((or (< (- end start) %subspan:absolute-threshold 20)
+                   (< (* (- end start) %subspan:threshold-multiplier)
+                      (string-length s)))
+               (%make-raw-span (substring s (+ i start) (+ i end))
+                               0
+                               (- end start)))
+              (else
+               (%make-raw-span s (+ i start) (+ i end))))
+        (%error 'span-ref
+                "index out of range"
+                sp
+                start
+                end))))
 
 ;;; Nothing in the specification of span cursors precludes their
 ;;; representation as exact integers.  To provide a small degree
@@ -56,7 +100,14 @@
 ;;; representation-independent part of the implementation.
 
 (define (%string->span str)
-  (%make-raw-span str 0 (string-length str)))
+  (cond ((string=? str "")
+         (%span:empty))
+        ((%debugging)
+         (%make-raw-span (string-append "***" str "&&&&&")
+                         3
+                         (+ 3 (string-length str))))
+        (else
+         (%make-raw-span str 0 (string-length str)))))
 
 (define (%span->string sp)
   (%check-span sp '%span->string)
@@ -88,14 +139,6 @@
 (define (span-cursor-end sp)
   (+ (string-length (%span->string sp)) *cursor-offset*))
 
-(define (string-cursor-ref str curs)
-  (string-ref str (string-cursor->index str curs)))
-
-;;; FIXME
-
-(define (span-cursor-ref sp curs)
-  (string-ref (%span->string sp) (span-cursor->index sp curs)))
-
 (define (string-cursor-next str curs)
   (min (string-cursor-end str) (+ curs 1)))
 
@@ -119,52 +162,6 @@
 
 (define (span-cursor-backward sp curs n)
   (max (+ -1 *cursor-offset*) (- curs n)))
-
-(define (string-cursor-forward-until str curs pred)
-  (let ((n (string-length str)))
-    (let loop ((i (string-cursor->index str curs)))
-      (cond ((>= i n)
-             (string-cursor-end str))
-            ((and (<= 0 i)
-                  (pred (string-ref str i)))
-             (string-index->cursor str i))
-            (else
-             (loop (+ i 1)))))))
-
-(define (span-cursor-forward-until sp curs pred)
-  (let* ((str (%span->string sp))
-         (n (string-length str)))
-    (let loop ((i (span-cursor->index sp curs)))
-      (cond ((>= i n)
-             (span-cursor-end sp))
-            ((and (<= 0 i)
-                  (pred (string-ref str i)))
-             (span-index->cursor sp i))
-            (else
-             (loop (+ i 1)))))))
-
-(define (string-cursor-backward-until str curs pred)
-  (let ((n (string-length str)))
-    (let loop ((i (string-cursor->index str curs)))
-      (cond ((< i 0)
-             (string-cursor-prev (string-cursor-start str)))
-            ((and (< i n)
-                  (pred (string-ref str i)))
-             (string-index->cursor str i))
-            (else
-             (loop (- i 1)))))))
-
-(define (span-cursor-backward-until sp curs pred)
-  (let* ((str (%span->string sp))
-         (n (string-length str)))
-    (let loop ((i (span-cursor->index str curs)))
-      (cond ((< i 0)
-             (span-cursor-prev (span-cursor-start sp)))
-            ((and (< i n)
-                  (pred (string-ref str i)))
-             (span-index->cursor sp i))
-            (else
-             (loop (- i 1)))))))
 
 (define (string-cursor=? str curs1 curs2)
   (= curs1 curs2))
@@ -214,6 +211,66 @@
 (define (span-cursor-difference sp curs1 curs2)
   (- curs1 curs2))
 
+;;;
+
+(define (string-cursor-ref str curs)
+  (string-ref str (string-cursor->index str curs)))
+
+(define (span-cursor-ref sp curs)
+  (span-ref sp (span-cursor->index sp curs)))
+
+(define (string-cursor-forward-until str curs pred)
+  (let ((n (string-length str)))
+    (let loop ((i (string-cursor->index str curs)))
+      (cond ((>= i n)
+             (string-cursor-end str))
+            ((and (<= 0 i)
+                  (pred (string-ref str i)))
+             (string-index->cursor str i))
+            (else
+             (loop (+ i 1)))))))
+
+(define (span-cursor-forward-until sp curs pred)
+  (%check-span sp 'span-cursor-forward-until)
+  (let* ((s  (%span:string sp))
+         (i0 (%span:start sp))
+         (j0 (%span:end sp))
+         (n  (- j0 i0)))
+    (let loop ((i (span-cursor->index sp curs)))
+      (cond ((>= i n)
+             (span-cursor-end sp))
+            ((and (<= 0 i)
+                  (pred (string-ref s (+ i i0))))
+             (span-index->cursor sp i))
+            (else
+             (loop (+ i 1)))))))
+
+(define (string-cursor-backward-until str curs pred)
+  (let ((n (string-length str)))
+    (let loop ((i (string-cursor->index str curs)))
+      (cond ((< i 0)
+             (string-cursor-prev str (string-cursor-start str)))
+            ((and (< i n)
+                  (pred (string-ref str i)))
+             (string-index->cursor str i))
+            (else
+             (loop (- i 1)))))))
+
+(define (span-cursor-backward-until sp curs pred)
+  (%check-span sp 'span-cursor-forward-until)
+  (let* ((s  (%span:string sp))
+         (i0 (%span:start sp))
+         (j0 (%span:end sp))
+         (n  (- j0 i0)))
+    (let loop ((i (span-cursor->index sp curs)))
+      (cond ((< i 0)
+             (span-cursor-prev sp (span-cursor-start sp)))
+            ((and (< i n)
+                  (pred (string-ref s (+ i i0))))
+             (span-index->cursor sp i))
+            (else
+             (loop (- i 1)))))))
+
 ;;; Span constructors.
 
 (define (make-whole-span str)
@@ -240,29 +297,14 @@
     (if (and (exact-integer? k)
              (<= 0 k)
              (< k (- j i)))
-        (string-ref s (- k i))
+        (string-ref s (+ k i))
         (%error 'span-ref
                 "index out of range"
                 sp
                 k))))
 
 (define (subspan sp start end)
-  (%check-span sp 'subspan)
-  (let ((s (%span:string sp))
-        (i (%span:start sp))
-        (j (%span:end sp)))
-    (if (and (exact-integer? start)
-             (exact-integer? end)
-             (<= 0 start end (- j i)))
-        (if (and (= start 0)
-                 (= end (- j i)))
-            sp
-            (%make-raw-span s (+ i start) (+ i end)))
-        (%error 'span-ref
-                "index out of range"
-                sp
-                start
-                end))))
+  (%subspan sp start end))
 
 (define (subspan/cursors sp start end)
   (subspan sp
