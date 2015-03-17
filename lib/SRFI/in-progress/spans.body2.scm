@@ -335,13 +335,34 @@
 
 ;;; Naive string search.
 
+;;; Benchmarking says naive search is fastest for small needles
+;;; and for haystacks that aren't much larger than the needle.
+;;; Rabin-Karp is usually within a factor of 2 of naive search,
+;;; and is usually faster than naive search on a worst case for
+;;; naive search when the needle is of length 5 or longer.
+;;; Boyer-Moore-Horspool often becomes competitive for haystacks
+;;; at least 20 times as long as the needle, provided the needle
+;;; has length 20 or more.
+;;; The full Boyer-Moore algorithm as implemented here rarely
+;;; outperforms Rabin-Karp and often performs much worse.
+
+;;; Naive search is fastest
+
 (define (span-contains haystack needle)
   (%check-span haystack 'span-contains)
   (%check-span needle 'span-contains)
-  (if (span-null? needle)
-      #f
-;     (%span-contains:naive haystack needle)))
-      (%span-contains:boyer-moore haystack needle)))
+  (let ((n0 (%span-length:estimated haystack))
+        (n1 (%span-length:estimated needle)))
+    (cond ((span-null? needle)
+           #f)
+          ((and (>= n1 20)
+                (>= n0 (* 20 n1)))
+           (%span-contains:boyer-moore haystack needle))
+          ((and (> n1 4)
+                (> n0 (* 2 n1)))
+           (%span-contains:rabin-karp haystack needle))
+          (else
+           (%span-contains:naive haystack needle)))))
 
 ;;; The whole character span or string.
 

@@ -15,6 +15,16 @@
 (define *span-tag*
   (integer->char 23))   ; ^W, End of Transmission Block
 
+;;; Runs in constant time, returning a lower bound for the true length.
+
+(define (%span-length:estimated span)
+  (- (string-length span) 1))
+
+;;; Returns an empty span.
+
+(define (%span:empty)
+  (%string->span ""))
+
 ;;; Nothing in the specification of span cursors precludes their
 ;;; representation as exact integers.  To provide a small degree
 ;;; of sanity checking, this implementation adds a fixed offset
@@ -282,6 +292,9 @@
                  (loop (span-cursor-next haystack curs))))))))
 
 ;;; FIXME: not implemented for this representation
+
+(define (%span-contains:rabin-karp haystack needle)
+  (%span-contains:naive haystack needle))
 
 (define (%span-contains:boyer-moore haystack needle)
   (%span-contains:naive haystack needle))
