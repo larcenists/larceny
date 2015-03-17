@@ -43,9 +43,6 @@
 
 ;;; Predicates.
 
-(define (span-null? sp)
-  (= 0 (span-length sp)))
-
 (define (span-every pred sp)
   (let ((start (span-cursor-start sp))
         (end (span-cursor-end sp)))
@@ -336,29 +333,15 @@
     (values (subspan/cursors sp (span-cursor-start sp) curs)
             (subspan/cursors sp curs (span-cursor-end sp)))))
 
-;;; FIXME: should use a more efficient algorithm for long searches.
+;;; Naive string search.
 
 (define (span-contains haystack needle)
-  (let ((start2 (span-cursor-start needle))
-        (end1 (span-cursor-end haystack))
-        (end2 (span-cursor-end needle)))
-    (define (at? curs1 curs2)
-      (cond ((span-cursor=? needle curs2 end2)
-             curs1)
-            ((and (span-cursor<? haystack curs1 end1)
-                  (char=? (span-cursor-ref haystack curs1)
-                          (span-cursor-ref needle curs2)))
-             (at? (span-cursor-next haystack curs1)
-                  (span-cursor-next needle curs2)))
-            (else
-             #f)))
-    (let loop ((curs (span-cursor-start haystack)))
-      (cond ((span-cursor>=? haystack curs end1)
-             #f)
-            (else
-             (if (at? curs start2)
-                 curs
-                 (loop (span-cursor-next haystack curs))))))))
+  (%check-span haystack 'span-contains)
+  (%check-span needle 'span-contains)
+  (if (span-null? needle)
+      #f
+;     (%span-contains:naive haystack needle)))
+      (%span-contains:boyer-moore haystack needle)))
 
 ;;; The whole character span or string.
 

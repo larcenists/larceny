@@ -209,6 +209,9 @@
 (define (span? x)
   (%span? x))
 
+(define (span-null? sp)
+  (= 0 (span-length sp)))
+
 ;;; Selection.
 
 (define (span-ref sp k)
@@ -251,6 +254,37 @@
              (loop (cdr chars)))
             (else
              (list->span (reverse chars)))))))
+
+;;; Searching.
+
+;;; Precondition: needle is non-empty.
+
+(define (%span-contains:naive haystack needle)
+  (let ((start2 (span-cursor-start needle))
+        (end1 (span-cursor-end haystack))
+        (end2 (span-cursor-end needle)))
+    (define (at? curs1 curs2)
+      (cond ((span-cursor=? needle curs2 end2)
+             curs1)
+            ((and (span-cursor<? haystack curs1 end1)
+                  (char=? (span-cursor-ref haystack curs1)
+                          (span-cursor-ref needle curs2)))
+             (at? (span-cursor-next haystack curs1)
+                  (span-cursor-next needle curs2)))
+            (else
+             #f)))
+    (let loop ((curs (span-cursor-start haystack)))
+      (cond ((span-cursor>=? haystack curs end1)
+             #f)
+            (else
+             (if (at? curs start2)
+                 curs
+                 (loop (span-cursor-next haystack curs))))))))
+
+;;; FIXME: not implemented for this representation
+
+(define (%span-contains:boyer-moore haystack needle)
+  (%span-contains:naive haystack needle))
 
 ;;; The whole character span or string.
 

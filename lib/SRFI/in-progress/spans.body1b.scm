@@ -287,6 +287,9 @@
 (define (span? x)
   (%span? x))
 
+(define (span-null? sp)
+  (= 0 (span-length sp)))
+
 ;;; Selection.
 
 (define (span-ref sp k)
@@ -348,6 +351,203 @@
              (loop (- k 1)))
             (else
              (subspan sp 0 (+ k 1)))))))
+
+;;; Searching.
+;;;
+;;; These algorithms are representation-dependent because we might want
+;;; its representation of tables to depend upon the alphabet size etc,
+;;; and because we might want to search a span's underlying string or
+;;; bytevector.
+
+;;; Precondition: needle is non-empty.
+
+(define (%span-contains:naive haystack needle)
+  (let ((start2 (span-cursor-start needle))
+        (end1 (span-cursor-end haystack))
+        (end2 (span-cursor-end needle)))
+    (define (at? curs1 curs2)
+      (cond ((span-cursor=? needle curs2 end2)
+             curs1)
+            ((and (span-cursor<? haystack curs1 end1)
+                  (char=? (span-cursor-ref haystack curs1)
+                          (span-cursor-ref needle curs2)))
+             (at? (span-cursor-next haystack curs1)
+                  (span-cursor-next needle curs2)))
+            (else
+             #f)))
+    (let loop ((curs (span-cursor-start haystack)))
+      (cond ((span-cursor>=? haystack curs end1)
+             #f)
+            (else
+             (if (at? curs start2)
+                 curs
+                 (loop (span-cursor-next haystack curs))))))))
+
+;;; Boyer-Moore string search.
+;;;
+;;; Translated into Scheme by starting with the (buggy) Java code in
+;;; http://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string_search_algorithm
+;;; as of 16 March 2015 and then debugging from first principles.
+;;;
+;;; (I think the Java code was buggy, but I might have introduced
+;;; the bugs myself during the translation.)
+;;;
+;;; Precondition: needle is non-empty.
+
+(define (%span-contains:boyer-moore haystack needle)
+  (let* ((s0 (%span:string haystack))
+         (i0 (%span:start haystack))
+         (j0 (%span:end haystack))
+         (n0 (- j0 i0))
+         (s1 (%span:string needle))
+         (i1 (%span:start needle))
+         (j1 (%span:end needle))
+         (n1 (- j1 i1)))
+
+    ;; Returns the bad character table, which maps characters that
+    ;; occur within the needle to the distance between the rightmost
+    ;; occurrence of that character within the needle and the last
+    ;; character of the needle.
+    ;; If the rightmost character of the needle does not match a
+    ;; character c within the haystack, then the bad character table
+    ;; entry for c is the appropriate shift.
+    ;; If the rightmost character of the needle does match c, but
+    ;; a mismatch occurs somewhere to the left, then the bad character
+    ;; table entry for c is a lower bound for the appropriate shift.
+
+    (define (makeCharTable)
+      (let ((table (make-hash-table char=? char->integer)))
+        (do ((i 0 (+ i 1)))
+            ((>= (+ i 1) n1)
+             table)
+          (hash-table-set! table
+                           (string-ref s1 (+ i i1))
+                           (- n1 1 i)))))
+
+    ;; Returns the good suffix table, which maps needle positions
+    ;; where the first mismatch occurs (to the left of at least one
+    ;; matching character) to a safe shift.
+    ;;
+    ;; That safe shift is defined as follows:
+    ;;
+    ;;     If the matching suffix occurs as a substring of the needle
+    ;;     somewhere to the left, and the character to the left of
+    ;;     that substring differs from the character to the left of
+    ;;     the matching suffix, then the distance between the
+    ;;     rightmost substring with that property and the matching
+    ;;     suffix is a safe shift.
+    ;;
+    ;;     If the matching suffix does not occur as a substring
+    ;;     of the needle somewhere to the left with a different
+    ;;     character preceding, then find the longest prefix of
+    ;;     the needle that matches a suffix of the matching
+    ;;     suffix.  If that suffix exists, then its index (which
+    ;;     is the length of the needle minus the length of the
+    ;;     prefix) is a safe shift.
+    ;;
+    ;;     Otherwise it's safe to shift by the length of the needle.
+
+    (define (makeOffsetTable)
+      (let ((table (make-vector (- n1 1) -1)))
+
+        ;; i is the leftmost index of the matching suffix.
+        ;; By increasing i, longest matches will be found first.
+
+        (do ((i 1 (+ i 1)))
+            ((>= (+ i 1) n1))
+          (if (span-prefix? (subspan needle i n1) ; matching suffix
+                            needle)
+              (vector-set! table i i)))
+
+        ;; The loop above finds the longest prefix of the needle
+        ;; that matches the matching suffix.  The following loop
+        ;; fills that in, effectively computing the longest prefix
+        ;; that matches a suffix of the matching suffix.
+
+        (let loop ((prev n1)
+                   (i (- n1 2)))
+          (if (< 0 i)
+              (let ((jump (vector-ref table i)))
+                (if (< jump 0)
+                    (begin (vector-set! table i prev)
+                           (loop prev (- i 1)))
+                    (loop jump (- i 1))))))
+
+        ;; By increasing i, matches to the right will replace matches
+        ;; to the left.
+        ;;
+        ;; FIXME: this loop is O(n1^2)
+
+        (do ((i 1 (+ i 1)))
+            ((>= (+ i 1) n1))
+          (let ((slen (span-suffix-length (subspan needle 0 i)
+                                          needle)))
+            (if (< 0 slen i)
+                (vector-set! table
+                             (- n1 slen 1) ; index of first mismatch
+                             (- n1 i)))))
+
+        table))
+
+    (let ((charTable (makeCharTable))
+          (offsetTable (makeOffsetTable)))
+
+      (if (%debugging)
+          (begin
+           (for-each (lambda (entry)
+                       (write-string "#\\")
+                       (write-char (car entry))
+                       (write-string " ")
+                       (write-string (number->string (cdr entry)))
+                       (newline))
+                     (hash-table->alist charTable))
+           (newline)
+           (do ((i 0 (+ i 1)))
+               ((= i (vector-length offsetTable)))
+             (write-string (number->string i))
+             (write-string " ")
+             (write-string (number->string (vector-ref offsetTable i)))
+             (newline))
+           (newline)))
+
+      ;; Returns the least i greater than or equal to the given i
+      ;; at which a match is found.
+
+      (let loop1 ((i 0))
+
+        ;; i is an index into s0 (haystack), j an index into s1 (needle).
+        ;; Returns the j at which a mismatch occurs, or -1 for a match.
+
+        (define (loop2 i j)
+          (cond ((< j 0) j)
+                ((char=? (string-ref s1 (+ j i1))
+                         (string-ref s0 (+ i i0)))
+                 (loop2 (- i 1) (- j 1)))
+                (else j)))
+
+        (if (> (+ i n1) n0)
+            #f
+            (let ((j (loop2 (- (+ i n1) 1) (- n1 1)))
+                  (jumpA (hash-table-ref/default charTable
+                                                 (string-ref s0 (+ i n1 -1 i0))
+                                                 n1)))
+              (cond ((< j 0)
+                     (span-index->cursor haystack i))
+                    ((= j (- n1 1))
+                     (loop1 (+ i jumpA)))
+                    (else
+                     (let ((jumpB (vector-ref offsetTable j)))
+                       (if (%debugging)
+                           (begin
+                            (write-string (number->string i))
+                            (write-string " ")
+                            (write-string (number->string j))
+                            (write-string " ")
+                            (write-string (number->string jumpA))
+                            (write-string " ")
+                            (write-string (number->string jumpB))
+                            (newline)))
+                       (loop1 (+ i (max jumpA jumpB))))))))))))
 
 ;;; The whole character span or string.
 

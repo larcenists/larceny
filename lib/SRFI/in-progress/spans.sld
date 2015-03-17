@@ -164,7 +164,12 @@
 
   (import (scheme base)
           (scheme char)
-          (srfi 114))
+          (scheme write)   ; FIXME: shouldn't be here
+          (srfi 69)        ; hashtables, for Boyer-Moore string search
+          (srfi 114))      ; comparators, for span-comparator
+
+  ;; A printable representation for spans aids debugging,
+  ;; but is otherwise unnecessary.
 
   (cond-expand
    (larceny

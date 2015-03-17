@@ -1284,12 +1284,12 @@
                     spans))
              spans))
       '((#f #f #f #f #f #f #f)     ; ""
-        ( 0  0 #f #f #f #f #f)     ; "a"
-        ( 0  0  0 #f #f #f #f)     ; "abc"
-        ( 0  2 #f  0 #f #f #f)     ; "bra"
-        ( 0  3  3 #f  0 #f #f)     ; "defabc"
-        ( 0  0 #f  1 #f  0 #f)     ; "abracadabra"
-        ( 0  0 #f  4 #f #f  0)))   ; "algebra"
+        (#f  0 #f #f #f #f #f)     ; "a"
+        (#f  0  0 #f #f #f #f)     ; "abc"
+        (#f  2 #f  0 #f #f #f)     ; "bra"
+        (#f  3  3 #f  0 #f #f)     ; "defabc"
+        (#f  0 #f  1 #f  0 #f)     ; "abracadabra"
+        (#f  0 #f  4 #f #f  0)))   ; "algebra"
 
 ;;; The whole character span or string.
 
@@ -1735,6 +1735,6 @@
                (comparator-hash string-comparator x))
              inputs1)))
 
-(writeln "Done.")
+(displayln "Done.")
 
 ; eof
