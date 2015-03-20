@@ -360,14 +360,15 @@
 ;;; Benchmarking says naive search is fastest for small needles
 ;;; and for haystacks that aren't much larger than the needle.
 ;;;
-;;; Rabin-Karp is often outperformed by naive search, but has
-;;; better worst-case performance so it's a safe choice when
-;;; the needle is of length 5 or longer.
+;;; Rabin-Karp is usually outperformed by naive search, but has
+;;; better worst-case performance so it's a fairly safe choice
+;;; when the needle is of length 5 or longer.
 ;;;
 ;;; Boyer-Moore-Horspool is usually best for random haystacks
 ;;; at least 20 times as long as the needle, provided the needle
-;;; has length 20 or more; under those circumstances, its worst
-;;; case seems to be about the same as naive string search.
+;;; has length 5 or more, but its worst case is a best case for
+;;; naive search.  The worst case for naive search is only
+;;; slightly faster than the worst case for Boyer-Moore-Horspool.
 ;;;
 ;;; The full Boyer-Moore algorithm as implemented here rarely
 ;;; outperforms Rabin-Karp and often performs much worse.
@@ -379,10 +380,10 @@
         (n1 (%span-length:estimated needle)))
     (cond ((span-null? needle)
            #f)
-          ((and (>= n1 20)
+          ((and (>= n1 5)
                 (>= n0 (* 20 n1)))
            (%span-contains:boyer-moore haystack needle))
-          ((and (> n1 4)
+          ((and (> n1 10)
                 (> n0 (* 2 n1)))
            (%span-contains:rabin-karp haystack needle))
           (else

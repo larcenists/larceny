@@ -219,10 +219,10 @@
   (+ idx *cursor-offset*))
 
 (define (string-cursor-difference str curs1 curs2)
-  (- curs1 curs2))
+  (- curs2 curs1))
 
 (define (span-cursor-difference sp curs1 curs2)
-  (- curs1 curs2))
+  (- curs2 curs1))
 
 ;;; Span constructors.
 

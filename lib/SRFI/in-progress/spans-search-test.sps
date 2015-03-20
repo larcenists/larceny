@@ -122,7 +122,7 @@
                          (lambda ()
                            (dotimes (quotient total-work m)
                                     (lambda ()
-                                      (span-contains sp1 sp2))))
+                                      (%span-contains:naive sp1 sp2))))
                          expected))
          (t2 (timed-test name
                          (lambda ()
@@ -165,7 +165,7 @@
                          (lambda ()
                            (dotimes (quotient total-work m)
                                     (lambda ()
-                                      (span-contains sp1 sp2))))
+                                      (%span-contains:naive sp1 sp2))))
                          #f))
          (t2 (timed-test name
                          (lambda ()
@@ -210,7 +210,7 @@
                          (lambda ()
                            (dotimes (quotient total-work (* m n))
                                     (lambda ()
-                                      (span-contains sp1 sp2))))
+                                      (%span-contains:naive sp1 sp2))))
                          expected))
          (t2 (timed-test name
                          (lambda ()

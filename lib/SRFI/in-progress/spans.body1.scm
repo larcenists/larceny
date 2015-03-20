@@ -483,26 +483,6 @@
          (j1 (%span:end needle))
          (n1 (- j1 i1)))
 
-    ;; Returns the bad character table, which maps characters that
-    ;; occur within the needle to the distance between the rightmost
-    ;; occurrence of that character within the needle and the last
-    ;; character of the needle.
-    ;; If the rightmost character of the needle does not match a
-    ;; character c within the haystack, then the bad character table
-    ;; entry for c is the appropriate shift.
-    ;; If the rightmost character of the needle does match c, but
-    ;; a mismatch occurs somewhere to the left, then the bad character
-    ;; table entry for c is a lower bound for the appropriate shift.
-
-    (define (makeCharTable)
-      (let ((table (make-hash-table char=? char->integer)))
-        (do ((i 0 (+ i 1)))
-            ((>= (+ i 1) n1)
-             table)
-          (hash-table-set! table
-                           (string-ref s1 (+ i i1))
-                           (- n1 1 i)))))
-
     ;; Returns the good suffix table, which maps needle positions
     ;; where the first mismatch occurs (to the left of at least one
     ;; matching character) to a safe shift.
@@ -580,17 +560,48 @@
           (original-makeOffsetTable)
           (horspool-makeOffsetTable)))
 
-    (let ((charTable (makeCharTable))
+    (let ((charTable (make-hash-table char=? char->integer))
+          (asciiTable (make-vector 128 n1))
           (offsetTable (makeOffsetTable)))
+
+      ;; Initializes the bad character table, which maps characters that
+      ;; occur within the needle to the distance between the rightmost
+      ;; occurrence of that character within the needle and the last
+      ;; character of the needle.
+      ;; If the rightmost character of the needle does not match a
+      ;; character c within the haystack, then the bad character table
+      ;; entry for c is the appropriate shift.
+      ;; If the rightmost character of the needle does match c, but
+      ;; a mismatch occurs somewhere to the left, then the bad character
+      ;; table entry for c is a lower bound for the appropriate shift.
+
+      (define (makeCharTable)
+        (do ((i 0 (+ i 1)))
+            ((>= (+ i 1) n1))
+          (let ((c (string-ref s1 (+ i i1)))
+                (jump (- n1 1 i)))
+            (if (char<=? c #\delete)
+                (vector-set! asciiTable (char->integer c) jump)
+                (hash-table-set! charTable
+                                 (string-ref s1 (+ i i1))
+                                 jump)))))
+
+      (define (show-entry c jump)
+        (write-string "#\\")
+        (write-char c)
+        (write-string " ")
+        (write-string (number->string jump))
+        (newline))
+
+      (makeCharTable)
 
       (if (%debugging)
           (begin
+           (do ((i 0 (+ i 1)))
+               ((= i 128))
+             (show-entry (integer->char i) (vector-ref asciiTable i)))
            (for-each (lambda (entry)
-                       (write-string "#\\")
-                       (write-char (car entry))
-                       (write-string " ")
-                       (write-string (number->string (cdr entry)))
-                       (newline))
+                       (show-entry (car entry) (cdr entry)))
                      (hash-table->alist charTable))
            (newline)
            (do ((i 0 (+ i 1)))
@@ -599,7 +610,7 @@
              (write-string " ")
              (write-string (number->string (vector-ref offsetTable i)))
              (newline))
-           (newline)))
+             (newline)))
 
       ;; Returns the least i greater than or equal to the given i
       ;; at which a match is found.
@@ -618,10 +629,11 @@
 
         (if (> (+ i n1) n0)
             #f
-            (let ((j (loop2 (- (+ i n1) 1) (- n1 1)))
-                  (jumpA (hash-table-ref/default charTable
-                                                 (string-ref s0 (+ i n1 -1 i0))
-                                                 n1)))
+            (let* ((j (loop2 (- (+ i n1) 1) (- n1 1)))
+                   (c (string-ref s0 (+ i n1 -1 i0)))
+                   (jumpA (if (char<=? c #\delete)
+                              (vector-ref asciiTable (char->integer c))
+                              (hash-table-ref/default charTable c n1))))
               (cond ((< j 0)
                      (span-index->cursor haystack i))
                     ((= j (- n1 1))
