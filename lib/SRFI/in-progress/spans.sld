@@ -45,10 +45,10 @@
    span-cursor-forward
    string-cursor-backward
    span-cursor-backward
-   string-cursor-forward-until
-   span-cursor-forward-until
-   string-cursor-backward-until
-   span-cursor-backward-until
+   string-cursor-forward-until      ; FIXME: dropped from proposal
+   span-cursor-forward-until        ; FIXME: dropped from proposal
+   string-cursor-backward-until     ; FIXME: dropped from proposal
+   span-cursor-backward-until       ; FIXME: dropped from proposal
 
    string-cursor=?
    span-cursor=?
@@ -78,8 +78,8 @@
 
    span?
    span-null?
-   span-every
-   span-any
+   span-every?
+   span-any?
 
    span-ref
    span-take
@@ -117,6 +117,8 @@
    span-span
    span-break
    span-contains
+;  %span-contains:rabin-karp     ; FIXME: for internal benchmarking
+;  %span-contains:boyer-moore    ; FIXME: for internal benchmarking
 
    span-length
    span-reverse

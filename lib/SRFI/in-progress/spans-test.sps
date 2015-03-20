@@ -1,3 +1,24 @@
+;;; Copyright (C) William D Clinger 2015. All Rights Reserved.
+;;;
+;;; Permission is hereby granted, free of charge, to any person
+;;; obtaining a copy of this software and associated documentation
+;;; files (the "Software"), to deal in the Software without restriction,
+;;; including without limitation the rights to use, copy, modify, merge,
+;;; publish, distribute, sublicense, and/or sell copies of the Software,
+;;; and to permit persons to whom the Software is furnished to do so,
+;;; subject to the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be
+;;; included in all copies or substantial portions of the Software.
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+;;; IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+;;; CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+;;; TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+;;; SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ;;; This is a very shallow sanity test for character spans.
 
 (import (scheme base)
@@ -43,7 +64,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; String cursors
+;;; String and span cursors
 
 (test (let* ((str "abc")
              (start0 (string-cursor-start str))
@@ -122,7 +143,7 @@
       '(#\a #\a #\c #\f #\h))
 
 ;;; FIXME: string-cursor-forward-until and string-cursor-backward-until
-;;; are not clearly specified.  This is a guess.
+;;; appear to have been removed from the proposal.
 
 (test (let* ((str "abcdefghijklm")
              (vowel? (lambda (c) (memv c (string->list "aeiou"))))
@@ -403,10 +424,6 @@
          (#t #t #t #t #t #t #t #t #t #t #t #t #f)   ; c8b
          (#t #t #t #t #t #t #t #t #t #t #t #t #t)))); c13
 
-;;; FIXME:  "It is an error if cursor does not refer to a position
-;;; in string or span."  That appears to rule out c13 below, but
-;;; is inconsistent with string-index->cursor and span-index->cursor.
-
 (test (let* ((str "abcdefghijklm")
              (vowel? (lambda (c) (memv c (string->list "aeiou"))))
              (start0 (string-cursor-start str))
@@ -515,15 +532,6 @@
                        (span-cursor-end span)))
       #t)
 
-;;; FIXME:  "It is an error if the cursors do not refer to positions
-;;; in string or span."  That appears to rule out c13 below, but
-;;; is inconsistent with string-index->cursor and span-index->cursor.
-
-;;; FIXME:  string-cursor-difference and span-cursor-difference
-;;; are said to return the difference between cursor2 and cursor1,
-;;; but I'm going to assume they really return the difference between
-;;; cursor1 and cursor2.
-
 (test (let* ((str "abcdefghijklm")
              (vowel? (lambda (c) (memv c (string->list "aeiou"))))
              (start0 (string-cursor-start str))
@@ -541,25 +549,26 @@
              (c3     (string-cursor-prev str c4b))
              (c0b    (string-cursor-backward-until str c3 vowel?))
              (c12    (string-cursor-prev str c13))
-             (cursors (list c0 c0a c0b c1 c3 c4 c4a c4b c5 c7 c8 c8b c12)))
+             (cursors (list c0 c0a c0b c1 c3 c4 c4a c4b c5 c7 c8 c8b c12 c13)))
         (map (lambda (cur1)
                (map (lambda (cur2)
                       (string-cursor-difference str cur1 cur2))
                     cursors))
              cursors))
-      '(( 0  0  0 -1 -3 -4 -4 -4 -5 -7 -8 -8 -12)      ; c0
-        ( 0  0  0 -1 -3 -4 -4 -4 -5 -7 -8 -8 -12)      ; c0a
-        ( 0  0  0 -1 -3 -4 -4 -4 -5 -7 -8 -8 -12)      ; c0b
-        ( 1  1  1  0 -2 -3 -3 -3 -4 -6 -7 -7 -11)      ; c1
-        ( 3  3  3  2  0 -1 -1 -1 -2 -4 -5 -5 -9)       ; c3
-        ( 4  4  4  3  1  0  0  0 -1 -3 -4 -4 -8)       ; c4
-        ( 4  4  4  3  1  0  0  0 -1 -3 -4 -4 -8)       ; c4a
-        ( 4  4  4  3  1  0  0  0 -1 -3 -4 -4 -8)       ; c4b
-        ( 5  5  5  4  2  1  1  1  0 -2 -3 -3 -7)       ; c5
-        ( 7  7  7  6  4  3  3  3  2  0 -1 -1 -5)       ; c7
-        ( 8  8  8  7  5  4  4  4  3  1  0  0 -4)       ; c8
-        ( 8  8  8  7  5  4  4  4  3  1  0  0 -4)       ; c8b
-        (12 12 12 11  9  8  8  8  7  5  4  4  0)))     ; c12
+      '((  0   0   0   1   3  4  4  4  5  7  8  8 12 13)       ; c0
+        (  0   0   0   1   3  4  4  4  5  7  8  8 12 13)       ; c0a
+        (  0   0   0   1   3  4  4  4  5  7  8  8 12 13)       ; c0b
+        ( -1  -1  -1   0   2  3  3  3  4  6  7  7 11 12)       ; c1
+        ( -3  -3  -3  -2   0  1  1  1  2  4  5  5  9 10)       ; c3
+        ( -4  -4  -4  -3  -1  0  0  0  1  3  4  4  8  9)       ; c4
+        ( -4  -4  -4  -3  -1  0  0  0  1  3  4  4  8  9)       ; c4a
+        ( -4  -4  -4  -3  -1  0  0  0  1  3  4  4  8  9)       ; c4b
+        ( -5  -5  -5  -4  -2 -1 -1 -1  0  2  3  3  7  8)       ; c5
+        ( -7  -7  -7  -6  -4 -3 -3 -3 -2  0  1  1  5  6)       ; c7
+        ( -8  -8  -8  -7  -5 -4 -4 -4 -3 -1  0  0  4  5)       ; c8
+        ( -8  -8  -8  -7  -5 -4 -4 -4 -3 -1  0  0  4  5)       ; c8b
+        (-12 -12 -12 -11  -9 -8 -8 -8 -7 -5 -4 -4  0  1)       ; c12
+        (-13 -13 -13 -12 -10 -9 -9 -9 -8 -6 -5 -5 -1  0)))     ; c13
         
 (test (let* ((span (make-whole-span "abcdefghijklm"))
              (vowel? (lambda (c)
@@ -579,25 +588,26 @@
              (c3     (span-cursor-prev span c4b))
              (c0b    (span-cursor-backward-until span c3 vowel?))
              (c12    (span-cursor-prev span c13))
-             (cursors (list c0 c0a c0b c1 c3 c4 c4a c4b c5 c7 c8 c8b c12)))
+             (cursors (list c0 c0a c0b c1 c3 c4 c4a c4b c5 c7 c8 c8b c12 c13)))
         (map (lambda (cur1)
                (map (lambda (cur2)
                       (span-cursor-difference span cur1 cur2))
                     cursors))
              cursors))
-      '(( 0  0  0 -1 -3 -4 -4 -4 -5 -7 -8 -8 -12)      ; c0
-        ( 0  0  0 -1 -3 -4 -4 -4 -5 -7 -8 -8 -12)      ; c0a
-        ( 0  0  0 -1 -3 -4 -4 -4 -5 -7 -8 -8 -12)      ; c0b
-        ( 1  1  1  0 -2 -3 -3 -3 -4 -6 -7 -7 -11)      ; c1
-        ( 3  3  3  2  0 -1 -1 -1 -2 -4 -5 -5 -9)       ; c3
-        ( 4  4  4  3  1  0  0  0 -1 -3 -4 -4 -8)       ; c4
-        ( 4  4  4  3  1  0  0  0 -1 -3 -4 -4 -8)       ; c4a
-        ( 4  4  4  3  1  0  0  0 -1 -3 -4 -4 -8)       ; c4b
-        ( 5  5  5  4  2  1  1  1  0 -2 -3 -3 -7)       ; c5
-        ( 7  7  7  6  4  3  3  3  2  0 -1 -1 -5)       ; c7
-        ( 8  8  8  7  5  4  4  4  3  1  0  0 -4)       ; c8
-        ( 8  8  8  7  5  4  4  4  3  1  0  0 -4)       ; c8b
-        (12 12 12 11  9  8  8  8  7  5  4  4  0)))     ; c12
+      '((  0   0   0   1   3  4  4  4  5  7  8  8 12 13)       ; c0
+        (  0   0   0   1   3  4  4  4  5  7  8  8 12 13)       ; c0a
+        (  0   0   0   1   3  4  4  4  5  7  8  8 12 13)       ; c0b
+        ( -1  -1  -1   0   2  3  3  3  4  6  7  7 11 12)       ; c1
+        ( -3  -3  -3  -2   0  1  1  1  2  4  5  5  9 10)       ; c3
+        ( -4  -4  -4  -3  -1  0  0  0  1  3  4  4  8  9)       ; c4
+        ( -4  -4  -4  -3  -1  0  0  0  1  3  4  4  8  9)       ; c4a
+        ( -4  -4  -4  -3  -1  0  0  0  1  3  4  4  8  9)       ; c4b
+        ( -5  -5  -5  -4  -2 -1 -1 -1  0  2  3  3  7  8)       ; c5
+        ( -7  -7  -7  -6  -4 -3 -3 -3 -2  0  1  1  5  6)       ; c7
+        ( -8  -8  -8  -7  -5 -4 -4 -4 -3 -1  0  0  4  5)       ; c8
+        ( -8  -8  -8  -7  -5 -4 -4 -4 -3 -1  0  0  4  5)       ; c8b
+        (-12 -12 -12 -11  -9 -8 -8 -8 -7 -5 -4 -4  0  1)       ; c12
+        (-13 -13 -13 -12 -10 -9 -9 -9 -8 -6 -5 -5 -1  0)))     ; c13
         
 ;;; Span constructors.
 
@@ -646,8 +656,6 @@
                        100))
       "ab10100")
 
-;;; FIXME: what happens if the optional seed argument is omitted?
-
 (test (span->string (span-unfold (lambda (n) (>= n 110))
                                  integer->char
                                  (lambda (n) (+ n 2))
@@ -680,19 +688,17 @@
 (test (span-null? (span #\a)) #f)
 (test (span-null? (span #\a #\b #\c)) #f)
 
-;;; FIXME: Why don't span-every and span-any end with question marks?
+(test (span-every? char-upper-case? (string->span "")) #t)
+(test (span-every? char-upper-case? (string->span "ABC")) #t)
+(test (span-every? char-upper-case? (string->span "aBC")) #f)
+(test (span-every? char-upper-case? (string->span "AbC")) #f)
+(test (span-every? char-upper-case? (string->span "ABc")) #f)
 
-(test (span-every char-upper-case? (string->span "")) #t)
-(test (span-every char-upper-case? (string->span "ABC")) #t)
-(test (span-every char-upper-case? (string->span "aBC")) #f)
-(test (span-every char-upper-case? (string->span "AbC")) #f)
-(test (span-every char-upper-case? (string->span "ABc")) #f)
-
-(test (span-any char-lower-case? (string->span "")) #f)
-(test (span-any char-lower-case? (string->span "ABC")) #f)
-(test (span-any char-lower-case? (string->span "aBC")) #t)
-(test (span-any char-lower-case? (string->span "AbC")) #t)
-(test (span-any char-lower-case? (string->span "ABc")) #t)
+(test (span-any? char-lower-case? (string->span "")) #f)
+(test (span-any? char-lower-case? (string->span "ABC")) #f)
+(test (span-any? char-lower-case? (string->span "aBC")) #t)
+(test (span-any? char-lower-case? (string->span "AbC")) #t)
+(test (span-any? char-lower-case? (string->span "ABc")) #t)
 
 ;;; Selection.
 
@@ -1017,59 +1023,27 @@
         (0 0 1 0 0 5 0)                                ; "magic"
         (0 1 0 0 3 0 7)))                              ; "algebra"
 
-;;; FIXME: the specification of span-mismatch doesn't specify
-;;; the result of (span-mismatch (string->span "a") (string->span "")),
-;;; so I'm guessing here.
-
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "magic" "algebra"))
-             (spans (map string->span inputs))
-             (cursor->index
-              (lambda (span curs)
-                (cond ((span-cursor=? span
-                                      curs
-                                      (span-cursor-prev
-                                       span
-                                       (span-cursor-start span)))
-                       -1)
-                      ((span-cursor=? span
-                                      curs
-                                      (span-cursor-end span))
-                       (span-length span))
-                      (else
-                       (span-cursor->index span curs))))))
+             (spans (map string->span inputs)))
         (map (lambda (span1)
                (map (lambda (span2)
-                      (cursor->index span2 (span-mismatch span1 span2)))
+                      (span-cursor->index span2 (span-mismatch span1 span2)))
                     spans))
              spans))
-      '((0 0 0 0 0 0 0)                                ; ""
-        (0 1 1 1 1 0 1)                                ; "a"
-        (0 1 3 3 2 0 1)                                ; "abc"
-        (0 1 3 6 2 0 1)                                ; "abcdef"
-        (0 1 2 2 11 0 1)                               ; "abracadabra"
-        (0 0 0 0 0 5 0)                                ; "magic"
-        (0 1 1 1 1 0 7)))                              ; "algebra"
+      '((-1 0 0 0 0 0 0)                                ; ""
+        (-1 1 1 1 1 0 1)                                ; "a"
+        (-1 1 3 3 2 0 1)                                ; "abc"
+        (-1 1 3 6 2 0 1)                                ; "abcdef"
+        (-1 1 2 2 11 0 1)                               ; "abracadabra"
+        (-1 0 0 0 0 5 0)                                ; "magic"
+        (-1 1 1 1 1 0 7)))                              ; "algebra"
 
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "magic" "algebra"))
-             (spans (map string->span inputs))
-             (cursor->index
-              (lambda (span curs)
-                (cond ((span-cursor=? span
-                                      curs
-                                      (span-cursor-prev
-                                       span
-                                       (span-cursor-start span)))
-                       -1)
-                      ((span-cursor=? span
-                                      curs
-                                      (span-cursor-end span))
-                       (span-length span))
-                      (else
-                       (span-cursor->index span curs))))))
+             (spans (map string->span inputs)))
         (map (lambda (span1)
                (map (lambda (span2)
-                      (cursor->index span2
-                                     (span-mismatch-right span1 span2)))
+                      (span-cursor->index span2
+                                          (span-mismatch-right span1 span2)))
                     spans))
              spans))
       '((-1 0 2 5 10 4 6)                              ; ""
@@ -1120,95 +1094,35 @@
              spans))
       '(0 1 1 2 5 0 3))
 
-;;; FIXME: the local definition of cursor->index is necessary because
-;;; using span-cursor->index on a cursor that's before or after the span
-;;; is an error.
-
 (test (let* ((inputs '("" "a" "abc" "bcdef" "abracadabra" "syzygy" "algebra"))
              (spans (map string->span inputs))
-             (vowel? (lambda (c) (memv c (string->list "aeiou"))))
-             (cursor->index
-              (lambda (span curs)
-                (cond ((span-cursor=? span
-                                      curs
-                                      (span-cursor-prev
-                                       span
-                                       (span-cursor-start span)))
-                       -1)
-                      ((span-cursor=? span
-                                      curs
-                                      (span-cursor-end span))
-                       (span-length span))
-                      (else
-                       (span-cursor->index span curs))))))
+             (vowel? (lambda (c) (memv c (string->list "aeiou")))))
         (map (lambda (span1)
-               (cursor->index span1 (span-find vowel? span1)))
+               (span-cursor->index span1 (span-find vowel? span1)))
              spans))
       '(0 0 0 3 0 6 0))
 
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "syzygy" "algebra"))
              (spans (map string->span inputs))
-             (vowel? (lambda (c) (memv c (string->list "aeiou"))))
-             (cursor->index
-              (lambda (span curs)
-                (cond ((span-cursor=? span
-                                      curs
-                                      (span-cursor-prev
-                                       span
-                                       (span-cursor-start span)))
-                       -1)
-                      ((span-cursor=? span
-                                      curs
-                                      (span-cursor-end span))
-                       (span-length span))
-                      (else
-                       (span-cursor->index span curs))))))
+             (vowel? (lambda (c) (memv c (string->list "aeiou")))))
         (map (lambda (span1)
-               (cursor->index span1 (span-find-right vowel? span1)))
+               (span-cursor->index span1 (span-find-right vowel? span1)))
              spans))
       '(-1 0 0 4 10 -1 6))
 
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "syzygy" "algebra"))
              (spans (map string->span inputs))
-             (vowel? (lambda (c) (memv c (string->list "aeiou"))))
-             (cursor->index
-              (lambda (span curs)
-                (cond ((span-cursor=? span
-                                      curs
-                                      (span-cursor-prev
-                                       span
-                                       (span-cursor-start span)))
-                       -1)
-                      ((span-cursor=? span
-                                      curs
-                                      (span-cursor-end span))
-                       (span-length span))
-                      (else
-                       (span-cursor->index span curs))))))
+             (vowel? (lambda (c) (memv c (string->list "aeiou")))))
         (map (lambda (span1)
-               (cursor->index span1 (span-skip vowel? span1)))
+               (span-cursor->index span1 (span-skip vowel? span1)))
              spans))
       '(0 1 1 1 1 0 1))
 
 (test (let* ((inputs '("" "a" "abc" "abcdef" "abracadabra" "syzygy" "algebra"))
              (spans (map string->span inputs))
-             (vowel? (lambda (c) (memv c (string->list "aeiou"))))
-             (cursor->index
-              (lambda (span curs)
-                (cond ((span-cursor=? span
-                                      curs
-                                      (span-cursor-prev
-                                       span
-                                       (span-cursor-start span)))
-                       -1)
-                      ((span-cursor=? span
-                                      curs
-                                      (span-cursor-end span))
-                       (span-length span))
-                      (else
-                       (span-cursor->index span curs))))))
+             (vowel? (lambda (c) (memv c (string->list "aeiou")))))
         (map (lambda (span1)
-               (cursor->index span1 (span-skip-right vowel? span1)))
+               (span-cursor->index span1 (span-skip-right vowel? span1)))
              spans))
       '(-1 -1 2 5 9 5 5))
 
@@ -1266,11 +1180,6 @@
         ("cb" "a")
         ("" "eeek")
         ("scr" "ee")))
-
-;;; FIXME: I'm assuming (span-contains (span) (span)) is false,
-;;; and that "the first position in which the characters of needle
-;;; appear" refers to the first position in the first subspan at
-;;; which the characters of needle appear.
 
 (test (let* ((inputs '("" "a" "abc" "bra" "defabc" "abracadabra" "algebra"))
              (spans (map string->span inputs))
@@ -1422,20 +1331,6 @@
         (call-with-port out get-output-string))
       "kewyya")
 
-;;; FIXME:  The specifications of span-fold and span-fold-right
-;;; say "It is an error if proc does not accept the same number
-;;; of arguments as there are spans."  It also says those procedures
-;;; invoke proc "on each character of the spans in forward/reverse
-;;; order, passing the result of the previous invocation as a second
-;;; argument."  Because the result of the previous invocation is
-;;; inserted as a second [sic] argument, proc is to be called with
-;;; one more argument than the number of spans, which implies proc
-;;; must accept one more argument than the number of spans.  I'm
-;;; going to assume the spec is all messed up, and that:
-;;;     proc is to be called with one more argument than the number of spans
-;;;     that the result of the previous invocation is to be the last argument
-;;;     that nil is the last argument for the first invocation
-
 (test (span-fold cons '() (string->span "abc"))
       '(#\c #\b #\a))
 
@@ -1457,15 +1352,6 @@
 (test (map span->string
            (span-split (string->span "\r\t and \t over\nand over\n")))
       '("and" "over" "and" "over"))
-
-;;; FIXME: The specification of span-split says "If separator is supplied,
-;;; it specifies a string to be used as the word separator."  The spec
-;;; goes on to say "If separator is an empty span, then the returned list
-;;; contains a list of the characters in span."
-;;;
-;;; I'm guessing the separator, if supplied, has to be a span.
-;;; I'm also guessing that "list of the characters in span" is
-;;; supposed to mean a list of one-character spans.
 
 (test (map span->string
            (span-split (string->span " --r7rs--annoy-user--path . ")
@@ -1693,9 +1579,6 @@
         (mm string-ci>=? inputs1 inputs2)))
 
 ;;; Comparator.
-
-;;; FIXME: Is span-comparator a procedure of no arguments or a variable?
-;;; I'm going to assume it's a variable, as in SRFI 114.
 
 (let* ((inputs1 '("" "a" "aBc" "abCdef" "abRacadAbra" "magIc" "alGebra"))
        (spans1 (map string->span inputs1))

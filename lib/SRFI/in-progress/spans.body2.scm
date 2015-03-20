@@ -1,3 +1,24 @@
+;;; Copyright (C) William D Clinger 2015. All Rights Reserved.
+;;;
+;;; Permission is hereby granted, free of charge, to any person
+;;; obtaining a copy of this software and associated documentation
+;;; files (the "Software"), to deal in the Software without restriction,
+;;; including without limitation the rights to use, copy, modify, merge,
+;;; publish, distribute, sublicense, and/or sell copies of the Software,
+;;; and to permit persons to whom the Software is furnished to do so,
+;;; subject to the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be
+;;; included in all copies or substantial portions of the Software.
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+;;; IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+;;; CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+;;; TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+;;; SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ;;; Representation-independent part of a
 ;;; sample implementation of character spans.
 ;;;
@@ -43,7 +64,7 @@
 
 ;;; Predicates.
 
-(define (span-every pred sp)
+(define (span-every? pred sp)
   (let ((start (span-cursor-start sp))
         (end (span-cursor-end sp)))
     (let loop ((curs start))
@@ -54,7 +75,7 @@
             (else
              #f)))))
 
-(define (span-any pred sp)
+(define (span-any? pred sp)
   (let ((start (span-cursor-start sp))
         (end (span-cursor-end sp)))
     (let loop ((curs start))
@@ -231,10 +252,11 @@
         (end2 (span-cursor-end sp2)))
     (let loop ((curs1 start1)
                (curs2 start2))
-      (cond ((span-cursor=? sp1 curs1 end1)
-             curs2)
-            ((span-cursor=? sp2 curs2 end2)
-             curs2)
+      (cond ((or (span-cursor=? sp1 curs1 end1)
+                 (span-cursor=? sp2 curs2 end2))
+             (if (span-null? sp2)
+                 (span-cursor-prev sp2 start2)
+                 curs2))
             ((char=? (span-cursor-ref sp1 curs1)
                      (span-cursor-ref sp2 curs2))
              (loop (span-cursor-next sp1 curs1)
@@ -337,16 +359,18 @@
 
 ;;; Benchmarking says naive search is fastest for small needles
 ;;; and for haystacks that aren't much larger than the needle.
-;;; Rabin-Karp is usually within a factor of 2 of naive search,
-;;; and is usually faster than naive search on a worst case for
-;;; naive search when the needle is of length 5 or longer.
-;;; Boyer-Moore-Horspool often becomes competitive for haystacks
+;;;
+;;; Rabin-Karp is often outperformed by naive search, but has
+;;; better worst-case performance so it's a safe choice when
+;;; the needle is of length 5 or longer.
+;;;
+;;; Boyer-Moore-Horspool is usually best for random haystacks
 ;;; at least 20 times as long as the needle, provided the needle
-;;; has length 20 or more.
+;;; has length 20 or more; under those circumstances, its worst
+;;; case seems to be about the same as naive string search.
+;;;
 ;;; The full Boyer-Moore algorithm as implemented here rarely
 ;;; outperforms Rabin-Karp and often performs much worse.
-
-;;; Naive search is fastest
 
 (define (span-contains haystack needle)
   (%check-span haystack 'span-contains)

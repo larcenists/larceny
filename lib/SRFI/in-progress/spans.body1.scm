@@ -1,3 +1,24 @@
+;;; Copyright (C) William D Clinger 2015. All Rights Reserved.
+;;;
+;;; Permission is hereby granted, free of charge, to any person
+;;; obtaining a copy of this software and associated documentation
+;;; files (the "Software"), to deal in the Software without restriction,
+;;; including without limitation the rights to use, copy, modify, merge,
+;;; publish, distribute, sublicense, and/or sell copies of the Software,
+;;; and to permit persons to whom the Software is furnished to do so,
+;;; subject to the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be
+;;; included in all copies or substantial portions of the Software.
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+;;; IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+;;; CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+;;; TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+;;; SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ;;; The representation-dependent part of an implementation of
 ;;; character spans that represents character spans by records
 ;;; encapsulating a string and substring bounds and represents
@@ -211,10 +232,10 @@
   (+ idx *cursor-offset*))
 
 (define (string-cursor-difference str curs1 curs2)
-  (- curs1 curs2))
+  (- curs2 curs1))
 
 (define (span-cursor-difference sp curs1 curs2)
-  (- curs1 curs2))
+  (- curs2 curs1))
 
 ;;;
 
@@ -390,7 +411,7 @@
              #f)
             (else
              (if (at? i i1)
-                 (span-index->cursor haystack i)
+                 (span-index->cursor haystack (- i i0))
                  (loop (+ 1 i))))))))
 
 (define (%span-contains:rabin-karp haystack needle)
@@ -428,7 +449,7 @@
                       (h1 (hash s1 i1 j1)))
              (cond ((and (= h0 h1)
                          (at? i i1))
-                    (span-index->cursor haystack i))
+                    (span-index->cursor haystack (- i i0)))
                    ((>= i end)
                     #f)
                    (else
@@ -445,6 +466,12 @@
 ;;; as of 16 March 2015 and then debugging from first principles.
 ;;;
 ;;; Precondition: needle is non-empty.
+;;;
+;;; Benchmarking shows the simplified Boyer-Moore-Horspool algorithm
+;;; is usually faster than the full Boyer-Moore algorithm as implemented
+;;; here.
+
+(define (full-boyer-moore?) #f)
 
 (define (%span-contains:boyer-moore haystack needle)
   (let* ((s0 (%span:string haystack))
@@ -542,16 +569,16 @@
         table))
 
     ;; Computing the good suffix table as above takes too long.
-    ;; Using this table instead yields the Boyer-Moore-Horspool algorithm.
+    ;; The Boyer-Moore-Horspool algorithm doesn't use that table,
+    ;; which is equivalent to using a table in which all entries are 1.
 
     (define (horspool-makeOffsetTable)
-      (let ((table (make-vector (- n1 1) 1)))
-        table))
+      '#(1))
 
     (define (makeOffsetTable)
-      (horspool-makeOffsetTable)
-;     (original-makeOffsetTable)
-      )
+      (if (full-boyer-moore?)
+          (original-makeOffsetTable)
+          (horspool-makeOffsetTable)))
 
     (let ((charTable (makeCharTable))
           (offsetTable (makeOffsetTable)))
@@ -600,7 +627,9 @@
                     ((= j (- n1 1))
                      (loop1 (+ i jumpA)))
                     (else
-                     (let ((jumpB (vector-ref offsetTable j)))
+                     (let ((jumpB (if (full-boyer-moore?)
+                                      (vector-ref offsetTable j)
+                                      1)))
                        (if (%debugging)
                            (begin
                             (write-string (number->string i))
@@ -611,7 +640,10 @@
                             (write-string " ")
                             (write-string (number->string jumpB))
                             (newline)))
-                       (loop1 (+ i (max jumpA jumpB))))))))))))
+                       (loop1 (+ i
+                                 (if (full-boyer-moore?)
+                                     (max jumpA jumpB)
+                                     jumpA))))))))))))
 
 ;;; The whole character span or string.
 
