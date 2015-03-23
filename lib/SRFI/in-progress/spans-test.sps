@@ -64,6 +64,58 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; These procedures have been removed from the character spans
+;;; library.  The portable versions defined here saved me from
+;;; rewriting some of the tests.
+
+(define (string-cursor-forward-until str curs pred)
+  (let ((n (string-length str)))
+    (let loop ((i (string-cursor->index str curs)))
+      (cond ((>= i n)
+             (string-cursor-end str))
+            ((and (<= 0 i)
+                  (pred (string-ref str i)))
+             (string-index->cursor str i))
+            (else
+             (loop (+ i 1)))))))
+
+(define (span-cursor-forward-until sp curs pred)
+  (let* ((start (span-cursor-start sp))
+         (end   (span-cursor-end sp)))
+    (let loop ((curs curs))
+      (cond ((span-cursor>=? sp curs end)
+             end)
+            ((and (span-cursor<=? sp start curs)
+                  (pred (span-cursor-ref sp curs)))
+             curs)
+            (else
+             (loop (span-cursor-next sp curs)))))))
+
+(define (string-cursor-backward-until str curs pred)
+  (let ((n (string-length str)))
+    (let loop ((i (string-cursor->index str curs)))
+      (cond ((< i 0)
+             (string-cursor-prev str (string-cursor-start str)))
+            ((and (< i n)
+                  (pred (string-ref str i)))
+             (string-index->cursor str i))
+            (else
+             (loop (- i 1)))))))
+
+(define (span-cursor-backward-until sp curs pred)
+  (let* ((start (span-cursor-start sp))
+         (end   (span-cursor-end sp)))
+    (let loop ((curs curs))
+      (cond ((span-cursor<? sp curs start)
+             curs)
+            ((and (span-cursor<? sp curs end)
+                  (pred (span-cursor-ref sp curs)))
+             curs)
+            (else
+             (loop (span-cursor-prev sp curs)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;; String and span cursors
 
 (test (let* ((str "abc")

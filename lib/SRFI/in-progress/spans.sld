@@ -66,10 +66,10 @@
    span-cursor-forward
    string-cursor-backward
    span-cursor-backward
-   string-cursor-forward-until      ; FIXME: dropped from proposal
-   span-cursor-forward-until        ; FIXME: dropped from proposal
-   string-cursor-backward-until     ; FIXME: dropped from proposal
-   span-cursor-backward-until       ; FIXME: dropped from proposal
+;  string-cursor-forward-until      ; FIXME: dropped from proposal
+;  span-cursor-forward-until        ; FIXME: dropped from proposal
+;  string-cursor-backward-until     ; FIXME: dropped from proposal
+;  span-cursor-backward-until       ; FIXME: dropped from proposal
 
    string-cursor=?
    span-cursor=?
@@ -201,14 +201,36 @@
    (else))
 
   ;; A sane mod procedure is needed by span-replicate,
+  ;; a matching div procedure is needed by the UTF-8 representation,
   ;; and the R6RS error procedure will be used if available.
 
   (cond-expand
    ((library (rnrs base))
-    (import (only (rnrs base) mod)
+    (import (only (rnrs base) div mod)
             (rename (only (rnrs base) error) (error %error))))
    (else
     (begin
+
+     (define (div x y)
+       (cond ((and (exact-integer? x)
+                   (exact-integer? y)
+                   (>= x 0))
+              (quotient x y))
+             ((< y 0)
+              ; x < 0, y < 0
+              (let* ((q (quotient x y))
+                     (r (- x (* q y))))
+                (if (= r 0)
+                    q
+                    (+ q 1))))
+             (else
+              ; x < 0, y > 0
+              (let* ((q (quotient x y))
+                     (r (- x (* q y))))
+                (if (= r 0)
+                    q
+                    (- q 1))))))
+
      (define (mod x y)
        (cond ((and (exact-integer? x)
                    (exact-integer? y)
@@ -228,6 +250,7 @@
                 (if (= r 0)
                     0
                     (+ r y))))))
+
      (define (%error who msg . irritants)
        (cond ((symbol? who)
               (apply %error (symbol->string who) msg irritants))
