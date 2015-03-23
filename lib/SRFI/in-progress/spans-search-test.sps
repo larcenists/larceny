@@ -79,6 +79,9 @@
         (fail name result expected))
     (rounded (- j1 j0))))
 
+(define (seconds->milliseconds t)
+  (exact (round (* 1000.0 t))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (make-random-string n)
@@ -98,7 +101,7 @@
       ((= i n) s)
     (string-set! s i (integer->char (random 32768)))))
 
-(define name:length 30) ; FIXME
+(define name:length 22) ; FIXME
 
 (define (random-search testname make-random-string m n)
   (let* ((n1 (random n))
@@ -136,6 +139,12 @@
                                     (lambda ()
                                       (%span-contains:boyer-moore sp1 sp2))))
                          expected))
+         (t4 (timed-test name
+                         (lambda ()
+                           (dotimes (quotient total-work (* m n))
+                                    (lambda ()
+                                      (span-contains sp1 sp2))))
+                         expected))
          (t0 (min t1 t2 t3)))
     (display name)
     (display (make-string (- name:length (string-length name)) #\space))
@@ -145,7 +154,8 @@
                     "Rabin-Karp   ")
                    ((= t0 t3)
                     "Boyer-Moore  ")))
-    (write (list t1 t2 t3))
+    (write (cons (/ (round (* 10.0 (/ t4 t0))) 10.0)
+                 (map seconds->milliseconds (list t1 t2 t3 t4))))
     (newline)))
 
 (define (random-search-failing testname make-random-string m n)
@@ -179,6 +189,12 @@
                                     (lambda ()
                                       (%span-contains:boyer-moore sp1 sp2))))
                          #f))
+         (t4 (timed-test name
+                         (lambda ()
+                           (dotimes (quotient total-work (* m n))
+                                    (lambda ()
+                                      (span-contains sp1 sp2))))
+                         #f))
          (t0 (min t1 t2 t3)))
     (display name)
     (display (make-string (- name:length (string-length name)) #\space))
@@ -188,7 +204,8 @@
                     "Rabin-Karp   ")
                    ((= t0 t3)
                     "Boyer-Moore  ")))
-    (write (list t1 t2 t3))
+    (write (cons (/ (round (* 10.0 (/ t4 t0))) 10.0)
+                 (map seconds->milliseconds (list t1 t2 t3 t4))))
     (newline)))
 
 (define (hard-case left/right make-random-string m n)
@@ -224,6 +241,12 @@
                                     (lambda ()
                                       (%span-contains:boyer-moore sp1 sp2))))
                          expected))
+         (t4 (timed-test name
+                         (lambda ()
+                           (dotimes (quotient total-work (* m n))
+                                    (lambda ()
+                                      (span-contains sp1 sp2))))
+                         expected))
          (t0 (min t1 t2 t3)))
     (display name)
     (display (make-string (- name:length (string-length name)) #\space))
@@ -233,7 +256,8 @@
                     "Rabin-Karp   ")
                    ((= t0 t3)
                     "Boyer-Moore  ")))
-    (write (list t1 t2 t3))
+    (write (cons (/ (round (* 10.0 (/ t4 t0))) 10.0)
+                 (map seconds->milliseconds (list t1 t2 t3 t4))))
     (newline)))
 
 (define (random-ascii-search-successful m n)
@@ -258,7 +282,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define heading
-  "test                          fastest      (naive Rabin-Karp Boyer-Moore)")
+  "test                  fastest  (def/best naive Rabin-Karp Boyer-Moore def)")
 
 (display heading)
 (newline)

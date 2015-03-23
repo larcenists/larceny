@@ -130,52 +130,6 @@
 (define (span-cursor-backward sp curs n)
   (max (+ -1 *cursor-offset*) (- curs n)))
 
-(define (string-cursor-forward-until str curs pred)
-  (let ((n (string-length str)))
-    (let loop ((i (string-cursor->index str curs)))
-      (cond ((>= i n)
-             (string-cursor-end str))
-            ((and (<= 0 i)
-                  (pred (string-ref str i)))
-             (string-index->cursor str i))
-            (else
-             (loop (+ i 1)))))))
-
-(define (span-cursor-forward-until sp curs pred)
-  (let* ((str (%span->string sp))
-         (n (string-length str)))
-    (let loop ((i (span-cursor->index sp curs)))
-      (cond ((>= i n)
-             (span-cursor-end sp))
-            ((and (<= 0 i)
-                  (pred (string-ref str i)))
-             (span-index->cursor sp i))
-            (else
-             (loop (+ i 1)))))))
-
-(define (string-cursor-backward-until str curs pred)
-  (let ((n (string-length str)))
-    (let loop ((i (string-cursor->index str curs)))
-      (cond ((< i 0)
-             (string-cursor-prev (string-cursor-start str)))
-            ((and (< i n)
-                  (pred (string-ref str i)))
-             (string-index->cursor str i))
-            (else
-             (loop (- i 1)))))))
-
-(define (span-cursor-backward-until sp curs pred)
-  (let* ((str (%span->string sp))
-         (n (string-length str)))
-    (let loop ((i (span-cursor->index str curs)))
-      (cond ((< i 0)
-             (span-cursor-prev (span-cursor-start sp)))
-            ((and (< i n)
-                  (pred (string-ref str i)))
-             (span-index->cursor sp i))
-            (else
-             (loop (- i 1)))))))
-
 (define (string-cursor=? str curs1 curs2)
   (= curs1 curs2))
 

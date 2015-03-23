@@ -360,9 +360,8 @@
 ;;; Benchmarking says naive search is fastest for small needles
 ;;; and for haystacks that aren't much larger than the needle.
 ;;;
-;;; Rabin-Karp is usually outperformed by naive search, but has
-;;; better worst-case performance so it's a fairly safe choice
-;;; when the needle is of length 5 or longer.
+;;; Rabin-Karp is usually twice as slow as naive search, but is
+;;; less likely to hit a worst case.
 ;;;
 ;;; Boyer-Moore-Horspool is usually best for random haystacks
 ;;; at least 20 times as long as the needle, provided the needle
@@ -372,6 +371,10 @@
 ;;;
 ;;; The full Boyer-Moore algorithm as implemented here rarely
 ;;; outperforms Rabin-Karp and often performs much worse.
+;;;
+;;; The worst case for Boyer-Moore-Horspool can usually be avoided by
+;;; using a different algorithm when the three rightmost characters
+;;; of the needle are all the same.
 
 (define (span-contains haystack needle)
   (%check-span haystack 'span-contains)
@@ -381,7 +384,14 @@
     (cond ((span-null? needle)
            #f)
           ((and (>= n1 5)
-                (>= n0 (* 20 n1)))
+                (>= n0 (* 20 n1))
+                (not (let* ((curs1 (span-cursor-prev needle
+                                                     (span-cursor-end needle)))
+                            (curs2 (span-cursor-prev needle curs1))
+                            (curs3 (span-cursor-prev needle curs2)))
+                       (char=? (span-cursor-ref needle curs1)
+                               (span-cursor-ref needle curs2)
+                               (span-cursor-ref needle curs3)))))
            (%span-contains:boyer-moore haystack needle))
           ((and (> n1 10)
                 (> n0 (* 2 n1)))
