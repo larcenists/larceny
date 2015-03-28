@@ -99,7 +99,14 @@
   (do ((s (make-string n))
        (i 0 (+ i 1)))
       ((= i n) s)
-    (string-set! s i (integer->char (random 32768)))))
+    (let loop ((bits (random #x10ffff)))
+      (if (or (<= #xd800 bits #xdfff)
+              (= bits (char->integer #\~)))
+          (loop (random 32768))
+          (string-set! s i (integer->char bits))))))
+
+(define *sp1* (span))
+(define *sp2* (span))
 
 (define name:length 22) ; FIXME
 
@@ -116,6 +123,8 @@
                            (make-random-string m2)))
          (sp1 (string->span T))
          (sp2 (string->span P))
+         (ignored (begin (set! *sp1* sp1)
+                         (set! *sp2* sp2)))
          (expected (span-index->cursor sp1 m1))
          (name (string-append testname
                               (number->string m)
@@ -272,6 +281,15 @@
 (define (hard-case-BM-ascii-search-successful m n)
   (hard-case 'L make-random-ascii-string m n))
 
+(define (random-unicode-search-successful m n)
+  (random-search "success: " make-random-unicode-string m n))
+
+(define (hard-case-naive-unicode-search-successful m n)
+  (hard-case 'R make-random-unicode-string m n))
+
+(define (hard-case-BM-unicode-search-successful m n)
+  (hard-case 'L make-random-unicode-string m n))
+
 (define (dotimes n thunk)
   (if (> n 1)
       (begin (thunk) (dotimes (- n 1) thunk))
@@ -312,6 +330,27 @@
             (for-each (lambda (n)
                         (if (<= n m)
                             (random-ascii-search-successful m n)))
+                      lengths2))
+          lengths1)
+
+(for-each (lambda (m)
+            (for-each (lambda (n)
+                        (if (<= n m)
+                            (hard-case-naive-unicode-search-successful m n)))
+                      lengths2))
+          lengths1)
+
+(for-each (lambda (m)
+            (for-each (lambda (n)
+                        (if (<= n m)
+                            (hard-case-BM-unicode-search-successful m n)))
+                      lengths2))
+          lengths1)
+
+(for-each (lambda (m)
+            (for-each (lambda (n)
+                        (if (<= n m)
+                            (random-unicode-search-successful m n)))
                       lengths2))
           lengths1)
 

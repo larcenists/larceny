@@ -203,7 +203,7 @@
 
 (define (%utf8->char-indexes bv)
   (if (zero? (bytevector-length bv))
-      (values '#() 0)
+      (values '#(0) 0)
       (let loop ((i 0)           ; index into bv
                  (n 0)           ; number of characters to left of i
                  (indexes '()))  ; prefix of char-indexes for first n chars
@@ -228,7 +228,7 @@
         #f
         (let ((bits (bytevector-u8-ref bv i)))
           (cond ((< bits #b10000000) i)
-                ((< bits #b11000000) (%utf8-next-index bv (+ i 1)))
+                ((< bits #b11000000) (%utf8-next-index bv i))
                 (else i))))))
 
 ;;; Given a UTF-8 bytevector and an index into that bytevector
@@ -242,7 +242,7 @@
         #f
         (let ((bits (bytevector-u8-ref bv i)))
           (cond ((< bits #b10000000) i)
-                ((< bits #b11000000) (%utf8-prev-index bv (- i 1)))
+                ((< bits #b11000000) (%utf8-prev-index bv i))
                 (else i))))))
 
 ;;; Given a UTF-8 bytevector and an index into that bytevector
@@ -258,19 +258,19 @@
                    bv i))
           ((< bits #b11100000)
            (integer->char
-            (+ (- bits #b11000000)
-               (* 32 (- (vector-ref bv (+ i 1)) #b10000000)))))
+            (+ (* 64 (- bits #b11000000))
+               (- (bytevector-u8-ref bv (+ i 1)) #b10000000))))
           ((< bits #b11110000)
            (integer->char
-            (+ (- bits #b11100000)
-               (*   16 (- (vector-ref bv (+ i 1)) #b10000000))
-               (* 1024 (- (vector-ref bv (+ i 2)) #b10000000)))))
+            (+ (* 4096 (- bits #b11100000))
+               (*   64 (- (bytevector-u8-ref bv (+ i 1)) #b10000000))
+               (- (bytevector-u8-ref bv (+ i 2)) #b10000000))))
           (else
            (integer->char
-            (+ (- bits #b11110000)
-               (*     8 (- (vector-ref bv (+ i 1)) #b10000000))
-               (*   512 (- (vector-ref bv (+ i 2)) #b10000000))
-               (* 32768 (- (vector-ref bv (+ i 3)) #b10000000))))))))
+            (+ (* 262144 (- bits #b11110000))
+               (*   4096 (- (bytevector-u8-ref bv (+ i 1)) #b10000000))
+               (*     64 (- (bytevector-u8-ref bv (+ i 2)) #b10000000))
+               (- (bytevector-u8-ref bv (+ i 3)) #b10000000)))))))
 
 ;;; Procedures that aren't exported but may be called by the
 ;;; representation-independent part of the implementation.

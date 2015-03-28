@@ -21,22 +21,90 @@
 
 ;;; The representation-dependent part of an implementation of
 ;;; character spans that represents character spans by records
-;;; encapsulating a string and substring bounds and represents
-;;; cursors by exact integers.
+;;; encapsulating a UTF-8 representation (as a bytevector) along
+;;; with a vector mapping character indexes to bytevector indexes,
+;;; the character length of the span (not the bytevector), and
+;;; substring bounds (as bytevector indexes).  Cursors are exact
+;;; integers.  This implementation differs from spans.body1c.scm
+;;; because cursors are indexes into the base bytevector, not
+;;; artificially biased offsets from the beginning of the first
+;;; character in the span.
 ;;;
-;;; This implementation is suitable for systems in which
-;;; string-ref runs in constant time.
+;;; This implementation is suitable for systems that support bytevectors,
+;;; Unicode characters, and Unicode strings.  It provides O(1) indexing
+;;; of spans even if string-ref does not run in constant time.
 
 (define (%debugging) #f)
 
-;;; A :span represents the characters in (substring s i j).
+;;; A :span represents the characters in (bytevector-copy bv i j).
+;;;
+;;; bv is the UTF-8 representation of a string.
+;;; i and j are indexes into bv on UTF-8 character boundaries.
+;;; n is (string-length (utf8->string (bytevector-copy bv i j))).
+;;; char-indexes is a non-empty vector that maps selected character
+;;; indexes to bytevector indexes.  If 0 <= k < n, then
+;;;
+;;;     (vector-ref char-indexes
+;;;                 (div k %char-indexes:resolution))
+;;;
+;;; is the bytevector index of the character that would be obtained by
+;;;
+;;;     (string-ref (utf8->string bv)
+;;;                 (* %char-indexes:resolution
+;;;                    (div k %char-indexes:resolution)))
+;;;
+;;; That index allows the kth character of a span to be found by
+;;; scanning at most %char-indexes:resolution characters of the
+;;; UTF-8 representation.  Since %char-indexes:resolution is a
+;;; constant, span indexing runs in O(1) time.
+;;;
+;;; If %char-indexes:resolution is 32, then the space overhead is
+;;; roughly 25% for 64-bit systems and about 12.5% for 32-bit systems.
+;;; Subspans share the char-indexes vector as well as the UTF-8
+;;; representation, so the relative space overhead of indexing goes
+;;; down when subspans are created.
+
+(define %char-indexes:resolution 32)
 
 (define-record-type :span
-  (%make-raw-span s i j)
+  (%make-raw-span bv i j n char-indexes)
   %span?
-  (s %span:string)
+  (bv %span:bytevector)
   (i %span:start)
-  (j %span:end))
+  (j %span:end)
+  (n %span:length)
+  (char-indexes %span:char-indexes))
+
+;;; Given a span and a character index into the base bytevector,
+;;; returns the corresponding bytevector index.
+
+(define (%char-index->bytevector-index sp idx)
+  (let* ((bv (%span:bytevector sp))
+         (char-indexes (%span:char-indexes sp))
+         (k (div idx %char-indexes:resolution)))
+    (let loop ((i (vector-ref char-indexes k))
+               (idx2 (* k %char-indexes:resolution)))
+      (if (< idx2 idx)
+          (loop (%utf8-next-index bv i)
+                (+ idx2 1))
+          i))))
+
+;;; Given a span and an index into its base bytevector,
+;;; returns the corresponding character index into the base bytevector.
+
+(define (%bytevector-index->char-index sp i)
+  (let* ((bv (%span:bytevector sp))
+         (char-indexes (%span:char-indexes sp)))
+    (let loop1 ((k (div i %char-indexes:resolution)))
+      (if (or (<= (vector-length char-indexes) k)
+              (< i (vector-ref char-indexes k)))
+          (loop1 (- k 1))
+          (let loop2 ((j (vector-ref char-indexes k))
+                      (idx (* k %char-indexes:resolution)))
+            (if (< j i)
+                (loop2 (%utf8-next-index bv j)
+                       (+ idx 1))
+                idx))))))
 
 ;;; As an aid to debugging in Larceny, this makes spans print as #!"...".
 
@@ -58,69 +126,151 @@
  (else))
 
 ;;; Runs in constant time, returning a lower bound for the true length.
+;;; (With this representation, the estimate is exact.)
 
 (define (%span-length:estimated span)
-  (string-length (%span:string span)))
+  (%span:length span))
 
 ;;; Returns an empty span.
 
 (define (%span:empty) %the-empty-span)
 
 (define %the-empty-span
-  (%make-raw-span "" 0 0))
+  (%make-raw-span '#u8() 0 0 0 '#(0)))
 
-;;; The main advantage of this representation is that subspans
-;;; can share the same base string, which can make the subspan
-;;; operation faster and more space-efficient.  On the other
-;;; hand, just one tiny subspan can retain the storage of an
-;;; enormous base string.  To eliminate that possibility, this
-;;; implementation of the subspan operation creates a new base
-;;; string whenever:
+;;; The main advantage of this representation is that subspans can
+;;; share the same UTF-8 representation and indexing vector, which
+;;; can make the subspan operation faster and more space-efficient.
+;;; On the other hand, just one tiny subspan can retain the storage
+;;; of an enormous UTF-8 bytevector.  To eliminate that possibility,
+;;; this implementation of the subspan operation creates a new UTF-8
+;;; bytevector whenever:
 ;;;
-;;;     the length of the subspan is less than a threshold
 ;;;     the length of the subspan is less than a certain fraction
-;;;         of the length of the base string
+;;;         of the length of the original base span
 
-(define %subspan:absolute-threshold 20)
-(define %subspan:threshold-multiplier 10)
+(define %subspan:threshold-multiplier 15)
+
+(define (%subspan/cursors sp curs:start curs:end)
+  (%check-span sp 'subspan/cursors)
+  (let ((bv (%span:bytevector sp))
+        (i0 (%span:start sp))
+        (j0 (%span:end sp))
+        (n  (%span:length sp)))
+    (if (and (exact-integer? curs:start)
+             (exact-integer? curs:end)
+             (<= i0 curs:start curs:end j0))
+        (cond ((and (= curs:start i0)
+                    (= curs:end j0))
+               sp)
+              ((< (* (- curs:end curs:start) %subspan:threshold-multiplier)
+                  (bytevector-length bv))
+               (%utf8->span
+                (bytevector-copy bv curs:start curs:end)))
+              (else
+               (%make-raw-span bv
+                               curs:start
+                               curs:end
+                               (- (span-cursor->index sp curs:end)
+                                  (span-cursor->index sp curs:start))
+                               (%span:char-indexes sp))))
+        (%error 'subspan/cursors
+                "cursor out of range"
+                sp
+                curs:start
+                curs:end))))
 
 (define (%subspan sp start end)
   (%check-span sp 'subspan)
-  (let ((s (%span:string sp))
-        (i (%span:start sp))
-        (j (%span:end sp)))
-    (if (and (exact-integer? start)
-             (exact-integer? end)
-             (<= 0 start end (- j i)))
-        (cond ((and (= start 0)
-                    (= end (- j i)))
-               sp)
-              ((or (< (- end start) %subspan:absolute-threshold 20)
-                   (< (* (- end start) %subspan:threshold-multiplier)
-                      (string-length s)))
-               (%make-raw-span (substring s (+ i start) (+ i end))
-                               0
-                               (- end start)))
-              (else
-               (%make-raw-span s (+ i start) (+ i end))))
-        (%error 'span-ref
-                "index out of range"
-                sp
-                start
-                end))))
+  (%subspan/cursors sp
+                    (span-index->cursor sp start)
+                    (span-index->cursor sp end)))
 
-;;; Nothing in the specification of span cursors precludes their
-;;; representation as exact integers.  To provide a small degree
-;;; of sanity checking, this implementation adds a fixed offset
-;;; so span cursors will be less likely to be valid indexes into
-;;; a related string.
+;;; Given a UTF-8 representation that is not accessible outside
+;;; of this library, returns a span of its characters.
 
-(define *cursor-offset* -1000)
+(define (%utf8->span bv)
+  (call-with-values
+   (lambda () (%utf8->char-indexes bv))
+   (lambda (char-indexes n)
+     (%make-raw-span bv 0 (bytevector-length bv) n char-indexes))))
 
-;;; Using a different offset for string cursors improves sanity
-;;; checking.
+;;; Given a UTF-8 representation that is not accessible outside
+;;; of this library, returns two values:
+;;;
+;;;     the char-indexes vector for the bytevector
+;;;     the number of characters in the bytevector
 
-(define *string-cursor-offset* -54321)
+(define (%utf8->char-indexes bv)
+  (if (zero? (bytevector-length bv))
+      (values '#(0) 0)
+      (let loop ((i 0)           ; index into bv
+                 (n 0)           ; number of characters to left of i
+                 (indexes '()))  ; prefix of char-indexes for first n chars
+        (let* ((indexes (if (zero? (mod n 32))
+                            (cons i indexes)
+                            indexes))
+               (j (%utf8-next-index bv i)))
+          (cond (j
+                 (loop j (+ n 1) indexes))
+                (else
+                 (values (list->vector (reverse indexes))
+                         (+ n 1))))))))
+
+;;; Given a UTF-8 bytevector and an index into that bytevector or -1,
+;;; returns the least larger index that begins a character, or
+;;; returns false if there are no more characters.
+
+(define (%utf8-next-index bv i)
+  (let ((n (bytevector-length bv))
+        (i (+ i 1)))
+    (if (>= i n)
+        #f
+        (let ((bits (bytevector-u8-ref bv i)))
+          (cond ((< bits #b10000000) i)
+                ((< bits #b11000000) (%utf8-next-index bv i))
+                (else i))))))
+
+;;; Given a UTF-8 bytevector and an index into that bytevector
+;;; or its length or -1,
+;;; returns the greatest smaller index that begins a character, or
+;;; returns false if there are no more characters.
+
+(define (%utf8-prev-index bv i)
+  (let ((i (- i 1)))
+    (if (< i 0)
+        #f
+        (let ((bits (bytevector-u8-ref bv i)))
+          (cond ((< bits #b10000000) i)
+                ((< bits #b11000000) (%utf8-prev-index bv i))
+                (else i))))))
+
+;;; Given a UTF-8 bytevector and an index into that bytevector
+;;; at the start of a character, returns that character.
+
+(define (%utf8-char-ref bv i)
+  (let ((bits (bytevector-u8-ref bv i)))
+    (cond ((< bits #b10000000)
+           (integer->char bits))
+          ((< bits #b11000000)
+           (%error '%utf8-char-ref
+                   "index not on character boundary"
+                   bv i))
+          ((< bits #b11100000)
+           (integer->char
+            (+ (* 64 (- bits #b11000000))
+               (- (bytevector-u8-ref bv (+ i 1)) #b10000000))))
+          ((< bits #b11110000)
+           (integer->char
+            (+ (* 4096 (- bits #b11100000))
+               (*   64 (- (bytevector-u8-ref bv (+ i 1)) #b10000000))
+               (- (bytevector-u8-ref bv (+ i 2)) #b10000000))))
+          (else
+           (integer->char
+            (+ (* 262144 (- bits #b11110000))
+               (*   4096 (- (bytevector-u8-ref bv (+ i 1)) #b10000000))
+               (*     64 (- (bytevector-u8-ref bv (+ i 2)) #b10000000))
+               (- (bytevector-u8-ref bv (+ i 3)) #b10000000)))))))
 
 ;;; Procedures that aren't exported but may be called by the
 ;;; representation-independent part of the implementation.
@@ -129,65 +279,87 @@
   (cond ((string=? str "")
          (%span:empty))
         ((%debugging)
-         (%make-raw-span (string-append "***" str "&&&&&")
-                         3
-                         (+ 3 (string-length str))))
+         (%subspan (%utf8->span
+                    (string->utf8 (string-append "***" str "&&&&&")))
+                   3
+                   (+ 3 (string-length str))))
         (else
-         (%make-raw-span str 0 (string-length str)))))
+         (%utf8->span (string->utf8 str)))))
 
 (define (%span->string sp)
   (%check-span sp '%span->string)
-  (substring (%span:string sp) (%span:start sp) (%span:end sp)))
+  (utf8->string (%span:bytevector sp)
+                (%span:start sp)
+                (%span:end sp)))
 
 (define (%check-span sp name)
   (if (not (%span? sp))
-      (error (string-append (cond ((symbol? name)
-                                   (string-append (symbol->string name) ": "))
-                                  ((string? name)
-                                   (string-append name ": "))
-                                  (else ""))
-                            "not a span")
-             sp)))
+      (%error name
+              "not a span"
+              sp)))
 
 ;;; Exported procedures.
 
 ;;; String cursors.
 
 (define (string-cursor-start str)
-  (+ 0 *string-cursor-offset*))
+  0)
 
 (define (span-cursor-start sp)
-  (+ 0 *cursor-offset*))
+  (%span:start sp))
 
 (define (string-cursor-end str)
-  (+ (string-length str) *string-cursor-offset*))
+  (string-length str))
 
 (define (span-cursor-end sp)
-  (+ (string-length (%span->string sp)) *cursor-offset*))
+  (%span:end sp))
 
 (define (string-cursor-next str curs)
   (min (string-cursor-end str) (+ curs 1)))
 
 (define (span-cursor-next sp curs)
-  (min (span-cursor-end sp) (+ curs 1)))
+  (let* ((bv (%span:bytevector sp))
+         (i0 (%span:start sp))
+         (j0 (%span:end sp))
+         (i  (%utf8-next-index bv curs)))
+    (cond ((or (not i) (>= i j0))
+           j0)
+          (else
+           i))))
 
 (define (string-cursor-prev str curs)
-  (max (+ -1 *string-cursor-offset*) (- curs 1)))
+  (max -1 (- curs 1)))
 
 (define (span-cursor-prev sp curs)
-  (max (+ -1 *cursor-offset*) (- curs 1)))
+  (let* ((bv (%span:bytevector sp))
+         (i0 (%span:start sp))
+         (j0 (%span:end sp))
+         (i  (%utf8-prev-index bv curs)))
+    (or i -1)))
 
 (define (string-cursor-forward str curs n)
   (min (string-cursor-end str) (+ curs n)))
 
 (define (span-cursor-forward sp curs n)
-  (min (span-cursor-end sp) (+ curs n)))
+  (cond ((= n 0)
+         curs)
+        ((< n %char-indexes:resolution)
+         (span-cursor-forward sp (span-cursor-next sp curs) (- n 1)))
+        (else
+         (span-index->cursor sp
+                             (+ (span-cursor->index sp curs) n)))))
 
 (define (string-cursor-backward str curs n)
-  (max (+ -1 *string-cursor-offset*) (- curs n)))
+  (max -1 (- curs n)))
 
 (define (span-cursor-backward sp curs n)
-  (max (+ -1 *cursor-offset*) (- curs n)))
+  (cond ((= n 0)
+         curs)
+        ((< n %char-indexes:resolution)
+         (span-cursor-backward sp (span-cursor-prev sp curs) (- n 1)))
+        (else
+         (span-index->cursor sp
+                             (- (span-cursor->index sp curs) n)))))
 
 (define (string-cursor=? str curs1 curs2)
   (= curs1 curs2))
@@ -220,16 +392,34 @@
   (>= curs1 curs2))
 
 (define (string-cursor->index str curs)
-  (- curs *string-cursor-offset*))
+  curs)
 
 (define (span-cursor->index sp curs)
-  (- curs *cursor-offset*))
+  (let* ((i0 (%span:start sp))
+         (j0 (%span:end sp))
+         (i1 curs)
+         (idx0 (%bytevector-index->char-index sp i0)))
+    (cond ((< i1 i0)
+           -1)
+          ((<= j0 i1)
+           (%span:length sp))
+          (else
+           (- (%bytevector-index->char-index sp i1)
+              idx0)))))
 
 (define (string-index->cursor str idx)
-  (+ idx *string-cursor-offset*))
+  idx)
 
 (define (span-index->cursor sp idx)
-  (+ idx *cursor-offset*))
+  (let* ((i0 (%span:start sp))
+         (n  (%span:length sp))
+         (idx0 (%bytevector-index->char-index sp i0)))
+    (cond ((< idx 0)
+           (span-cursor-prev sp i0))
+          ((>= idx n)
+           (span-cursor-end sp))
+          (else
+           (%char-index->bytevector-index sp (+ idx idx0))))))
 
 (define (string-cursor-difference str curs1 curs2)
   (- curs2 curs1))
@@ -243,59 +433,16 @@
   (string-ref str (string-cursor->index str curs)))
 
 (define (span-cursor-ref sp curs)
-  (span-ref sp (span-cursor->index sp curs)))
-
-(define (string-cursor-forward-until str curs pred)
-  (let ((n (string-length str)))
-    (let loop ((i (string-cursor->index str curs)))
-      (cond ((>= i n)
-             (string-cursor-end str))
-            ((and (<= 0 i)
-                  (pred (string-ref str i)))
-             (string-index->cursor str i))
-            (else
-             (loop (+ i 1)))))))
-
-(define (span-cursor-forward-until sp curs pred)
-  (%check-span sp 'span-cursor-forward-until)
-  (let* ((s  (%span:string sp))
-         (i0 (%span:start sp))
-         (j0 (%span:end sp))
-         (n  (- j0 i0)))
-    (let loop ((i (span-cursor->index sp curs)))
-      (cond ((>= i n)
-             (span-cursor-end sp))
-            ((and (<= 0 i)
-                  (pred (string-ref s (+ i i0))))
-             (span-index->cursor sp i))
-            (else
-             (loop (+ i 1)))))))
-
-(define (string-cursor-backward-until str curs pred)
-  (let ((n (string-length str)))
-    (let loop ((i (string-cursor->index str curs)))
-      (cond ((< i 0)
-             (string-cursor-prev str (string-cursor-start str)))
-            ((and (< i n)
-                  (pred (string-ref str i)))
-             (string-index->cursor str i))
-            (else
-             (loop (- i 1)))))))
-
-(define (span-cursor-backward-until sp curs pred)
-  (%check-span sp 'span-cursor-forward-until)
-  (let* ((s  (%span:string sp))
-         (i0 (%span:start sp))
-         (j0 (%span:end sp))
-         (n  (- j0 i0)))
-    (let loop ((i (span-cursor->index sp curs)))
-      (cond ((< i 0)
-             (span-cursor-prev sp (span-cursor-start sp)))
-            ((and (< i n)
-                  (pred (string-ref s (+ i i0))))
-             (span-index->cursor sp i))
-            (else
-             (loop (- i 1)))))))
+  (%check-span sp 'span-cursor-ref)
+  (let ((bv (%span:bytevector sp))
+        (i0 (%span:start sp))
+        (j0 (%span:end sp)))
+    (if (and (<= i0 curs)
+             (< curs j0))
+        (%utf8-char-ref bv curs)
+        (%error 'span-cursor-ref
+                "span cursor out of range"
+                sp curs))))
 
 ;;; Span constructors.
 
@@ -319,26 +466,13 @@
 ;;; Selection.
 
 (define (span-ref sp k)
-  (%check-span sp 'span-ref)
-  (let ((s (%span:string sp))
-        (i (%span:start sp))
-        (j (%span:end sp)))
-    (if (and (exact-integer? k)
-             (<= 0 k)
-             (< k (- j i)))
-        (string-ref s (+ k i))
-        (%error 'span-ref
-                "index out of range"
-                sp
-                k))))
+  (span-cursor-ref sp (span-index->cursor sp k)))
 
 (define (subspan sp start end)
   (%subspan sp start end))
 
 (define (subspan/cursors sp start end)
-  (subspan sp
-           (span-cursor->index sp start)
-           (span-cursor->index sp end)))
+  (%subspan/cursors sp start end))
 
 ;;; Padding, trimming, and compressing.
 
@@ -352,31 +486,33 @@
 
 (define (span-trim sp . rest)
   (let* ((pred (%span-trim-predicate rest))
-         (s (%span:string sp))
-         (i (%span:start sp))
-         (j (%span:end sp))
-         (n (- j i)))
-    (let loop ((k 0))
-      (cond ((= k n)
+         (bv (%span:bytevector sp))
+         (i0 (%span:start sp))
+         (j0 (%span:end sp)))
+    (let loop ((k i0))
+      (cond ((or (not k)
+                 (>= k j0))
              (%span:empty))
-            ((pred (string-ref s (+ k i)))
-             (loop (+ k 1)))
+            ((pred (%utf8-char-ref bv k))
+             (loop (%utf8-next-index bv k)))
             (else
-             (subspan sp k n))))))
+             (subspan/cursors sp k j0))))))
 
 (define (span-trim-right sp . rest)
   (let* ((pred (%span-trim-predicate rest))
-         (s (%span:string sp))
-         (i (%span:start sp))
-         (j (%span:end sp))
-         (n (- j i)))
-    (let loop ((k (- n 1)))
-      (cond ((< k 0)
+         (bv (%span:bytevector sp))
+         (i0 (%span:start sp))
+         (j0 (%span:end sp)))
+    (let loop ((k (%utf8-prev-index bv j0)))
+      (cond ((or (not k)
+                 (< k i0))
              (%span:empty))
-            ((pred (string-ref s (+ k i)))
-             (loop (- k 1)))
+            ((pred (%utf8-char-ref bv k))
+             (loop (%utf8-prev-index bv k)))
             (else
-             (subspan sp 0 (+ k 1)))))))
+             (let ((j0 (or (%utf8-next-index bv k)
+                           j0)))
+               (subspan/cursors sp i0 j0)))))))
 
 ;;; Searching.
 ;;;
@@ -386,11 +522,11 @@
 ;;; Precondition: needle is non-empty.
 
 (define (%span-contains:naive haystack needle)
-  (let* ((s0 (%span:string haystack))
+  (let* ((bv0 (%span:bytevector haystack))
          (i0 (%span:start haystack))
          (j0 (%span:end haystack))
          (n0 (- j0 i0))
-         (s1 (%span:string needle))
+         (bv1 (%span:bytevector needle))
          (i1 (%span:start needle))
          (j1 (%span:end needle))
          (n1 (- j1 i1))
@@ -398,9 +534,9 @@
 
     (define (at? k0 k1)
       (cond ((= k1 j1)
-             k0)
-            ((char=? (string-ref s0 k0)
-                     (string-ref s1 k1))
+             #t)
+            ((= (bytevector-u8-ref bv0 k0)
+                (bytevector-u8-ref bv1 k1))
              (at? (+ 1 k0)
                   (+ 1 k1)))
             (else
@@ -411,31 +547,31 @@
              #f)
             (else
              (if (at? i i1)
-                 (span-index->cursor haystack (- i i0))
+                 i
                  (loop (+ 1 i))))))))
 
 (define (%span-contains:rabin-karp haystack needle)
-  (let* ((s0 (%span:string haystack))
+  (let* ((bv0 (%span:bytevector haystack))
          (i0 (%span:start haystack))
          (j0 (%span:end haystack))
          (n0 (- j0 i0))
-         (s1 (%span:string needle))
+         (bv1 (%span:bytevector needle))
          (i1 (%span:start needle))
          (j1 (%span:end needle))
          (n1 (- j1 i1))
          (end (- j0 n1)))
 
-    (define (hash s i j)
-      (do ((h 0 (+ h (char->integer (string-ref s i))))
+    (define (hash bv i j)
+      (do ((h 0 (+ h (bytevector-u8-ref bv i)))
            (i i (+ i 1)))
           ((= i j)
            h)))
 
     (define (at? k0 k1)
       (cond ((= k1 j1)
-             k0)
-            ((char=? (string-ref s0 k0)
-                     (string-ref s1 k1))
+             #t)
+            ((= (bytevector-u8-ref bv0 k0)
+                (bytevector-u8-ref bv1 k1))
              (at? (+ 1 k0)
                   (+ 1 k1)))
             (else
@@ -445,124 +581,39 @@
            #f)
           (else
            (let loop ((i i0)
-                      (h0 (hash s0 i0 (+ i0 n1)))
-                      (h1 (hash s1 i1 j1)))
+                      (h0 (hash bv0 i0 (+ i0 n1)))
+                      (h1 (hash bv1 i1 j1)))
              (cond ((and (= h0 h1)
                          (at? i i1))
-                    (span-index->cursor haystack (- i i0)))
+                    i)
                    ((>= i end)
                     #f)
                    (else
                     (loop (+ 1 i)
-                          (+ (- (char->integer (string-ref s0 i)))
+                          (+ (- (bytevector-u8-ref bv0 i))
                              h0
-                             (char->integer (string-ref s0 (+ i n1))))
+                             (bytevector-u8-ref bv0 (+ i n1)))
                           h1))))))))
 
-;;; Boyer-Moore string search.
+;;; Boyer-Moore-Horspool string search.
 ;;;
 ;;; Translated into Scheme by starting with the (buggy) Java code in
 ;;; http://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string_search_algorithm
 ;;; as of 16 March 2015 and then debugging from first principles.
 ;;;
 ;;; Precondition: needle is non-empty.
-;;;
-;;; Benchmarking shows the simplified Boyer-Moore-Horspool algorithm
-;;; is usually faster than the full Boyer-Moore algorithm as implemented
-;;; here.
-
-(define (full-boyer-moore?) #f)
 
 (define (%span-contains:boyer-moore haystack needle)
-  (let* ((s0 (%span:string haystack))
+  (let* ((bv0 (%span:bytevector haystack))
          (i0 (%span:start haystack))
          (j0 (%span:end haystack))
          (n0 (- j0 i0))
-         (s1 (%span:string needle))
+         (bv1 (%span:bytevector needle))
          (i1 (%span:start needle))
          (j1 (%span:end needle))
          (n1 (- j1 i1)))
 
-    ;; Returns the good suffix table, which maps needle positions
-    ;; where the first mismatch occurs (to the left of at least one
-    ;; matching character) to a safe shift.
-    ;;
-    ;; That safe shift is defined as follows:
-    ;;
-    ;;     If the matching suffix occurs as a substring of the needle
-    ;;     somewhere to the left, and the character to the left of
-    ;;     that substring differs from the character to the left of
-    ;;     the matching suffix, then the distance between the
-    ;;     rightmost substring with that property and the matching
-    ;;     suffix is a safe shift.
-    ;;
-    ;;     If the matching suffix does not occur as a substring
-    ;;     of the needle somewhere to the left with a different
-    ;;     character preceding, then find the longest prefix of
-    ;;     the needle that matches a suffix of the matching
-    ;;     suffix.  If that suffix exists, then its index (which
-    ;;     is the length of the needle minus the length of the
-    ;;     prefix) is a safe shift.
-    ;;
-    ;;     Otherwise it's safe to shift by the length of the needle.
-
-    (define (original-makeOffsetTable)
-      (let ((table (make-vector (- n1 1) -1)))
-
-        ;; i is the leftmost index of the matching suffix.
-        ;; By increasing i, longest matches will be found first.
-
-        (do ((i 1 (+ i 1)))
-            ((>= (+ i 1) n1))
-          (if (span-prefix? (subspan needle i n1) ; matching suffix
-                            needle)
-              (vector-set! table i i)))
-
-        ;; The loop above finds the longest prefix of the needle
-        ;; that matches the matching suffix.  The following loop
-        ;; fills that in, effectively computing the longest prefix
-        ;; that matches a suffix of the matching suffix.
-
-        (let loop ((prev n1)
-                   (i (- n1 2)))
-          (if (< 0 i)
-              (let ((jump (vector-ref table i)))
-                (if (< jump 0)
-                    (begin (vector-set! table i prev)
-                           (loop prev (- i 1)))
-                    (loop jump (- i 1))))))
-
-        ;; By increasing i, matches to the right will replace matches
-        ;; to the left.
-        ;;
-        ;; FIXME: this loop is O(n1^2)
-
-        (do ((i 1 (+ i 1)))
-            ((>= (+ i 1) n1))
-          (let ((slen (span-suffix-length (subspan needle 0 i)
-                                          needle)))
-            (if (< 0 slen i)
-                (vector-set! table
-                             (- n1 slen 1) ; index of first mismatch
-                             (- n1 i)))))
-
-        table))
-
-    ;; Computing the good suffix table as above takes too long.
-    ;; The Boyer-Moore-Horspool algorithm doesn't use that table,
-    ;; which is equivalent to using a table in which all entries are 1.
-
-    (define (horspool-makeOffsetTable)
-      '#(1))
-
-    (define (makeOffsetTable)
-      (if (full-boyer-moore?)
-          (original-makeOffsetTable)
-          (horspool-makeOffsetTable)))
-
-    (let ((charTable (make-hash-table char=? char->integer))
-          (asciiTable (make-vector 128 n1))
-          (offsetTable (makeOffsetTable)))
+    (let ((charTable (make-vector 256 n1)))
 
       ;; Initializes the bad character table, which maps characters that
       ;; occur within the needle to the distance between the rightmost
@@ -576,15 +627,11 @@
       ;; table entry for c is a lower bound for the appropriate shift.
 
       (define (makeCharTable)
-        (do ((i 0 (+ i 1)))
-            ((>= (+ i 1) n1))
-          (let ((c (string-ref s1 (+ i i1)))
-                (jump (- n1 1 i)))
-            (if (char<=? c #\delete)
-                (vector-set! asciiTable (char->integer c) jump)
-                (hash-table-set! charTable
-                                 (string-ref s1 (+ i i1))
-                                 jump)))))
+        (do ((i i1 (+ i 1)))
+            ((>= (+ i 1) j1))
+          (let ((bits (bytevector-u8-ref bv1 i))
+                (jump (- n1 1 (- i i1))))
+            (vector-set! charTable bits jump))))
 
       (define (show-entry c jump)
         (write-string "#\\")
@@ -599,68 +646,43 @@
           (begin
            (do ((i 0 (+ i 1)))
                ((= i 128))
-             (show-entry (integer->char i) (vector-ref asciiTable i)))
-           (for-each (lambda (entry)
-                       (show-entry (car entry) (cdr entry)))
-                     (hash-table->alist charTable))
-           (newline)
-           (do ((i 0 (+ i 1)))
-               ((= i (vector-length offsetTable)))
-             (write-string (number->string i))
-             (write-string " ")
-             (write-string (number->string (vector-ref offsetTable i)))
-             (newline))
-             (newline)))
+             (show-entry (integer->char i) (vector-ref charTable i)))
+           (newline)))
 
       ;; Returns the least i greater than or equal to the given i
       ;; at which a match is found.
 
-      (let loop1 ((i 0))
+      (let loop1 ((i i0))
 
-        ;; i is an index into s0 (haystack), j an index into s1 (needle).
-        ;; Returns the j at which a mismatch occurs, or -1 for a match.
+        ;; 0 <= i <= (- j0 i0)
+        ;; -1 <= j < (- j1 i1)
+
+        ;; i0 <= i <= j0
+        ;; (- i1 1) <= j < j1
+        ;; i is an index into bv0 (haystack), j an index into bv1 (needle).
+        ;; Returns the (- j i1) if a mismatch occurs at j, or -1 for a match.
 
         (define (loop2 i j)
-          (cond ((< j 0) j)
-                ((char=? (string-ref s1 (+ j i1))
-                         (string-ref s0 (+ i i0)))
+          (cond ((< j i0) -1)
+                ((= (bytevector-u8-ref bv1 (+ j i1))
+                    (bytevector-u8-ref bv0 (+ i i0)))
                  (loop2 (- i 1) (- j 1)))
-                (else j)))
+                (else (- j i1))))
 
-        (if (> (+ i n1) n0)
+        (if (> (+ (- i i0) n1) n0)
             #f
-            (let* ((j (loop2 (- (+ i n1) 1) (- n1 1)))
-                   (c (string-ref s0 (+ i n1 -1 i0)))
-                   (jumpA (if (char<=? c #\delete)
-                              (vector-ref asciiTable (char->integer c))
-                              (hash-table-ref/default charTable c n1))))
+            (let* ((j (loop2 (+ i n1 -1) (+ i1 (- n1 1))))
+                   (bits (bytevector-u8-ref bv0 (+ i n1 -1)))
+                   (jumpA (vector-ref charTable bits)))
               (cond ((< j 0)
-                     (span-index->cursor haystack i))
-                    ((= j (- n1 1))
-                     (loop1 (+ i jumpA)))
+                     i)
                     (else
-                     (let ((jumpB (if (full-boyer-moore?)
-                                      (vector-ref offsetTable j)
-                                      1)))
-                       (if (%debugging)
-                           (begin
-                            (write-string (number->string i))
-                            (write-string " ")
-                            (write-string (number->string j))
-                            (write-string " ")
-                            (write-string (number->string jumpA))
-                            (write-string " ")
-                            (write-string (number->string jumpB))
-                            (newline)))
-                       (loop1 (+ i
-                                 (if (full-boyer-moore?)
-                                     (max jumpA jumpB)
-                                     jumpA))))))))))))
+                     (loop1 (+ i jumpA))))))))))
 
 ;;; The whole character span or string.
 
 (define (span-length sp)
-  (- (%span:end sp) (%span:start sp)))
+  (%span:length sp))
 
 ;;; Conversion.
 
