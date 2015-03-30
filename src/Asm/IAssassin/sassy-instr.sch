@@ -2283,11 +2283,19 @@
    $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))
 
 (define-sassy-instr (flat4:make-string regno)
-  ;; FIXME: exception code wrong, but matches Sparc
-  (ia86.make_indexed_structure_word
-       regno $tag.bytevector-tag
-       (+ $imm.bytevector-header $tag.ustring-typetag)
-       $ex.mkbvl))
+  (let ((l0 (fresh-label))
+        (l1 (fresh-label)))
+    ;; FIXME: the great primop cleanup should improve upon this
+    (ia86.check_char regno l0)
+    (ia86.t_skip l1)
+    `(label ,l0)
+    (ia86.exception_noncontinuable $ex.mkbvl)
+    `(label ,l1)
+    ;; FIXME: exception code wrong, but matches Sparc
+    (ia86.make_indexed_structure_word
+         regno $tag.bytevector-tag
+         (+ $imm.bytevector-header $tag.ustring-typetag)
+         $ex.mkbvl)))
 
 (define-sassy-instr (flat4:string-length:str)
   `(mov	,$r.result (& ,$r.result ,(- $tag.bytevector-tag)))
