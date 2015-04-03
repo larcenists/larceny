@@ -333,9 +333,6 @@
 ;;; Returns the name of a file that can reasonably be expected
 ;;; to define the given library, or returns #f if no such file
 ;;; is found.
-;;;
-;;; FIXME:  It might be a good idea to look at the contents of
-;;; the file instead of relying entirely on file naming conventions.
 
 (define (larceny:find-r6rs-library libname)
 
@@ -377,12 +374,66 @@
                                  *library-suffixes-compiled*))
                                (let ((fname
                                       ((current-library-resolver) name)))
-                                 (if fname
+                                 (if (and fname
+                                          (larceny:find-r6rs-library-really?
+                                           libname
+                                           fname))
                                      (return fname))))))
                           libpaths))
               require-paths)
              #f))))
     fname))
+
+;;; Given the name of an R7RS/R6RS library and the name of the file
+;;; in which the autoloader expects to find it (based on file naming
+;;; conventions), returns true if and only if the library is actually
+;;; defined within the file.
+;;;
+;;; FIXME: for compiled files, this remains heuristic.
+
+(define (larceny:find-r6rs-library-really? libname fname)
+
+  (define (search-source-library-file fname)
+    (call-without-errors
+     (lambda ()
+       (call-with-input-file
+        fname
+        (lambda (p)
+          (let loop ()
+            (let ((x (read p)))
+              (cond ((eof-object? x)
+                     #f)
+                    ((and (pair? x)
+                          (memq (car x) *library-keywords*)
+                          (pair? (cdr x))
+                          (equal? (larceny:libname-without-version (cadr x))
+                                  (larceny:libname-without-version libname)))
+                     #t)
+                    (else (loop))))))))))
+
+  (cond ((file-type=? fname *slfasl-file-type*)
+         (let ((srcnames (generate-source-names fname)))
+
+           ;; FIXME: if there is no corresponding source file,
+           ;; then we'll just assume the library is defined by
+           ;; the compiled file.
+
+           (or (null? srcnames)
+               (let loop ((srcnames (generate-source-names fname)))
+                 (cond ((null? srcnames) #f)
+                       ((file-exists? (car srcnames))
+                        (search-source-library-file (car srcnames)))
+                       (else (loop (cdr srcnames))))))))
+        (else (search-source-library-file fname))))
+
+;;; Given the name of an R7RS/R6RS library, returns the name without
+;;; version numbers.
+
+(define (larceny:libname-without-version libname)
+  (if (and (pair? libname)
+           (list? (car (last-pair libname))))
+      (reverse (cdr (reverse libname)))
+      libname))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

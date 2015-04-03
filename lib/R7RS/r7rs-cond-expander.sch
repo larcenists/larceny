@@ -239,40 +239,6 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Given the name of an R7RS/R6RS library and the name of the file
-;;; in which the autoloader expects to find it (based on file naming
-;;; conventions), returns true if and only if the library is actually
-;;; defined within the file.
-;;;
-;;; FIXME: for compiled files, this remains heuristic.
-
-(define (larceny:find-r6rs-library-really? libname fname)
-
-  (define (search-source-library-file fname)
-    (call-without-errors
-     (lambda ()
-       (call-with-input-file
-        fname
-        (lambda (p)
-          (let loop ()
-            (let ((x (read p)))
-              (cond ((eof-object? x)
-                     #f)
-                    ((and (pair? x)
-                          (memq (car x) *library-keywords*)
-                          (pair? (cdr x))
-                          (equal? (cadr x) libname))
-                     #t)
-                    (else (loop))))))))))
-
-  (cond ((file-type=? fname *slfasl-file-type*)
-         (let loop ((srcnames (generate-source-names fname)))
-           (cond ((null? srcnames) #f)
-                 ((file-exists? (car srcnames))
-                  (search-source-library-file (car srcnames)))
-                 (else (loop (cdr srcnames))))))
-        (else (search-source-library-file fname))))
-
 ;;; Returns an association list containing an entry for every
 ;;; library defined by source files found within the current
 ;;; require path.  Each entry is of the form
@@ -377,7 +343,7 @@
 
     (define (process-file! file)
       (cond ((larceny:directory? file)
-             (find-available-libraries! file))
+             (find-available-libraries! (larceny:absolute-path file)))
             ((and (exists (lambda (type) (file-type=? file type))
                           *library-suffixes-source*)
                   (larceny:contains-libraries-only? file))
@@ -429,7 +395,8 @@
                       (string-append (current-larceny-root) "/" dir))))
                (require-paths (current-require-path))
                (require-paths (map make-absolute require-paths)))
-         (for-each find-available-libraries! require-paths)
+         (for-each find-available-libraries!
+                   (map larceny:absolute-path require-paths))
          (set! libraries-found
                (list-sort by-name libraries-found))
          (larceny:cache-available-source-libraries! libraries-found)
