@@ -443,7 +443,7 @@
   (make-parameter "compile-libraries-older-than-this-file" #f))
 
 ; Given the absolute pathname for a reference file in some directory,
-; compiles all ERR5RS/R6RS library files that directory and its
+; compiles all ERR5RS/R6RS library files in that directory and its
 ; subdirectories that are older than the reference file.
 ;
 ; The reference file is typically a file that has been modified,

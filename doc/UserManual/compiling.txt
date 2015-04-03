@@ -67,7 +67,7 @@ using Larceny's R7RS mode and the +(larceny compiler)+
 library:
 ----------------------------------------------------------------
     % pushd lib\R7RS
-    % ../../larceny -r7rs
+    % ..\..\larceny -r7rs
     Larceny v0.98 "General Ripper"
 
     > (import (larceny compiler))

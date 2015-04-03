@@ -184,7 +184,6 @@
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
-      (add-require-path!)
       (case emode
        ((err5rs r7rs r7r6)
         (aeryn-mode!)))
@@ -195,6 +194,7 @@
         ((repl-evaluator) '(import (scheme base))))
        ((r7r6)
         ((repl-evaluator) '(import (larceny r7r6)))))
+      (add-require-path!)
       (let ((pgm (get-feature 'top-level-program))
             (original-handler (error-handler)))
         (parameterize ((error-handler
