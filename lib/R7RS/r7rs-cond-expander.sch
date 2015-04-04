@@ -274,6 +274,16 @@
 ;;; availability of libraries.  That sounds like a likely
 ;;; use case.
 
+(define (larceny:make-library-entry name exports imports filename multiple?)
+  (list name exports imports filename multiple?))
+
+(define (larceny:library-entry-name entry)      (car entry))
+(define (larceny:library-entry-exports entry)   (cadr entry))
+(define (larceny:library-entry-imports entry)   (caddr entry))
+(define (larceny:library-entry-filename entry)  (cadddr entry))
+(define (larceny:library-entry-multiple? entry) (car (cddddr entry)))
+(define (larceny:library-entry-multiple! entry) (set-car! (cddddr entry) #t))
+
 (define *cached-source-libraries* #f)
 (define *cached-require-path* '())
 (define *cached-time* 0)
@@ -374,7 +384,11 @@
                   (okay? 'export exports)
                   (okay? 'import imports)
                   (let* ((filename (larceny:absolute-path fname))
-                         (entry (list name exports imports filename #f))
+                         (entry (larceny:make-library-entry name
+                                                            exports
+                                                            imports
+                                                            filename
+                                                            #f))
                          (probe (assoc name libraries-found)))
                     (cond ((and probe (equal? probe entry))
                            #t)
@@ -382,10 +396,16 @@
                            (set! libraries-found
                                  (cons entry libraries-found))
                            (if probe
-                               (for-each mark-as-multiple!
-                                         (filter (lambda (entry)
-                                                   (equal? name (car entry)))
-                                                 libraries-found))))))))))
+                               (for-each
+                                mark-as-multiple!
+                                (filter
+                                 (lambda (entry)
+                                   (equal? name
+                                           (larceny:library-entry-name entry)))
+                                 libraries-found))))))))))
+
+    (define (mark-as-multiple! entry)
+      (larceny:library-entry-multiple! entry))
 
     (or (larceny:cache-of-available-source-libraries)
         (let* ((make-absolute

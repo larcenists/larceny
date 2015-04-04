@@ -3,6 +3,9 @@
 (define (compile-stale . files)
   (%compile-stale-libraries files))
 
+;;; A source file is stale if and only if its associated .slfasl file
+;;; is stale.
+;;;
 ;;; A .slfasl file is stale if and only if its source file has
 ;;; been modified since the .slfasl file was last modified.
 ;;;
@@ -13,12 +16,18 @@
 ;;; the missing source code if any of the files they depend upon
 ;;; are recompiled.)
 
+(define (stale? srcfile)
+  (let ((faslfile (generate-fasl-name srcfile)))
+    (and faslfile
+         (file-exists? srcfile)
+         (file-exists? faslfile)
+         (file-newer? srcfile faslfile))))
+
 ;;; Given a list of file names containing R7RS/R6RS libraries or
 ;;; programs, attempts to compile those files.
 ;;;
 ;;; If any of the named files depends upon a library that cannot
-;;; be located within the current require path after extending
-;;; that path by adding the current directory, an error message
+;;; be located within the current require path, an error message
 ;;; will be printed and no files will be compiled.
 ;;;
 ;;; If any of the named files depends upon a stale file that lies
@@ -117,13 +126,18 @@
                          (okay? 'import imports)
                          (let* ((filename (larceny:absolute-path filename)))
                            (loop (read p)
-                                 (cons (list name exports imports filename #f)
+                                 (cons (larceny:make-library-entry
+                                        name exports imports filename #f)
                                        entries)))))))
             ((and (<= 1 (length library))
                   (okay? 'import library))
              (let* ((imports library) ; it's really just an import form
                     (filename (larceny:absolute-path filename)))
-               (cons (list '() '(export) imports filename #f)
+               (cons (larceny:make-library-entry '()
+                                                 '(export)
+                                                 imports
+                                                 filename
+                                                 #f)
                      entries)))
             (else
              (complain-about-file filename)))))
@@ -137,6 +151,11 @@
                  (lambda (p)
                    (%compute-entries-for-port p filename '())))
                 (%compute-entries-for-files filenames)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Phase 1: collects dependency information for the files to compile
+;;; and for all available libraries, and then proceeds to phase 2.
 
 (define (%compile-stale-libraries1 filenames)
   (let* ((libs (larceny:available-source-libraries))
@@ -158,13 +177,14 @@
                        (probe (hashtable-ref lib-table name #f)))
                   (hashtable-set! lib-table
                                   name
-                                  (if probe
-                                      (list name
-                                            (cadr lib)   ; exports
-                                            (caddr lib)  ; imports
-                                            (cadddr lib) ; filename
-                                            #t)
-                                      lib))))
+                                  (if (not probe)
+                                      lib
+                                      (larceny:make-library-entry
+                                       name
+                                       (larceny:library-entry-exports lib)
+                                       (larceny:library-entry-imports lib)
+                                       (larceny:library-entry-filename lib)
+                                       #t)))))
               libs)
     (for-each (lambda (lib/pgm)
                 (let* ((name (car lib/pgm))
@@ -173,10 +193,13 @@
                                         (list '#(program) counter))
                                  name))
                        (lib/pgm (cons name (cdr lib/pgm))))
-                  (hashtable-set! comp-table (car lib/pgm) lib/pgm)))
+                  (hashtable-set! comp-table
+                                  (larceny:library-entry-name lib/pgm)
+                                  lib/pgm)))
               to-compile)
 
     ;; These two libraries are defined within r6rs-standard-libraries.sch
+    ;; FIXME: shouldn't need so many special cases
 
     (hashtable-set! dependency-table '(rnrs base) '())
     (hashtable-set! dependency-table '(rnrs io simple) '())
@@ -184,6 +207,14 @@
     (%compile-stale-libraries2 lib-table
                                comp-table
                                dependency-table)))
+
+;;; Phase 2: calculates dependency graph and then proceeds to phase 3.
+;;;
+;;; The lib-table maps names of available libraries to library entries.
+;;; The comp-table maps names of files to be compiled to library entries.
+;;; The dependency table maps names of libraries and programs to lists
+;;; of the libraries upon which they depend.  For each of those lists,
+;;; every library depends only upon libraries that follow it in the list.
 
 (define (%compile-stale-libraries2 lib-table comp-table dependency-table)
 
@@ -206,11 +237,11 @@
                           (hashtable-set! dependency-table name '())
                           '())
                    (let ((directly-imported
-                          (make-lset
+                          (make-set
                            (map import-spec->libname
-                                (cdr (caddr lib))))))
+                                (cdr (larceny:library-entry-imports lib))))))
                      (let loop ((directly-imported directly-imported)
-                                (depends-upon      directly-imported))
+                                (depends-upon      '()))
                        (if (null? directly-imported)
                            (begin (hashtable-set! dependency-table
                                                   name
@@ -220,42 +251,66 @@
                                             (car directly-imported)))
                                   (depends (dependencies import1)))
                              (loop (cdr directly-imported)
-                                   (lset-union equal?
-                                               depends
-                                               depends-upon))))))))))))
-
-  (define (make-lset bag)
-    (if (null? bag)
-        bag
-        (let ((set (make-lset (cdr bag))))
-          (if (member (car bag) set)
-              set
-              (cons (car bag) set)))))
-
-  ;; FIXME: hard-wired special treatment for core and primitives isn't right
-
-  (define (import-spec->libname spec)
-    (cond ((or (not (list? spec))
-               (< (length spec) 2))
-           spec)
-          ((memq (car spec)
-                 '(only except prefix rename             ; R7RS/R6RS
-                   for library))                         ; R6RS only
-           (import-spec->libname (cadr spec)))
-          ((memq (car spec)
-                 '(core primitives))                     ; Larceny-specific
-           '(rnrs base))
-          (else
-           (larceny:libname-without-version spec))))
+                                   (union (cons import1 depends)
+                                          depends-upon))))))))))))
 
   (vector-for-each dependencies (hashtable-keys comp-table))
 
-  (vector-for-each (lambda (name)
-                     (write name)
-                     (newline)
-                     (for-each (lambda (libname)
-                                 (display "    ")
-                                 (write libname)
-                                 (newline))
-                               (hashtable-ref dependency-table name '())))
-                   (hashtable-keys dependency-table)))
+  (if (debugging?)
+      (vector-for-each (lambda (name)
+                         (write name)
+                         (newline)
+                         (let* ((entry (hashtable-ref lib-table name #f))
+                                (entry (or entry
+                                           (hashtable-ref comp-table name #f)))
+                                (filename (if entry
+                                              (cadddr entry)
+                                              "")))
+                           (display "    ")
+                           (write filename)
+                           (newline))
+                         (for-each (lambda (libname)
+                                     (display "    ")
+                                     (write libname)
+                                     (newline))
+                                   (hashtable-ref dependency-table name '())))
+                       (hashtable-keys dependency-table))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;; Given lists x and y with no repetitions (in the sense of equal?),
+;;; returns a list that's equal to (make-set (append x y)).
+
+(define (union x y)
+  (make-set (append x y)))
+
+;;; Given a list of objects,
+;;; returns that list from which repetitions (in the sense of equal?)
+;;; have been eliminated by removing objects earlier in the list
+;;; if they are repeated later in the list.
+
+(define (make-set bag)
+  (if (null? bag)
+      bag
+      (let ((set (make-set (cdr bag))))
+        (if (member (car bag) set)
+            set
+            (cons (car bag) set)))))
+
+;; FIXME: hard-wired special treatment for core and primitives isn't right
+
+(define (import-spec->libname spec)
+  (cond ((or (not (list? spec))
+             (< (length spec) 2))
+         spec)
+        ((memq (car spec)
+               '(only except prefix rename             ; R7RS/R6RS
+                 for library))                         ; R6RS only
+         (import-spec->libname (cadr spec)))
+        ((memq (car spec)
+               '(core primitives))                     ; Larceny-specific
+         '(rnrs base))
+        (else
+         (larceny:libname-without-version spec))))
+
