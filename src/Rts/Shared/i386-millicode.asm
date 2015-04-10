@@ -675,19 +675,6 @@ PUBLIC i386_flmul
 PUBLIC i386_mul
 %ifdef OPTIMIZE_MILLICODE
 	generic_fp_op fmul
-	mov	[GLOBALS+G_RESULT], RESULT
-	mov	[GLOBALS+G_SECOND], SECOND ; already saved by generic_fp_op
-	or	RESULT, SECOND
-	test	RESULT_LOW, 3
-	jnz	i386_mul_slowcase
-	mov	RESULT, [GLOBALS+G_RESULT]
-	sar	RESULT, 2
-	imul	RESULT, SECOND
-	jo	i386_mul_slowcase
-	ret
-i386_mul_slowcase:
-	mov	RESULT, [GLOBALS+G_RESULT]
-	mov	SECOND, [GLOBALS+G_SECOND]
 %endif
 	MC2gk	mc_mul
 	

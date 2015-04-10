@@ -2536,8 +2536,22 @@
   (ia86.generic_arithmetic rs1 rd rs2 'sub  'add  $m.subtract))
 
 (define-sassy-instr (ia86.t_op2_63 regno)	; *
-  (ia86.loadr	$r.second regno)
-  (ia86.mcall	$m.multiply 'multiply))
+  (let ((l1 (fresh-label))
+        (l2 (fresh-label)))
+    `(mov       ,$r.second ,$r.result)          ; commutativity helps here
+    (ia86.loadr	$r.result  regno)
+    `(or        ,$r.result ,$r.second)
+    `(test      ,$r.result.low ,$tag.fixtagmask)
+    `(jnz short ,l1)
+    (ia86.loadr	$r.result  regno)
+    `(sar       ,$r.result 2)
+    `(imul      ,$r.result ,$r.second)
+    `(jno short ,l2)
+    `(label     ,l1)
+    `(mov       ,$r.result ,$r.second)
+    (ia86.loadr	$r.second  regno)
+    (ia86.mcall	$m.multiply 'multiply)
+    `(label     ,l2)))
 	
 (define-sassy-instr (ia86.t_op2_64 regno)	; /
   (ia86.loadr	$r.second regno)
