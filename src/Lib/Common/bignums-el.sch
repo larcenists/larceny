@@ -37,10 +37,74 @@
 
 ($$trace "bignums-el")
 
-(define (bignum-sign b)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Declares the body of the definition to consist of trusted code
+; in which all numbers are fixnums.
+
+(define-syntax define-trusted:fixnums
+  (transformer
+   (lambda (exp rename compare)
+     (let ((name/pattern (cadr exp))
+           (body (cddr exp)))
+       `(define ,name/pattern
+          (letrec-syntax ((bytevector-like-ref
+                           (syntax-rules ()
+                            ((_ bv i)
+                             (.bytevector-like-ref:trusted bv i))))
+
+                          (bytevector-like-set!
+                           (syntax-rules ()
+                            ((_ bv i bits)
+                             (.bytevector-like-set!:trusted bv i bits))))
+
+                          (+
+                           (syntax-rules ()
+                            ((_ x y)
+                             (+:idx:idx x y))
+                            ((_ x y z ...)
+                             (+ (+:idx:idx x y) z ...))))
+
+                          (-
+                           (syntax-rules ()
+                            ((_ x y)
+                             (-:idx:idx x y))
+                            ((_ x y z ...)
+                             (- (-:idx:idx x y) z ...))))
+
+                          (=
+                           (syntax-rules ()
+                            ((_ x y)
+                             (=:fix:fix x y))))
+
+                          (<
+                           (syntax-rules ()
+                            ((_ x y)
+                             (<:fix:fix x y))))
+
+                          (>
+                           (syntax-rules ()
+                            ((_ x y)
+                             (>:fix:fix x y))))
+
+                          (<=
+                           (syntax-rules ()
+                            ((_ x y)
+                             (<=:fix:fix x y))))
+
+                          (>=
+                           (syntax-rules ()
+                            ((_ x y)
+                             (>=:fix:fix x y)))))
+
+            ,@body))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-trusted:fixnums (bignum-sign b)
   (bytevector-like-ref b 3))
 
-(define (bignum-sign-set! b s)
+(define-trusted:fixnums (bignum-sign-set! b s)
   (bytevector-like-set! b 3 s))
 
 ; System constants
@@ -74,28 +138,28 @@
   ;   bv is a bytevector
   ;   i is the _halfword_ index; i=1 means byte offset 2, and so on
 
-  (define (bytevector-like-halfword-ref bv i)
+  (define-trusted:fixnums (bytevector-like-halfword-ref bv i)
     (let ((i (+ i i)))
       (fxlogior (fxlsh (bytevector-like-ref bv (+ i 1)) 8)
               (bytevector-like-ref bv i))))
 
-  (define (bytevector-like-halfword-set! bv i v)
+  (define-trusted:fixnums (bytevector-like-halfword-set! bv i v)
     (let ((hi (fxrsha v 8))
           (lo (fxlogand v 255))
           (i  (+ i i)))
       (bytevector-like-set! bv (+ i 1) hi)
       (bytevector-like-set! bv i lo)))
 
-  (define (%bignum-ref a i)
+  (define-trusted:fixnums (%bignum-ref a i)
     (bytevector-like-halfword-ref a (+ i 2)))
 
-  (define (%bignum-set! a i v)
+  (define-trusted:fixnums (%bignum-set! a i v)
     (bytevector-like-halfword-set! a (+ i 2) v))
 
   ; Return the number of 16-bit bigits. We check if the high 16-bit 
   ; bigit of the high 32-bit bigit is 0 and return length-1 if so. 
 
-  (define (%bignum-length b)
+  (define-trusted:fixnums (%bignum-length b)
     (let* ((l0 (bytevector-like-halfword-ref b 0))
            (l2 (bytevector-like-ref b 2))
            (l0 (fxlogior l0 (fxlsh l2 16)))
@@ -111,7 +175,7 @@
   ; we must round up to an even number, then divide by 2. This is equivalent
   ; to adding 1 and dividing by 2.
 
-  (define (%bignum-length-set! b l)
+  (define-trusted:fixnums (%bignum-length-set! b l)
     (let ((l (fxrsha (+ l 1) 1)))
       (bytevector-like-halfword-set! b 0 (fxlogand l 65535))
       (bytevector-like-set! b 2 (fxrshl l 16))))
@@ -123,7 +187,7 @@
   ; I think the most reasonable thing to do would be to make this procedure
   ; the definition of bignum-length-set!.
 
-  (define (%bignum-truncate-length! b ln)
+  (define-trusted:fixnums (%bignum-truncate-length! b ln)
     (let ((l (fxrsha (+ ln 1) 1)))
       (bytevector-like-halfword-set! b 0 (fxlogand l 65535))
       (bytevector-like-set! b 2 (fxrshl l 16))
@@ -147,7 +211,7 @@
 ; exactly 1 32-bit bigit and its magnitude is less than 2^29
 ; or exactly 1 32-bit bigit and its magnitude is exactly 2^29.
 
-(define (big-fits-in-fix? b)
+(define-trusted:fixnums (big-fits-in-fix? b)
   (let ((b0 (bytevector-like-ref b 0)))
     (cond ((= 1 b0)
            (and (= 0 (bytevector-like-ref b 1))
@@ -177,7 +241,7 @@
 ; Normalize a bignum -- this involves removing leading zeroes, and, if the
 ; number is small enough to fit in a fixnum, converting it to a fixum.
 
-(define (big-normalize! b)
+(define-trusted:fixnums (big-normalize! b)
   (let* ((n (bignum-length32 b)))
     (define (loop i)
       (cond ((= i 0)
@@ -202,7 +266,7 @@
 
 ; Normalize, but do not convert.
 
-(define (big-limited-normalize! b)
+(define-trusted:fixnums (big-limited-normalize! b)
   (let* ((n (bignum-length32 b)))
     (define (loop i)
       (cond ((= i 0)
@@ -233,14 +297,14 @@
 
 ; Returns the length of a bignum in 32-bit bigits, not 16-bit.
 
-(define (bignum-length32 b)
+(define-trusted:fixnums (bignum-length32 b)
   (+ (bytevector-like-ref b 0)
      (fxlsh (bytevector-like-ref b 1) 8)
      (fxlsh (bytevector-like-ref b 2) 16)))
 
 ; Sets the length of a bignum (in units of 32-bit bigits, not 16-bit).
 
-(define (bignum-length32-set! b l)
+(define-trusted:fixnums (bignum-length32-set! b l)
   (let* ((b0 (fxlogand l #xff))
          (t1 (fxrshl l 8))
          (b1 (fxlogand t1 #xff))
@@ -272,7 +336,7 @@
 ; The length of c is neither examined nor adjusted.
 ; No range checking is performed, so c must be large enough.
 
-(define (bignum-shift-left! b c k)
+(define-trusted:fixnums (bignum-shift-left! b c k)
   (let* ((n (bignum-length32 b))        ; 32-bit bigits
          (k8 (quotient k 8))
          (k32 (fxrshl k8 2))
@@ -382,7 +446,7 @@
 ; The length of c is examined (for zero-fill) but not adjusted.
 ; No range checking is performed, so c must be large enough.
 
-(define (bignum-shift-right! b c k)
+(define-trusted:fixnums (bignum-shift-right! b c k)
   (let* ((n (bignum-length32 b))        ; 32-bit bigits
          (nbytes (+ 4 (* 4 n)))         ; limit of byte index for loops
          (nbytes-c (+ 4 (* 4 (bignum-length32 c))))
@@ -493,7 +557,7 @@
 ; The length of c is neither examined nor adjusted.
 ; No range checking is performed, so c must be large enough.
 
-(define (bignum-add! b c i j)
+(define-trusted:fixnums (bignum-add! b c i j)
   (let* ((n (bignum-length32 b)) ; n 16-bit bigits
          (nbytes (+ 4 (fxlsh n 2)))
          (debugging #f))
@@ -588,7 +652,7 @@
 ; The length of c is neither examined nor adjusted.
 ; No range checking is performed, so c must be large enough.
 
-(define (bignum-subtract! b c i j)
+(define-trusted:fixnums (bignum-subtract! b c i j)
   (let* ((n (bignum-length32 b)) ; n 16-bit bigits
          (nbytes (+ 4 (fxlsh n 2)))
          (debugging #f))
@@ -683,7 +747,7 @@
 ;
 ; Recognizes the special case where k is 0.
 
-(define (bignum-multiply-by-scalar-and-add! b c i j khi klo)
+(define-trusted:fixnums (bignum-multiply-by-scalar-and-add! b c i j khi klo)
   (let* ((n (bignum-length32 b)) ; n 32-bit digits
          (nbytes (+ n n n n 4))
          (debugging #f))
