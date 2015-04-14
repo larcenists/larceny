@@ -1735,6 +1735,7 @@
              ((401 vector-length:vec) ia86.t_op1_401) 
              ((404 car:pair) ia86.t_op1_404)
              ((405 cdr:pair) ia86.t_op1_405)
+             ((    bignum-multiply-step!) ia86.t_op1_512)
              ((612 internal:branchf-zero?) ia86.t_op1_612)
              ((1000 timestamp!) ia86.t_op1_1000)
              ((1001 p-monitor!) ia86.t_op1_1001)
@@ -3331,6 +3332,15 @@
            ; second is temp so 2nd arg is already in place
            (ia86.mcall	$m.subtract 'subtract)))
     `(label ,l1)))
+
+;;; Bignum operation steps.
+;;; Although they are invoked as though they were unary operations,
+;;; they actually take their arguments from general registers.
+;;; That means they can only be used within hand-written code or
+;;; possibly at the head of a Scheme procedure that won't be inlined.
+
+(define-sassy-instr (ia86.t_op1_512)             ; bignum-multiply-step!
+  (ia86.mcall $m.bignum-multiply-step 'bignum-multiply-step!))
 
 (define-sassy-instr/peep (or (ia86.t_op2imm_520* rs1 rd imm)	; +:idx:idx
                              (ia86.t_op2imm_520 imm))

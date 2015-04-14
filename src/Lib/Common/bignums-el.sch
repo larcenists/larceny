@@ -43,6 +43,12 @@
 ; in which all numbers are fixnums.
 
 (define-syntax define-trusted:fixnums
+  (syntax-rules ()
+   ((_ name/pattern . body)
+    (define name/pattern . body))))
+
+#;
+(define-syntax define-trusted:fixnums
   (transformer
    (lambda (exp rename compare)
      (let ((name/pattern (cadr exp))
@@ -746,6 +752,8 @@
 ; No range checking is performed, so c must be large enough.
 ;
 ; Recognizes the special case where k is 0.
+;
+; FIXME:  If debugging is #t, a segmentation fault occurs.  Why?
 
 (define-trusted:fixnums (bignum-multiply-by-scalar-and-add! b c i j khi klo)
   (let* ((n (bignum-length32 b)) ; n 32-bit digits
@@ -798,7 +806,7 @@
     ;; the c[j] and the carry and the product of k with b[i] and
     ;; the following bytes of b.
 
-    (define (loop b c i j nbytes khi klo carry-hi carry-lo)
+    (define (loop b c i j nbytes k carry)
       (if debugging
           (begin (write b)
                  (newline)
@@ -810,9 +818,20 @@
                   (list 'i= i 'j= j 'carry-hi= carry-hi 'carry-lo= carry-lo))
                  (newline)))
       (cond ((>= i nbytes)
-             (carry-loop c j carry-hi carry-lo))
-            (else
-             (let* ((bi0 (bytevector-like-ref b i))
+             (carry-loop c
+                         j
+                         (bytevector-u16-native-ref carry 2)
+                         (bytevector-u16-native-ref carry 0)))
+            (#f
+
+             ; FIXME
+
+             (let* (;(khi (bytevector-u16-native-ref k 2))
+                    ;(klo (bytevector-u16-native-ref k 0))
+                    ;(carry-hi (bytevector-u16-native-ref carry 2))
+                    ;(carry-lo (bytevector-u16-native-ref carry 0))
+
+                    (bi0 (bytevector-like-ref b i))
                     (bi1 (bytevector-like-ref b (+ i 1)))
                     (bi2 (bytevector-like-ref b (+ i 2)))
                     (bi3 (bytevector-like-ref b (+ i 3)))
@@ -858,17 +877,36 @@
                     (carry-lo (fxlogand #xffff t16))
                     (carry-hi (+ (fxrshl t16 16)
                                  (fxrshl bi3*khi 8))))
-
+#|
+               (bytevector-u16-native-set! carry 2 carry-hi)
+               (bytevector-u16-native-set! carry 0 carry-lo)
+               (assert (= carry-hi (bytevector-u16-native-ref carry 2)))
+               (assert (= carry-lo (bytevector-u16-native-ref carry 0)))
+|#
                (bytevector-like-set! c j cj0)
                (bytevector-like-set! c (+ j 1) cj1)
                (bytevector-like-set! c (+ j 2) cj2)
                (bytevector-like-set! c (+ j 3) cj3)
-               (loop b c (+ i 4) (+ j 4) nbytes khi klo carry-hi carry-lo)))))
+
+               (loop b c (+ i 4) (+ j 4) nbytes k carry)))
+
+            (else
+             (bignum-multiply-step! b c i j k carry)
+             (loop b c (+ i 4) (+ j 4) nbytes k carry))))
 
     (cond ((and (= 0 khi) (= 0 klo))
            c)
           (else
-           (loop b c (+ 4 (* 4 i)) (+ 4 (* 4 j)) nbytes khi klo 0 0)))
+           (let ((k (make-bytevector 4))
+                 (carry (make-bytevector 4 0)))
+             (bytevector-u16-native-set! k 2 khi)
+             (bytevector-u16-native-set! k 0 klo)
+             (bytevector-set! carry 0 0)
+             (bytevector-set! carry 1 0)
+             (bytevector-set! carry 2 0)
+             (bytevector-set! carry 3 0)
+             (loop b c (+ 4 (* 4 i)) (+ 4 (* 4 j)) nbytes k carry))))
+
     c))
 
 ; eof
