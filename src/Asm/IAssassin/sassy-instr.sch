@@ -1735,6 +1735,8 @@
              ((401 vector-length:vec) ia86.t_op1_401) 
              ((404 car:pair) ia86.t_op1_404)
              ((405 cdr:pair) ia86.t_op1_405)
+             ((    bignum-add-step!) ia86.t_op1_510)
+             ((    bignum-subtract-step!) ia86.t_op1_511)
              ((    bignum-multiply-step!) ia86.t_op1_512)
              ((612 internal:branchf-zero?) ia86.t_op1_612)
              ((1000 timestamp!) ia86.t_op1_1000)
@@ -3338,6 +3340,12 @@
 ;;; they actually take their arguments from general registers.
 ;;; That means they can only be used within hand-written code or
 ;;; possibly at the head of a Scheme procedure that won't be inlined.
+
+(define-sassy-instr (ia86.t_op1_510)             ; bignum-add-step!
+  (ia86.mcall $m.bignum-add-step 'bignum-add-step!))
+
+(define-sassy-instr (ia86.t_op1_511)             ; bignum-subtract-step!
+  (ia86.mcall $m.bignum-subtract-step 'bignum-subtract-step!))
 
 (define-sassy-instr (ia86.t_op1_512)             ; bignum-multiply-step!
   (ia86.mcall $m.bignum-multiply-step 'bignum-multiply-step!))

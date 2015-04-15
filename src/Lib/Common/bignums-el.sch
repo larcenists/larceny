@@ -596,14 +596,14 @@
                  (newline)
                  (write c)
                  (newline)
-                 (write (list 'khi= khi 'klo= klo))
-                 (newline)
                  (write
-                  (list 'i= i 'j= j 'carry-hi= carry-hi 'carry-lo= carry-lo))
+                  (list 'i= i 'j= j 'carry= carry))
                  (newline)))
       (cond ((>= i nbytes)
              (carry-loop16 c j carry))
-            (else
+
+            (#f
+
              (let* ((bi0 (bytevector-like-ref b i))
                     (bi1 (bytevector-like-ref b (+ i 1)))
                     (bi2 (bytevector-like-ref b (+ i 2)))
@@ -635,6 +635,11 @@
                (bytevector-like-set! c (+ j 1) cj1)
                (bytevector-like-set! c (+ j 2) cj2)
                (bytevector-like-set! c (+ j 3) cj3)
+
+               (loop b c (+ i 4) (+ j 4) nbytes carry)))
+
+            (else
+             (let ((carry (bignum-add-step! b c i j carry)))
                (loop b c (+ i 4) (+ j 4) nbytes carry)))))
 
     (loop b c (+ 4 (* 4 i)) (+ 4 (* 4 j)) nbytes 0)
@@ -700,7 +705,9 @@
                  (newline)))
       (cond ((>= i nbytes)
              (borrow-loop16 c j borrow))
-            (else
+
+            (#f
+
              (let* ((bi0 (bytevector-like-ref b i))
                     (bi1 (bytevector-like-ref b (+ i 1)))
                     (bi2 (bytevector-like-ref b (+ i 2)))
@@ -732,6 +739,10 @@
                (bytevector-like-set! c (+ j 1) cj1)
                (bytevector-like-set! c (+ j 2) cj2)
                (bytevector-like-set! c (+ j 3) cj3)
+               (loop b c (+ i 4) (+ j 4) nbytes borrow)))
+
+            (else
+             (let ((borrow (bignum-subtract-step! b c i j borrow)))
                (loop b c (+ i 4) (+ j 4) nbytes borrow)))))
 
     (loop b c (+ 4 (* 4 i)) (+ 4 (* 4 j)) nbytes 0)
@@ -812,10 +823,9 @@
                  (newline)
                  (write c)
                  (newline)
-                 (write (list 'khi= khi 'klo= klo))
+                 (write (list 'k= k))
                  (newline)
-                 (write
-                  (list 'i= i 'j= j 'carry-hi= carry-hi 'carry-lo= carry-lo))
+                 (write (list 'i= i 'j= j 'carry= carry))
                  (newline)))
       (cond ((>= i nbytes)
              (carry-loop c
@@ -824,12 +834,10 @@
                          (bytevector-u16-native-ref carry 0)))
             (#f
 
-             ; FIXME
-
-             (let* (;(khi (bytevector-u16-native-ref k 2))
-                    ;(klo (bytevector-u16-native-ref k 0))
-                    ;(carry-hi (bytevector-u16-native-ref carry 2))
-                    ;(carry-lo (bytevector-u16-native-ref carry 0))
+             (let* ((khi (bytevector-u16-native-ref k 2))
+                    (klo (bytevector-u16-native-ref k 0))
+                    (carry-hi (bytevector-u16-native-ref carry 2))
+                    (carry-lo (bytevector-u16-native-ref carry 0))
 
                     (bi0 (bytevector-like-ref b i))
                     (bi1 (bytevector-like-ref b (+ i 1)))
@@ -877,12 +885,12 @@
                     (carry-lo (fxlogand #xffff t16))
                     (carry-hi (+ (fxrshl t16 16)
                                  (fxrshl bi3*khi 8))))
-#|
+
                (bytevector-u16-native-set! carry 2 carry-hi)
                (bytevector-u16-native-set! carry 0 carry-lo)
                (assert (= carry-hi (bytevector-u16-native-ref carry 2)))
                (assert (= carry-lo (bytevector-u16-native-ref carry 0)))
-|#
+
                (bytevector-like-set! c j cj0)
                (bytevector-like-set! c (+ j 1) cj1)
                (bytevector-like-set! c (+ j 2) cj2)

@@ -277,6 +277,98 @@
 
 ; Bignum primitives.
 
+;;; bignum-add-step!
+;;;
+;;; Given the byte index of the next 32-bit word in b and c,
+;;; and a 1-bit carry, sets c[j] and the following bytes of c
+;;; to the sum of those bytes and b[i...] and the carry.
+;;; Returns the new 1-bit carry.
+
+(define (bignum-add-step! b c i j carry)
+
+; (.bignum-add-step!)
+
+  (let* ((bi0 (bytevector-like-ref b i))
+         (bi1 (bytevector-like-ref b (+ i 1)))
+         (bi2 (bytevector-like-ref b (+ i 2)))
+         (bi3 (bytevector-like-ref b (+ i 3)))
+
+         (blo16 (fxlogior (fxlsh bi1 8) bi0))
+         (bhi16 (fxlogior (fxlsh bi3 8) bi2))
+
+         (cj0 (bytevector-like-ref c j))
+         (cj1 (bytevector-like-ref c (+ j 1)))
+         (cj2 (bytevector-like-ref c (+ j 2)))
+         (cj3 (bytevector-like-ref c (+ j 3)))
+
+         (clo16 (fxlogior (fxlsh cj1 8) cj0))
+         (chi16 (fxlogior (fxlsh cj3 8) cj2))
+
+         (t0 (+ blo16 clo16 carry))
+         (lo16 (fxlogand #xffff t0))
+         (t1 (+ bhi16 chi16 (fxrshl t0 16)))
+         (hi16 (fxlogand #xffff t1))
+         (carry (fxrshl t1 16))
+
+         (cj0 (fxlogand #xff lo16))
+         (cj1 (fxrshl lo16 8))
+         (cj2 (fxlogand #xff hi16))
+         (cj3 (fxrshl hi16 8)))
+
+    (bytevector-like-set! c j cj0)
+    (bytevector-like-set! c (+ j 1) cj1)
+    (bytevector-like-set! c (+ j 2) cj2)
+    (bytevector-like-set! c (+ j 3) cj3)
+
+    carry))
+
+;;; bignum-subtract-step!
+;;;
+;;; Given the byte index of the next 32-bit word in b and c,
+;;; and a 1-bit borrow, sets c[j] and the following bytes of c
+;;; to the difference of those bytes and b[i...] and the borrow.
+;;;
+;;; Returns the new 1-bit borrow.
+
+(define (bignum-subtract-step! b c i j borrow)
+
+; (.bignum-subtract-step!)
+
+  (let* ((bi0 (bytevector-like-ref b i))
+         (bi1 (bytevector-like-ref b (+ i 1)))
+         (bi2 (bytevector-like-ref b (+ i 2)))
+         (bi3 (bytevector-like-ref b (+ i 3)))
+
+         (blo16 (fxlogior (fxlsh bi1 8) bi0))
+         (bhi16 (fxlogior (fxlsh bi3 8) bi2))
+
+         (cj0 (bytevector-like-ref c j))
+         (cj1 (bytevector-like-ref c (+ j 1)))
+         (cj2 (bytevector-like-ref c (+ j 2)))
+         (cj3 (bytevector-like-ref c (+ j 3)))
+
+         (clo16 (fxlogior (fxlsh cj1 8) cj0))
+         (chi16 (fxlogior (fxlsh cj3 8) cj2))
+
+         (t0 (- clo16 blo16 borrow))
+         (lo16 (fxlogand #xffff t0))
+         (t1 (+ (- chi16 bhi16) (fxrsha t0 16)))
+         (hi16 (fxlogand #xffff t1))
+         (borrow (fxlogand 1 (fxrshl t1 16)))
+
+         (cj0 (fxlogand #xff lo16))
+         (cj1 (fxrshl lo16 8))
+         (cj2 (fxlogand #xff hi16))
+         (cj3 (fxrshl hi16 8)))
+
+    (bytevector-like-set! c j cj0)
+    (bytevector-like-set! c (+ j 1) cj1)
+    (bytevector-like-set! c (+ j 2) cj2)
+    (bytevector-like-set! c (+ j 3) cj3)
+
+    borrow))
+
+
 ;;; bignum-multiply-step!
 ;;;
 ;;;     b is a bytevector-like bignum (little-endian 32-bit bigits)
