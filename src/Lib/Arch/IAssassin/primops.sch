@@ -353,20 +353,8 @@
          (carry-hi (+ (fxrshl t16 16)
                    (fxrshl bi3*khi 8))))
 
-    (if (not (equal? outputs
-                     (list carry-hi carry-lo cj0 cj1 cj2 cj3)))
-        (begin (write inputs)
-               (newline)
-               (write outputs)
-               (newline)
-               (write (list carry-hi carry-lo cj0 cj1 cj2 cj3))
-               (newline)
-               (assert #f)))
-
     (bytevector-u16-native-set! carry 2 carry-hi)
     (bytevector-u16-native-set! carry 0 carry-lo)
-    (assert (= carry-hi (bytevector-u16-native-ref carry 2)))
-    (assert (= carry-lo (bytevector-u16-native-ref carry 0)))
 
     (bytevector-like-set! c j cj0)
     (bytevector-like-set! c (+ j 1) cj1)
