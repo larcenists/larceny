@@ -4,11 +4,21 @@
 ;;;
 ;;;     bytevector-copy!    (unresolvable; requires renaming)
 ;;;
-;;;     map                 (resolved by mode-dependent behavior)
-;;;     for-each            (resolved by mode-dependent behavior)
-;;;     string-fill!        (resolved by using R7RS extended semantics)
 ;;;     define-record-type  (resolved by allowing both R7RS and R6RS syntax)
 ;;;     error               (resolved by heuristic overloading)
+;;;     map                 (resolved by using R7RS extended semantics)
+;;;     for-each            (resolved by using R7RS extended semantics)
+;;;     finite?             (resolved by using R7RS extended semantics)
+;;;     infinite?           (resolved by using R7RS extended semantics)
+;;;     nan?                (resolved by using R7RS extended semantics)
+;;;     string-copy         (resolved by using R7RS extended semantics)
+;;;     string-fill!        (resolved by using R7RS extended semantics)
+;;;     vector-copy         (resolved by using R7RS extended semantics)
+;;;     bytevector-copy     (resolved by using R7RS extended semantics)
+;;;     utf8->string        (resolved by using R7RS extended semantics)
+;;;     string->utf8        (resolved by using R7RS extended semantics)
+;;;     textual-port?       (resolved by using R7RS extended semantics)
+;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;
 ;;; Possible conflicts:
 ;;;
@@ -20,8 +30,7 @@
         (rnrs mutable-strings)
         (rnrs r5rs)
 
-        (except (scheme base)
-                string-fill!)
+        (scheme base)
         (scheme case-lambda)
         (scheme char)
         (scheme complex)
@@ -41,5 +50,5 @@
 
 (display "All libraries loaded with these name conflicts:\n")
 (for-each (lambda (name) (display "    ") (write name) (newline))
-          '(bytevector-copy! string-fill!))
+          '(bytevector-copy!))
 (newline)

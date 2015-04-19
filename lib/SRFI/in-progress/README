@@ -1,0 +1,71 @@
+This in-progress directory contains four sample implementations of
+the string and character spans library specified at
+
+    http://trac.sacrideo.us/wg/wiki/CharacterSpansCowan
+
+To select one of the four implementations, create a symbolic link
+from spans.body1.scm to one of these four files:
+
+    spans.body1a.scm        representation A (see below)
+    spans.body1b.scm        representation B (see below)
+    spans.body1c.scm        representation C (see below)
+    spans.body1d.scm        representation D (see below)
+
+Other files:
+
+    README                  this file
+
+    spans.sld               includes spans.body1.scm and spans.body2.scm
+    spans.body2.scm         representation-independent part of implementations
+
+    spans-test.sps          test program
+    spans-search-test.sps   stress test and benchmark for span-contains
+
+You will also need the (srfi 114) comparators library.
+
+The implementation of (srfi 114) that was shipped with Larceny v0.98
+contains bugs that cause the last group of tests in the test program
+to fail.  You can comment out that group of tests, or you can use a
+corrected implementation of the (srfi 114) library such as the
+lib/SRFI/srfi/114.* files that can be extracted from any nightly build
+of Larceny:
+
+    http://larceny.ccs.neu.edu/nightly/
+
+The sample implementations have been tested in Larceny v0.98 and
+Chicken 4.9.0.1.  After the symbolic link for spans.body1.scm has
+been created, you can run the test program in Larceny by using cd
+to move to the directory above this in-progress directory and
+incanting
+
+    larceny --r7rs --path . --program in-progress/spans-test.sps
+
+To run the test program in Chicken, cd into the in-progress directory
+and reconstruct the following interaction, replacing ${SRFI} with the
+name of a directory that contains an implementation of (srfi 114) in
+a file named 114.sld.
+
+    % csi -R r7rs
+    #;1> (load "${SRFI}/114.sld")
+    #;2> (load "spans.sld")
+    #;3> (load "spans-test.sps")
+
+The four implementations:
+
+    spans.body1a.scm        representation A
+                                represents spans as character strings;
+                                performs poorly
+    spans.body1b.scm        representation B
+                                represents spans as records encapsulating
+                                a string and substring bounds; performs
+                                well only if string-ref runs in O(1) time
+    spans.body1c.scm        representation C
+                                represents spans as records encapsulating
+                                a UTF-8 bytevector and bounds
+    spans.body1d.scm        representation D
+                                represents spans as records encapsulating
+                                a UTF-8 bytevector and bounds, with less
+                                sanity checking than representation C
+
+Will Clinger
+March 2015

@@ -175,6 +175,11 @@
 
 ;;; Helpful procedure for hiding irrelevant names
 
+;;; FIXME: this is unsafe because definitions within the loaded files
+;;; will override any previous definitions made at Larceny's top level.
+;;; That leads to mysterious bugs when adding new standard procedures
+;;; or enhanced versions of previously standard procedures.
+
 (define (load-in-private-namespace files procs)
   (let ((e (environment-copy (interaction-environment))))
     (for-each (lambda (f) (load f e)) files)
@@ -186,22 +191,30 @@
                           (environment-get e (car procs)))))))
 
 ;;; Load a bunch of useful procedures
+;;;
+;;; FIXME: the following is commented out, which is just fine.
 
 '(load-in-private-namespace
   (list
     (param-filename 'auxiliary "pp.fasl")
    ;"Auxlib/misc.fasl"
-    (param-filename 'auxiliary "list.fasl")
+    (param-filename 'auxiliary "list.fasl") ; defines aremq!, aremv!, aremove!
+                                            ;   and redefines list-head (FIXME)
    ;"Auxlib/string.fasl"
    ;"Auxlib/vector.fasl"
    ;"Auxlib/io.fasl"
    ;"Auxlib/osdep-unix.fasl"
    ;"Auxlib/load.fasl"
    )
- '(remq! remv! remove! aremq! aremv! aremove! filter find make-list 
-   reduce reduce-right fold-left fold-right vector-copy read-line
-   pretty-print pretty-line-length file-newer? read-line 
-   load load-noisily load-quietly))
+ '(;; remq! remv! remove!      ; defined at toplevel (FIXME: but shouldn't be)
+   aremq! aremv! aremove!      ; FIXME: what are these? and why?
+   ;; filter find              ; defined at toplevel
+   reduce reduce-right         ; FIXME: who uses these?
+   ;; fold-left fold-right     ; FIXME: are these R6RS-compatible?
+   ;; make-list                ; defined at toplevel for R7RS
+   ;; vector-copy              ; defined at toplevel for R7RS
+   ;; read-line                ; defined at toplevel for R7RS
+   pretty-print pretty-line-length))
 
 ;;; Load and install the debugger
 

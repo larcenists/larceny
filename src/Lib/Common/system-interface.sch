@@ -248,6 +248,7 @@
      (case (get-feature feature$execmode)
       ((0)   'r5rs)
       ((5)   'r7rs)
+      ((6)   'r7r6)
       ((1)   'err5rs)
       ((2 3) 'r6rs)
       (else  'spanky)))
@@ -286,9 +287,9 @@
 
 (define (larceny:execution-mode)
   (case (sys$system-feature 'execmode)
-   ((r5rs)        'r5rs)
-   ((r7rs err5rs) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
-   (else          'r6rs)))
+   ((r5rs)             'r5rs)
+   ((r7rs r7r6 err5rs) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
+   (else               'r6rs)))
 
 ; Get the value of an environment variable.
 
@@ -327,7 +328,7 @@
                    (loop (cons (sys$cstring->string result) entries)))
                   (else
                    (let* ((names (map name-part entries)))
-                     (map (lambda (name) (list name (getenv name)))
+                     (map (lambda (name) (cons name (getenv name)))
                           (reverse names)))))))
         '())))
 

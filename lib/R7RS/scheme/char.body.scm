@@ -1,6 +1,13 @@
 ;;; FIXME: This should be defined at the R5RS level.
 
-;;; FIXME: Not sure this is right, but it's a start.
+;;; FIXME: The char-numeric? procedure returns true for #\x066b and #\x066c,
+;;; but those aren't digits.  From UnicodeData.txt version 7.0.0:
+;;;
+;;; 066B;ARABIC DECIMAL SEPARATOR;Po;0;AN;;;;;N;;;;;
+;;; 066C;ARABIC THOUSANDS SEPARATOR;Po;0;AN;;;;;N;;;;;
+;;;
+;;; Those lines are the same in version 5.0.0, so this bug has been
+;;; present in Larceny for a long time.
 
 (define (digit-value c)
   (if (char-numeric? c)
@@ -15,9 +22,7 @@
                    (- sv (car zeros)))
                   (else
                    (loop sv (cdr zeros))))))
-      (assertion-violation 'digit-value
-                           "not a digit character"     ; FIXME
-                           c)))
+      #f))
 
 ;;; FIXME:  Copied, pasted, and edited from a browser window at
 ;;; http://www.fileformat.info/info/unicode/category/Nd/list.htm

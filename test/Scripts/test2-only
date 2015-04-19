@@ -26,7 +26,14 @@ set -o errexit
 ##
 ########################################################################
 
-MY_CDASHLOG="${DIR}/cdash-tests2-sub.xml"
+RACKET_TESTS="${DIR}/../../RacketTests"
+
+MY_CDASHLOG1="${DIR}/cdash-tests1-sub.xml"
+MY_CDASHLOG2="${DIR}/cdash-tests2-sub.xml"
+MY_CDASHLOG3="${DIR}/cdash-tests3-sub.xml"
+MY_CDASHLOG4="${DIR}/cdash-tests4-sub.xml"
+
+MY_CDASHLOG=${MY_CDASHLOG1}
 
 ################################################################
 ##
@@ -93,16 +100,51 @@ function remove {
 ##
 ################################################################
 
-export LARCENY=../../../${FINAL_LARCENY_SCRIPT}
+export LARCENY=${DIR}/larceny_src/${FINAL_LARCENY_SCRIPT}
 
-function r7rs_test {
-    CMD="./testall"
+function test_prologue {
+  remove $MY_CDASHLOG
 
-    pushd ${DIR}/larceny_src/test/R7RS/Lib > /dev/null
-    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
-    popd > /dev/null
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
+  cdashlog '<?xml-stylesheet type="text/xsl" href="../cdash-tests.xsl"?>      '
+  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
+  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
+  cdashlog '      Name="'"`hostname`"'"                                       '
+  cdashlog '      Generator="'"${MY_GENERATOR}"'">                            '
+  cdashlog ' <Testing>                                                        '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>                       '
+  cdashlog '  <TestList>                                                      '
+  cdashlog '   <Test>R7RS (Larceny)</Test>                                    '
+  cdashlog '  </TestList>                                                     '
 
-    echo r7rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+  TEST_SECS_BEGIN=`date +%s`
+
+}
+
+function test_epilogue {
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>                           '
+  cdashlog '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>       '
+  cdashlog ' </Testing>                                                       '
+  cdashlog '</Site>                                                           '
+  
+  cdash_submit $MY_CDASHLOG
+}
+
+function r6rs_test {
+  MY_CDASHLOG=${MY_CDASHLOG1}
+  CMD="./testall"
+
+  test_prologue
+
+  pushd ${RACKET_TESTS} > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd > /dev/null
+
+  echo r6rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
 
   cdashlog '  <Test Status="'"${STATUS}"'">                                   '
   cdashlog '   <Name>R7RS</Name>                                              '
@@ -127,36 +169,58 @@ function r7rs_test {
   cdashlog '   </Results>                                                     '
   cdashlog '  </Test>                                                         '
 
+  test_epilogue
+
+  cat ${TEMPLOG} >> ${DIR}/tests1.log
+}
+
+function r7rs_test {
+  MY_CDASHLOG=${MY_CDASHLOG2}
+  CMD="./testall"
+
+  test_prologue
+
+  pushd ${DIR}/larceny_src/test/R7RS/Lib > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd > /dev/null
+
+  echo r7rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+  cdashlog '  <Test Status="'"${STATUS}"'">                                   '
+  cdashlog '   <Name>R7RS</Name>                                              '
+  cdashlog '   <Path>test/R7RS/Lib</Path>                                     '
+  cdashlog '   <FullName>R7RS tests (Larceny)</FullName>                      '
+  cdashlog '   <FullCommandLine>'"$CMD"'</FullCommandLine>                    '
+  cdashlog '   <Results>                                                      '
+  cdashlog '    <NamedMeasurement type="numeric/double" name="Execution Time">'
+  cdashlog '     <Value>'"${SECS_ELAPSED}"'</Value>                           '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Completion Status">'
+  cdashlog '     <Value>Completed</Value>                                     '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Command Line">     '
+  cdashlog '     <Value>'"$CMD"'</Value>                                      '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <Measurement>                                                 '
+  cdashlog '     <Value>                                                      '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '     </Value>                                                     '
+  cdashlog '    </Measurement>                                                '
+  cdashlog '   </Results>                                                     '
+  cdashlog '  </Test>                                                         '
+
+  test_epilogue
+
   cat ${TEMPLOG} >> ${DIR}/tests2.log
 }
 
 function conformance_tests {
-  remove $MY_CDASHLOG
+  remove $MY_CDASHLOG1
+  remove $MY_CDASHLOG2
 
-  cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
-  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
-  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
-  cdashlog '      Name="'"`hostname`"'"                                       '
-  cdashlog '      Generator="'"${MY_GENERATOR}"'">                            '
-  cdashlog ' <Testing>                                                        '
-  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>                       '
-  cdashlog '  <TestList>                                                      '
-  cdashlog '   <Test>R7RS (Larceny)</Test>                                    '
-  cdashlog '  </TestList>                                                     '
-
-  TEST_SECS_BEGIN=`date +%s`
-
+  r6rs_test
   r7rs_test
 
-  TEST_SECS_FINIS=`date +%s`
-  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
-
-  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>                           '
-  cdashlog '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>       '
-  cdashlog ' </Testing>                                                       '
-  cdashlog '</Site>                                                           '
-  
-  cdash_submit $MY_CDASHLOG
 }
 
 conformance_tests;

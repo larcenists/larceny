@@ -2,6 +2,8 @@
 
   (export
 
+   syntax-rules else ... => _         ; R7RS (small) erratum 22
+
    * + - /
    < <= = > >=
    abs acos and angle append apply asin assoc assq assv atan

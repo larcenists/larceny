@@ -242,7 +242,29 @@
    zero?
    )
 
-  (import (except (rnrs) bytevector-copy! define-record-type)
+  (import (rnrs base)
+          (only (rnrs bytevectors)
+                bytevector? make-bytevector bytevector-length
+                bytevector-u8-ref bytevector-u8-set!
+                bytevector-copy
+                string->utf8 utf8->string)
+          (only (rnrs lists)
+                memq memv member
+                assq assv assoc)
+          (only (rnrs control)
+                when unless do)
+          (only (rnrs exceptions)
+                with-exception-handler guard raise raise-continuable)
+          (only (rnrs io ports)
+                port? textual-port? binary-port?
+                close-port call-with-port
+                flush-output-port)
+          (only (rnrs io simple)
+                eof-object eof-object?
+                input-port? output-port?
+                current-input-port current-output-port current-error-port
+                close-input-port close-output-port
+                read-char peek-char write-char newline)
           (only (rnrs r5rs) modulo quotient remainder)
           (only (rnrs mutable-pairs) set-car! set-cdr!)
           (only (rnrs mutable-strings) string-set!)

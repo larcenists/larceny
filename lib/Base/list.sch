@@ -93,14 +93,16 @@
 
 ; (make-list n)   => (a1 ... an) for some ai
 ; (make-list n x) => (a1 ... an) where ai = x
-
-(define (make-list nelem . rest)
-  (let ((val (if (null? rest) #f (car rest))))
-    (define (loop n l)
-      (if (<= n 0)
-	  l
-	  (loop (- n 1) (cons val l))))
-    (loop nelem '())))
+;
+; This is a standard procedure in R7RS.
+;
+;(define (make-list nelem . rest)
+;  (let ((val (if (null? rest) #f (car rest))))
+;    (define (loop n l)
+;      (if (<= n 0)
+;	  l
+;	  (loop (- n 1) (cons val l))))
+;    (loop nelem '())))
 
 ; (reduce p x ()) => x
 ; (reduce p x (a)) => a

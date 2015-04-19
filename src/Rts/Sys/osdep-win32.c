@@ -233,30 +233,104 @@ word generator;
     globals[G_RESULT] = TRUE_CONST;
   }
 }
-#endif
 
-/* FIXME: extracted from osdep-generic.c */
+#else
 
-/* returns #f */
+/* Loosely based upon a Microsoft example at
+ * https://msdn.microsoft.com/en-us/library/windows/desktop/aa365200(v=vs.85).aspx
+ */
 
 void osdep_listdir_open( word w_path )
 {
-  globals[G_RESULT] = FALSE_CONST;
+  WIN32_FIND_DATA ffd;
+  HANDLE hFind = INVALID_HANDLE_VALUE;
+  char *path = string2asciiz( w_path );
+  char *p = path;
+  word *q;
+
+  /* We're going to add "\\*" at the end (that's two characters), */
+  /* plus one extra in case the NUL character needs it or we      */
+  /* miscounted. */
+
+  if (strlen(path) > (MAX_PATH - 3)) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+
+  /* Convert forward slashes to backslashes. */
+
+  p = path;
+  while (*p != 0) {
+    if (*p == '/')
+      *p = '\\';
+    p++;
+  }
+
+  strcat( path, "\\*" );    /* FIXME: unsafe */
+
+  hFind = FindFirstFile( path, &ffd );
+
+  if (INVALID_HANDLE_VALUE == hFind) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+
+  assert( sizeof(HANDLE) == 4 ); /* FIXME */
+
+  q = alloc_from_heap( sizeof(word) + sizeof(HANDLE) );
+  *q = mkheader( sizeof(HANDLE), BV_HDR );
+  *((word **) string_data( q )) = (word *) hFind;
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
+
+/* given a bytevector created by osdep_listenv_init, returns */
+/* the next file inthe directory and updates the bytevector  */
+/* FIXME: hard-codes 4 as the header size (in bytes)         */
 
 void osdep_listdir( generator )
 word generator;
 {
-  globals[G_RESULT] = FALSE_CONST;
+  WIN32_FIND_DATA ffd;
+  HANDLE hFind = (HANDLE) *((word *) (string_data ( generator )));
+  char *p;
+  word *q;
+  int l;
+
+  if (INVALID_HANDLE_VALUE == hFind) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+
+  if ( ! FindNextFile( hFind, &ffd ) ) {
+    globals[G_RESULT] = FALSE_CONST;
+    return;
+  }
+  
+  p = (char *) & ffd.cFileName;
+
+  l = strlen( p );
+  q = alloc_from_heap( sizeof(word) + l );
+  *q = mkheader( l, BV_HDR );
+  memcpy( string_data( q ), p, l );
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
 void osdep_listdir_close( generator )
 word generator;
 {
-  globals[G_RESULT] = FALSE_CONST;
+  HANDLE hFind = (HANDLE) *((word *) (string_data ( generator )));
+
+  if ((INVALID_HANDLE_VALUE == hFind) || (! FindClose( hFind ))) {
+    globals[G_RESULT] = FALSE_CONST;
+  }
+  else {
+    globals[G_RESULT] = TRUE_CONST;
+  }
 }
 
 /* end of FIXME above */
+
+#endif
 
 
 void osdep_os_version( int *major, int *minor )

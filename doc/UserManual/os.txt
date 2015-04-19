@@ -34,6 +34,17 @@ proc:getenv[args="key",result="string or #f"]
 Returns the operating system environment mapping for the string _key_,
 or `#f` if there is no mapping for _key_.
 
+[NOTE]
+================================================================
+This is now a synonym for the `get-environment-variable`
+exported by the `(scheme process-context)` library.
+================================================================
+
+proc:setenv[args="key val",result="unspecified"]
+
+Sets the operating system environment mapping for the string _key_
+to _val_.
+
 proc:system[args="command",result="status"]
 
 Send the _command_ to the operating system's command processor and

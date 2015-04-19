@@ -272,7 +272,7 @@
 ;                                               rest)))))))))
 ;           (syntax (let ((t e)) body)))))))
 
-  ;; From R7RS (small) section 7.3
+  ;; From R7RS (small) erratum 6, which corrects the defn in R7RS 7.3
 
   (define-syntax case
     (syntax-rules (else =>)
@@ -291,11 +291,6 @@
       (begin result1 result2 ...))
 
      ((case key
-       ((atoms ...) result1 result2 ...))
-      (if (memv key '(atoms ...))
-          (begin result1 result2 ...)))
-
-     ((case key
        ((atoms ...) => result))
       (if (memv key '(atoms ...))
           (result key)))
@@ -306,6 +301,11 @@
       (if (memv key '(atoms ...))
           (result key)
           (case key clause clauses ...)))
+
+     ((case key
+       ((atoms ...) result1 result2 ...))
+      (if (memv key '(atoms ...))
+          (begin result1 result2 ...)))
 
      ((case key
        ((atoms ...) result1 result2 ...)

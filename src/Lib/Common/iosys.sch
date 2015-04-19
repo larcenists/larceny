@@ -218,8 +218,9 @@
 
 (define port.setposn   18) ; boolean: true iff supports set-port-position!
 (define port.alist     19) ; association list: used mainly by custom ports
+(define port.r7rstype  20) ; copy of port.type but unaltered by closing
 
-(define port.structure-size 20)      ; size of port structure
+(define port.structure-size 21)      ; size of port structure
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -337,6 +338,7 @@
 
     (vector-set! v port.setposn set-position?)
     (vector-set! v port.alist '())
+    (vector-set! v port.r7rstype (vector-ref v port.type))
 
     (typetag-set! v sys$tag.port-typetag)
     (io/reset-buffers! v)                     ; inserts sentinel
@@ -355,6 +357,18 @@
   (and (port? p)
        (let ((direction (fxlogand type-mask:direction
                                   (vector-like-ref p port.type))))
+         (fx= type:output (fxlogand direction type:output)))))
+
+(define (io/r7rs-input-port? p)
+  (and (port? p)
+       (let ((direction (fxlogand type-mask:direction
+                                  (vector-like-ref p port.r7rstype))))
+         (fx= type:input (fxlogand direction type:input)))))
+
+(define (io/r7rs-output-port? p)
+  (and (port? p)
+       (let ((direction (fxlogand type-mask:direction
+                                  (vector-like-ref p port.r7rstype))))
          (fx= type:output (fxlogand direction type:output)))))
 
 (define (io/open-port? p)
@@ -424,15 +438,16 @@
       (begin (error 'peek-char "not a textual input port" p)
              #t)))
 
-; FIXME: deprecated in Larceny.  This was dropped in R6RS
-; because its semantics as specified by the R5RS aren't
-; really useful.  See below.
+; This was dropped in R6RS because its semantics as specified
+; by the R5RS aren't really useful.  See below.
 ;
-; FIXME: works only when an Ascii character is ready on a
+; FIXME: reliable only when an Ascii character is ready on a
 ; textual port, which is a restriction permitted by the R5RS.
+; The problem here is that a non-Ascii character might have
+; been read in part, but attempting to read the full character
+; might hang.  A more complex implementation is needed.
 ;
-; FIXME: makes no effort to fill a depleted buffer, which
-; is a limitation permitted by the R5RS.
+; FIXME: trusts the ioproc, which might be unwise.
 
 (define (io/char-ready? p)
   (if (port? p)
@@ -443,11 +458,13 @@
                (let ((unit (bytevector-ref buf ptr)))
                  (or (< unit 128)
                      (eq? (vector-like-ref p port.state)
-                          'eof))))
+                          'eof)
+                     (((vector-like-ref p port.ioproc) 'ready?)
+                      (vector-like-ref p port.iodata)))))
               (else #f)))
       (error 'char-ready? (errmsg 'msg:nottextualinput) p)))
 
-; FIXME: same limitations as io/char-ready?
+; FIXME: trusts the ioproc, which might be unwise.
 
 (define (io/u8-ready? p)
   (if (port? p)
@@ -457,7 +474,9 @@
         (cond ((eq? type type:binary-input)
                (or (< ptr lim)
                    (eq? (vector-like-ref p port.state)
-                        'eof)))
+                        'eof)
+                   (((vector-like-ref p port.ioproc) 'ready?)
+                    (vector-like-ref p port.iodata))))
               (else #f)))
       (error 'u8-ready? (errmsg 'msg:notbinaryinput) p)))
 
@@ -1188,9 +1207,19 @@
   (not (fx= 0 (fxlogand type-mask:binary/textual
                         (vector-like-ref p port.type)))))
 
+(define (io/r7rs-textual-port? p)
+  (assert (port? p))
+  (not (fx= 0 (fxlogand type-mask:binary/textual
+                        (vector-like-ref p port.r7rstype)))))
+
 (define (io/binary-port? p)
   (assert (port? p))
   (fx= 0 (fxlogand type-mask:binary/textual (vector-like-ref p port.type))))
+
+(define (io/r7rs-binary-port? p)
+  (assert (port? p))
+  (fx= 0 (fxlogand type-mask:binary/textual
+                   (vector-like-ref p port.r7rstype))))
 
 ; Transcoders et cetera.
 ;
@@ -1347,6 +1376,9 @@
                           port.type
                           (fxlogior type:textual
                                     (vector-like-ref p port.type)))
+        (vector-like-set! newport
+                          port.r7rstype
+                          (vector-like-ref newport port.type))
         (vector-like-set! newport port.transcoder t)
         (vector-like-set! newport port.state 'textual)
         (vector-like-set! newport port.readmode (default-read-mode))

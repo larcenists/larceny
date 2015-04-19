@@ -1,5 +1,5 @@
-(require 'r6rsmode)
-(larceny:compile-r6rs-runtime)
+(require 'r7rsmode)
+(larceny:compile-r7rs-runtime)
 
 ;; A CompileEntry is one of:
 ;; - Filename
@@ -68,7 +68,10 @@
     "symbol.sch"
     ;; "tasking.sch"          ;; defines syntax
     ("tasking-with-io.sch" tasking)
-    ("time.sch" srfi-0 foreign-ctools foreign-cstructs)
+
+    ;; FIXME: compiling time.sch breaks R7RS (scheme base) -- see ticket #710
+    ;; ("time.sch" srfi-0 foreign-ctools foreign-cstructs)
+
     "trie.sch"
     "unify.sch"
     "unix.sch"
@@ -139,4 +142,7 @@
     "memory.sch"
     "tramp.sch"))
 
-(compile-libraries-in-dir "lib/Ffi/" ffi-lib-files-to-compile)
+;; FIXME: In Petit Larceny, compiling the FFI breaks R7RS (scheme base).
+;; See ticket #710.
+
+;;(compile-libraries-in-dir "lib/Ffi/" ffi-lib-files-to-compile)

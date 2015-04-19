@@ -799,7 +799,8 @@
 
     ;; copy a to c
 
-    (bignum-shift-left! a c 0)
+;   (bignum-shift-left! a c 0)
+    (bignum-add! a c 0 0)        ; FIXME: faster than shifting, for now
 
     ;; add b to c
 
@@ -858,7 +859,8 @@
 
         ;; copy a to c
 
-        (bignum-shift-left! a c 0)
+;       (bignum-shift-left! a c 0)
+        (bignum-add! a c 0 0)        ; FIXME: faster than shifting, for now
 
         ;; subtract b from c
 

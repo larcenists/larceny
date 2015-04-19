@@ -171,16 +171,23 @@
         #f
         t)))
 
-(define (textual-port? p) (io/textual-port? p))
+;;; The R6RS says textual-port? and binary-port? take a port as argument.
+;;; The R7RS says they accept any argument.
 
-(define (binary-port? p) (io/binary-port? p))
+(define (textual-port? p)
+  (and (port? p)
+       (io/r7rs-textual-port? p)))
+
+(define (binary-port? p)
+  (and (port? p)
+       (io/r7rs-binary-port? p)))
 
 (define (transcoded-port p t)
-  (if (and (binary-port? p)
+  (if (and (io/binary-port? p)
            (memq (transcoder-codec t) '(latin-1 utf-8 utf-16))
            (memq (transcoder-eol-style t) '(none lf cr crlf nel crnel ls))
            (memq (transcoder-error-handling-mode t) '(ignore replace raise))
-           (if (and (input-port? p) (output-port? p))
+           (if (and (io/input-port? p) (io/output-port? p))
                (and (eq? (transcoder-codec t) 'latin-1)
                     (eq? (transcoder-eol-style t) 'none))
                #t))
@@ -235,9 +242,9 @@
 
 (define (port-eof? p)
   (assert (io/input-port? p))
-  (cond ((binary-port? p)
+  (cond ((io/binary-port? p)
          (eof-object? (lookahead-u8 p)))
-        ((textual-port? p)
+        ((io/textual-port? p)
          (eof-object? (lookahead-char p)))
         (else
          ; probably closed
@@ -480,8 +487,8 @@
 (define (get-char p)       (io/get-char p #f))
 
 (define (get-bytevector-n p count)
-  (if (and (input-port? p)
-           (binary-port? p)
+  (if (and (io/input-port? p)
+           (io/binary-port? p)
            (fixnum? count)
            (fx<=? 0 count))
       (let* ((bv (make-bytevector count))
@@ -497,8 +504,8 @@
       (portio/illegal-arguments 'get-bytevector-n p count)))
 
 (define (get-bytevector-n! p bv start count)
-  (if (and (input-port? p)
-           (binary-port? p)
+  (if (and (io/input-port? p)
+           (io/binary-port? p)
            (bytevector? bv)
            (fixnum? start)
            (fx<=? 0 start)
@@ -526,8 +533,8 @@
 
 (define (get-bytevector-some p)
   (issue-warning-deprecated 'get-bytevector-some)
-  (if (and (input-port? p)
-           (binary-port? p))
+  (if (and (io/input-port? p)
+           (io/binary-port? p))
       (let ((byte (get-u8 p)))
         (if (eof-object? byte)
             byte
@@ -535,8 +542,8 @@
       (portio/illegal-arguments 'get-bytevector-some p)))
 
 (define (get-bytevector-all p)
-  (if (and (input-port? p)
-           (binary-port? p))
+  (if (and (io/input-port? p)
+           (io/binary-port? p))
       (let ((bv (call-with-port
                  (open-output-bytevector)
                  (lambda (out)
@@ -557,8 +564,8 @@
 ; end of input.  I believe this is an error in the R6RS.
 
 (define (get-string-n p count)
-  (if (and (input-port? p)
-           (textual-port? p)
+  (if (and (io/input-port? p)
+           (io/textual-port? p)
            (fixnum? count)
            (<= 0 count))
       (let ((out (open-output-string)))
@@ -579,8 +586,8 @@
       (portio/illegal-arguments 'get-string-n p count)))
 
 (define (get-string-n! p s start count)
-  (if (and (input-port? p)
-           (textual-port? p)
+  (if (and (io/input-port? p)
+           (io/textual-port? p)
            (string? s)
            (fixnum? start)
            (<= 0 start)
@@ -604,8 +611,8 @@
       (portio/illegal-arguments 'get-string-n! p s start count)))
 
 (define (get-string-all p)
-  (if (and (input-port? p)
-           (textual-port? p))
+  (if (and (io/input-port? p)
+           (io/textual-port? p))
       (let ((s (call-with-string-output-port
                  (lambda (out)
                    (do ((char (get-char p) (get-char p)))
@@ -617,8 +624,8 @@
       (portio/illegal-arguments 'get-string-all p)))
 
 (define (portio/get-line p)
-  (if (and (input-port? p)
-           (textual-port? p))
+  (if (and (io/input-port? p)
+           (io/textual-port? p))
       (let* ((eof? #f)
              (s (call-with-string-output-port
                  (lambda (out)
@@ -649,8 +656,8 @@
 
 (define (put-bytevector p bv . rest)
   (define (put-bytevector p bv start count)
-    (if (and (binary-port? p)
-             (output-port? p)
+    (if (and (io/binary-port? p)
+             (io/output-port? p)
              (bytevector? bv)
              (fixnum? start)
              (fixnum? count)
@@ -679,8 +686,8 @@
 (define (put-string p s . rest)
 
   (define (portio/put-string p s start count)
-    (if (and (textual-port? p)
-             (output-port? p)
+    (if (and (io/textual-port? p)
+             (io/output-port? p)
              (string? s)
              (fixnum? start)
              (fixnum? count)

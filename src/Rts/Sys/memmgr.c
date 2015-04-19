@@ -76,9 +76,7 @@ static int calc_mutator_activity_sumz( gc_t *gc );
  */
 
 void summary_vs_remset_msg( char *msg ) {
-#ifndef UNIX
-  consolemsg( msg );
-#endif
+  debugmsg( msg );
 }
 
 gc_t *create_gc( gc_param_t *info, int *generations )
@@ -3509,6 +3507,8 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
     strcat( buf, "+" );
     strcat( buf, gc->static_area->id );
   }
+
+  gc->satb_ssb = NULL;
 
   gc->id = strdup( buf );
   return (info->use_static_area ? 2 : 1);

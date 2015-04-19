@@ -27,11 +27,6 @@
 #include "gc_t.h"
 #include "young_heap_t.h" /* for yh_create_initial_stack() */
 
-#if WIN32
-/* FIXME: this didn't help */
-#define _WIN32_WINNT 0x0600
-#endif
-
 opt_t command_line_options;
 
 static void param_error( char *s );
@@ -87,31 +82,30 @@ int main( int argc, char **os_argv )
   
   /* FIXME: this allows us to (temporarily) circumvent DEP problems for the
    majority of windows users */
-#if 0
-  /* FIXME: linker can't find _SetProcessDEPPolicy and _GetProcessDEPPolicy, */
-  /* so I'm commenting this out for now. */
+
 #if WIN32
-  /* there are four possible returns to this function.  We care about AlwaysOn and
-     OptOut.  If the policy is set to AlwaysOn then larceny cannot run.  Otherwise
-	 we can opt out of the restriction.  The other two cases (AlwaysOff and OptIn)
-	 have no affect */
+  /* There are four possible values GetSystemDEPPolicy can return.
+   * We care about AlwaysOn and OptOut.
+   * If the policy is set to AlwaysOn then larceny cannot run.
+   * Otherwise we can opt out of the restriction.
+   * The other two cases (AlwaysOff and OptIn) have no effect on larceny.
+   */
    
-  switch(GetSystemDEPPolicy())
+  switch ( GetSystemDEPPolicy() )
   {
   case 0: break; /* AlwaysOff: we don't care about this */
   case 1:  /* DEP has been set in the windows boot.ini to be always on */
-	panic_exit("The system DEP Policy is to restrictive to allow larceny to run");
-	break;
+    panic_exit( "Larceny cannot run with DEP set to AlwaysOn." );
+    break;
   case 2: break; /* OptIn: we don't care about this either */
   case 3:  /* DEP has been set to be OptOut, which is what we do */
-    if(!SetProcessDEPPolicy(0))
-	{
-		consolemsg("Failed to set DEP policy");
-	}
-	break;
+    if( !SetProcessDEPPolicy(0) )
+      {
+          consolemsg("Failed to set DEP policy");
+      }
+    break;
   }  
 #endif /* WIN32 */
-#endif /* 0 */
 
 #if defined(DEC_ALPHA_32BIT)
   /* I know this looks weird.  When running Petit Larceny on the Alpha
@@ -744,6 +738,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->err5rs = 1;
     else if (hstrcmp( *argv, "-r7rs" ) == 0)
       o->r7rs = 1;
+    else if (hstrcmp( *argv, "-r7r6" ) == 0)
+      o->r7r6 = 1;
     else if (hstrcmp( *argv, "-r6rs" ) == 0) {
       o->r6rs = 1;
       o->nobanner = 1;
@@ -765,6 +761,7 @@ parse_options( int argc, char **argv, opt_t *o )
       ++argv;
       --argc;
       o->r6program = *argv;
+      o->nobanner = 1;
     }
     else if (hstrcmp( *argv, "-path" ) == 0) {
       ++argv;
@@ -828,11 +825,12 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->foldcase && o->nofoldcase)
     param_error( "Both -foldcase and -nofoldcase selected." );
 
-  if ((o->r5rs && (o->err5rs || o->r6rs || o->r7rs)) ||
-      (o->err5rs && (o->r5rs || o->r6rs || o->r7rs)) ||
-      (o->r6rs && (o->r5rs || o->err5rs || o->r7rs)) ||
-      (o->r7rs && (o->r5rs || o->err5rs || o->r6rs)))
-    param_error( "More than one of -r5rs -err5rs -r6rs -r7rs selected." );
+  if ((o->r5rs && (o->err5rs || o->r6rs || o->r7rs || o->r7r6)) ||
+      (o->err5rs && (o->r5rs || o->r6rs || o->r7rs || o->r7r6)) ||
+      (o->r6rs && (o->r5rs || o->err5rs || o->r7rs || o->r7r6)) ||
+      (o->r7rs && (o->r5rs || o->err5rs || o->r6rs || o->r7r6)) ||
+      (o->r7r6 && (o->r5rs || o->err5rs || o->r6rs || o->r7rs)))
+    param_error( "More than one of -r5rs -r6rs -r7rs -r7r6 selected." );
 
   if ((o->r6slow || o->r6pedantic) &&
       ((! (o->r6rs)) || (! (o->r6slow)) ||
@@ -845,8 +843,9 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->r6slow && (strcmp (o->r6path, "") != 0))
     param_error( "The -slow and -path options are incompatible." );
 
-  if ((strcmp (o->r6program, "") != 0) && (! (o->r6rs)) && (! (o->r7rs)))
-    param_error( "Missing -r6rs or -r7rs option." );
+  if ((strcmp (o->r6program, "") != 0) &&
+      (! (o->r6rs)) && (! (o->r7rs)) && (! (o->r7r6)))
+    param_error( "Missing -r6rs or -r7rs or -r7r6 option." );
 
   if (o->ignore1 && (! (o->r6program)))
     param_error( "Missing -program option." );
@@ -1265,12 +1264,15 @@ static void usage( void )
 #define STR2(x) #x
 
 static char *helptext[] = {
-  "  -r7rs",
-  "     Execute in Larceny's R7RS mode (superset of both R7RS and R6RS).",
+  "  -r7r6",
+  "     Execute in Larceny's R7RS mode (a superset of both R7RS and R6RS)",
+  "     after importing all of the standard R7RS/R6RS libraries.",
   "     Enters a read/eval/print loop (REPL) unless -program is specified.",
+  "  -r7rs",
+  "     Same as -r7r6 but imports only the (scheme base) library.",
   "  -r6rs",
   "     Execute the R6RS program specified by the -program option.",
-  "     (An \"absolute requirement\" of the R6RS forbids REPLs).",
+  "     (An \"absolute requirement\" of the R6RS forbids REPLs.)",
   "  -r5rs",
   "     Enter an R5RS-style read/eval/print loop (the default, for now).",
   "  -path <directories>",
@@ -1278,8 +1280,6 @@ static char *helptext[] = {
   "     Use colon (Unix) or semicolon (Windows) to separate directories.",
   "  -program <filename>",
   "     Execute the R7RS or R6RS program found in the file; then exit.",
-  "  -heap <filename>",
-  "     Select an initial heap image other than the default.",
   "  -nofoldcase",
   "     Symbols are case-sensitive (the default; #!fold-case overrides).",
   "  -foldcase",
@@ -1316,13 +1316,15 @@ static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
   "  -err5rs",
   "     Similar to -r7rs but doesn't import any libraries at startup.",
+  "  -heap <filename>",
+  "     Select an initial heap image other than the default.",
   "  -transcoder nn",
   "     Use transcoder nn for console io.",
 #if 0
   "  -unsafe",
   "     Crash spectacularly when errors occur.",
 #endif
-  "  This options may accompany the -r6rs or -r7rs option:",
+  "  This option may accompany the -r6rs or -r7rs option:",
   "       -ignore1",
   "          Ignore the first line of the file specified by -program.",
 #if 0

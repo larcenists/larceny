@@ -1,0 +1,495 @@
+;;; This is a very shallow sanity test for
+;;; SRFI 115 Scheme Regular Expressions
+
+(import (scheme base)
+        (scheme write)
+        (srfi 14)
+        (srfi 115 regexp))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
+(define-syntax test
+  (syntax-rules ()
+   ((_ expr expected)
+    (or (equal? expr expected) (fail 'expr)))))
+
+(define-syntax test-assert
+  (syntax-rules ()
+   ((_ expr)
+    (or expr (fail 'expr)))))
+
+(define-syntax test-deny
+  (syntax-rules ()
+   ((_ expr)
+    (or (not expr) (fail 'expr)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(test-assert (regexp? (regexp "abc")))
+
+(test-assert (regexp? (regexp #\a)))
+(test-assert (regexp? (regexp "Z")))
+(test-assert (regexp? (regexp (string->char-set "abc"))))
+(test-assert (regexp? (regexp '("abc"))))
+(test-assert (regexp? (regexp '(char-set "abc"))))
+(test-assert (regexp? (regexp '(/ "AZ09"))))
+(test-assert (regexp? (regexp '(char-range "AZ" "09"))))
+(test-assert (regexp? (regexp '(or #\space #\tab))))
+(test-assert (regexp? (regexp '(and alphabetic (char-set "abc99")))))
+(test-assert (regexp? (regexp '(- alphabetic (char-set "abc99")))))
+
+;; no productions for <difference>, so I have to guess at the intent
+
+(test-assert (regexp? (regexp '(- (- alphabetic (char-set "abc99")) "z"))))
+(test-assert (regexp? (regexp '(~ alphabetic numeric))))
+(test-assert (regexp? (regexp '(w/case (char-set "abc") (char-set "DEF")))))
+(test-assert (regexp? (regexp '(w/nocase (char-set "abc") (char-set "DEF")))))
+(test-assert (regexp? (regexp '(w/ascii (char-set "abc") (char-set "DEF")))))
+(test-assert (regexp? (regexp '(w/unicode (char-set "abc") (char-set "DEF")))))
+(test-assert (regexp? (regexp 'any)))
+(test-assert (regexp? (regexp 'nonl)))
+(test-assert (regexp? (regexp 'ascii)))
+(test-assert (regexp? (regexp 'lower-case)))
+(test-assert (regexp? (regexp 'lower)))
+(test-assert (regexp? (regexp 'upper-case)))
+(test-assert (regexp? (regexp 'upper)))
+(test-assert (regexp? (regexp 'title-case)))
+(test-assert (regexp? (regexp 'title)))
+(test-assert (regexp? (regexp 'alphabetic)))
+(test-assert (regexp? (regexp 'alpha)))
+(test-assert (regexp? (regexp 'alphanumeric)))
+(test-assert (regexp? (regexp 'alphanum)))
+(test-assert (regexp? (regexp 'alnum)))
+(test-assert (regexp? (regexp 'numeric)))
+(test-assert (regexp? (regexp 'num)))
+(test-assert (regexp? (regexp 'punctuation)))
+(test-assert (regexp? (regexp 'punct)))
+(test-assert (regexp? (regexp 'symbol)))
+(test-assert (regexp? (regexp 'graphic)))
+(test-assert (regexp? (regexp 'graph)))
+(test-assert (regexp? (regexp 'whitespace)))
+(test-assert (regexp? (regexp 'white)))
+(test-assert (regexp? (regexp 'space)))
+(test-assert (regexp? (regexp 'printing)))
+(test-assert (regexp? (regexp 'print)))
+(test-assert (regexp? (regexp 'control)))
+(test-assert (regexp? (regexp 'cntrl)))
+(test-assert (regexp? (regexp 'hex-digit)))
+(test-assert (regexp? (regexp 'xdigit)))
+
+(test-assert (regexp? (regexp '(* alpha))))
+(test-assert (regexp? (regexp '(zero-or-more alpha))))
+(test-assert (regexp? (regexp '(+ alpha))))
+(test-assert (regexp? (regexp '(one-or-more alpha))))
+(test-assert (regexp? (regexp '(? alpha))))
+(test-assert (regexp? (regexp '(optional alpha))))
+(test-assert (regexp? (regexp '(= 3 alpha))))
+(test-assert (regexp? (regexp '(exactly 3 alpha))))
+(test-assert (regexp? (regexp '(>= 3 alpha))))
+(test-assert (regexp? (regexp '(at-least 3 alpha))))
+(test-assert (regexp? (regexp '(** 3 10 alpha))))
+(test-assert (regexp? (regexp '(repeated 3 10 alpha))))
+
+(test-assert (regexp? (regexp '(|\|| "abc" "DEF"))))
+(test-assert (regexp? (regexp '(or "abc" "DEF"))))
+
+(test-assert (regexp? (regexp '(: "abc" "DEF"))))
+(test-assert (regexp? (regexp '(seq "abc" "DEF"))))
+(test-assert (regexp? (regexp '($ "abc" "DEF"))))
+(test-assert (regexp? (regexp '(submatch "abc" "DEF"))))
+(test-assert (regexp? (regexp '(-> foo "abc" "DEF"))))
+(test-assert (regexp? (regexp '(submatch-named foo "abc" "DEF" "0123"))))
+
+(test-assert (regexp? (regexp '(w/case "abc" "DEF"))))
+(test-assert (regexp? (regexp '(w/nocase "abc" "DEF"))))
+(test-assert (regexp? (regexp '(w/unicode "abc" "DEF"))))
+(test-assert (regexp? (regexp '(w/ascii "abc" "DEF"))))
+(test-assert (regexp? (regexp '(w/nocapture "abc" "DEF"))))
+
+(test-assert (regexp? (regexp 'bos)))
+(test-assert (regexp? (regexp 'eos)))
+(test-assert (regexp? (regexp 'bol)))
+(test-assert (regexp? (regexp 'eol)))
+(test-assert (regexp? (regexp 'bog)))
+(test-assert (regexp? (regexp 'eog)))
+(test-assert (regexp? (regexp 'grapheme)))
+(test-assert (regexp? (regexp 'bow)))
+(test-assert (regexp? (regexp 'eow)))
+(test-assert (regexp? (regexp 'nwb)))
+(test-assert (regexp? (regexp '(word "abc" "DEF"))))
+(test-assert (regexp? (regexp '(word+ alpha numeric))))
+(test-assert (regexp? (regexp 'word)))
+
+;; FIXME: these optional things don't work.
+
+;(test-assert (regexp? (regexp '(?? "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(non-greedy-optional "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(*? "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(non-greedy-zero-or-more "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(**? 4 6 "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(non-greedy-repeated "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(look-ahead "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(look-behind "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(neg-look-ahead "abc" "DEF"))))
+;(test-assert (regexp? (regexp '(neg-look-behind "abc" "DEF"))))
+
+;(test-assert (regexp? (regexp '(backref foo))))
+
+(test-assert (regexp? (rx "abc" (or "DEF" "XYZ"))))
+
+(test-assert (regexp? (regexp (regexp->sre (regexp '(or "#t" "#T"))))))
+
+(test-assert (regexp? (regexp (char-set->sre (string->char-set "abcDEF")))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(test-assert (valid-sre? (values "abc")))
+
+(test-assert (valid-sre? (values #\a)))
+(test-assert (valid-sre? (values "Z")))
+(test-assert (valid-sre? (values (string->char-set "abc"))))
+(test-assert (valid-sre? (values '("abc"))))
+(test-assert (valid-sre? (values '(char-set "abc"))))
+(test-assert (valid-sre? (values '(/ "AZ09"))))
+(test-assert (valid-sre? (values '(char-range "AZ" "09"))))
+(test-assert (valid-sre? (values '(or #\space #\tab))))
+(test-assert (valid-sre? (values '(and alphabetic (char-set "abc99")))))
+(test-assert (valid-sre? (values '(- alphabetic (char-set "abc99")))))
+
+;; no productions for <difference>, so I have to guess at the intent
+
+(test-assert (valid-sre? (values '(- (- alphabetic (char-set "abc99")) "z"))))
+(test-assert (valid-sre? (values '(~ alphabetic numeric))))
+(test-assert (valid-sre? (values '(w/case (char-set "abc") (char-set "DEF")))))
+(test-assert (valid-sre? (values '(w/nocase (char-set "abc") (char-set "DEF")))))
+(test-assert (valid-sre? (values '(w/ascii (char-set "abc") (char-set "DEF")))))
+(test-assert (valid-sre? (values '(w/unicode (char-set "abc") (char-set "DEF")))))
+(test-assert (valid-sre? (values 'any)))
+(test-assert (valid-sre? (values 'nonl)))
+(test-assert (valid-sre? (values 'ascii)))
+(test-assert (valid-sre? (values 'lower-case)))
+(test-assert (valid-sre? (values 'lower)))
+(test-assert (valid-sre? (values 'upper-case)))
+(test-assert (valid-sre? (values 'upper)))
+(test-assert (valid-sre? (values 'title-case)))
+(test-assert (valid-sre? (values 'title)))
+(test-assert (valid-sre? (values 'alphabetic)))
+(test-assert (valid-sre? (values 'alpha)))
+(test-assert (valid-sre? (values 'alphanumeric)))
+(test-assert (valid-sre? (values 'alphanum)))
+(test-assert (valid-sre? (values 'alnum)))
+(test-assert (valid-sre? (values 'numeric)))
+(test-assert (valid-sre? (values 'num)))
+(test-assert (valid-sre? (values 'punctuation)))
+(test-assert (valid-sre? (values 'punct)))
+(test-assert (valid-sre? (values 'symbol)))
+(test-assert (valid-sre? (values 'graphic)))
+(test-assert (valid-sre? (values 'graph)))
+(test-assert (valid-sre? (values 'whitespace)))
+(test-assert (valid-sre? (values 'white)))
+(test-assert (valid-sre? (values 'space)))
+(test-assert (valid-sre? (values 'printing)))
+(test-assert (valid-sre? (values 'print)))
+(test-assert (valid-sre? (values 'control)))
+(test-assert (valid-sre? (values 'cntrl)))
+(test-assert (valid-sre? (values 'hex-digit)))
+(test-assert (valid-sre? (values 'xdigit)))
+
+(test-assert (valid-sre? (values '(* alpha))))
+(test-assert (valid-sre? (values '(zero-or-more alpha))))
+(test-assert (valid-sre? (values '(+ alpha))))
+(test-assert (valid-sre? (values '(one-or-more alpha))))
+(test-assert (valid-sre? (values '(? alpha))))
+(test-assert (valid-sre? (values '(optional alpha))))
+(test-assert (valid-sre? (values '(= 3 alpha))))
+(test-assert (valid-sre? (values '(exactly 3 alpha))))
+(test-assert (valid-sre? (values '(>= 3 alpha))))
+(test-assert (valid-sre? (values '(at-least 3 alpha))))
+(test-assert (valid-sre? (values '(** 3 10 alpha))))
+(test-assert (valid-sre? (values '(repeated 3 10 alpha))))
+
+(test-assert (valid-sre? (values '(|\|| "abc" "DEF"))))
+(test-assert (valid-sre? (values '(or "abc" "DEF"))))
+
+(test-assert (valid-sre? (values '(: "abc" "DEF"))))
+(test-assert (valid-sre? (values '(seq "abc" "DEF"))))
+(test-assert (valid-sre? (values '($ "abc" "DEF"))))
+(test-assert (valid-sre? (values '(submatch "abc" "DEF"))))
+(test-assert (valid-sre? (values '(-> foo "abc" "DEF"))))
+(test-assert (valid-sre? (values '(submatch-named foo "abc" "DEF" "0123"))))
+
+(test-assert (valid-sre? (values '(w/case "abc" "DEF"))))
+(test-assert (valid-sre? (values '(w/nocase "abc" "DEF"))))
+(test-assert (valid-sre? (values '(w/unicode "abc" "DEF"))))
+(test-assert (valid-sre? (values '(w/ascii "abc" "DEF"))))
+(test-assert (valid-sre? (values '(w/nocapture "abc" "DEF"))))
+
+(test-assert (valid-sre? (values 'bos)))
+(test-assert (valid-sre? (values 'eos)))
+(test-assert (valid-sre? (values 'bol)))
+(test-assert (valid-sre? (values 'eol)))
+(test-assert (valid-sre? (values 'bog)))
+(test-assert (valid-sre? (values 'eog)))
+(test-assert (valid-sre? (values 'grapheme)))
+(test-assert (valid-sre? (values 'bow)))
+(test-assert (valid-sre? (values 'eow)))
+(test-assert (valid-sre? (values 'nwb)))
+(test-assert (valid-sre? (values '(word "abc" "DEF"))))
+(test-assert (valid-sre? (values '(word+ alpha numeric))))
+(test-assert (valid-sre? (values 'word)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(test-assert (regexp-matches? (regexp '(: (* (or alpha numeric)) "&"))
+                              "12xyz34&"))
+(test-assert (regexp-matches? (regexp '(: (* (or alpha numeric)) "&"))
+                              "   12xyz34&" 3))
+(test-assert (regexp-matches? (regexp '(: (* (or alpha numeric)) "&"))
+                              "    12xyz34&    " 4 12))
+
+(test-assert (regexp-matches? (regexp '(: (* (or alpha numeric)) "&"))
+                              "12xyz34&"))
+(test-assert (regexp-matches? (regexp '(: (* (or alpha numeric)) "&"))
+                              "   12xyz34&" 3))
+(test-assert (regexp-matches? (regexp '(: (* (or alpha numeric)) "&"))
+                              "    12xyz34&    " 4 12))
+
+(test-assert (regexp-search (regexp '(: (* (or alpha numeric)) "&"))
+                            "12xyz34&"))
+(test-assert (regexp-search (regexp '(: (* (or alpha numeric)) "&"))
+                            "   12xyz34&" 3))
+(test-assert (regexp-search (regexp '(: (* (or alpha numeric)) "&"))
+                            "    12xyz34&    " 4 12))
+
+(test (regexp-fold 'word
+                   (lambda (i m str acc)
+                     (let ((s (regexp-match-submatch m 0)))
+                       (cond ((assoc s acc)
+                              => (lambda (x) (set-cdr! x (+ 1 (cdr x))) acc))
+                             (else `((,s . 1) ,@acc)))))
+                   '()
+                   "to be or not to be")
+      '(("not" . 1) ("or" . 1) ("be" . 2) ("to" . 2)))
+
+(test (regexp-extract '(+ numeric) "192.168.0.1")
+      '("192" "168" "0" "1"))
+
+(test (regexp-split '(+ space) " fee fi  fo\tfum\n")
+      '("fee" "fi" "fo" "fum"))
+
+(test (regexp-partition '(+ (or space punct)) "")
+      '(""))
+
+(test (regexp-partition '(+ (or space punct)) "Hello, world!\n")
+      '("Hello" ", " "world" "!\n"))
+
+(test (regexp-partition '(+ (or space punct)) "¿Dónde Estás?")
+      '("" "¿" "Dónde" " " "Estás" "?"))
+
+(test (regexp-replace '(+ space) "one two three" "_")
+      '"one_two three")
+(test (regexp-replace '(+ space) "one two three" "_" 0 #f 0)
+      '"one_two three")
+(test (regexp-replace '(+ space) "one two three" "_" 0 #f 1)
+      '"one two_three")
+(test (regexp-replace '(+ space) "one two three" "_" 0 #f 2)
+      '"one two three")
+
+(test (regexp-replace-all '(+ space) "one two three" "_")
+      '"one_two_three")
+
+(test (regexp-match? (regexp-matches "x" "x")) '#t)
+(test (regexp-match? (regexp-matches "x" "y")) '#f)
+
+(test (regexp-match-count (regexp-matches "x" "x")) 0)
+(test (regexp-match-count (regexp-matches '($ "x") "x")) 1)
+
+(test (regexp-match-submatch (regexp-search 'word "**foo**") 0) '"foo")
+(test (regexp-match-submatch
+       (regexp-search '(: "*" ($ word) "*") "**foo**") 0) '"*foo*")
+(test (regexp-match-submatch
+       (regexp-search '(: "*" ($ word) "*") "**foo**") 1) '"foo")
+
+(test (regexp-match-submatch-start
+       (regexp-search 'word "**foo**") 0) 
+      2)
+(test (regexp-match-submatch-start
+       (regexp-search '(: "*" ($ word) "*") "**foo**") 0)
+      1)
+(test (regexp-match-submatch-start
+       (regexp-search '(: "*" ($ word) "*") "**foo**") 1)
+      2)
+
+(test (regexp-match-submatch-end
+       (regexp-search 'word "**foo**") 0)
+      5)
+(test (regexp-match-submatch-end
+       (regexp-search '(: "*" ($ word) "*") "**foo**") 0)
+      6)
+(test (regexp-match-submatch-end
+       (regexp-search '(: "*" ($ word) "*") "**foo**") 1)
+      5)
+
+(test (regexp-match->list
+       (regexp-search
+        '(: ($ word) (+ (or space punct)) ($ word)) "cats & dogs"))
+      '("cats & dogs" "cats" "dogs"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(test-assert (regexp-search "needle" "hayneedlehay"))
+(test-deny (regexp-search "needle" "haynEEdlehay"))
+
+(test-assert (regexp-search '(: "one" space "two" space "three")
+                            "one two three"))
+
+(test-assert (regexp-search '(or "eeney" "meeney" "miney")
+                            "meeney"))
+(test-deny (regexp-search '(or "eeney" "meeney" "miney") "moe"))
+
+(test-deny (regexp-search "needle" "haynEEdlehay"))
+(test-assert (regexp-search '(w/nocase "needle") "haynEEdlehay"))
+
+(test-assert (regexp-search '(~ ("Aab")) "B"))
+(test-deny   (regexp-search '(~ ("Aab")) "b"))
+
+;;; SRFI 115 examples say all of the next four should succeed,
+;;; but the second of the four paragraphs preceding these examples
+;;; implies all four should fail.  (Confirmed by Alex Shinn.)
+
+(test-deny   (regexp-search '(w/nocase (~ ("Aab"))) "B"))
+(test-deny   (regexp-search '(w/nocase (~ ("Aab"))) "b"))
+(test-deny   (regexp-search '(~ (w/nocase ("Aab"))) "B"))
+(test-deny   (regexp-search '(~ (w/nocase ("Aab"))) "b"))
+
+(test-assert (regexp-search '(w/nocase "SMALL" (w/case "BIG"))
+                            "smallBIGsmall"))
+(test-deny (regexp-search '(w/nocase (~ (w/case ("Aab")))) "b"))
+
+
+;;; letter is not an SRFI 115 <cset-sre>, even though it is used
+;;; as such by several examples shown in SRFI 115.  (Confirmed by Alex Shinn.)
+
+#|
+(test-assert (regexp-search '(w/ascii bos (* letter) eos) "English"))
+(test-deny   (regexp-search '(w/ascii bos (* letter) eos) "Ελληνική"))
+
+(test-assert (regexp-search '(w/unicode bos (* letter) eos) "English"))
+(test-assert (regexp-search '(w/unicode bos (* letter) eos) "Ελληνική"))
+|#
+
+(test-assert (regexp-search '(w/ascii bos (* alpha) eos) "English"))
+(test-deny   (regexp-search '(w/ascii bos (* alpha) eos) "Ελληνική"))
+
+(test-assert (regexp-search '(w/unicode bos (* alpha) eos) "English"))
+(test-assert (regexp-search '(w/unicode bos (* alpha) eos) "Ελληνική"))
+
+;;; End of the four corrected tests.
+
+(test-assert (regexp-search '(w/ascii bos (* alpha) eos) "English"))
+(test-deny   (regexp-search '(w/ascii bos (* alpha) eos) "Ελληνική"))
+
+(test-assert (regexp-search '(w/unicode bos (* alpha) eos) "English"))
+(test-assert (regexp-search '(w/unicode bos (* alpha) eos) "Ελληνική"))
+
+(test (let ((number '($ (+ digit))))
+        (cdr
+         (regexp-match->list
+          (regexp-search `(: ,number "-" ,number "-" ,number)
+                         "555-867-5309"))))
+      '("555" "867" "5309"))
+(test (let ((number '($ (+ digit))))
+        (cdr
+         (regexp-match->list
+          (regexp-search `(: ,number "-" (w/nocapture ,number) "-" ,number)
+                         "555-867-5309"))))
+      '("555" "5309"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(test-assert (regexp-search '(: "match" (? "es") "!") "matches!"))
+(test-assert (regexp-search '(: "match" (? "es") "!") "match!"))
+(test-deny   (regexp-search '(: "match" (? "es") "!") "matche!"))
+
+(test-assert (regexp-search '(: "<" (* (~ #\>)) ">") "<html>"))
+(test-assert (regexp-search '(: "<" (* (~ #\>)) ">") "<>"))
+(test-deny   (regexp-search '(: "<" (* (~ #\>)) ">") "<html"))
+
+(test-assert (regexp-search '(: "<" (+ (~ #\>)) ">") "<html>"))
+(test-assert (regexp-search '(: "<" (+ (~ #\>)) ">") "<a>"))
+(test-deny   (regexp-search '(: "<" (+ (~ #\>)) ">") "<>"))
+
+(test-assert (regexp-search '(: "<" (>= 3 (~ #\>)) ">") "<table>"))
+(test-assert (regexp-search '(: "<" (>= 3 (~ #\>)) ">") "<pre>"))
+(test-deny   (regexp-search '(: "<" (>= 3 (~ #\>)) ">") "<tr>"))
+
+(test-assert (regexp-search '(: "<" (= 4 (~ #\>)) ">") "<html>"))
+(test-deny   (regexp-search '(: "<" (= 4 (~ #\>)) ">") "<table>"))
+
+(test-assert (regexp-search '(: (= 3 (** 1 3 numeric) ".") (** 1 3 numeric))
+                            "192.168.1.10"))
+(test-deny   (regexp-search '(: (= 3 (** 1 3 numeric) ".") (** 1 3 numeric))
+                            "192.0168.1.10"))
+
+(test-assert (regexp-matches '(* #\-) "---"))
+(test-deny   (regexp-matches '(* #\-) "-_-"))
+
+(let ((char-set:vowels (char-set #\a #\e #\i #\o #\u)))
+  (test (regexp-partition `(+ ,char-set:vowels) "vowels")
+        '("v" "o" "w" "e" "ls")))
+
+(test-assert (regexp-matches '(* ("aeiou")) "oui"))
+(test-deny   (regexp-matches '(* ("aeiou")) "ouais"))
+
+;;; SRFI 115 omits the semicolons from these next five examples.
+
+(test-assert (regexp-matches '(* ("e\x0301;")) "e\x0301;"))
+(test-deny   (regexp-matches '("e\x0301;") "e\x0301;"))
+(test-assert (regexp-matches '("e\x0301;") "e"))
+(test-assert (regexp-matches '("e\x0301;") "\x0301;"))
+(test-deny   (regexp-matches '("e\x0301;") "\x00E9;"))
+
+(test-assert (regexp-matches '(* (/ "AZ09")) "R2D2"))
+(test-deny   (regexp-matches '(* (/ "AZ09")) "C-3PO"))
+
+(test-assert (regexp-matches '(* (- (/ "az") ("aeiou"))) "xyzzy"))
+(test-deny   (regexp-matches '(* (- (/ "az") ("aeiou"))) "vowels"))
+
+(test-assert (regexp-matches '(* (& (/ "az") (~ ("aeiou")))) "xyzzy"))
+(test-deny   (regexp-matches '(* (& (/ "az") (~ ("aeiou")))) "vowels"))
+
+(test-assert (regexp-search '(: bow "foo") "foo"))
+
+;; The following example is incorrect in SRFI 115.  (Confirmed by Alex Shinn.)
+
+#;
+(test-assert (regexp-search '(: bow "foo") ""))
+(test-deny   (regexp-search '(: bow "foo") ""))    ; corrected
+
+(test-deny   (regexp-search '(: bow "foo") "snafoo"))
+(test-assert (regexp-search '(: "foo" eow) "foo"))
+(test-assert (regexp-search '(: "foo" eow) "foo!"))
+(test-deny   (regexp-search '(: "foo" eow) "foobar"))
+
+;;; FIXME: reference implementation doesn't implement look-ahead
+
+#|
+(test-assert (regexp-matches '(: "regular"
+                                 (look-ahead " expression")
+                                 " expression")
+                             "regular expression"))
+
+(test-deny   (regexp-matches '(: "regular"
+                                 (look-ahead " ")
+                                 "expression")
+                             "regular expression"))
+|#
+
+(writeln "Done.")

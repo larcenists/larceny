@@ -128,6 +128,13 @@
              (vector-copy-into-up! x start end v 0)
              v)))))
 
+;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
+;;; the length of to.  It is also an error if (- (vector-length to) at)
+;;; is less than (- end start)."
+;;; The R7RS does not say what the last argument (end) defaults to if
+;;; omitted.  If end is not specified, Larceny uses the largest index
+;;; that will work.
+
 (define vector-copy!
   (lambda (dst at src . rest)
 
@@ -145,7 +152,8 @@
                       0
                       (car rest)))
            (end (if (or (null? rest) (null? (cdr rest)))
-                    (vector-length src)
+                    (min (vector-length src)
+                         (+ start (- (vector-length dst) at)))
                     (cadr rest))))
       (cond ((not (vector? dst))
              (complain 'msg:notvector dst))
@@ -158,14 +166,13 @@
             ((not (fixnum? end))
              (complain 'msg:notfixnum end))
             ((not (and (<= 0 at (vector-length dst))
-                       (<= 0 start (vector-length src))
-                       (<= start end (vector-length src))
+                       (<= 0 start end (vector-length src))
                        (<= (+ at (- end start)) (vector-length dst))))
              (complain0 'msg:rangeerror))
             (else
              ((if (<= at start)
                   vector-copy-into-down!
-                  vector-copy-into-down!)
+                  vector-copy-into-up!)
               src start end dst at))))))
 
 (define vector-fill!

@@ -1735,6 +1735,9 @@
              ((401 vector-length:vec) ia86.t_op1_401) 
              ((404 car:pair) ia86.t_op1_404)
              ((405 cdr:pair) ia86.t_op1_405)
+             ((    bignum-add-step!) ia86.t_op1_510)
+             ((    bignum-subtract-step!) ia86.t_op1_511)
+             ((    bignum-multiply-step!) ia86.t_op1_512)
              ((612 internal:branchf-zero?) ia86.t_op1_612)
              ((1000 timestamp!) ia86.t_op1_1000)
              ((1001 p-monitor!) ia86.t_op1_1001)
@@ -2283,11 +2286,19 @@
    $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag)))
 
 (define-sassy-instr (flat4:make-string regno)
-  ;; FIXME: exception code wrong, but matches Sparc
-  (ia86.make_indexed_structure_word
-       regno $tag.bytevector-tag
-       (+ $imm.bytevector-header $tag.ustring-typetag)
-       $ex.mkbvl))
+  (let ((l0 (fresh-label))
+        (l1 (fresh-label)))
+    ;; FIXME: the great primop cleanup should improve upon this
+    (ia86.check_char regno l0)
+    (ia86.t_skip l1)
+    `(label ,l0)
+    (ia86.exception_noncontinuable $ex.mkbvl)
+    `(label ,l1)
+    ;; FIXME: exception code wrong, but matches Sparc
+    (ia86.make_indexed_structure_word
+         regno $tag.bytevector-tag
+         (+ $imm.bytevector-header $tag.ustring-typetag)
+         $ex.mkbvl)))
 
 (define-sassy-instr (flat4:string-length:str)
   `(mov	,$r.result (& ,$r.result ,(- $tag.bytevector-tag)))
@@ -2528,8 +2539,22 @@
   (ia86.generic_arithmetic rs1 rd rs2 'sub  'add  $m.subtract))
 
 (define-sassy-instr (ia86.t_op2_63 regno)	; *
-  (ia86.loadr	$r.second regno)
-  (ia86.mcall	$m.multiply 'multiply))
+  (let ((l1 (fresh-label))
+        (l2 (fresh-label)))
+    `(mov       ,$r.second ,$r.result)          ; commutativity helps here
+    (ia86.loadr	$r.result  regno)
+    `(or        ,$r.result ,$r.second)
+    `(test      ,$r.result.low ,$tag.fixtagmask)
+    `(jnz short ,l1)
+    (ia86.loadr	$r.result  regno)
+    `(sar       ,$r.result 2)
+    `(imul      ,$r.result ,$r.second)
+    `(jno short ,l2)
+    `(label     ,l1)
+    `(mov       ,$r.result ,$r.second)
+    (ia86.loadr	$r.second  regno)
+    (ia86.mcall	$m.multiply 'multiply)
+    `(label     ,l2)))
 	
 (define-sassy-instr (ia86.t_op2_64 regno)	; /
   (ia86.loadr	$r.second regno)
@@ -3309,6 +3334,21 @@
            ; second is temp so 2nd arg is already in place
            (ia86.mcall	$m.subtract 'subtract)))
     `(label ,l1)))
+
+;;; Bignum operation steps.
+;;; Although they are invoked as though they were unary operations,
+;;; they actually take their arguments from general registers.
+;;; That means they can only be used within hand-written code or
+;;; possibly at the head of a Scheme procedure that won't be inlined.
+
+(define-sassy-instr (ia86.t_op1_510)             ; bignum-add-step!
+  (ia86.mcall $m.bignum-add-step 'bignum-add-step!))
+
+(define-sassy-instr (ia86.t_op1_511)             ; bignum-subtract-step!
+  (ia86.mcall $m.bignum-subtract-step 'bignum-subtract-step!))
+
+(define-sassy-instr (ia86.t_op1_512)             ; bignum-multiply-step!
+  (ia86.mcall $m.bignum-multiply-step 'bignum-multiply-step!))
 
 (define-sassy-instr/peep (or (ia86.t_op2imm_520* rs1 rd imm)	; +:idx:idx
                              (ia86.t_op2imm_520 imm))

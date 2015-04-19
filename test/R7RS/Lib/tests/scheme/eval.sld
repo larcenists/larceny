@@ -12,14 +12,18 @@
           (scheme eval)
           (tests scheme test))
 
+  (cond-expand
+   ((library (scheme r5rs))
+    (import (scheme r5rs))
+    (include "eval.body.scm"))
+   (else))
+
   (begin
 
    (cond-expand
-    ((library (scheme r5rs))
-     (import (scheme r5rs))
-     (include "eval.body.scm"))
     ((not (library (scheme r5rs)))
-     (begin (define (run-r5rs-eval-tests) #t))))
+     (begin (define (run-r5rs-eval-tests) #t)))
+    (else))
 
    (define (run-eval-tests)
      (test (eval '(let ((x 3)) x)

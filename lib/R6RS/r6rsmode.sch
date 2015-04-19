@@ -116,18 +116,27 @@
 ; but it might be useful when running an application that
 ; doesn't need eval.
 
+(define *r6rs-runtime-is-loaded* #f)
+(define *r6rs-package-is-loaded* #f)
+
 (define (larceny:load-r6rs-runtime)
-  (require 'r6rs-compat-larceny)
-  (require 'r6rs-runtime)
-  (require 'r6rs-standard-libraries))
+  (if (not *r6rs-runtime-is-loaded*)
+      (begin
+       (set! *r6rs-runtime-is-loaded* #t)
+       (require 'r6rs-compat-larceny)
+       (require 'r6rs-runtime)
+       (require 'r6rs-standard-libraries))))
 
 (define (larceny:load-r6rs-package)
-  (require 'r7rs-includer)                                              ; FIXME
-  (require 'r7rs-cond-expander)
-  (require 'r6rs-compat-larceny)
-  (require 'r6rs-runtime)
-  (require 'r6rs-expander)
-  (require 'r6rs-standard-libraries))
+  (if (not *r6rs-package-is-loaded*)
+      (begin (set! *r6rs-package-is-loaded* #t)
+             (set! *r6rs-runtime-is-loaded* #t)
+             (require 'r7rs-includer)                                 ; FIXME
+             (require 'r7rs-cond-expander)
+             (require 'r6rs-compat-larceny)
+             (require 'r6rs-runtime)
+             (require 'r6rs-expander)
+             (require 'r6rs-standard-libraries))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -324,13 +333,17 @@
 ;;; Returns the name of a file that can reasonably be expected
 ;;; to define the given library, or returns #f if no such file
 ;;; is found.
-;;;
-;;; FIXME:  It might be a good idea to look at the contents of
-;;; the file instead of relying entirely on file naming conventions.
 
 (define (larceny:find-r6rs-library libname)
 
-  (let* ((libpath (map symbol->string libname))
+  (let* ((->string (lambda (x)
+                     (cond ((symbol? x) (symbol->string x))
+                           ((number? x) (number->string x))
+                           (else
+                            (error 'larceny:find-r6rs-library
+                                   "bad library name"
+                                   libname)))))
+         (libpath (map ->string libname))
          (libpath (map larceny:filename-mangler libpath))
          (libpaths (do ((libpath (reverse libpath) (cdr libpath))
                         (libpaths '() (cons libpath libpaths)))
@@ -361,12 +374,66 @@
                                  *library-suffixes-compiled*))
                                (let ((fname
                                       ((current-library-resolver) name)))
-                                 (if fname
+                                 (if (and fname
+                                          (larceny:find-r6rs-library-really?
+                                           libname
+                                           fname))
                                      (return fname))))))
                           libpaths))
               require-paths)
              #f))))
     fname))
+
+;;; Given the name of an R7RS/R6RS library and the name of the file
+;;; in which the autoloader expects to find it (based on file naming
+;;; conventions), returns true if and only if the library is actually
+;;; defined within the file.
+;;;
+;;; FIXME: for compiled files, this remains heuristic.
+
+(define (larceny:find-r6rs-library-really? libname fname)
+
+  (define (search-source-library-file fname)
+    (call-without-errors
+     (lambda ()
+       (call-with-input-file
+        fname
+        (lambda (p)
+          (let loop ()
+            (let ((x (read p)))
+              (cond ((eof-object? x)
+                     #f)
+                    ((and (pair? x)
+                          (memq (car x) *library-keywords*)
+                          (pair? (cdr x))
+                          (equal? (larceny:libname-without-version (cadr x))
+                                  (larceny:libname-without-version libname)))
+                     #t)
+                    (else (loop))))))))))
+
+  (cond ((file-type=? fname *slfasl-file-type*)
+         (let ((srcnames (generate-source-names fname)))
+
+           ;; FIXME: if there is no corresponding source file,
+           ;; then we'll just assume the library is defined by
+           ;; the compiled file.
+
+           (or (null? srcnames)
+               (let loop ((srcnames (generate-source-names fname)))
+                 (cond ((null? srcnames) #f)
+                       ((file-exists? (car srcnames))
+                        (search-source-library-file (car srcnames)))
+                       (else (loop (cdr srcnames))))))))
+        (else (search-source-library-file fname))))
+
+;;; Given the name of an R7RS/R6RS library, returns the name without
+;;; version numbers.
+
+(define (larceny:libname-without-version libname)
+  (if (and (pair? libname)
+           (list? (car (last-pair libname))))
+      (reverse (cdr (reverse libname)))
+      libname))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -427,7 +494,7 @@
   (make-parameter "compile-libraries-older-than-this-file" #f))
 
 ; Given the absolute pathname for a reference file in some directory,
-; compiles all ERR5RS/R6RS library files that directory and its
+; compiles all ERR5RS/R6RS library files in that directory and its
 ; subdirectories that are older than the reference file.
 ;
 ; The reference file is typically a file that has been modified,
@@ -479,6 +546,7 @@
           (define (compile-libraries path)
             (if (larceny:directory? path)
                 (let* ((files (larceny:list-directory path))
+                       (files (or files '())) ; be careful here
                        (files (larceny:sort-by-suffix-priority files)))
                   (parameterize ((current-directory path))
                     (for-each (lambda (file)
@@ -861,11 +929,8 @@
 
 (define (larceny:directory? path)
   (case (larceny:os)
-   ((unix)
-    (zero? (system (string-append "ls " path "/* 2>/dev/null >/dev/null"))))
-   ((windows)
-    (zero? (system (string-append
-                    "dir /AD /B \"" (larceny:canonical-path path) "\""))))
+   ((unix windows)
+    (and (list-directory path) #t))
    (else
     (larceny:unsupported-os))))
 

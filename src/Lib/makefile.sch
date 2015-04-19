@@ -181,6 +181,7 @@
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
     "hashtable"         ; hashtables
+    "circular"          ; detection and processing of circular objects
     "enum"              ; enumeration sets
     "unicode0"          ; general utility procedures for binary search
     "unicode1"          ; char-* procedures

@@ -289,7 +289,7 @@
                  (begin (display "BIG: " port)
                         (bigdump* arg1 port)
                         (newline port)))
-             (error name (errmsg 'msg:confused) (list arg1 arg2))))))
+             (error name (errmsg 'msg:confused) (list arg1 arg2 rest))))))
 
   (define (charpred name arg1 arg2)
     (error name (errmsg 'msg:notchar) (list (if (char? arg1) arg2 arg1))))
@@ -298,7 +298,7 @@
     (error name (errmsg 'msg:notport) (list obj)))
 
   (define (byte? x)
-    (and (integer? x) (exact? x) (<= 0 x 255)))
+    (and (integer? x) (exact? x) (<= -128 x 255)))
 
   (cond ;; Interrupt flag manipulation
 

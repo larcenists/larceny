@@ -40,6 +40,16 @@
 
 (define (list . x) x)
 
+(define (make-list k . rest)
+  (if (not (and (fixnum? k)
+                (<= 0 k)))
+      (assertion-violation 'make-list (errmsg 'msg:notindex) k))
+  (let ((fill (if (null? rest) (unspecified) (car rest))))
+    (do ((k k (- k 1))
+         (x '() (cons fill x)))
+        ((<= k 0)
+         x))))
+
 ;; (list* a b c tail) => (cons a (cons b (cons c tail)))
 ;; Note that (list* x) = x
 
@@ -466,23 +476,26 @@
   (set-car! (last-pair l) x))
 
 ; This is pretty much optimal for Larceny.
+; FIXME: but it doesn't implement R7RS semantics.
+;
+;(define (list-copy l)
+;  (define (loop l prev)
+;    (if (pair? l)
+;        (let ((q (cons (car l) '())))
+;          (set-cdr! prev q)
+;          (loop (cdr l) q))
+;        #t))
+;  (if (pair? l)
+;      (let ((first (cons (car l) '())))
+;        (loop (cdr l) first)
+;        first)
+;      l))
+
+;;; The inlining here is designed to prevent the recursion
+;;; from consuming more space than the result.  The deepest
+;;; recursion depth precedes allocation of heap storage.
 
 (define (list-copy l)
-  (define (loop l prev)
-    (if (pair? l)
-        (let ((q (cons (car l) '())))
-          (set-cdr! prev q)
-          (loop (cdr l) q))
-        #t))
-  (if (pair? l)
-      (let ((first (cons (car l) '())))
-        (loop (cdr l) first)
-        first)
-      l))
-
-(define (list-copy l)
-  (define (complain)
-    (assertion-violation 'list-copy "illegal argument" l))
   (define (list-copy l)
     (cond ((pair? l)
            (let ((a (car l))
@@ -497,31 +510,34 @@
                                       (let ((d (car l4))
                                             (x (list-copy (cdr l4))))
                                         (cons a (cons b (cons c (cons d x))))))
-                                     ((null? l4)
-                                      (list a b c))
-                                     (else (complain)))))
-                            ((null? l3)
-                             (list a b))
-                            (else (complain)))))
-                   ((null? l2)
-                    (list a))
-                   (else (complain)))))
-          ((null? l) '())
-          (else (complain))))
+                                     (else
+                                      (cons a (cons b (cons c l4)))))))
+                            (else
+                             (cons a (cons b l3))))))
+                   (else
+                    (cons a l2)))))
+          (else l)))
   (list-copy l))
 
 (define member
-  (letrec ((member
-            (lambda (item list)
-              (cond ((pair? list) (if (equal? item (car list))
-                                      list
-                                      (member item (cdr list))))
-                    ((null? list) #f)
-                    (else (error "member: Improper list " list))))))
-    (lambda (item list)
-      (cond ((symbol? item) (memq item list))
-            ((number? item) (memv item list))
-            (else (member item list))))))
+  (lambda (item list0 . rest)
+    (define (member3 item list equal?)
+      (cond ((pair? list) (if (equal? item (car list))
+                              list
+                              (member3 item (cdr list) equal?)))
+            ((null? list) #f)
+            (else (error 'member (errmsg 'msg:notlist) list0))))
+    (cond ((pair? rest)
+           (let ((comp (car rest)))
+             (if (and (procedure? comp)
+                      (null? (cdr rest)))
+                 (member3 item list0 comp)
+                 (error 'member (errmsg 'msg:illegalargs)
+                                (cons item (cons list0 rest))))))
+          ((symbol? item) (memq item list0))
+          ((number? item) (memv item list0))
+          ((char? item) (memv item list0))
+          (else (member3 item list0 equal?)))))
 
 (define (memv item list)
   (define (memv item list)
@@ -607,17 +623,31 @@
   (assp pred list0))
 
 (define assoc
-  (letrec ((assoc
-            (lambda (key list)
-              (cond ((pair? list) (if (equal? key (caar list))
-                                      (car list)
-                                      (assoc key (cdr list))))
-                    ((null? list) #f)
-                    (else (error "assoc: Improper alist " list))))))
-    (lambda (key list)
-      (cond ((symbol? key) (assq key list))
-            ((number? key) (assv key list))
-            (else (assoc key list))))))
+  (lambda (key list0 . rest)
+    (define (assoc3 key list equal?)
+      (cond ((pair? list)
+             (cond ((not (pair? (car list)))
+                    (error 'assoc
+                           (errmsg 'msg:notpair)
+                           (car list)
+                           (cons key (cons list0 rest))))
+                   ((equal? key (caar list))
+                    (car list))
+                   (else
+                    (assoc3 key (cdr list) equal?))))
+            ((null? list) #f)
+            (else (error 'assoc (errmsg 'msg:notlist) list0))))
+    (cond ((pair? rest)
+           (let ((comp (car rest)))
+             (if (and (procedure? comp)
+                      (null? (cdr rest)))
+                 (assoc3 key list0 comp)
+                 (error 'assoc (errmsg 'msg:illegalargs)
+                               (cons key (cons list0 rest))))))
+          ((symbol? key) (assq key list0))
+          ((number? key) (assv key list0))
+          ((char? key) (assv key list0))
+          (else (assoc3 key list0 equal?)))))
 
 (define (assv key list)
   (define (assv key list)

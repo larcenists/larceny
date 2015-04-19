@@ -82,11 +82,12 @@
   (define (boolean x) (if x #t #f))
   (cond ((symbol? feature)
          (case feature
-          ((r7rs)
-           ;; Should ERR5RS mode count as R7RS?
+          ((else)
+           #t)
+          ((r7rs r6rs)
            (boolean (memq (larceny:get-feature 'execution-mode)
-                          '(r7rs err5rs))))
-          ((larceny exact-closed exact-complex ieee-float ratios)
+                          '(r7rs r7r6 r6rs err5rs))))
+          ((larceny complex exact-closed exact-complex ieee-float ratios)
            #t)
           ((larceny-0.98 larceny-0.99 larceny-2.0)
            ;; FIXME: should strip off trailing beta version, etc
@@ -101,6 +102,10 @@
            ;; Larceny can always represent every Unicode character,
            ;; but Unicode strings are a different story.
            (eq? (larceny:get-feature 'char-representation) 'unicode))
+          ((full-unicode-strings unicode-7)
+           ;; Larceny can always represent every Unicode character,
+           ;; but Unicode strings are a different story.
+           (eq? (larceny:get-feature 'string-representation) 'flat4))
           ((posix)
            (boolean (member (larceny:get-feature 'os-name)
                             '("SunOS"
@@ -156,19 +161,19 @@
           ((and)
            (if (null? (cdr feature))
                #t
-               (and (larceny:evaluate-feature (car feature))
-                    (larceny:evaluate-feature `(and ,@(cdr feature))))))
+               (and (larceny:evaluate-feature (cadr feature))
+                    (larceny:evaluate-feature `(and ,@(cddr feature))))))
           ((or)
            (if (null? (cdr feature))
                #f
-               (or (larceny:evaluate-feature (car feature))
-                   (larceny:evaluate-feature `(and ,@(cdr feature))))))
+               (or (larceny:evaluate-feature (cadr feature))
+                   (larceny:evaluate-feature `(or ,@(cddr feature))))))
           ((not)
            (cond ((or (null? (cdr feature))
                       (not (null? (cddr feature))))
                   (complain))
                  (else
-                  (not (larceny:evaluate-feature (car feature))))))
+                  (not (larceny:evaluate-feature (cadr feature))))))
           (else (complain))))
         (else (complain))))
 
@@ -193,13 +198,22 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; FIXME: these are the standard features plus several others.
+
 (define *standard-feature-keywords*
   '(r7rs
+    r6rs                   ; nonstandard
+    larceny                ; nonstandard
     exact-closed
+    ratios
     exact-complex
+    complex                ; nonstandard
     ieee-float
     full-unicode
-    ratios
+    full-unicode-strings   ; nonstandard
+    unicode-5              ; nonstandard
+    unicode-6              ; nonstandard
+    unicode-7              ; nonstandard
     posix
     windows
     unix darwin gnu-linux bsd freebsd solaris
@@ -212,10 +226,11 @@
          (filter larceny:evaluate-feature *standard-feature-keywords*))
         (larceny-version
          (string->symbol (larceny:name-of-this-implementation-version))))
-    (append (list (car standard-features)
-                  'larceny
+    (append (list (car standard-features)    ; r7rs
+                  (cadr standard-features)   ; r6rs
+                  (caddr standard-features)  ; larceny
                   larceny-version)
-            (cdr standard-features)
+            (cdddr standard-features)
             (map car (larceny:available-source-libraries)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -223,40 +238,6 @@
 ; Reading of library files.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;; Given the name of an R7RS/R6RS library and the name of the file
-;;; in which the autoloader expects to find it (based on file naming
-;;; conventions), returns true if and only if the library is actually
-;;; defined within the file.
-;;;
-;;; FIXME: for compiled files, this remains heuristic.
-
-(define (larceny:find-r6rs-library-really? libname fname)
-
-  (define (search-source-library-file fname)
-    (call-without-errors
-     (lambda ()
-       (call-with-input-file
-        fname
-        (lambda (p)
-          (let loop ()
-            (let ((x (read p)))
-              (cond ((eof-object? x)
-                     #f)
-                    ((and (pair? x)
-                          (memq (car x) *library-keywords*)
-                          (pair? (cdr x))
-                          (equal? (cadr x) libname))
-                     #t)
-                    (else (loop))))))))))
-
-  (cond ((file-type=? fname *slfasl-file-type*)
-         (let loop ((srcnames (generate-source-names fname)))
-           (cond ((null? srcnames) #f)
-                 ((file-exists? (car srcnames))
-                  (search-source-library-file (car srcnames)))
-                 (else (loop (cdr srcnames))))))
-        (else (search-source-library-file fname))))
 
 ;;; Returns an association list containing an entry for every
 ;;; library defined by source files found within the current
@@ -292,6 +273,16 @@
 ;;; declarations and also uses cond-expand a lot to test for
 ;;; availability of libraries.  That sounds like a likely
 ;;; use case.
+
+(define (larceny:make-library-entry name exports imports filename multiple?)
+  (list name exports imports filename multiple?))
+
+(define (larceny:library-entry-name entry)      (car entry))
+(define (larceny:library-entry-exports entry)   (cadr entry))
+(define (larceny:library-entry-imports entry)   (caddr entry))
+(define (larceny:library-entry-filename entry)  (cadddr entry))
+(define (larceny:library-entry-multiple? entry) (car (cddddr entry)))
+(define (larceny:library-entry-multiple! entry) (set-car! (cddddr entry) #t))
 
 (define *cached-source-libraries* #f)
 (define *cached-require-path* '())
@@ -349,6 +340,7 @@
       (if (and (larceny:directory? path)
                (not (member path directories-searched)))
           (let* ((files (list-directory path))
+                 (files (or files '())) ; be careful here
                  (files (larceny:sort-by-suffix-priority files)))
             (set! directories-searched
                   (cons path directories-searched))
@@ -361,7 +353,7 @@
 
     (define (process-file! file)
       (cond ((larceny:directory? file)
-             (find-available-libraries! file))
+             (find-available-libraries! (larceny:absolute-path file)))
             ((and (exists (lambda (type) (file-type=? file type))
                           *library-suffixes-source*)
                   (larceny:contains-libraries-only? file))
@@ -392,7 +384,11 @@
                   (okay? 'export exports)
                   (okay? 'import imports)
                   (let* ((filename (larceny:absolute-path fname))
-                         (entry (list name exports imports filename #f))
+                         (entry (larceny:make-library-entry name
+                                                            exports
+                                                            imports
+                                                            filename
+                                                            #f))
                          (probe (assoc name libraries-found)))
                     (cond ((and probe (equal? probe entry))
                            #t)
@@ -400,10 +396,16 @@
                            (set! libraries-found
                                  (cons entry libraries-found))
                            (if probe
-                               (for-each mark-as-multiple!
-                                         (filter (lambda (entry)
-                                                   (equal? name (car entry)))
-                                                 libraries-found))))))))))
+                               (for-each
+                                mark-as-multiple!
+                                (filter
+                                 (lambda (entry)
+                                   (equal? name
+                                           (larceny:library-entry-name entry)))
+                                 libraries-found))))))))))
+
+    (define (mark-as-multiple! entry)
+      (larceny:library-entry-multiple! entry))
 
     (or (larceny:cache-of-available-source-libraries)
         (let* ((make-absolute
@@ -413,7 +415,8 @@
                       (string-append (current-larceny-root) "/" dir))))
                (require-paths (current-require-path))
                (require-paths (map make-absolute require-paths)))
-         (for-each find-available-libraries! require-paths)
+         (for-each find-available-libraries!
+                   (map larceny:absolute-path require-paths))
          (set! libraries-found
                (list-sort by-name libraries-found))
          (larceny:cache-available-source-libraries! libraries-found)

@@ -88,6 +88,7 @@
   (reset))
 
 ; Given a <formals>, returns a list of bound variables.
+; FIXME: commented out, now defined in pass2.aux.sch
 
 '
 (define (make-null-terminated x)
@@ -137,6 +138,7 @@
        alist))
 
 ; Removes a value from a list.  May destroy the list.
+; FIXME: commented out, apparently no longer used.
 
 '
 (define remq!
@@ -154,6 +156,91 @@
             (else
              (loop x (cdr y) y)
              y)))))
+
+;;; The R7RS allows circular objects to be quoted (or, in the case of vectors,
+;;; to be used as literals even without quoting).  The R7RS macro expander
+;;; unmangles any identifiers that appear within circular literals, so the
+;;; R5RS macro expander doesn't need to unmangle circular literals.
+;;; The R5RS macro expander does need to recognize circular literals so it
+;;; can omit the unmangling step that's still necessary for literals
+;;; produced by the R5RS macro expander.
+;
+;;; To keep Twobit portable, we can't use src/Lib/Common/circular.sch to
+;;; recognize circular structures, and must duplicate some of that code
+;;; here.  The version implemented here avoids eq? hashtables because
+;;; they would create a portability problem.  So this could be slow when
+;;; someone actually uses a circular literal, but it won't be as slow as
+;;; putting the R5RS macro expander into an infinite loop.
+
+;;; Is the given object circular?
+;;;
+;;; First see if a depth-first traversal completes in bounded time.
+;;; If not, perform a more expensive traversal that keeps track of
+;;; all possibly circular objects in scope.
+
+(define (twobit:object-is-circular? x)
+
+  ; Fast traversal with bounded recursion.
+  ; Returns an exact integer n.
+  ; If n > 0, then x is not circular and the traversal performed
+  ; bound - n recursive calls.
+  ; If n <= 0, then the bound was exceeded before the traversal
+  ; could determine whether x is circular.
+
+  (define (small? x bound)
+    (cond ((<= bound 0)
+           bound)
+          ((pair? x)
+           (let ((result (small? (car x) (- bound 1))))
+             (if (> result 0)
+                 (small? (cdr x) result)
+                 result)))
+          ((vector? x)
+           (let ((nx (vector-length x)))
+             (let loop ((i 0)
+                        (bound (- bound 1)))
+               (if (< i nx)
+                   (let ((result (small? (vector-ref x i) bound)))
+                     (if (> result 0)
+                         (loop (+ i 1) result)
+                         result))
+                   bound))))
+          (else bound)))
+
+  ; Returns #t iff x contains circular structure or contains
+  ; any of the objects present within the given hashtable.
+
+  (define (circular? x table)
+    (cond ((and (not (pair? x))
+                (not (vector? x)))
+           #f)
+          ((memq x table)
+           #t)
+          ((pair? x)
+           (let ((table (cons x table)))
+             (cond ((circular? (car x) table)
+                    #t)
+                   ((circular? (cdr x) table)
+                    #t)
+                   (else
+                    #f))))
+          ((vector? x)
+           (let ((table (cons x table)))
+             (let ((nx (vector-length x)))
+               (let loop ((i 0))
+                 (if (< i nx)
+                     (if (circular? (vector-ref x i) table)
+                         #t
+                         (loop (+ i 1)))
+                     #f)))))
+          (else #f)))
+
+  (define circularity:bound-on-recursion 100000)
+
+  (cond ((< 0 (small? x circularity:bound-on-recursion))
+         #f)
+        (else
+         (circular? x '()))))
 
 ; Procedure-specific source code transformations.
 ; The transformer is passed a source code expression and a predicate

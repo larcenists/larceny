@@ -65,7 +65,7 @@
          (nonstandard-arguments))
         ((null? (cdr args))
          (if (use-r7rs-mechanism? (car args))
-             (raise-r6rs-exception (make-error) #f (car args))
+             (raise-r6rs-exception (make-error) #f (car args) '())
              (nonstandard-arguments)))
         (else
          (let ((arg1 (car args))

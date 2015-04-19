@@ -173,23 +173,28 @@
          (emode (get-feature 'execution-mode)))
 
     (case emode
-     ((r5rs err5rs r7rs)
+     ((r5rs err5rs r7rs r7r6)
       (failsafe-load-init-files)
       (failsafe-process-arguments)
-      (if (herald)
-          (writeln (herald)))
+      (let ((pgm (get-feature 'top-level-program)))
+        (if (and (herald)
+                 (or (not (string? pgm))
+                     (string=? pgm "")))
+            (writeln (herald))))
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
-      (add-require-path!)
       (case emode
-       ((err5rs r7rs)
+       ((err5rs r7rs r7r6)
         (aeryn-mode!)))
       (case emode
        ((err5rs)
         (writeln "ERR5RS mode (no libraries have been imported)"))
        ((r7rs)
-        ((repl-evaluator) '(import (scheme base)))))
+        ((repl-evaluator) '(import (scheme base))))
+       ((r7r6)
+        ((repl-evaluator) '(import (larceny r7r6)))))
+      (add-require-path!)
       (let ((pgm (get-feature 'top-level-program))
             (original-handler (error-handler)))
         (parameterize ((error-handler
@@ -199,7 +204,7 @@
                           (lambda the-error
                             (parameterize ((error-handler original-handler))
                              (decode-and-raise-r6rs-exception the-error)))))))
-         (if (and (eq? emode 'r7rs)
+         (if (and (memq emode '(r7rs r7r6))
                   (not (string=? pgm "")))
              (eval (list 'run-r6rs-program pgm)
                    (interaction-environment))
@@ -298,14 +303,26 @@
 (define (failsafe-load-init-files)
   (map failsafe-load-file (osdep/find-init-files)))
 
+;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
+;;; It now parses past -- only in R5RS mode.
+
 (define (failsafe-process-arguments)
-  (let ((argv (command-line-arguments)))
+  (let ((argv (command-line-arguments))
+        (emode (larceny:execution-mode)))
     (let loop ((i 0))
       (cond 
        ((>= i (vector-length argv)) #t)
        (else
         (let ((arg (vector-ref argv i)))
           (cond
+           ((and (string=? arg "--")
+                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
+            ; FIXME: Common Larceny is the oddball here
+            (command-line-arguments
+             (list->vector
+              (cdr (member "--" (vector->list argv))))))
+           ((not (eq? emode 'r5rs))
+            #t)
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))
             (failsafe-eval-thunk 
@@ -314,12 +331,6 @@
                 (read (open-input-string (vector-ref argv (+ i 1))))))
              (list "Error parsing argument " (+ i 1)))
             (loop (+ i 2)))
-           ((and (string=? arg "--")
-                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
-            ; FIXME: Common Larceny is the oddball here
-            (command-line-arguments
-             (list->vector
-              (cdr (member "--" (vector->list argv))))))
            ((and (> (string-length arg) 0)
                  (char=? (string-ref arg 0) #\-))
             (writeln "Error unrecognized option " arg)
@@ -375,11 +386,12 @@
        (else
         (let ((arg (vector-ref argv i)))
           (cond
-           ((member arg '("-fold-ccase" "--fold-case" "/fold-case"))
+           ((member arg '("-fold-case" "--fold-case" "/fold-case"))
             (set! clr:case-sensitivity? #f)
             (loop (+ i 1) args))
 
-           ;; FIXME: ("-r7rs" "--r7rs" "/r7rs") goes here eventually
+           ;; FIXME: ("-r7rs" "--r7rs" "/r7rs" "-r7r6" "--r7r6" "/r7r6")
+           ;; goes here eventually
 
            ((member arg '("-err5rs" "--err5rs" "/err5rs"))
             (set! clr:execution-mode 'err5rs)

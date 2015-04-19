@@ -4,12 +4,14 @@
 #
 # Usage: ./testall
 
-R7PATH="`pwd`"
+#R7PATH="`pwd`"
+R7PATH="."
 SRC="./tests/scheme/run"
 
 LARCENY=${LARCENY:-"../../../larceny"}
 
 TESTS="                            \
+    base.sps                       \
     case-lambda.sps                \
     char.sps                       \
     complex.sps                    \
@@ -17,16 +19,16 @@ TESTS="                            \
     eval.sps                       \
     file.sps                       \
     inexact.sps                    \
-    read.sps"
+    lazy.sps                       \
+    load.sps                       \
+    read.sps                       \
+    repl.sps                       \
+    time.sps                       \
+    write.sps                      \
+    process-context.sps"
 
 # missing from the list above:
-# base.sps
-# lazy.sps
-# load.sps
-# process-context.sps
-# repl.sps
-# time.sps
-# write.sps
+#
 # r5rs.sps
 # run.sps
 # test.sps
@@ -50,3 +52,25 @@ for program in ${TESTS} ; do
     runtest $program
 }
 done
+
+runtest_with_options ()
+{
+    sleep 1
+    {
+        echo "${SRC}/$1 $2"
+        time ${LARCENY} --path "${R7PATH}" --r7rs --program "${SRC}/$1" $2
+    } 2>&1 | tee -a testresults
+}
+
+export TEMPORARY_ENV_VAR=2776e8e
+runtest_with_options process-context.sps "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e"
+
+runtest_with_options process-context.sps "-- --test-emergency-exit"
+
+runtest_with_options process-context.sps "-- --test-emergency-exit --test-abnormal-exit"
+
+runtest_with_options process-context.sps "-- --test-exit"
+
+runtest_with_options process-context.sps "-- --test-exit --test-abnormal-exit"
+
+# FIXME: should check exit status for the above

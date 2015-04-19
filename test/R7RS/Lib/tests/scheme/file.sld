@@ -134,6 +134,8 @@
 
      (test/unspec (delete-file tempfile))
 
+     ;; FIXME: the R7RS allows binary ports to be textual as well.
+
      (test (let* ((p (open-binary-output-file tempfile))
                   (flags (map (lambda (f) (f p))
                               (list input-port?

@@ -2,6 +2,7 @@
 *.fasl
 *.slfasl
 *.o
+*.obj
 *.lap
 *.lop
 include/asmdefs.h
@@ -37,3 +38,8 @@ src/Rts/fence-table.sx
 tablesLarceny
 dfaLarceny.sch
 parserLarceny.sch
+test/Benchmarking/R7RS/Results
+test/Benchmarking/R7RS/outputs
+test/R7RS/Lib/temp.scm
+test/R7RS/Lib/testresults
+lib/SRFI/test/*.log

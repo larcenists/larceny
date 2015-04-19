@@ -243,6 +243,7 @@
                   (not (char? exp))
                   (not (string? exp))
                   (not (bytevector? exp)) ; new in R6RS
+                  (not (vector? exp))     ; R7RS allows unquoted vectors
 		  (not (procedure? exp))
 		  (not (eq? exp (unspecified))))
              (m-warn "Malformed constant -- should be quoted" exp))

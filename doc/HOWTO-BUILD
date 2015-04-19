@@ -1,5 +1,4 @@
 Building Larceny
-18 August 2009
 
 
 WHAT YOU NEED
@@ -32,7 +31,7 @@ Run your host Scheme (a prebuild version of Larceny [1]), and change
 to the root directory of the Larceny tree.
 
     > (load "setup.sch")
-    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'native | 'sassy | 'common ]
+    > (setup 'scheme: ${SCHEME} 'host: ${HOST} [ 'sassy | 'common ]
              'string-rep: ${STREP})
 
 The call to setup (above) has several options that let you
@@ -45,11 +44,12 @@ both the host and target of the build (HOST):
         STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
+The HOST option macosx is for PowerPC-based Macintosh computers.
 
 The HOST option linux-arm-el is for most ARM-based Linux systems.
 
 The optional 'sassy flag will build native Larceny (x86-32) on
-Linux, Windows, or Mac OS X.  The 'sassy flag is necessary if
+Linux, Windows, or MacOS X.  The 'sassy flag is necessary if
 you want to use dynamic loading on Win32, and is strongly
 recommended for that operating system.  There are several
 other optional flags that change the compiler's behavior [4].
@@ -70,12 +70,10 @@ representation.
 Some useful examples which are known to work:
 
 To build native Larceny:
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native)
-    > (setup 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat1)
-    > (setup 'scheme: 'mzscheme 'host: 'win32 'sassy)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy)
-    > (setup 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat1)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx-el 'sassy)
+    > (setup 'scheme: 'larceny 'host: 'win32 'sassy 'always-source)
+    > (setup 'scheme: 'larceny 'host: 'linux86 'sassy)
+    > (setup 'scheme: 'larceny 'host: 'linux86 'sassy 'string-rep: 'flat1)
+    > (setup 'scheme: 'larceny 'host: 'macosx-el 'sassy)
 
 To build native Larceny on little-endian ARMv7 on any Linux
 system an explicit target: is required to specify the floating
@@ -83,9 +81,7 @@ point ABI for the runtime [6]:
   > (setup 'scheme: 'larceny 'host: 'linux-arm-el 'target: 'linux-arm-el-hardfp 'native)
 
 To build Petit Larceny:
-    > (setup 'scheme: 'mzscheme 'host: 'linux86)
-    > (setup 'scheme: 'larceny  'host: 'solaris)
-    > (setup 'scheme: 'mzscheme 'host: 'macosx)
+    > (setup 'scheme: 'larceny 'host: 'linux86 'always-source)
 
 
 2. Build Larceny components
@@ -109,6 +105,18 @@ You may want the Twobit compiler development environment; on
 Petit, you must build it separately:
 
     > (build-twobit)
+
+After all that, it's time to exit from your host Scheme:
+
+    > (exit)
+
+For Windows, you'll need to mark the larceny.bin.exe as incompatible
+with NX:
+
+    editbin.exe /NXCOMPAT:NO larceny.bin.exe
+
+Larceny will not run under Windows with DEP set to AlwaysOn, but
+Larceny will run with DEP set to OptOut, OptIn, or AlwaysOff.
 
 
 3. Create heap images
@@ -192,22 +200,22 @@ may contain a file named scheme-script.
 
 NOTES
 
-[1] For the build process, we recommend using a prebuilt version of
-Larceny itself.  MzScheme 37x once worked, and might work still.  In
-the past, several other implementations of Scheme could be used for
-the build process, but they haven't been tested lately and aren't
-likely to work any more.  MzScheme v4.x.x may work, but we regard
-Larceny's support for v4.x.x as experimental;
+[1] For the build process, we strongly recommend using a prebuilt
+version of Larceny itself.  MzScheme 37x once worked, and might
+work still.  In the past, several other implementations of Scheme
+could be used for the build process, but they haven't been tested
+lately and aren't likely to work any more.  MzScheme v4.x.x might
+work, but we regard Larceny's support for v4.x.x as experimental;
 see src/Compat/PLT-R5RS/README.
 
-[2] http://sourceforge.net/projects/nasm
+[2] http://www.nasm.us/
 
-Some versions of nasm may not work.  For Ubuntu Linux, we use NASM
-version 2.  For MacOS X, we use NASM version 0.98.40, which is
-installed with the Apple Developer command line tools.
+For Windows and Ubuntu Linux, we use NASM version 2.  For MacOS X,
+we use NASM version 0.98.40, which is installed with the Apple
+Developer command line tools.
 
 For the 'sassy backend on 'win32, Microsoft's development tools
-and NASM must both be in your search path.
+(including NMAKE) and NASM must both be in your search path.
 
 [3] On Linux machines, you may need to do the following:
 
@@ -217,6 +225,10 @@ and NASM must both be in your search path.
 
 On MacOS X machines, you may need to install the Apple Developer
 command line tools.
+
+On Windows, the Microsoft Visual Studio Community 2013 download
+contains everything you need (and a lot more than you need).  We
+use the "VS2013 x86 Native Tools Command Prompt".
 
 [4] Some other potentially useful flags, given optionally at the end of
 the call to setup:

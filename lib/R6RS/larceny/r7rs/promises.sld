@@ -25,10 +25,13 @@
 
   (begin
 
-   (define-record-type :promise make-promise promise?
+   (define-record-type :promise make-promise0 promise?
      (contents promise-contents promise-contents!))
 
-   (define (box x) (make-promise x))
+   (define (make-promise x)
+     (eager x))
+
+   (define (box x) (make-promise0 x))
    (define (unbox promise) (promise-contents promise))
    (define (set-box! promise x) (promise-contents! promise x)))
 

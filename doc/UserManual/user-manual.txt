@@ -18,27 +18,28 @@ Larceny
 Larceny
 implements the Scheme programming language
 as defined by
-<<Standards, IEEE Standard 1178-1990>>,
 the
-<<Standards, Revised^5^ Report>>,
+<<Standards, Revised^7^ Report>>,
 the
 <<Standards, Revised^6^ Report>>,
+the
+<<Standards, Revised^5^ Report>>,
 and
-<<Standards, ERR5RS>>.
+<<Standards, IEEE Standard 1178-1990>>.
 Those language standards serve as Larceny's primary documentation.
 
 This manual describes aspects of Larceny that are not described
-by the IEEE standard, the Revised Reports, or ERR5RS.
+by the Revised Reports or IEEE-1178.
 For the most current version of this manual, please see
 http://larceny.ccs.neu.edu/doc[Larceny's online documentation page].
 For links to the Common Larceny User Manual and the Larceny
 mailing list, please visit
-http://larceny.ccs.neu.edu/[Larceny's main web page].
+http://www.larcenists.org/[Larceny's main web page].
 
 To report bugs, please send email to the Larceny
 developers at `<larceny@ccs.neu.edu>`, or submit a
-bug ticket using Larceny's
-http://larceny.ccs.neu.edu/trac/[Trac system].
+bug ticket at Larceny's
+https://github.com/larcenists/larceny[GitHub site].
 
 
 include::intro.txt[]
@@ -51,19 +52,17 @@ include::naming.txt[]
 
 include::compiling.txt[]
 
-include::err5rs.txt[]
+include::r7rs.txt[]
 
 include::r6rs.txt[]
 
 [[LarcenyErr5rsLibrariesChapter]]
 
-Larceny's ERR5RS/R6RS libraries
+Larceny's R7RS/R6RS libraries
 -------------------------------
 
-Larceny provides libraries for loading and compiling
-ERR5RS/R6RS libraries and for timing benchmarks.
-Future versions of Larceny will offer more ERR5RS/R6RS
-libraries.
+Larceny provides libraries for compiling
+R7RS/R6RS libraries and for timing benchmarks.
 
 include::load.txt[]
 
@@ -73,13 +72,15 @@ include::benchmarking.txt[]
 
 include::recprinter.txt[]
 
+include::err5rs.txt[]
+
 [[LarcenyR5rsLibrariesChapter]]
 
 Larceny's R5RS libraries
 ------------------------
 
 The procedures described in this chapter are nonstandard.
-Some are deprecated after being rendered obsolete by ERR5RS
+Some are deprecated after being rendered obsolete by R7RS
 or R6RS standard libraries.
 Others still provide useful capabilities that the standard
 libraries don't.
@@ -155,7 +156,7 @@ ifdef::basebackend-docbook[]
 Index
 -----
 ////////////////////////////////////////////////////////////////
-The index is normally left completely empty, it's contents being
+The index is normally left completely empty, its contents being
 generated automatically by the DocBook toolchain.
 ////////////////////////////////////////////////////////////////
 endif::basebackend-docbook[]

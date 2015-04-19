@@ -171,6 +171,11 @@
 
 ;;; Helpful procedure for hiding irrelevant names
 
+;;; FIXME: this is unsafe because definitions within the loaded files
+;;; will override any previous definitions made at Larceny's top level.
+;;; That leads to mysterious bugs when adding new standard procedures
+;;; or enhanced versions of previously standard procedures.
+
 (define (load-in-private-namespace files procs)
   (let ((e (environment-copy (interaction-environment))))
     (for-each (lambda (f) (load f e)) files)
@@ -184,19 +189,35 @@
 ;;; Load a bunch of useful procedures
 
 (load-in-private-namespace
- (param-filename 'auxiliary
-   '("pp.fasl"
-     "misc.fasl"
-     "list.fasl"
-     "string.fasl"
-     "vector.fasl"
-     "pp.fasl"
-     "io.fasl"
-     "osdep-unix.fasl"
-     "load.fasl"))
- '(remq! remv! remove! aremq! aremv! aremove! filter find make-list 
-   reduce reduce-right fold-left fold-right vector-copy read-line
-   pretty-print pretty-line-length file-newer? read-line 
+ (map (lambda (fasl) (param-filename 'auxiliary fasl))
+      `("pp.fasl"              ; defines pretty-print, pretty-line-length
+        ;; "misc.fasl"         ; defines nothing that matters here
+        "list.fasl"            ; defines aremq!, aremv!, aremove!
+                               ;     and redefines list-head (FIXME)
+                               ;     and defines some stuff needed by load.fasl
+        ;; "string.fasl"       ; defines nothing that matters here
+        ;; "vector.fasl"       ; defines nothing at all now
+        ;; "pp.fasl"           ; was a duplicate
+        ;; "io.fasl"           ; was redefining file-newer?
+
+        ;; These two define some stuff needed by load.fasl.
+
+        ,(if (string=? (cdr (assq 'os-name (system-features)))
+                       "Win32")
+           "osdep-win32.fasl"
+           "osdep-unix.fasl")
+
+        "load.fasl"            ; redefines load (deliberately), defines load-*
+        ))
+ '(;; remq! remv! remove!      ; defined at toplevel (FIXME: but shouldn't be)
+   aremq! aremv! aremove!      ; FIXME: what are these? and why?
+   ;; filter find              ; defined at toplevel
+   reduce reduce-right         ; FIXME: who uses these?
+   ;; fold-left fold-right     ; FIXME: are these R6RS-compatible?
+   ;; make-list                ; defined at toplevel for R7RS
+   ;; vector-copy              ; defined at toplevel for R7RS
+   ;; read-line                ; defined at toplevel for R7RS
+   pretty-print pretty-line-length
    load load-noisily load-quietly))
 
 ;;; Load and install the debugger

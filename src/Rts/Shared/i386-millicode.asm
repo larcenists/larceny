@@ -795,6 +795,161 @@ PUBLIC i386_inexactp
 PUBLIC i386_flonump
 	general_tag2_predicate BVEC_TAG, FLONUM_HDR
 	
+;;; bignum-add-step!
+;;;
+;;; Arguments are in registers reg1 through reg5:
+;;;
+;;;     reg1 contains b, a bytevector-like bignum (little-endian 32-bit bigits)
+;;;     reg2 contains c, a bytevector-like bignum (little-endian 32-bit bigits)
+;;;     reg3 contains i, a bytevector (not bignum) index into b
+;;;     reg4 contains j, a bytevector (not bignum) index into c
+;;;     reg5 contains a 1-bit carry represented as a fixnum
+;;;
+;;; The step
+;;; 
+;;;     adds the 32 bits starting at b[i] to the 32 bits starting at c[j]
+;;;     adds the carry to c[j]
+;;;     returns the carry
+;;;
+;;; Uses reg1 through reg3 to hold raw bits, but clears them at end.
+
+PUBLIC i386_bignum_add_step
+	mov	TEMP, REG3
+	sar	TEMP, 2
+	add	REG1, TEMP
+	mov	TEMP, [GLOBALS + G_REG4]
+	sar	TEMP, 2
+	add	REG2, TEMP
+	mov	RESULT, [GLOBALS + G_REG5]
+	sar	RESULT, 2
+	mov	REG3, RESULT
+	xor	RESULT, RESULT			; new carry = 0
+	mov	TEMP, [REG2 + (4 - BVEC_TAG)]   ; c[j]
+	add	TEMP, [REG1 + (4 - BVEC_TAG)]   ; c[j] + b[i]
+	jnc	bignum_add_step_add_carry
+	mov	RESULT, 4                       ; new carry = 1
+bignum_add_step_add_carry:
+	add	TEMP, REG3
+	jnc	bignum_add_step_store
+	mov	RESULT, 4                       ; new carry = 1
+bignum_add_step_store:
+	mov	[REG2 + (4 - BVEC_TAG)], TEMP   ; c[j]
+	xor	TEMP, TEMP
+	mov	REG1, TEMP
+	mov	REG2, TEMP
+	mov	REG3, TEMP
+	ret
+	
+;;; bignum-subtract-step!
+;;;
+;;; Arguments are in registers reg1 through reg5:
+;;;
+;;;     reg1 contains b, a bytevector-like bignum (little-endian 32-bit bigits)
+;;;     reg2 contains c, a bytevector-like bignum (little-endian 32-bit bigits)
+;;;     reg3 contains i, a bytevector (not bignum) index into b
+;;;     reg4 contains j, a bytevector (not bignum) index into c
+;;;     reg5 contains a 1-bit carry (borrow) represented as a fixnum
+;;;
+;;; The step
+;;; 
+;;;     subtracts the 32 bits starting at b[i] from the 32 bits at c[j]
+;;;     subtracts the carry (borrow) from c[j]
+;;;     returns the new carry (borrow)
+;;;
+;;; Uses reg1 through reg3 to hold raw bits, but clears them at end.
+
+PUBLIC i386_bignum_subtract_step
+	mov	TEMP, REG3
+	sar	TEMP, 2
+	add	REG1, TEMP
+	mov	TEMP, [GLOBALS + G_REG4]
+	sar	TEMP, 2
+	add	REG2, TEMP
+	mov	RESULT, [GLOBALS + G_REG5]
+	sar	RESULT, 2
+	mov	REG3, RESULT
+	xor	RESULT, RESULT			; new carry = 0
+	mov	TEMP, [REG2 + (4 - BVEC_TAG)]   ; c[j]
+	sub	TEMP, [REG1 + (4 - BVEC_TAG)]   ; c[j] + b[i]
+	jnc	bignum_subtract_step_subtract_carry
+	mov	RESULT, 4                       ; new carry = 1
+bignum_subtract_step_subtract_carry:
+	sub	TEMP, REG3
+	jnc	bignum_subtract_step_store
+	mov	RESULT, 4                       ; new carry = 1
+bignum_subtract_step_store:
+	mov	[REG2 + (4 - BVEC_TAG)], TEMP   ; c[j]
+	xor	TEMP, TEMP
+	mov	REG1, TEMP
+	mov	REG2, TEMP
+	mov	REG3, TEMP
+	ret
+	
+;;; bignum-multiply-step!
+;;;
+;;; Arguments are in registers reg1 through reg6:
+;;;
+;;;     reg1 contains b, a bytevector-like bignum (little-endian 32-bit bigits)
+;;;     reg2 contains c, a bytevector-like bignum (little-endian 32-bit bigits)
+;;;     reg3 contains i, a bytevector (not bignum) index into b
+;;;     reg4 contains j, a bytevector (not bignum) index into c
+;;;     reg5 contains k, a 4-byte bytevector
+;;;     reg6 contains carry, a 4-byte bytevector
+;;;
+;;; The step
+;;; 
+;;; 	multiplies the 32 bits starting at b[i] by the 32 bits in k
+;;;     adds the 32 bits starting at c[j]
+;;;     adds the 32 bits in carry
+;;;     stores the high-order 32 bits of that result into carry
+;;;     stores the low-order 32 bits of that result into c[j]
+;;;
+;;; No result is returned.
+;;;
+;;; The IA32 multiply instruction multiplies eax (TEMP/SECOND) by a 32-bit
+;;; operand to obtain a 64-bit unsigned result.
+;;; The IA32 multiply instruction places that 64-bit result in edx:eax,
+;;; with the high-order bits in edx.  edx is reg2, and eax is TEMP/SECOND.
+;;; c (in reg2) must be saved around the multiplication.
+;;; eax and edx are roots, so they must be cleared before returning.
+
+PUBLIC i386_bignum_multiply_step
+	mov	[GLOBALS + G_REG1], REG1
+	mov	[GLOBALS + G_REG2], REG2
+	mov	RESULT, REG3
+	sar	RESULT, 2
+	add	RESULT, REG1
+	mov	eax, [RESULT + (4 - BVEC_TAG)]  ; b[i]
+	mov	REG1, REG2                      ; c is now in reg1
+	mov	RESULT, [GLOBALS + G_REG5]
+	mov	RESULT, [RESULT + (4 - BVEC_TAG)] ; k
+	xor	edx, edx
+	mul	RESULT				; edx:eax = b[i] * k
+	mov	RESULT, [GLOBALS + G_REG4]
+	sar	RESULT, 2
+	add	RESULT, REG1
+	add	eax, [RESULT + (4 - BVEC_TAG)]
+	jnc	multiply_step_add_carry
+	add	edx, 1                          ; edx:eax = b[i] * k + c[j]
+multiply_step_add_carry:
+	mov	RESULT, [GLOBALS + G_REG6]
+	add	eax, [RESULT + (4 - BVEC_TAG)]
+	jnc	multiply_step_store
+	add	edx, 1                          ; edx:eax = b[i]*k+c[j]+carry
+multiply_step_store:
+	mov	[RESULT + (4 - BVEC_TAG)], edx  ; carry
+	mov	RESULT, [GLOBALS + G_REG4]
+	sar	RESULT, 2
+	add	RESULT, REG1
+	mov	[RESULT + (4 - BVEC_TAG)], eax  ; c[j]
+	xor	edx, edx
+	xor	eax, eax
+	mov	REG1, [GLOBALS + G_REG1]
+	mov	REG2, [GLOBALS + G_REG2]
+	ret
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 PUBLIC i386_exception				; Exn encoded in instr stream
 	mov	[GLOBALS+G_SECOND], SECOND
 	mov	SECOND, [esp]			; Exn code address

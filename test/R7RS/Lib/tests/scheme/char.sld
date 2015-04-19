@@ -18,7 +18,7 @@
 ;;;     char-upper-case?
 ;;;     char-whitespace?
 ;;;
-;;;     digit-value                   ; FIXME: not yet
+;;;     digit-value
 ;;;
 ;;;     string-ci<=?
 ;;;     string-ci<?
@@ -38,8 +38,8 @@
           (tests scheme test))
 
   (cond-expand
-   (unicode (include "char.body.scm"))
-   ((not unicode)
+   (full-unicode (include "char.body.scm"))
+   ((not full-unicode)
     (begin
      (define (run-char-tests-for-unicode) #t))))
 
@@ -117,6 +117,60 @@
      (test (string-ci>=? "z" "A") #t)
      (test (string-ci>=? "z" "Z") #t)
      (test (string-ci>=? "Z" "z") #t)
+
+     (let* ((w #\a)
+            (x #\N)
+            (y #\z)
+            (z (integer->char (+ 13 (char->integer w)))))
+
+       (test (char-ci=? x y z)                          #f)
+       (test (char-ci=? x x z)                          #t)
+       (test (char-ci=? w x y)                          #f)
+       (test (char-ci=? y x w)                          #f)
+
+       (test (char-ci<? x y z)                          #f)
+       (test (char-ci<? x x z)                          #f)
+       (test (char-ci<? w x y)                          #t)
+       (test (char-ci<? y x w)                          #f)
+
+       (test (char-ci>? x y z)                          #f)
+       (test (char-ci>? x x z)                          #f)
+       (test (char-ci>? w x y)                          #f)
+       (test (char-ci>? y x w)                          #t)
+
+       (test (char-ci<=? x y z)                         #f)
+       (test (char-ci<=? x x z)                         #t)
+       (test (char-ci<=? w x y)                         #t)
+       (test (char-ci<=? y x w)                         #f)
+
+       (test (char-ci>=? x y z)                         #f)
+       (test (char-ci>=? x x z)                         #t)
+       (test (char-ci>=? w x y)                         #f)
+       (test (char-ci>=? y x w)                         #t)
+
+
+       (test (char-ci=? x x)                            #t)
+       (test (char-ci=? w x)                            #f)
+       (test (char-ci=? y x)                            #f)
+
+       (test (char-ci<? x x)                            #f)
+       (test (char-ci<? w x)                            #t)
+       (test (char-ci<? y x)                            #f)
+
+       (test (char-ci>? x x)                            #f)
+       (test (char-ci>? w x)                            #f)
+       (test (char-ci>? y x)                            #t)
+
+       (test (char-ci<=? x x)                           #t)
+       (test (char-ci<=? w x)                           #t)
+       (test (char-ci<=? y x)                           #f)
+
+       (test (char-ci>=? x x)                           #t)
+       (test (char-ci>=? w x)                           #f)
+       (test (char-ci>=? y x)                           #t))
+
+     (test (map digit-value (string->list "0123456789abcDEF"))
+           '(0 1 2 3 4 5 6 7 8 9 #f #f #f #f #f #f))
 
      (run-char-tests-for-unicode)
 

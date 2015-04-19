@@ -37,7 +37,7 @@ On Linux machines, the 32-bit libraries can be installed by
     sudo apt-get install libc6-i386
 
 (The second of those should be unnecessary because libc6-i386
-should be installed automatically whe lib32z1 is installed.)
+should be installed automatically when lib32z1 is installed.)
 To build Larceny from source, you would also need to install
 libc6-dev-i386.
 
@@ -95,3 +95,21 @@ but other implementations may define their own scheme-script.  If
 you want Larceny to execute your Scheme scripts, then you should
 use the which command to make sure Larceny's scheme-script comes
 before any others in your execution path.
+
+Windows and DEP:
+
+Larceny will not run if the DEP feature of Windows is set to
+AlwaysOn.  To set the DEP feature to OptOut, which we recommend,
+someone with administrative privileges must do the following:
+
+    Click on the Start icon
+    Type "cmd" into the search box.
+    In the list of search results, right click the "cmd" program.
+    Choose "Run as administrator".
+    When asked whether you want to allow the program to make
+        changes to this computer, answer Yes.
+    Type the following command:
+
+        bcdedit.exe /set nx OptOut
+
+    Restart Windows.

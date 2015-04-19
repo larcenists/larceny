@@ -108,6 +108,14 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define string-copy
+  (lambda (x . rest)
+    (let* ((start (if (null? rest) 0 (car rest)))
+           (end  (if (or (null? rest) (null? (cdr rest)))
+                     (string-length x)
+                     (cadr rest))))
+      (substring x start end))))
+
 ; Copies (substring x i j) into y starting at k.
 ; Used only within this file.
 ; Performs no checking.
@@ -129,13 +137,12 @@
         ((> i j))
       (string-set! y k (string-ref x j)))))
 
-(define string-copy
-  (lambda (x . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end  (if (or (null? rest) (null? (cdr rest)))
-                     (string-length x)
-                     (cadr rest))))
-      (substring x start end))))
+;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
+;;; the length of to.  It is also an error if (- (string-length to) at)
+;;; is less than (- end start)."
+;;; The R7RS does not say what the last argument (end) defaults to if
+;;; omitted.  If end is not specified, Larceny uses the largest index
+;;; that will work.
 
 (define string-copy!
   (lambda (dst at src . rest)
@@ -154,7 +161,8 @@
                       0
                       (car rest)))
            (end (if (or (null? rest) (null? (cdr rest)))
-                    (string-length src)
+                    (min (string-length src)
+                         (+ start (- (string-length dst) at)))
                     (cadr rest))))
       (cond ((not (string? dst))
              (complain 'msg:notstring dst))
@@ -167,14 +175,13 @@
             ((not (fixnum? end))
              (complain 'msg:notfixnum end))
             ((not (and (<= 0 at (string-length dst))
-                       (<= 0 start (string-length src))
-                       (<= start end (string-length src))
+                       (<= 0 start end (string-length src))
                        (<= (+ at (- end start)) (string-length dst))))
              (complain0 'msg:rangeerror))
             (else
              ((if (<= at start)
                   string-copy-into-down!
-                  string-copy-into-down!)
+                  string-copy-into-up!)
               src start end dst at))))))
 
 (define string
@@ -216,7 +223,7 @@
   (lambda (s c . rest)
     (let* ((start (if (null? rest) 0 (car rest)))
            (end (if (or (null? rest) (null? (cdr rest)))
-                    (string-length end)
+                    (string-length s)
                     (cadr rest))))
       (substring-fill! s start end c))))
 

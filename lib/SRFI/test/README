@@ -1,4 +1,8 @@
 Tests for the SRFI implementations.
+===================================
+
+R5RS
+----
 
 To run the tests, just load the test programs into Larceny.  (If you
 have not set up Larceny to load SRFI-0 on startup, you must load it
@@ -12,3 +16,20 @@ requires SRFI-8), and some SRFIs redefine identifiers defined in
 others (eg FORMAT).  Thorough testing probably requires loading each
 test into a clean system to avoid interactions.
 
+R6RS
+----
+
+To run the tests, just run run-r6-tests.
+
+R7RS
+----
+
+To run the tests, just run run-r7-tests.
+
+Most of the R7RS tests are identical to the corresponding R6RS tests
+except for these changes:
+
+    R7RS test files end in .sps7 instead of .sps
+    R7RS test files import .sld files instead of .sls
+
+FIXME: the R7RS tests mostly duplicate the R6RS tests.

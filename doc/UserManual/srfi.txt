@@ -1,29 +1,57 @@
 SRFI Support
 ~~~~~~~~~~~~
 
-The SRFIs (Scheme Requests For Implementations) is an Internet-based
-collection of Scheme code designed and provided by Scheme
-programmers. The SRFI effort is open to anyone, and is described at
-http://srfi.schemers.org[].
+SRFIs (Scheme Requests For Implementations) describe and implement
+additional Scheme libraries. The SRFI effort is open to anyone,
+and is described at http://srfi.schemers.org[].
 
-The fundamental SRFI is SRFI-0, "Feature-based conditional expansion
-construct", which allows a program to query the underlying
-implementation about the available SRFIs (and potentially about other
-implementation features) at macro expansion time. The design documents
-for this and other SRFIs are available at the web site shown above.
+SRFIs are numbered.  Importing SRFIs into an R7RS library or
+program is straightforward:
 
-Larceny currently supports many SRFIs, but not as many as it should.
-Some SRFIs are built into Larceny, but most must be loaded dynamically
-using Larceny's `require` procedure:
+----------------------------------------------------------------
+(import (srfi 19)
+        (srfi 27))
+----------------------------------------------------------------
+
+The R6RS forbids numbers within library names, so R6RS libraries
+and programs must import SRFI libraries using the SRFI 97 naming
+convention in which a colon precedes the number:
+
+----------------------------------------------------------------
+(import (srfi :19)
+        (srfi :27))
+----------------------------------------------------------------
+
+To test whether particular SRFIs are available, use the R7RS
+`cond-expand` feature:
+
+----------------------------------------------------------------
+(cond-expand
+ ((and (library (srfi 19))
+       (library (srfi 27)))
+  (import (srfi 19))
+  (import (srfi 27))))
+----------------------------------------------------------------
+
+`cond-expand` is not available to R6RS libraries or programs.
+
+R5RS programs can use `cond-expand` as implemented by SRFI 0,
+"Feature-based conditional expansion construct".  (SRFI 0 must
+be loaded into Larceny before it can be used; see below.)
+Larceny provides the following nonstandard key for use in SRFI 0:
+    
+----------------------------------------------------------------
+    larceny
+----------------------------------------------------------------
+
+Larceny currently supports many SRFIs, though not as many as it
+should.
+Some SRFIs are built into Larceny's R5RS mode, but most must be
+loaded dynamically using Larceny's `require` procedure:
 
 ----------------------------------------------------------------
     > (require 'srfi-0)
 ----------------------------------------------------------------
 
-Larceny provides the following nonstandard SRFI keys for use in
-SRFI 0:
-    
-----------------------------------------------------------------
-    larceny
-----------------------------------------------------------------
-    
+The design documents for SRFI 0 and other SRFIs are available at
+http://srfi.schemers.org[].
