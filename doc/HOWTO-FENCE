@@ -43,27 +43,40 @@ present no "softfp" target but one is easy to create.
   > (setup 'target: 'linux-arm-el-hardfp 'native)
 
 
-Status, 7 February 2015:
+Status, 14 February 2015:
 
 - The little-endian ARM-32 Cant implementation is good enough for
   Larceny to self-host on Arm Linux, with flat4 strings.  It is
   possible to dump larceny.heap and run with the compiler installed as
-  the evaluator.  Basically the port appears to be working and the
-  code is decent.
+  the evaluator.  Basically the port appears to be mostly working and
+  the code is decent.
 
 - Peephole optimizations have been ported from IAssassin.  There is an
   ARM-specific optimizer for branch elimination and an ARM
   disassembler that eases debugging.
+
+- Crashers (details down below, after bugs and other items)
+   - test/Compiler will crash with jump to 0x0
+   - test/Jaffer will often crash with illegal instruction
 
 - Tests passed
    - System can rebuild its heap in both interpreted and compiled mode
      (loading from fasl).
    - Reloading the development system in larceny.heap from source and
      rebuilding the heap works
-   - The test suite in test/Lib passes
+   - test/Benchmarking
+   - test/Lib
+   - test/Stress
+   - test/R6RS
+   - test/R7RS
 
+- Tests NOT passed (details down below, after bugs and other items)
+   - test/Jaffer (crashes fairly often + more fails than expected)
+   - test/Compiler (crashes reliably)
+   - test/GC
+   - test/FFI (no FFI)
 
-To-do, roughly in decreasing order of importance.
+Non-filed bugs and other to-do items:
 
 - BUG (possibly very old, OK to just file the bug):
 
@@ -80,28 +93,9 @@ To-do, roughly in decreasing order of importance.
   proper ifdef and reasonable motivation.  There is similar code
   lurking in cheney.c (at least) in forward(), also not ifdef'd.
 
-- The FFI has not yet been implemented for ARM
-
-- Integrate the ARM disassembler with disassemble-file, etc.  The FASL
-  format has changed a bit so there's surgery to be done to handle
-  FASL files.
-
-- Asm/Fence/*.sch
-
-  * Search for TODO in all these files to locate opportunities for
-    performance tweaks (better instruction selection, better
-    strategies) and some other spots that may need attention.
-
 - Need to work around the use of MOVT in order to run on the ARMv6
   CPU.  The ARM11 implementation is popular (eg Raspberry Pi, many
   existing devices) and that uses the ARMv6 architecture.
-
-- The flat1 string representation has not been tested at all.
-
-- Performance: No performance testing has been done.  Performance
-  should be good when we stay in native code; bad when we trap to
-  millicode because the millicode traps to C in almost all cases,
-  notably for generic arithmetic.
 
 - The test suite in test/Lib fails with an error in the Record tests
   if run twice in the same system ("nongenerative record type").
@@ -109,22 +103,6 @@ To-do, roughly in decreasing order of importance.
 
 
 Bugs.
-
-- Inline allocation issues:
-
-  The Fence assembler does not consistently emit code to take into
-  account any stack red zone ("sce_buffer").
-
-- Write barrier issues:
-
-  The Fence assembler only emits code for the "simple" barrier
-  (pointer check and then a call to partial_barrier), no code for the
-  full barrier.
-
-  The Fence millicode has been configured with
-  SSB_ENQUEUE_OFFSET_AS_FIXNUM=0 because the calls to the barrier do
-  not set up THIRD to hold the offset.  This is related to the
-  previous problem.
 
 - Timer issues:
 
@@ -149,34 +127,19 @@ Larceny bugs to file:
   string->utf8 and utf8->string, but it does not seem that it would be
   hard to add fixnum fast cases?
 
-- There's a Twobit "bug" that's annoying, where it performs a
-  dead store of an intermediate boolean result, effectively disabling
-  some peephole optimization of boolean evaluation for control, eg in
-
-    (if (< x y) a b)
-
-  which compiles as this:
-
-    ((global b)
-     (setreg 5)
-     (global a)
-     (setreg 4)
-     (reg 4 \x2e;T2)
-     (op2 < 5)
-     (setreg 3)
-     (reg 3 \x2e;T3)
-     (branchf 1002 3)
-     (const 2)
-     (return)
-     (\x2e;label 1002)
-     (const 3)
-     (return))
-
-   However it seems to happen in global code, not obviously in
-   procedure-local code, so it may not be a big deal.
-
 
 Other optimization items and concerns.
+
+- Performance: No performance testing has been done.  Performance
+  should be good when we stay in native code; bad when we trap to
+  millicode because the millicode traps to C in almost all cases,
+  notably for generic arithmetic.
+
+- Asm/Fence/*.sch
+
+  * Search for TODO in all these files to locate opportunities for
+    performance tweaks (better instruction selection, better
+    strategies) and some other spots that may need attention.
 
 - Code size remains a concern, ARM-32 is about as bad as Sparc.
 
@@ -197,6 +160,225 @@ Other optimization items and concerns.
 How to port Larceny using Fence/Cant.
 
 TO BE WRITTEN.
+
+------------------------------------------------------------
+
+Test suites that do not pass.
+
+The tests in test/Jaffer do not pass:
+
+  Every so often there is an illegal instruction crash, usually around
+  the string or char tests.  It's semi-repeatable, on the first run
+  (just start larceny and load r4rstest.scm).
+
+  When run like this
+
+    ../../larceny.bin -heap ../../larceny.heap < r4rstest.scm 
+
+  it fairly reliably crashes on this test in section 6.6:
+
+    (test #t char-numeric? #\0)
+
+  It also crashes with -stopcopy, though at a different place and
+  less regularly.
+
+  Sadly GDB is no help because it has a bug that prevents even
+  examining instructions around the error location
+  (https://sourceware.org/bugzilla/show_bug.cgi?id=17700).
+
+  I've checked and re-checked the cache flushing code, which seems to
+  be correct.  The machine code is correct for the system call.  The
+  parameters look right.  The memory that's being flushed is all
+  mmapped with the EXEC bit set, which should make Linux happy.  The
+  start addresses are rounded down to 8 and the end addresses up to 8
+  (i've made some mods).  This makes no difference.
+
+  I've rounded down and up to 4K, ditto.  I've disabled the guard on
+  icache flushing in the GC so that it flushes every bytevector, ditto.
+
+  This crashes also (though in a very different place) when loading
+  the fasl file compiled with cant-optimization off (?).  Takes a number
+  of runs to do so.
+
+    echo '(begin (load "r4rstest.fasl") (exit))' | ../../larceny.bin -heap ../../larceny.heap
+
+  Suppose it is an icache problem.  Then we have these possibilities:
+
+    - some path of the GC does not flush after moving a bytevector
+    - some path of the compiler/linker does not flush after creating
+      a bytevector
+    - some path of the runtime does not flush after creating some
+      executable code (could be anything, but I'm not aware of this
+      happening at all)
+    - the heap loader does not properly flush code (it might not flush
+      it at all, but this probably does not matter)
+    - the flush code is actually broken
+
+  But not this (because we crash also when loading from source)
+
+    - some path of the loader does not flush after loading from FASL or LOP
+
+  Finally got some information from gdb.  Code appears to jump
+  directly into a vector of data but it's hard to say whether it jumps
+  or slides into it.  The address of the crash is right for the start
+  of a code vector that could have been there (4-byte aligned).  That
+  could suggest a code pointer that was not updated properly, maybe by
+  millicode glue, so, eg, GC happens while in (nested?) millicode.
+
+  It does not strongly suggest an icache flush issue, though of course
+  if stale data were read at the jump source *and* the target had been
+  overwritten it could still be.
+
+  Suppose it's not an icache problem.  Then:
+
+    - stale temp value (compute - GC - use)
+    - code generation breaks for some corner case
+
+  (Found one bug in emit-write-barrier where the barrier would not be
+  passed correct arguments in a corner case; not directly implicated
+  in r4rstest.scm, though of course it could be affecting other code.
+  Seems extremely unlikely though.)
+
+  It *is* reproducible in the optimized (cant-optimization) fasl with
+  arm.heap, with this command (takes a while):
+
+for i in x y z w a b c d e f g h i j 1 2 3 4 5 6 7 8 9 a b c d e f 0 ; do echo '(do ((i 0 (+ i 1))) ((= i 10)) (load "r4rstest.fasl"))' | ../../larceny.bin -heap ../../arm.heap ; done
+
+  It does not reproduce with (cant-optimization #f) though, but that's
+  really not conclusive.
+
+  It is *not* the arm optimizer because a heap built without cant
+  optimization crashes on the Jaffer test with illegal instruction
+  (when compiling from source, in larceny.heap).  Again it looks like
+  a jump into a list, ie, some jump is just wrong.
+
+  By the time it crashes (compiling from source, first run) there have
+  been no "deep" timer interrupts with calls back to Scheme.  In fact
+  not much has happened.  Without cant optimization it crashes in the
+  i/o tests consistenly.
+
+  It seems most likely that a return address is being mis-computed in
+  such a way that it is not being updated properly during GC, but
+  the evidence is really not there.
+
+  It could be ASLR, but probably isn't since it also crashes with arm.heap.
+
+  Stack overflow/underflow?  Why should this be nondeterministic?
+
+  INDEED WHY SHOULD ANYTHING BE NONDETERMINISTIC?
+
+     - GC is not time-based.  (or wasn't, before).
+     - Heap addresses as a result of mmap?
+     - If icache flush, how?  Surely not by the program moving
+       between cores, we must assume the OS takes care of that.
+       (If it's an icache flush bug it's something that is "random"
+       because the program is sometimes moved, sometimes not, and
+       when it is not we have a bug.)  Affinity can be controlled:
+       http://unix.stackexchange.com/questions/23106/limit-process-to-one-cpu-core
+
+  Heap addresses are indeed not stable.  Here are four consecutive
+  invocations with larceny.heap (first expression after start):
+
+     > (syscall 36 (cons 1 2))
+     3055912328
+
+     > (syscall 36 (cons 1 2))
+     3055285640
+
+     > (syscall 36 (cons 1 2))
+     3055338888
+
+     > (syscall 36 (cons 1 2))
+     3055203720
+
+
+The tests in test/Compiler do NOT pass, instead we crash after a while:
+
+     >>> benchmark-mode off
+     >> Compiling p2tests
+     >> Compiling p4tests
+     >> Compiling primtests
+
+     >> Loading p2tests
+     Illegal instruction
+
+  This is not directly repeatable, though when I run larceny under GDB
+  with the compiler tests I hit other crashes (branch to zero in this
+  case).  This might be the offending code (from LR), the offending
+  call marked with **:
+
+   0xb651d1b8:	beq	0xb651d1dc
+   0xb651d1bc:	movw	r11, #8
+   0xb651d1c0:	ldr	r0, [r5, #9]
+   0xb651d1c4:	str	r11, [r0, #-1]
+   0xb651d1c8:	tst	r11, #1
+   0xb651d1cc:	movne	r1, r11
+   0xb651d1d0:	addne	r12, r2, #564	; 0x234
+   0xb651d1d4:	blxne	r12
+   0xb651d1d8:	b	0xb651d1e0
+   0xb651d1dc:	movw	r0, #278	; 0x116
+   0xb651d1e0:	movw	r0, #4
+   0xb651d1e4:	cmp	r0, r7
+   0xb651d1e8:	movwlt	r1, #4
+   0xb651d1ec:	addlt	r11, r10, r1
+   0xb651d1f0:	ldrlt	r11, [r11, #1]
+   0xb651d1f4:	movlt	r0, r6
+   0xb651d1f8:	movlt	r1, r11
+   0xb651d1fc:	addlt	r12, r2, #616	; 0x268
+   0xb651d200:	bge	0xb651d300
+** 0xb651d204:	blx	r12
+   0xb651d208:	cmp	r0, #2
+   0xb651d20c:	beq	0xb651d268
+   0xb651d210:	ldr	r4, [r2, #196]	; 0xc4
+   0xb651d214:	sub	r3, r3, #16
+   0xb651d218:	cmp	r3, r4
+   0xb651d21c:	bhi	0xb651d230
+   0xb651d220:	add	r3, r3, #16
+   0xb651d224:	add	r12, r2, #520	; 0x208
+   0xb651d228:	blx	r12
+   0xb651d22c:	b	0xb651d210
+
+  r12 has the value 0x10.  Looks like the optimizer has been here,
+  look at that line of "lt" instructions.  r0 is RESULT, r7 is REG2.
+  r7 has the value 12.  However, r12 != r2 + 616, so I'm not sure.
+
+  Yow, this crash is repeatable within GDB using current compiled
+  files - same crash address, same register contents.
+
+  (Observe heap addresses with the high bit set, this could be a
+   source of errors.)
+
+  CSPR is 80070010 which I think means that neither Z, C, or V are
+  set, ergo not "less than", ergo we might have arrived at the
+  instruction from a jump.  But the value in r0 definitely suggests that
+  the mov r0 <- r6 is performed since r6 has the value 0x10 and
+  r0 should not.  And then, yet, r12 != r2+616.  The values of r1 and
+  r11 are also not aligned.
+
+  The instruction sequence is a trap to globals.  0x268 is not very far
+  into the table I think, each entry point is quite large (probably a
+  design flaw).
+
+  It looks like a red herring - probably the LR register is the last
+  millicode call, we could be anywhere after that.  The code leads
+  to a return.
+
+  Anyway, to repro:
+
+    $ cd test/Compiler
+    $ gdb ../../larceny.bin
+    (gdb) run -heap ../../larceny.heap
+    > (load "run-tests.sch")
+    > (run-compiler-tests)
+
+  Crashes in the local-optimizations off case, with a segv.  LR=0xb651d208.
+
+The GC tests do NOT pass:
+
+   - Benchmark runner just hangs, no diagnosis yet.
+     It could be the missing write barrier or whatever.
+     It hangs hard, ^C does not kill it (from within *shell*),
+     though sending a HUP does.  It does not use any CPU, very strange.
 
 
 ----------------------------------------
