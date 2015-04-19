@@ -1,0 +1,2 @@
+;(#t #f a () 9739 -3 . #((test) te " " st  test #() b c))
+(define foo '(#t #f #\a () 9739 -3 . #((test) "te \" \" st" "" test #() b c)))

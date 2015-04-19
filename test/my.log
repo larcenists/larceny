@@ -1,0 +1,12 @@
+
+***************************************
+Henglein-Wright Dynamic type inference benchmark
+***************************************
+echo '(begin  (load "./support.sch") (load "./dynamic.fasl")  (dynamic-benchmark 50) (dynamic-benchmark 50) (dynamic-benchmark 50))' | ../larceny.bin -stopcopy -heap ../larceny.heap -args 'Henglein-Wright Dynamic type inference benchmark '-stopcopy >> my.trace 2>&1
+FAILED WITH CODE 2
+NO CORE FILE???
+
+***************************************
+Henglein-Wright Dynamic type inference benchmark
+***************************************
+echo '(begin  (load "./support.sch") (load "./dynamic.fasl")  (dynamic-benchmark 50) (dynamic-benchmark 50) (dynamic-benchmark 50))' | ../larceny.bin -stopcopy -nostatic -heap ../larceny.heap -args 'Henglein-Wright Dynamic type inference benchmark '-stopcopy -nostatic >> my.trace 2>&1

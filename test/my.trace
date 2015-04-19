@@ -1,0 +1,30 @@
+Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+larceny.heap, built on Sat Feb  7 15:12:00 UTC 2015
+
+> 
+
+Error: load: Could not find file : ./support.sch
+Entering debugger; type "?" for help.
+debug> #<EOF>
+
+> Keyboard interrupt.
+Entering debugger; type "?" for help.
+debug> Keyboard interrupt.
+Entering debugger; type "?" for help.
+debug>> Keyboard interrupt.
+Entering debugger; type "?" for help.
+debug>>> Keyboard interrupt.
+Entering debugger; type "?" for help.
+debug>>>> Keyboard interrupt.
+Entering debugger; type "?" for help.
+debug>>>>> Larceny v0.98b3 (Feb  7 2015 15:07:54, precise:Linux:split)
+Error unrecognized option -nostatic
+larceny.heap, built on Sat Feb  7 15:12:00 UTC 2015
+
+> 
+
+Error: load: Could not find file : ./support.sch
+Entering debugger; type "?" for help.
+debug> #<EOF>
+
+> 
