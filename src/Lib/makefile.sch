@@ -634,7 +634,7 @@
                    '("r5rs-heap"
 		     "sparc-larceny-heap" "sparc-twobit-heap"
                      "iasn-larceny-heap" "iasn-twobit-heap"
-                     "arm-larceny-heap" "arm-twobit-heap"
+                     "arm-el-hardfp-larceny-heap" "arm-el-hardfp-twobit-heap"
                      "petit-larceny-heap" "petit-twobit-heap"))))
         (compiler-target/no-keywords
          (lambda (name)
