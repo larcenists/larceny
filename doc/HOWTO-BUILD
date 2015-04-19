@@ -64,7 +64,7 @@ strings of Latin-1 characters.  Native Larceny (SPARC or
 x86-32) can be built to use either the flat4 or flat1
 representations; be sure to perform a full build when
 switching from one representation to the other.  Native
-Larceny (ARM) currently can only be built with the flat4 
+Larceny on ARM currently can only be built with the flat4
 representation.
 
 Some useful examples which are known to work:
