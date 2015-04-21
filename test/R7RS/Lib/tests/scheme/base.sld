@@ -1414,7 +1414,7 @@
      (for-each 
       (lambda (n)
         (test (string->number (number->string n)) n)
-        (test (string->number (number->string (inexact n) 10 5)) (inexact n))
+        (test (string->number (number->string (inexact n) 10)) (inexact n))
         (when (exact? n)
           (test (string->number (number->string n 16) 16) n)
           (test (string->number (string-append "#x" (number->string n 16))) n)

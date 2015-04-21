@@ -8,6 +8,7 @@ R7PATH="`pwd`"
 SRC="./tests/scheme/run"
 
 KAWA=${KAWA:-"kawa"}
+KAWA_OPTIONS=${KAWA_OPTIONS-"--r7rs --no-warn-unused"}
 
 TESTS="                            \
     base                       \
@@ -40,7 +41,7 @@ runtest ()
     sleep 1
     {
         echo "${SRC}/$1"
-        time ${KAWA} -f tests/scheme/$1.sld -f "${SRC}/$1.sps"
+        time ${KAWA} ${KAWA_OPTIONS} -f tests/scheme/$1.sld -f "${SRC}/$1.sps"
     } 2>&1 | tee -a testresults
 }
 
@@ -56,7 +57,7 @@ runtest_with_options ()
     sleep 1
     {
         echo "${SRC}/$1 $2"
-        time ${KAWA} -f tests/scheme/$1.sld -f "${SRC}/$1.sps" $2
+        time ${KAWA} ${KAWA_OPTIONS} -f tests/scheme/$1.sld "${SRC}/$1.sps" $2
     } 2>&1 | tee -a testresults
 }
 
