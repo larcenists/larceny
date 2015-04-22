@@ -433,18 +433,26 @@ void EXPORT mc_restargs( word *globals )
 
   if (r <= n && n <= j) {
     /* Case 3 */
-    /* REGr won't be needed below, so store the result list immediately */
-    globals[G_REG0+r] = list_copy(globals, globals[G_REG0+r]);
+    /* At the moment, REGr contains (xr ... xn ... xj)
+     * We want REGr to become       (xr ... xn (... xj))
+     * k is the length of (xr ... xn), which is at least 1
+     * We want to skip over k elements, back up one element,
+     * and then perform a set-cdr!
+     */
     word k = n-(r-1);
-    word l = globals[G_REG0+r];
+    word l = list_copy(globals, globals[G_REG0+r]);
+    word prev;
+    /* REGr won't be needed below because we're using a side effect. */
+    globals[G_REG0+r] = l;
     while (k > 0) {
+      prev = l;
       l = pair_cdr(l);
       k--;
     }
-    /* The call to list1 may move l, so sequence carefully */
-    globals[G_REST1] = l;
-    word tail = list1(globals, pair_cdr(l));
-    /* l is garbage, don't use it */
+    /* The call to list1 may move prev, so sequence carefully */
+    globals[G_REST1] = prev;
+    word tail = list1(globals, l);
+    /* prev is now garbage, don't use it */
     list_setcdr(globals, globals[G_REST1], tail);
     return;
   }

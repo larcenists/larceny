@@ -582,6 +582,33 @@
    (test "Ticket #698"                  ; Bug in Larceny 0.97 and previous
          (bitwise-arithmetic-shift-right 42 (greatest-fixnum))
          0)
+
+   (test "Ticket #674"                  ; Bug found during ARM port
+	 (bug-rest-arguments-test
+	  (lambda (x1 x2 x3 x4 . rest)
+	    (list x1 x2 x3 x4 rest)))
+	 '(1 2 3 4 (5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+                    21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40)))
+
+   (test "Ticket #674"                  ; Bug found during ARM port
+	 (bug-rest-arguments-test
+	  (lambda (x1 x2 x3 x4 x5 . rest)
+	    (list x1 x2 x3 x4 x5 rest)))
+	 '(1 2 3 4 5 (6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+                      21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40)))
+
+   (test "Ticket #674"                  ; Bug found during ARM port
+	 (bug-rest-arguments-test
+	  (lambda (x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
+		   x11 x12 x13 x14 x15 x16 x17 x18 x19 x20
+		   x21 x22 x23 x24 x25 x26 x27 x28 x29 x30
+		   x31 x32 x33 x34 x35 x36 . rest)
+	    (list x1 x2 x3 x4 x5 x6 x7 x8 x9 x10
+		   x11 x12 x13 x14 x15 x16 x17 x18 x19 x20
+		   x21 x22 x23 x24 x25 x26 x27 x28 x29 x30
+		   x31 x32 x33 x34 x35 x36 rest)))
+	 '(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+           21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 (37 38 39 40)))
    ))
 
 (define (bug-105-test1)
@@ -609,6 +636,10 @@
 
 (define bug-688-input
   '(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
-    27 28 29 30 31))
+      27 28 29 30 31))
+
+(define (bug-rest-arguments-test f)
+  (f  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20
+     21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40))
 
 ; eof
