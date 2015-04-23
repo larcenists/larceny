@@ -40,13 +40,14 @@
                    val))))
 
      (let* ((probe (member "--test-emergency-exit" cmds))
-            (abnormal (member "--test-abnormal-exit" cmds))
-            (n 0))
+            (exit-status (and probe
+                              (pair? (cdr probe))
+                              (string->number (car (cdr probe))))))
        (if probe
            (test (dynamic-wind
                   (lambda () #t)
-                  (if abnormal
-                      (lambda () (emergency-exit 1))
+                  (if exit-status
+                      (lambda () (emergency-exit exit-status))
                       emergency-exit)
                   (lambda ()
                     (test "shouldn't get here" #f)
@@ -54,9 +55,13 @@
                  "irrelevant")))
 
      (let* ((probe (member "--test-exit" cmds))
-            (abnormal (member "--test-abnormal-exit" cmds)))
+            (exit-status (and probe
+                              (pair? (cdr probe))
+                              (string->number (car (cdr probe))))))
        (if probe
-           (test (if abnormal (exit 1) (exit))
+           (test (if exit-status
+                     (exit exit-status)
+                     (exit))
                  "shouldn't get here")))
 
      )))

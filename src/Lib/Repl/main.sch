@@ -30,14 +30,16 @@
 ; Entry point in a saved interactive heap.
 
 (define (interactive-entry-point argv)
-  (call-with-current-continuation
-   (lambda (k)
-     (exit-continuation k)
-     (for-each eval *interactive-eval-list*) ; FIXME: used only for JavaDot?
-     ($$trace "In interactive-entry-point")
-     (interactive-entry-point0 argv)))
-  (run-exit-procedures)
-  (emergency-exit))
+  (let* ((exit-status
+          (call-with-current-continuation
+           (lambda (k)
+             (exit-continuation k)
+             (for-each eval *interactive-eval-list*) ; FIXME: only for JavaDot?
+             ($$trace "In interactive-entry-point")
+             (interactive-entry-point0 argv)
+             0))))
+    (run-exit-procedures)
+    (emergency-exit exit-status)))
 
 (define (interactive-entry-point0 argv)
   (command-line-arguments argv)
