@@ -65,18 +65,24 @@ runtest_with_options ()
     {
         echo "${SRC}/$1 $2"
         time ${GOSH} -r7 -I . -b $2 < "${TEMPSCM}"
+        if [ $? = $3 ]; then
+            echo "1 tests passed"
+        else
+            echo "1 tests failed:"
+            echo "Incorrect exit status from exit or emergency-exit:"
+            echo $?
+            echo "1 of 1 tests failed."
+        fi
     } 2>&1 | tee -a testresults
 }
 
 export TEMPORARY_ENV_VAR=2776e8e
-runtest_with_options process-context "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e"
+runtest_with_options process-context.sps "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e" 0
 
-runtest_with_options process-context "-- --test-emergency-exit"
+runtest_with_options process-context.sps "-- --test-emergency-exit" 0
 
-runtest_with_options process-context "-- --test-emergency-exit --test-abnormal-exit"
+runtest_with_options process-context.sps "-- --test-emergency-exit 37" 37
 
-runtest_with_options process-context "-- --test-exit"
+runtest_with_options process-context.sps "-- --test-exit" 0
 
-runtest_with_options process-context "-- --test-exit --test-abnormal-exit"
-
-# FIXME: should check exit status for the above
+runtest_with_options process-context.sps "-- --test-exit 46" 46

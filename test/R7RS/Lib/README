@@ -25,12 +25,11 @@ Files and libraries
 
 The "testall-larceny" shell script runs all tests in Larceny, with
 console output duplicated into a file named "testresults".  To run
-the tests in other systems, edit a suitably named copy of that file
-(or just use the system to run the "run.sps" program).
+the tests in other systems, edit a suitably named copy of that file.
 
-Files that end with ".sps" are R7RS programs. The "run.sps" program
-runs all the tests. Programs that test just one library can be found
-in the "tests/scheme/run" directory.
+Files that end with ".sps" are R7RS programs.  Programs that test
+just one library can be found in the "tests/scheme/run" directory.
+(Eventually there should be a run.sps program that runs all tests.)
 
 Files that end with ".sld" are R7RS libraries. For example,
 "base.sld" is a library that implements `(tests scheme base)', which
@@ -53,20 +52,8 @@ standard:
 
 And then there's 
 
- * "tests/scheme/run.sps", which runs all the tests (as noted above)
-
- * "tests/scheme/run-via-eval.sps", which is similar to "run.ss" but
-   runs each set of tests via `eval'
-
  * "tests/scheme/test.sld", containing `(tests scheme test)', which
    implements the testing utilities used by all the other libraries
-
- * "tests/schemecontrib.sld" and "tests/scheme/run/contrib.sps",
-   which implement and run contributed tests; these tests might be
-   contributed when someone finds a bug in an implementation that
-   seems worth testing in other implementations; also, they may be
-   difficult to pin to a particular R7RS library; finally, they may
-   use extra libraries from the "contrib" sub-directory
 
 ======================================================================
 Limitations and feedback
@@ -83,7 +70,7 @@ however, is that if an R7RS implementation doesn't supply one binding
 or does not support a bit of syntax used by a set of tests, then the
 whole set of tests fails to load.
 
-A related problem is that each set of tests is placed into one
+A related problem is that each set of tests may be placed into one
 function that runs all the tests. This format creates a block of code
 that is much larger than in a typical program, which might give some
 compilers trouble.
