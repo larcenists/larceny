@@ -116,11 +116,11 @@ Gauche version 0.9.4 does not complete the following tests:
 
 Kawa 2.0 does not complete the following tests:
 
-    base            does not allow @baz as a symbol
+    base            appears to enter an infinite loop
     eval            ArrayIndexOutOfBoundsException in PrettyWriter
+    file            ArrayIndexOutOfBoundsException in PrettyWriter
     load            ArrayIndexOutOfBoundsException in PrettyWriter
     read            StackOverflowError in IsEqual.apply
     repl            ArrayIndexOutOfBoundsException in PrettyWriter
-    write           complains about invalid characters
-    process-context goes into infinite loop when given --test-getenv option
+    write           StackOverflowError in IsEqual.apply
 
