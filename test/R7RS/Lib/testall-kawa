@@ -11,7 +11,6 @@ KAWA=${KAWA:-"kawa"}
 KAWA_OPTIONS=${KAWA_OPTIONS-"--r7rs --no-warn-unused"}
 
 TESTS="                            \
-    base                       \
     case-lambda                \
     char                       \
     complex                    \
@@ -32,6 +31,8 @@ TESTS="                            \
 # r5rs
 # run
 # test
+#
+# base
 
 echo "${KAWA} --version" > testresults
 echo >> testresults
@@ -70,12 +71,12 @@ runtest_with_options ()
 }
 
 export TEMPORARY_ENV_VAR=2776e8e
-runtest_with_options process-context.sps "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e" 0
+runtest_with_options process-context "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e" 0
 
-runtest_with_options process-context.sps "-- --test-emergency-exit" 0
+runtest_with_options process-context "-- --test-emergency-exit" 0
 
-runtest_with_options process-context.sps "-- --test-emergency-exit 37" 37
+runtest_with_options process-context "-- --test-emergency-exit 37" 37
 
-runtest_with_options process-context.sps "-- --test-exit" 0
+runtest_with_options process-context "-- --test-exit" 0
 
-runtest_with_options process-context.sps "-- --test-exit 46" 46
+runtest_with_options process-context "-- --test-exit 46" 46
