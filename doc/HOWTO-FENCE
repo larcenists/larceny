@@ -1,4 +1,5 @@
 2 August 2012 / lth@acm.org
+23 August 2015 / WillClinger (updated status)
 
 
 Overview.
@@ -36,14 +37,14 @@ At the time of writing one Cant implementation is operational, for the
 
 Quick start for developers.
 
-The build procedure is standard, see HOWTO-BUILD for the details.  I
+The build procedure is standard; see HOWTO-BUILD for the details.  I
 use the following command for setting up the build system, there is at
 present no "softfp" target but one is easy to create.
 
   > (setup 'target: 'linux-arm-el-hardfp 'native)
 
 
-Status, 14 February 2015:
+Status, 23 April 2015:
 
 - The little-endian ARM-32 Cant implementation is good enough for
   Larceny to self-host on Arm Linux, with flat4 strings.  It is
@@ -56,25 +57,31 @@ Status, 14 February 2015:
   disassembler that eases debugging.
 
 - Crashers (details down below, after bugs and other items)
+   - build process may segfault while loading src/Asm/Shared/dumpheap.sch
+        (can use interpreter for build if this becomes too frequent)
    - test/Compiler will crash with jump to 0x0
-   - test/Jaffer will often crash with illegal instruction
+   - test/R7RS/Lib case-lambda tests crash with illegal instruction
+   - test/R7RS/Numbers/clisp-number-tests.sps segfaults reading source code
+   - test/Benchmarking/R7RS destruc and sum1 may crash with illegal instruction
 
 - Tests passed
    - System can rebuild its heap in both interpreted and compiled mode
      (loading from fasl).
    - Reloading the development system in larceny.heap from source and
-     rebuilding the heap works
-   - test/Benchmarking
+     rebuilding the heap works (usually)
+   - test/Benchmarking/R7RS (except destruc and sum1, which crash sometimes)
+   - test/Jaffer
    - test/Lib
    - test/Stress
    - test/R6RS
-   - test/R7RS
+   - test/R7RS/Lib (except case-lambda tests)
 
 - Tests NOT passed (details down below, after bugs and other items)
-   - test/Jaffer (crashes fairly often + more fails than expected)
    - test/Compiler (crashes reliably)
    - test/GC
    - test/FFI (no FFI)
+   - test/R7RS/Lib case-lambda tests (crashes reliably)
+   - test/R7RS/Numbers/clisp-number-tests.sps (crashes reliably)
 
 Non-filed bugs and other to-do items:
 
@@ -85,7 +92,8 @@ Non-filed bugs and other to-do items:
   to collect_if_no_room() means it will always return 0 (no
   collection).  Passing STACK_ROOM would have been more appropriate.
 
-- Currently rebuilding heap on the device using interpreter.
+- Lars has been rebuilding heaps on the ARM device using interpreter.
+  Will has been rebuilding heaps under Arch Linux ARM using compiler.
    - Goal: bitwise identical heap
 
 - fence-millicode.c: mc_alloc_bv: some magic to "align" the bytevector
@@ -97,9 +105,8 @@ Non-filed bugs and other to-do items:
   CPU.  The ARM11 implementation is popular (eg Raspberry Pi, many
   existing devices) and that uses the ARMv6 architecture.
 
-- The test suite in test/Lib fails with an error in the Record tests
-  if run twice in the same system ("nongenerative record type").
-  This could be by design but needs to be investigated.
+- Should get Petit Larceny running under ARM Linux.  That would help
+  to distinguish bugs in the ARM code generator from bugs in C code.
 
 
 Bugs.
@@ -117,11 +124,15 @@ Bugs.
 
 Larceny bugs to file:
 
+- The test suite in test/Lib fails with an error in the Record tests
+  if run twice in the same system ("nongenerative record type").
+
 - In src/Lib/Arch/Fence/toplevel-target.sch and primops.sch there are
-  commented-out definitions of eg fx+, fx-, fx* -- not clear why these
-  are disabled, the code comes from the IAssassin port.  Must
-  investigate.  There are alternate (and slow) definitions in
-  Lib/Common/fx.sch.
+  commented-out definitions of eg fx+, fx-, fx* -- these are disabled
+  because the R6RS mandated specific exceptions when these operations
+  overflow or are given non-fixnum arguments.  R6RS-compatible (hence
+  slow) definitions are found in Lib/Common/fx.sch and in
+  Compiler/common.imp.sch
 
 - There is no primitive support for bitwise-and, etc, used in eg
   string->utf8 and utf8->string, but it does not seem that it would be
@@ -135,13 +146,27 @@ Other optimization items and concerns.
   millicode because the millicode traps to C in almost all cases,
   notably for generic arithmetic.
 
+  * According to singled-threaded GeekBench, our 3.6 GHz i7-4790
+    is about 4 times as fast as our 2.0 GHz Exynos 5800 (ARMv7A).
+    Eyeballing R7RS benchmark results, Will thinks the Fence/ARM
+    code generator is doing pretty well:
+
+    the i7 is roughly 4 to 5 times as fast on tak, fib, sum
+    the i7 is 10 to 17 times as fast on fibfp, sumfp, fft, nucleic, mbrot
+        (because the IAssassin millicode is bummed for flonums)
+    the i7 is 6 to 25 times as fast on cat, tail, wc, read1, slatex
+        (io-intensive; read1 is the 25x outlier, attributable to the
+        SSD vs micro SD mismatch)
+    the i7 is 4 to 10 times as fast on nboyer, sboyer, gcbench, mperm
+        (gc-intensive, where the i7's 8 MB L3 cache should help)
+
 - Asm/Fence/*.sch
 
   * Search for TODO in all these files to locate opportunities for
     performance tweaks (better instruction selection, better
     strategies) and some other spots that may need attention.
 
-- Code size remains a concern, ARM-32 is about as bad as Sparc.
+- Code size remains a concern; ARM-32 is about as bad as Sparc.
 
 - It would be better for both ARM and x86 if the value for UNDEFINED
   could be represented in 8 bits.  Since the low two bits are 10 we
@@ -150,7 +175,7 @@ Other optimization items and concerns.
   Unfortunately it looks like the immediate space does not have room for
   that encoding.
 
-  It is possible to define undefined to me imm.misc + (0 << 8)
+  It is possible to define undefined to mean imm.misc + (0 << 8)
   instead of imm.misc + (3 << 8) as now.  Nobody uses the former value.
 
   Measurements shows that that would reduce the ARM heap by 42904 bytes.
@@ -161,114 +186,24 @@ How to port Larceny using Fence/Cant.
 
 TO BE WRITTEN.
 
+
 ------------------------------------------------------------
 
-Test suites that do not pass.
+Some crashes are reliable, while others are intermittent.
 
-The tests in test/Jaffer do not pass:
-
-  Every so often there is an illegal instruction crash, usually around
-  the string or char tests.  It's semi-repeatable, on the first run
-  (just start larceny and load r4rstest.scm).
-
-  When run like this
-
-    ../../larceny.bin -heap ../../larceny.heap < r4rstest.scm 
-
-  it fairly reliably crashes on this test in section 6.6:
-
-    (test #t char-numeric? #\0)
-
-  It also crashes with -stopcopy, though at a different place and
-  less regularly.
-
-  Sadly GDB is no help because it has a bug that prevents even
-  examining instructions around the error location
-  (https://sourceware.org/bugzilla/show_bug.cgi?id=17700).
-
-  I've checked and re-checked the cache flushing code, which seems to
-  be correct.  The machine code is correct for the system call.  The
-  parameters look right.  The memory that's being flushed is all
-  mmapped with the EXEC bit set, which should make Linux happy.  The
-  start addresses are rounded down to 8 and the end addresses up to 8
-  (i've made some mods).  This makes no difference.
-
-  I've rounded down and up to 4K, ditto.  I've disabled the guard on
-  icache flushing in the GC so that it flushes every bytevector, ditto.
-
-  This crashes also (though in a very different place) when loading
-  the fasl file compiled with cant-optimization off (?).  Takes a number
-  of runs to do so.
-
-    echo '(begin (load "r4rstest.fasl") (exit))' | ../../larceny.bin -heap ../../larceny.heap
-
-  Suppose it is an icache problem.  Then we have these possibilities:
-
-    - some path of the GC does not flush after moving a bytevector
-    - some path of the compiler/linker does not flush after creating
-      a bytevector
-    - some path of the runtime does not flush after creating some
-      executable code (could be anything, but I'm not aware of this
-      happening at all)
-    - the heap loader does not properly flush code (it might not flush
-      it at all, but this probably does not matter)
-    - the flush code is actually broken
-
-  But not this (because we crash also when loading from source)
-
-    - some path of the loader does not flush after loading from FASL or LOP
-
-  Finally got some information from gdb.  Code appears to jump
-  directly into a vector of data but it's hard to say whether it jumps
-  or slides into it.  The address of the crash is right for the start
-  of a code vector that could have been there (4-byte aligned).  That
-  could suggest a code pointer that was not updated properly, maybe by
-  millicode glue, so, eg, GC happens while in (nested?) millicode.
-
-  It does not strongly suggest an icache flush issue, though of course
-  if stale data were read at the jump source *and* the target had been
-  overwritten it could still be.
-
-  Suppose it's not an icache problem.  Then:
-
-    - stale temp value (compute - GC - use)
-    - code generation breaks for some corner case
-
-  (Found one bug in emit-write-barrier where the barrier would not be
-  passed correct arguments in a corner case; not directly implicated
-  in r4rstest.scm, though of course it could be affecting other code.
-  Seems extremely unlikely though.)
-
-  It *is* reproducible in the optimized (cant-optimization) fasl with
-  arm.heap, with this command (takes a while):
-
-for i in x y z w a b c d e f g h i j 1 2 3 4 5 6 7 8 9 a b c d e f 0 ; do echo '(do ((i 0 (+ i 1))) ((= i 10)) (load "r4rstest.fasl"))' | ../../larceny.bin -heap ../../arm.heap ; done
-
-  It does not reproduce with (cant-optimization #f) though, but that's
-  really not conclusive.
-
-  It is *not* the arm optimizer because a heap built without cant
-  optimization crashes on the Jaffer test with illegal instruction
-  (when compiling from source, in larceny.heap).  Again it looks like
-  a jump into a list, ie, some jump is just wrong.
-
-  By the time it crashes (compiling from source, first run) there have
-  been no "deep" timer interrupts with calls back to Scheme.  In fact
-  not much has happened.  Without cant optimization it crashes in the
-  i/o tests consistenly.
-
-  It seems most likely that a return address is being mis-computed in
-  such a way that it is not being updated properly during GC, but
-  the evidence is really not there.
-
-  It could be ASLR, but probably isn't since it also crashes with arm.heap.
-
-  Stack overflow/underflow?  Why should this be nondeterministic?
-
-  INDEED WHY SHOULD ANYTHING BE NONDETERMINISTIC?
+  WHY SHOULD ANYTHING BE NONDETERMINISTIC?
 
      - GC is not time-based.  (or wasn't, before).
+        (Some gc activity is now time-based, and timer interrupts
+        may be nondeterministic as well.  Timer interrupts based
+        entirely on the software countdown timer produced too much
+        variation for scheduling tasks in the regional collector;
+        this was solved by using a rather short countdown interval
+        while ignoring countdown interrupts that occurred too soon
+        after the previous scheduling interrupt, as determined by
+        the operating system's notion of the actual time.)
      - Heap addresses as a result of mmap?
+        (Yes, these are nondeterministic.  See below.)
      - If icache flush, how?  Surely not by the program moving
        between cores, we must assume the OS takes care of that.
        (If it's an icache flush bug it's something that is "random"
@@ -291,6 +226,16 @@ for i in x y z w a b c d e f g h i j 1 2 3 4 5 6 7 8 9 a b c d e f 0 ; do echo '
      > (syscall 36 (cons 1 2))
      3055203720
 
+  Nondeterministic heap addresses in Windows 7 helped us to find
+  long-standing latent bugs in alloc.c and memmgr.c; see these
+  commits from 24 and 26 February 2015:
+
+    532461822a157d67c5048daf95df38b5d6faf8df
+    d90f165d98a7250c1425a4b5309727f19467a36e
+
+------------------------------------------------------------
+
+Test suites that do not pass.
 
 The tests in test/Compiler do NOT pass, instead we crash after a while:
 
