@@ -137,76 +137,119 @@
                         ((#b00010000)
                                    (if (= 15 (fxrshl b1 4))
                                        (list (op "vmrs" cnd) "APSR_nzcv")
-                                       (list (op "vmrs" cnd) (reg (fxrshl b1 4)))))
+                                       (list (op "vmrs" cnd)
+                                             (reg (fxrshl b1 4)))))
                         (else      (data b3 b2 b1 b0))))
                      (else         (data b3 b2 b1 b0))))
                   (else            (data b3 b2 b1 b0))))
                (else               (data b3 b2 b1 b0))))
             (else                  (data b3 b2 b1 b0))))))
 
-  (define (alu-1d2 name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxrshl b1 4)) (reg (fxlogand b2 15)) (reg (fxlogand b0 15))))
+  (define (alu-1d2 name s cnd b2 b1 b0)     ; add etc
+    (list (ops name s cnd)
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b2 15))
+          (reg (fxlogand b0 15))))
 
-  (define (alu-1x2 name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxrshl b1 4)) (reg (fxlogand b0 15))))
+  (define (alu-1x2 name s cnd b2 b1 b0)     ; cmp
+    (list (ops name s cnd)
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b0 15))))
 
-  (define (alu-d21 name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxlogand b2 15)) (reg (fxlogand b0 15)) (reg (fxrshl b1 4))))
+  (define (alu-d21 name s cnd b2 b1 b0)     ; mul
+    (list (ops name s cnd)
+          (reg (fxlogand b2 15))
+          (reg (fxlogand b0 15))
+          (reg (fxrshl b1 4))))
 
-  (define (alu-xds name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxrshl b1 4)) (reg (fxlogand b0 15))))
+  (define (alu-xds name s cnd b2 b1 b0)     ; mov etc
+    (list (ops name s cnd)
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b0 15))))
 
-  (define (alu-xxs name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxlogand b0 15))))
+  (define (alu-xxs name s cnd b2 b1 b0)     ; blx
+    (list (ops name s cnd)
+          (reg (fxlogand b0 15))))
 
-  (define (alu-dd21 name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxlogand b2 15)) (reg (fxrshl b1 4)) (reg (fxlogand b0 15)) (reg (fxlogand b1 15))))
+  (define (alu-dd21 name s cnd b2 b1 b0)    ; smull
+    (list (ops name s cnd)
+          (reg (fxlogand b2 15))
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b0 15))
+          (reg (fxlogand b1 15))))
 
-  (define (shift-d21 name s cnd b1 b0)
-    (list (ops name s cnd) (reg (fxrshl b1 4)) (reg (fxlogand b0 15)) (reg (fxlogand b1 15))))
+  (define (shift-d21 name s cnd b1 b0)      ; lsl etc
+    (list (ops name s cnd)
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b0 15))
+          (reg (fxlogand b1 15))))
 
-  (define (shift-dis name s cnd b1 b0)
-    (list (ops name s cnd) (reg (fxrshl b1 4)) (reg (fxlogand b0 15)) (+ (* (fxlogand b1 15) 2) (fxrshl b0 7))))
+  (define (shift-dis name s cnd b1 b0)      ; lsli etc
+    (list (ops name s cnd)
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b0 15))
+          (+ (* (fxlogand b1 15) 2)
+             (fxrshl b0 7))))
 
-  (define (alu-sdi name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxrshl b1 4)) (reg (fxlogand b2 15)) (num (expand-imm (fxlogand b1 15) b0))))
+  (define (alu-sdi name s cnd b2 b1 b0)     ; addi etc
+    (list (ops name s cnd)
+          (reg (fxrshl b1 4))
+          (reg (fxlogand b2 15))
+          (num (expand-imm (fxlogand b1 15) b0))))
 
-  (define (alu-di name s cnd b1 b0)
-    (list (ops name s cnd) (reg (fxlogand b1 15)) (num (expand-imm (fxlogand b1 15) b0))))
+  (define (alu-di name s cnd b1 b0)         ; movi etc
+    (list (ops name s cnd)
+          (reg (fxlogand b1 15))
+          (num (expand-imm (fxlogand b1 15) b0))))
 
-  (define (alu-si name s cnd b2 b1 b0)
-    (list (ops name s cnd) (reg (fxlogand b2 15)) (num (expand-imm (fxlogand b1 15) b0))))
+  (define (alu-si name s cnd b2 b1 b0)      ; cmpi etc
+    (list (ops name s cnd)
+          (reg (fxlogand b2 15))
+          (num (expand-imm (fxlogand b1 15) b0))))
 
-  (define (alu-idii name cnd b2 b1 b0)
-    (list (op name cnd) (reg (fxrshl b1 4)) (num (+ (* 4096 (fxlogand b2 15)) (* 256 (fxlogand b1 15)) b0))))
+  (define (alu-idii name cnd b2 b1 b0)      ; movwi etc
+    (list (op name cnd)
+          (reg (fxrshl b1 4))
+          (num (+ (* 4096 (fxlogand b2 15))
+                  (* 256 (fxlogand b1 15)) b0))))
 
-  (define (mem-bsi name cnd b2 b1 b0)
-    (list (op name cnd) (reg (fxrshl b1 4)) 
-          (list (reg (fxlogand b2 15)) (* (if (zero? (fxlogand b2 #x80)) -1 1) 
-                                          (+ (* 256 (fxlogand b1 15)) b0)))))
+  (define (mem-bsi name cnd b2 b1 b0)       ; ldri etc
+    (list (op name cnd)
+          (reg (fxrshl b1 4)) 
+          (list (reg (fxlogand b2 15))
+                (* (if (zero? (fxlogand b2 #x80)) -1 1) 
+                   (+ (* 256 (fxlogand b1 15)) b0)))))
 
-  (define (mem-bsx name cnd b2 b1 b0)
-    (list (op name cnd) (reg (fxrshl b1 4))
-          (list (reg (fxlogand b2 15)) (reg (fxlogand b0 15)))))
+  (define (mem-bsx name cnd b2 b1 b0)       ; ldr etc
+    (list (op name cnd)
+          (reg (fxrshl b1 4))
+          (list (reg (fxlogand b2 15))
+                (reg (fxlogand b0 15)))))
 
-  (define (falu-1d2 name cnd b2 b1 b0)
+  (define (falu-1d2 name cnd b2 b1 b0)      ; vadd etc
     (list (op name cnd)
           (freg (+ (fxrshl (fxlogand b2 #x40) 2) (fxrshl b1 4)))      ; D:Vd
           (freg (+ (fxrshl (fxlogand b0 #x80) 3) (fxlogand b2 15)))   ; N:Vn
           (freg (+ (fxrshl (fxlogand b0 #x20) 1) (fxlogand b0 15))))) ; M:Vm
 
-  (define (falu-x12 name cnd b2 b1 b0)
+  (define (falu-x12 name cnd b2 b1 b0)      ; vcmp
     (list (op name cnd)
           (freg (+ (fxrshl (fxlogand b2 #x40) 2) (fxrshl b1 4)))      ; D:Vd
           (freg (+ (fxrshl (fxlogand b0 #x20) 1) (fxlogand b0 15))))) ; M:Vm
 
-  (define (fmem-bsi name cnd b2 b1 b0)
+  (define (fmem-bsi name cnd b2 b1 b0)      ; vldri etc
     (list (op name cnd) 
           (freg (fxrshl b1 4))
-          (list (reg (fxlogand b2 15)) (* (if (zero? (fxlogand b2 #x80)) -1 1) b0 4))))
+          (list (reg (fxlogand b2 15))
+                (* (if (zero? (fxlogand b2 #x80)) -1 1) b0 4))))
 
-  (define (branch name cnd b2 b1 b0)
-    (list (op name cnd) (num (+ 8 (- loc 4) (* 4 (ext24 (+ (* b2 65536) (* b1 256) b0)))))))
+  (define (branch name cnd b2 b1 b0)        ; b
+    (list (op name cnd)
+          (num (+ 8
+                  (- loc 4)
+                  (* 4 (ext24 (+ (* b2 65536)
+                                 (* b1 256)
+                                 b0)))))))
 
   (define (data b3 b2 b1 b0)
     (list ".word" (num (+ (* 16777216 b3) (* 65536 b2) (* 256 b1) b0))))
@@ -231,7 +274,9 @@
   (define (expand-imm rotation imm)
     (if (zero? rotation)
         imm
-        (expand-imm (- rotation 1) (+ (* (remainder imm 4) 1073741824) (quotient imm 4)))))
+        (expand-imm (- rotation 1)
+                    (+ (* (remainder imm 4) 1073741824)
+                       (quotient imm 4)))))
 
   (define (op name cnd)
     (ops name 0 cnd))
@@ -240,7 +285,8 @@
     (string-append 
      name
      (if (zero? s) "" "s")
-     (vector-ref '#(".eq" ".ne" ".cs" ".cc" ".mi" ".pl" ".vs" ".vc" ".hi" ".ls" ".ge" ".lt" ".gt" ".le" "") 
+     (vector-ref '#(".eq" ".ne" ".cs" ".cc" ".mi" ".pl" ".vs" ".vc"
+                    ".hi" ".ls" ".ge" ".lt" ".gt" ".le" "") 
                  (quotient cnd 16))))
 
   (let ((o3 (if (eq? armdis.endian 'little) 3 0))
@@ -250,7 +296,10 @@
     (let loop ((is '()))
       (if (= loc (bytevector-length cv))
           (reverse is)
-          (let ((addr (armdis.hex loc 4)) ; TODO: choose field width intelligently
+
+          ;; TODO: choose field width intelligently
+
+          (let ((addr (armdis.hex loc 4))
                 (b3   (bytevector-ref cv (+ loc o3)))
                 (b2   (bytevector-ref cv (+ loc o2)))
                 (b1   (bytevector-ref cv (+ loc o1)))
