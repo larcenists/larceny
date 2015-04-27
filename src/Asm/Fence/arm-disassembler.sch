@@ -153,7 +153,7 @@
 
   (define (alu-1x2 name s cnd b2 b1 b0)     ; cmp
     (list (ops name s cnd)
-          (reg (fxrshl b1 4))
+          (reg (fxlogand b2 15))
           (reg (fxlogand b0 15))))
 
   (define (alu-d21 name s cnd b2 b1 b0)     ; mul
