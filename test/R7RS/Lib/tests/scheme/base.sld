@@ -862,7 +862,7 @@
 
      (cond-expand
       ((library (scheme inexact))
-       (test `#(10 5 ,(sqrt 4) ,@(map sqrt '(16 9)) 8)
+       (test (vector-map exact `#(10 5 ,(sqrt 4) ,@(map sqrt '(16 9)) 8))
              '#(10 5 2 4 3 8))))
 
      (test (let ((foo '(foo bar)) (@baz 'baz))
@@ -1252,7 +1252,9 @@
      (let* ((w 3)
             (x 4)
             (y (* x x))
-            (z (exact-integer-sqrt y)))
+            (z (call-with-values
+                (lambda () (exact-integer-sqrt y))
+                (lambda (z . ignored) z))))
 
        (test (= x y z)                             #f)
        (test (= x x z)                             #t)
@@ -1388,7 +1390,7 @@
     
      (test (square -7)                             49)
 
-     (test (sqrt 36)                               6)
+     (test (exact (sqrt 36))                       6)
 
      (test/values (exact-integer-sqrt 0) 0 0)
      (test/values (exact-integer-sqrt 4) 2 0)
@@ -2649,22 +2651,68 @@
          (map (lambda (f) (f p))
               predicates))
 
+       ;; The R7RS (small) document allows textual ports to be binary
+       ;; as well, and allows binary ports to be textual as well.
+       ;; The following hack allows the tests to be written as though
+       ;; textual ports are not binary and binary ports are not textual.
+
+       (define textual-port-predicates
+         (list input-port?
+               output-port?
+               textual-port?
+               (lambda (x) #f)
+               port?
+               input-port-open?
+               output-port-open?))
+
+       (define binary-port-predicates
+         (list input-port?
+               output-port?
+               (lambda (x) #f)
+               binary-port?
+               port?
+               input-port-open?
+               output-port-open?))
+
+       (define (textual-port-profile p)
+         (map (lambda (f) (f p))
+              textual-port-predicates))
+
+       (define (binary-port-profile p)
+         (map (lambda (f) (f p))
+              binary-port-predicates))
+
+       (define-syntax ptst
+         (syntax-rules (port-profile quote)
+          ((_ (port-profile expr)
+              '(i? o? #t b? p? ipo? opo?))
+           (test (textual-port-profile expr)
+                 '(i? o? #t b? p? ipo? opo?)))
+          ((_ (port-profile expr)
+              '(i? o? t? #t p? ipo? opo?))
+           (test (binary-port-profile expr)
+                 '(i? o? t? #t p? ipo? opo?)))
+          ((_ whatever1
+              whatever2)
+           (test whatever1
+                 whatever2))))
+
        (test (catholic-profile "not a port")
              '(#f #f #f #f #f))
 
-       (test (port-profile (current-input-port))
+       (ptst (port-profile (current-input-port))
              '(#t #f #t #f #t #t #f))
-       (test (port-profile (current-output-port))
+       (ptst (port-profile (current-output-port))
              '(#f #t #t #f #t #f #t))
-       (test (port-profile (current-error-port))
+       (ptst (port-profile (current-error-port))
              '(#f #t #t #f #t #f #t))
-       (test (port-profile (open-input-string "whatever"))
+       (ptst (port-profile (open-input-string "whatever"))
              '(#t #f #t #f #t #t #f))
-       (test (port-profile (open-output-string))
+       (ptst (port-profile (open-output-string))
              '(#f #t #t #f #t #f #t))
-       (test (port-profile (open-input-bytevector '#u8(0 0 7)))
+       (ptst (port-profile (open-input-bytevector '#u8(0 0 7)))
              '(#t #f #f #t #t #t #f))
-       (test (port-profile (open-output-bytevector))
+       (ptst (port-profile (open-output-bytevector))
              '(#f #t #f #t #t #f #t))
 
        ;; FIXME: some subsequent tests read from (current-input-port),
@@ -2674,63 +2722,63 @@
 
 #;     (let ((p (current-input-port)))
          (test/unspec (close-port p))
-         (test (closed-profile 'current-input-port p)
+         (ptst (closed-profile 'current-input-port p)
                '(#t #f #t #f #t #f #f)))
 #;     (let ((p (current-output-port)))
          (test/unspec (close-port p))
-         (test (closed-profile 'current-output-port p)
+         (ptst (closed-profile 'current-output-port p)
                '(#f #t #t #f #t #f #f)))
        (let ((p (current-error-port)))
          (test/unspec (close-port p))
-         (test (closed-profile 'current-error-port p)
+         (ptst (closed-profile 'current-error-port p)
                '(#f #t #t #f #t #f #f)))
        (let ((p (open-input-string "whatever")))
          (test/unspec (close-port p))
-         (test (closed-profile 'open-input-string p)
+         (ptst (closed-profile 'open-input-string p)
                '(#t #f #t #f #t #f #f)))
        (let ((p (open-output-string)))
          (test/unspec (close-port p))
-         (test (closed-profile 'open-output-string p)
+         (ptst (closed-profile 'open-output-string p)
                '(#f #t #t #f #t #f #f)))
        (let ((p (open-input-bytevector '#u8(0 0 7))))
          (test/unspec (close-port p))
-         (test (closed-profile 'open-input-bytevector p)
+         (ptst (closed-profile 'open-input-bytevector p)
                '(#t #f #f #t #t #f #f)))
        (let ((p (open-output-bytevector)))
          (test/unspec (close-port p))
-         (test (closed-profile 'open-output-bytevector p)
+         (ptst (closed-profile 'open-output-bytevector p)
                '(#f #t #f #t #t #f #f)))
 
        ;; Closing (current-input-port) twice may not work.
 
 #;     (let ((p (current-input-port)))
          (test/unspec (close-input-port p))
-         (test (closed-profile 'current-input-port p)
+         (ptst (closed-profile 'current-input-port p)
                '(#t #f #t #f #t #f #f)))
        (let ((p (open-input-string "whatever")))
          (test/unspec (close-input-port p))
-         (test (closed-profile 'open-input-string p)
+         (ptst (closed-profile 'open-input-string p)
                '(#t #f #t #f #t #f #f)))
        (let ((p (open-input-bytevector '#u8())))
          (test/unspec (close-input-port p))
-         (test (closed-profile 'open-input-bytevector p)
+         (ptst (closed-profile 'open-input-bytevector p)
                '(#t #f #f #t #t #f #f)))
 
 #;     (let ((p (current-output-port)))
          (test/unspec (close-output-port p))
-         (test (closed-profile 'current-output-port p)
+         (ptst (closed-profile 'current-output-port p)
                '(#f #t #t #f #t #f #f)))
        (let ((p (current-error-port)))
          (test/unspec (close-output-port p))
-         (test (closed-profile 'current-error-port p)
+         (ptst (closed-profile 'current-error-port p)
                '(#f #t #t #f #t #f #f)))
        (let ((p (open-output-string)))
          (test/unspec (close-output-port p))
-         (test (closed-profile 'open-output-string p)
+         (ptst (closed-profile 'open-output-string p)
                '(#f #t #t #f #t #f #f)))
        (let ((p (open-output-bytevector)))
          (test/unspec (close-output-port p))
-         (test (closed-profile 'open-output-bytevector p)
+         (ptst (closed-profile 'open-output-bytevector p)
                '(#f #t #f #t #t #f #f))))
 
      ;;     read-char                               ; R7RS 6.13.2
