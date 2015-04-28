@@ -76,10 +76,10 @@
    Exists X : ((Gen X) -> Bool) * X
    */
 #define forw_oflo( ctxt, loc, fwdgens, fwdgens_data, dest, lim, e, check_spaceI ) \
-  do { word T_obj = *loc;                                                       \
-       if (isptr(T_obj) && fwdgens( gen_of(T_obj), (fwdgens_data))) {           \
-          forw_core( T_obj, loc, dest, lim, e, check_spaceI);                   \
-       }                                                                        \
+  do { word T_obj = *loc;                                                     \
+       if (isptr(T_obj) && fwdgens( gen_of(T_obj), (fwdgens_data))) {         \
+          forw_core( T_obj, loc, dest, lim, e, check_spaceI);                 \
+       }                                                                      \
   } while( 0 )
 
 /* Old_obj_gen is the generation of the object being scanned.
@@ -149,7 +149,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   do {                                                                 \
     word next_obj;                                                     \
     word new_obj, old_obj; int new_gno, old_gno;                       \
-    check_spaceI(dest,lim,8,0,e);                                           \
+    check_spaceI(dest,lim,8,0,e);                                      \
     *dest = *TMP_P;                                                    \
     *(dest+1) = next_obj = *(TMP_P+1);                                 \
     new_obj = install_fwdptr( TMP_P, dest, PAIR_TAG);                  \
@@ -162,19 +162,19 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
     dest += 2;                                                         \
   } while ( 0 )
 
-#define forw_core( T_obj, loc, dest, lim, e, check_spaceI ) \
-  word *TMP_P = ptrof( T_obj );                         \
-  word TMP_W = *TMP_P;                                  \
-  if (TMP_W == FORWARD_HDR)                             \
-    *loc = *(TMP_P+1);                                  \
-  else if (tagof( T_obj ) == PAIR_TAG) {                \
-    FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI ); \
-  }                                                     \
-  else {                                                \
-    word *TMPD;                                         \
-    check_spaceI(dest,lim,sizefield(TMP_W)+4,8,e);       \
-    TMPD = dest;                                        \
-    *loc = forward( T_obj, &TMPD, e ); dest = TMPD;     \
+#define forw_core( T_obj, loc, dest, lim, e, check_spaceI )                   \
+  word *TMP_P = ptrof( T_obj );                                               \
+  word TMP_W = *TMP_P;                                                        \
+  if (TMP_W == FORWARD_HDR)                                                   \
+    *loc = *(TMP_P+1);                                                        \
+  else if (tagof( T_obj ) == PAIR_TAG) {                                      \
+    FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI );                      \
+  }                                                                           \
+  else {                                                                      \
+    word *TMPD;                                                               \
+    check_spaceI(dest,lim,sizefield(TMP_W)+4,8,e);                            \
+    TMPD = dest;                                                              \
+    *loc = forward( T_obj, &TMPD, e ); dest = TMPD;                           \
   }
 
 /* Large objects must be handled here so we don't allocate space to
@@ -182,7 +182,8 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
    subsequent call to forward() will handle the object properly.
    */
 #define check_space_expand( dest, lim, wanted, wiggle, e )                   \
-  if (((wanted <= GC_LARGE_OBJECT_LIMIT) && (((char*)lim-(char*)dest) < ((wanted)+(wiggle)))) \
+  if (((wanted <= GC_LARGE_OBJECT_LIMIT) &&                                  \
+       (((char*)lim-(char*)dest) < ((wanted)+(wiggle))))                     \
       || (e->last_forward_was_large)) {                                      \
     word *CS_LIM=lim, *CS_DEST=dest;                                         \
     expand_space( e, &CS_LIM, &CS_DEST, (wanted+wiggle) );                   \
@@ -190,17 +191,19 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
     dest = CS_DEST; lim = CS_LIM;                                            \
   }
 
-#define scan_and_forward( loc, iflush, fwdgens, fwdgens_data, \
-                          dest, lim, e, check_spaceI )        \
-  scan_core( e, loc, iflush,                                  \
-             forw_oflo( "scan_and_forward forw_oflo", loc, fwdgens, fwdgens_data, \
+#define scan_and_forward( loc, iflush, fwdgens, fwdgens_data,                 \
+                          dest, lim, e, check_spaceI )                        \
+  scan_core( e, loc, iflush,                                                  \
+             forw_oflo( "scan_and_forward forw_oflo", loc,                    \
+                        fwdgens, fwdgens_data,                                \
                         dest, lim, e, check_spaceI ) )
 
-#define scan_and_forward_update_rs( loc, iflush, fwdgens, fwdgens_data, \
-                                    dest, lim, e, check_spaceI )        \
-  scan_update_rs( e, loc, iflush,                                       \
-                  forw_oflo( "scan_and_forward_update_rs forw_oflo", loc, fwdgens, fwdgens_data, \
-                             dest, lim, e, check_spaceI ),              \
+#define scan_and_forward_update_rs( loc, iflush, fwdgens, fwdgens_data,       \
+                                    dest, lim, e, check_spaceI )              \
+  scan_update_rs( e, loc, iflush,                                             \
+                  forw_oflo( "scan_and_forward_update_rs forw_oflo", loc,     \
+                             fwdgens, fwdgens_data,                           \
+                             dest, lim, e, check_spaceI ),                    \
                   update_remset )
 
 /* External */
@@ -241,12 +244,14 @@ init_env_with_cursors( cheney_env_t *e,
  * practice; e.g. the spaces buffer could be maintained scross
  * collector invocations...
  */
+
 static semispace_t**
 begin_semispaces_buffer( int init_capacity ) 
 {
   return (semispace_t**)
     must_malloc( sizeof( semispace_t* )*init_capacity );
 }
+
 static semispace_t**
 enlarge_semispaces_buffer( semispace_t** spaces, int len, int new_capacity ) 
 {
@@ -259,6 +264,7 @@ enlarge_semispaces_buffer( semispace_t** spaces, int len, int new_capacity )
   free( spaces );
   return new_spaces;
 }
+
 static void
 finis_semispaces_buffer( semispace_t** spaces, int capacity )
 {
@@ -271,11 +277,13 @@ begin_semispace_cursors( int init_capacity )
   return (semispace_cursor_t*)
     must_malloc( sizeof( semispace_cursor_t )*init_capacity); 
 }
+
 static void 
 finis_semispace_cursors( semispace_cursor_t *objs, int final_cap ) 
 {
   free( objs ); 
 }
+
 static semispace_cursor_t* 
 enlarge_semispace_cursors( semispace_cursor_t *oldobjs, int len, int new_cap ) 
 {
@@ -433,9 +441,9 @@ void sweep_large_objects_in( gc_t *gc, gset_t genset )
 }
 
 void sweep_large_objects( gc_t *gc, 
-                                 int sweep_oldest, 
-                                 int dest, 
-                                 int dest2 )
+                          int sweep_oldest, 
+                          int dest, 
+                          int dest2 )
 {
   int i;
 
@@ -477,14 +485,16 @@ static bool points_across_noop( cheney_env_t* e, word lhs, int offset, word rhs 
   return FALSE;
 }
 
-static bool points_across( cheney_env_t* e, word lhs, int offset, word rhs ) {
+static bool points_across( cheney_env_t* e, word lhs, int offset, word rhs )
+{
   gc_points_across( e->gc, lhs, offset, rhs );
   return FALSE;
 }
 
 static void forwarded( cheney_env_t* e, char *ctxt, 
                        word obj_orig, int gen_orig, 
-                       word obj_new, int gen_new ) {
+                       word obj_new, int gen_new )
+{
   smircy_when_object_forwarded( e->gc->smircy, 
                                 obj_orig, gen_orig, 
                                 obj_new, gen_new );
@@ -525,12 +535,14 @@ init_env_with_cursors( cheney_env_t *e,
   e->los = (e->splitting ? 0 : gc->los);
 
   e->scan_from_globals = root_scanner_oflo;
-  e->scan_from_remsets = ((e->gc->scan_update_remset)
-                          ? remset_scanner_oflo_update_rs
-                          : remset_scanner_oflo );
+  e->scan_from_remsets = ( (e->gc->scan_update_remset)
+                           ? remset_scanner_oflo_update_rs
+                           : remset_scanner_oflo );
 
   e->scan_from_tospace = scanner;
-  e->points_across = (attributes & POINTS_ACROSS_FCN) ? points_across : points_across_noop;
+  e->points_across = (attributes & POINTS_ACROSS_FCN)
+                     ? points_across
+                     : points_across_noop;
   e->forwarded = (e->gc->smircy != NULL) ? forwarded : NULL;
 }
 
@@ -695,12 +707,12 @@ void oldspace_copy_using_locations( cheney_env_t *e )
 
 static void scan_static_area( cheney_env_t *e )
 {
-  gset_t         forw_gset = e->forw_gset;
+  gset_t       forw_gset = e->forw_gset;
   semispace_t *s_data = e->gc->static_area->data_area;
   word        *dest = e->dest;
   word        *lim = e->lim;
   word        *loc, *limit;
-  int         i;
+  int          i;
 #if GCLIB_LARGE_TABLE && SHADOW_TABLE
   gclib_desc_t *gclib_desc_g = e->gclib_desc_g;
 #endif
@@ -747,7 +759,8 @@ static void scan_static_area_update_rs( cheney_env_t *e )
 static void root_scanner_oflo( word *ptr, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
-  forw_oflo( "root_scanner_oflo forw_oflo", ptr, forward_nursery_and, e->forw_gset, 
+  forw_oflo( "root_scanner_oflo forw_oflo", ptr,
+             forward_nursery_and, e->forw_gset, 
              e->dest, e->lim, e, check_space_expand );
 }
 
@@ -882,7 +895,8 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
 
     while (scanptr != dest) {
       while (scanptr != dest && scanptr < scanlim) {
-        scan_and_forward_update_rs( scanptr, e->iflush, forward_nursery_and, forw_gset,
+        scan_and_forward_update_rs( scanptr, e->iflush,
+                                    forward_nursery_and, forw_gset,
                                     dest, copylim, e, check_space_expand );
       }
 
@@ -920,7 +934,8 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
       los_p = p;
       morework = 1;
       assert2( ishdr( *p ) );
-      scan_and_forward_update_rs( p, e->iflush, forward_nursery_and, forw_gset, 
+      scan_and_forward_update_rs( p, e->iflush,
+                                  forward_nursery_and, forw_gset, 
                                   dest, copylim, e, check_space_expand );
     }
 
@@ -947,6 +962,7 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
  * Most objects are smallish, so this code should be biased in favor
  * of small objects.
  */
+
 word forward( const word p, word **dest, cheney_env_t *e )
 {
   word hdr, *newptr, *p1, *p2;
@@ -1083,6 +1099,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
    overwrite the fake bignum header, since the top field of current chunk
    ("Pointer to neext free word") will still point at the inserted bignum.
    */
+
 void seal_chunk( semispace_t *ss, word *lim, word *dest )
 {
   if (dest < lim) {
@@ -1107,8 +1124,10 @@ void enqueue_tospace( cheney_env_t *e, semispace_t *ss )
 
   if (e->tospaces_len == e->tospaces_cap) {
     int new_cap = e->tospaces_cap * 2;
-    e->tospaces = enlarge_semispaces_buffer( e->tospaces, e->tospaces_len, new_cap );
-    e->cursors = enlarge_semispace_cursors( e->cursors, e->tospaces_len, new_cap );
+    e->tospaces
+      = enlarge_semispaces_buffer( e->tospaces, e->tospaces_len, new_cap );
+    e->cursors
+      = enlarge_semispace_cursors( e->cursors, e->tospaces_len, new_cap );
     e->tospaces_cap = new_cap;
   }
   
@@ -1174,7 +1193,11 @@ expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
    behavior, though a large object might be added to the remembered
    set when it should not have been.
 */
-static word forward_large_object( cheney_env_t * const e, word * const ptr, const int tag, const int tgt_gen )
+
+static word forward_large_object( cheney_env_t * const e,
+                                  word * const ptr,
+                                  const int tag,
+                                  const int tgt_gen )
 {
   const word p = tagptr( ptr, tag );
   los_t *los = e->los;
@@ -1195,6 +1218,7 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
   mark_list = los->mark1;
   sub1 = bytes;
   if (e->np_promotion) {
+
 #if 0                           /* Obsolete */
     int free1, free2;
 
@@ -1211,11 +1235,13 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     if (e->np.has_switched)
       mark_list = los->mark2;
 #endif
+
   }
 
   if (attr_of(ptr) & MB_LARGE_OBJECT) {
     int src_gen = gen_of(ptr);
-    was_marked = los_mark_and_set_generation( los, mark_list, ptr, src_gen, tgt_gen );
+    was_marked
+      = los_mark_and_set_generation( los, mark_list, ptr, src_gen, tgt_gen );
     ret = tagptr( ptr, tag );
     /* This is a slight lie; ptr was not copied, but its gno 
      * may have changed, which SMIRCY needs to know about... */
@@ -1232,7 +1258,9 @@ static word forward_large_object( cheney_env_t * const e, word * const ptr, cons
     memcpy( new, ptr, bytes );
     
     /* Must mark it also! */
-    was_marked = los_mark_and_set_generation( los, mark_list, new, gen_of( ptr ), tgt_gen );
+    was_marked
+      = los_mark_and_set_generation( los, mark_list, new,
+                                     gen_of( ptr ), tgt_gen );
     
     ret = install_fwdptr( ptr, new, tag );
     FORWARDED( e,"forwarded_large_object 2", p, gen_of(p), ret, tgt_gen,
