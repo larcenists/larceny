@@ -330,27 +330,34 @@
 
 (define-instruction $save
   (lambda (instruction as)
-    (list-instruction "save" instruction)
-    (emit-save0 as (operand1 instruction))
-    (emit-save1 as (operand1 instruction))))
+    (let ((n (operand1 instruction)))
+      (if (not (negative? n))
+          (begin
+           (list-instruction "save" instruction)
+           (emit-save0 as n)
+           (emit-save1 as n))))))
 
 (define-instruction $restore
   (lambda (instruction as)
-    (let ((slots (operand1 instruction)))
-      (if (not (negative? slots))
+    (let ((n (operand1 instruction)))
+      (if (not (negative? n))
           (begin
             (list-instruction "restore" instruction)
             (do ((i 0 (+ i 1)))
-                ((> i slots))
+                ((> i n))
               (cant.ldi as $r.stkp (fence.frame-slot i) i)))))))
 
 (define-instruction $pop
   (lambda (instruction as)
-    (list-instruction "pop" instruction)
-    (let ((slots (operand1 instruction)))
-      (let* ((framesize (* $bytewidth.wordsize (+ slots 3)))                 ; Retaddr + dynamic link + REG0..REGn
-             (realsize  (fence.roundup8 (+ framesize $bytewidth.wordsize)))) ; Additional word for the size field
-        (cant.addi as $r.stkp realsize $r.stkp)))))
+    (let ((n (operand1 instruction)))
+      (if (not (negative? n))
+          ;; n+3 words for retaddr, dynamic link, and REG0..REGn
+          ;; realsize includes the size field and padding
+          (let* ((framesize (* $bytewidth.wordsize (+ n 3)))
+                 (realsize  (fence.roundup8
+                             (+ framesize $bytewidth.wordsize))))
+            (list-instruction "pop" instruction)
+            (cant.addi as $r.stkp realsize $r.stkp))))))
 
 (define-instruction $stack
   (lambda (instruction as)
@@ -926,11 +933,11 @@
           (cant.mov as $r.result $r.tmp)
           (cant.mov as $r.second $r.result)
           (cant.mov as $r.tmp $r.second))
-	(begin
-	  (if (not (= r1 $r.result))
-	      (cant.mov as r1 $r.result))
-	  (if (not (= r2 $r.second))
-	      (cant.mov as r2 $r.second)))))
+        (begin
+          (if (not (= r1 $r.result))
+              (cant.mov as r1 $r.result))
+          (if (not (= r2 $r.second))
+              (cant.mov as r2 $r.second)))))
 
   (let ((L (fence.make-label as)))
     (cant.bcci as 'low1-equal r_val 0 L)        ; Skip if value is not pointer

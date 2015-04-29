@@ -949,6 +949,21 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
   e->lim = copylim;
 }
 
+/* For whatever reason, we were flushing the cache on bytevectors
+ * found in the from space.  This flushes the cache on bytevectors
+ * after they've been copied to the new space.
+ */
+
+void copied_icache_flush( word *bv ) {
+  word hdr = *bv;
+  word T_h = header( hdr );
+  word T_bytes = sizefield( hdr );
+  word *start = bv;
+  word *end = (word *) (((char *) (start + 1)) + roundup8( T_bytes ));
+  if ( T_h == BV_HDR )
+    mem_icache_flush( start, end );
+}
+
 /* "p" is a tagged pointer into oldspace;
  * "*dest" is a pointer into newspace, the destination of the next object.
  *
@@ -1078,6 +1093,8 @@ word forward( const word p, word **dest, cheney_env_t *e )
 
   ret = install_fwdptr( ptr, newptr, tag );
   FORWARDED( e, "forward", p, gen_of(p), ret, gen_of(ret), wordsz);
+  if ( tag == BVEC_TAG )
+    copied_icache_flush( newptr );
   return ret;
 }
 
@@ -1265,6 +1282,8 @@ static word forward_large_object( cheney_env_t * const e,
     ret = install_fwdptr( ptr, new, tag );
     FORWARDED( e,"forwarded_large_object 2", p, gen_of(p), ret, tgt_gen,
                (bytes/sizeof(word)) );
+    if ( tag == BVEC_TAG )
+      copied_icache_flush( new );
   }
 
   if (e->np_promotion && !was_marked) {

@@ -853,11 +853,11 @@ static void check_signals( word *globals, cont_t k )
        | (saved R0)                           |
        | (saved R1)                           |
        | ...                                  |
-       | (saved R31)                          |
-       | (saved F0)                           |
-       | (saved F0)                           |
-       | (saved F0)                           |
-       | (saved F0)                           |
+       | (saved Rr)                           |
+       | (saved F0) first 16 bits             |
+       | (saved F0)  next 16 bits             |
+       | (saved F0)  next 16 bits             |
+       | (saved F0)  next 16 bits             |
        | ...                                  |
        | (saved Fn)                           |
        | (saved Fn)                           |
@@ -896,7 +896,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k /*unused*/,
   word *stkp;
   word *stklim;
   word callouts;
-  int i;
+  int i, j;
 
   (void)k;
 
@@ -920,11 +920,12 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k /*unused*/,
   stkp[ 4 ] = globals[G_RETADDR];
   for ( i=0 ; i < NREGS ; i++ )
     stkp[ 5+i ] = globals[ G_REG0+i ];
+  /* FIXME: this next part assumes 32-bit words */
   for ( i=0 ; i < NFPREGS ; i++ ) {
-    stkp[ 5+NREGS+i   ] = (globals[ G_F0+i ] & 65535) << 2;
-    stkp[ 5+NREGS+i+1 ] = (globals[ G_F0+i ] >> 16) << 2;
-    stkp[ 5+NREGS+i+2 ] = (globals[ G_F0+i+1 ] & 65535) << 2;
-    stkp[ 5+NREGS+i+3 ] = (globals[ G_F0+i+1 ] >> 16) << 2;
+    stkp[ 5+NREGS+(4*i)   ] = (globals[ G_F0+(2*i) ] & 65535) << 2;
+    stkp[ 5+NREGS+(4*i)+1 ] = (globals[ G_F0+(2*i) ] >> 16) << 2;
+    stkp[ 5+NREGS+(4*i)+2 ] = (globals[ G_F0+(2*i)+1 ] & 65535) << 2;
+    stkp[ 5+NREGS+(4*i)+3 ] = (globals[ G_F0+(2*i)+1 ] >> 16) << 2;
   }
   stkp[ 5+NREGS+(4*NFPREGS) ]   = globals[ G_RESULT ];
   stkp[ 5+NREGS+(4*NFPREGS)+1 ] = (preserve ? TRUE_CONST : FALSE_CONST );
