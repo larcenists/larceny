@@ -1,5 +1,5 @@
 2 August 2012 / lth@acm.org
-23 August 2015 / WillClinger (updated status)
+29 April 2015 / WillClinger (updated status)
 
 
 Overview.
@@ -44,44 +44,37 @@ present no "softfp" target but one is easy to create.
   > (setup 'target: 'linux-arm-el-hardfp 'native)
 
 
-Status, 23 April 2015:
+Status, 29 April 2015:
 
-- The little-endian ARM-32 Cant implementation is good enough for
-  Larceny to self-host on Arm Linux, with flat4 strings.  It is
-  possible to dump larceny.heap and run with the compiler installed as
-  the evaluator.  Basically the port appears to be mostly working and
-  the code is decent.
+- The little-endian ARM-32 Cant implementation with flat4 strings is
+  operational.
 
 - Peephole optimizations have been ported from IAssassin.  There is an
   ARM-specific optimizer for branch elimination and an ARM
   disassembler that eases debugging.
 
-- Crashers (details down below, after bugs and other items)
-   - build process may segfault while loading src/Asm/Shared/dumpheap.sch
-        (can use interpreter for build if this becomes too frequent)
-   - test/Compiler will crash with jump to 0x0
-   - test/R7RS/Lib case-lambda tests crash with illegal instruction
-   - test/R7RS/Numbers/clisp-number-tests.sps segfaults reading source code
-   - test/Benchmarking/R7RS destruc and sum1 may crash with illegal instruction
+- Several different causes of segmentation faults have been tracked down
+  and fixed, including some that caused easily reproducible segfaults
+  while running tests in test/Compiler and test/R7RS/Lib, but we are
+  still seeing occasional and less easily reproduced segfaults while
+  running those tests.
 
 - Tests passed
    - System can rebuild its heap in both interpreted and compiled mode
      (loading from fasl).
    - Reloading the development system in larceny.heap from source and
-     rebuilding the heap works (usually)
-   - test/Benchmarking/R7RS (except destruc and sum1, which crash sometimes)
+     rebuilding the heap works.
    - test/Jaffer
    - test/Lib
-   - test/Stress
+   - test/Compiler (usually)
    - test/R6RS
-   - test/R7RS/Lib (except case-lambda tests)
+   - test/R7RS (include conflicts, Lib (usually), and Numbers)
+   - test/Benchmarking/R7RS
+   - lib/SRFI/test (except tests that need the FFI)
 
 - Tests NOT passed (details down below, after bugs and other items)
-   - test/Compiler (crashes reliably)
-   - test/GC
+   - test/GC  (no full barrier for regional collector)
    - test/FFI (no FFI)
-   - test/R7RS/Lib case-lambda tests (crashes reliably)
-   - test/R7RS/Numbers/clisp-number-tests.sps (crashes reliably)
 
 Non-filed bugs and other to-do items:
 
@@ -105,8 +98,7 @@ Non-filed bugs and other to-do items:
   CPU.  The ARM11 implementation is popular (eg Raspberry Pi, many
   existing devices) and that uses the ARMv6 architecture.
 
-- Should get Petit Larceny running under ARM Linux.  That would help
-  to distinguish bugs in the ARM code generator from bugs in C code.
+- Should get Petit Larceny running under ARM Linux.
 
 
 Bugs.
@@ -141,10 +133,9 @@ Larceny bugs to file:
 
 Other optimization items and concerns.
 
-- Performance: No performance testing has been done.  Performance
-  should be good when we stay in native code; bad when we trap to
-  millicode because the millicode traps to C in almost all cases,
-  notably for generic arithmetic.
+- Performance should be okay when we stay in native code, bad when
+  we trap to millicode (because the millicode traps to C in almost
+  all cases, notably for generic arithmetic).
 
   * According to singled-threaded GeekBench, our 3.6 GHz i7-4790
     is about 4 times as fast as our 2.0 GHz Exynos 5800 (ARMv7A).
@@ -189,9 +180,7 @@ TO BE WRITTEN.
 
 ------------------------------------------------------------
 
-Some crashes are reliable, while others are intermittent.
-
-  WHY SHOULD ANYTHING BE NONDETERMINISTIC?
+WHY SHOULD ANYTHING BE NONDETERMINISTIC?
 
      - GC is not time-based.  (or wasn't, before).
         (Some gc activity is now time-based, and timer interrupts
@@ -205,11 +194,11 @@ Some crashes are reliable, while others are intermittent.
      - Heap addresses as a result of mmap?
         (Yes, these are nondeterministic.  See below.)
      - If icache flush, how?  Surely not by the program moving
-       between cores, we must assume the OS takes care of that.
-       (If it's an icache flush bug it's something that is "random"
-       because the program is sometimes moved, sometimes not, and
-       when it is not we have a bug.)  Affinity can be controlled:
-       http://unix.stackexchange.com/questions/23106/limit-process-to-one-cpu-core
+         between cores, we must assume the OS takes care of that.
+         (If it's an icache flush bug it's something that is "random"
+         because the program is sometimes moved, sometimes not, and
+         when it is not we have a bug.)  Affinity can be controlled:
+         http://unix.stackexchange.com/questions/23106/limit-process-to-one-cpu-core
 
   Heap addresses are indeed not stable.  Here are four consecutive
   invocations with larceny.heap (first expression after start):
@@ -237,86 +226,8 @@ Some crashes are reliable, while others are intermittent.
 
 Test suites that do not pass.
 
-The tests in test/Compiler do NOT pass, instead we crash after a while:
-
-     >>> benchmark-mode off
-     >> Compiling p2tests
-     >> Compiling p4tests
-     >> Compiling primtests
-
-     >> Loading p2tests
-     Illegal instruction
-
-  This is not directly repeatable, though when I run larceny under GDB
-  with the compiler tests I hit other crashes (branch to zero in this
-  case).  This might be the offending code (from LR), the offending
-  call marked with **:
-
-   0xb651d1b8:	beq	0xb651d1dc
-   0xb651d1bc:	movw	r11, #8
-   0xb651d1c0:	ldr	r0, [r5, #9]
-   0xb651d1c4:	str	r11, [r0, #-1]
-   0xb651d1c8:	tst	r11, #1
-   0xb651d1cc:	movne	r1, r11
-   0xb651d1d0:	addne	r12, r2, #564	; 0x234
-   0xb651d1d4:	blxne	r12
-   0xb651d1d8:	b	0xb651d1e0
-   0xb651d1dc:	movw	r0, #278	; 0x116
-   0xb651d1e0:	movw	r0, #4
-   0xb651d1e4:	cmp	r0, r7
-   0xb651d1e8:	movwlt	r1, #4
-   0xb651d1ec:	addlt	r11, r10, r1
-   0xb651d1f0:	ldrlt	r11, [r11, #1]
-   0xb651d1f4:	movlt	r0, r6
-   0xb651d1f8:	movlt	r1, r11
-   0xb651d1fc:	addlt	r12, r2, #616	; 0x268
-   0xb651d200:	bge	0xb651d300
-** 0xb651d204:	blx	r12
-   0xb651d208:	cmp	r0, #2
-   0xb651d20c:	beq	0xb651d268
-   0xb651d210:	ldr	r4, [r2, #196]	; 0xc4
-   0xb651d214:	sub	r3, r3, #16
-   0xb651d218:	cmp	r3, r4
-   0xb651d21c:	bhi	0xb651d230
-   0xb651d220:	add	r3, r3, #16
-   0xb651d224:	add	r12, r2, #520	; 0x208
-   0xb651d228:	blx	r12
-   0xb651d22c:	b	0xb651d210
-
-  r12 has the value 0x10.  Looks like the optimizer has been here,
-  look at that line of "lt" instructions.  r0 is RESULT, r7 is REG2.
-  r7 has the value 12.  However, r12 != r2 + 616, so I'm not sure.
-
-  Yow, this crash is repeatable within GDB using current compiled
-  files - same crash address, same register contents.
-
-  (Observe heap addresses with the high bit set, this could be a
-   source of errors.)
-
-  CSPR is 80070010 which I think means that neither Z, C, or V are
-  set, ergo not "less than", ergo we might have arrived at the
-  instruction from a jump.  But the value in r0 definitely suggests that
-  the mov r0 <- r6 is performed since r6 has the value 0x10 and
-  r0 should not.  And then, yet, r12 != r2+616.  The values of r1 and
-  r11 are also not aligned.
-
-  The instruction sequence is a trap to globals.  0x268 is not very far
-  into the table I think, each entry point is quite large (probably a
-  design flaw).
-
-  It looks like a red herring - probably the LR register is the last
-  millicode call, we could be anywhere after that.  The code leads
-  to a return.
-
-  Anyway, to repro:
-
-    $ cd test/Compiler
-    $ gdb ../../larceny.bin
-    (gdb) run -heap ../../larceny.heap
-    > (load "run-tests.sch")
-    > (run-compiler-tests)
-
-  Crashes in the local-optimizations off case, with a segv.  LR=0xb651d208.
+Lars reported the following problem, but several crashers have been
+fixed since then:
 
 The GC tests do NOT pass:
 
@@ -324,7 +235,6 @@ The GC tests do NOT pass:
      It could be the missing write barrier or whatever.
      It hangs hard, ^C does not kill it (from within *shell*),
      though sending a HUP does.  It does not use any CPU, very strange.
-
 
 ----------------------------------------
 
@@ -339,3 +249,14 @@ cache, but some noise on the web indicates that it is not properly
 implemented in libc on all Android platforms.  Right now
 fence-driver.c makes the system call with inline assembler but this
 could be investigated further.
+
+On the ARM, we have to flush both the data cache and then the
+instruction cache for the addresses / cache lines occupied by the
+copied bytevectors.  Previously, we were flushing only the cache
+lines occupied by the bytevectors before they were copied.  With
+a unified or write-through data cache, the old way worked; it
+isn't guaranteed to work with a split cache that uses write-back
+for the data cache, as is usual for the ARM.
+
+That said, Will doesn't think any of the ARM segmentation faults
+he's fixed recently had anything to do with caching.
