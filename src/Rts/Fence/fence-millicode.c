@@ -896,7 +896,7 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k /*unused*/,
   word *stkp;
   word *stklim;
   word callouts;
-  int i, j;
+  int i;
 
   (void)k;
 
@@ -969,8 +969,8 @@ cont_t restore_context( CONT_PARAMS )
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
   for ( i=0 ; i < NFPREGS ; i++ ) {
-    globals[G_F0+i]   = (stkp[5+NREGS+i+1] << 14) | (stkp[5+NREGS+i] >> 2) ;
-    globals[G_F0+i+1] = (stkp[5+NREGS+i+3] << 14) | (stkp[5+NREGS+i+2] >> 2);
+    globals[G_F0+(2*i)]   = (stkp[5+NREGS+(4*i)+1] << 14) | (stkp[5+NREGS+(4*i)] >> 2) ;
+    globals[G_F0+(2*i)+1] = (stkp[5+NREGS+(4*i)+3] << 14) | (stkp[5+NREGS+(4*i)+2] >> 2);
   }
   k = stkp[ 4 ];
 

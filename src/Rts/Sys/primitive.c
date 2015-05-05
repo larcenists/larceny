@@ -127,7 +127,7 @@ void primitive_iflush( w_bv )
 word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
-		    ptrof( w_bv )+roundup4(sizefield(*ptrof(w_bv)))/4 );
+		    ptrof( w_bv )+1+roundup4(sizefield(*ptrof(w_bv)))/4 );
 }
 
 /* Floating-point operations */
