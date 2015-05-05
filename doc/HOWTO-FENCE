@@ -1,5 +1,5 @@
 2 August 2012 / lth@acm.org
-29 April 2015 / WillClinger (updated status)
+5 May 2015 / WillClinger (updated status)
 
 
 Overview.
@@ -44,7 +44,7 @@ present no "softfp" target but one is easy to create.
   > (setup 'target: 'linux-arm-el-hardfp 'native)
 
 
-Status, 29 April 2015:
+Status, 5 May 2015:
 
 - The little-endian ARM-32 Cant implementation with flat4 strings is
   operational.
@@ -53,11 +53,8 @@ Status, 29 April 2015:
   ARM-specific optimizer for branch elimination and an ARM
   disassembler that eases debugging.
 
-- Several different causes of segmentation faults have been tracked down
-  and fixed, including some that caused easily reproducible segfaults
-  while running tests in test/Compiler and test/R7RS/Lib, but we are
-  still seeing occasional and less easily reproduced segfaults while
-  running those tests.
+- Several different causes of segmentation faults and other fatal errors
+  have been tracked down and fixed.
 
 - Tests passed
    - System can rebuild its heap in both interpreted and compiled mode
@@ -66,9 +63,9 @@ Status, 29 April 2015:
      rebuilding the heap works.
    - test/Jaffer
    - test/Lib
-   - test/Compiler (usually)
+   - test/Compiler
    - test/R6RS
-   - test/R7RS (include conflicts, Lib (usually), and Numbers)
+   - test/R7RS (including conflicts.scm, Lib, and Numbers)
    - test/Benchmarking/R7RS
    - lib/SRFI/test (except tests that need the FFI)
 
@@ -258,5 +255,5 @@ a unified or write-through data cache, the old way worked; it
 isn't guaranteed to work with a split cache that uses write-back
 for the data cache, as is usual for the ARM.
 
-That said, Will doesn't think any of the ARM segmentation faults
-he's fixed recently had anything to do with caching.
+Ticket #724 describes a bug caused by an off-by-one error in the
+cache-flushing routine, which has now been fixed.

@@ -4,6 +4,8 @@
  *
  * Larceny run-time system (Unix) -- stack handling
  *
+ * FIXME: the comments and code in this file assume 32-bit words
+ *
  * The stack lives at the high end of the current ephemeral area. There
  * are three major advantages to this:
  * - the stack pointer is the heap limit, and vice versa, saving registers.
@@ -21,21 +23,57 @@
  *
  * Frame layout:
  * Frames look almost the same in the stack and in the heap; in particular
- * they have the same size and layout:
+ * they have the same size and a similar layout.  On some platforms, a
+ * stack frame looks like this:
  *
  *   0:  header/size        In heap, a vector header. In stack, a fixnum.
  *   1:  return address     In heap, a fixnum. In stack, an address.
- *   2:  dynamic link       In heap, to previous frame. In stack, garbage.
- *   3:  saved R0           Identical
+ *   2:  dynamic link       In heap, a vector. In stack, garbage.
+ *   3:  saved REG0         Identical
  *   ....
  *
- * The frames are always double-word aligned, but the mutator needs not 
- * initialize the pad word. The size field should reflect the actual size
- * of the frame, not including the size field or the pad word.  A minimum
- * frame occupies four words, and the size field will contain the value 
- * '12' (the fixnum 3). The return address field is a raw pointer in the
- * stack; in the heap it is the byte offset from byte 0 of the code vector
- * of the procedure in the slot for saved R0.
+ * On other platforms (notably IAssassin and Fence/ARM), a stack frame
+ * looks like this:
+ *
+ *   0:  header/return      In heap, a vector header. In stack, an address.
+ *   1:  offset/size        In heap, a fixnum. In stack, a fixnum.
+ *   2:  dynamic link       In heap, a vector. In stack, garbage.
+ *   3:  saved REG0         Identical
+ *   ....
+ *
+ * Because the layout varies slightly, all code must refer to the first
+ * few slots using appropriate symbolic constants; which constant should
+ * be used depends upon whether the frame resides in the stack or heap.
+ *
+ * When a continuation frame resides within the stack:
+ *     STK_CONTSIZE         refers to the header/size or offset/size field
+ *     STK_RETADDR          refers to the return address or header/return field
+ *     STK_DYNLINK          refers to the dynamic link field
+ *     STK_PROC             refers to the saved REG0 field
+ *
+ * When a continuation frame resides within the heap:
+ *     HC_HEADER            refers to the header/size or header/return field
+ *     HC_RETOFFSET         refers to the return address or offset/size field
+ *     HC_DYNLINK           refers to the dynamic link field
+ *     HC_PROC              refers to the saved REG0 field
+ *
+ * STK_REG0 and STK_SAVED are synonyms for STK_PROC.
+ * HC_SAVED is a synonym for HC_PROC.
+ *
+ * The values of those constants are defined by layouts.cfg.
+ *
+ * The frames are always 8-byte aligned.  On 32-bit platforms, that means
+ * one 4-byte pad word may follow the frame, but the mutator does not
+ * need to initialize the pad word. The size field should reflect the
+ * actual size of the frame, not including the size field or pad word.
+ * A minimal frame occupies four words, and the size field will contain
+ * the value '12' (the fixnum 3). In the stack, return address fields
+ * are raw machine pointers to code; when copied to the heap, a return
+ * address field is the byte offset from byte 0 of the code vector
+ * for the procedure in the slot for saved REG0.  Special case:  If the
+ * slot for saved REG0 is zero, then the return address field contains
+ * a raw machine pointer into code that cannot be relocated by garbage
+ * collections.
  */
 
 #define GC_INTERNAL
@@ -48,16 +86,18 @@ static struct {
   int stacks_created;
   int frames_flushed;
   int words_flushed;
-} stack_state;			/* FIXME: hang off GC or globals */
+} stack_state;                        /* FIXME: hang off GC or globals */
 
 #define STACK_BASE_SIZE    16   /* bytes */
+
+/* Allocates and initializes a stack underflow frame. */
 
 int stk_create( word *globals )
 {
   word *stktop;
 
   assert(    globals[G_STKP] - SCE_BUFFER >= globals[ G_ETOP ]
-	  && globals[G_STKP] <= globals[ G_ELIM ] );
+          && globals[G_STKP] <= globals[ G_ELIM ] );
 
   stktop = (word*)globals[ G_STKP ];
   stktop -= 4;
@@ -84,6 +124,8 @@ void stk_clear( word *globals )
   globals[ G_STKP ] = globals[ G_STKBOT ];
 }
 
+/* Flushes stack frames into the heap. */
+
 void stk_flush( word *globals )
 {
   word *stktop, *stkbot, *first, *prev;
@@ -103,8 +145,8 @@ void stk_flush( word *globals )
     retaddr = *(stktop+STK_RETADDR);
 
     /* convert header to vector header */
-    assert2( size % 4 == 0 );	  /* size must be words, a fixnum */
-    assert2( (s_word)size >= 12 ); /* 3-word minimum, and nonnegative */
+    assert2( size % 4 == 0 );            /* size must be words, a fixnum */
+    assert2( (s_word)size >= 12 );    /* 3-word minimum, and nonnegative */
     *(stktop+HC_HEADER) = mkheader( size, VEC_HDR );
 
     /* convert return address */
@@ -116,7 +158,7 @@ void stk_flush( word *globals )
         codeaddr = (word)ptrof( codeptr );
         *(stktop+HC_RETOFFSET) = retaddr-(codeaddr+4);
       } else {
-	*(stktop+HC_RETOFFSET) = retaddr;
+        *(stktop+HC_RETOFFSET) = retaddr;
       }
     } else {
       *(stktop+HC_RETOFFSET) = retaddr;
@@ -143,7 +185,7 @@ void stk_flush( word *globals )
   if (first != 0)
     globals[ G_CONT ] = (word)tagptr( first, VEC_TAG );
 
-  globals[ G_STKBOT ] = globals[ G_STKP ];
+  globals[ G_STKBOT ] = globals[ G_STKP ];    /* FIXME: seems backwards */
 
   stack_state.frames_flushed += framecount;
 }
