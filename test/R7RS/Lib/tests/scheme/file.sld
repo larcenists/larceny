@@ -140,7 +140,7 @@
                   (flags (map (lambda (f) (f p))
                               (list input-port?
                                     output-port?
-                                    textual-port?
+;                                   textual-port?    ; textual is allowed
                                     binary-port?
                                     port?
                                     input-port-open?
@@ -149,13 +149,13 @@
                        '(3 2 1 0 255 254 129 128 127 10 13 32))
              (close-output-port p)
              (cons (output-port-open? p) flags))
-           '(#f #f #t #f #t #t #f #t))
+           '(#f #f #t #;#f #t #t #f #t))             ; textual is allowed
 
      (test (let* ((p (open-binary-input-file tempfile))
                   (flags (map (lambda (f) (f p))
                               (list input-port?
                                     output-port?
-                                    textual-port?
+;                                   textual-port?    ; textual is allowed
                                     binary-port?
                                     port?
                                     input-port-open?
@@ -163,7 +163,7 @@
                   (bv (read-bytevector 1000 p)))
              (close-input-port p)
              (list (cons (input-port-open? p) flags) bv))
-           '((#f #t #f #f #t #t #t #f)
+           '((#f #t #f #;#f #t #t #t #f)             ; textual is allowed
              #u8(3 2 1 0 255 254 129 128 127 10 13 32)))
 
      (test/unspec (delete-file tempfile))
@@ -255,11 +255,11 @@
     (test (textual-port? (current-input-port)) #t)
 
     (test (output-port? (current-output-port)) #t)
-    (test (binary-port? (current-output-port)) #f)
+;   (test (binary-port? (current-output-port)) #f)   ; binary is allowed
     (test (textual-port? (current-output-port)) #t)
 
     (test (output-port? (current-error-port)) #t)
-    (test (binary-port? (current-error-port)) #f)
+;   (test (binary-port? (current-error-port)) #f)    ; binary is allowed
     (test (textual-port? (current-error-port)) #t)
 
     ;;
