@@ -40,8 +40,13 @@
 
      ;; Jiffy timing should be accurate to within a tenth of a second,
      ;; even if there's just one jiffy per second.
+     ;;
+     ;; In many implementations of the R7RS, (current-second) appears
+     ;; to have 1-second resolution.  The following code therefore
+     ;; waits for a transition between seconds before starting its
+     ;; timing.
 
-     (test (let* ((t0 (current-second))
+     (test (let* ((t0 (truncate (current-second)))
                   (t1 (+ t0 (inexact 1))))
              (count-until (lambda () (<= t1 (current-second))))
              (let* ((jifs/second (jiffies-per-second))
@@ -52,7 +57,7 @@
                       (j (current-jiffy))
                       (t (current-second)))
                  (set! loops/s n)
-                 (list (- (exact (round t)) (exact (round t0)))
+                 (list (exact (round (- t t0)))
                        (<= j1 j)
                        (<= j (+ j1 (/ jifs/second 10)))))))
            '(1 #t #t))
