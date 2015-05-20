@@ -37,8 +37,15 @@
           (scheme char)
           (tests scheme test))
 
+  ;; For slow implementations, it might be faster to
+  ;; generate each Unicode character only once.
+
   (cond-expand
-   (full-unicode (include "char.body.scm"))
+   ((and (or kawa)                      ; list slow implementations here
+         full-unicode)
+    (include "char.body-alt.scm"))
+   (full-unicode
+    (include "char.body.scm"))
    ((not full-unicode)
     (begin
      (define (run-char-tests-for-unicode) #t))))

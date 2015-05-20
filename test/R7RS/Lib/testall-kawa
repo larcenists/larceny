@@ -10,6 +10,9 @@ SRC="./tests/scheme/run"
 KAWA=${KAWA:-"kawa"}
 KAWA_OPTIONS=${KAWA_OPTIONS-"--r7rs --no-warn-unused"}
 
+VERBOSE=yes
+export VERBOSE
+
 TESTS="                            \
     case-lambda                \
     char                       \
