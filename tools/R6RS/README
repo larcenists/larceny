@@ -1,9 +1,10 @@
-This directory contains a subdirectory, rnrs, in which I am
-creating/collecting R7RS implementations of some R6RS standard
+This directory contains R7RS implementations of some R6RS standard
 libraries for use by R7RS libraries and programs.
 
 Some of these implementations will be incomplete, but partial
 implementations may be more useful than none at all.
+
+****************************************************************
 
 List of R6RS standard libraries and their current status:
 
@@ -38,3 +39,22 @@ List of R6RS standard libraries and their current status:
 (rnrs mutable-pairs)            fully implemented atop (scheme base)
 (rnrs mutable-strings)          fully implemented atop (scheme base)
 (rnrs r5rs)                     not yet implemented
+
+****************************************************************
+
+Implementation notes:
+
+The *.sld files in the rnrs directory consist of wrappers that
+import the corresponding *.sld files in the r6rs directory and
+then re-export everything.  This extra level of indirection made
+the libraries easier to test in Larceny and other systems that
+already provide some or all of the R7RS standard libraries.
+
+The r6rs/unicode-reference directory contains the R7RS reference
+implementation of Unicode 7.0 with minimal changes from the R6RS
+code.  This implementation is complete, for the benefit of R7RS
+systems that don't provide (scheme char).  Most R7RS systems do
+provide (scheme char); refactoring the reference implementation
+to rely on (scheme char) would get rid of a lot of code and
+tables.
+
