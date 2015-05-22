@@ -1,0 +1,40 @@
+This directory contains a subdirectory, rnrs, in which I am
+creating/collecting R7RS implementations of some R6RS standard
+libraries for use by R7RS libraries and programs.
+
+Some of these implementations will be incomplete, but partial
+implementations may be more useful than none at all.
+
+List of R6RS standard libraries and their current status:
+
+(rnrs base)                     not yet implemented
+(rnrs unicode)                  partially implemented atop (scheme char);
+                                still missing:
+                                    string-normalize-nfd
+                                    string-normalize-nfkd
+                                    string-normalize-nfc
+                                    string-normalize-nfkc
+(rnrs bytevectors)              not yet implemented
+(rnrs lists)                    not yet implemented
+(rnrs sorting)                  not yet implemented
+(rnrs control)                  not yet implemented
+(rnrs records syntactic)        will wait for R7RS (large)
+(rnrs records procedural)       will wait for R7RS (large)
+(rnrs records inspection)       will wait for R7RS (large)
+(rnrs exceptions)               not yet implemented
+(rnrs conditions)               won't be implemented
+(rnrs io ports)                 not yet implemented
+(rnrs io simple)                not yet implemented
+(rnrs files)                    fully implemented atop (scheme file)
+(rnrs programs)                 fully implemented atop (scheme process-context)
+(rnrs arithmetic fixnums)       not yet implemented
+(rnrs arithmetic flonums)       not yet implemented
+(rnrs arithmetic bitwise)       not yet implemented
+(rnrs syntax-case)              will wait for R7RS (large)
+(rnrs hashtables)               not yet implemented
+(rnrs enums)                    not yet implemented
+(rnrs)                          not yet implemented
+(rnrs eval)                     not yet implemented
+(rnrs mutable-pairs)            fully implemented atop (scheme base)
+(rnrs mutable-strings)          fully implemented atop (scheme base)
+(rnrs r5rs)                     not yet implemented
