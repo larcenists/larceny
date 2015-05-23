@@ -1,10 +1,40 @@
-#!r6rs
-
-(library (tests r6rs base)
+(define-library (tests r6rs base)
   (export run-base-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme write)
+          (r6rs base)
+          (r6rs bytevectors)
+         ;(r6rs lists)
+         ;(r6rs arithmetic fixnums)
+          (tests scheme test))
 
+ (begin
+
+  ;; FIXME: replace this stub by importing (r6rs lists).
+
+  (define (exists p? things)
+    (cond ((null? things) #f)
+          ((p? (car things)) => values)
+          (else (exists p? (cdr things)))))
+
+ )
+
+ (begin
+
+  ;; FIXME: replace these stubs by importing (r6rs arithmetic fixnums).
+
+  (define (fixnum-width) 16)
+  (define (least-fixnum)
+    (let ((n (expt 2 (- (fixnum-width) 2))))
+      (+ (- n) (- n))))
+  (define (greatest-fixnum)
+    (let* ((n (expt 2 (- (fixnum-width) 2)))
+           (n-1 (- n 1)))
+      (+ n n-1)))
+
+ )
+
+ (begin
   (define (try-reals f but-not)
     (if (not (member 0 but-not))
         (f 0))
@@ -141,6 +171,9 @@
             (begin expr (... ...))))))))
   (be-like-begin sequence)
 
+  ;; FIXME: identifier-syntax is not implemented by (r6rs base).
+
+#|
   (define p (cons 4 5))
   (define-syntax p.car 
     (identifier-syntax (car p)))
@@ -153,6 +186,7 @@
     (identifier-syntax
      (_ (car p))
      ((set! _ e) (set! p (cons e (cdr p))))))
+|#
 
   ;; Expressions ----------------------------------------
 
@@ -191,6 +225,10 @@
                      (foo (+ x 3))))
           45)
 
+    ;; FIXME: R7RS does not require violations of letrec restriction
+    ;; to be detected.
+
+#|
     (test/exn (letrec ([x y]
                        [y x])
                 'should-not-get-here)
@@ -201,6 +239,7 @@
                           1)]) 
             x)
           1)
+|#
 
     ;; 11.4.1
     ;; (These tests are especially silly, since they really
@@ -1328,6 +1367,9 @@
     (test/exn (error 'apple "bad" 'worm) &error)
     (test/exn (assertion-violation 'apple "bad" 'worm) &assertion)
     
+    ;; FIXME: R7RS systems don't implement the R6RS condition system.
+
+#|
     (test (condition-message
            (guard (v [#t v])
                   (assertion-violation 'apple "bad" 'worm)))
@@ -1352,6 +1394,7 @@
            (guard (v [#t v])
                   (error #f "bad" 'worm)))
           #t)
+|#
 
     (test (fac 5) 120)
     (test/exn (fac 4.5) &assertion)
@@ -1571,6 +1614,9 @@
             (cond (#t => 'ok)))
           'ok)
     
+    ;; FIXME: identifier-syntax is not implemented by (r6rs base).
+
+#|
     (test p.car 4)
     ; (test/exn (set! p.car 15) &syntax) - not a runtime test
 
@@ -1579,6 +1625,7 @@
     (test p '(15 . 5))
 
     (test (kons 1 2) '(1 . 2))
+|#
 
     ;;;
-    ))
+    )))

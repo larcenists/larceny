@@ -10,7 +10,25 @@
           test/unspec-flonum-or-exn
           test/output/unspec
           run-test
-          report-test-results)
+          report-test-results
+
+          ;; FIXME: this is a hack
+
+          &assertion
+          &implementation-restriction
+          &who
+          &message
+          &irritants
+          &error
+          &syntax
+
+          condition-message
+          condition-who
+          condition-irritants
+          who-condition?
+          error?
+          )
+
   (import (scheme base)
           (scheme cxr)
           (scheme write))
@@ -39,6 +57,26 @@
            (define (call-with-input-file fname proc)
              (proc (current-input-port)))
            (define (with-output-to-file fname thunk) (thunk)))))
+
+  (begin
+
+   ;; Fake condition system; see test/exn and test/unspec-or-exn.
+
+   (define &assertion '&assertion)
+   (define &implementation-restriction '&implementation-restriction)
+   (define &who '&who)
+   (define &message '&message)
+   (define &irritants '&irritants)
+   (define &error '&error)
+   (define &syntax '&syntax)
+
+   (define condition-message   error-object-message)
+   (define condition-who       error-object-message)
+   (define condition-irritants error-object-irritants)
+   (define who-condition?      error-object?)
+   (define error?              error-object?)
+
+   )
 
   (begin
 
@@ -71,15 +109,6 @@
                        (+ i 1))
                  (loop chars n))))))
 
-   (define-record-type err
-     (make-err err-c)
-     err?
-     (err-c err-err-c))
-
-   (define-record-type expected-exception
-                       (make-expected-exception)
-                       expected-exception?)
-
    (define-record-type multiple-results
      (make-multiple-results values)
      multiple-results?
@@ -103,7 +132,7 @@
                    expected)))))
 
    (define (catch-exns thunk)
-     (guard (c (#t (make-err c)))
+     (guard (c (#t &error))
       (call-with-values thunk
        (lambda x
          (if (= 1 (length x))
@@ -152,11 +181,10 @@
    (define-syntax test/exn
      (syntax-rules ()
       ((_ expr condition)
-       (test (guard (c (((condition-predicate
-                          (record-type-descriptor condition)) c)
-                        (make-expected-exception)))
+       (test (guard (c (#t
+                        condition))
                     expr)
-             (make-expected-exception)))))
+             condition))))
 
    (define-syntax test/values
      (syntax-rules ()
@@ -172,7 +200,7 @@
                  (capture-output
                   (lambda ()
                     (run-test 'expr
-                              (guard (c (#t (make-err c)))
+                              (guard (c (#t &error))
                                      expr)
                               expected)))
                  str))))
@@ -182,27 +210,27 @@
       ((_ expr)
        (test (begin expr 'unspec) 'unspec))))
 
-  ;; FIXME
+   ;; FIXME
 
    (define-syntax test/unspec-or-exn
      (syntax-rules ()
       ((_ expr condition)
-       (test (guard (c (((condition-predicate
-                          (record-type-descriptor condition)) c)
+       (test (guard (c (#t
                         'unspec))
                     (begin expr 'unspec))
              'unspec))))
 
-  ;; FIXME
+   ;; FIXME
 
    (define-syntax test/unspec-flonum-or-exn
      (syntax-rules ()
       ((_ expr condition)
-       (test (guard (c (((condition-predicate
-                          (record-type-descriptor condition)) c)
+       (test (guard (c (#t
                         'unspec-or-flonum))
                      (let ((v expr))
-                       (if (flonum? v)
+                       (if (and (number? v)
+                                (inexact? v)
+                                (real? v))
                            'unspec-or-flonum
                            (if (eq? v 'unspec-or-flonum)
                                (list v)
@@ -236,8 +264,6 @@
      (cond
       ((and (real? expected) (nan? expected))
        (and (real? got) (nan? got)))
-      ((expected-exception? expected)
-       (expected-exception? got))
       ((approx? expected)
        (and (approx? got)
             (good-enough? (approx-value expected)
