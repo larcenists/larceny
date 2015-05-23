@@ -1174,7 +1174,7 @@
                             (cadr rest))
                            (else
                             (apply assertion-violation 'utf16->string
-                                   "illegal arguments" string rest))))
+                                   "illegal arguments" bytevector rest))))
 
          (endianness (cond ((null? rest)
                             (or begins-with-bom? 'big))
@@ -1330,7 +1330,7 @@
                             (cadr rest))
                            (else
                             (apply assertion-violation 'utf32->string
-                                   "illegal arguments" string rest))))
+                                   "illegal arguments" bytevector rest))))
 
          (endianness (cond ((null? rest)
                             (or begins-with-bom? 'big))

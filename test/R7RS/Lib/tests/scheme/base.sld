@@ -287,19 +287,22 @@
 
   (cond-expand
    ((library (scheme write))
-    (import (scheme write))))
+    (import (scheme write)))
+   (else))
 
   ;; For testing R7RS 4.2.8 and 6.8
 
   (cond-expand
    ((library (scheme inexact))
-    (import (scheme inexact))))
+    (import (scheme inexact)))
+   (else))
 
   ;; For testing R7RS 4.3.3
 
   (cond-expand
    ((library (scheme eval))
-    (import (scheme eval))))
+    (import (scheme eval)))
+   (else))
 
   ;; For testing R7RS 6.4 and 6.10
 
@@ -309,17 +312,20 @@
                   string-ci=?
                   char-upcase
                   char-downcase
-                  char-foldcase))))
+                  char-foldcase)))
+   (else))
 
   ;; For testing R7RS 6.11
 
   (cond-expand
    ((library (scheme read))
-    (import (only (scheme read) read))))
+    (import (only (scheme read) read)))
+   (else))
 
   (cond-expand
    ((library (scheme file))
-    (import (only (scheme file) open-input-file))))
+    (import (only (scheme file) open-input-file)))
+   (else))
 
   (begin
 
@@ -617,7 +623,8 @@
                              (display "1")
                              (display "2")))
                       (get-output-string q))
-                    "12"))))
+                    "12")))
+      (else))
 
      ;;     let                                     ; R7RS 4.2.2
      ;;     let*
@@ -689,7 +696,8 @@
          (let-values (((x y z) (means '(3 (1 4)))))
            (test/approx (inexact x) (inexact (/ 8 3)))
            (test/approx (inexact y) (inexact (/ 22894285 10000000)))
-           (test/approx (inexact z) (inexact (/ 36 19)))))))
+           (test/approx (inexact z) (inexact (/ 36 19))))))
+      (else))
 
      (test (let-values (((root rem) (exact-integer-sqrt 32)))
              (* root rem))
@@ -830,7 +838,8 @@
                                 #f))
                         (open-input-file "foo-must-not-exist.scm"))))
                (list x (get-output-string q)))
-             '(#f "error opening file"))))
+             '(#f "error opening file")))
+      (else))
     
      (let ((v '()))
        (test (guard (exn ((equal? exn 5) 'five))
@@ -863,7 +872,8 @@
      (cond-expand
       ((library (scheme inexact))
        (test (vector-map exact `#(10 5 ,(sqrt 4) ,@(map sqrt '(16 9)) 8))
-             '#(10 5 2 4 3 8))))
+             '#(10 5 2 4 3 8)))
+      (else))
 
      (test (let ((foo '(foo bar)) (@baz 'baz))
              `(list ,@foo , @baz))
@@ -1229,7 +1239,8 @@
 
      (cond-expand
       (exact-complex
-       (test (complex? 3+4i)                       #t)))
+       (test (complex? 3+4i)                       #t))
+      (else))
 
      (test (complex? 3)                            #t)
      (test (real? 3)                               #t)
@@ -1238,7 +1249,8 @@
 
      (cond-expand
       (exact-complex
-       (test (integer? 3+0i)                       #t)))
+       (test (integer? 3+0i)                       #t))
+      (else))
 
      (test (exact? 5)                              #t)
 
@@ -1608,7 +1620,8 @@
        (test (member "B"
                      '("a" "b" "c")
                      string-ci=?)
-             '("b" "c"))))
+             '("b" "c")))
+      (else))
 
      (test (member 'irrelevant
                    '(3 1 4 1 5 9 2 6 5)
@@ -1776,7 +1789,8 @@
        (test (integer->char #xDF) #\xDF)
        (test (integer->char #x10AAAA) #\x10AAAA)
        (test (char->integer (integer->char 5000))
-             5000)))
+             5000))
+      (else))
 
      (test (char->integer #\alarm)     #x0007)
      (test (char->integer #\backspace) #x0008)
@@ -1877,7 +1891,8 @@
        (test (string>? "z" "\xDF;") #f)
        (test (string>? "\xDF;" "z") #t)
        (test (string>=? "z" "\xDF;") #f)
-       (test (string>=? "\xDF;" "z") #t)))
+       (test (string>=? "\xDF;" "z") #t))
+      (else))
 
      ;; R7RS 6.7 says "These procedures compare strings in an
      ;; implementation-defined way.  One approach is to make
@@ -2059,7 +2074,8 @@
       ((library (scheme inexact))
        (test (vector-ref '#(1 1 2 3 5 8 13 21)
                          (exact (round (* 2 (acos -1)))))
-             13)))
+             13))
+      (else))
 
      (test (let ((vec (vector 0 '(2 2 2 2) "Anna")))
              (vector-set! vec 1 '("Sue" "Sue"))
@@ -2214,7 +2230,8 @@
        (test (utf8->string
               (string->utf8
                "\x0;\x1;\x80;\xFF;\xD7FF;\xE000;\x10FFFF;"))
-             "\x0;\x1;\x80;\xFF;\xD7FF;\xE000;\x10FFFF;")))
+             "\x0;\x1;\x80;\xFF;\xD7FF;\xE000;\x10FFFF;"))
+      (else))
 
     ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; Tests originally from Ikarus
@@ -2260,7 +2277,8 @@
            (lambda (f g)
              (lambda args
                (f (apply g args)))))
-         (test/approx ((compose sqrt *) 12 75)    30))))
+         (test/approx ((compose sqrt *) 12 75)    30)))
+      (else))
 
      (test (map cadr '((a b) (d e) (g h)))    '(b e h))
 
@@ -2296,7 +2314,8 @@
                  c))
               "studlycaps xxx"
               "ululululul")
-             "StUdLyCaPs")))
+             "StUdLyCaPs"))
+      (else))
 
      (test (vector-map cadr '#((a b) (d e) (g h)))    '#(b e h))
 
@@ -2573,7 +2592,8 @@
                               k
                               (lambda ()
                                 (read (open-input-string "(")))))))
-             #t)))
+             #t))
+      (else))
 
      (cond-expand
       ((library (scheme file))
@@ -2583,7 +2603,8 @@
                               k
                               (lambda ()
                                 (open-input-file "probably not there"))))))
-             #t)))
+             #t))
+      (else))
 
      ;;     call-with-port                          ; R7RS 6.13.1
      ;;     input-port?
