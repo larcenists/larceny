@@ -68,17 +68,17 @@
   ;; Based on tests from Ikarus:
   (define-syntax divmod-test/?
     (syntax-rules ()
-      [(_ x1 x2)
+      ((_ x1 x2)
        (begin
          (test/values (div-and-mod x1 x2)
                       (div x1 x2)
                       (mod x1 x2))
          (test/values (div0-and-mod0 x1 x2)
                       (div0 x1 x2)
-                      (mod0 x1 x2)))]))
+                      (mod0 x1 x2))))))
   (define-syntax divmod-test
     (syntax-rules ()
-      [(_ x1 x2)
+      ((_ x1 x2)
        (begin
          (divmod-test/? x1 x2)
          (test (<= 0 (mod x1 x2)) #t)
@@ -86,25 +86,25 @@
          (test (+ (* (div x1 x2) x2) (mod x1 x2)) x1)
          (test (<= (- (abs (/ x2 2))) (mod0 x1 x2)) #t)
          (test (< (mod0 x1 x2) (abs (/ x2 2))) #t)
-         (test (+ (* (div0 x1 x2) x2) (mod0 x1 x2)) x1))]))
+         (test (+ (* (div0 x1 x2) x2) (mod0 x1 x2)) x1)))))
 
   (define-syntax try-bad-divs
     (syntax-rules ()
-      [(_ op)
+      ((_ op)
        (begin
          (test/unspec-flonum-or-exn (op 1 0) &assertion)
          (test/unspec-flonum-or-exn (op 1 0.0) &assertion)
          (test/unspec-flonum-or-exn (op +inf.0 1) &assertion)
          (test/unspec-flonum-or-exn (op -inf.0 1) &assertion)
-         (test/unspec-flonum-or-exn (op +nan.0 1) &assertion))]))
+         (test/unspec-flonum-or-exn (op +nan.0 1) &assertion)))))
 
   (define-syntax test-string-to-number
     (syntax-rules ()
-      [(_ [str num] ...) (begin (test (string->number str) num) ...)]))
+      ((_ (str num) ...) (begin (test (string->number str) num) ...))))
 
   (define-syntax test/approx-string-to-number
     (syntax-rules ()
-      [(_ [str num] ...) (begin (test/approx (string->number str) num) ...)]))
+      ((_ (str num) ...) (begin (test/approx (string->number str) num) ...))))
 
   ;; Definitions ----------------------------------------
 
@@ -229,14 +229,14 @@
     ;; to be detected.
 
 #|
-    (test/exn (letrec ([x y]
-                       [y x])
+    (test/exn (letrec ((x y)
+                       (y x))
                 'should-not-get-here)
               &assertion)
 
-    (test (letrec ([x (if (eq? (cons 1 2) (cons 1 2))
+    (test (letrec ((x (if (eq? (cons 1 2) (cons 1 2))
                           x
-                          1)]) 
+                          1))) 
             x)
           1)
 |#
@@ -538,15 +538,15 @@
 
     (for-each
      (lambda (x y)
-       (let ([try-one
+       (let ((try-one
               (lambda (x y)
-                (let ([try-x
+                (let ((try-x
                        (lambda (x x2)
                          (test (= x x2) #t)
                          (test (< x x2) #f)
                          (test (> x x2) #f)
                          (test (<= x x2) #t)
-                         (test (>= x x2) #t))])
+                         (test (>= x x2) #t))))
                   (try-x x x)
                   (when (exact? x)
                     (try-x x (inexact x))
@@ -558,7 +558,7 @@
                 (test (< y x) #f)
                 (test (<= y x) #f)
                 (test (> y x) #t)
-                (test (>= y x) #t))])
+                (test (>= y x) #t))))
          (try-one x y)
          (try-one (inexact x) y)
          (try-one x (inexact y))
@@ -1281,7 +1281,7 @@
     (test (string->list "apple") (list #\a #\p #\p #\l #\e))
     (test (list->string (list #\a #\p #\p #\l #\e)) "apple")
 
-    (let ([accum '()])
+    (let ((accum '()))
       (test/unspec (string-for-each (lambda (a) (set! accum (cons a accum)))
                                     "elppa"))
       (test accum '(#\a #\p #\p #\l #\e))
@@ -1297,7 +1297,7 @@
       (test accum #\y))
 
     (test "apple" (string-copy "apple"))
-    (let ([s "apple"])
+    (let ((s "apple"))
       (test (eq? s (string-copy s)) #f))
 
     ;; 11.13
@@ -1324,7 +1324,7 @@
     (test (vector->list '#(dah dah didah))  '(dah dah didah))
     (test (list->vector '(dididit dah))     '#(dididit dah))
 
-    (let ([vec (vector 'x 'y 'z)])
+    (let ((vec (vector 'x 'y 'z)))
       (vector-fill! vec 10.1)
       (test vec '#(10.1 10.1 10.1)))
 
@@ -1341,7 +1341,7 @@
                       (vector - * /))
           '#(-3 5 1/3))
 
-    (let ([accum '()])
+    (let ((accum '()))
       (test/unspec (vector-for-each (lambda (a) (set! accum (cons a accum)))
                                     '#(e l p p a)))
       (test accum '(a p p l e))
@@ -1371,27 +1371,27 @@
 
 #|
     (test (condition-message
-           (guard (v [#t v])
+           (guard (v (#t v))
                   (assertion-violation 'apple "bad" 'worm)))
           "bad")
     (test (condition-who
-           (guard (v [#t v])
+           (guard (v (#t v))
                   (assertion-violation 'apple "bad" 'worm)))
           'apple)
     (test (condition-irritants
-           (guard (v [#t v])
+           (guard (v (#t v))
                   (assertion-violation 'apple "bad" 'worm)))
           '(worm))
     (test (who-condition?
-           (guard (v [#t v])
+           (guard (v (#t v))
                   (assertion-violation #f "bad" 'worm)))
           #f)
     (test (error?
-           (guard (v [#t v])
+           (guard (v (#t v))
                   (assertion-violation #f "bad" 'worm)))
           #f)
     (test (error?
-           (guard (v [#t v])
+           (guard (v (#t v))
                   (error #f "bad" 'worm)))
           #t)
 |#

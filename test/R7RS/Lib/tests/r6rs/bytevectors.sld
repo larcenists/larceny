@@ -47,7 +47,7 @@
     (test (bytevector-u8-ref (make-bytevector 10 -1) 9) 255)
     (test (bytevector-u8-ref (make-bytevector 10 -128) 9) 128)
 
-    (let ([v (make-bytevector 5 2)])
+    (let ((v (make-bytevector 5 2)))
       (test/unspec (bytevector-fill! v -1))
       (test v #vu8(255 255 255 255 255))
       (test/unspec (bytevector-fill! v 17))
@@ -88,7 +88,7 @@
     (test (u8-list->bytevector '(1 2 3)) #vu8(1 2 3))
     (test (u8-list->bytevector '()) #vu8())
 
-    (let ([b (make-bytevector 16 -127)])
+    (let ((b (make-bytevector 16 -127)))
       (test/unspec
        (bytevector-uint-set! b 0 (- (expt 2 128) 3)
                              (endianness little) 16))
@@ -123,9 +123,9 @@
               (bytevector->uint-list b (endianness little) 2)) 
             '(513 65283 513 513)))
 
-    (let ([b (u8-list->bytevector
+    (let ((b (u8-list->bytevector
               '(255 255 255 255 255 255 255 255
-                    255 255 255 255 255 255 255 253))])
+                    255 255 255 255 255 255 255 253))))
       
       (test (bytevector-u16-ref b 14 (endianness little)) 65023)
       (test (bytevector-s16-ref b 14 (endianness little)) -513)
@@ -140,18 +140,18 @@
 
       (test/unspec (bytevector-u16-ref b 0 (endianness little))))
 
-    (let ([b (u8-list->bytevector
+    (let ((b (u8-list->bytevector
               '(255 255 255 255 255 255 255 255
-                    255 255 255 255 255 255 255 253))])
+                    255 255 255 255 255 255 255 253))))
 
       (test (bytevector-u32-ref b 12 (endianness little)) 4261412863)
       (test (bytevector-s32-ref b 12 (endianness little)) -33554433)
       (test (bytevector-u32-ref b 12 (endianness big)) 4294967293)
       (test (bytevector-s32-ref b 12 (endianness big)) -3))
 
-    (let ([b (u8-list->bytevector
+    (let ((b (u8-list->bytevector
               '(255 255 255 255 255 255 255 255
-                    255 255 255 255 255 255 255 253))])
+                    255 255 255 255 255 255 255 253))))
       (test (bytevector-u64-ref b 8 (endianness little)) 18302628885633695743)
       (test (bytevector-s64-ref b 8 (endianness little)) -144115188075855873)
       (test (bytevector-u64-ref b 8 (endianness big)) 18446744073709551613)
@@ -162,29 +162,29 @@
        (for-each
         (lambda (n)
           (if (zero? (fxand k 3))
-              (let ([b (make-bytevector 12)])
+              (let ((b (make-bytevector 12)))
                 (test/unspec (bytevector-ieee-single-native-set! b k n))
                 (test/approx (bytevector-ieee-single-native-ref b k) n))
-              (let ([b (make-bytevector 12)])
+              (let ((b (make-bytevector 12)))
                 (test/exn (bytevector-ieee-single-native-set! b k n) &assertion)
                 (test/exn (bytevector-ieee-single-native-ref b k) &assertion)))
-          (let ([b (make-bytevector 12)])
+          (let ((b (make-bytevector 12)))
             (test/unspec (bytevector-ieee-single-set! b k n 'big))
             (test/approx (bytevector-ieee-single-ref b k 'big) n))
-          (let ([b (make-bytevector 12)])
+          (let ((b (make-bytevector 12)))
             (test/unspec (bytevector-ieee-single-set! b k n 'little))
             (test/approx (bytevector-ieee-single-ref b k 'little) n))
           (if (zero? (fxand k 7))
-              (let ([b (make-bytevector 12)])
+              (let ((b (make-bytevector 12)))
                 (test/unspec (bytevector-ieee-double-native-set! b k n))
                 (test/approx (bytevector-ieee-double-native-ref b k) n))
-              (let ([b (make-bytevector 12)])
+              (let ((b (make-bytevector 12)))
                 (test/exn (bytevector-ieee-double-native-set! b k n) &assertion)
                 (test/exn (bytevector-ieee-double-native-ref b k) &assertion)))
-          (let ([b (make-bytevector 12)])
+          (let ((b (make-bytevector 12)))
             (test/unspec (bytevector-ieee-double-set! b k n 'big))
             (test/approx (bytevector-ieee-double-ref b k 'big) n))
-          (let ([b (make-bytevector 12)])
+          (let ((b (make-bytevector 12)))
             (test/unspec (bytevector-ieee-double-set! b k n 'little))
             (test/approx (bytevector-ieee-double-ref b k 'little) n)))
         '(1.0 25.78 +inf.0 -inf.0 +nan.0)))
@@ -199,13 +199,13 @@
     (test (string->utf32 "app\x3BB;e" 'big) #vu8(0 0 0 97 0 0 0 112 0 0 0 112 0 0 #x3 #xBB 0 0 0 101))
     (test (string->utf32 "app\x3BB;e") #vu8(0 0 0 97 0 0 0 112 0 0 0 112 0 0 #x3 #xBB 0 0 0 101))
 
-    (let ([bv-append
+    (let ((bv-append
            (lambda (bv1 bv2)
-             (let ([bv (make-bytevector (+ (bytevector-length bv1)
-                                           (bytevector-length bv2)))])
+             (let ((bv (make-bytevector (+ (bytevector-length bv1)
+                                           (bytevector-length bv2)))))
                (bytevector-copy! bv1 0 bv 0  (bytevector-length bv1))
                (bytevector-copy! bv2 0 bv (bytevector-length bv1) (bytevector-length bv2))
-               bv))])
+               bv))))
       (for-each
        (lambda (str)
          (test (utf8->string (string->utf8 str)) str)

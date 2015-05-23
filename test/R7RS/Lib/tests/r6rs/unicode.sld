@@ -1,10 +1,11 @@
-#!r6rs
-
-(library (tests r6rs unicode)
+(define-library (tests r6rs unicode)
   (export run-unicode-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (r6rs unicode)
+          (tests scheme test))
 
+ (begin
   (define (run-unicode-tests)
 
     (test (char-upcase #\i) #\I)
@@ -142,4 +143,4 @@
     (test (string-normalize-nfkc "\x65;\x301;") "\xE9;")
 
     ;;
-    ))
+    )))
