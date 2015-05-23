@@ -8,7 +8,7 @@ implementations may be more useful than none at all.
 
 List of R6RS standard libraries and their current status:
 
-(rnrs base)                     not yet implemented
+(rnrs base)                     implemented with stub for identifier-syntax
 (rnrs unicode)                  fully implemented atop (scheme char)
 (rnrs bytevectors)              fully implemented atop (scheme base)
 (rnrs lists)                    not yet implemented

@@ -1,4 +1,4 @@
-This directory contains an R7RS test suite obtained by modifying
+This directory contains two R7RS test suites obtained by modifying
 Racket's R6RS test suite.  Racket's R6RS test suite is covered by
 the LGPL, so this derivative work is also covered by the LGPL.
 See README2 for more information on copyright and licensing.
@@ -6,6 +6,13 @@ See README2 for more information on copyright and licensing.
 Matthew Flatt wrote most of Racket's R6RS test suite, and Will
 Clinger rewrote that test suite as necessary for R7RS.  There
 have been other contributors as well.
+
+The tests/scheme directory contain tests of R7RS standard libraries.
+The tests/r6rs directory contains tests of (r6rs *) libraries that
+emulate the R6RS standard libraries in R7RS systems; those tests are
+almost exactly the same as Racket's R6RS tests, but have been changed
+to use R7RS syntax; each file's version control history should start
+with an exact copy of the corresponding file in Racket's R6RS tests.
 
 ------------------------- An R7RS Test Suite -------------------------
 
@@ -90,6 +97,7 @@ The testall shell script runs all of the tests in Larceny.  See also
     testall-foment
     testall-gauche
     testall-kawa
+    testall-sagittarius
 
 Chicken version 4.9.0 does not complete the following tests:
 
