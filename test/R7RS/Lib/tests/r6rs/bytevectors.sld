@@ -1,9 +1,29 @@
-#!r6rs
-
-(library (tests r6rs bytevectors)
+(define-library (tests r6rs bytevectors)
   (export run-bytevectors-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme write)
+          (r6rs base)
+          (r6rs bytevectors)
+         ;(r6rs lists)
+         ;(r6rs arithmetic fixnums)
+          (tests scheme test))
+
+ (begin
+
+  ;; FIXME: replace these stubs by importing (r6rs arithmetic fixnums).
+
+  (define (fxand x y)
+    (cond ((or (zero? x) (zero? y))
+           0)
+          ((odd? x)
+           (+ (* 2 (fxand (quotient x 2) (quotient y 2)))
+              (if (odd? y) 1 0)))
+          (else
+           (* 2 (fxand (quotient x 2) (quotient y 2))))))
+
+ )
+
+ (begin
 
   (define (run-bytevectors-tests)
     
@@ -419,4 +439,4 @@
           12345)
 
     ;;
-    ))
+    )))

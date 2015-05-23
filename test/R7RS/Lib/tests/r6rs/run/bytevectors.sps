@@ -1,7 +1,6 @@
-#!r6rs
 (import (tests r6rs bytevectors)
-        (tests r6rs test)
-        (rnrs io simple))
+        (tests scheme test)
+        (scheme write))
 (display "Running tests for (rnrs bytevectors)\n")
 (run-bytevectors-tests)
 (report-test-results)

@@ -45,6 +45,10 @@ then re-export everything.  This extra level of indirection made
 the libraries easier to test in systems that already provide
 some or all of the R7RS standard libraries.
 
+The r6rs/*.sld libraries can be tested using slightly modified
+Racket tests found in Larceny's test/R7RS/Lib/tests/r6rs
+directory.  See test/R7RS/Lib/README.
+
 The r6rs/unicode-reference directory contains the R7RS reference
 implementation of Unicode 7.0 with minimal changes from the R6RS
 code.  This implementation is complete, for the benefit of R7RS

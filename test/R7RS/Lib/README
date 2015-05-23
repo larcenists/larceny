@@ -90,6 +90,9 @@ larceny@ccs.neu.edu.
 Hints on running the tests
 ======================================================================
 
+R7RS tests
+----------
+
 The testall shell script runs all of the tests in Larceny.  See also
 
     testall-chicken
@@ -131,4 +134,24 @@ Kawa 2.0 does not complete the following tests:
     read            StackOverflowError in IsEqual.apply
     repl            ArrayIndexOutOfBoundsException in PrettyWriter
     write           StackOverflowError in IsEqual.apply
+
+
+R6RS tests
+----------
+
+I don't have test scripts yet, but individual test programs for the
+(r6rs *) libraries can be run from inside the test/R7RS/Lib directory
+like this:
+
+    larceny --r7rs --path .:../../../tools/R6RS               \
+                   --program tests/r6rs/run/base.sps
+
+    larceny --r7rs --path .:../../../tools/R6RS               \
+                   --program tests/r6rs/run/bytevectors.sps
+
+    sagittarius -r7 -d -L . -L ../../../tools/R6RS/           \
+        tests/r6rs/run/base.sps
+
+    sagittarius -r7 -d -L . -L ../../../tools/R6RS/           \
+        tests/r6rs/run/bytevectors.sps
 
