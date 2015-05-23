@@ -10,7 +10,7 @@ List of R6RS standard libraries and their current status:
 
 (rnrs base)                     not yet implemented
 (rnrs unicode)                  fully implemented atop (scheme char)
-(rnrs bytevectors)              not yet implemented
+(rnrs bytevectors)              fully implemented atop (scheme base)
 (rnrs lists)                    not yet implemented
 (rnrs sorting)                  not yet implemented
 (rnrs control)                  not yet implemented
@@ -42,8 +42,8 @@ Implementation notes:
 The *.sld files in the rnrs directory consist of wrappers that
 import the corresponding *.sld files in the r6rs directory and
 then re-export everything.  This extra level of indirection made
-the libraries easier to test in Larceny and other systems that
-already provide some or all of the R7RS standard libraries.
+the libraries easier to test in systems that already provide
+some or all of the R7RS standard libraries.
 
 The r6rs/unicode-reference directory contains the R7RS reference
 implementation of Unicode 7.0 with minimal changes from the R6RS
