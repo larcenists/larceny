@@ -4,56 +4,57 @@ libraries for use by R7RS libraries and programs.
 Some of these implementations will be incomplete, but partial
 implementations may be more useful than none at all.
 
+To avoid conflict with R6RS libraries provided by Sagittarius,
+Larceny, and other implementations that support both R6RS and
+R7RS, these approximations to R6RS libraries are named (r6rs *)
+instead of (rnrs *).  The Wrappers/rnrs subdirectory defines
+the (rnrs *) libraries by importing the corresponding (r6rs *)
+library and re-exporting all of its exported identifiers.
+
 ****************************************************************
 
 List of R6RS standard libraries and their current status:
 
-(rnrs base)                     implemented with stub for identifier-syntax
-(rnrs unicode)                  fully implemented atop (scheme char)
-(rnrs bytevectors)              fully implemented atop (scheme base)
-(rnrs lists)                    not yet implemented
-(rnrs sorting)                  not yet implemented
-(rnrs control)                  not yet implemented
-(rnrs records syntactic)        will wait for R7RS (large)
-(rnrs records procedural)       will wait for R7RS (large)
-(rnrs records inspection)       will wait for R7RS (large)
-(rnrs exceptions)               not yet implemented
-(rnrs conditions)               won't be implemented
-(rnrs io ports)                 not yet implemented
-(rnrs io simple)                not yet implemented
-(rnrs files)                    fully implemented atop (scheme file)
-(rnrs programs)                 fully implemented atop (scheme process-context)
-(rnrs arithmetic fixnums)       not yet implemented
-(rnrs arithmetic flonums)       not yet implemented
-(rnrs arithmetic bitwise)       not yet implemented
-(rnrs syntax-case)              will wait for R7RS (large)
-(rnrs hashtables)               not yet implemented
-(rnrs enums)                    not yet implemented
-(rnrs)                          not yet implemented
-(rnrs eval)                     not yet implemented
-(rnrs mutable-pairs)            fully implemented atop (scheme base)
-(rnrs mutable-strings)          fully implemented atop (scheme base)
-(rnrs r5rs)                     not yet implemented
+(r6rs base)                     implemented with stub for identifier-syntax
+(r6rs unicode)                  fully implemented atop (scheme char)
+(r6rs bytevectors)              fully implemented atop (scheme base)
+(r6rs lists)                    not yet implemented
+(r6rs sorting)                  not yet implemented
+(r6rs control)                  not yet implemented
+(r6rs records syntactic)        will wait for R7RS (large)
+(r6rs records procedural)       will wait for R7RS (large)
+(r6rs records inspection)       will wait for R7RS (large)
+(r6rs exceptions)               not yet implemented
+(r6rs conditions)               won't be implemented
+(r6rs io ports)                 not yet implemented
+(r6rs io simple)                not yet implemented
+(r6rs files)                    fully implemented atop (scheme file)
+(r6rs programs)                 fully implemented atop (scheme process-context)
+(r6rs arithmetic fixnums)       not yet implemented
+(r6rs arithmetic flonums)       not yet implemented
+(r6rs arithmetic bitwise)       not yet implemented
+(r6rs syntax-case)              will wait for R7RS (large)
+(r6rs hashtables)               not yet implemented
+(r6rs enums)                    not yet implemented
+(r6rs)                          not yet implemented
+(r6rs eval)                     not yet implemented
+(r6rs mutable-pairs)            fully implemented atop (scheme base)
+(r6rs mutable-strings)          fully implemented atop (scheme base)
+(r6rs r5rs)                     not yet implemented
 
 ****************************************************************
 
 Implementation notes:
-
-The *.sld files in the rnrs directory consist of wrappers that
-import the corresponding *.sld files in the r6rs directory and
-then re-export everything.  This extra level of indirection made
-the libraries easier to test in systems that already provide
-some or all of the R7RS standard libraries.
 
 The r6rs/*.sld libraries can be tested using slightly modified
 Racket tests found in Larceny's test/R7RS/Lib/tests/r6rs
 directory.  See test/R7RS/Lib/README.
 
 The r6rs/unicode-reference directory contains the R7RS reference
-implementation of Unicode 7.0 with minimal changes from the R6RS
-code.  This implementation is complete, for the benefit of R7RS
-systems that don't provide (scheme char).  Most R7RS systems do
-provide (scheme char); refactoring the reference implementation
-to rely on (scheme char) would get rid of a lot of code and
-tables.
+implementation of Unicode 7.0 with minimal changes from its R6RS
+code.  This implementation is complete, so it will work in R7RS
+systems that can represent Unicode characters and strings but
+don't provide (scheme char).  Most R7RS systems do provide
+(scheme char); refactoring the reference implementation to rely
+on (scheme char) would get rid of a lot of code and tables.
 

@@ -7,12 +7,12 @@ Matthew Flatt wrote most of Racket's R6RS test suite, and Will
 Clinger rewrote that test suite as necessary for R7RS.  There
 have been other contributors as well.
 
-The tests/scheme directory contain tests of R7RS standard libraries.
+The tests/scheme directory contains tests of R7RS standard libraries.
 The tests/r6rs directory contains tests of (r6rs *) libraries that
 emulate the R6RS standard libraries in R7RS systems; those tests are
 almost exactly the same as Racket's R6RS tests, but have been changed
-to use R7RS syntax; each file's version control history should start
-with an exact copy of the corresponding file in Racket's R6RS tests.
+to use R7RS syntax; each file's version control history begins with
+an exact copy of the corresponding file in Racket's R6RS tests.
 
 ------------------------- An R7RS Test Suite -------------------------
 

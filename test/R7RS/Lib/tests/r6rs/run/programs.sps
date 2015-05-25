@@ -1,7 +1,6 @@
-#!r6rs
 (import (tests r6rs programs)
-        (tests r6rs test)
-        (rnrs io simple))
+        (tests scheme test)
+        (scheme write))
 (display "Running tests for (rnrs programs)\n")
 (run-programs-tests)
 (report-test-results)

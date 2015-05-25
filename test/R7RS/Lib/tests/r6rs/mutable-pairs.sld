@@ -1,11 +1,11 @@
-#!r6rs
-
-(library (tests r6rs mutable-pairs)
+(define-library (tests r6rs mutable-pairs)
   (export run-mutable-pairs-tests)
-  (import (rnrs)
-          (rnrs mutable-pairs)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (r6rs mutable-pairs)
+          (tests scheme test))
 
+ (begin
   (define (f) (list 'not-a-constant-list))
   (define (g) '(constant-list))
   
@@ -26,5 +26,5 @@
           '(#t #t #f))
       
     ;;
-    ))
+    )))
 

@@ -1,11 +1,11 @@
-#!r6rs
-
-(library (tests r6rs mutable-strings)
+(define-library (tests r6rs mutable-strings)
   (export run-mutable-strings-tests)
-  (import (rnrs)
-          (rnrs mutable-strings)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (r6rs mutable-strings)
+          (tests scheme test))
 
+ (begin
   (define (f) (make-string 3 #\*))
   (define (g) "***")
   
@@ -20,5 +20,5 @@
                         &assertion)
       
     ;;
-    ))
+    )))
 
