@@ -21,6 +21,7 @@
           &irritants
           &error
           &syntax
+          &violation
 
           condition-message
           condition-who
@@ -69,6 +70,7 @@
    (define &irritants '&irritants)
    (define &error '&error)
    (define &syntax '&syntax)
+   (define &violation '&violation)
 
    (define condition-message   error-object-message)
    (define condition-who       error-object-message)

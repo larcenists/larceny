@@ -34,7 +34,7 @@ List of R6RS standard libraries and their current status:
 (r6rs arithmetic flonums)       not yet implemented
 (r6rs arithmetic bitwise)       not yet implemented
 (r6rs syntax-case)              will wait for R7RS (large)
-(r6rs hashtables)               not yet implemented
+(r6rs hashtables)               fully implemented atop (srfi 69) or nada
 (r6rs enums)                    not yet implemented
 (r6rs)                          not yet implemented
 (r6rs eval)                     not yet implemented

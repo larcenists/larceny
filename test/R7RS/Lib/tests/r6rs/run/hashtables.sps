@@ -1,7 +1,6 @@
-#!r6rs
 (import (tests r6rs hashtables)
-        (tests r6rs test)
-        (rnrs io simple))
+        (tests scheme test)
+        (scheme write))
 (display "Running tests for (rnrs hashtables)\n")
 (run-hashtables-tests)
 (report-test-results)

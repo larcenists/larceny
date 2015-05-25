@@ -1,17 +1,29 @@
-#!r6rs
-
-(library (tests r6rs hashtables)
+(define-library (tests r6rs hashtables)
   (export run-hashtables-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (r6rs hashtables)
+          (tests scheme test))
 
+ (begin
+
+  ;; FIXME: replace this stub by importing (r6rs lists).
+
+  (define (exists p? things)
+    (cond ((null? things) #f)
+          ((p? (car things)) => values)
+          (else (exists p? (cdr things)))))
+
+ )
+
+ (begin
   (define-syntax test-ht
     (syntax-rules ()
-      [(_ mk key=? ([key val] ...)
+      ((_ mk key=? ((key val) ...)
           key/r orig-val new-val
           key/a a-val
           key/rm)
-       (let ([h mk])
+       (let ((h mk))
          (test (hashtable? h) #t)
          (test (hashtable-size h) 0)
          (test (hashtable-ref h key/r 'nope) 'nope)
@@ -30,15 +42,15 @@
          (test (hashtable-ref h key/r 'nope) orig-val)
          (test (hashtable-ref h key 'nope) val) ...
 
-         (let ([h1 (hashtable-copy h #t)]
-               [h1i (hashtable-copy h)])
+         (let ((h1 (hashtable-copy h #t))
+               (h1i (hashtable-copy h)))
            (test (hashtable-mutable? h) #t)
            (test (hashtable-mutable? h1) #t)
            (test (hashtable-mutable? h1i) #f)
            
            (test (vector-length (hashtable-keys h))
                  (hashtable-size h))
-           (test (vector-length (let-values ([(k e) (hashtable-entries h)])
+           (test (vector-length (let-values (((k e) (hashtable-entries h)))
                                   e))
                  (hashtable-size h))
            (test (exists (lambda (v) (key=? v key/r))
@@ -87,18 +99,18 @@
            (test/exn (hashtable-set! h1i key/r #f) &violation)
            (test/exn (hashtable-delete! h1i key/r) &violation)
            (test/exn (hashtable-update! h1i key/r (lambda (q) q) 'none) &violation)
-           (test/exn (hashtable-clear! h1i) &violation)))]))
+           (test/exn (hashtable-clear! h1i) &violation))))))
   
   ;; ----------------------------------------
 
   (define (run-hashtables-tests)
 
-    (let-values ([(kv vv)
+    (let-values (((kv vv)
                   (let ((h (make-eqv-hashtable)))
                     (hashtable-set! h 1 'one)
                     (hashtable-set! h 2 'two)
                     (hashtable-set! h 3 'three)
-                    (hashtable-entries h))])
+                    (hashtable-entries h))))
       (test/alts (cons kv vv)
                  '(#(1 2 3)  . #(one two three))
                  '(#(1 3 2)  . #(one three two))
@@ -108,31 +120,31 @@
                  '(#(3 2 1)  . #(three two one))))
     
     (test-ht (make-eq-hashtable) eq?
-             (['a 7] ['b "bee"]
-              [#t 8] [#f 9]
-              ['c 123456789101112])
+             (('a 7) ('b "bee")
+              (#t 8) (#f 9)
+              ('c 123456789101112))
              'b "bee" "bumble"
              'd 12
              'c)
     
     (test-ht (make-eqv-hashtable) eqv?
-             (['a 7] [#\b "bee"]
-              [#t 8] [0.0 85]
-              [123456789101112 'c])
+             (('a 7) (#\b "bee")
+              (#t 8) (0.0 85)
+              (123456789101112 'c))
              #\b "bee" "bumble"
              'd 12
              123456789101112)
 
-    (let ([val-of (lambda (a)
+    (let ((val-of (lambda (a)
                     (if (number? a) 
                         a 
-                        (string->number a)))])
+                        (string->number a)))))
       (test-ht (make-hashtable val-of
                                (lambda (a b)
                                  (= (val-of a) (val-of b)))) 
                equal?
-               ([1 'one]["2" 'two]
-                [3 'three]["4" 'four])
+               ((1 'one)("2" 'two)
+                (3 'three)("4" 'four))
                2 'two 'er
                5 'five
                4))
@@ -141,9 +153,9 @@
     (test (hashtable? (make-eqv-hashtable 10)) #t)
     (test (hashtable? (make-hashtable (lambda (x) 0) equal? 10)) #t)
     
-    (let ([zero (lambda (a) 0)]
-          [same? (lambda (a b) #t)])
-      (let ([ht (make-hashtable zero same?)])
+    (let ((zero (lambda (a) 0))
+          (same? (lambda (a b) #t)))
+      (let ((ht (make-hashtable zero same?)))
         (test (hashtable-equivalence-function ht) same?)
         (test (hashtable-hash-function ht) zero)))
 
@@ -159,5 +171,5 @@
     (test (symbol-hash 'a) (symbol-hash 'a))
 
     ;;
-    ))
+    )))
 

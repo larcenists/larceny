@@ -143,6 +143,9 @@ I don't have test scripts yet, but individual test programs for the
 (r6rs *) libraries can be run from inside the test/R7RS/Lib directory
 like this:
 
+    chibi-scheme -I . -I ../../../tools/R6RS/                 \
+        tests/r6rs/run/bytevectors.sps
+
     larceny --r7rs --path .:../../../tools/R6RS               \
                    --program tests/r6rs/run/base.sps
 
