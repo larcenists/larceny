@@ -1130,6 +1130,16 @@
 ;; It's essential to scan the second sob first, as we are not going to
 ;; damage it in the process.  (Hat tip: Sam Tobin-Hochstadt.)
 
+;; FIXME: that algorithm doesn't work (see Larceny ticket #721)
+;;
+;; Suppose S1 is {1, 2} and S2 is {2, 3}.
+;; After copying S2 into S1, S1 has become {1, 2, 3}.
+;; After computing the absolute value of the differences,
+;; S1 has become {1}.  The correct answer is {1, 3}.
+;;
+;; The buggy algorithm is commented out:
+
+#|
 (define (sob-xor! result sob1 sob2)
   (let ((sob1-ht (sob-hash-table sob1))
         (sob2-ht (sob-hash-table sob2))
@@ -1170,7 +1180,59 @@
   (check-bag bag2)
   (check-same-comparator bag1 bag2)
   (sob-xor! bag1 bag1 bag2))
+|#
 
+;; Here's a simpler algorithm.  As implemented here, it's probably
+;; faster than the buggy algorithm.  On the other hand, set-xor is
+;; now faster than set-xor!, which might surprise some people.
+
+(define (sob-xor sob1 sob2)
+  (let* ((sob1-ht (sob-hash-table sob1))
+         (sob2-ht (sob-hash-table sob2))
+         (result (sob-copy sob1))
+         (result-ht (sob-hash-table result)))
+    (hash-table-for-each
+      (lambda (key value2)
+        (let ((value1 (hash-table-ref/default sob1-ht key 0)))
+          (hash-table-set! result-ht key (abs (- value1 value2)))))
+      sob2-ht)
+    (sob-cleanup! result)))
+
+(define (set-xor set1 set2)
+  (check-set set1)
+  (check-set set2)
+  (check-same-comparator set1 set2)
+  (sob-xor set1 set2))
+
+(define (bag-xor bag1 bag2)
+  (check-bag bag1)
+  (check-bag bag2)
+  (check-same-comparator bag1 bag2)
+  (sob-xor bag1 bag2))
+
+(define (set-xor! set1 set2)
+  (check-set set1)
+  (check-set set2)
+  (check-same-comparator set1 set2)
+  (let* ((result (sob-xor set1 set2))
+         (ht1 (sob-hash-table set1)))
+    (for-each (lambda (key)
+                (hash-table-delete! ht1 key))
+              (hash-table-keys ht1))
+    (dyadic-sob-sum! set1 result (sob-empty-copy result))
+    set1))
+
+(define (bag-xor! bag1 bag2)
+  (check-bag bag1)
+  (check-bag bag2)
+  (check-same-comparator bag1 bag2)
+  (let* ((result (sob-xor bag1 bag2))
+         (ht1 (sob-hash-table bag1)))
+    (for-each (lambda (key)
+                (hash-table-delete! ht1 key))
+              (hash-table-keys ht1))
+    (dyadic-sob-sum! bag1 result (sob-empty-copy result))
+    bag1))
 
 ;;; A few bag-specific procedures
 

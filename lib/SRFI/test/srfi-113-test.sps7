@@ -972,7 +972,34 @@
   (test-assert (not (=? default-comparator a aa)))
 ) ; end comparators
 
-) ; end r7rs-sets
+) ; end sets
+
+
+(test-group "regression"
+(test-group "Larceny ticket #721"
+
+  (let* ((S1 (set default-comparator 1 2))
+         (S2 (set default-comparator 2 3))
+         (S (set-xor! S1 S2)))
+    (test-assert (set=? S (list->set default-comparator '(1 3)))))
+
+  (let* ((S0 (set default-comparator))
+         (S2 (set default-comparator 2 3))
+         (S (set-xor! S0 S2)))
+    (test-assert (set=? S (list->set default-comparator '(2 3)))))
+
+  (let* ((B1 (bag default-comparator 1 2))
+         (B2 (bag default-comparator 2 3))
+         (B (bag-xor! B1 B2)))
+    (test-assert (bag=? B (set->bag (list->set default-comparator '(1 3))))))
+
+  (let* ((B0 (bag default-comparator))
+         (B2 (bag default-comparator 2 3))
+         (B (bag-xor! B0 B2)))
+    (test-assert (bag=? B (set->bag (list->set default-comparator '(2 3))))))
+
+) ; end Larceny ticket #721
+) ; end regression
 
 (test-end)
 
