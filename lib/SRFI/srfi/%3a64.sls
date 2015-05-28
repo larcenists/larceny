@@ -67,6 +67,7 @@
 
   (import (rnrs base)
           (rnrs lists)
+          (rnrs exceptions)
           (except (rnrs io ports) output-port?)
           (rename (only (scheme base) output-port-open?)
                   (output-port-open? output-port?))
@@ -81,8 +82,10 @@
 ; The reference implementation makes heavy use of SRFI 0.
 
 (define-syntax cond-expand
-  (syntax-rules (else)
+  (syntax-rules (else or larceny)
    ((_ (else form ...))
+    (begin form ...))
+   ((_ ((or larceny implementation ...) form ...) clause ...)
     (begin form ...))
    ((_ (implementation ignored ...) clause ...)
     (cond-expand clause ...))))
@@ -646,7 +649,7 @@
 		  (ex <java.lang.Throwable>
 		      (test-result-set! (test-runner-current) 'actual-error ex)
 		      #f))))))
- (srfi-34
+ ((or larceny srfi-34) ; [Larceny]
   (define-syntax %test-evaluate-with-catch
     (syntax-rules ()
       ((%test-evaluate-with-catch test-expression)
@@ -728,6 +731,7 @@
 
 (cond-expand
  ((or kawa mzscheme)
+
   ;; Should be made to work for any Scheme with syntax-case
   ;; However, I haven't gotten the quoting working.  FIXME.
   (define-syntax test-end
@@ -835,6 +839,18 @@
        (%test-comp2 (%test-approximimate= error) expected expr))))))
 
 (cond-expand
+ ((or larceny) ; [Larceny]
+  (define-syntax %test-error
+    (syntax-rules ()
+      ((%test-error r etype expr)
+       (call-with-current-continuation
+        (lambda (k)
+          (%test-comp1body r
+                           (with-exception-handler
+                            (lambda (x) (k #t))
+                            (lambda ()
+                              (test-result-set! r 'actual-value expr)
+                              #f)))))))))
  (guile
   (define-syntax %test-error
     (syntax-rules ()
@@ -925,11 +941,11 @@
   (define-syntax test-error
     (syntax-rules ()
       ((test-error name etype expr)
-       (test-assert name (%test-error etype expr)))
+       (test-assert name (%test-error (test-runner-get) etype expr)))
       ((test-error etype expr)
-       (test-assert (%test-error etype expr)))
+       (test-assert (%test-error (test-runner-get) etype expr)))
       ((test-error expr)
-       (test-assert (%test-error #t expr)))))))
+       (test-assert (%test-error (test-runner-get) #t expr)))))))
 
 (define (test-apply first . rest)
   (if (test-runner? first)

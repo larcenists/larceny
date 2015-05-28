@@ -98,6 +98,7 @@ setup ()
   YPSILON=${YPSILON:-"ypsilon"}
   MOSH=${MOSH:-"mosh"}
   PETITE=${PETITE:-"petite"}
+  SAGITTARIUS=${SAGITTARIUS:-"sagittarius"}
   VICARE=${VICARE:-"vicare"}
  
 }
@@ -121,6 +122,7 @@ Usage: bench [-r runs] <system> <benchmark>
   petite           for Petite Chez
   plt              for PLT Scheme
   racket           for Racket
+  sagittarius      for Sagittarius
   vicare           for Vicare
   ypsilon          for Ypsilon
   all              for all of the above
@@ -303,6 +305,19 @@ petite_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Sagittarius
+
+sagittarius_comp ()
+{
+  :
+}
+
+sagittarius_exec ()
+{
+  time "${SAGITTARIUS}" -r6 -d -n "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Vicare
 
 vicare_comp ()
@@ -442,6 +457,16 @@ for system in $systems ; do
     petite) NAME='Petite'
             COMP=petite_comp
             EXEC=petite_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+  sagittarius) NAME='Sagittarius'
+            COMP=sagittarius_comp
+            EXEC=sagittarius_exec
             COMPOPTS=""
             EXTENSION="sch"
             EXTENSIONCOMP="sch"

@@ -113,8 +113,9 @@ setup ()
   GAUCHE=${GAUCHE:-"gosh"}
   HUSKI=${HUSKI:-"huski"}
   KAWA=${KAWA:-"kawa"}
-  PICRIN=${PICRIN:-"picrin"}
   MOSH=${MOSH:-"mosh"}
+  PICRIN=${PICRIN:-"picrin"}
+  SAGITTARIUS=${SAGITTARIUS:-"sagittarius"}
  
 }
 
@@ -140,6 +141,7 @@ Usage: bench [-r runs] <system> <benchmark>
   mosh             for Mosh
   picrin           for Picrin
   petit            for Petit Larceny
+  sagittarius      for Sagittarius
   all              for all of the above
 
 <benchmark> is the name of the benchmark(s) to run:
@@ -364,6 +366,19 @@ picrin_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Sagittarius
+
+sagittarius_comp ()
+{
+  :
+}
+
+sagittarius_exec ()
+{
+  time "${SAGITTARIUS}" -r7 -d -n "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 
 ## Arg processing...
 if [ "$#" -lt 2 ]; then
@@ -510,6 +525,16 @@ for system in $systems ; do
     picrin) NAME='Picrin'
             COMP=picrin_comp
             EXEC=picrin_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+  sagittarius) NAME='Sagittarius'
+            COMP=sagittarius_comp
+            EXEC=sagittarius_exec
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
