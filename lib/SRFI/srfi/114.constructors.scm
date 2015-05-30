@@ -72,7 +72,27 @@
       (real-comparison (imag-part a) (imag-part b))
       real-result)))
 
-(define (number-hash obj) (exact (abs obj)))
+;;; FIXME: this was broken in the reference implementation
+
+;(define (number-hash obj) (exact (abs obj)))
+
+(define (number-hash z)
+  (cond ((exact-integer? z)
+         (abs z))
+        ((and (exact? z) (real? z))
+         (+ (numerator z) (denominator z)))
+        ((not (real? z))
+         (+ (number-hash (real-part z))
+            (* 3 (number-hash (imag-part z)))))
+        ((nan? z)
+         10286062)
+        ((infinite? z)
+         (if (= z +inf.0)
+             11610730
+             4191912))
+        (else
+         (+ 861625
+            (number-hash (exact z))))))
 
 (define number-comparator
   (make-comparator number? = complex-comparison number-hash))
@@ -175,28 +195,33 @@
           (loop (cdr obj) sum))))))
 
 ;; Makes a comparison procedure that works vectorwise
+;;
+;; FIXME: the reference implementation blew up when comparing two empty vectors
+
 (define (make-vectorwise-comparison comparison length ref)
   (lambda (a b)
     (let* ((a-length (length a))
-           (b-length (length b))
-           (last-index (- a-length 1)))
+           (b-length (length b)))
       (cond
         ((< a-length b-length) -1)
         ((> a-length b-length) 1)
         (else
-          (call/cc
-            (lambda (return)
-              (let loop ((index 0))
-                (let ((result (comparison (ref a index) (ref b index))))
-                  (if (= result 0)
-                    (if (= index last-index) 0 (loop (+ index 1)))
-                    result))))))))))
+         (let loop ((index 0))
+           (if (= index a-length)
+               0
+               (let ((result (comparison (ref a index) (ref b index))))
+                 (if (= result 0)
+                     (loop (+ index 1))
+                     result)))))))))
 
 ;; Makes a hash function that works vectorwise
+;;
+;; FIXME: the reference implementation ignored element 0
+
 (define (make-vectorwise-hash hash length ref)
   (lambda (obj)
     (let loop ((index (- (length obj) 1)) (result 5381))
-      (if (<= index 0)
+      (if (< index 0)
         result
         (let* ((prod (modulo (* result 33) limit))
                (sum (modulo (+ prod (hash (ref obj index))) limit)))
