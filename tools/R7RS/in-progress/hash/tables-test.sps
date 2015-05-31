@@ -531,11 +531,11 @@
       '(0 1 2 3 -4 -5 -6 -1 -8 -9 -1 -11 -12 -13 -1))
 
 (test (list-sort < (hash-table-collect (lambda (key val) val)
-                                        ht-fixnum))
+                                       ht-fixnum))
       '(-13 -12 -11 -9 -8 -6 -5 -4 0 1 2 3))
 
 (test (list-sort < (hash-table-collect (lambda (key val) key)
-                                        ht-fixnum))
+                                       ht-fixnum))
       '(0 1 4 9 16 25 36 64 81 121 144 169))
 
 (test (hash-table-fold (lambda (key val acc)
@@ -563,19 +563,182 @@
       '(0 1 2 3 -4 -5 -6 -1 -8 -9 -1 -1 -1 -1 -1))
 
 ;;; Copying and conversion.
-;;; FIXME
+
+(test (hash-table=? number-comparator ht-fixnum (hash-table-copy ht-fixnum))
+      #t)
+
+(test (hash-table=? number-comparator ht-fixnum (hash-table-copy ht-fixnum #f))
+      #t)
+
+(test (hash-table=? number-comparator ht-fixnum (hash-table-copy ht-fixnum #t))
+      #t)
+
+(test (hash-table-mutable? (hash-table-copy ht-fixnum))
+      #f)
+
+(test (hash-table-mutable? (hash-table-copy ht-fixnum #f))
+      #f)
+
+(test (hash-table-mutable? (hash-table-copy ht-fixnum #t))
+      #t)
+
+(test (hash-table->alist ht-eq)
+      '())
+
+(test (list-sort (lambda (x y) (< (car x) (car y)))
+                 (hash-table->alist ht-fixnum))
+      '((0 . 0)
+        (1 . 1)
+        (4 . 2)
+        (9 . 3)
+        (16 . -4)
+        (25 . -5)
+        (36 . -6)
+        (64 . -8)
+        (81 . -9)
+        (121 . -11)
+        (144 . -12)
+        (169 . -13)))
 
 ;;; Hash tables as functions.
-;;; FIXME
+
+(test (let ((sqrt1 (hash-table-accessor ht-fixnum))
+            (sqrt2 (hash-table-accessor ht-fixnum (lambda () 'error)))
+            (sqrt3 (hash-table-accessor ht-fixnum (lambda () 'error) list)))
+        (list (sqrt1 25)
+              (sqrt2 27)
+              (sqrt2 36)
+              (sqrt3 40)
+              (sqrt3 64)))
+      '(-5 error -6 error (-8)))
+
+(test (let ((sqrt (hash-table-accessor/default ht-fixnum 'error)))
+        (list (sqrt 25)
+              (sqrt 27)
+              (sqrt 36)
+              (sqrt 40)
+              (sqrt 64)))
+      '(-5 error -6 error -8))
 
 ;;; Hash tables as sets.
-;;; FIXME
+
+(test (begin (hash-table-union! ht-fixnum ht-fixnum2)
+             (list-sort (lambda (x y) (< (car x) (car y)))
+                        (hash-table->alist ht-fixnum)))
+      '((0 . 0)
+        (1 . 1)
+        (4 . 2)
+        (9 . 3)
+        (16 . -4)
+        (25 . -5)
+        (36 . -6)
+        (49 . 7)
+        (64 . -8)
+        (81 . -9)
+        (121 . -11)
+        (144 . -12)
+        (169 . -13)))
+
+(test (let ((ht (hash-table-copy ht-fixnum2 #t)))
+        (hash-table-union! ht ht-fixnum)
+        (list-sort (lambda (x y) (< (car x) (car y)))
+                   (hash-table->alist ht)))
+      '((0 . 0)
+        (1 . 1)
+        (4 . 2)
+        (9 . 3)
+        (16 . 4)
+        (25 . 5)
+        (36 . 6)
+        (49 . 7)
+        (64 . 8)
+        (81 . 9)
+        (121 . -11)
+        (144 . -12)
+        (169 . -13)))
+
+(test (begin (hash-table-union! ht-eqv2 ht-fixnum)
+             (hash-table=? default-comparator ht-eqv2 ht-fixnum))
+      #t)
+
+(test (begin (hash-table-intersection! ht-eqv2 ht-fixnum)
+             (hash-table=? default-comparator ht-eqv2 ht-fixnum))
+      #t)
+
+(test (begin (hash-table-intersection! ht-eqv2 ht-eqv)
+             (hash-table-empty? ht-eqv2))
+      #t)
+
+(test (begin (hash-table-intersection! ht-fixnum ht-fixnum2)
+             (list-sort (lambda (x y) (< (car x) (car y)))
+                        (hash-table->alist ht-fixnum)))
+      '((0 . 0)
+        (1 . 1)
+        (4 . 2)
+        (9 . 3)
+        (16 . -4)
+        (25 . -5)
+        (36 . -6)
+        (49 . 7)
+        (64 . -8)
+        (81 . -9)))
+
+(test (begin (hash-table-intersection! ht-fixnum
+                                       (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
+                                                          number-comparator))
+             (list-sort (lambda (x y) (< (car x) (car y)))
+                        (hash-table->alist ht-fixnum)))
+      '((4 . 2)
+        (25 . -5)))
+
+(test (let ((ht (hash-table-copy ht-fixnum2 #t)))
+        (hash-table-difference! ht
+                                (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
+                                                   number-comparator))
+        (list-sort (lambda (x y) (< (car x) (car y)))
+                   (hash-table->alist ht)))
+      '((0 . 0)
+        (1 . 1)
+        (9 . 3)
+        (16 . 4)
+        (36 . 6)
+        (49 . 7)
+        (64 . 8)
+        (81 . 9)))
+
+
+
+
+#|
+
+;;; FIXME: the specified behavior of hash-table-xor! does not result
+;;; in anything resembling exclusive or.  Suppose, for example, that
+;;; ht1 is empty and ht2 contains exactly one entry, mapping x to y.
+;;; The spec says that association is first added to ht1; afterwards
+;;; ht1 and ht2 contain exactly the same associations.  The spec says
+;;; the next step is to delete the entries of ht1 whose keys are
+;;; present in ht2; that will delete all entries from ht1, leaving
+;;; ht1 empty as before.
+
+(define (hash-table-xor! ht1 ht2)
+  'FIXME)
 
 ;;; Exceptions.
-;;; FIXME
+
+(define (hash-table-key-not-found? obj)
+  (and (error-object? obj)
+       (string=? (error-object-message obj)
+                 %not-found-message)
+       (memq %not-found-irritant
+             (error-object-irritants obj))
+       #t))
+
+
 
 ;;; Bimaps.
 ;;; FIXME
+
+|#
 
 (displayln "Done.")
 

@@ -523,7 +523,7 @@
   (apply hashtable-copy ht rest))
 
 (define (hash-table->alist ht)
-  (hash-table-collect cons))
+  (hash-table-collect cons ht))
 
 ;;; Hash tables as functions.
 
