@@ -18,7 +18,7 @@ List of R6RS standard libraries and their current status:
 (r6rs base)                     implemented with stub for identifier-syntax
 (r6rs unicode)                  fully implemented atop (scheme char)
 (r6rs bytevectors)              fully implemented atop (scheme base)
-(r6rs lists)                    not yet implemented
+(r6rs lists)                    fully implemented atop (scheme base)
 (r6rs sorting)                  not yet implemented
 (r6rs control)                  not yet implemented
 (r6rs records syntactic)        will wait for R7RS (large)
