@@ -1,10 +1,12 @@
-#!r6rs
-
-(library (tests r6rs control)
+(define-library (tests r6rs control)
   (export run-control-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme write)
+          (r6rs base)
+          (r6rs control)
+          (tests scheme test))
 
+ (begin
   (define (run-control-tests)
 
     (test (when (> 3 2) 'greater) 'greater)
@@ -24,13 +26,13 @@
                 ((null? x) sum)))
           25)
 
-    (let ([foo
+    (let ((foo
            (case-lambda 
             (() 'zero)
             ((x) (list 'one x))
             ((x y) (list 'two x y))
             ((a b c d . e) (list 'four a b c d e))
-            (rest (list 'rest rest)))])
+            (rest (list 'rest rest)))))
 
       (test (foo) 'zero)
       (test (foo 1) '(one 1))
@@ -39,5 +41,4 @@
       (test (foo 1 2 3 4) '(four 1 2 3 4 ())))
       
     ;;
-    ))
-
+    )))

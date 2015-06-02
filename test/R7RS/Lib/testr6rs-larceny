@@ -13,6 +13,8 @@ LARCENY=${LARCENY:-"../../../larceny"}
 TESTS="                            \
     base.sps                       \
     bytevectors.sps                \
+    control.sps                    \
+    lists.sps                      \
     mutable-pairs.sps              \
     mutable-strings.sps            \
     programs.sps                   \

@@ -1,10 +1,12 @@
-#!r6rs
-
-(library (tests r6rs lists)
+(define-library (tests r6rs lists)
   (export run-lists-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme write)
+          (r6rs base)
+          (r6rs lists)
+          (tests scheme test))
 
+ (begin
   (define (run-lists-tests)
     
     ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -89,11 +91,11 @@
     (test/unspec (memq 101 '(100 101 102)))
     (test (memv 101 '(100 101 102)) '(101 102))
 
-    (let ([d '((3 a) (1 b) (4 c))])
+    (let ((d '((3 a) (1 b) (4 c))))
       (test (assp even? d) '(4 c))
       (test (assp odd? d) '(3 a)))
 
-    (let ([e '((a 1) (b 2) (c 3))])
+    (let ((e '((a 1) (b 2) (c 3))))
       (test (assq 'a e)      '(a 1))
       (test (assq 'b e)      '(b 2))
       (test (assq 'd e)      #f))
@@ -151,4 +153,4 @@
     (test (fold-right + 0 '(1 2 3) '(4 5 6)) 21)
 
     ;;
-    ))
+    )))
