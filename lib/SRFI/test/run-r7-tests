@@ -3,6 +3,7 @@
 LARCENY=${LARCENY:-"../../../larceny"}
 
 
+echo srfi-0-test; ${LARCENY} --r7rs --program srfi-0-test.sps7; echo
 echo srfi-1-test; ${LARCENY} --r7rs --program srfi-1-test.sps7; echo
 echo srfi-2-test; ${LARCENY} --r7rs --program srfi-2-test.sps7; echo
 echo srfi-5-test; ${LARCENY} --r7rs --program srfi-5-test.sps7; echo

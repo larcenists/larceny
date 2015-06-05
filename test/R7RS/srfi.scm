@@ -49,7 +49,7 @@
         (scheme write)
         (scheme r5rs)
 
-        (except (srfi 1) assoc for-each map list-copy make-list member)
+        (srfi 1)
         (srfi 2)
         (except (srfi 5) let)
         (srfi 6)
@@ -115,8 +115,7 @@
 
 (display "All libraries loaded with these name conflicts:\n")
 (for-each (lambda (name) (display "    ") (write name) (newline))
-          '((assoc for-each map list-copy make-list member (srfi 1))
-            (let (srfi 5))
+          '((let (srfi 5))
             (string-copy string-copy! string-downcase string-upcase
              string-fill! string-for-each string-map string->list
              (srfi 13))
