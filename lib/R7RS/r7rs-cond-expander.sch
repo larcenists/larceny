@@ -80,7 +80,8 @@
   (define (complain)
     (assertion-violation 'cond-expand "malformed feature requirement" feature))
   (define (boolean x) (if x #t #f))
-  (cond ((symbol? feature)
+  (cond
+        ((symbol? feature)
          (case feature
           ((else)
            #t)
@@ -144,7 +145,16 @@
            (eq? (larceny:get-feature 'arch-endianness) 'little))
           (else
            (or (eq? feature (larceny:name-of-this-implementation))
-               (eq? feature (larceny:name-of-this-implementation-version))))))
+               (eq? feature (larceny:name-of-this-implementation-version))
+               (let ((s (symbol->string feature)))
+                 (and (< 5 (string-length s))
+                      (string-ci=? "srfi-" (substring s 0 5))
+                      (string->number (substring s 5 (string-length s)))
+                      (larceny:evaluate-feature
+                       (list 'library
+                             (list 'srfi
+                                   (string->number
+                                    (substring s 5 (string-length s))))))))))))
         ((pair? feature)
          (case (car feature)
           ((library)
