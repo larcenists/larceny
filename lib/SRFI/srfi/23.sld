@@ -8,7 +8,7 @@
 
 (define-library (srfi 23 error)
   (export error)
-  (import (srfi :23 error)))
+  (import (only (scheme base) error)))
 
 (define-library (srfi 23)
   (export error)

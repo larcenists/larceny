@@ -56,14 +56,13 @@
         (srfi 8)
         (srfi 9)
         (srfi 11)
-        (except (srfi 13)
-                string-copy string-copy! string-downcase string-upcase
-                string-fill! string-for-each string-map string->list)
+        (except (srfi 13) string-downcase string-upcase
+                          string-for-each string-map string-hash)
         (srfi 14)
         (srfi 16)
         (except (srfi 17) set!)
         (srfi 19)
-        (except (srfi 23) error)
+        (srfi 23)
         (srfi 25)
         (srfi 26)
         (srfi 27)
@@ -71,11 +70,11 @@
         (except (srfi 29) format)
         (srfi 31)
         (srfi 38)
-        (except (srfi 39) make-parameter parameterize)
+        (srfi 39)
         (srfi 41)
         (srfi 42)
         (except (srfi 43)
-                list->vector vector->list
+                list->vector
                 vector-copy vector-copy!
                 vector-for-each vector-map
                 vector-append vector-fill!)
@@ -94,7 +93,7 @@
         (except (srfi 71) let let* letrec)
         (srfi 74)
         (srfi 78)
-        (except (srfi 87) case)
+        (srfi 87)
         (srfi 95)
         (srfi 98)
         (srfi 99)
@@ -116,24 +115,21 @@
 (display "All libraries loaded with these name conflicts:\n")
 (for-each (lambda (name) (display "    ") (write name) (newline))
           '((let (srfi 5))
-            (string-copy string-copy! string-downcase string-upcase
-             string-fill! string-for-each string-map string->list
+            (string-downcase string-upcase string-for-each string-map
+             string-hash
              (srfi 13))
             (set! (srfi 17))
-            (error (srfi 23))
             (format (srfi 28 29))
-            (make-parameter parameterize (srfi 39))
-            (list->vector vector->list
+            (list->vector
              vector-copy vector-copy!
              vector-for-each vector-map
              vector-append vector-fill! (srfi 43))
             (cond (srfi 61))
             (equal? array? make-array array-rank array-ref array-set!
              (srfi 25 63))
-            (string-hash (srfi 13 69))
             (string-compare string-compare-ci (srfi 13 67))
+            (string-hash (srfi 69))
             (let let* letrec (srfi 71))
-            (case (srfi 87))
             (cons list make-list pair? null? list? car cdr
              caar cadr cdar cddr
              caaar caadr caddr cadar cdaar cdadr cdddr cddar                

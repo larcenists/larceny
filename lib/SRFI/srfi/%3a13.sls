@@ -7,6 +7,11 @@
 ;;;     (rnrs base): string->list, string-copy, string-for-each
 ;;;     (rnrs unicode): string-upcase, string-downcase, string-titlecase
 ;;;     (rnrs mutable-strings): string-fill!
+;;;     (rnrs hashtables): string-hash
+;;;     (scheme base): string-downcase, string-upcase, string-for-each,
+;;;                    string-map
+;;; 
+;;; Definition of string-hash is commented out.
 ;;;
 ;;; Copyright (c) 1988-1994 Massachusetts Institute of Technology.
 ;;; Copyright (c) 1998, 1999, 2000 Olin Shivers. All rights reserved.
@@ -79,6 +84,8 @@
           (rnrs control)
           (only (rnrs arithmetic bitwise) bitwise-and)
           (rnrs r5rs)
+          (only (scheme base)
+                string-copy string-copy! string-fill! string->list)
           (srfi :8 receive)
           (srfi :14 char-sets)
           (larceny shivers-syntax))
@@ -315,6 +322,7 @@
   (if (and (zero? start) (= end (string-length s))) s
       (substring s start end)))
 
+#;
 (define (string-copy s . maybe-start+end)
   (let-string-start+end (start end) string-copy s maybe-start+end
     (substring s start end)))
@@ -1346,6 +1354,7 @@
 ;;; string-copy! to tstart from [fstart fend]
 ;;; 	Guaranteed to work, even if s1 eq s2.
 
+#;
 (define (string-fill! s char . maybe-start+end)
   (check-arg char? char string-fill!)
   (let-string-start+end (start end) string-fill! s maybe-start+end
@@ -1353,6 +1362,7 @@
 	((< i start))
       (string-set! s i char))))
 
+#;
 (define (string-copy! to tstart from . maybe-fstart+fend)
   (let-string-start+end (fstart fend) string-copy! from maybe-fstart+fend
     (check-arg integer? tstart string-copy!)
@@ -1636,6 +1646,7 @@
 ;(define (string->list s . maybe-start+end)
 ;  (apply string-fold-right cons '() s maybe-start+end))
 
+#;
 (define (string->list s . maybe-start+end)
   (let-string-start+end (start end) string->list s maybe-start+end
     (do ((i (- end 1) (- i 1))
