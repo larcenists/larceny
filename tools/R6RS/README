@@ -24,7 +24,7 @@ List of R6RS standard libraries and their current status:
 (r6rs records syntactic)        will wait for R7RS (large)
 (r6rs records procedural)       will wait for R7RS (large)
 (r6rs records inspection)       will wait for R7RS (large)
-(r6rs exceptions)               not yet implemented
+(r6rs exceptions)               fully implemented atop (scheme base)
 (r6rs conditions)               won't be implemented
 (r6rs io ports)                 not yet implemented
 (r6rs io simple)                not yet implemented
