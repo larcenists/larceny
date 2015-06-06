@@ -85,7 +85,8 @@
         (srfi 59)
         (srfi 60)
         (except (srfi 61) cond)
-        (except (srfi 63) equal? array? make-array array-rank array-ref array-set!)
+        (except (srfi 63)
+                equal? array? make-array array-rank array-ref array-set!)
         (srfi 64)
         (srfi 66)
         (except (srfi 67) string-compare string-compare-ci)
@@ -97,7 +98,8 @@
         (srfi 95)
         (srfi 98)
         (srfi 99)
-        (except (srfi 101) cons list make-list pair? null? list? car cdr
+        (except (srfi 101)
+                cons list make-list pair? null? list? car cdr
                 caar cadr cdar cddr
                 caaar caadr caddr cadar cdaar cdadr cdddr cddar                
                 caaaar caaadr caaddr caadar cadaar cadadr cadddr caddar
@@ -107,7 +109,8 @@
         (srfi 111)
         (srfi 112)
         (srfi 113)
-        (except (srfi 114) if3 if=? if<? if>? if<=? if>=? if-not=? =? <? >? <=? >=?)
+        (except (srfi 114)
+                if3 if=? if<? if>? if<=? if>=? if-not=? =? <? >? <=? >=?)
         (srfi 115)
         (srfi 116)
         )

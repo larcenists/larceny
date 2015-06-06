@@ -398,6 +398,8 @@ SRFI libraries:
     (srfi 27 random-bits)                  ; sources of random bits
     (srfi 28 basic-format-strings)         ; basic format strings
     (srfi 29 localization)                 ; localization
+    (srfi 31 rec)                          ; `rec` syntax
+    (srfi 37)                              ; program argument processor
     (srfi 38 with-shared-structure)        ; i/o for data with shared structure
     (srfi 39 parameters)                   ; parameter objects
     (srfi 41 streams)                      ; streams
@@ -442,14 +444,19 @@ in the list above.
 
 SRFI libraries that are autoloadable but deprecated in Larceny,
 usually because they have been superseded in whole or in part by
-R6RS syntax or libraries:
+R7RS or R6RS libraries or syntax (shown in parentheses):
 
-    (srfi 60 integer-bits)                 ; integers as bits
-    (srfi 66 octet-vectors)                ; octet vectors
-    (srfi 69 basic-hash-tables)            ; basic hash tables
+    (srfi 0)                               ; cond-expand (scheme base)
+    (srfi 30)                              ; nested multi-line comments (#| |#)
+    (srfi 34)                              ; exception handling (scheme base)
+    (srfi 55)                              ; require-extension (import)
+    (srfi 60 integer-bits)                 ; see (rnrs arithmetic bitwise)
+    (srfi 62)                              ; S-expression comments ( #; )
+    (srfi 66 octet-vectors)                ; octet vectors (scheme base)
+    (srfi 69 basic-hash-tables)            ; hash tables (rnrs hashtables)
     (srfi 71 let)                          ; extensions of let, let*, letrec
-    (srfi 74 blobs)                        ; octet-addressed binary blocks
-    (srfi 95 sorting-and-merging)          ; sorting and merging
+    (srfi 74 blobs)                        ; see (rnrs bytevectors)
+    (srfi 95 sorting-and-merging)          ; sorting and merging (rnrs sorting)
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
 because they have been superseded by the R7RS and SRFI 99 record

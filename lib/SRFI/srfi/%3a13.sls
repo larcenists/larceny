@@ -11,8 +11,6 @@
 ;;;     (scheme base): string-downcase, string-upcase, string-for-each,
 ;;;                    string-map
 ;;; 
-;;; Definition of string-hash is commented out.
-;;;
 ;;; Copyright (c) 1988-1994 Massachusetts Institute of Technology.
 ;;; Copyright (c) 1998, 1999, 2000 Olin Shivers. All rights reserved.
 ;;;   The details of the copyrights appear at the end of the file. Short
