@@ -14,6 +14,9 @@ TESTS="                            \
     base.sps                       \
     bytevectors.sps                \
     control.sps                    \
+    eval.sps                       \
+    exceptions.sps                 \
+    io/simple.sps                  \
     lists.sps                      \
     mutable-pairs.sps              \
     mutable-strings.sps            \

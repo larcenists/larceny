@@ -1,10 +1,13 @@
-#!r6rs
-
-(library (tests r6rs io simple)
+(define-library (tests r6rs io simple)
   (export run-io-simple-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme write)
+          (scheme file)
+          (r6rs base)
+          (r6rs io simple)
+          (tests scheme test))
 
+ (begin
   (define (run-io-simple-tests)
 
     (test/unspec
@@ -43,14 +46,14 @@
 
     (test/unspec (delete-file "io-tmp2"))
 
-    (let ([p (open-output-file "io-tmp2")])
+    (let ((p (open-output-file "io-tmp2")))
       (test (output-port? p) #t)
       (test (binary-port? p) #f)
       (test (textual-port? p) #t)
       (test/unspec (write-char #\! p))
       (test/unspec (close-output-port p)))
 
-    (let ([p (open-input-file "io-tmp2")])
+    (let ((p (open-input-file "io-tmp2")))
       (test (input-port? p) #t)
       (test (binary-port? p) #f)
       (test (textual-port? p) #t)
@@ -95,4 +98,4 @@
     (test (textual-port? (current-error-port)) #t)
 
     ;;
-    ))
+    )))

@@ -1,11 +1,12 @@
-#!r6rs
-
-(library (tests r6rs eval)
+(define-library (tests r6rs eval)
   (export run-eval-tests)
-  (import (rnrs)
-          (rnrs eval)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme write)
+          (r6rs base)
+          (r6rs eval)
+          (tests scheme test))
 
+ (begin
   (define (run-eval-tests)
 
     (test (eval '(let ((x 3)) x)
@@ -19,10 +20,12 @@
                      eval:)))
           2)
 
+#|
+
     ;; Check that `eval' at compile-time produces values (such as conditions)
     ;; that make sense at compile time (i.e., no phase crossing):
     (test (eval
-           '(let-syntax ([x (lambda (stx)
+           '(let-syntax ((x (lambda (stx)
                               (datum->syntax
                                #'here
                                (condition-message
@@ -34,11 +37,13 @@
                                       (eval '(assertion-violation 'exptime "ok")
                                             (environment
                                              '(rnrs)
-                                             '(rnrs eval))))))))))])
+                                             '(rnrs eval))))))))))))
               x)
            (environment '(rnrs) '(for (rnrs eval) expand)))
           "ok")
 
+|#
+
     ;;
-    ))
+    )))
 

@@ -1,47 +1,39 @@
-#!r6rs
-
-(library (tests r6rs exceptions)
+(define-library (tests r6rs exceptions)
   (export run-exceptions-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (except (scheme base) error bytevector-copy!)
+          (scheme read)
+          (scheme write)
+          (scheme file)
+          (r6rs base)
+          (r6rs exceptions)
+          (tests scheme test))
 
+ (begin
   (define (run-exceptions-tests)
+
+    (define (make-error-object msg)
+      (guard (exn
+              (else exn))
+       (error msg)))
+
+    (define an-error-object
+      (make-error-object "I am an error"))
+
+    (define another-error-object
+      (make-error-object "should be a number"))
 
     (test/output
      (guard (con
-             ((error? con)
-              (if (message-condition? con)
-                  (display (condition-message con))
-                  (display "an error has occurred"))
-              'error)
-             ((violation? con)
-              (if (message-condition? con)
-                  (display (condition-message con))
-                  (display "the program has a bug"))
-              'violation))
-            (raise
-             (condition
-              (make-error)
-              (make-message-condition "I am an error"))))
+             ((error-object? con)
+              (display (error-object-message con))
+              'error))
+            (raise an-error-object))
      'error
      "I am an error")
 
-    (test/exn
-     (guard (con
-             ((error? con)
-              (if (message-condition? con)
-                  (display (condition-message con))
-                  (display "an error has occurred"))
-              'error))
-            (raise
-             (condition
-              (make-violation)
-              (make-message-condition "I am an error"))))
-     &violation)
-
     (test/output
      (guard (con
-             ((error? con)
+             ((file-error? con)
               (display "error opening file")
               #f))
             (call-with-input-file "foo-must-not-exist.scm" read))
@@ -52,19 +44,13 @@
      (with-exception-handler
       (lambda (con)
         (cond
-         ((not (warning? con))
-          (raise con))
-         ((message-condition? con)
-          (display (condition-message con)))
+         ((error-object? con)
+          (display (error-object-message con)))
          (else
           (display "a warning has been issued")))
         42)
       (lambda ()
-        (+ (raise-continuable
-            (condition
-             (make-warning)
-             (make-message-condition
-              "should be a number")))
+        (+ (raise-continuable another-error-object)
            23)))
      65
      "should be a number")
@@ -74,10 +60,10 @@
               &non-continuable)
 
     
-    (let ([v '()])
-      (test (guard (exn [(equal? exn 5) 'five])
+    (let ((v '()))
+      (test (guard (exn ((equal? exn 5) 'five))
                    ;; `guard' should jump back in before re-raising
-                   (guard (exn [(equal? exn 6) 'six])
+                   (guard (exn ((equal? exn 6) 'six))
                           (dynamic-wind
                               (lambda () (set! v (cons 'in v)))
                               (lambda () (raise 5))
@@ -88,5 +74,5 @@
 
       
     ;;
-    ))
+    )))
 
