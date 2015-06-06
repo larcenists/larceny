@@ -40,7 +40,7 @@ List of R6RS standard libraries and their current status:
 (r6rs eval)                     fully implemented atop (scheme eval)
 (r6rs mutable-pairs)            fully implemented atop (scheme base)
 (r6rs mutable-strings)          fully implemented atop (scheme base)
-(r6rs r5rs)                     not yet implemented
+(r6rs r5rs)                     fully implemented atop (scheme r5rs)
 
 ****************************************************************
 
