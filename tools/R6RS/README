@@ -24,10 +24,10 @@ List of R6RS standard libraries and their current status:
 (r6rs records syntactic)        will wait for R7RS (large)
 (r6rs records procedural)       will wait for R7RS (large)
 (r6rs records inspection)       will wait for R7RS (large)
-(r6rs exceptions)               not yet implemented
+(r6rs exceptions)               fully implemented atop (scheme base)
 (r6rs conditions)               won't be implemented
 (r6rs io ports)                 not yet implemented
-(r6rs io simple)                not yet implemented
+(r6rs io simple)                fully implemented atop (scheme *)
 (r6rs files)                    fully implemented atop (scheme file)
 (r6rs programs)                 fully implemented atop (scheme process-context)
 (r6rs arithmetic fixnums)       not yet implemented
@@ -37,7 +37,7 @@ List of R6RS standard libraries and their current status:
 (r6rs hashtables)               fully implemented atop (srfi 69) or nada
 (r6rs enums)                    not yet implemented
 (r6rs)                          not yet implemented
-(r6rs eval)                     not yet implemented
+(r6rs eval)                     fully implemented atop (scheme eval)
 (r6rs mutable-pairs)            fully implemented atop (scheme base)
 (r6rs mutable-strings)          fully implemented atop (scheme base)
 (r6rs r5rs)                     not yet implemented
