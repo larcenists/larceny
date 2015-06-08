@@ -1,10 +1,11 @@
-#!r6rs
-
-(library (tests r6rs enums)
+(define-library (tests r6rs enums)
   (export run-enums-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (r6rs enums)
+          (tests scheme test))
 
+ (begin
   ;; ----------------------------------------
 
   (define-enumeration color
@@ -101,5 +102,5 @@
           '(white maroon))
 
     ;;
-    ))
+    )))
 

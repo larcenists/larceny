@@ -10,5 +10,6 @@
    )
   (import
    (scheme base)
-   (r6rs lists))
+   (r6rs lists)
+   (r6rs sorting))
   (include "enums.body.scm"))

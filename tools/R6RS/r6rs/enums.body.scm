@@ -44,6 +44,20 @@
      (else
       (loop (cdr order) result)))))
 
+;;; Given a list of symbols, sorts it into some standard order.
+;;; The standard order doesn't matter, so long as the same standard
+;;; order is used whenever sets of symbols are compared.
+
+(define (sorted-symbols symbols)
+  (list-sort (lambda (sym1 sym2)
+               (string<? (symbol->string sym1)
+                         (symbol->string sym2)))
+             symbols))
+
+;;; Given two lists that have been sorted with respect to the same
+;;; total order, returns true if and only if the elements of the
+;;; first list are a subset of the elements of the second list.
+
 (define (sorted-subset? list1 list2)
   (let loop ((list1 list1)
              (list2 list2))
@@ -104,18 +118,26 @@
   (not (not (memq symbol (enum-set->list set)))))
 
 (define (enum-set-subset? set1 set2)
-  (let ((universe1 (enum-set->list (enum-set-universe set1)))
-        (universe2 (enum-set->list (enum-set-universe set2)))
-        (elements1 (enum-set->list set1))
-        (elements2 (enum-set->list set2)))
+  (let* ((universe1 (enum-set->list (enum-set-universe set1)))
+         (universe2 (enum-set->list (enum-set-universe set2)))
+         (elements1 (enum-set->list set1))
+         (elements2 (enum-set->list set2))
+         (universe1 (sorted-symbols universe1))
+         (universe2 (sorted-symbols universe2))
+         (elements1 (sorted-symbols elements1))
+         (elements2 (sorted-symbols elements2)))
     (and (sorted-subset? universe1 universe2)
          (sorted-subset? elements1 elements2))))
 
 (define (enum-set=? set1 set2)
-  (let ((universe1 (enum-set->list (enum-set-universe set1)))
-        (universe2 (enum-set->list (enum-set-universe set2)))
-        (elements1 (enum-set->list set1))
-        (elements2 (enum-set->list set2)))
+  (let* ((universe1 (enum-set->list (enum-set-universe set1)))
+         (universe2 (enum-set->list (enum-set-universe set2)))
+         (elements1 (enum-set->list set1))
+         (elements2 (enum-set->list set2))
+         (universe1 (sorted-symbols universe1))
+         (universe2 (sorted-symbols universe2))
+         (elements1 (sorted-symbols elements1))
+         (elements2 (sorted-symbols elements2)))
     (and (equal? universe1 universe2)
          (equal? elements1 elements2))))
 
@@ -181,6 +203,10 @@
               (assert (memq obj '(<symbol> ...))
                       "Symbol not in enumeration universe." obj '(<symbol> ...))
               obj))))
+
+       ;; FIXME: Larceny v0.98 doesn't support the R7RS optional ellipsis
+       ;; feature, so Will Clinger rewrote this into an equivalent macro.
+       #;
        (define-syntax <constructor-syntax>
          (syntax-rules ___ ()
            ((_ <element> ___)
@@ -188,4 +214,13 @@
               ;; Validate the elements.
               (<type-name> <element>)
               ___
-              (constructor '(<element> ___))))))))))
+              (constructor '(<element> ___))))))
+       (define-syntax <constructor-syntax>
+         (syntax-rules ()
+           ((_ <element> (... ...))
+            (begin
+              ;; Validate the elements.
+              (<type-name> <element>)
+              (... ...)
+              (constructor '(<element> (... ...)))))))
+       ))))

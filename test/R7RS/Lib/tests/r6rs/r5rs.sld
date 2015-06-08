@@ -1,12 +1,12 @@
-#!r6rs
-
-(library (tests r6rs r5rs)
+(define-library (tests r6rs r5rs)
   (export run-r5rs-tests)
-  (import (rnrs)
-          (rnrs r5rs)
-          (rnrs eval)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (scheme eval)
+          (r6rs r5rs)
+          (tests scheme test))
 
+ (begin
   ;; ----------------------------------------
 
   (define a-stream
@@ -170,12 +170,12 @@
 
     ;; ----------------------------------------
 
-    (test (eval '(cond [#t 1]) (null-environment 5)) 1)
-    (test (eval '(cond [#t => (lambda (x) x)]) (null-environment 5)) #t)
+    (test (eval '(cond (#t 1)) (null-environment 5)) 1)
+    (test (eval '(cond (#t => (lambda (x) x))) (null-environment 5)) #t)
 
 
     (test (eval '(cons 1 2) (scheme-report-environment 5)) '(1 . 2))
 
     ;;
-    ))
+    )))
 

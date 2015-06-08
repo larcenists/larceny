@@ -10,13 +10,13 @@
   (define (run-eval-tests)
 
     (test (eval '(let ((x 3)) x)
-                (environment '(rnrs)))
+                (environment '(r6rs base)))
           3)
 
     (test (eval
            '(eval:car (eval:cons 2 4))
            (environment
-            '(prefix (only (rnrs) car cdr cons null?)
+            '(prefix (only (r6rs base) car cdr cons null?)
                      eval:)))
           2)
 
