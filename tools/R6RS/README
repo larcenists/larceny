@@ -35,12 +35,12 @@ List of R6RS standard libraries and their current status:
 (r6rs arithmetic bitwise)       not yet implemented
 (r6rs syntax-case)              will wait for R7RS (large)
 (r6rs hashtables)               fully implemented atop (srfi 69) or nada
-(r6rs enums)                    not yet implemented
+(r6rs enums)                    fully implemented atop (scheme base)
 (r6rs)                          not yet implemented
 (r6rs eval)                     fully implemented atop (scheme eval)
 (r6rs mutable-pairs)            fully implemented atop (scheme base)
 (r6rs mutable-strings)          fully implemented atop (scheme base)
-(r6rs r5rs)                     not yet implemented
+(r6rs r5rs)                     fully implemented atop (scheme r5rs)
 
 ****************************************************************
 
