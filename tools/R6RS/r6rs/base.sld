@@ -91,14 +91,21 @@
    assertion-violation
    )
   
-  (import
-   (rename (scheme base)
-           (error r7rs:error))
-   (scheme cxr))
+  (cond-expand
+   ((and (or (library (rnrs base)) larceny) ; FIXME
+         (not (library (r6rs no-rnrs))))
+    (import (rnrs base)))
+   (else
+    (import
+     (rename (scheme base)
+             (error r7rs:error))
+     (scheme cxr))))
 
   ;; Stubs and workarounds.
 
   (cond-expand
+   ((and (or (library (rnrs base)) larceny) ; FIXME
+         (not (library (r6rs no-rnrs)))))
    ((library (scheme inexact))
     (import (scheme inexact)))
    (else
@@ -116,6 +123,8 @@
            (define (nan? z) #f))))
 
   (cond-expand
+   ((and (or (library (rnrs base)) larceny) ; FIXME
+         (not (library (r6rs no-rnrs)))))
    ((library (scheme complex))
     (import (scheme complex)))
    (else
@@ -129,48 +138,52 @@
                  z
                  (unimplemented 'real-part))))))
 
-  (begin
+  (cond-expand
+   ((and (or (library (rnrs base)) larceny) ; FIXME
+         (not (library (r6rs no-rnrs)))))
+   (else
+    (begin
 
-   (define (unimplemented name)
-     (error name "R6RS procedure is not implemented"))
+     (define (unimplemented name)
+       (error name "R6RS procedure is not implemented"))
 
-   ;; If its arguments are not acceptable to the R6RS error procedure,
-   ;; then this version of error just calls the R7RS procedure.
-   ;; Otherwise it repackages its arguments in a form that should
-   ;; make sense to the R7RS error procedure.
+     ;; If its arguments are not acceptable to the R6RS error procedure,
+     ;; then this version of error just calls the R7RS procedure.
+     ;; Otherwise it repackages its arguments in a form that should
+     ;; make sense to the R7RS error procedure.
 
-   (define (error who . rest)
-     (if (null? rest)
-         (r7rs:error who)
-         (let ((msg (car rest))
-               (irritants (cdr rest)))
-           (cond ((not (string? msg))
-                  (apply r7rs:error who msg irritants))
-                 ((string? who)
-                  (apply r7rs:error (string-append who ": " msg) irritants))
-                 ((symbol? who)
-                  (apply error (symbol->string who) msg irritants))
-                 (else
-                  (apply r7rs:error msg irritants))))))
+     (define (error who . rest)
+       (if (null? rest)
+           (r7rs:error who)
+           (let ((msg (car rest))
+                 (irritants (cdr rest)))
+             (cond ((not (string? msg))
+                    (apply r7rs:error who msg irritants))
+                   ((string? who)
+                    (apply r7rs:error (string-append who ": " msg) irritants))
+                   ((symbol? who)
+                    (apply error (symbol->string who) msg irritants))
+                   (else
+                    (apply r7rs:error msg irritants))))))
 
-   (define (assertion-violation who msg . irritants)
-     (apply error who msg irritants))
+     (define (assertion-violation who msg . irritants)
+       (apply error who msg irritants))
 
-   ;; FIXME: just a stub
+     ;; FIXME: just a stub
 
-   (define-syntax identifier-syntax
-     (syntax-rules ()
-      ((_ . whatever)
-       (syntax-error "identifier-syntax is not implemented")))))
+     (define-syntax identifier-syntax
+       (syntax-rules ()
+        ((_ . whatever)
+         (syntax-error "identifier-syntax is not implemented")))))
 
-  (begin
+    (begin
 
-   (define-syntax assert
-     (syntax-rules ()
-       ((_ expression)
-        (or expression
-            (assertion-violation #f "assertion failed" 'expression))))))
+     (define-syntax assert
+       (syntax-rules ()
+        ((_ expression)
+         (or expression
+             (assertion-violation #f "assertion failed" 'expression))))))
 
-  (include "base.body.scm")
+    (include "base.body.scm")))
   
   ) ;; rnrs base

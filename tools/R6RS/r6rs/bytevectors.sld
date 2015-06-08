@@ -43,17 +43,27 @@
    string->utf8 string->utf16 string->utf32
    utf8->string utf16->string utf32->string)
 
-  (import
-   (except (scheme base) bytevector-copy!)
-   (scheme inexact))
+  (cond-expand
+   ((and (library (rnrs bytevectors))
+         (not (library (r6rs no-rnrs))))
+    (import (except (scheme base) bytevector-copy!)
+            (except (rnrs bytevectors) bytevector-copy!)
+            (rename (rnrs bytevectors)
+                    (bytevector-copy! r6rs:bytevector-copy!))))
+   (else
+    (import
+     (except (scheme base) bytevector-copy!)
+     (scheme inexact))))
 
-  (include "bytevectors.body.scm")
-
-  ;; FIXME
+  (cond-expand
+   ((and (library (rnrs bytevectors))
+         (not (library (r6rs no-rnrs)))))
+   (else
+    (include "bytevectors.body.scm")))
 
   (begin
 
-   (define bytevector-copy! r6rs:bytevector-copy!))
+   (define bytevector-copy! r6rs:bytevector-copy!)
 
-  ) ; rnrs bytevectors
+   )) ; rnrs bytevectors
 

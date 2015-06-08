@@ -38,6 +38,10 @@ src/Rts/fence-table.sx
 tablesLarceny
 dfaLarceny.sch
 parserLarceny.sch
+test/Benchmarking/R6RS/results.*
+test/Benchmarking/R6RS/Results
+test/Benchmarking/R6RS/outputs
+test/Benchmarking/R7RS/results.*
 test/Benchmarking/R7RS/Results
 test/Benchmarking/R7RS/outputs
 test/R7RS/Lib/temp.scm

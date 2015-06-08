@@ -8,8 +8,16 @@
    enum-set-projection
    define-enumeration
    )
-  (import
-   (scheme base)
-   (r6rs lists)
-   (r6rs sorting))
-  (include "enums.body.scm"))
+
+  (cond-expand
+
+   ((and (library (rnrs enums))
+         (not (library (r6rs no-rnrs))))
+    (import (rnrs enums)))
+
+   (else
+    (import
+     (scheme base)
+     (r6rs lists)
+     (r6rs sorting))
+    (include "enums.body.scm"))))

@@ -9,7 +9,15 @@
    assp assoc assv assq
    cons*
    )
-  (import
-   (scheme base)
-   (scheme case-lambda))
-  (include "lists.body.scm"))
+
+  (cond-expand
+
+   ((and (library (rnrs lists))
+         (not (library (r6rs no-rnrs))))
+    (import (rnrs lists)))
+
+   (else
+    (import
+     (scheme base)
+     (scheme case-lambda))
+    (include "lists.body.scm"))))
