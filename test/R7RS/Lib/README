@@ -109,7 +109,7 @@ Chicken version 4.9.0 does not complete the following tests:
     inexact         runs out of heap memory
     read            equal? fails on circular structures
 
-Chibi version FIXME does not complete the following tests:
+Chibi version 0.7.3 does not complete the following tests:
 
     base            apparently does not implement datum labels
     complex         apparently does not implement polar syntax
@@ -127,7 +127,7 @@ Gauche version 0.9.4 does not complete the following tests:
 
 Kawa 2.0 does not complete the following tests:
 
-    base            appears to enter an infinite loop
+    base            appears to enter an infinite loop, probably in equal?
     eval            ArrayIndexOutOfBoundsException in PrettyWriter
     file            ArrayIndexOutOfBoundsException in PrettyWriter
     load            ArrayIndexOutOfBoundsException in PrettyWriter

@@ -1,0 +1,70 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+################################################################
+#
+#    Converts (r6rs *) libraries into Snow packages.
+#
+#    See also upload-snow.
+#
+################################################################
+
+VERSION=0.0.1
+DOCUMENTATION=r6rsDoc.html
+LICENSE=mit
+
+WILL="William D Cinger <will@ccs.neu.edu>"
+TAYLAN="Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>"
+
+make_snowball ()
+{
+  echo $2
+  echo   snow-chibi package --version=${VERSION} \
+      --doc=${DOCUMENTATION} \
+      --description="$1" \
+      --authors="$3" \
+      --maintainers="${WILL}" \
+      $2
+
+  snow-chibi package --version=${VERSION} \
+      --doc=${DOCUMENTATION} \
+      --description="$1" \
+      --authors="$3" \
+      --maintainers="${WILL}" \
+      $2
+
+}
+
+make_snowball 'Port of (rnrs base) to R7RS.' \
+    r6rs/base.sld "${WILL}"
+make_snowball 'Port of (rnrs bytevectors) to R7RS.' \
+    r6rs/bytevectors.sld "${WILL}"
+make_snowball 'Port of (rnrs control) to R7RS.' \
+    r6rs/control.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs enums) to R7RS.' \
+    r6rs/enums.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs eval) to R7RS.' \
+    r6rs/eval.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs exceptions) to R7RS.' \
+    r6rs/exceptions.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs files) to R7RS.' \
+    r6rs/files.sld "${WILL}"
+make_snowball 'Port of (rnrs hashtables) to R7RS.' \
+    r6rs/hashtables.sld "${WILL}"
+make_snowball 'Port of (rnrs io simple) to R7RS.' \
+    r6rs/io/simple.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs lists) to R7RS.' \
+    r6rs/lists.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs mutable-pairs) to R7RS.' \
+    r6rs/mutable-pairs.sld "${WILL}"
+make_snowball 'Port of (rnrs mutable-strings) to R7RS.' \
+    r6rs/mutable-strings.sld "${WILL}"
+make_snowball 'Port of (rnrs programs) to R7RS.' \
+    r6rs/programs.sld "${WILL}"
+make_snowball 'Port of (rnrs r5rs) to R7RS.' \
+    r6rs/r5rs.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs sorting) to R7RS.' \
+    r6rs/sorting.sld "${TAYLAN}"
+make_snowball 'Port of (rnrs unicode) to R7RS.' \
+    r6rs/unicode.sld "${WILL}"

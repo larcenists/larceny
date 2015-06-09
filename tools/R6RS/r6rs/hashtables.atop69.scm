@@ -21,7 +21,7 @@
 ;;; behavior has undoubtedly found its way into many implementations
 ;;; of SRFI 69.
 ;;;
-;;; A unary hash function passed to R7RS make-hashtable is therefore
+;;; A unary hash function passed to R6RS make-hashtable is therefore
 ;;; unlikely to work when passed to SRFI 69 make-hash-table.  We need
 ;;; to convert the unary hash function so it will accept a second
 ;;; optional argument, and we also need to arrange for the original
