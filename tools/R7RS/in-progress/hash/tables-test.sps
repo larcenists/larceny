@@ -683,18 +683,20 @@
         (64 . -8)
         (81 . -9)))
 
-(test (begin (hash-table-intersection! ht-fixnum
-                                       (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
-                                                          number-comparator))
+(test (begin (hash-table-intersection!
+              ht-fixnum
+              (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
+                                 number-comparator))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist ht-fixnum)))
       '((4 . 2)
         (25 . -5)))
 
 (test (let ((ht (hash-table-copy ht-fixnum2 #t)))
-        (hash-table-difference! ht
-                                (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
-                                                   number-comparator))
+        (hash-table-difference!
+         ht
+         (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
+                            number-comparator))
         (list-sort (lambda (x y) (< (car x) (car y)))
                    (hash-table->alist ht)))
       '((0 . 0)
@@ -705,9 +707,6 @@
         (49 . 7)
         (64 . 8)
         (81 . 9)))
-
-
-
 
 #|
 
@@ -720,25 +719,21 @@
 ;;; present in ht2; that will delete all entries from ht1, leaving
 ;;; ht1 empty as before.
 
-(define (hash-table-xor! ht1 ht2)
-  'FIXME)
+|#
 
-;;; Exceptions.
+(test (guard (exn
+              ((hash-table-key-not-found? exn)
+               'key-not-found)
+              (else
+               'whatever))
+       (hash-table-ref ht-default "this key won't be present"))
+      'key-not-found)
 
-(define (hash-table-key-not-found? obj)
-  (and (error-object? obj)
-       (string=? (error-object-message obj)
-                 %not-found-message)
-       (memq %not-found-irritant
-             (error-object-irritants obj))
-       #t))
-
-
+(test (hash-table-key-not-found? 'key-not-found)
+      #f)
 
 ;;; Bimaps.
-;;; FIXME
-
-|#
+;;; FIXME: no tests yet for bimaps.
 
 (displayln "Done.")
 
