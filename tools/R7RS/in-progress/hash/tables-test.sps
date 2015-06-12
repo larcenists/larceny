@@ -27,8 +27,9 @@
 (import (scheme base)
         (scheme char)
         (scheme write)
+        (scheme process-context) ; for exit
         (srfi 114 comparators)
-        (rnrs sorting) ; FIXME
+        (r6rs sorting)
         (in-progress hash tables))
 
 (define (writeln . xs)
@@ -39,7 +40,10 @@
   (for-each display xs)
   (newline))
 
+(define ultimate-exit-status 0)
+
 (define (fail token . more)
+  (set! ultimate-exit-status 1)
   (displayln "Error: test failed: ")
   (writeln token)
   (if (not (null? more))
@@ -47,7 +51,8 @@
   (newline)
   #f)
 
-;;; FIXME
+;;; FIXME: when debugging catastrophic failures, printing every expression
+;;; before it's executed may help.
 
 (define-syntax test
   (syntax-rules ()
@@ -732,9 +737,8 @@
 (test (hash-table-key-not-found? 'key-not-found)
       #f)
 
-;;; Bimaps.
-;;; FIXME: no tests yet for bimaps.
-
 (displayln "Done.")
+
+(exit ultimate-exit-status)
 
 ; eof

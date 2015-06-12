@@ -1,3 +1,52 @@
+;;; A bimap is just a pair of hash tables with additional invariants.
+;;;
+;;; Let the hash tables be ht1 and ht2, with equivalence procedures
+;;; equiv1 and equiv2 respectively.
+;;;
+;;; Invariants:
+;;;
+;;;     Every key in ht1 is accepted as an argument by equiv1.
+;;;
+;;;     Every key in ht2 is accepted as an argument by equiv2.
+;;;
+;;;     Every value in ht1 is accepted as an argument by equiv2.
+;;;
+;;;     Every value in ht2 is accepted as an argument by equiv1.
+;;;
+;;;     If x is a key of ht1, then its associated value is a key of ht2
+;;;     (in the sense of equiv1).
+;;;
+;;;     If y is a key of ht2, then its associated value is a key of ht1
+;;;     (in the sense of equiv2).
+;;;
+;;;     If x and y are distinct keys of ht1 (meaning they are listed
+;;;     separately by hash-table-keys), then their associated values
+;;;     are not equivalent according to equiv2.
+;;;
+;;;     If x and y are distinct keys of ht2 (meaning they are listed
+;;;     separately by hash-table-keys), then their associated values
+;;;     are not equivalent according to equiv1.
+;;;
+;;; These invariants are checked when a bimap is constructed, and
+;;; preserved by operations on bimaps.  The basic operations that
+;;; preserve these invariants are bimap-set! and bimap-delete!.
+;;; All other mutators (apart from bimap-clear!) are defined using
+;;; bimap-set! and bimap-delete!.
+;;;
+;;; FIXME:  As noted below, mutating ht1 can break these invariants,
+;;; but it is an error to mutate ht1 after the bimap is created.
+
+;;; Private to this file.
+
+;;; A unique (in the sense of eq?) value that will never be found
+;;; within a hash-table.
+
+(define %not-found (list '%not-found))
+
+;;; The :bimap type and raw-make-bimap procedure are private to this file,
+;;; but bimap?, bimap-forward-hash-table, and bimap-reverse-hash-table
+;;; are exported, as are all other procedures defined below.
+
 (define-record-type :bimap
   (raw-make-bimap ht1 ht2)
   bimap?
@@ -31,30 +80,49 @@
 
 ;;; "Returns #t if bimap1 and bimap2 contain the same key-value
 ;;; associations, and #f otherwise."
+;;;
 ;;; FIXME: what does "same" mean?
 ;;;
 ;;; In this implementation, two key-value associations k1/v1 and k2/v2
 ;;; are the same if and only if v1 and v2 reverse-map (in both tables)
-;;; to keys that are the same in the sense of eqv?.
+;;; to keys that are the same in the sense of the equivalence procedures
+;;; of both tables.
+;;;
+;;; This implementation uses eq? to eliminate some procedure calls
+;;; in special cases, which assumes equivalence procedures have no
+;;; observable state and do not distinguish objects eq? cannot.
 
 (define (bimap=? bimap1 bimap2)
 
   (define (half-check ht11 ht12 ht21 ht22)
-    (hash-table-every (lambda (key1 val1)
-                        (and (hash-table-contains? ht21 key1)
-                             (let ((val2 (hash-table-ref ht21 key1)))
-                               (hash-table-contains? ht12 val1)
-                               (hash-table-contains? ht22 val1)
-                               (hash-table-contains? ht12 val2)
-                               (hash-table-contains? ht22 val2)
-                               (let ((k1 (hash-table-ref ht12 val1))
-                                     (k2 (hash-table-ref ht22 val1))
-                                     (k3 (hash-table-ref ht12 val2))
-                                     (k4 (hash-table-ref ht22 val2)))
-                                 (and (eqv? k1 k2)
-                                      (eqv? k2 k3)
-                                      (eqv? k3 k4))))))
-                      ht11))
+    (let ((equiv1 (hashtable-equivalence-function ht11))
+          (equiv2 (hashtable-equivalence-function ht21)))
+      (hash-table-every
+       (lambda (key1 val1)
+         (and (hash-table-contains? ht21 key1)
+              (let ((val2 (hash-table-ref ht21 key1)))
+                (and (hash-table-contains? ht12 val1)
+                     (hash-table-contains? ht22 val1)
+                     (or (eq? val1 val2)
+                         (hash-table-contains? ht12 val2)
+                         (hash-table-contains? ht22 val2))
+                     (let ((k1 (hash-table-ref ht12 val1))
+                           (k2 (hash-table-ref ht22 val1))
+                           (k3 (if (eq? val1 val2)
+                                   k1
+                                   (hash-table-ref ht12 val2)))
+                           (k4 (if (eq? val1 val2)
+                                   k2
+                                   (hash-table-ref ht22 val2))))
+                       (and (equiv1 k1 k2)
+                            (or (eq? val1 val2)
+                                (and (equiv1 k2 k3)
+                                     (equiv1 k3 k4)))
+                            (or (eq? equiv1 equiv2)
+                                (and (equiv2 k1 k2)
+                                     (equiv2 k2 k3)
+                                     (equiv2 k3 k4)))))))))
+       ht11)))
 
   (let ((ht11 (bimap-forward-hash-table bimap1))
         (ht12 (bimap-reverse-hash-table bimap1))
@@ -81,6 +149,18 @@
    (apply hashtable-copy (bimap-forward-hash-table bimap) rest)
    (apply hashtable-copy (bimap-reverse-hash-table bimap) rest)))
 
+;;; Let ht1 and ht2 be the forward and reverse hash tables of bimap.
+;;; To preserve bimap invariants, (bimap-set! bimap key val) must delete
+;;; 
+;;;     any entry for key within ht1
+;;;         and also the entry for key's value within ht2
+;;;     any entry for val within ht2
+;;;         and also the entry for val's value within ht1
+;;;
+;;; before it adds new entries to ht1 and ht2.
+;;;
+;;; FIXME: This implementation goes right to left, which may be unnecessary.
+
 (define (bimap-set! bimap . rest)
   (if (= 2 (length rest))
       (let* ((key (car rest))
@@ -99,8 +179,10 @@
                  (hashtable-delete! ht2 v)
                  (hashtable-delete! ht1 oldk)
                  (hashtable-delete! ht2 oldv)
-                 (hashtable-delete! ht1 key)
-                 (hashtable-delete! ht2 val)
+                 (unless (eq? key oldk)
+                         (hashtable-delete! ht1 key))
+                 (unless (eq? val oldv)
+                         (hashtable-delete! ht2 val))
                  (bimap-set! bimap key val)))))
       (let ((revrest (reverse rest)))
         (let loop ((revrest revrest))
@@ -123,6 +205,11 @@
 (define (bimap-delete! bimap . keys)
   (bimap-delete-keys! bimap keys))
 
+;;; Let ht1 and ht2 be the forward and reverse hash tables of bimap.
+;;; To preserve bimap invariants, deleting a key from bimap involves
+;;; deleting that key's value from ht2 as well as deleting that key
+;;; from ht1.
+
 (define (bimap-delete-keys! bimap keys-list)
   (let ((ht1 (bimap-forward-hash-table bimap))
         (ht2 (bimap-reverse-hash-table bimap)))
@@ -130,7 +217,8 @@
                 (let ((val (hashtable-ref ht1 key %not-found)))
                   (if (not (eq? val %not-found))
                       (let ((oldk (hashtable-ref ht2 val %not-found)))
-                        (hashtable-delete! ht1 oldk)
+                        (unless (eq? key oldk)
+                                (hashtable-delete! ht1 oldk))
                         (hashtable-delete! ht1 key)
                         (hashtable-delete! ht2 val)))))
               keys-list)))
@@ -188,10 +276,4 @@
                              (bimap-delete! ht key)))
                        (bimap-forward-hash-table bimap)))
   bimap)
-
-;;; FIXME: This procedure has no hash-table analogue, so its
-;;; specification by reference to that analogue is vacuous.
-
-(define (bimap-partition! bimap)
-  'FIXME)
 
