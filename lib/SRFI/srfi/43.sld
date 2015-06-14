@@ -54,7 +54,8 @@
     vector->list                    reverse-vector->list
     list->vector                    reverse-list->vector)
 
-  (import (srfi :43 vectors)))
+  (import (except (srfi :43 vectors) vector->list)
+          (only (scheme base) vector->list)))
 
 
 (define-library (srfi 43)

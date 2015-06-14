@@ -109,7 +109,7 @@ Chicken version 4.9.0 does not complete the following tests:
     inexact         runs out of heap memory
     read            equal? fails on circular structures
 
-Chibi version FIXME does not complete the following tests:
+Chibi version 0.7.3 does not complete the following tests:
 
     base            apparently does not implement datum labels
     complex         apparently does not implement polar syntax
@@ -127,7 +127,7 @@ Gauche version 0.9.4 does not complete the following tests:
 
 Kawa 2.0 does not complete the following tests:
 
-    base            appears to enter an infinite loop
+    base            appears to enter an infinite loop, probably in equal?
     eval            ArrayIndexOutOfBoundsException in PrettyWriter
     file            ArrayIndexOutOfBoundsException in PrettyWriter
     load            ArrayIndexOutOfBoundsException in PrettyWriter
@@ -139,9 +139,14 @@ Kawa 2.0 does not complete the following tests:
 R6RS tests
 ----------
 
-I don't have test scripts yet, but individual test programs for the
-(r6rs *) libraries can be run from inside the test/R7RS/Lib directory
-like this:
+The (r6rs *) libraries can be tested in Chibi, Larceny, and Sagittarius
+by running the testr6rs-chibi, testr6rs-larceny, and testr6rs-sagittarius
+scripts.  These implementations support the same file naming convention
+and provide a command-line option for specifying an R7RS library search
+path.
+
+Individual test programs for the (r6rs *) libraries can be run from
+inside the test/R7RS/Lib directory like this:
 
     chibi-scheme -I . -I ../../../tools/R6RS/                 \
         tests/r6rs/run/bytevectors.sps
@@ -158,3 +163,6 @@ like this:
     sagittarius -r7 -d -L . -L ../../../tools/R6RS/           \
         tests/r6rs/run/bytevectors.sps
 
+To force Larceny or Sagittarius to use portable code for (r6rs *)
+libraries instead of relying upon a corresponding (rnrs *) library,
+define a library named (r6rs no-rnrs).

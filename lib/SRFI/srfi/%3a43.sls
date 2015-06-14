@@ -10,6 +10,11 @@
 ;;;                       passes the index to the proc)
 ;;;     vector-for-each  (allows vectors to be of different lengths,
 ;;;                       passes the index to the proc)
+;;; Conflicts with (scheme base):
+;;;     list->vector     (adds two optional arguments; note bug in SRFI spec)
+;;;     vector-copy      (allows a fourth optional argument)
+;;;     vector-map       (passes the index to the proc)
+;;;     vector-for-each  (passes the index to the proc)
 ;;;
 ;;; Taylor Campbell wrote this code; he places it in the public domain.
 ;;; Will Clinger [wdc] made some corrections, also in the public domain.

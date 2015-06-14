@@ -20,14 +20,10 @@
 ; Watch out for legacy code that passes a string or symbol as the
 ; first argument and a procedure as the second argument.  In the
 ; old days, Larceny's old semantics would be used instead of SRFI 39.
-;
-; FIXME: For the moment, Larceny's old semantics are still used in that case.
 
 (define (make-parameter arg1 . rest)
   (let* ((srfi39-style? (or (null? rest)
                             (and (null? (cdr rest))
-                                 (not (string? arg1))  ; FIXME
-                                 (not (symbol? arg1))  ; FIXME
                                  (procedure? (car rest)))))
          (converter (if (and srfi39-style? (pair? rest))
                         (car rest)

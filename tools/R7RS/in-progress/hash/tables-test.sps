@@ -27,8 +27,9 @@
 (import (scheme base)
         (scheme char)
         (scheme write)
+        (scheme process-context) ; for exit
         (srfi 114 comparators)
-        (rnrs sorting) ; FIXME
+        (r6rs sorting)
         (in-progress hash tables))
 
 (define (writeln . xs)
@@ -39,7 +40,10 @@
   (for-each display xs)
   (newline))
 
+(define ultimate-exit-status 0)
+
 (define (fail token . more)
+  (set! ultimate-exit-status 1)
   (displayln "Error: test failed: ")
   (writeln token)
   (if (not (null? more))
@@ -47,7 +51,8 @@
   (newline)
   #f)
 
-;;; FIXME
+;;; FIXME: when debugging catastrophic failures, printing every expression
+;;; before it's executed may help.
 
 (define-syntax test
   (syntax-rules ()
@@ -683,18 +688,20 @@
         (64 . -8)
         (81 . -9)))
 
-(test (begin (hash-table-intersection! ht-fixnum
-                                       (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
-                                                          number-comparator))
+(test (begin (hash-table-intersection!
+              ht-fixnum
+              (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
+                                 number-comparator))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist ht-fixnum)))
       '((4 . 2)
         (25 . -5)))
 
 (test (let ((ht (hash-table-copy ht-fixnum2 #t)))
-        (hash-table-difference! ht
-                                (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
-                                                   number-comparator))
+        (hash-table-difference!
+         ht
+         (alist->hash-table '((-1 . -1) (4 . 202) (25 . 205) (100 . 10))
+                            number-comparator))
         (list-sort (lambda (x y) (< (car x) (car y)))
                    (hash-table->alist ht)))
       '((0 . 0)
@@ -705,9 +712,6 @@
         (49 . 7)
         (64 . 8)
         (81 . 9)))
-
-
-
 
 #|
 
@@ -720,26 +724,21 @@
 ;;; present in ht2; that will delete all entries from ht1, leaving
 ;;; ht1 empty as before.
 
-(define (hash-table-xor! ht1 ht2)
-  'FIXME)
-
-;;; Exceptions.
-
-(define (hash-table-key-not-found? obj)
-  (and (error-object? obj)
-       (string=? (error-object-message obj)
-                 %not-found-message)
-       (memq %not-found-irritant
-             (error-object-irritants obj))
-       #t))
-
-
-
-;;; Bimaps.
-;;; FIXME
-
 |#
 
+(test (guard (exn
+              ((hash-table-key-not-found? exn)
+               'key-not-found)
+              (else
+               'whatever))
+       (hash-table-ref ht-default "this key won't be present"))
+      'key-not-found)
+
+(test (hash-table-key-not-found? 'key-not-found)
+      #f)
+
 (displayln "Done.")
+
+(exit ultimate-exit-status)
 
 ; eof

@@ -1,0 +1,6 @@
+(import (tests r6rs sorting)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs sorting)\n")
+(run-sorting-tests)
+(report-test-results)

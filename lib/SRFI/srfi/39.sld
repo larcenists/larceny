@@ -7,7 +7,7 @@
 
   (export make-parameter parameterize)
 
-  (import (srfi :39 parameters)))
+  (import (only (scheme base) make-parameter parameterize)))
 
 (define-library (srfi 39)
   (export make-parameter parameterize)

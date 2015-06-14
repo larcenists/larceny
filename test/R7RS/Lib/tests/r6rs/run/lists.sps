@@ -1,0 +1,6 @@
+(import (tests r6rs lists)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs lists)\n")
+(run-lists-tests)
+(report-test-results)

@@ -105,10 +105,3 @@
   (call-with-values
    (lambda () (div0-and-mod0 x y))
    (lambda (q r) r)))
-
-
-
-
-   real-valued? rational-valued? integer-valued?
-   div mod div-and-mod div0 mod0 div0-and-mod0
-   assertion-violation

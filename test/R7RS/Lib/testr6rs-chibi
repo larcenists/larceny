@@ -13,9 +13,17 @@ CHIBI=${CHIBI:-"chibi-scheme"}
 TESTS="                            \
     base.sps                       \
     bytevectors.sps                \
+    control.sps                    \
+    enums.sps                      \
+    eval.sps                       \
+    exceptions.sps                 \
+    io/simple.sps                  \
+    lists.sps                      \
     mutable-pairs.sps              \
     mutable-strings.sps            \
     programs.sps                   \
+    r5rs.sps                       \
+    sorting.sps                    \
     unicode.sps"
 
 echo "${CHIBI} --version" > testresults

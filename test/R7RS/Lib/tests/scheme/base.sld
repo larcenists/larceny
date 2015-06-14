@@ -775,6 +775,20 @@
      ;;     make-parameter                          ; R7RS 4.2.6
      ;;     parameterize
 
+     (let ()
+       (define parry
+         (make-parameter "10"
+                         (lambda (x)
+                           (if (number? x)
+                               x
+                               (string->number x)))))
+       (test (parry) 10)
+       (parameterize ((parry 16))
+        (test (parry) 16))
+       (parameterize ((parry "230"))
+        (test (parry) 230))
+       (test (parry) 10))
+
      (test (f 12) "12")
      (test (parameterize ((radix 2))
             (f 12))

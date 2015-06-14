@@ -22,6 +22,7 @@
           &error
           &syntax
           &violation
+          &non-continuable
 
           condition-message
           condition-who
@@ -71,6 +72,7 @@
    (define &error '&error)
    (define &syntax '&syntax)
    (define &violation '&violation)
+   (define &non-continuable '&non-continuable)
 
    (define condition-message   error-object-message)
    (define condition-who       error-object-message)

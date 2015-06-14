@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="description" content="Port of R6RS Standard Libraries to R7RS">
+<meta name="author" content="William D Clinger">
+<meta name="keywords" content="Scheme, R6RS, R7RS">
+
+<title>
+  Port of R6RS Standard Libraries to R7RS
+</title>
+
+<style type="text/css">
+body {
+  height: 100%;
+  color: #000;
+  background-color: #e0f0e8;
+  font-family:  Verdana, Arial, Helvetica, sans-serif;
+  font-size: larger;
+  margin: 5% 15% 0% 15%;
+}
+li {
+  padding-bottom: 5pt
+}
+h1, h2 {
+  color: green;
+}
+img {
+  border-style: none;
+  margin-left: auto;
+  margin-right: auto;
+}
+sub {
+  font-size: 75%;
+}
+sup {
+  font-size: 75%;
+}
+tt,kbd,code {
+  font-size: 14pt;
+}
+pre {
+  font-size: 11pt;
+  background-color: #d8d8d8;
+}
+blockquote {
+  font-size: 120%;
+  color: #0000f0;
+}
+address {
+  font-size: 10pt;
+}
+</style>
+
+</head>
+
+<body>
+
+<!-- start of specific content -->
+
+<div id="maincontent">
+  <h1>
+    R6RS Standard Libraries for R7RS Systems
+  </h1>
+
+  <p>
+    This package makes one or more of the R6RS standard libraries
+    available for use by R7RS libraries and programs.
+  </p>
+
+  <p>
+    The R6RS standard specifies a set of <code>(rnrs *)</code> libraries.
+    Most of those libraries have been ported to R7RS and placed in the
+    <code>(r6rs *)</code> hierarchy.  (This trivial renaming avoids
+    conflict with the original R6RS libraries, which are provided by
+    some implementations of the R7RS.)
+  </p>
+
+  <p>
+    The R6RS documentation of its <code>(rnrs *)</code> libraries
+    serves as primary documentation for the corresponding
+    <code>(r6rs *)</code> libraries:
+  </p>
+
+  <ul>
+    <li>
+      The
+      <a href="http://www.r6rs.org/final/html/r6rs/r6rs.html"
+      ><cite>Revised<sup>6</sup> Report
+      on the Algorithmic Language Scheme</cite></a>
+      specifies the <code>(rnrs base)</code> library.
+    </li>
+    <li>
+      The
+      <a href="http://www.r6rs.org/final/html/r6rs-lib/r6rs-lib.html"
+      ><cite>Revised<sup>6</sup> Report
+      on the Algorithmic Language Scheme
+      &mdash; Standard Libraries</cite></a>
+      specifies all other <code>(rnrs *)</code> libraries.
+    </li>
+  </ul>
+
+  <h2>
+    Implementation
+  </h2>
+
+  <p>
+    If an R7RS system provides an <code>(rnrs *)</code> library, as
+    detected by <code>cond-expand</code>, the corresponding
+    <code>(r6rs *)</code> library may just import the R6RS library
+    and re-export the imported identifiers.
+    Otherwise the R6RS library is approximated by portable R7RS code.
+  </p>
+
+  <h2>
+    Tests
+  </h2>
+
+  <p>
+    The <code>(r6rs *)</code> libraries have been tested using
+    <a href="https://github.com/larcenists/larceny/tree/master/test/R7RS/Lib"
+    >test programs</a> derived from Racket's R6RS test suite.
+    These test programs have not been refactored to make them
+    compatible with Snow's standards for test programs.
+  </p>
+
+  <h2>
+    Bugs
+  </h2>
+
+  <p>
+    Please report bugs found within the <code>(r6rs *)</code> libraries at
+    <a href="https://github.com/larcenists/larceny">Larceny's GitHub site</a>.
+    (Caveat: The current test suite detects several bugs that lie
+    within particular implementations of the R7RS, not within the
+    <code>(r6rs *)</code> libraries themselves.)
+  </p>
+
+  <p>
+    As with most ports from one language standard to another, some
+    compromises were necessary:
+  </p>
+
+  <ul>
+    <li>
+      <code>(r6rs base)</code> exports <code>identifier-syntax</code>,
+      but it's just a stub that raises a syntax exception if you try
+      to use it.
+    </li>
+    <li>
+      <code>(r6rs io ports)</code> exports stubs for several procedures
+      and syntaxes that cannot be implemented portably in R7RS (small).
+    </li>
+    <li>
+      The R7RS implementation of <code>(r6rs hashtables)</code> uses
+      <code>(rnrs hashtables)</code> if that library is available.
+      Otherwise it implements R6RS hashtables on top of SRFI 69
+      hash tables, provided <code>(srfi 69)</code> is available.
+      Otherwise it implements R6RS hashtables on top of the
+      reference implementation of SRFI 69, which is not very good.
+    </li>
+  </ul>
+
+
+</div>
+
+<!-- p>
+For debugging: 
+<a href="http://validator.w3.org/check/referer">
+Click here to validate.
+</a>
+</p -->
+
+</body>
+</html>

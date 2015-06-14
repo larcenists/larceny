@@ -1,0 +1,6 @@
+(import (tests r6rs r5rs)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs r5rs)\n")
+(run-r5rs-tests)
+(report-test-results)

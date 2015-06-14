@@ -3,6 +3,7 @@
 LARCENY=${LARCENY:-"../../../larceny"}
 
 
+echo srfi-0-test; ${LARCENY} --r7rs --program srfi-0-test.sps7; echo
 echo srfi-1-test; ${LARCENY} --r7rs --program srfi-1-test.sps7; echo
 echo srfi-2-test; ${LARCENY} --r7rs --program srfi-2-test.sps7; echo
 echo srfi-5-test; ${LARCENY} --r7rs --program srfi-5-test.sps7; echo
@@ -20,7 +21,10 @@ echo srfi-26-test; ${LARCENY} --r7rs --program srfi-26-test.sps7; echo
 echo srfi-27-test; ${LARCENY} --r7rs --program srfi-27-test.sps7; echo
 echo srfi-28-test; ${LARCENY} --r7rs --program srfi-28-test.sps7; echo
 echo srfi-29-test; ${LARCENY} --r7rs --program srfi-29-test.sps7; echo
+echo srfi-30-test; ${LARCENY} --r7rs --program srfi-30-test.sps7; echo
 echo srfi-31-test; ${LARCENY} --r7rs --program srfi-31-test.sps7; echo
+echo srfi-34-test; ${LARCENY} --r7rs --program srfi-34-test.sps7; echo
+echo srfi-37-test; ${LARCENY} --r7rs --program srfi-37-test.sps7; echo
 echo srfi-38-test; ${LARCENY} --r7rs --program srfi-38-test.sps7; echo
 echo srfi-39-test; ${LARCENY} --r7rs --program srfi-39-test.sps7; echo
 echo srfi-41-test; ${LARCENY} --r7rs --program srfi-41-test.sps7; echo
@@ -30,6 +34,7 @@ echo srfi-45-test; ${LARCENY} --r7rs --program srfi-45-test.sps7; echo
 echo srfi-48-test; ${LARCENY} --r7rs --program srfi-48-test.sps7; echo
 echo srfi-51-test; ${LARCENY} --r7rs --program srfi-51-test.sps7; echo
 echo srfi-54-test; ${LARCENY} --r7rs --program srfi-54-test.sps7; echo
+echo srfi-55-test; ${LARCENY} --r7rs --program srfi-55-test.sps7; echo
 echo srfi-59-test; ${LARCENY} --r7rs --program srfi-59-test.sps7; echo
 echo srfi-60-test; ${LARCENY} --r7rs --program srfi-60-test.sps7; echo
 echo srfi-61-test; ${LARCENY} --r7rs --program srfi-61-test.sps7; echo

@@ -1,0 +1,100 @@
+; Test suite for SRFI-37: args-fold: a program argument processor
+;
+; $Id$
+
+(import (scheme base)
+        (scheme write)
+        (srfi 37))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define r7 #f)
+(define r6 #f)
+(define r5 #f)
+(define path #f)
+(define program #f)
+
+(define (process-r option name arg . seeds)
+  (if (and (eq? process-r
+                (option-processor option))
+           (member name (option-names option))
+           (option-required-arg? option)
+           (not (option-optional-arg? option)))
+      (cond ((not arg)
+             (error "no arg" name arg))
+            ((and (equal? name #\r)
+                  (string=? arg "7"))
+             (set! r7 #t)
+             (values))
+            ((and (equal? name #\r)
+                  (string=? arg "6"))
+             (set! r6 #t)
+             (values))
+            ((and (equal? name #\r)
+                  (string=? arg "5"))
+             (set! r5 #t)
+             (values))
+            ((and (or (equal? name "standard")
+                      (equal? name "std"))
+                  (string=? arg "r7"))
+             (set! r7 #t)
+             (values))
+            ((and (or (equal? name "standard")
+                      (equal? name "std"))
+                  (string=? arg "r6"))
+             (set! r6 #t)
+             (values))
+            ((and (or (equal? name "standard")
+                      (equal? name "std"))
+                  (string=? arg "r5"))
+             (set! r5 #t)
+             (values))
+            (else
+             (error "bad name or argument" name arg)))
+      (error "process-r is unhappy" option name arg seeds)))
+            
+(define option-r
+  (option '(#\r "standard" "std")
+          #t
+          #f
+          process-r))
+
+(define (operand-processor operand . seeds)
+  (write (list 'operand-processor operand seeds))
+  (newline))
+
+(or (let ()
+      (set! r7 #f)
+      (set! r6 #f)
+      (set! r5 #f)
+      (set! path #f)
+      (set! program #f)
+      (call-with-values
+       (lambda ()
+         (args-fold '("-r" "7" "--standard" "r6")
+                    (list option-r)
+                    (lambda (option name arg . seeds)
+                      (write (list 'unrecognized option name arg seeds))
+                      (newline)
+                      (values))
+                    process-r
+                    1 2 3))
+       (lambda vals
+         (write (list 'returned vals))
+         (newline)
+         (write (list r7 r6 r5 path program))
+         (newline)))
+      #t)
+    (fail 'test1))
+
+;;; FIXME: this needs a lot more tests
+
+(writeln "Done.")

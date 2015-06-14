@@ -1,0 +1,33 @@
+; Test suite for SRFI-30: Nested multi-line comments
+;
+; $Id$
+
+(import (scheme base)
+        (scheme write)
+        (srfi 30))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
+#| |#
+
+#|
+
+(fail 'srfi-30)
+
+|#
+
+#|
+
+(fail 'srfi-30)
+
+(fail 'srfi-30)
+
+|#
+
+(writeln "Done.")

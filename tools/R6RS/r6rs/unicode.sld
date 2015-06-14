@@ -63,6 +63,21 @@
 
   (cond-expand
 
+   ((and (library (scheme char))
+         (library (rnrs unicode))
+         (not (library (r6rs no-rnrs))))
+
+    (import (scheme char)
+            (only (rnrs unicode)
+                  char-titlecase
+                  char-title-case?
+                  char-general-category
+                  string-titlecase
+                  string-normalize-nfd
+                  string-normalize-nfkd
+                  string-normalize-nfc
+                  string-normalize-nfkc)))                  
+
    ((library (scheme char))
 
     (import (scheme char)
@@ -85,12 +100,5 @@
             ;(r6rs unicode-reference unicode2)
              (r6rs unicode-reference unicode3)
              (r6rs unicode-reference unicode4))))
-
-  (import (scheme base)
-          (scheme write))
-
-  (begin
-   (display "Using reference implementation of (rnrs unicode).")
-   (newline))
 
 )

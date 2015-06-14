@@ -1,0 +1,64 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+################################################################
+#
+#    Installs (r6rs *) libraries by downloading from snow-fort.org
+#
+#    See also make-snow, upload-snow.
+#
+################################################################
+
+DIR=lib/Snow
+IMPL=larceny
+
+install_snowball ()
+{
+  echo $1
+  echo snow-chibi \
+    --install-source-dir=${DIR} \
+    --impls=${IMPL} \
+    install "$1"
+  snow-chibi \
+    --install-source-dir=${DIR} \
+    --impls=${IMPL} \
+    install "$1"
+}
+
+install_snowball "(r6rs base)"
+install_snowball "(r6rs bytevectors)"
+install_snowball "(r6rs control)"
+#install_snowball "(r6rs enums)"
+install_snowball "(r6rs eval)"
+install_snowball "(r6rs exceptions)"
+install_snowball "(r6rs files)"
+install_snowball "(r6rs hashtables)"
+install_snowball "(r6rs io simple)"
+install_snowball "(r6rs lists)"
+install_snowball "(r6rs mutable-pairs)"
+install_snowball "(r6rs mutable-strings)"
+install_snowball "(r6rs programs)"
+#install_snowball "(r6rs r5rs)"
+install_snowball "(r6rs sorting)"
+install_snowball "(r6rs unicode)"
+
+
+################################################################
+#
+# Couldn't find (r6rs enums) or (r6rs r5rs), even though they're
+# clearly visible in the list at snow-fort.org
+#
+################################################################
+
+################################################################
+#
+# Problem encountered while downloading (r6rs unicode):
+#
+# (r6rs unicode)
+# snow-chibi --install-source-dir=lib/Snow --impls=larceny install (r6rs unicode)
+# Can't find package: (r6rs unicode-reference unicode1).  Proceed anyway?
+# Can't find package: (r6rs unicode-reference unicode3).  Proceed anyway?
+# Can't find package: (r6rs unicode-reference unicode4).  Proceed anyway?
+#
+################################################################

@@ -428,8 +428,6 @@
                  (loop (cdr keys)
                        (cdr vals)))))))))
 
-;;; FIXME: spec is ambiguous concerning which value to return (x or val).
-
 (define (hash-table-every proc ht)
   (call-with-values
    (lambda () (hash-table-entries ht))

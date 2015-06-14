@@ -1,0 +1,6 @@
+(import (tests r6rs io simple)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs io simple)\n")
+(run-io-simple-tests)
+(report-test-results)

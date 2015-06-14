@@ -8,6 +8,10 @@
 ;;; Conflicts with (rnrs lists):
 ;;;     member, assoc: accept an optional third argument
 ;;;     fold-right: different arguments, different semantics
+;;; Superficial conflicts with (scheme base):
+;;;     make-list, list-copy,
+;;;     member, assoc,
+;;;     map, for-each
 ;;;
 ;;; Taken from http://srfi.schemers.org/srfi-1/srfi-1-reference.scm
 ;;; on 09 November 2003.  Subsequently modified:
@@ -17,20 +21,11 @@
 ;;;  - fixed a bug in delete-duplicates!: consed when it didn't need to
 ;;;  - added missing FOR-EACH implementation (due to Michael Sperber)
 ;;;  - converted into an R6RS/ERR5RS library
+;;;  - commented out the definitions that conflict with (scheme base)
 ;;;
 ;;; NOTE that Twobit may open-code calls to MAP and FOR-EACH and thus
-;;; ignore the definitions in this file.  The versions of MAP and
-;;; FOR-EACH in Larceny are not compliant with SRFI-1: they fail on
-;;; lists of unequal length.  Here are three workarounds:
-;;;
-;;;     use map and for-each only when all list arguments are
-;;;         proper lists and have the same length
-;;;
-;;;     call srfi1:map and srfi1:for-each instead of map and for-each
-;;;
-;;;     use (integrate-procedures #f) before compiling or loading
-;;;         to disable inlining of all procedures, including
-;;;         map and for-each
+;;; ignore the definitions in this file.  Twobit's versions are now
+;;; compliant with SRFI-1 and R7RS but more general than R6RS.
 ;;;
 ;;; Modifications for Larceny appear both here and at the very end.
 ;;; Here we just capture some of Larceny's procedures so we can use
@@ -100,8 +95,9 @@
 
           set-car! set-cdr!)
 
-  (import (except (rnrs base) map for-each)
-          (only (rnrs lists) memq memv assq assv)
+  (import (rnrs base)
+          (only (rnrs lists) memq memv member assq assv assoc)
+          (only (scheme base) make-list list-copy)
           (rnrs control)
           (rnrs mutable-pairs)
           (srfi :8))
@@ -346,6 +342,7 @@
 
 ;;; Make a list of length LEN.
 
+#;
 (define (make-list len . maybe-elt)
   (let ((elt (cond ((null? maybe-elt) #f) ; Default value
 		   ((null? (cdr maybe-elt)) (car maybe-elt))
@@ -379,6 +376,7 @@
 
 ;;; (unfold not-pair? car cdr lis values)
 
+#;
 (define (list-copy lis)				
   (let recur ((lis lis))			
     (if (pair? lis)				
@@ -1075,6 +1073,9 @@
 ;;; NOTE: Some implementations of R5RS MAP are compliant with this spec;
 ;;; in which case this procedure may simply be defined as a synonym for MAP.
 
+(define map-in-order map)
+
+#;
 (define (map-in-order f lis1 . lists)
   (if (pair? lists)
       (let recur ((lists (cons lis1 lists)))
@@ -1093,10 +1094,12 @@
 
 
 ;;; We extend MAP to handle arguments of unequal length.
-(define map map-in-order)	
+;(define map map-in-order)	
 
 ;;; Contributed by Michael Sperber since it was missing from the
 ;;; reference implementation.
+
+#;
 (define (for-each f lis1 . lists)
   (if (pair? lists)
       (let recur ((lists (cons lis1 lists)))
@@ -1316,6 +1319,8 @@
     (filter! (lambda (y) (not (= x y))) lis)))
 
 ;;; Extended from R4RS to take an optional comparison argument.
+
+#;
 (define (member x lis . maybe-=)
   (let ((= (:optional maybe-= equal?)))
     (find-tail (lambda (y) (= x y)) lis)))
@@ -1361,6 +1366,8 @@
 ;;;;;;;;;;;;;;;
 
 ;;; Extended from R4RS to take an optional comparison argument.
+
+#;
 (define (assoc x lis . maybe-=)
   (let ((= (:optional maybe-= equal?)))
     (find (lambda (entry) (= x (car entry))) lis)))

@@ -1,0 +1,142 @@
+; Test suite for SRFI-34: Exception handling for programs
+;
+; $Id$
+
+(import (scheme base)
+        (scheme write)
+        (srfi 34))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
+(or (let* ((q (open-output-string))
+           (x (call-with-current-continuation
+               (lambda (k)
+                 (with-exception-handler (lambda (x)
+                                           (display "condition: " q)
+                                           (write x q)
+                                           (newline q)
+                                           (k 'exception))
+                   (lambda ()
+                     (+ 1 (raise 'an-error))))))))
+      (and (eq? x 'exception)
+           (string=? (get-output-string q)
+                     "condition: an-error\n")))
+    (fail 'example1))
+
+(or (let* ((q (open-output-string))
+           (x (call-with-current-continuation
+               (lambda (k)
+                 (with-exception-handler
+                  k
+                  (lambda ()
+                    (call-with-current-continuation
+                     (lambda (k)
+                       (with-exception-handler
+                        (lambda (x)
+                          (display "something went wrong" q)
+                          (newline q)
+                          'dont-care)
+                        (lambda ()
+                          (+ 1 (raise 'an-error))))))))))))
+      (string=? (get-output-string q)
+                "something went wrong\n"))
+    (fail 'example2))
+
+(or (let* ((q (open-output-string))
+           (x (guard (condition
+                      (else
+                       (display "condition: " q)
+                       (write condition q)
+                       (newline q)
+                       'exception))
+               (+ 1 (raise 'an-error)))))
+      (and (eq? x 'exception)
+           (string=? (get-output-string q)
+                     "condition: an-error\n")))
+    (fail 'example3))
+
+(or (let* ((q (open-output-string))
+           (x (guard (condition
+                      (else
+                       (display "something went wrong" q)
+                       (newline q)
+                       'dont-care))
+               (+ 1 (raise 'an-error)))))
+      (and (eq? x 'dont-care)
+           (string=? (get-output-string q)
+                     "something went wrong\n")))
+    (fail 'example4))
+
+(or (let* ((q (open-output-string))
+           (x (call-with-current-continuation
+               (lambda (k)
+                 (with-exception-handler (lambda (x)
+                                           (display "reraised " q)
+                                           (write x q)
+                                           (newline q)
+                                           (k 'zero))
+                  (lambda ()
+                    (guard (condition
+                            ((positive? condition) 'positive)
+                            ((negative? condition) 'negative))
+                     (raise 1))))))))
+      (and (eq? x 'positive)
+           (string=? (get-output-string q) "")))
+    (fail 'example5))
+
+(or (let* ((q (open-output-string))
+           (x (call-with-current-continuation
+               (lambda (k)
+                 (with-exception-handler (lambda (x)
+                                           (display "reraised " q)
+                                           (write x q)
+                                           (newline q)
+                                           (k 'zero))
+                  (lambda ()
+                    (guard (condition
+                            ((positive? condition) 'positive)
+                            ((negative? condition) 'negative))
+                     (raise -1))))))))
+      (and (eq? x 'negative)
+           (string=? (get-output-string q) "")))
+    (fail 'example6))
+
+(or (let* ((q (open-output-string))
+           (x (call-with-current-continuation
+               (lambda (k)
+                 (with-exception-handler (lambda (x)
+                                           (display "reraised " q)
+                                           (write x q)
+                                           (newline q)
+                                           (k 'zero))
+                  (lambda ()
+                    (guard (condition
+                            ((positive? condition) 'positive)
+                            ((negative? condition) 'negative))
+                     (raise 0))))))))
+      (and (eq? x 'zero)
+           (string=? (get-output-string q)
+                     "reraised 0\n")))
+    (fail 'example7))
+
+(or (eq? 42
+         (guard (condition
+                 ((assq 'a condition) => cdr)
+                 ((assq 'b condition)))
+          (raise (list (cons 'a 42)))))
+    (fail 'example7))
+
+(or (equal? '(b . 23)
+            (guard (condition
+                    ((assq 'a condition) => cdr)
+                    ((assq 'b condition)))
+             (raise (list (cons 'b 23)))))
+    (fail 'example8))
+
+(writeln "Done.")

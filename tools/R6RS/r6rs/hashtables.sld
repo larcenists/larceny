@@ -54,7 +54,10 @@
 
   (cond-expand
 
-   ((library (rnrs hashtables)))    ; nothing to do
+   ((and (library (rnrs hashtables))
+         (not (library (r6rs no-rnrs))))
+    ;; nothing to do
+    )
 
    ((library (scheme complex))
     (import (scheme complex))
@@ -84,7 +87,8 @@
 
   (cond-expand
 
-   ((library (rnrs hashtables))
+   ((and (library (rnrs hashtables))
+         (not (library (r6rs no-rnrs))))
     (import (rnrs hashtables))
     (begin (define r6rs:symbol-hash symbol-hash)))
 
