@@ -30,7 +30,7 @@ List of R6RS standard libraries and their current status:
 (r6rs io simple)                fully implemented atop (scheme *)
 (r6rs files)                    fully implemented atop (scheme file)
 (r6rs programs)                 fully implemented atop (scheme process-context)
-(r6rs arithmetic fixnums)       not yet implemented
+(r6rs arithmetic fixnums)       fully implemented atop (scheme base)
 (r6rs arithmetic flonums)       not yet implemented
 (r6rs arithmetic bitwise)       not yet implemented
 (r6rs syntax-case)              will wait for R7RS (large)
