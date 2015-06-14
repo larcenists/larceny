@@ -15,9 +15,11 @@
 ;;; (put 'fxdefine 'scheme-indent-function 1)
 ;;; (put 'fxdefine+ 'scheme-indent-function 1)
 
-(define (assert bool message . objs)
-  (unless bool
-    (apply error message objs)))
+(define-syntax assert
+  (syntax-rules ()
+    ((_ <expr> <message> . <objs>)
+     (unless <expr>
+       (apply error <message> . <objs>)))))
 
 ;;; Basically (x1 x2 ...) -> (begin (f x1) (f x2) ...), but resorting to
 ;;; run-time 'for-each' in the last position when the input list is improper,
@@ -25,7 +27,7 @@
 (define-syntax for-args
   (syntax-rules ()
     ((_ <operator> ())
-     (values))
+     #f)
     ((_ <operator> <args>)
      (for-args <operator> <args> ()))
     ((_ <operator> (<first> . <rest>) (<body> ...))
@@ -302,9 +304,11 @@
          (do ((i 0 (+ i 1)))
              ((vector-ref v i) i))))))
 
-(define (assert-index fx)
-  (assert (and (not (negative? fx)) (< fx W))
-          "Index must be non-negative and less than (fixnum-width)." fx))
+(define-syntax assert-index
+  (syntax-rules ()
+    ((_ <fx>)
+     (assert (and (not (negative? <fx>)) (< <fx> W))
+             "Index must be non-negative and less than (fixnum-width)." <fx>))))
 
 (fxdefine fxbit-set?
   ((fx1 fx2)
@@ -319,11 +323,13 @@
      (vector-set! v fx2 (not (zero? fx3)))
      (bitvector->fixnum v))))
 
-(define (assert-indices fx1 fx2)
-  (assert-index fx1)
-  (assert-index fx2)
-  (assert (<= fx1 fx2)
-          "First index must be less than or equal to second." fx1 fx2))
+(define-syntax assert-indices
+  (syntax-rules ()
+    ((_ fx1 fx2)
+     (assert-index fx1)
+     (assert-index fx2)
+     (assert (<= fx1 fx2)
+             "First index must be less than or equal to second." fx1 fx2))))
 
 (fxdefine fxbit-field
   ((fx1 fx2 fx3)
@@ -344,10 +350,12 @@
          ((= i fx3) (bitvector->fixnum v1))
        (vector-set! v1 i (vector-ref v2 i))))))
 
-(define (assert-shift-count fx)
-  (assert
-   (< (abs fx) W)
-   "Shift count's absolute value must be less than (fixnum-width)." fx))
+(define-syntax assert-shift-count
+  (syntax-rules ()
+    ((_ <fx>)
+     (assert
+      (< (abs <fx>) W)
+      "Shift count's absolute value must be less than (fixnum-width)." <fx>))))
 
 (fxdefine+ fxarithmetic-shift
   ((fx1 fx2)
