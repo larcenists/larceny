@@ -21,7 +21,7 @@
 ;; SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-(define-library (srfi 116)
+(define-library (srfi 116 ilists)
   (export
    iq
    ipair ilist xipair ipair* make-ilist ilist-tabulate iiota
@@ -48,18 +48,35 @@
    replace-icar replace-icdr
    pair->ipair ipair->pair list->ilist ilist->list
    tree->itree itree->tree gtree->itree gtree->tree
-   iapply
+   iapply)
 
-   ipair-comparator
-   ilist-comparator
-   make-ipair-comparator
-   make-ilist-comparator
-   make-improper-ilist-comparator
-   make-icar-comparator
-   make-icdr-comparator
-   )
+  (import (scheme base)
+          (scheme write)
+          (larceny records printer))
 
-  (import (srfi 116 ilists)
-          (srfi 116 comparators)))
+  (include "ilists.body1.scm")
+  (include "ilists.body2.scm")
+
+  (begin
+   (rtd-printer-set!
+    <ilist>
+    (lambda (ipair out)
+      (define (print x)
+        (write-char #\[ out)
+        (write (icar x) out)
+        (print-cdr (icdr x)))
+      (define (print-cdr x)
+        (cond ((null? x)
+               (write-char #\] out))
+              ((ipair? x)
+               (write-char #\space out)
+               (write (icar x) out)
+               (print-cdr (icdr x)))
+              (else
+               (display " . " out)
+               (write x out)
+               (write-char #\] out))))
+      (print ipair))))
+)
 
 ; eof
