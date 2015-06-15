@@ -38,19 +38,13 @@
     ((_ <operator> <rest> (<body> ...))
      (begin <body> ... (for-each (lambda (arg) (<operator> arg)) <rest>)))))
 
-;;; 24 is the minimum width an implementation must support; we choose it to make
-;;; sure that our fixnum operations really work with unboxed numbers in as many
-;;; Scheme implementations as possible.
-
-(define W 24)
-
 (define (fixnum? obj)
   (and (exact-integer? obj)
        (<= (least-fixnum) obj (greatest-fixnum))))
 
 (define (fixnum-width) W)
 (define (least-fixnum) (expt -2 (- W 1)))
-(define (greatest-fixnum) (- (expt 2 (- W 1)) 1))
+(define (greatest-fixnum) (- 0 (+ 1 (least-fixnum))))
 
 (define-syntax assert-fixnum-arg
   (syntax-rules ()
