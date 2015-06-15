@@ -1,25 +1,28 @@
-#!r6rs
-
-(library (tests r6rs arithmetic fixnums)
+(define-library (tests r6rs arithmetic fixnums)
   (export run-arithmetic-fixnums-tests)
-  (import (rnrs)
-          (tests r6rs test))
+  (import (scheme base)
+          (scheme write)
+          (except (r6rs base) error)
+          (r6rs arithmetic fixnums)
+          (tests scheme test))
+
+ (begin
 
   ;; Originally from Ikarus test suite:
   (define (fx*/carry-reference fx1 fx2 fx3)
-    (let* ([s (+ (* fx1 fx2) fx3)]
-           [s0 (mod0 s (expt 2 (fixnum-width)))]
-           [s1 (div0 s (expt 2 (fixnum-width)))])
+    (let* ((s (+ (* fx1 fx2) fx3))
+           (s0 (mod0 s (expt 2 (fixnum-width))))
+           (s1 (div0 s (expt 2 (fixnum-width)))))
       (values s0 s1)))
   (define (fx+/carry-reference fx1 fx2 fx3)
-    (let* ([s (+ (+ fx1 fx2) fx3)]
-           [s0 (mod0 s (expt 2 (fixnum-width)))]
-           [s1 (div0 s (expt 2 (fixnum-width)))])
+    (let* ((s (+ (+ fx1 fx2) fx3))
+           (s0 (mod0 s (expt 2 (fixnum-width))))
+           (s1 (div0 s (expt 2 (fixnum-width)))))
       (values s0 s1)))
   (define (fx-/carry-reference fx1 fx2 fx3)
-    (let* ([s (- (- fx1 fx2) fx3)]
-           [s0 (mod0 s (expt 2 (fixnum-width)))]
-           [s1 (div0 s (expt 2 (fixnum-width)))])
+    (let* ((s (- (- fx1 fx2) fx3))
+           (s0 (mod0 s (expt 2 (fixnum-width))))
+           (s1 (div0 s (expt 2 (fixnum-width)))))
       (values s0 s1)))
 
   (define (vals->list f a b c)
@@ -27,10 +30,10 @@
 
   (define-syntax carry-test
     (syntax-rules ()
-      [(_ fxop/carry fxop/carry-reference fx1 fx2 fx3)
+      ((_ fxop/carry fxop/carry-reference fx1 fx2 fx3)
        (run-test `(fxop/carry ,fx1 ,fx2 ,fx3)
                  (vals->list fxop/carry fx1 fx2 fx3)
-                 (vals->list fxop/carry-reference fx1 fx2 fx3))]))
+                 (vals->list fxop/carry-reference fx1 fx2 fx3)))))
 
   (define (carry-tests l)
     (for-each 
@@ -73,7 +76,7 @@
     (test (fixnum? (greatest-fixnum)) #t)
     (test (fixnum? (+ 1 (greatest-fixnum))) #f)
 
-    (let ([test-ordered
+    (let ((test-ordered
            (lambda (a b c)
              (test (fx=? a a) #t)
              (test (fx=? b b) #t)
@@ -88,7 +91,7 @@
              (test (fx=? a a b) #f)
              (test (fx=? a b b) #f)
 
-             (let ([test-lt
+             (let ((test-lt
                     (lambda (fx<? fx<=? a b c)
                       (test (fx<? a b) #t)
                       (test (fx<? b c) #t)
@@ -112,7 +115,7 @@
                       (test (fx<=? c a) #f)
                       (test (fx<=? b a) #f)
                       (test (fx<=? a c b) #f)
-                      (test (fx<=? b c a) #f))])
+                      (test (fx<=? b c a) #f))))
                (test-lt fx<? fx<=? a b c)
                (test-lt fx>? fx>=? c b a))
              
@@ -136,7 +139,7 @@
              (test (fxmax a b) b)
              (test (fxmax b c) c)
              (test (fxmax a c) c)
-             (test (fxmax b c a) c))])
+             (test (fxmax b c a) c))))
       (test-ordered 1 2 3)
       (test-ordered -1 0 1)
       (test-ordered (least-fixnum) 1 (greatest-fixnum)))
@@ -195,7 +198,7 @@
     (test/exn (fx- (least-fixnum) 1) &implementation-restriction)
 
     ;; If you put N numbers here, it runs to O(N^3) tests!
-    (carry-tests (list 0 1 2 -1 -2 38734 -3843 2484598 -348732487 
+    (carry-tests (list 0 1 2 -1 -2 38734 -3843 2484598 #; -348732487 
                        (greatest-fixnum) (least-fixnum)))
 
     (test (fxdiv 123 10) 12)
@@ -336,5 +339,5 @@
     (test (fxrotate-bit-field 10 2 4 1) 6)
 
     ;;
-    ))
+    )))
 

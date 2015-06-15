@@ -18,5 +18,5 @@
   (import
    (scheme base)
    (scheme case-lambda)
-   (except (r6rs base) error))
+   (except (r6rs base) error assert))
   (include "fixnums.body.scm"))

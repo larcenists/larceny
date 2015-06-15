@@ -11,6 +11,7 @@ SRC="./tests/r6rs/run"
 CHIBI=${CHIBI:-"chibi-scheme"}
 
 TESTS="                            \
+    arithmetic/fixnums.sps         \
     base.sps                       \
     bytevectors.sps                \
     control.sps                    \

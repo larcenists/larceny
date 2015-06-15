@@ -11,6 +11,7 @@ SRC="./tests/r6rs/run"
 LARCENY=${LARCENY:-"../../../larceny"}
 
 TESTS="                            \
+    arithmetic/fixnums.sps         \
     base.sps                       \
     bytevectors.sps                \
     control.sps                    \

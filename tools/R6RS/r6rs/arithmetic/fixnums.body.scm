@@ -19,11 +19,12 @@
   (syntax-rules ()
     ((_ <expr> <message> . <objs>)
      (unless <expr>
-       (apply error <message> . <objs>)))))
+       (apply error <message> (list . <objs>))))))
 
 ;;; Basically (x1 x2 ...) -> (begin (f x1) (f x2) ...), but resorting to
 ;;; run-time 'for-each' in the last position when the input list is improper,
 ;;; i.e. it contains a rest-arguments parameter.  'f' may be a macro.
+
 (define-syntax for-args
   (syntax-rules ()
     ((_ <operator> ())
@@ -37,25 +38,10 @@
     ((_ <operator> <rest> (<body> ...))
      (begin <body> ... (for-each (lambda (arg) (<operator> arg)) <rest>)))))
 
-;;; Basically (x1 x2 ...) -> (g (f x1) (f x2) ...), but resorting to run-time
-;;; 'apply' and 'map' for the last position when the input list is improper,
-;;; i.e. it contains a rest-argument parameter.  'f' may be a macro; 'g' not.
-(define-syntax map/apply-args
-  (syntax-rules ()
-    ((_ <combiner> <operator> <args>)
-     (map/apply-args <combiner> <operator> <args> ()))
-    ((_ <combiner> <operator> (<first> . <rest>) (<result> ...))
-     (map/apply-args
-      <combiner> <operator> <rest> (<result> ... (<operator> <first>))))
-    ((_ <combiner> <operator> () (<result> ...))
-     (<combiner> <result> ...))
-    ((_ <combiner> <operator> <rest> (<result> ...))
-     (apply
-      <combiner> <result> ... (map (lambda (arg) (<operator> arg)) <rest>)))))
-
 ;;; 24 is the minimum width an implementation must support; we choose it to make
 ;;; sure that our fixnum operations really work with unboxed numbers in as many
 ;;; Scheme implementations as possible.
+
 (define W 24)
 
 (define (fixnum? obj)
@@ -69,12 +55,12 @@
 (define-syntax assert-fixnum-arg
   (syntax-rules ()
     ((_ <arg>)
-     (assert (fixnum? <arg>) "Argument is not a fixnum." <arg>))))
+     (assert (fixnum? <arg>) "argument is not a fixnum" <arg>))))
 
 (define-syntax assert-fixnum-result
   (syntax-rules ()
     ((_ <result>)
-     (assert (fixnum? <result>) "Result is not a fixnum." <result>))))
+     (assert (fixnum? <result>) "result is not a fixnum" <result>))))
 
 ;;; fxdefine checks the arguments; fxdefine+ also checks the return value.
 
@@ -168,12 +154,20 @@
 (define-syntax fxdefine-division
   (syntax-rules ()
     ((_ <name> <operator>)
-     (fxdefine <name> ((fx1 fx2) (<operator> fx1 fx2))))))
+     (fxdefine+ <name> ((fx1 fx2) (<operator> fx1 fx2))))))
 
-(fxdefine-division fxdiv-and-mod div-and-mod)
+;;; fxdiv-and-mod and fxdiv0-and-mod0 have to check both return values
+;;; FIXME: this is less efficient than it should be
+
+(define (fxdiv-and-mod x y)
+  (values (fxdiv x y)
+          (fxmod x y)))
 (fxdefine-division fxdiv div)
 (fxdefine-division fxmod mod)
-(fxdefine-division fxdiv0-and-mod0 div-and-mod)
+
+(define (fxdiv0-and-mod0 x y)
+  (values (fxdiv0 x y)
+          (fxmod0 x y)))
 (fxdefine-division fxdiv0 div0)
 (fxdefine-division fxmod0 mod0)
 
@@ -196,6 +190,20 @@
      (values s0 s1))))
 
 (fxdefine fxnot ((fx1) (- 0 fx1 1)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Bit-level hacking.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define fixnum-powers-of-two
+  (let ((v (make-vector W 1)))
+    (do ((i 1 (+ i 1)))
+        ((= i W)
+         v)
+      (let ((n (vector-ref v (- i 1))))
+        (vector-set! v i (+ n n))))))
 
 (define (fixnum->bitvector fx)
   (let ((v (make-vector W)))
@@ -223,139 +231,204 @@
           result
           (loop result (- i 1))))))
 
-(define-syntax fxdefine-logic
+;;; Given the <name> of a fixnum-only bitwise procedure to be defined,
+;;; an identity for the operation performed by the procedure,
+;;; and a procedure that takes two bits and returns their result,
+;;; defines the procedure.
+
+(define-syntax fxdefine-bitwise
   (syntax-rules ()
-    ((_ <name> <operator> <args> ...)
-     (fxdefine <name>
-       (<args>
-        (let ((v (make-vector W)))
-          (do ((i 0 (+ i 1)))
-              ((= i W) (bitvector->fixnum v))
-            (map/apply-args
-             (lambda <args>
-               (vector-set! v i (map/apply-args
-                                 <operator>
-                                 (lambda (arg) (vector-ref arg i))
-                                 <args>)))
-             fixnum->bitvector
-             <args>))))
-       ...))))
+   ((_ <name> <identity> <operation>)
+    (fxdefine <name>
+      (()
+       <identity>)
+      ((fx1)
+       fx1)
+      ((fx1 fx2)
+       (let loop ((fx1 (if (negative? fx1) (- fx1 (least-fixnum)) fx1))
+                  (fx2 (if (negative? fx2) (- fx2 (least-fixnum)) fx2))
+                  (i (- W 2))
+                  (bits (let* ((bit1 (if (negative? fx1) 1 0))
+                               (bit2 (if (negative? fx2) 1 0))
+                               (bit (<operation> bit1 bit2)))
+                          (if (= 0 bit)
+                              0
+                              (vector-ref fixnum-powers-of-two (- W 1))))))
+         (if (< i 0)
+             bits
+             (let* ((n (vector-ref fixnum-powers-of-two i))
+                    (bit1? (>= fx1 n))
+                    (bit2? (>= fx2 n))
+                    (bit (<operation> (if bit1? 1 0)
+                                      (if bit2? 1 0)))
+                    (fx1 (if bit1? (- fx1 n) fx1))
+                    (fx2 (if bit2? (- fx2 n) fx2))
+                    (bits (if (= 0 bit)
+                              bits
+                              (+ bits n))))
+               (loop fx1 fx2 (- i 1) bits)))))
+      ((fx1 fx2 . rest)
+       (let loop ((result (<name> fx1 fx2))
+                  (rest rest))
+         (if (null? rest)
+             result
+             (loop (<name> result (car rest))
+                   (cdr rest)))))))))       
 
-(define-syntax define-logic-proc
-  (syntax-rules ()
-    ((_ <name> <operator>)
-     (define-logic-proc <name> <operator>
-       (() (a) (a b) (a b c) (a b c d) (a b c d e))))
-    ((_ <name> <operator> ((<arg> ...) ...))
-     (define <name>
-       (case-lambda
-         ((<arg> ...)
-          (<operator> <arg> ...))
-         ...
-         (all
-          (let loop ((result (<operator>))
-                     (rest all))
-            (if (null? rest)
-                result
-                (loop (<operator> result (car rest))
-                      (cdr rest))))))))))
+(fxdefine-bitwise fxand
+  -1
+  (lambda (b1 b2)
+    (cond ((= 0 b1) 0)
+          ((= 0 b2) 0)
+          (else 1))))
 
-;;; Doesn't need to be a macro, but we want to leverage `define-logic-proc'.
-(define-syntax xor
-  (syntax-rules ()
-    ((_) #f)
-    ((_ <expr>) <expr>)
-    ((_ <expr0> <expr1> . <exprs>)
-     (xor (not (boolean=? (not (not <expr0>)) (not (not <expr1>))))
-          . <exprs>))))
+(fxdefine-bitwise fxior
+  0
+  (lambda (b1 b2)
+    (cond ((= 1 b1) 1)
+          ((= 1 b2) 1)
+          (else 0))))
 
-(define-logic-proc or-proc or)
-(define-logic-proc and-proc and)
-(define-logic-proc xor-proc xor)
+(fxdefine-bitwise fxxor
+  0
+  (lambda (b1 b2)
+    (cond ((= 1 (+ b1 b2)) 1)
+          (else 0))))
 
-(fxdefine-logic fxand and-proc () (a) (a b) (a b c) (a b c d) (a b c d e) rest)
-(fxdefine-logic fxior  or-proc () (a) (a b) (a b c) (a b c d) (a b c d e) rest)
-(fxdefine-logic fxxor xor-proc () (a) (a b) (a b c) (a b c d) (a b c d e) rest)
-
-(fxdefine-logic fxif if (a b c))
+(fxdefine fxif
+  ((fx1 fx2 fx3)
+   (cond ((negative? fx1)
+          (fxif (fxnot fx1) fx3 fx2))
+         ((or (negative? fx2)
+              (negative? fx3))
+          (fxior (fxand fx1 fx2)
+                 (fxand (fxnot fx1) fx3)))
+         (else
+          (let loop ((fx1 fx1)
+                     (fx2 fx2)
+                     (fx3 fx3)
+                     (i (- W 1))
+                     (bits 0))
+            (if (< i 0)
+                bits
+                (let* ((n (vector-ref fixnum-powers-of-two i))
+                       (bit1? (>= fx1 n))
+                       (bit2? (>= fx2 n))
+                       (bit3? (>= fx3 n))
+                       (fx1 (if bit1? (- fx1 n) fx1))
+                       (fx2 (if bit2? (- fx2 n) fx2))
+                       (fx3 (if bit3? (- fx3 n) fx3))
+                       (bits (if bit1?
+                                 (if bit2? (+ bits n) bits)
+                                 (if bit3? (+ bits n) bits))))
+                  (loop fx1 fx2 fx3 (- i 1) bits))))))))
 
 (fxdefine fxbit-count
   ((fx)
-   (let ((v (fixnum->bitvector fx)))
-     (do ((i 0 (+ i 1))
-          (count 0 (if (vector-ref v i) (+ count 1) count)))
-         ((= i W) count)))))
+   (if (< fx 0)
+       (fxnot (fxbit-count (fxnot fx)))
+       (let loop ((fx fx)
+                  (i (- W 1))
+                  (result 0))
+         (if (= fx 0)
+             result
+             (let ((n (vector-ref fixnum-powers-of-two i)))
+               (if (>= fx n)
+                   (loop (- fx n)
+                         (- i 1)
+                         (+ result 1))
+                   (loop fx (- i 1) result))))))))
 
 (fxdefine fxlength
   ((fx)
    (let ((fx (if (negative? fx) (fxnot fx) fx)))
-     (if (zero? fx)
-         0
-         (let ((v (fixnum->bitvector fx)))
-           (do ((i (- W 2) (- i 1)))
-               ((or (vector-ref v i) (= i 0))
-                (+ i 1))))))))
+     (let loop ((i 0)
+                (n 1))
+       (if (< fx n)
+           i
+           (loop (+ i 1) (+ n n)))))))
 
 (fxdefine fxfirst-bit-set
   ((fx)
    (if (zero? fx)
        -1
-       (let ((v (fixnum->bitvector fx)))
-         (do ((i 0 (+ i 1)))
-             ((vector-ref v i) i))))))
+       (let ((fx (if (negative? fx) (- fx) fx)))
+         (let loop ((fx (if (negative? fx) (- fx) fx))
+                    (i (- W 1)))
+           (let ((n (vector-ref fixnum-powers-of-two i)))
+             (cond ((= fx n)
+                    i)
+                   ((> fx n)
+                    (loop (- fx n)
+                          (- i 1)))
+                   (else
+                    (loop fx
+                          (- i 1))))))))))
 
 (define-syntax assert-index
   (syntax-rules ()
     ((_ <fx>)
      (assert (and (not (negative? <fx>)) (< <fx> W))
-             "Index must be non-negative and less than (fixnum-width)." <fx>))))
+             "index must be non-negative and less than (fixnum-width)"
+             <fx>))))
 
 (fxdefine fxbit-set?
   ((fx1 fx2)
    (assert-index fx2)
-   (vector-ref (fixnum->bitvector fx1) fx2)))
+   (if (>= fx2 W)
+       (negative? fx1)
+       (not (fxzero?
+             (fxand fx1
+                    (expt 2 fx2)))))))
 
 (fxdefine fxcopy-bit
   ((fx1 fx2 fx3)
    (assert-index fx2)
-   (assert (or (zero? fx3) (= 1 fx3)) "Third argument must be 1 or 0." fx3)
-   (let ((v (fixnum->bitvector fx1)))
-     (vector-set! v fx2 (not (zero? fx3)))
-     (bitvector->fixnum v))))
+   (assert (or (zero? fx3) (= 1 fx3)) "third argument must be 1 or 0" fx3)
+   (let* ((mask (expt 2 fx2))
+          (bit  (if (= fx3 0) 0 mask)))
+     (fxif mask
+           bit
+           fx1))))
 
 (define-syntax assert-indices
   (syntax-rules ()
     ((_ fx1 fx2)
-     (assert-index fx1)
-     (assert-index fx2)
-     (assert (<= fx1 fx2)
-             "First index must be less than or equal to second." fx1 fx2))))
+     (begin
+      (assert-index fx1)
+      (assert-index fx2)
+      (assert (<= fx1 fx2)
+              "first index must be less than or equal to second" fx1 fx2)))))
 
 (fxdefine fxbit-field
   ((fx1 fx2 fx3)
    (assert-indices fx2 fx3)
-   (let ((v1 (fixnum->bitvector fx1))
-         (v2 (make-vector W #f)))
-     (do ((i 0 (+ i 1))
-          (j fx2 (+ j 1)))
-         ((= j fx3) (bitvector->fixnum v2))
-       (vector-set! v2 i (vector-ref v1 j))))))
+   (let* ((mask (fxnot
+                 (- (expt 2 fx3)))))
+     (fxarithmetic-shift-right (fxand fx1 mask)
+                               fx2))))
 
 (fxdefine fxcopy-bit-field
   ((fx1 fx2 fx3 fx4)
    (assert-indices fx2 fx3)
-   (let ((v1 (fixnum->bitvector fx1))
-         (v2 (fixnum->bitvector fx4)))
-     (do ((i fx2 (+ i 1)))
-         ((= i fx3) (bitvector->fixnum v1))
-       (vector-set! v1 i (vector-ref v2 i))))))
+   (let* ((to    fx1)
+          (start fx2)
+          (end   fx3)
+          (from  fx4)
+          (mask1 (- (expt 2 start)))
+          (mask2 (fxnot
+                  (- (expt 2 end))))
+          (mask (fxand mask1 mask2)))
+     (fxif mask
+           (fxarithmetic-shift-left from start)
+           to))))
 
 (define-syntax assert-shift-count
   (syntax-rules ()
     ((_ <fx>)
      (assert
       (< (abs <fx>) W)
-      "Shift count's absolute value must be less than (fixnum-width)." <fx>))))
+      "shift count's absolute value must be less than (fixnum-width)" <fx>))))
 
 (fxdefine+ fxarithmetic-shift
   ((fx1 fx2)
@@ -376,23 +449,44 @@
   ((fx1 fx2 fx3 fx4)
    (assert-indices fx2 fx3)
    (let ((field-length (- fx3 fx2)))
-     (assert (< fx4 field-length) "Shift count must be less than the length of
-the field specified by the indices." fx2 fx3 fx4)
-     (let* ((v1 (fixnum->bitvector fx1))
-            (v2 (vector-copy v1)))
-       (do ((i 0 (+ i 1)))
-           ((= i field-length) (bitvector->fixnum v2))
-         (vector-set! v2 (+ fx2 (mod (+ i fx4) field-length))
-                      (vector-ref v1 (+ fx2 i))))))))
+     (assert (< fx4 field-length)
+             "shift count must be less than the field width" fx2 fx3 fx4)
+     (let* ((n     fx1)
+            (start fx2)
+            (end   fx3)
+            (count fx4)
+            (width (fx- end start)))
+       (if (fxpositive? width)
+           (let* ((count (fxmod count width))
+                  (field0 (fxbit-field n start end))
+                  (field1 (fxarithmetic-shift-left field0 count))
+                  (field2 (fxarithmetic-shift-right field0 (fx- width count)))
+                  (field (fxior field1 field2)))
+             (fxcopy-bit-field n start end field))
+           n)))))
 
 (fxdefine fxreverse-bit-field
   ((fx1 fx2 fx3)
    (assert-indices fx2 fx3)
-   (let ((v (fixnum->bitvector fx1)))
-     (do ((i fx2 (+ i 1))
-          (j (- fx3 1) (- j 1)))
-         ((or (= i j) (= (+ i 1) j)) (bitvector->fixnum v))
-       (let ((i-value (vector-ref v i))
-             (j-value (vector-ref v j)))
-         (vector-set! v i j-value)
-         (vector-set! v j i-value))))))
+   (assert (<= fx2 fx3)
+           "bit field widths must be non-negative" fx2 fx3)
+   (let* ((field (fxbit-field fx1 fx2 fx3))
+          (field (fxreverse-fixnum field (- fx3 fx2))))
+     (fxcopy-bit-field fx1 fx2 fx3 field))))
+
+;;; Private to this file.
+
+(define (fxreverse-fixnum fx k)
+  (if (negative? fx)
+      (+ 1 (fxreverse-fixnum (- fx (least-fixnum))))
+      (let loop ((fx fx)
+                 (i (- k 1))
+                 (bits 0)
+                 (val 1))
+        (if (< i 0)
+            bits
+            (let* ((n (vector-ref fixnum-powers-of-two i))
+                   (bit1? (>= fx n))
+                   (fx (if bit1? (- fx n) fx))
+                   (bits (if bit1? (+ bits val) bits)))
+              (loop fx (- i 1) bits (+ val val)))))))
