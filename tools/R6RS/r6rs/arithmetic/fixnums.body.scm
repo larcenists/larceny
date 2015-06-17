@@ -199,32 +199,6 @@
       (let ((n (vector-ref v (- i 1))))
         (vector-set! v i (+ n n))))))
 
-(define (fixnum->bitvector fx)
-  (let ((v (make-vector W)))
-    (let ((sign-bit (negative? fx)))
-      (vector-set! v (- W 1) sign-bit)
-      (let loop ((fx (if sign-bit (- fx (least-fixnum)) fx))
-                 (i (- W 2)))
-        (let* ((one-hot (expt 2 i))
-               (bit-set? (>= fx one-hot)))
-          (vector-set! v i bit-set?)
-          (unless (zero? i)
-            (loop (if bit-set? (- fx one-hot) fx)
-                  (- i 1))))))
-    v))
-
-(define (bitvector->fixnum v)
-  (let loop ((result (if (vector-ref v (- W 1))
-                         (least-fixnum)
-                         0))
-             (i (- W 2)))
-    (let ((result (if (vector-ref v i)
-                      (+ result (expt 2 i))
-                      result)))
-      (if (zero? i)
-          result
-          (loop result (- i 1))))))
-
 ;;; Given the <name> of a fixnum-only bitwise procedure to be defined,
 ;;; an identity for the operation performed by the procedure,
 ;;; and a procedure that takes two bits and returns their result,

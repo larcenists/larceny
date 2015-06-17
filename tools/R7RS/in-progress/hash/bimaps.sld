@@ -27,11 +27,11 @@
    bimap-clear!
    bimap-filter!
    bimap-remove!
-   bimap-partition! 
 
    )
 
   (import (scheme base)
+          (r6rs hashtables)
           (in-progress hash tables))
 
   (include "bimaps.body.scm")

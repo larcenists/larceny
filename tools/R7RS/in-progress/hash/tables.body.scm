@@ -1,3 +1,16 @@
+;;; Copyright 2015 William D Clinger.
+;;;
+;;; Permission to copy this software, in whole or in part, to use this
+;;; software for any lawful purpose, and to redistribute this software
+;;; is granted subject to the restriction that all copies made of this
+;;; software must include this copyright and permission notice in full.
+;;;
+;;; I also request that you send me a copy of any improvements that you
+;;; make to this software so that they may be incorporated within it to
+;;; the benefit of the Scheme community.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;; Private stuff, not exported.
 
 ;;; Comparators contain a type test predicate, which implementations
@@ -565,17 +578,14 @@
    ht1)
   ht1)
 
-;;; FIXME: the specified behavior of hash-table-xor! does not result
-;;; in anything resembling exclusive or.  Suppose, for example, that
-;;; ht1 is empty and ht2 contains exactly one entry, mapping x to y.
-;;; The spec says that association is first added to ht1; afterwards
-;;; ht1 and ht2 contain exactly the same associations.  The spec says
-;;; the next step is to delete the entries of ht1 whose keys are
-;;; present in ht2; that will delete all entries from ht1, leaving
-;;; ht1 empty as before.
-
 (define (hash-table-xor! ht1 ht2)
-  'FIXME)
+  (hash-table-for-each
+   (lambda (key2 val2)
+     (if (hashtable-contains? ht1 key2)
+         (hashtable-delete! ht1 key2)
+         (hashtable-set! ht1 key2 val2)))
+   ht2)
+  ht1)
 
 ;;; Exceptions.
 

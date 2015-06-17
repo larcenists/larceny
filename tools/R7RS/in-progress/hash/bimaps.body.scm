@@ -1,3 +1,19 @@
+;;; Copyright 2015 William D Clinger.
+;;;
+;;; Permission to copy this software, in whole or in part, to use this
+;;; software for any lawful purpose, and to redistribute this software
+;;; is granted subject to the restriction that all copies made of this
+;;; software must include this copyright and permission notice in full.
+;;;
+;;; I also request that you send me a copy of any improvements that you
+;;; make to this software so that they may be incorporated within it to
+;;; the benefit of the Scheme community.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; This implementation of bimaps works only with the reference
+;;; implementation of hash tables on top of (r6rs hashtables).
+
 ;;; A bimap is just a pair of hash tables with additional invariants.
 ;;;
 ;;; Let the hash tables be ht1 and ht2, with equivalence procedures
@@ -36,12 +52,22 @@
 ;;; FIXME:  As noted below, mutating ht1 can break these invariants,
 ;;; but it is an error to mutate ht1 after the bimap is created.
 
+;;; This implementation
+
 ;;; Private to this file.
 
 ;;; A unique (in the sense of eq?) value that will never be found
 ;;; within a hash-table.
 
 (define %not-found (list '%not-found))
+
+(define (%check-optional-arguments procname args)
+  (if (or (memq 'thread-safe args)
+          (memq 'weak-keys args)
+          (memq 'weak-values args))
+      (error (string-append (symbol->string procname)
+                            ": unsupported optional argument(s)")
+             args)))
 
 ;;; The :bimap type and raw-make-bimap procedure are private to this file,
 ;;; but bimap?, bimap-forward-hash-table, and bimap-reverse-hash-table
@@ -106,14 +132,14 @@
                      (or (eq? val1 val2)
                          (hash-table-contains? ht12 val2)
                          (hash-table-contains? ht22 val2))
-                     (let ((k1 (hash-table-ref ht12 val1))
-                           (k2 (hash-table-ref ht22 val1))
-                           (k3 (if (eq? val1 val2)
-                                   k1
-                                   (hash-table-ref ht12 val2)))
-                           (k4 (if (eq? val1 val2)
-                                   k2
-                                   (hash-table-ref ht22 val2))))
+                     (let* ((k1 (hash-table-ref ht12 val1))
+                            (k2 (hash-table-ref ht22 val1))
+                            (k3 (if (eq? val1 val2)
+                                    k1
+                                    (hash-table-ref ht12 val2)))
+                            (k4 (if (eq? val1 val2)
+                                    k2
+                                    (hash-table-ref ht22 val2))))
                        (and (equiv1 k1 k2)
                             (or (eq? val1 val2)
                                 (and (equiv1 k2 k3)
@@ -172,6 +198,18 @@
         (cond ((and (eq? k %not-found) (eq? v %not-found))
                (hashtable-set! ht1 key val)
                (hashtable-set! ht2 val key))
+              ((eq? k %not-found)
+               (let ((oldk (hashtable-ref ht2 v %not-found)))
+                 (hashtable-delete! ht2 v)
+                 (unless (eq? oldk %not-found)
+                         (hashtable-delete! ht1 oldk))
+                 (bimap-set! bimap key val)))
+              ((eq? v %not-found)
+               (let ((oldv (hashtable-ref ht1 k %not-found)))
+                 (hashtable-delete! ht1 k)
+                 (unless (eq? oldv %not-found)
+                         (hashtable-delete! ht2 oldv))
+                 (bimap-set! bimap key val)))
               (else
                (let ((oldv (hashtable-ref ht1 k %not-found))
                      (oldk (hashtable-ref ht2 v %not-found)))
@@ -197,7 +235,7 @@
 ;;; bimap-set-entries! goes left-to-right instead of right-to-left
 ;;; like bimap-set!.
 
-(define (bimap-set-entries! bimap keys-list values-list)
+(define (bimap-set-entries! bimap keys vals)
   (define (bmset! key val)
     (bimap-set! bimap key val))
   (for-each bmset! keys vals))
@@ -244,9 +282,9 @@
         (bimap-set! bimap key result))
     result))
 
-(define (bimap-replace/default! bimap key . rest)
+(define (bimap-replace/default! bimap key default)
   (let* ((found? (bimap-contains? bimap key))
-         (result (apply bimap-ref bimap key rest)))
+         (result (bimap-ref/default bimap key default)))
     (if found?
         (bimap-set! bimap key result))
     result))
@@ -254,7 +292,7 @@
 (define (bimap-update! bimap key updater . rest)
   (bimap-set! bimap
               key
-              (updater (apply bimap-ref ht key rest))))
+              (updater (apply bimap-ref bimap key rest))))
 
 (define (bimap-update/default! bimap key updater default)
   (bimap-set! bimap key (updater (bimap-ref/default bimap key default))))
@@ -266,14 +304,14 @@
 (define (bimap-filter! proc bimap)
   (hash-table-for-each (lambda (key val)
                          (if (not (proc key val))
-                             (bimap-delete! ht key)))
-                       (bimap-forward-hash-table bimap)))
+                             (bimap-delete! bimap key)))
+                       (bimap-forward-hash-table bimap))
   bimap)
 
-(define (bimap-remove! comparator proc bimap)
+(define (bimap-remove! proc bimap)
   (hash-table-for-each (lambda (key val)
                          (if (proc key val)
-                             (bimap-delete! ht key)))
-                       (bimap-forward-hash-table bimap)))
+                             (bimap-delete! bimap key)))
+                       (bimap-forward-hash-table bimap))
   bimap)
 
