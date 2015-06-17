@@ -60,8 +60,6 @@
    hash-table-intersection!
    hash-table-difference!
    hash-table-xor! 
-
-   hash-table-key-not-found? 
    )
 
   (import (scheme base)

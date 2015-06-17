@@ -52,8 +52,6 @@
 ;;; FIXME:  As noted below, mutating ht1 can break these invariants,
 ;;; but it is an error to mutate ht1 after the bimap is created.
 
-;;; This implementation
-
 ;;; Private to this file.
 
 ;;; A unique (in the sense of eq?) value that will never be found
@@ -80,10 +78,7 @@
   (ht2 bimap-reverse-hash-table))
 
 ;;; FIXME:  Why is ht1 required to share structure with the bimap?
-;;; It would be cleaner to copy ht1 when the bimap is created, and
-;;; it would make several other operations faster because they
-;;; wouldn't have to guard against the possibility that ht1 had
-;;; been mutated despite the contract.
+;;; It would be cleaner to copy ht1 when the bimap is created.
 
 (define (make-bimap ht1 comparator . rest)
   (%check-optional-arguments 'make-bimap rest)
@@ -106,8 +101,6 @@
 
 ;;; "Returns #t if bimap1 and bimap2 contain the same key-value
 ;;; associations, and #f otherwise."
-;;;
-;;; FIXME: what does "same" mean?
 ;;;
 ;;; In this implementation, two key-value associations k1/v1 and k2/v2
 ;;; are the same if and only if v1 and v2 reverse-map (in both tables)

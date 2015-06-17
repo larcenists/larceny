@@ -72,6 +72,10 @@
 
 (define %not-found (list '%not-found))
 
+;;; FIXME: %not-found-irritant and %not-found-message were used
+;;; to implement hash-table-key-not-found?, which is no longer
+;;; part of the HashTablesCowan API.
+
 ;;; A unique (in the sense of eq?) value that escapes only as an irritant
 ;;; when a hash-table key is not found.
 
@@ -80,6 +84,16 @@
 ;;; The error message used when a hash-table key is not found.
 
 (define %not-found-message "hash-table key not found")
+
+;;; FIXME: no longer exported; keeping it here in case it comes back
+
+(define (hash-table-key-not-found? obj)
+  (and (error-object? obj)
+       (string=? (error-object-message obj)
+                 %not-found-message)
+       (memq %not-found-irritant
+             (error-object-irritants obj))
+       #t))
 
 ;;; FIXME: thread-safe, weak-keys, and weak-values are not supported
 ;;; by this portable reference implementation.
@@ -251,15 +265,10 @@
 
 ;;; Accessors.
 
-;;; FIXME: might not execute in amortized constant time because
-;;; the guard might be expensive.
-
 (define (hash-table-ref ht key . rest)
   (let ((failure (if (null? rest) #f (car rest)))
         (success (if (or (null? rest) (null? (cdr rest))) #f (cadr rest)))
-        (val (guard (exn
-                     (else %not-found))
-              (hashtable-ref ht key %not-found))))
+        (val (hashtable-ref ht key %not-found)))
     (cond ((eq? val %not-found)
            (if (and failure (procedure? failure))
                (failure)
@@ -269,13 +278,8 @@
           (else
            val))))
 
-;;; FIXME: might not execute in amortized constant time because
-;;; the guard might be expensive.
-
 (define (hash-table-ref/default ht key default)
-  (guard (exn
-          (else default))
-   (hashtable-ref ht key default)))
+  (hashtable-ref ht key default))
 
 ;;; Mutators.
 
@@ -344,20 +348,21 @@
 (define (hash-table-update!/default ht key updater default)
   (hash-table-set! ht key (updater (hashtable-ref ht key default))))
 
-(define (hash-table-push! ht key val)
+(define (hash-table-push! ht key val failure)
   (let ((x (hashtable-ref ht key %not-found)))
     (if (eq? x %not-found)
-        (error %not-found-message ht key val %not-found-irritant))
-    (hash-table-set! ht key (cons val x))))
+        (hash-table-set! ht key (failure))
+        (hash-table-set! ht key (cons val x)))))
 
-(define (hash-table-pop! ht key)
+(define (hash-table-pop! ht key failure)
   (let ((x (hashtable-ref ht key %not-found)))
-    (if (eq? x %not-found)
-        (error %not-found-message ht key %not-found-irritant))
-    (if (not (pair? x))
-        (error "hash-table-pop!: current value not a pair" ht key x))
-    (hashtable-set! ht key (cdr x))
-    (car x)))
+    (cond ((eq? x %not-found)
+           (failure))
+          ((not (pair? x))
+           (error "hash-table-pop!: current value not a pair" ht key x))
+          (else
+           (hashtable-set! ht key (cdr x))
+           (car x)))))
 
 (define (hash-table-search! ht key failure success)
   (let ((x (hashtable-ref ht key %not-found)))
@@ -391,9 +396,6 @@
      (values (vector->list keys)
              (vector->list vals)))))
 
-;;; FIXME: may return two values, or may return whatever failure returns,
-;;; which is awkward because the number of values returned is variable.
-
 (define (hash-table-find ht proc failure)
   (call-with-values
    (lambda () (hash-table-entries ht))
@@ -405,8 +407,7 @@
            (let* ((key (car keys))
                   (val (car vals))
                   (x   (proc key val)))
-             (if x
-                 (values key val)
+             (or x
                  (loop (cdr keys)
                        (cdr vals)))))))))
 
@@ -587,13 +588,4 @@
    ht2)
   ht1)
 
-;;; Exceptions.
-
-(define (hash-table-key-not-found? obj)
-  (and (error-object? obj)
-       (string=? (error-object-message obj)
-                 %not-found-message)
-       (memq %not-found-irritant
-             (error-object-irritants obj))
-       #t))
-
+; eof

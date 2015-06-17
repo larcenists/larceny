@@ -202,6 +202,8 @@
 
 ;;; Accessors.
 
+;;; FIXME: glass-box (implementations not required to raise an exception here)
+
 (test (map (lambda (ht)
              (guard (exn
                      (else 'err))
@@ -209,20 +211,21 @@
            test-tables)
       (map (lambda (ht) 'err) test-tables))
 
-(test (map (lambda (ht)
-             (guard (exn
-                     (else (hash-table-key-not-found? exn)))
-              (hash-table-ref ht 'not-a-key)))
-           test-tables)
-      (map (lambda (ht) #t) test-tables))
+;;; FIXME: glass-box (implementations not required to raise an exception here)
 
 (test (map (lambda (ht)
-             (hash-table-ref ht 'not-a-key (lambda () 'err)))
+             (guard (exn
+                     (else 'err))
+              (hash-table-ref ht 'not-a-key (lambda () 'err))))
            test-tables)
       (map (lambda (ht) 'err) test-tables))
 
+;;; FIXME: glass-box (implementations not required to raise an exception here)
+
 (test (map (lambda (ht)
-             (hash-table-ref ht 'not-a-key (lambda () 'err) values))
+             (guard (exn
+                     (else 'err))
+              (hash-table-ref ht 'not-a-key (lambda () 'err) values)))
            test-tables)
       (map (lambda (ht) 'err) test-tables))
 
@@ -271,9 +274,11 @@
              0 4))
       '(eh ("fever") eh eh eh eh eh (twain) eh (4) eh (4) eh (stookey) eh (2)))
 
+;;; FIXME: glass-box (implementations not required to raise an exception here)
+
 (test (map (lambda (ht)
              (guard (exn
-                     (else 'err))
+                     (else 'eh))
               (hash-table-ref/default ht 'not-a-key 'eh)))
            test-tables)
       (map (lambda (ht) 'eh) test-tables))
@@ -379,19 +384,31 @@
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(13 12 11 0 1 2 3 4 5 -1 -1 8 -1))
 
-(test (guard (exn
-              ((hash-table-key-not-found? exn) 17)
-              (else 19))
-        (hash-table-push! ht-fixnum 75 '***))
-      17)
+(test (begin (hash-table-push! ht-fixnum 75 '*** (lambda () 8.66))
+             (hash-table-ref/default ht-fixnum 75 -1))
+      8.66)
 
-(test (begin (hash-table-push! ht-fixnum 64 '*)
+(test (begin (hash-table-push! ht-fixnum 64 '* (lambda () 'okra))
              (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
-                  '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
-      '(13 12 11 0 1 2 3 4 5 -1 -1 (* . 8) -1))
+                  '(169 144 121 0 1 4 9 16 25 36 49 64 75 81)))
+      '(13 12 11 0 1 2 3 4 5 -1 -1 (* . 8) 8.66 -1))
 
-(test (hash-table-pop! ht-fixnum 64)
+(test (hash-table-pop! ht-fixnum 64 (lambda () 'whatever))
       '*)
+
+(test (hash-table-pop! ht-fixnum 65 (lambda () 'whatever))
+      'whatever)
+
+;;; FIXME: glass-box (implementations not required to raise an exception here)
+
+(test (guard (exn (else 'error))
+       (hash-table-pop! ht-fixnum 75 (lambda () 'whatever)))
+      'error)
+
+(test (begin (hash-table-delete! ht-fixnum 75)
+             (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
+                  '(169 144 121 0 1 4 9 16 25 36 49 64 75 81)))
+      '(13 12 11 0 1 2 3 4 5 -1 -1 8 -1 -1))
 
 (test (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
            '(169 144 121 0 1 4 9 16 25 36 49 64 81))
@@ -457,23 +474,21 @@
              (hash-table-size ht-eq))
       0)
 
-(test (call-with-values
-       (lambda ()
-         (hash-table-find ht-fixnum
-                          (lambda (key val)
-                            (= 144 key (* val val)))
-                          (lambda () (values 'one 'two))))
-       list)
+(test (hash-table-find ht-fixnum
+                       (lambda (key val)
+                         (if (= 144 key (* val val))
+                             (list key val)
+                             #f))
+                       (lambda () 99))
       '(144 12))
 
-(test (call-with-values
-       (lambda ()
-         (hash-table-find ht-fixnum
-                          (lambda (key val)
-                            (= 144 key val))
-                          (lambda () (values 'one 'two))))
-       list)
-      '(one two))
+(test (hash-table-find ht-fixnum
+                       (lambda (key val)
+                         (if (= 144 key val)
+                             (list key val)
+                             #f))
+                       (lambda () 99))
+      99)
 
 (test (hash-table-count ht-fixnum <=)
       2)
@@ -736,15 +751,9 @@
         (100 . 10)))
 
 (test (guard (exn
-              ((hash-table-key-not-found? exn)
-               'key-not-found)
-              (else
-               'whatever))
+              (else 'key-not-found))
        (hash-table-ref ht-default "this key won't be present"))
       'key-not-found)
-
-(test (hash-table-key-not-found? 'key-not-found)
-      #f)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -802,23 +811,25 @@
 
 (test (bimap=? bim-squares bim-squares2) #t)
 
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-ref bim-squares 81))
       9)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-ref bim-squares 81 (lambda () 'whatever)))
       9)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-ref bim-squares 81 (lambda () 'whatever) list))
       '(9))
 
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+;;; FIXME: glass-box (implementations not required to raise an exception here)
+
+(test (guard (exn (else 'error))
        (bimap-ref bim-squares 7))
-      #t)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+      'error)
+(test (guard (exn (else 'error))
        (bimap-ref bim-squares 7 (lambda () 'whatever)))
       'whatever)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-ref bim-squares 7 (lambda () 'whatever) list))
       'whatever)
 
@@ -827,23 +838,25 @@
 (test (bimap-ref/default bim-squares 7 'whatever)
       'whatever)
 
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+;;; FIXME: glass-box (implementations not required to raise an exception here)
+
+(test (guard (exn (else 'error))
        (bimap-value-ref bim-squares 81))
-      #t)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+      'error)
+(test (guard (exn (else 'error))
        (bimap-value-ref bim-squares 81 (lambda () 'whatever)))
       'whatever)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-value-ref bim-squares 81 (lambda () 'whatever) list))
       'whatever)
 
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-value-ref bim-squares 7))
       49)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-value-ref bim-squares 7 (lambda () 'whatever)))
       49)
-(test (guard (exn (#t (hash-table-key-not-found? exn)))
+(test (guard (exn (else 'error))
        (bimap-value-ref bim-squares 7 (lambda () 'whatever) list))
       '(49))
 
@@ -1060,21 +1073,17 @@
         (8 . 64)
         (9 . 81)))
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
-       (bimap-extend! bim-squares 100))
-      'okay)
+;;; FIXME: glass-box (implementations not required to raise an exception here)
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
+(test (guard (exn (else 'error))
+       (bimap-extend! bim-squares 100))
+      'error)
+
+(test (guard (exn (else 'error))
        (bimap-extend! bim-squares 81))
       9)
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-extend! bim-squares 100 (lambda () -10)))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1091,9 +1100,7 @@
         (81 . 9)
         (100 . -10)))
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                   'okay)
-                  (else (error "bimap-extend! raised wrong exception")))
+(test (guard (exn (else 'error))
        (bimap-extend! bim-squares 100 (lambda () -10) abs))
       10)
 
@@ -1112,33 +1119,25 @@
         (81 . 9)
         (100 . -10)))
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
+(test (guard (exn (else 'error))
        (bimap-extend/default! bim-squares 100 67))
       -10)
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
+(test (guard (exn (else 'error))
        (bimap-extend/default! bim-squares 121 11))
       11)
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
-       (bimap-replace! bim-squares 144))
-      'okay)
+;;; FIXME: glass-box (implementations not required to raise an exception here)
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
+(test (guard (exn (else 'error))
+       (bimap-replace! bim-squares 144))
+      'error)
+
+(test (guard (exn (else 'error))
        (bimap-replace! bim-squares 81))
       9)
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-replace! bim-squares 100 (lambda () -77)))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1156,9 +1155,7 @@
         (100 . -10)
         (121 . 11)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-replace! bim-squares 88 (lambda () -77) abs))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1176,9 +1173,7 @@
         (100 . -10)
         (121 . 11)))
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                   'okay)
-                  (else (error "bimap-replace! raised wrong exception")))
+(test (guard (exn (else 'error))
        (bimap-replace! bim-squares 100 (lambda () -10) abs))
       10)
 
@@ -1198,21 +1193,15 @@
         (100 . 10)
         (121 . 11)))
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
+(test (guard (exn (else 'error))
        (bimap-replace/default! bim-squares 100 67))
       10)
 
-(test (guard (exn ((hash-table-key-not-found? exn)
-                    'okay)
-                  (else 'not-okay))
+(test (guard (exn (else 'error))
        (bimap-replace/default! bim-squares 123 45))
       45)
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-replace! bim-squares 100 (lambda () -77) -))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1230,9 +1219,7 @@
         (100 . -10)
         (121 . 11)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update! bim-squares 100 abs))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1250,9 +1237,7 @@
         (100 . 10)
         (121 . 11)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update! bim-squares 100 - (lambda () 99)))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1270,9 +1255,7 @@
         (100 . -10)
         (121 . 11)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update! bim-squares 100 - (lambda () 99) square))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1290,9 +1273,7 @@
         (100 . -100)
         (121 . 11)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update! bim-squares 144 - (lambda () 12)))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1311,9 +1292,7 @@
         (121 . 11)
         (144 . -12)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update! bim-squares 169 - (lambda () 99) square))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1333,9 +1312,7 @@
         (144 . -12)
         (169 . -99)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update/default! bim-squares 169 - 33))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1355,9 +1332,7 @@
         (144 . -12)
         (169 . 99)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-update/default! bim-squares 196 - 14))
              (list-sort (lambda (x y) (< (car x) (car y)))
                         (hash-table->alist
@@ -1398,9 +1373,7 @@
         (11 . 121)
         (99 . 169)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-filter! (lambda (key val)
                                (= key (square val)))
                              bim-squares))
@@ -1421,9 +1394,7 @@
         (144 . -12)
         (196 . -14)))
 
-(test (begin (guard (exn ((hash-table-key-not-found? exn)
-                          'okay)
-                         (else 'not-okay))
+(test (begin (guard (exn (else 'error))
               (bimap-remove! (lambda (key val)
                                (< val 0))
                              bim-squares))
