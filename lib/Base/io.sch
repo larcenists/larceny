@@ -5,30 +5,32 @@
 ; Useful I/O procedures.
 
 ; Read the next line and return it as a string, with newline stripped.
+;
+; This is now standard in R7RS.
 
-(define (read-line . rest)
-
-  (define (finish l k)
-    (let ((s (make-string k)))
-      (do ((i (- k 1) (- i 1))
-	   (l l (cdr l)))
-	  ((< i 0) s)
-	(string-set! s i (car l)))))
-
-  (define (loop p l k)
-    (let ((c (read-char p)))
-      (cond ((eof-object? c)
-	     (if (null? l)
-		 c
-		 (finish l k)))
-	    ((char=? c #\newline)
-	     (finish l k))
-	    (else
-	     (loop p (cons c l) (+ k 1))))))
-
-  (if (null? rest)
-      (loop (current-input-port) '() 0)
-      (loop (car rest) '() 0)))
+;(define (read-line . rest)
+;
+;  (define (finish l k)
+;    (let ((s (make-string k)))
+;      (do ((i (- k 1) (- i 1))
+;           (l l (cdr l)))
+;          ((< i 0) s)
+;        (string-set! s i (car l)))))
+;
+;  (define (loop p l k)
+;    (let ((c (read-char p)))
+;      (cond ((eof-object? c)
+;             (if (null? l)
+;                 c
+;                 (finish l k)))
+;            ((char=? c #\newline)
+;             (finish l k))
+;            (else
+;             (loop p (cons c l) (+ k 1))))))
+;
+;  (if (null? rest)
+;      (loop (current-input-port) '() 0)
+;      (loop (car rest) '() 0)))
 
 
 ; Read the entire file and return it as a string.

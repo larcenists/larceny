@@ -518,29 +518,95 @@
            (?ar ?t1))
        ?e1 ...))))
 
+;;; From R7RS-small section 7.3 with changes as marked.
+
 (define-syntax define-values
   (syntax-rules ()
-    ((define-values (<name> ...) <body> ...)
-     ; =>
-     (define-values helper (<name> ...) () (<name> ...) <body> ...))
-    ((define-values helper () (<temp> ...) (<name> ...) <body> ...)
-     ; =>
+
+    ((define-values () expr)
+     (define dummy
+       (call-with-values
+         (lambda () expr)
+         (lambda args #f))))
+
+    ((define-values (var) expr)
+     (define var expr))
+
+    ;; FIXME: workaround for unsupported syntax in this pattern:
+    ;; (define-values (var0 var1 ... varn) expr)
+
+    ((define-values (var0 var1 other-vars ...) expr)
+     (define-values 0 var0 (var1) (other-vars ...) expr))
+
+    ;; Reversing 
+
+    ((define-values 0 var0 (reversed-vars ...) (var other-vars ...) expr)
+     (define-values 0 var0 (var reversed-vars ...) (other-vars ...) expr))
+
+    ((define-values 0 var0 (varn reversed-vars ...) () expr)
+     (define-values 1 var0 varn () (reversed-vars ...) expr))
+
+    ;; Unreversing
+
+    ((define-values 1 var0 varn (vars ...) (var other-vars ...) expr)
+     (define-values 1 var0 varn (var vars ...) (other-vars ...) expr))
+
+    ((define-values 1 var0 varn (var1 ...) () expr)
+
+     ;; FIXME: we have now matched all components of the original pattern:
+     ;;
+     ;; (define-values (var0 var1 ... varn) expr)
+     ;;
+     ;; End of first workaround.
+
      (begin
-       (define <name> #f) 
+       (define var0
+         (call-with-values (lambda () expr) list))
+       (define var1
+         (let ((v (cadr var0)))
+           (set-cdr! var0 (cddr var0))
+           v))
        ...
-       (define <ignored>
-         (call-with-values
-          (lambda () <body> ...)
-          (lambda (<temp> ...)
-            (set! <name> <temp> ) 
-            ...
-            )))
-       ))
-    ((define-values helper (<var1> <var2> ...) <temp>s
-       (<name> ...) <body> ...)
-     ; =>
-     (define-values helper (<var2> ...) (<temp> . <temp>s)
-       (<name> ...) <body> ...))))
+       (define varn
+         (let ((v (cadr var0))) (set! var0 (car var0)) v))))
+
+    ;; FIXME: workaround for unsupported syntax in this pattern:
+    ;; (define-values (var0 var1 ... . varn) expr)
+
+    ((define-values (var0 . others) expr)
+     (define-values 2 var0 (var0) others expr))
+
+    ((define-values 2 var0 (reversed-vars ...) (var . others) expr)
+     (define-values 2 var0 (var reversed-vars ...) others expr))
+
+    ((define-values 2 var0 (reversed-vars ...) varn expr)
+     (define-values 3 var0 varn () (reversed-vars ...) expr))
+
+    ((define-values 3 var0 varn (vars ...) (var reversed-vars ...) expr)
+     (define-values 3 var0 varn (var vars ...) (reversed-vars ...) expr))
+
+    ((define-values 3 var0 varn (vars ...) () expr)
+     
+     ;; FIXME: we have now matched all components of the original pattern:
+     ;;
+     ;; (define-values (var0 var1 ... . varn) expr)
+     ;;
+     ;; End of second workaround.
+
+     (begin
+       (define var0
+         (call-with-values (lambda () expr) list))
+       (define var1
+         (let ((v (cadr var0)))
+           (set-cdr! var0 (cddr var0))
+           v))
+       ...
+       (define varn
+         (let ((v (cdr var0))) (set! var0 (car var0)) v))))
+
+    ((define-values var expr)
+     (define var
+       (call-with-values (lambda () expr) list)))))
 
 (define-syntax with-continuation-mark
   (syntax-rules ()

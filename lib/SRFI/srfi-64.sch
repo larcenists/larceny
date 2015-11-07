@@ -327,7 +327,7 @@
 	      (display "\")")))
 	(newline)))
   (let ((log (test-runner-aux-value runner)))
-    (if (output-port? log)
+    (if (output-port-open? log) ; [Larceny]
 	(begin
 	  (display "Group begin: " log)
 	  (display suite-name log)
@@ -336,7 +336,7 @@
 
 (define (test-on-group-end-simple runner)
   (let ((log (test-runner-aux-value runner)))
-    (if (output-port? log)
+    (if (output-port-open? log) ; [Larceny]
 	(begin
 	  (display "Group end: " log)
 	  (display (car (test-runner-group-stack runner)) log)
@@ -358,7 +358,7 @@
 (define (test-on-bad-count-simple runner count expected-count)
   (%test-on-bad-count-write runner count expected-count (current-output-port))
   (let ((log (test-runner-aux-value runner)))
-    (if (output-port? log)
+    (if (output-port-open? log) ; [Larceny]
 	(%test-on-bad-count-write runner count expected-count log))))
 
 (define (test-on-bad-end-name-simple runner begin-name end-name)
@@ -391,7 +391,7 @@
 (define (test-on-final-simple runner)
   (%test-final-report-simple runner (current-output-port))
   (let ((log (test-runner-aux-value runner)))
-    (if (output-port? log)
+    (if (output-port-open? log) ; [Larceny]
 	(%test-final-report-simple runner log))))
 
 (define (%test-format-line runner)
@@ -460,7 +460,7 @@
 
 (define (test-on-test-begin-simple runner)
  (let ((log (test-runner-aux-value runner)))
-    (if (output-port? log)
+    (if (output-port-open? log) ; [Larceny]
 	(let* ((results (test-result-alist runner))
 	       (source-file (assq 'source-file results))
 	       (source-line (assq 'source-line results))
@@ -501,7 +501,7 @@
 		(display " ")
 		(display (cdr test-name))))
 	  (newline)))
-    (if (output-port? log)
+    (if (output-port-open? log) ; [Larceny]
 	(begin
 	  (display "Test end:" log)
 	  (newline log)

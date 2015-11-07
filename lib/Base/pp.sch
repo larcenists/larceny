@@ -386,18 +386,43 @@
         (out (make-string 1 #\newline) (pp obj 0 lvl0))
         (wr obj 0 lvl0)))
 
+  ; Don't let the pretty printer go into an infinite loop.
+
+  (define circular:limit 200)
+  (define circular:notation
+    ";;; circularity detected by pretty printer; giving up\n#<WEIRD>")
+
   (define (pretty obj . opt)
-    (let ((port (if (pair? opt) (car opt) (current-output-port))))
-      (%generic-write obj
-                      #f
-                      (memq (transcoder-codec (port-transcoder port))
-                            '(utf-8 utf-16))
-                      (line-length)
-                      (lambda (s)
-                        (display s port)
-                        #t)
-                      (or (print-level) -1)
-                      (or (print-length) -1))
+    (let* ((port (if (pair? opt) (car opt) (current-output-port)))
+           (circular? (object-is-circular? obj))
+           (char-count 0)
+           (lvl (or (print-level) -1))
+           (len (or (print-length) -1)))
+      (call-with-current-continuation
+       (lambda (quit)
+
+         (define (abandon-circular-output)
+           (newline port)
+           (display-simple circular:notation port)
+           (newline port)
+          ;(quit (unspecified))
+           #f)
+
+         (%generic-write obj
+                         #f
+                         (memq (transcoder-codec (port-transcoder port))
+                               '(utf-8 utf-16))
+                         (line-length)
+                         (lambda (s)
+                           (display-simple s port)
+                           (set! char-count
+                                 (+ char-count (string-length s)))
+                           (if (and circular?
+                                    (> char-count circular:limit))
+                               (abandon-circular-output)
+                               #t))
+                         lvl
+                         len)))
       (unspecified)))
 
   (define line-length 

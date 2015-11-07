@@ -247,8 +247,10 @@
     ((execmode)
      (case (get-feature feature$execmode)
       ((0)   'r5rs)
+      ((5)   'r7rs)
+      ((6)   'r7r6)
       ((1)   'err5rs)
-      ((2 3) 'dargo)
+      ((2 3) 'r6rs)
       (else  'spanky)))
     ((ignore1)
      (case (get-feature feature$execmode)
@@ -278,6 +280,17 @@
     (else 
      (error "sys$system-feature: " name " is not a system feature name"))))
 
+; For deciding whether to use R7RS, R6RS, or R5RS semantics.
+; Must keep in sync with src/Rts/Sys/primitive.c (which explains encodings).
+;
+; FIXME: this should be faster
+
+(define (larceny:execution-mode)
+  (case (sys$system-feature 'execmode)
+   ((r5rs)             'r5rs)
+   ((r7rs r7r6 err5rs) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
+   (else               'r6rs)))
+
 ; Get the value of an environment variable.
 
 (define (sys$check-env-var fn name)
@@ -298,6 +311,26 @@
     (syscall syscall:setenv (sys$check-env-var 'setenv name) value)
     (error "setenv: not a string: " value))
   (unspecified))
+
+(define (get-environment-variables)
+  (define (name-part s)
+    (let* ((n (string-length s))
+           (chars (string->list s))
+           (probe (memv #\= chars)))
+      (if (not probe)
+          s
+          (substring s 0 (- n (length probe))))))
+  (let ((generator (syscall syscall:listenv-init)))
+    (if generator
+        (let loop ((entries '()))
+          (let ((result (syscall syscall:listenv generator)))
+            (cond ((bytevector-like? result)
+                   (loop (cons (sys$cstring->string result) entries)))
+                  (else
+                   (let* ((names (map name-part entries)))
+                     (map (lambda (name) (cons name (getenv name)))
+                          (reverse names)))))))
+        '())))
 
 (define (get-errno)
   (syscall syscall:errno))
@@ -344,6 +377,30 @@
         (if (not (string? path))
             (error "current-directory: " path " is not a string."))
         (syscall syscall:chdir (sys$string->cstring path)))))
+
+(define (list-directory . rest)
+  (define excluded-names '("." ".."))
+  (if (null? rest)
+      (list-directory (current-directory))
+      (let ((path (car rest)))
+        (cond ((string? path)
+               (let ((generator
+                      (syscall syscall:listdir-open
+                               (sys$string->cstring path))))
+                 (and generator
+                      (let loop ((filenames '()))
+                        (let ((result (syscall syscall:listdir generator)))
+                          (cond ((bytevector-like? result)
+                                 (let* ((name (sys$cstring->string result))
+                                        (filenames
+                                         (if (member name excluded-names)
+                                             filenames
+                                             (cons name filenames))))
+                                   (loop filenames)))
+                                (else
+                                 (syscall syscall:listdir-close generator)
+                                 (list-sort string<? filenames))))))))
+              (else (error 'list-directory (errmsg 'msg:notstring) path))))))
 
 (define (sys$c-ffi-apply trampoline arg-encoding ret-encoding actuals)
   (syscall syscall:c-ffi-apply trampoline arg-encoding ret-encoding actuals))

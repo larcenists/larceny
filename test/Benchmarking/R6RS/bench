@@ -94,9 +94,12 @@ setup ()
   LARCENY=${LARCENY:-"../../../larceny"}
   PETIT=${PETIT:-"../../../petit-larceny"}
   PLTR6RS=${PLTR6RS:-"plt-r6rs"}
+  RACKET=${RACKET:-"plt-r6rs"}
   YPSILON=${YPSILON:-"ypsilon"}
   MOSH=${MOSH:-"mosh"}
   PETITE=${PETITE:-"petite"}
+  SAGITTARIUS=${SAGITTARIUS:-"sagittarius"}
+  VICARE=${VICARE:-"vicare"}
  
 }
 
@@ -118,6 +121,9 @@ Usage: bench [-r runs] <system> <benchmark>
   petit            for Petit Larceny
   petite           for Petite Chez
   plt              for PLT Scheme
+  racket           for Racket
+  sagittarius      for Sagittarius
+  vicare           for Vicare
   ypsilon          for Ypsilon
   all              for all of the above
 
@@ -247,6 +253,19 @@ plt_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Racket
+
+racket_comp ()
+{
+  echo | time "${RACKET}" --compile "$1"
+}
+
+racket_exec ()
+{
+  time "${RACKET}" "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Ypsilon
 
 ypsilon_comp ()
@@ -283,6 +302,32 @@ petite_comp ()
 petite_exec ()
 {
   time "${PETITE}" --optimize-level 2 --program "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Sagittarius
+
+sagittarius_comp ()
+{
+  :
+}
+
+sagittarius_exec ()
+{
+  time "${SAGITTARIUS}" -r6 -d -n "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Vicare
+
+vicare_comp ()
+{
+  :
+}
+
+vicare_exec ()
+{
+  time "${VICARE}" --r6rs-script "$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -379,6 +424,16 @@ for system in $systems ; do
 	    EXECCOMMANDS=""
             ;;
 
+    racket) NAME='Racket'
+            COMP=racket_comp
+            EXEC=racket_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
    ypsilon) NAME='Ypsilon' # copied from Ikarus' settings...
             COMP=ypsilon_comp
             EXEC=ypsilon_exec
@@ -402,6 +457,26 @@ for system in $systems ; do
     petite) NAME='Petite'
             COMP=petite_comp
             EXEC=petite_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+  sagittarius) NAME='Sagittarius'
+            COMP=sagittarius_comp
+            EXEC=sagittarius_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+    vicare) NAME='Vicare'
+            COMP=vicare_comp
+            EXEC=vicare_exec
             COMPOPTS=""
             EXTENSION="sch"
             EXTENSIONCOMP="sch"

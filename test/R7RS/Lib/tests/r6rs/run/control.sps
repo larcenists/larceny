@@ -1,0 +1,6 @@
+(import (tests r6rs control)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs control)\n")
+(run-control-tests)
+(report-test-results)

@@ -252,65 +252,65 @@ static void stop( void )
     }                                                                         \
   } while (0)
 
-#define scan_update_rs( e, ptr, iflush, FORW, UPDATE_REMSET )                  \
-  do {                                                                         \
-    word *scan_core_old_ptr = ptr, T_w = *ptr;                                 \
-    int g_lhs, g_rhs;                                                          \
-    assert2( T_w != FORWARD_HDR);                                              \
-    g_lhs = gen_of(ptr);                                                       \
-    if (ishdr( T_w )) {                                                        \
-      word T_h = header( T_w );                                                \
-      if (T_h == BV_HDR) {                                                     \
-        /* bytevector: skip it, and flush the icache if code */                \
-        word *T_oldptr = ptr;                                                  \
-        word T_bytes = roundup4( sizefield( T_w ) );                           \
-        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */  \
-        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                 \
-        /* Only code vectors typically use a plain bytevector typetag,         \
-         * so almost any bytevector will be a code vector that must            \
-         * be flushed.                                                         \
-         */                                                                    \
-        if (iflush && typetag( T_w ) == BVEC_SUBTAG)                           \
-          mem_icache_flush( T_oldptr, ptr );                                   \
-      }                                                                        \
-      else {                                                                   \
-        /* vector or procedure: scan in a tight loop */                        \
-        word T_words = sizefield( T_w ) >> 2;                                  \
-        bool updated = FALSE;                                                  \
-        ptr++;                                                                 \
-        while (T_words) {                                                      \
-          T_words--;                                                           \
-          FORW;                                                                \
-          updated =                                                            \
-            UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                        \
-                           ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG),                \
-                           ((byte*)ptr - (byte*)scan_core_old_ptr),            \
-                           *ptr );                                             \
-          ptr++;                                                               \
-          if (updated) break;                                                  \
-        }                                                                      \
-        while (T_words--) {                                                    \
-          FORW;                                                                \
-          ptr++;                                                               \
-        }                                                                      \
-        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                    \
-      }                                                                        \
-    }                                                                          \
-    else {                                                                     \
-      bool upd;                                                                \
-      FORW;                                                                    \
-      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,              \
-                           ((byte*)ptr - (byte*)scan_core_old_ptr),            \
-                           *ptr );                                             \
-      ptr++;                                                                   \
-      FORW;                                                                    \
-      if (!upd)                                                                \
-        upd =                                                                  \
-          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,                \
-                         ((byte*)ptr - (byte*)scan_core_old_ptr),              \
-                         *ptr );                                               \
-      ptr++;                                                                   \
-    }                                                                          \
+#define scan_update_rs( e, ptr, iflush, FORW, UPDATE_REMSET )                 \
+  do {                                                                        \
+    word *scan_core_old_ptr = ptr, T_w = *ptr;                                \
+    int g_lhs, g_rhs;                                                         \
+    assert2( T_w != FORWARD_HDR);                                             \
+    g_lhs = gen_of(ptr);                                                      \
+    if (ishdr( T_w )) {                                                       \
+      word T_h = header( T_w );                                               \
+      if (T_h == BV_HDR) {                                                    \
+        /* bytevector: skip it, and flush the icache if code */               \
+        word *T_oldptr = ptr;                                                 \
+        word T_bytes = roundup4( sizefield( T_w ) );                          \
+        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
+        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                \
+        /* Only code vectors typically use a plain bytevector typetag,        \
+         * so almost any bytevector will be a code vector that must           \
+         * be flushed.                                                        \
+         */                                                                   \
+        if (iflush && typetag( T_w ) == BVEC_SUBTAG)                          \
+          mem_icache_flush( T_oldptr, ptr );                                  \
+      }                                                                       \
+      else {                                                                  \
+        /* vector or procedure: scan in a tight loop */                       \
+        word T_words = sizefield( T_w ) >> 2;                                 \
+        bool updated = FALSE;                                                 \
+        ptr++;                                                                \
+        while (T_words) {                                                     \
+          T_words--;                                                          \
+          FORW;                                                               \
+          updated =                                                           \
+            UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                       \
+                           ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG),               \
+                           ((byte*)ptr - (byte*)scan_core_old_ptr),           \
+                           *ptr );                                            \
+          ptr++;                                                              \
+          if (updated) break;                                                 \
+        }                                                                     \
+        while (T_words--) {                                                   \
+          FORW;                                                               \
+          ptr++;                                                              \
+        }                                                                     \
+        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
+      }                                                                       \
+    }                                                                         \
+    else {                                                                    \
+      bool upd;                                                               \
+      FORW;                                                                   \
+      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,             \
+                           ((byte*)ptr - (byte*)scan_core_old_ptr),           \
+                           *ptr );                                            \
+      ptr++;                                                                  \
+      FORW;                                                                   \
+      if (!upd)                                                               \
+        upd =                                                                 \
+          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,               \
+                         ((byte*)ptr - (byte*)scan_core_old_ptr),             \
+                         *ptr );                                              \
+      ptr++;                                                                  \
+    }                                                                         \
   } while (0)
 
 /* 'p' is not local to the macro because it is also used by the expansion 

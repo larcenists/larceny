@@ -234,11 +234,13 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   other_space =
     create_semispace( GC_CHUNK_SIZE, data->gen_no );
 
-#if 1
-  int i;
-  for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
-    if (!(i >= G_REG5 && i <= G_REG31))
-      annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+#ifdef ARM
+  {
+    int i;
+    for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
+      if (!(i > G_REG5 && i <= G_REG31))
+        annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+    }
   }
 #endif
 
@@ -292,12 +294,6 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
   annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
                used_space( heap ) );
-#ifdef ARM
-  {
-    extern int flushes;
-    annoyingmsg( "  Flushes=%d", flushes );
-  }
-#endif
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( 
@@ -393,8 +389,9 @@ static void stack_underflow( young_heap_t *heap )
   word *globals = DATA(heap)->globals;
 
   globals[ G_STKUFLOW] += 1;
-  if (!stk_restore_frame( globals ))
+  if (!stk_restore_frame( globals )) {
     stack_overflow( heap );                        /* [sic] */
+  }
 }
 
 static word creg_get( young_heap_t *heap ) 
@@ -419,8 +416,9 @@ static void creg_set( young_heap_t *heap, word k )
   annoyingmsg("creg-set");
   stk_clear( globals );
   globals[ G_CONT ] = k;
-  if (!stk_restore_frame( globals ))
+  if (!stk_restore_frame( globals )) {
     stack_overflow( heap );                        /* [sic] */
+  }
 }
 
 /* Internal functions past this point. */
@@ -573,7 +571,7 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
   heap = create_young_heap_t( "sc/variable", 
                               HEAPCODE_YOUNG_2SPACE,
                               0,                 /* intialize */
-			      create_initial_stack,
+                              create_initial_stack,
                               allocate,
                               make_room,
                               collect,

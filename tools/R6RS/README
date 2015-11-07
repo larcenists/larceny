@@ -1,0 +1,60 @@
+This directory contains R7RS implementations of some R6RS standard
+libraries for use by R7RS libraries and programs.
+
+Some of these implementations will be incomplete, but partial
+implementations may be more useful than none at all.
+
+To avoid conflict with R6RS libraries provided by Sagittarius,
+Larceny, and other implementations that support both R6RS and
+R7RS, these approximations to R6RS libraries are named (r6rs *)
+instead of (rnrs *).  The Wrappers/rnrs subdirectory defines
+the (rnrs *) libraries by importing the corresponding (r6rs *)
+library and re-exporting all of its exported identifiers.
+
+****************************************************************
+
+List of R6RS standard libraries and their current status:
+
+(r6rs base)                     implemented with stub for identifier-syntax
+(r6rs unicode)                  fully implemented atop (scheme char)
+(r6rs bytevectors)              fully implemented atop (scheme base)
+(r6rs lists)                    fully implemented atop (scheme base)
+(r6rs sorting)                  fully implemented atop (scheme base)
+(r6rs control)                  fully implemented atop (scheme base)
+(r6rs records syntactic)        will wait for R7RS (large)
+(r6rs records procedural)       will wait for R7RS (large)
+(r6rs records inspection)       will wait for R7RS (large)
+(r6rs exceptions)               fully implemented atop (scheme base)
+(r6rs conditions)               won't be implemented
+(r6rs io ports)                 not yet implemented
+(r6rs io simple)                fully implemented atop (scheme *)
+(r6rs files)                    fully implemented atop (scheme file)
+(r6rs programs)                 fully implemented atop (scheme process-context)
+(r6rs arithmetic fixnums)       fully implemented atop (scheme base)
+(r6rs arithmetic flonums)       not yet implemented
+(r6rs arithmetic bitwise)       not yet implemented
+(r6rs syntax-case)              will wait for R7RS (large)
+(r6rs hashtables)               fully implemented atop (srfi 69) or nada
+(r6rs enums)                    fully implemented atop (scheme base)
+(r6rs)                          not yet implemented
+(r6rs eval)                     fully implemented atop (scheme eval)
+(r6rs mutable-pairs)            fully implemented atop (scheme base)
+(r6rs mutable-strings)          fully implemented atop (scheme base)
+(r6rs r5rs)                     fully implemented atop (scheme r5rs)
+
+****************************************************************
+
+Implementation notes:
+
+The r6rs/*.sld libraries can be tested using slightly modified
+Racket tests found in Larceny's test/R7RS/Lib/tests/r6rs
+directory.  See test/R7RS/Lib/README.
+
+The r6rs/unicode-reference directory contains the R7RS reference
+implementation of Unicode 7.0 with minimal changes from its R6RS
+code.  This implementation is complete, so it will work in R7RS
+systems that can represent Unicode characters and strings but
+don't provide (scheme char).  Most R7RS systems do provide
+(scheme char); refactoring the reference implementation to rely
+on (scheme char) would get rid of a lot of code and tables.
+

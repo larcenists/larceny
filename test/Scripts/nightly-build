@@ -1,0 +1,315 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script fetches Larceny's source code from GitHub, builds Larceny
+## from source, runs tests and benchmarks, logging all the while.
+##
+## To use this script, create a symbolic link to it with one of the
+## following names:
+##
+##     nightly-build-larceny-solaris-native
+##     nightly-build-mzscheme-solaris-native
+##     nightly-build-larceny-solaris-petit
+##     nightly-build-mzscheme-solaris-petit
+##     nightly-build-larceny-linux86-petit
+##     nightly-build-larceny-linux86-petit-nasm
+##     nightly-build-mzscheme-linux86-petit
+##     nightly-build-mzscheme-linux86-petit-nasm
+##     nightly-build-larceny-linux86-native
+##     nightly-build-mzscheme-linux86-native
+##     nightly-build-larceny-macosx-petit       # PowerPC!
+##     nightly-build-mzscheme-macosx-petit      # PowerPC!
+##     nightly-build-larceny-macosx-native      # IA32!
+##     nightly-build-mzscheme-macosx-native     # IA32!
+##
+## The appropriate configuration will be deduced from the name of the
+## script.
+##
+## This script must export all of the following environment variables:
+##
+##     TODAY
+##     TRACK
+##     DIRNAME
+##     DIR
+##     SCHEME_PGM
+##     SETUP_ARGS
+##     FINAL_LARCENY_SCRIPT
+##     FIXPATH_CMD
+##     FINAL_LARCENY_BIN
+##     FINAL_TWOBIT_BIN
+##     HEAP_DUMP_SCRIPT
+##     MAKETEXTSAFE
+## 
+########################################################################
+
+################################################################
+##
+## Testing the new scripts:
+##
+##     clone-only
+##     build-only
+##     test-only
+##     benchmark-only
+##
+################################################################
+
+export TRACK="Nightly"
+
+# Perhaps add more to this, like the hour and minute?
+export TODAY=`date +%Y-%m-%d` 
+
+FINAL_LARCENY_SCRIPT=larceny
+FIXPATH_CMD=echo
+FINAL_LARCENY_BIN=larceny.bin
+FINAL_TWOBIT_BIN=larceny.bin
+
+# Setup options (based on script's name)
+case "`basename "$0"`" in
+
+    nightly-build-larceny-solaris-native)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
+	DIRNAME=native
+	MAKETEXTSAFE=native2ascii
+    ;;
+    nightly-build-mzscheme-solaris-native)
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris 'native 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
+	DIRNAME=mznative
+	MAKETEXTSAFE=native2ascii
+    ;;
+    nightly-build-larceny-solaris-petit)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=petit
+	MAKETEXTSAFE=native2ascii
+    ;;
+    nightly-build-mzscheme-solaris-petit)
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'solaris"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=mzpetit
+	MAKETEXTSAFE=native2ascii
+    ;;
+
+    nightly-build-larceny-linux86-petit)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=petit
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    nightly-build-larceny-linux86-petit-nasm)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'nasm"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=petit
+    ;;
+    nightly-build-mzscheme-linux86-petit)
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=mzpetit
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    nightly-build-mzscheme-linux86-petit-nasm)
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'nasm"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=mzpetit
+    ;;
+#    nightly-build-larceny-linux86-dotnet)
+#	SCHEME_PGM=larceny
+#	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'dotnet"
+#	FINAL_LARCENY_BIN=dotnet.heap.exe
+#	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+#	DIRNAME=dotnet
+#    ;;
+#    nightly-build-mzscheme-linux86-dotnet)
+#	SCHEME_PGM=mzscheme
+#	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'dotnet"
+#	FINAL_LARCENY_BIN=dotnet.heap.exe
+#	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+#	DIRNAME=mzdotnet
+#    ;;
+    nightly-build-larceny-linux86-native)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=native
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    nightly-build-mzscheme-linux86-native)
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'linux86 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=mznative
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+
+    nightly-build-larceny-macosx-petit)   # PPC!
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=petit
+	MAKETEXTSAFE=native2ascii
+    ;;
+    nightly-build-mzscheme-macosx-petit)  # PPC!
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=mzpetit
+	MAKETEXTSAFE=native2ascii
+    ;;
+    nightly-build-larceny-macosx-native)  # IA32!
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=native
+	MAKETEXTSAFE=native2ascii
+    ;;
+    nightly-build-mzscheme-macosx-native) # IA32!
+	SCHEME_PGM="mzscheme -f "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'mzscheme 'host: 'macosx-el 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=mznative
+	MAKETEXTSAFE=native2ascii
+    ;;
+
+
+    *)
+    case "`uname`" in
+	SunOS)
+	echo "Setup arguments not specified; assuming Solaris native build."
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'solaris 'native 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/sparc-HHH-heap.sch
+	DIRNAME=default
+	MAKETEXTSAFE=native2ascii
+	;;
+	Linux)
+	echo "Setup arguments not specified; assuming linux86 native build."
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'linux86 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=default
+	MAKETEXTSAFE="iconv -t utf8 -c"
+	;;
+	Darwin)
+	echo "Setup arguments not specified; assuming macosx86 native build."	
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-el 'sassy 'string-rep: 'flat4"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=default
+	MAKETEXTSAFE=native2ascii
+	;;
+        CYGWIN*)
+	echo "Setup arguments not specified; assuming win32 native build."	
+	HOME="`pwd`"
+	SCHEME_PGM="`pwd`/HostLarceny/larceny.bat --"
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'win32 'sassy 'string-rep: 'flat4"
+	FINAL_LARCENY_BIN=larceny.bin.exe
+	FINAL_TWOBIT_BIN=larceny.bin.exe
+	FINAL_LARCENY_SCRIPT=larceny.bat
+	FIXPATH_CMD="cygpath -w"
+	HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+	DIRNAME=default
+	### XXX This is bad:
+	MAKETEXTSAFE="cat"
+        ;;
+	*)
+	echo "Setup arguments not specified; unknown target architecture."
+	exit 1
+	;;
+    esac
+    ;;
+esac
+
+export DIRNAME
+export DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
+
+export SCHEME_PGM
+export SETUP_ARGS
+export FINAL_LARCENY_SCRIPT
+export FIXPATH_CMD
+export FINAL_LARCENY_BIN
+export FINAL_TWOBIT_BIN
+export HEAP_DUMP_SCRIPT
+export MAKETEXTSAFE
+
+LOGDIR=${HOME}/logs
+
+XMLFILE_GIT=${LOGDIR}/cdash-update-sub.xml
+XMLFILE_CONFIG=${LOGDIR}/cdash-config-sub.xml
+XMLFILE_BUILD=${LOGDIR}/cdash-build-sub.xml
+XMLFILE_TESTS=${LOGDIR}/cdash-tests-sub.xml
+XMLFILE_BENCH=${LOGDIR}/cdash-bench-sub.xml
+
+LOGFILE_GIT=${LOGDIR}/git.log
+LOGFILE_BUILD_BASIC=${LOGDIR}/build.log
+LOGFILE_BUILD_R7RS=${LOGDIR}/buildR7RS.log
+LOGFILE_TEST_BASIC=${LOGDIR}/basic.log
+LOGFILE_TEST_RACKET=${LOGDIR}/racketR6RS.log
+LOGFILE_TEST_CHIBI=${LOGDIR}/chibiR7RS.log
+LOGFILE_TEST_LARCENY=${LOGDIR}/larcenyR7RS.log
+LOGFILE_TEST_CLISP=${LOGDIR}/clispNumbers.log
+LOGFILE_TEST_TRIG=${LOGDIR}/trigTest.log
+LOGFILE_TEST_SRFI=${LOGDIR}/srfi.log
+LOGFILE_BENCHMARK=${LOGDIR}/benchmarks.log
+
+# Make undated log files empty, so we can't submit a previous set of logs.
+
+cat /dev/null > ${XMLFILE_GIT}
+cat /dev/null > ${XMLFILE_CONFIG}
+cat /dev/null > ${XMLFILE_BUILD}
+cat /dev/null > ${XMLFILE_TESTS}
+cat /dev/null > ${XMLFILE_BENCH}
+
+cat /dev/null > ${LOGFILE_GIT}
+cat /dev/null > ${LOGFILE_BUILD_BASIC}
+cat /dev/null > ${LOGFILE_BUILD_R7RS}
+cat /dev/null > ${LOGFILE_TEST_BASIC}
+cat /dev/null > ${LOGFILE_TEST_RACKET}
+cat /dev/null > ${LOGFILE_TEST_CHIBI}
+cat /dev/null > ${LOGFILE_TEST_LARCENY}
+cat /dev/null > ${LOGFILE_TEST_CLISP}
+cat /dev/null > ${LOGFILE_TEST_TRIG}
+cat /dev/null > ${LOGFILE_TEST_SRFI}
+cat /dev/null > ${LOGFILE_BENCHMARK}
+
+${HOME}/bin/clone-only >> ${LOGFILE_GIT} 2>&1
+
+${HOME}/bin/build-only >> ${LOGFILE_BUILD_BASIC} 2>&1
+
+${HOME}/bin/test-only >> ${LOGFILE_TEST_BASIC} 2>&1
+
+${HOME}/bin/test2-only >> ${LOGFILE_TEST_LARCENY} 2>&1
+
+${HOME}/bin/benchmark-only >> ${LOGFILE_BENCHMARK} 2>&1
+
+cp ${DIR}/*.xml ${LOGDIR}
+cp ${DIR}/*.log ${LOGDIR}
+
+################################################################

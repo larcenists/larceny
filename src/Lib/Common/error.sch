@@ -7,25 +7,25 @@
 ($$trace "error")
 
 ; R6RS-style programs should never enter Larceny's debugger,
-; because Larceny's R6RS modes are designed for batch-mode
+; because Larceny's R6RS mode is designed for batch-mode
 ; execution by people who don't know anything about Scheme.
-; Programmers should use ERR5RS mode instead of R6RS modes.
+; Programmers use R7RS/ERR5RS modes instead of R6RS mode.
 
 (define (unhandled-exception-error x)
-  (let ((emode (cdr (assq 'execution-mode (system-features)))))
+  (let ((out (current-error-port))
+        (emode (larceny:execution-mode)))
     (case emode
-     ((dargo spanky)
-      (let ((out (current-error-port)))
-        (newline out)
-        (display "Error: no handler for exception " out)
-        (write x out)
-        (newline out)
-        (if (condition? x)
-            (display-condition x out))
-        (newline out)
-        (display "Terminating program execution." out)
-        (newline out)
-        (exit 1)))
+     ((r6rs)
+      (newline out)
+      (display "Error: no handler for exception " out)
+      (write x out)
+      (newline out)
+      (if (condition? x)
+          (display-condition x out))
+      (newline out)
+      (display "Terminating program execution." out)
+      (newline out)
+      (exit 1))
      (else
       ((error-handler) x)))))
 
@@ -35,38 +35,55 @@
 ; The R6RS exception mechanism is used if and only if
 ;     the program is executing in an R6RS mode, or
 ;     a custom exception handler is currently installed,
-;         and the arguments are acceptable to the R6RS.
+;         and the arguments are not acceptable to the R7RS.
 
 (define (use-r6rs-mechanism? who msg)
-  (let ((emode (cdr (assq 'execution-mode (system-features)))))
-    (or (memq emode '(dargo spanky))
+  (let ((emode (larceny:execution-mode)))
+    (or (eq? emode 'r6rs)
         (and (custom-exception-handlers?)
-             (or (symbol? who) (string? who) (eq? who #f))
+             (or (symbol? who) (eq? who #f))
              (string? msg)))))
 
+(define (use-r7rs-mechanism? msg)
+  (let ((emode (larceny:execution-mode)))
+    (and (or (eq? emode 'r7rs)
+             (custom-exception-handlers?))
+         (string? msg))))
+
 (define (error . args)
-  (if (and (pair? args) (pair? (cdr args)))
-      (let ((who (car args))
-            (msg (cadr args))
-            (irritants (cddr args))
-            (handler (error-handler)))
-        (define (separated irritants)
-          (if (null? irritants)
-              '()
-              (cons " "
-                    (cons (car irritants) (separated (cdr irritants))))))
-        (if (string? msg)
-            (cond ((use-r6rs-mechanism? who msg)
-                   (raise-r6rs-exception (make-error) who msg irritants))
-                  ((or (symbol? who) (string? who))
-                   (apply handler who msg (separated irritants)))
-                  ((eq? who #f)
-                   (apply handler msg (separated irritants)))
-                  (else
-                   ; old-style
-                   (apply handler '() args)))
-            (apply handler '() args)))
-      (apply (error-handler) '() args)))
+
+  (define (nonstandard-arguments)
+    (apply (error-handler) '() args))
+
+  (define (separated irritants)
+    (if (null? irritants)
+        '()
+        (cons " "
+              (cons (car irritants) (separated (cdr irritants))))))
+
+  (cond ((null? args)
+         (nonstandard-arguments))
+        ((null? (cdr args))
+         (if (use-r7rs-mechanism? (car args))
+             (raise-r6rs-exception (make-error) #f (car args) '())
+             (nonstandard-arguments)))
+        (else
+         (let ((arg1 (car args))
+               (arg2 (cadr args))
+               (irritants (cddr args))
+               (handler (error-handler)))
+           (cond ((use-r6rs-mechanism? arg1 arg2)
+                  (raise-r6rs-exception (make-error) arg1 arg2 irritants))
+                 ((use-r7rs-mechanism? arg1)
+                  (raise-r6rs-exception (make-error)
+                                        #f arg1 (cons arg2 irritants)))
+                 ((or (symbol? arg1) (string? arg1))
+                  (apply handler arg1 arg2 (separated irritants)))
+                 ((eq? arg1 #f)
+                  (apply handler arg2 (separated irritants)))
+                 (else
+                  ; old-style
+                  (nonstandard-arguments)))))))
 
 (define (assertion-violation who msg . irritants)
   (if (or #t (use-r6rs-mechanism? who msg)) ; FIXME
@@ -156,31 +173,80 @@
 
 ; FIXME:  This is an awful hack to connect two exception systems
 ; via the messages produced by Larceny.
+;
+; The R6RS/R7RS system uses a stack of exception handlers installed
+; by with-exception-handler (which is also used by the guard syntax).
+; Those exception handlers take a single argument, which is usually
+; (but not always) a condition.
+;
+; Larceny's traditional mechanism uses a global exception-handler
+; (defined in ehander.sch) that handles timer interrupts, keyboard
+; interrupts, breakpoints, and signals in addition to the things
+; referred to as exceptions by the R7RS.  For R7RS exceptions,
+; Larceny's global exception handler calls the current value of
+; the error-handler parameter with several arguments as documented 
+; in ehandler.sch and described in the comments for decode-error
+; above.
+;
+; Larceny's debugger (such as it is) is called by the error-handler
+; installed at heap-building time by lib/Debugger/debug.sch.
+;
+; Conundrum:  We want an error-handler to repackage Larceny's
+; low-level encoding of exceptions generated by the check! mechanism,
+; so they can be examined by R7RS/R6RS-style exception handlers,
+; but we also want an error-handler that serves as exception hander
+; of last resort so the debugger (or whatever) will be called when
+; all of the installed exception handlers decline to handle the
+; exception.  In other words, we want a sandwich with the repackaging
+; layer on top, the R7RS/R6RS-style exception handlers in the middle,
+; and a debugging layer on the bottom.
+;
+; To accomplish that:
+;     lib/Debugger/debug.sch installs an error-handler in the R5RS heap
+;     the interactive-entry-point (defined in src/Lib/Repl/main.sch)
+;         installs an error-handler that repackages Larceny's low-level
+;         error data into a condition, parameterizes error-handler to
+;         whatever it was before (most likely an error-handler that
+;         will call the debugger), and calls raise to give R7RS/R6RS
+;         exception handlers a chance to handle the exception before
+;         it gets to the exception handler of last resort (defined at
+;         the top of this file), which calls the current error-handler.
+;
+; To complicate things still further, the R7RS error procedure doesn't
+; allow a who argument and offers no way to extract who information
+; from an error object, so who information is left as part of the
+; message unless we're running in R6RS mode.
 
 (define (decode-and-raise-r6rs-exception the-error)
-  (let* ((out (open-output-string))
-         (msg (begin (decode-error the-error out)
-                     (get-output-string out)))
-         (larceny-system-prefix "\nError: ")
-         (n (string-length larceny-system-prefix))
-         (larceny-style?
-          (and (< n (string-length msg))
-               (string=? larceny-system-prefix (substring msg 0 n))))
-         (msg (if larceny-style?
-                  (substring msg n (string-length msg))
-                  msg))
-         (chars (if larceny-style? (string->list msg) '()))
-         (colon (memq #\: chars))
-         (who (if colon
-                  (substring msg 0 (- (string-length msg) (length colon)))
-                  #f))
-         (msg (if colon (list->string (cdr colon)) msg))
-         (c0 (make-assertion-violation))
-         (c1 (make-message-condition msg)))
-    (raise
-     (if who
-         (condition c0 (make-who-condition who) c1)
-         (condition c0 c1)))))
+  (if (and (pair? the-error)
+           (null? (cdr the-error))
+           (condition? (car the-error)))
+      (raise (car the-error))
+      (let* ((r6rs? (eq? (larceny:execution-mode) 'r6rs))
+             (out (open-output-string))
+             (msg (begin (decode-error the-error out)
+                         (get-output-string out)))
+             (larceny-system-prefix "\nError: ")
+             (n (string-length larceny-system-prefix))
+             (larceny-style?
+              (and (< n (string-length msg))
+                   (string=? larceny-system-prefix (substring msg 0 n))))
+             (msg (if larceny-style?
+                      (substring msg n (string-length msg))
+                      msg))
+             (chars (if larceny-style? (string->list msg) '()))
+             (colon (memq #\: chars))
+             (who (if colon
+                      (substring msg 0 (- (string-length msg) (length colon)))
+                      #f))
+             (who (if (equal? who "?") #f who))
+             (msg (if (and r6rs? colon) (list->string (cdr colon)) msg))
+             (c0 (make-assertion-violation))
+             (c1 (make-message-condition msg)))
+        (raise
+         (if who
+             (condition c0 (make-who-condition who) c1)
+             (condition c0 c1))))))
 
 (define (raise-r6rs-exception c0 who msg irritants)
   (let ((c1 (cond ((or (symbol? who) (string? who))
@@ -231,7 +297,7 @@
              (newline out))))))
 
 (define url:deprecated
-  "http://larceny.ccs.neu.edu/larceny-trac/wiki/DeprecatedFeatures")
+  "https://github.com/larcenists/larceny/wiki/DeprecatedFeatures")
 
 ; List of deprecated features for which a warning has already
 ; been issued.

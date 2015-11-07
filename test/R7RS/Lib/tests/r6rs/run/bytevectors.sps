@@ -1,0 +1,6 @@
+(import (tests r6rs bytevectors)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs bytevectors)\n")
+(run-bytevectors-tests)
+(report-test-results)

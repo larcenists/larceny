@@ -63,6 +63,62 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; New for R7RS
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (bytevector . args)
+  (let* ((n (length args))
+         (bv (make-bytevector n)))
+    (do ((i 0 (+ i 1))
+         (args args (cdr args)))
+        ((= i n)
+         bv)
+      (bytevector-u8-set! bv i (car args)))))
+
+(define (bytevector-append . args)
+  (let* ((lengths (map bytevector-length args))
+         (n (apply + lengths))
+         (bv (make-bytevector n)))
+    (do ((j 0 (+ j (car lengths)))
+         (args args (cdr args))
+         (lengths lengths (cdr lengths)))
+        ((null? args) bv)
+      (r7rs:bytevector-copy! bv j (car args)))))
+
+;;; R7RS version of bytevector-copy! is incompatible with R6RS
+;;; when five arguments are passed.
+
+;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
+;;; the length of to.  It is also an error if (- (bytevector-length to) at)
+;;; is less than (- end start)."
+;;; The R7RS does not say what the last argument (end) defaults to if
+;;; omitted.  If end is not specified, Larceny uses the largest index
+;;; that will work.
+
+(define (r7rs:bytevector-copy! dst at src . rest)
+  (let* ((start (if (null? rest) 0 (car rest)))
+         (rest (if (null? rest) rest (cdr rest)))
+         (end (if (or (null? rest) (null? (cdr rest)))
+                  (min (bytevector-length src)
+                       (+ start (- (bytevector-length dst) at)))
+                  (cadr rest)))
+         (kount (- end start)))
+    (r6rs:bytevector-copy! src start dst at kount)))
+
+;;; FIXME: this is the R6RS version with a temporary hack.
+
+(define *someone-has-used-bytevector-copy!* #f)
+
+(define (bytevector-copy! src i dst j kount)
+  (if (not *someone-has-used-bytevector-copy!*)
+      (begin (set! *someone-has-used-bytevector-copy!* #t)
+             (display "***** Someone used bytevector-copy! *****\n"
+                      (current-error-port))))
+  (r6rs:bytevector-copy! src i dst j kount))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Bytevector procedures that have been proposed for R6RS.
 ; FIXME:  These should be bummed for performance.
 ; In particular, they could use some fixnum arithmetic.
@@ -319,12 +375,14 @@
 ; FIXME: should use word-at-a-time when possible
 
 (define (bytevector-fill! b fill)
-  (let ((n (bytevector-length b)))
-    (do ((i 0 (+ i 1)))
-        ((= i n))
-      (bytevector-u8-set! b i fill))))        
+  (if (<= -128 fill -1)
+      (bytevector-fill! b (+ fill 256))
+      (let ((n (bytevector-length b)))
+        (do ((i 0 (+ i 1)))
+            ((= i n))
+          (bytevector-u8-set! b i fill)))))
 
-(define (bytevector-copy! source source-start target target-start count)
+(define (r6rs:bytevector-copy! source source-start target target-start count)
   (if (>= source-start target-start)
       (do ((i 0 (+ i 1)))
           ((>= i count))
@@ -337,10 +395,15 @@
                        (+ target-start i)
                        (bytevector-u8-ref source (+ source-start i))))))
 
-(define (bytevector-copy b)
+;;; Generalized from one argument for R7RS.
+
+(define (bytevector-copy b . rest)
   (let* ((n (bytevector-length b))
-         (b2 (make-bytevector n)))
-    (bytevector-copy! b 0 b2 0 n)
+         (start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
+         (k (- end start))
+         (b2 (make-bytevector k)))
+    (r6rs:bytevector-copy! b start b2 0 k)
     b2))
 
 (define (bytevector->u8-list b)
@@ -614,7 +677,7 @@
       (if (= 0 (bytevector:mod k 4))
           (bytevector-ieee-single-native-ref bytevector k)
           (let ((b (make-bytevector 4)))
-            (bytevector-copy! bytevector k b 0 4)
+            (r6rs:bytevector-copy! bytevector k b 0 4)
             (bytevector-ieee-single-native-ref b 0)))
       (let ((b (make-bytevector 4)))
         (bytevector-u8-set! b 0 (bytevector-u8-ref bytevector (+ k 3)))
@@ -628,7 +691,7 @@
       (if (= 0 (bytevector:mod k 8))
           (bytevector-ieee-double-native-ref bytevector k)
           (let ((b (make-bytevector 8)))
-            (bytevector-copy! bytevector k b 0 8)
+            (r6rs:bytevector-copy! bytevector k b 0 8)
             (bytevector-ieee-double-native-ref b 0)))
       (let ((b (make-bytevector 8)))
         (bytevector-u8-set! b 0 (bytevector-u8-ref bytevector (+ k 7)))
@@ -647,7 +710,7 @@
           (bytevector-ieee-single-native-set! bytevector k x)
           (let ((b (make-bytevector 4)))
             (bytevector-ieee-single-native-set! b 0 x)
-            (bytevector-copy! b 0 bytevector k 4)))
+            (r6rs:bytevector-copy! b 0 bytevector k 4)))
       (let ((b (make-bytevector 4)))
         (bytevector-ieee-single-native-set! b 0 x)
         (bytevector-u8-set! bytevector k (bytevector-u8-ref b 3))
@@ -661,7 +724,7 @@
           (bytevector-ieee-double-native-set! bytevector k x)
           (let ((b (make-bytevector 8)))
             (bytevector-ieee-double-native-set! b 0 x)
-            (bytevector-copy! b 0 bytevector k 8)))
+            (r6rs:bytevector-copy! b 0 bytevector k 8)))
       (let ((b (make-bytevector 8)))
         (bytevector-ieee-double-native-set! b 0 x)
         (bytevector-u8-set! bytevector k (bytevector-u8-ref b 7))
@@ -719,18 +782,20 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (string->utf8 string)
+(define (string->utf8 string . rest)
   (let* ((n (string-length string))
-         (k (do ((i 0 (+ i 1))
+         (start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
+         (k (do ((i start (+ i 1))
                  (k 0 (+ k (let ((sv (char->integer (string-ref string i))))
                              (cond ((<= sv #x007f) 1)
                                    ((<= sv #x07ff) 2)
                                    ((<= sv #xffff) 3)
                                    (else 4))))))
-                ((= i n) k)))
+                ((= i end) k)))
          (bv (make-bytevector k)))
     (define (loop i j)
-      (if (= i n)
+      (if (>= i end)
           bv
           (let ((sv (char->integer (string-ref string i))))
             (cond ((<= sv #x007f)
@@ -769,7 +834,7 @@
                      (bytevector-u8-set! bv (+ j 2) u2)
                      (bytevector-u8-set! bv (+ j 3) u3)
                      (loop (+ i 1) (+ j 4))))))))
-    (loop 0 0)))
+    (loop start 0)))
 
 ; Given a bytevector containing the UTF-8 encoding
 ; of a string, decodes and returns a newly allocated
@@ -816,27 +881,30 @@
 ;
 ; q3 --- expecting three more bytes, the first in range lower..upper
 
-(define (utf8->string bv)
+(define (utf8->string bv . rest)
   (let* ((n (bytevector-length bv))
+         (start (if (null? rest) 0 (car rest)))
+         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
          (replacement-character (integer->char #xfffd))
-         (bits->char (lambda (bits)
-                       (cond ((<= 0 bits #xd7ff)
-                              (integer->char bits))
-                             ((<= #xe000 bits #x10ffff)
-                              (integer->char bits))
-                             (else
-                              replacement-character))))
          (begins-with-bom?
           (and (<= 3 n)
                (= #xef (bytevector-u8-ref bv 0))
                (= #xbb (bytevector-u8-ref bv 1))
                (= #xbf (bytevector-u8-ref bv 2)))))
 
+    (define bits->char (lambda (bits)
+                         (cond ((<= 0 bits #xd7ff)
+                                (integer->char bits))
+                               ((<= #xe000 bits #x10ffff)
+                                (integer->char bits))
+                               (else
+                                replacement-character))))
+
     (define (result-length)
       ; i is index of the next byte
       ; k is the number of characters encoded by bytes 0 through i-1
       (define (q0 i k)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1))
@@ -862,7 +930,7 @@
                      ; illegal
                      (q0 i1 k1))))))
       (define (q1 i k)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -875,7 +943,7 @@
                      ; illegal
                      (q0 i k))))))
       (define (q2 i k lower)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -888,7 +956,7 @@
                      ; illegal
                      (q0 i k))))))
       (define (q3 i k lower upper)
-        (if (= i n)
+        (if (= i end)
             k
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -900,9 +968,9 @@
                     (else
                      ; illegal
                      (q0 i k))))))
-      (if begins-with-bom?
+      (if (and begins-with-bom? (= start 0))
           (q0 3 0)
-          (q0 0 0)))
+          (q0 start 0)))
 
     (let* ((k (result-length))
            (s (make-string k)))
@@ -911,7 +979,7 @@
       ; k is index of the next character in s
 
       (define (q0 i k)
-        (if (< i n)
+        (if (< i end)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1))
                   (k1 (+ k 1)))
@@ -939,7 +1007,7 @@
                      (string-set! s k replacement-character)
                      (q0 i1 k1))))))
       (define (q1 i k bits)
-        (if (= i n)
+        (if (= i end)
             (string-set! s k replacement-character)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1))
@@ -959,7 +1027,7 @@
                      (string-set! s k replacement-character)
                      (q0 i k1))))))
       (define (q2 i k lower bits)
-        (if (= i n)
+        (if (= i end)
             (string-set! s k replacement-character)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -976,7 +1044,7 @@
                      (string-set! s k replacement-character)
                      (q0 i (+ k 1)))))))
       (define (q3 i k lower upper bits)
-        (if (= i n)
+        (if (= i end)
             (string-set! s k replacement-character)
             (let ((unit (bytevector-u8-ref bv i))
                   (i1 (+ i 1)))
@@ -992,9 +1060,9 @@
                      ; illegal
                      (string-set! s k replacement-character)
                      (q0 i (+ k 1)))))))
-      (if begins-with-bom?
+      (if (and begins-with-bom? (= start 0))
           (q0 3 0)
-          (q0 0 0))
+          (q0 start 0))
       s)))
 
 ; (utf-16-codec) might write a byte order mark,
@@ -1106,7 +1174,7 @@
                             (cadr rest))
                            (else
                             (apply assertion-violation 'utf16->string
-                                   "illegal arguments" string rest))))
+                                   "illegal arguments" bytevector rest))))
 
          (endianness (cond ((null? rest)
                             (or begins-with-bom? 'big))
@@ -1262,7 +1330,7 @@
                             (cadr rest))
                            (else
                             (apply assertion-violation 'utf32->string
-                                   "illegal arguments" string rest))))
+                                   "illegal arguments" bytevector rest))))
 
          (endianness (cond ((null? rest)
                             (or begins-with-bom? 'big))

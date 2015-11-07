@@ -30,8 +30,18 @@
 ; Entry point in a saved interactive heap.
 
 (define (interactive-entry-point argv)
-  (for-each eval *interactive-eval-list*) ; FIXME: used only for JavaDot?
-  ($$trace "In interactive-entry-point")
+  (let* ((exit-status
+          (call-with-current-continuation
+           (lambda (k)
+             (exit-continuation k)
+             (for-each eval *interactive-eval-list*) ; FIXME: only for JavaDot?
+             ($$trace "In interactive-entry-point")
+             (interactive-entry-point0 argv)
+             0))))
+    (run-exit-procedures)
+    (emergency-exit exit-status)))
+
+(define (interactive-entry-point0 argv)
   (command-line-arguments argv)
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
@@ -76,8 +86,8 @@
 
          (adjust-safety!
           (lambda (safety)
-            (let* ((emode (get-feature 'execution-mode))
-                   (dargo? (eq? 'dargo emode)) 
+            (let* ((emode (larceny:execution-mode))
+                   (r6rs? (eq? 'r6rs emode)) 
                    (settings
                     (if (and (eq? emode 'r5rs) (= safety 1))
                         #f
@@ -85,7 +95,7 @@
                          ((0)  `(begin (runtime-safety-checking #f)
                                        (faster-arithmetic #t)))
                          ((1)  `(begin (runtime-safety-checking #t)
-                                       (catch-undefined-globals (not ,dargo?))
+                                       (catch-undefined-globals (not ,r6rs?))
                                        (faster-arithmetic #f)))
                          (else `(begin (runtime-safety-checking #t)
                                        (catch-undefined-globals #t)
@@ -165,24 +175,47 @@
          (emode (get-feature 'execution-mode)))
 
     (case emode
-     ((r5rs err5rs)
+     ((r5rs err5rs r7rs r7r6)
       (failsafe-load-init-files)
       (failsafe-process-arguments)
-      (if (herald)
-          (writeln (herald)))
+      (let ((pgm (get-feature 'top-level-program)))
+        (if (and (herald)
+                 (or (not (string? pgm))
+                     (string=? pgm "")))
+            (writeln (herald))))
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
+      (case emode
+       ((err5rs r7rs r7r6)
+        (aeryn-mode!)))
+      (case emode
+       ((err5rs)
+        (writeln "ERR5RS mode (no libraries have been imported)"))
+       ((r7rs)
+        ((repl-evaluator) '(import (scheme base))))
+       ((r7r6)
+        ((repl-evaluator) '(import (larceny r7r6)))))
       (add-require-path!)
-      (if (eq? emode 'err5rs)
-          (begin (aeryn-mode!)
-                 (writeln "ERR5RS mode (no libraries have been imported)")))
-      (r5rs-entry-point argv))
+      (let ((pgm (get-feature 'top-level-program))
+            (original-handler (error-handler)))
+        (parameterize ((error-handler
+                        (case emode
+                         ((r5rs) original-handler)
+                         (else
+                          (lambda the-error
+                            (parameterize ((error-handler original-handler))
+                             (decode-and-raise-r6rs-exception the-error)))))))
+         (if (and (memq emode '(r7rs r7r6))
+                  (not (string=? pgm "")))
+             (eval (list 'run-r6rs-program pgm)
+                   (interaction-environment))
+             (r5rs-entry-point argv)))))
 
-     ; R6RS modes are batch modes, so we want to exit rather
+     ; R6RS mode is a batch mode, so we want to exit rather
      ; than enter the debugger.
 
-     ((dargo)
+     ((r6rs)
       (if clr?                                            ; FIXME
           (begin (failsafe-load-init-files)
                  (failsafe-process-arguments)))
@@ -198,6 +231,7 @@
                                        (print-level 7))
                           (decode-and-raise-r6rs-exception the-error))))
                      (issue-deprecated-warnings? #f)
+                     (read-r7rs-weirdness? #f)
                      (read-larceny-weirdness? #f)
                      (read-traditional-weirdness? #f)
                      (read-mzscheme-weirdness? #f))
@@ -219,15 +253,9 @@
                     (interaction-environment))))
         (exit 0)))
 
-     ((spanky)
-      (display "Larceny's R6RS-conforming mode isn't implemented yet.")
-      (newline)
-      (display "Please use Larceny's R6RS-compatible mode instead.")
-      (newline)
-      (exit 1))
      (else
       (display "Unrecognized execution mode: ")
-      (write (get-feature 'execution-mode))
+      (write (larceny:execution-mode))
       (newline)
       (exit 1)))))
 
@@ -277,14 +305,26 @@
 (define (failsafe-load-init-files)
   (map failsafe-load-file (osdep/find-init-files)))
 
+;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
+;;; It now parses past -- only in R5RS mode.
+
 (define (failsafe-process-arguments)
-  (let ((argv (command-line-arguments)))
+  (let ((argv (command-line-arguments))
+        (emode (larceny:execution-mode)))
     (let loop ((i 0))
       (cond 
        ((>= i (vector-length argv)) #t)
        (else
         (let ((arg (vector-ref argv i)))
           (cond
+           ((and (string=? arg "--")
+                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
+            ; FIXME: Common Larceny is the oddball here
+            (command-line-arguments
+             (list->vector
+              (cdr (member "--" (vector->list argv))))))
+           ((not (eq? emode 'r5rs))
+            #t)
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))
             (failsafe-eval-thunk 
@@ -293,12 +333,6 @@
                 (read (open-input-string (vector-ref argv (+ i 1))))))
              (list "Error parsing argument " (+ i 1)))
             (loop (+ i 2)))
-           ((and (string=? arg "--")
-                 (string=? "CLR" (cdr (assq 'arch-name (system-features)))))
-            ; FIXME: Common Larceny is the oddball here
-            (command-line-arguments
-             (list->vector
-              (cdr (member "--" (vector->list argv))))))
            ((and (> (string-length arg) 0)
                  (char=? (string-ref arg 0) #\-))
             (writeln "Error unrecognized option " arg)
@@ -354,14 +388,18 @@
        (else
         (let ((arg (vector-ref argv i)))
           (cond
-           ((member arg '("-fold-ccase" "--fold-case" "/fold-case"))
+           ((member arg '("-fold-case" "--fold-case" "/fold-case"))
             (set! clr:case-sensitivity? #f)
             (loop (+ i 1) args))
+
+           ;; FIXME: ("-r7rs" "--r7rs" "/r7rs" "-r7r6" "--r7r6" "/r7r6")
+           ;; goes here eventually
+
            ((member arg '("-err5rs" "--err5rs" "/err5rs"))
             (set! clr:execution-mode 'err5rs)
             (loop (+ i 1) args))
            ((member arg '("-r6rs" "--r6rs" "/r6rs"))
-            (set! clr:execution-mode 'dargo)
+            (set! clr:execution-mode 'r6rs)
             (loop (+ i 1) args))
            ((and (member arg '("-path" "--path" "/path"))
                  (< (+ i 1) (vector-length argv)))

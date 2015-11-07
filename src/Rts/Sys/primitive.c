@@ -56,6 +56,47 @@ word w_envvar;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
+/* returns a freshly allocated bytevector initialized to environ */
+/* FIXME: hard-codes 4 as the header size (in bytes)             */
+
+void primitive_listenv_init( void )
+{
+  extern char **environ;
+  word *q;
+
+  q = (word*)gc_allocate( the_gc(globals), (4 + sizeof(char**)), 0, 1 );
+  *q = mkheader( sizeof(char**), BV_HDR );
+  *((word **) string_data( q )) = (word *) environ;
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+}
+
+/* given a bytevector created by primitive_listenv_init, returns */
+/* the next environment variable and updates the bytevector      */
+/* FIXME: hard-codes 4 as the header size (in bytes)             */
+
+void primitive_listenv( generator )
+word generator;
+{
+  char **next;
+  char *p;
+  word *q;
+  int l;
+
+  next = (char **) *((word *) (string_data ( generator )));
+  p = *next;
+  next++;
+  *((word **) (string_data ( generator ))) = (word *) next;
+  if (p == 0) {
+    globals[ G_RESULT ] = FALSE_CONST;
+    return;
+  }
+  l = strlen( p );
+  q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+  *q = mkheader( l, BV_HDR );
+  memcpy( string_data( q ), p, l );
+  globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
+}
+
 void primitive_setenv( word w_name, word w_value )
 {
   int rv;
@@ -86,7 +127,7 @@ void primitive_iflush( w_bv )
 word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
-		    ptrof( w_bv )+roundup4(sizefield(*ptrof(w_bv)))/4 );
+		    ptrof( w_bv )+1+roundup4(sizefield(*ptrof(w_bv)))/4 );
 }
 
 /* Floating-point operations */
@@ -283,10 +324,14 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       mode = 1;
     if (command_line_options.r6rs)
       mode = 2;
-    if (command_line_options.ignore1)
+    if (command_line_options.ignore1)  // scheme-script is now an R7RS mode
       mode = 3;
     if (command_line_options.r6slow)
       mode = 4;
+    if (command_line_options.r7rs)
+      mode = 5;
+    if (command_line_options.r7r6)
+      mode = 6;
     vector_set( v, 0, fixnum( mode ) );
     break;
   }

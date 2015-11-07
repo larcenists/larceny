@@ -431,6 +431,7 @@
   (environment-set! larc 'length>=? length>=?)                          ; FIXME
   (environment-set! larc 'length>? length>?)                            ; FIXME
   (environment-set! larc 'list* list*)                                  ; FIXME
+  (environment-set! larc 'make-list make-list)
   (environment-set! larc 'list-copy list-copy)
   (environment-set! larc 'list-head list-head)
   (environment-set! larc 'list-set! list-set!)                          ; FIXME
@@ -707,6 +708,15 @@
   (environment-set! larc 'div0-and-mod0 div0-and-mod0)
   (environment-set! larc 'exact-integer-sqrt exact-integer-sqrt)
 
+  (environment-set! larc 'square square)
+  (environment-set! larc 'exact-integer? exact-integer?)
+  (environment-set! larc 'floor/ floor/)
+  (environment-set! larc 'floor-quotient floor-quotient)
+  (environment-set! larc 'floor-remainder floor-remainder)
+  (environment-set! larc 'truncate/ truncate/)
+  (environment-set! larc 'truncate-quotient truncate-quotient)
+  (environment-set! larc 'truncate-remainder truncate-remainder)
+
   ;; Unicode characters
 
   (environment-set! larc 'char-titlecase char-titlecase)
@@ -735,6 +745,7 @@
   (environment-set! larc 'native-endianness native-endianness)
   (environment-set! larc 'bytevector? bytevector?)
   (environment-set! larc 'make-bytevector make-bytevector)
+  (environment-set! larc 'bytevector bytevector)
   (environment-set! larc 'bytevector-length bytevector-length)
   (environment-set! larc 'bytevector-u8-ref bytevector-u8-ref)
   (environment-set! larc 'bytevector-s8-ref bytevector-s8-ref)
@@ -791,7 +802,10 @@
                     bytevector-ieee-double-native-set!)
   (environment-set! larc 'bytevector-ieee-double-set!
                     bytevector-ieee-double-set!)
+  (environment-set! larc 'bytevector-append bytevector-append)
   (environment-set! larc 'bytevector-copy! bytevector-copy!)
+  (environment-set! larc 'r6rs:bytevector-copy! r6rs:bytevector-copy!)
+  (environment-set! larc 'r7rs:bytevector-copy! r7rs:bytevector-copy!)
   (environment-set! larc 'bytevector-copy bytevector-copy)
   (environment-set! larc 'bytevector->u8-list bytevector->u8-list)
   (environment-set! larc 'u8-list->bytevector u8-list->bytevector)
@@ -817,6 +831,9 @@
 
   ;; strings
 
+  (environment-set! larc 'string-copy! string-copy!)
+
+  (environment-set! larc 'string-map string-map)
   (environment-set! larc 'string-for-each string-for-each)
 
   (environment-set! larc 'string-hash string-hash)
@@ -839,8 +856,11 @@
 
   (environment-set! larc 'vector-map vector-map)
   (environment-set! larc 'vector-for-each vector-for-each)
-
   (environment-set! larc 'vector-copy vector-copy)
+  (environment-set! larc 'vector-copy! vector-copy!)
+  (environment-set! larc 'vector-append vector-append)
+  (environment-set! larc 'vector->string vector->string)
+  (environment-set! larc 'string->vector string->vector)
 
   ;; sorting
 
@@ -944,6 +964,14 @@
 
   (environment-set! larc 'rtd-printer rtd-printer)
   (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
+
+  ;; R7RS exception mechanism
+
+  (environment-set! larc 'error-object? error-object?)
+  (environment-set! larc 'error-object-message error-object-message)
+  (environment-set! larc 'error-object-irritants error-object-irritants)
+  (environment-set! larc 'read-error? read-error?)
+  (environment-set! larc 'file-error? file-error?)
 
   ;; R6RS exception mechanism
 
@@ -1050,8 +1078,11 @@
   (environment-set! larc 'io/put-u8 io/put-u8)       ; FIXME (common.imp.sch)
   (environment-set! larc 'io/get-char io/get-char)   ; FIXME (common.imp.sch)
   (environment-set! larc 'io/put-char io/put-char)   ; FIXME (common.imp.sch)
-  (environment-set! larc 'write-simple write-simple)
+  (environment-set! larc 'object-is-circular? object-is-circular?)
+  (environment-set! larc 'larceny:object-map larceny:object-map)
   (environment-set! larc 'write-shared write-shared)
+  (environment-set! larc 'write-simple write-simple)
+  (environment-set! larc 'display-simple display-simple)
   (environment-set! larc 'lowlevel-write lowlevel-write)
   (environment-set! larc 'open-text-input-file open-text-input-file)
   (environment-set! larc 'open-text-output-file open-text-output-file)
@@ -1064,6 +1095,17 @@
   (environment-set! larc 'port-name port-name)
   (environment-set! larc 'port-folds-case? port-folds-case?)
   (environment-set! larc 'port-folds-case! port-folds-case!)
+
+  (environment-set! larc 'input-port-open? input-port-open?)
+  (environment-set! larc 'output-port-open? output-port-open?)
+  (environment-set! larc 'u8-ready? u8-ready?)
+  (environment-set! larc 'peek-u8 peek-u8)
+  (environment-set! larc 'read-u8 read-u8)
+  (environment-set! larc 'write-u8 write-u8)
+  (environment-set! larc 'read-bytevector read-bytevector)
+  (environment-set! larc 'read-bytevector! read-bytevector!)
+  (environment-set! larc 'write-bytevector write-bytevector)
+  (environment-set! larc 'read-string read-string)
 
   ; FIXME (lib/MzScheme/dotnet.sch)
 
@@ -1178,6 +1220,8 @@
   (environment-set! larc 'get-line        get-line)
   (environment-set! larc 'get-datum get-datum)
 
+  (environment-set! larc 'read-line read-line)
+
   ; FIXME
   (environment-set! larc 'get-datum-with-source-locations
                     get-datum-with-source-locations)
@@ -1290,6 +1334,7 @@
   (environment-set! larc 'issue-warning-deprecated issue-warning-deprecated)
   (environment-set! larc 'assertion-violation assertion-violation)
   (environment-set! larc 'error error)
+  (environment-set! larc 'larceny:errmsg larceny:errmsg)
   (environment-set! larc 'error-handler error-handler)
   (environment-set! larc 'decode-error decode-error)
   (environment-set! larc 'call-with-error-handler call-with-error-handler)
@@ -1298,6 +1343,7 @@
   (environment-set! larc 'reset-handler reset-handler)
   (environment-set! larc 'call-with-reset-handler call-with-reset-handler)
   (environment-set! larc 'exit exit)
+  (environment-set! larc 'emergency-exit emergency-exit)
   (environment-set! larc 'add-exit-procedure! add-exit-procedure!)
   (environment-set! larc 'add-init-procedure! add-init-procedure!)
   (environment-set! larc 'quit quit)
@@ -1338,6 +1384,7 @@
   (environment-set! larc 'collect collect)
   (environment-set! larc 'gcctl gcctl)
   (environment-set! larc 'sro sro)
+  (environment-set! larc 'larceny:execution-mode larceny:execution-mode)
   (environment-set! larc 'system-features system-features)
   (environment-set! larc 'stats-dump-on stats-dump-on)
   (environment-set! larc 'stats-dump-off stats-dump-off)
@@ -1577,11 +1624,14 @@
   (environment-set! larc 'command-line-arguments command-line-arguments)
   (environment-set! larc 'getenv getenv)
   (environment-set! larc 'setenv setenv)
+  (environment-set! larc 'get-environment-variables get-environment-variables)
   (environment-set! larc 'get-errno get-errno)
   (environment-set! larc 'set-errno! set-errno!)
   (environment-set! larc 'make-env-parameter make-env-parameter)
   (environment-set! larc 'system system)
   (environment-set! larc 'current-directory current-directory)
+  (environment-set! larc 'list-directory list-directory)
+
 
   ;; Low-level API to the interpreter
 
@@ -1709,6 +1759,7 @@
   (environment-set! larc 'unspecified unspecified)
   (environment-set! larc 'undefined undefined)
 
+  (environment-set! larc 'current-second current-second)
   (environment-set! larc 'current-seconds current-seconds)
   (environment-set! larc 'twobit-timer-hook twobit-timer-hook)
 

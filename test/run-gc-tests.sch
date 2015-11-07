@@ -301,7 +301,7 @@
 		     program
 		     " "
 		     (param.params parameter)
-		     " "
+		     " -heap "
 		     heap
 		     " -args '"
 		     (bm.text benchmark)

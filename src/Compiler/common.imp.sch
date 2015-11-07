@@ -7,6 +7,13 @@
 ; Most of the definitions in this file can be extended or overridden by
 ; target-specific definitions.
 ;
+; As of v0.98, Twobit may assume some Larceny-specific procedures
+; are never assigned.  That assumption should be enforced for R7RS
+; and R6RS code.  The Larceny-specific procedures assumed to have
+; their usual definitions are:
+;
+; bignum?
+;
 ; Twobit currently assumes the following hidden, specialized,
 ; or trusted primops, which every target should support:
 ;
@@ -485,6 +492,8 @@
               endianness big little
               = < > <= >= + * - /
               abs negative? positive? min max
+              exact-integer?
+              square
               div mod
               fx= fx< fx> fx<= fx>=                ; FIXME
               fx=? fx<? fx>? fx<=? fx>=?
@@ -595,6 +604,9 @@
       (.check! (.<:fix:fix i (.bytevector-like-length:bvl bv))
                ,$ex.bvset bv i x)
       (.check! (.>=:fix:fix i 0) ,$ex.bvset bv i x)
+      (.check! (.fixnum? x) ,$ex.bvset bv i x)
+      (.check! (.<:fix:fix x 256) ,$ex.bvset bv i x)
+      (.check! (.>=:fix:fix x -128) ,$ex.bvset bv i x)
       (.bytevector-like-set!:trusted bv i x)))
 
 `  ((_ larceny bytevector-like-length (bytevector-like-length bv0))
@@ -630,12 +642,13 @@
     (let ((x x0)
           (y y0)
           (z z0))
-#;    (.check! (.<:fix:fix z 256) ,$ex.bvset x y z)                     ; FIXME
-#;    (.check! (.>=:fix:fix z 0) ,$ex.bvset x y z)                      ; FIXME
-      (if (not (fx<=? 0 z 255))
+#;    (if (not (fx<=? 0 z 255))
           (begin (write (list 'bytevector-u8-set! x y z))
                  (newline)
                  (larceny-break)))
+      (.check! (.fixnum? z) ,$ex.bvset x y z)
+      (.check! (.<:fix:fix z 256) ,$ex.bvset x y z)
+      (.check! (.>=:fix:fix z -128) ,$ex.bvset x y z)
       (bytevector-set! x y z)))
 
 `  ((_ larceny bytevector-u16-ref (bytevector-u16-ref bv0 i0 which0))
@@ -981,6 +994,15 @@
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
+
+`  ((_ larceny exact-integer? (exact-integer? ?e1))
+    (let* ((t1 ?e1))
+      (or (.fixnum? t1)
+          (bignum? t1))))
+
+`  ((_ larceny square (square ?e1))
+    (let* ((t1 ?e1))
+      (* t1 t1)))
 
 `  ((_ larceny div (div ?x ?y))
     (let ((x ?x) (y ?y))

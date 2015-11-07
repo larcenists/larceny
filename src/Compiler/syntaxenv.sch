@@ -339,6 +339,11 @@
 ; the datum, trying not to copy any more of the datum than necessary.
 
 (define (m-strip x)
+  (if (twobit:object-is-circular? x)    ; see pass1.aux.sch
+      x
+      (m-strip-noncircular x)))
+
+(define (m-strip-noncircular x)
 
   ; This routine unmangles Twobit's R5RS mangling.
 
@@ -359,15 +364,15 @@
   (cond ((symbol? x)
          (original-symbol x))
         ((pair? x)
-         (let ((a (m-strip (car x)))
-               (b (m-strip (cdr x))))
+         (let ((a (m-strip-noncircular (car x)))
+               (b (m-strip-noncircular (cdr x))))
            (if (and (eq? a (car x))
                     (eq? b (cdr x)))
                x
                (cons a b))))
         ((vector? x)
          (let* ((v (vector->list x))
-                (v2 (map m-strip v)))
+                (v2 (map m-strip-noncircular v)))
            (if (equal? v v2)
                x
                (list->vector v2))))
@@ -389,7 +394,7 @@
   (define separator #\~)
   (let ((s (symbol->string id)))
     (cond ((= 0 (string-length s))
-           (m-strip id))
+           (m-strip-noncircular id))
           ((char=? (string-ref s 0) guid-prefix)
            (let* ((chars (reverse (cdr (string->list s))))
                   (chars (memv separator chars))
@@ -402,7 +407,7 @@
            (string->symbol
             (substring s 1 (string-length s))))
           (else
-           (m-strip id)))))
+           (m-strip-noncircular id)))))
 
 ; Given a list of identifiers, or a formal parameter "list",
 ; returns an alist that associates each identifier with a fresh identifier.

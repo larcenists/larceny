@@ -210,7 +210,7 @@
      (test "fill!" (bytevector->u8-list b) '(127 127 127 127 127 127 127)))
 
    (let ((b (u8-list->bytevector '(1 2 3 4 5 6 7 8))))
-     (bytevector-copy! b 0 b 3 4)
+     (r6rs:bytevector-copy! b 0 b 3 4)
 
      (test "copy!" (bytevector->u8-list b) '(1 2 3 1 2 3 4 8))
      (test "copy" (bytevector=? b (bytevector-copy b)) #t))

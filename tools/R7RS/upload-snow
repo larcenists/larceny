@@ -1,0 +1,22 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+################################################################
+#
+#    Uploads (r6rs *) libraries to snow-fort.org
+#
+#    See also make-snow.
+#
+################################################################
+
+VERSION=0.0.3
+
+upload_snowball ()
+{
+  echo $1
+  snow-chibi upload $1-${VERSION}.tgz
+}
+
+upload_snowball in-progress-hash-bimaps
+upload_snowball in-progress-hash-tables

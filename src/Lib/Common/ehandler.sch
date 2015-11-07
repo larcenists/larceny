@@ -53,7 +53,8 @@
                     (parameterize ((print-length 7)
                                    (print-level 7))
                       (decode-error args))
-                    (reset))))
+                    (reset))
+                  procedure?))
 
 ; The reset handler is called by the RESET procedure.  It takes no arguments.
 ;
@@ -63,7 +64,8 @@
 (define reset-handler
   (make-parameter "reset-handler" 
                   (lambda ignored
-                    (exit))))
+                    (exit))
+                  procedure?))
 
 ; The timer interrupt handler is called with timer interrupts OFF.
 ; It takes no arguments.
@@ -100,7 +102,8 @@
                       (display proc out)
                       (display " @ " out)
                       (display code-address out)
-                      (newline out)))))
+                      (newline out)))
+                  procedure?))
 
 ; The system signal handler is called when an asynchronous signal is received
 ; for which a lowlevel handler has been installed.  It takes one argument:
@@ -115,7 +118,8 @@
                     (let ((out (current-error-port)))
                       (display "Signal: " out)
                       (display sig out)
-                      (newline out)))))
+                      (newline out)))
+                  procedure?))
 
 ; DECODE-SYSTEM-ERROR takes an exception code and the exception argument
 ; values (RESULT, SECOND, THIRD), and a port onto which to print, and
@@ -124,7 +128,58 @@
 
 (define (decode-system-error code arg1 arg2 arg3 port)
 
-  (define (error . args)
+  ;; This local version of the error procedure does not raise an exception.
+  ;; It just prints an error message to the port.
+  ;; Its arguments are similar to those passed to the R6RS error procedure,
+  ;; but this version gives special treatment to the empty message ""
+  ;; and treats string and list irritants specially:
+  ;; strings are treated as infix messages, lists as lists of irritants.
+  ;;
+  ;; The printed error message will take one of the forms
+  ;;
+  ;;     Error: <who>: <irritant-or-text> ...
+  ;;     Error: <who>: <msg>: <irritant-or-text> ...
+  ;;
+  ;; The decode-error hack in error.sch interprets that output,
+  ;; so don't change it here without making a corresponding change
+  ;; to decode-error.
+
+  (define (error who msg . args)
+    (newline port) ;; Ensure error message is easily visible.
+    (display "Error: " port)
+    (if who
+        (display who port)
+        (display "?" port))
+    (display ": " port)
+    (if (not (string=? msg ""))
+        (begin (display msg port)
+               (display ": " port)))
+    (for-each (lambda (arg)
+                (cond ((string? arg)
+                       (display arg port))
+                      ((list? arg)
+                       (for-each (lambda (x)
+                                   (write x port)
+                                   (display " " port))
+                                 arg))
+                      (else
+                       (write arg port)
+                       (display " " port))))
+              args)
+    (newline port)
+    (flush-output-port port))
+
+  ;; This has to be kept in sync with lib/R6RS/r6rs-compat-larceny.sch
+
+  (define (unmangle-global-variable var)
+    (or (and (symbol? var)
+             (let ((s (symbol->string var)))
+               (and (not (string=? s ""))
+                    (char=? #\x1 (string-ref s 0))
+                    (string->symbol (substring s 1 (string-length s))))))
+        var))
+
+  (define (old-error . args)
     (newline port) ;; Ensure error message is easily visible.
     (display "Error: " port)
     (do ((args args (cdr args)))
@@ -132,52 +187,52 @@
       (display (car args) port)))
 
   (define (not-a-pair name obj)
-    (error name ": " obj " is not a pair."))
+    (error name (errmsg 'msg:notpair) (list obj)))
 
   (define (not-a-num name obj)
-    (error (string-append name ": ") obj " is not a number."))
+    (error name (errmsg 'msg:notnumber) (list obj)))
 
   (define (not-a-real name obj)
-    (error (string-append name ": ") obj " is not a real number."))
+    (error name (errmsg 'msg:notreal) (list obj)))
 
   (define (not-an-int name obj)
-    (error (string-append name ": ") obj " is not an integer."))
+    (error name (errmsg 'msg:notinteger) (list obj)))
 
   (define (div-by-zero name obj1 obj2)
-    (error (string-append name ": division by zero: ") obj1 " " obj2))
+    (error name (errmsg 'msg:zerodivide) (list obj1 obj2)))
 
   (define (not-a-fix name obj)
-    (error (string-append name ": ") obj " is not a fixnum."))
+    (error name (errmsg 'msg:notfixnum) (list obj)))
 
   (define (not-a-flo name obj)
-    (error (string-append name ": ") obj " is not a flonum."))
+    (error name (errmsg 'msg:notflonum) (list obj)))
 
   (define (num-binop name arg1 arg2)
     (cond ((not (number? arg1)) (not-a-num name arg1))
           ((not (number? arg2)) (not-a-num name arg2))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused) (list arg1 arg2)))))
 
   (define (num-div-binop name arg1 arg2)
     (cond ((not (number? arg1)) (not-a-num name arg1))
           ((not (number? arg2)) (not-a-num name arg2))
           ((zero? arg2) (div-by-zero name arg1 arg2))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused) (list arg1 arg2)))))
 
   (define (real-binop name arg1 arg2)
     (cond ((not (real? arg1)) (not-a-real name arg1))
           ((not (real? arg2)) (not-a-real name arg2))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused) (list arg1 arg2)))))
 
   (define (int-binop name arg1 arg2)
     (cond ((not (integer? arg1)) (not-an-int name arg1))
           ((not (integer? arg2)) (not-an-int name arg2))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused) (list arg1 arg2)))))
 
   (define (int-div-binop name arg1 arg2)
     (cond ((not (integer? arg1)) (not-an-int name arg1))
           ((not (integer? arg2)) (not-an-int name arg2))
           ((zero? arg2) (div-by-zero name arg1 arg2))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused) (list arg1 arg2)))))
 
   (define (fix-binop name arg1 arg2 . rest)
     (cond ((not (fixnum? arg1)) (not-a-fix name arg1))
@@ -188,7 +243,8 @@
                                  name
                                  (errmsg 'msg:fixnumrange)
                                  (list arg1 arg2)))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused)
+                            (cons arg1 (cons arg2 rest))))))
 
   (define (fix-unop name arg1 . rest)
     (cond ((not (fixnum? arg1)) (not-a-fix name arg1))
@@ -198,56 +254,63 @@
                                  name
                                  (errmsg 'msg:fixnumrange)
                                  (list arg1)))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused)
+                            (cons arg1 rest)))))
 
   (define (flo-binop name arg1 arg2 . rest)
     (cond ((not (flonum? arg1)) (not-a-flo name arg1))
           ((not (flonum? arg2)) (not-a-flo name arg2))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused)
+                            (cons arg1 (cons arg2 rest))))))
 
   (define (flo-unop name arg1 . rest)
     (cond ((not (flonum? arg1)) (not-a-flo name arg1))
-          (else (error "decode-system-error: confused about " name))))
+          (else (error name (errmsg 'msg:confused)
+                            (cons arg1 rest)))))
 
   (define (dstruct code reffer thing test? length arg1 arg2 . rest)
-    (let ((name (string-append thing (if (= code reffer) "-ref:" "-set!:"))))
+    (let ((name (string-append thing (if (= code reffer) "-ref" "-set!"))))
       (cond ((not (test? arg1))
-             (error name " " arg1 " is not a " thing))
+             (error name (errmsg 'msg:illegalarg1)
+                         (list arg1) " is not a " thing))
             ((or (not (fixnum? arg2))
                  (< arg2 0)
                  (>= arg2 (length arg1)))
-             (error name " " arg2 " is not a valid index into " thing))
+             (error name (errmsg 'msg:illegalarg2)
+                         (list arg2) " is not a valid index into " thing))
             ((and (not (null? rest))
                   (not (= code reffer))
                   (not ((car rest) (cadr rest))))
-             (error name " " (cadr rest) " cannot be stored in a " thing))
+             (error name (errmsg 'msg:illegalarg3)
+                         (list (cadr rest)) " cannot be stored in a " thing))
             (else
+             ;; FIXME: what's this about?
              (if (bignum? arg1)
                  (begin (display "BIG: " port)
                         (bigdump* arg1 port)
                         (newline port)))
-             (error "decode-system-error: confused about " 
-                    name " " arg1 " " arg2)))))
+             (error name (errmsg 'msg:confused) (list arg1 arg2 rest))))))
 
   (define (charpred name arg1 arg2)
-    (error name ": " (if (char? arg1) arg2 arg1) " is not a character."))
+    (error name (errmsg 'msg:notchar) (list (if (char? arg1) arg2 arg1))))
 
   (define (not-a-port name obj)
-    (error name ": " obj " is not a port."))
+    (error name (errmsg 'msg:notport) (list obj)))
 
   (define (byte? x)
-    (and (integer? x) (exact? x) (<= 0 x 255)))
+    (and (integer? x) (exact? x) (<= -128 x 255)))
 
   (cond ;; Interrupt flag manipulation
 
        ((= code $ex.enable-interrupts)
         (cond ((not (fixnum? arg1))
-               (error "enable-interrupts: not a fixnum: " arg1))
+               (error 'enable-interrupts (errmsg 'msg:notfixnum) (list arg1)))
               ((<= arg1 0)
-               (error "enable-interrupts: not positive: " arg1))
+               (error 'enable-interrupts (errmsg 'msg:notnaturalnumber)
+                                         (list arg1)))
               (else
-               (error "enable-interrupts: confused: "
-                      arg1 " " arg2 " " arg3))))
+               (error 'enable-interrupts (errmsg 'msg:confused)
+                      (list arg1 arg2 arg3)))))
 
        ;; Pairs
 
@@ -380,23 +443,24 @@
         (not-a-num "imag-part" arg1))
        ((= code $ex.arithmetic-exception)
         (case (interpret-arithmetic-exception-code arg3)
-          ((intdiv) (error "Integer division by zero: " arg1 " " arg2))
-          ((intovf) (error "Integer overflow."))
-          ((fltdiv) (error "Floating point division by zero: " arg1 " " arg2))
-          ((fltovf) (error "Floating point overflow."))
-          ((fltund) (error "Floating point underflow."))
-          ((fltres) (error "Floating point inexact result."))
-          ((fltinv) (error "Invalid floating point operation."))
-          ((fltsub) (error "Floating point subscript out of range."))
-          ((fltopr) (error "Floating point operand error."))
-          (else (error "Arithmetic exception (code " arg3 ")."))))
+          ((intdiv) (error #f (errmsg 'msg:zerodivide) (list arg1 arg2)))
+          ((intovf) (error #f "integer overflow"))
+          ((fltdiv) (error #f "floating point division by zero"
+                              (list arg1 arg2)))
+          ((fltovf) (error #f "floating point overflow"))
+          ((fltund) (error #f "floating point underflow"))
+          ((fltres) (error #f "floating point inexact result"))
+          ((fltinv) (error #f "invalid floating point operation"))
+          ((fltsub) (error #f "floating point subscript out of range"))
+          ((fltopr) (error #f "floating point operand error"))
+          (else (error #f "arithmetic exception" "(code " arg3 ")"))))
               
        ;; Vectors
 
        ((or (= code $ex.vref) (= code $ex.vset))
         (dstruct code $ex.vref "vector" vector? vector-length arg1 arg2))
        ((= code $ex.vlen)
-        (error "Vector-length: " arg1 " is not a vector."))
+        (error 'vector-length (errmsg 'msg:notvector) (list arg1)))
 
        ;; Procedures
 
@@ -404,25 +468,26 @@
         (dstruct code $ex.pref "procedure" procedure? procedure-length
                  arg1 arg2))
        ((= code $ex.plen)
-        (error "Procedure-length: " arg1 " is not a procedure."))
+        (error 'procedure-length (errmsg 'msg:notproc) (list arg1)))
 
        ;; Records
 
        ((= code $ex.record)
-        (error "Record access: " arg1 " is not a " (rtd-name arg2)))
+        (error "record access" (errmsg 'msg:illegalarg1)
+                               (list arg1) " is not a " (rtd-name arg2)))
 
        ;; Vector-like
 
        ((= code $ex.mkvl)
-        (error "make-vector-like: " arg1 
-               " is not an exact nonnegative integer."))
+        (error 'make-vector-like (errmsg 'msg:nonnaturalnumber) (list arg1)))
 
        ((or (= code $ex.vlref) (= code $ex.vlset))
         (dstruct code $ex.vlref "vector-like" vector-like? vector-like-length
                  arg1 arg2))
 
        ((= code $ex.vllen)
-        (error "vector-like-length: " arg1 " is not a vector-like."))
+        (error 'vector-like-length (errmsg 'msg:illegalarg1)
+                                   (list arg1) " is not vector-like"))
 
        ;; Strings
 
@@ -430,13 +495,11 @@
         (dstruct code $ex.sref "string" string? string-length arg1 arg2
                  char? arg3))
        ((= code $ex.slen)
-        (error "string-length: " arg1 " is not a string"))
+        (error 'string-length (errmsg 'msg:notstring) (list arg1)))
        ((= code $ex.mkstr)
         (if (char? arg2)
-            (error "make-string: "
-                   arg1 " is not an exact nonnegative integer.")
-            (error "make-string: "
-                   arg2 " is not a character.")))
+            (error 'make-string (errmsg 'msg:nonnaturalnumber) (list arg1))
+            (error 'make-string (errmsg 'msg:notchar) (list arg2))))
 
        ;; Bytevectors
 
@@ -444,18 +507,18 @@
         (dstruct code $ex.bvref "bytevector" bytevector? bytevector-length
                  arg1 arg2 byte? arg3))
        ((= code $ex.bvlen)
-        (error "bytevector-length: " arg1 " is not a bytevector."))
+        (error 'bytevector-length (errmsg 'msg:notbytevector) (list arg1)))
       
        ((= code $ex.bvfill)
         (if (not (bytevector? arg1))
-            (error "bytevector-fill!: " arg1 " is not a bytevector.")
-            (error "bytevector-fill!: " arg2 " is not a byte.")))
+            (error 'bytevector-fill! (errmsg 'msg:bytevector) (list arg1))
+            (error 'bytevector-fill! (errmsg 'msg:byte) (list arg2))))
 
        ;; Bytevector-like
 
        ((= code $ex.mkbvl)
-        (error "make-bytevector-like: "
-               arg1 " is not an exact nonnegative integer."))
+        (error 'make-bytevector-like (errmsg 'msg:notnaturalnumber)
+                                     (list arg1)))
 
        ((or (= code $ex.bvlref) (= code $ex.bvlset))
         (dstruct code $ex.bvlref "bytevector-like" bytevector-like? 
@@ -463,25 +526,28 @@
                  arg1 arg2 byte? arg3))
 
        ((= code $ex.bvllen)
-        (error "bytevector-like-length: " arg1 " is not a bytevector-like."))
-
+        (error 'bytevector-like-length "not bytevector-like" (list arg1)))
 
        ;; typetags
 
        ((= code $ex.typetag)
-        (error "typetag: " arg1 " does not have a typetag."))
+        (error 'typetag (errmsg 'msg:illegalarg1)
+                        (list arg1) " does not have a typetag."))
        ((= code $ex.typetagset)
         (if (not (and (fixnum? arg2)
                       (<= 0 arg2 7)))
-            (error "typetag-set!: " arg2 " is an invalid typetag.")
-            (error "typetag-set!: " arg1 " is not typetag-settable.")))
+            (error 'typetag-set! (errmsg 'msg:illegalarg2)
+                                 (list arg2) " is an invalid typetag")
+            (error 'typetag-set! (errmsg 'msg:illegalarg1)
+                                 (list arg1) " is not typetag-settable")))
 
        ;; Characters
 
        ((= code $ex.char2int)
-        (error "char->integer: " arg1 " is not a character."))
+        (error 'char->integer (errmsg 'msg:notchar) (list arg1)))
        ((= code $ex.int2char)
-        (error "integer->char: " arg1 " is not a Unicode scalar value."))
+        (error 'integer->char (errmsg 'msg:illegalarg1)
+                              (list arg1) " is not a Unicode scalar value"))
        ((= code $ex.char<?)
         (charpred "char<?" arg1 arg2))
        ((= code $ex.char<=?)
@@ -511,32 +577,36 @@
        ;; description of the source code location.
 
        ((= code $ex.assert)
-        (if arg2
-            (error "Assertion failed: " arg1 #\space arg2)
-            (error "Assertion failed: " arg1)))
+        (error #f (errmsg 'msg:assert)
+                  (if arg2 (list arg1 arg2) (list arg1))))
 
        ;; for argument count exception, the supplied args are in RESULT,
        ;; the expected args (or the fixed args, for vargc) are in ARGREG2,
        ;; and the procedure being called is in ARGREG3.
 
        ((= code $ex.argc)
-        (error "Wrong number of arguments to procedure " arg3 #\, #\newline
-               "    which expected " arg2 " but got " arg1))
+        (let ((name (and (procedure? arg3) (procedure-name arg3))))
+          (error name (errmsg 'msg:wna)
+                      "\n"
+                      "    expected " (list arg2) " but got " (list arg1))))
        
        ((= code $ex.vargc)
-        (error "Wrong number of arguments to procedure " arg3 #\, #\newline
-               "    which expected at least " arg2 " but got " arg1))
+        (let ((name (and (procedure? arg3) (procedure-name arg3))))
+          (error name (errmsg 'msg:wna)
+                      "\n"
+                      "    expected at least " (list arg2)
+                      " but got " (list arg1))))
 
        ((= code $ex.apply)
         (cond ((not (procedure? arg1))
-               (error "Apply: non-procedure (ex): " arg1))
+               (error 'apply (errmsg 'msg:notproc) (list arg1)))
               ((not (list? arg2))
-               (error "Apply: not a proper list: " arg2))
+               (error 'apply (errmsg 'msg:notlist) (list arg2)))
               (else
-               (error "Apply: I'm sooo confused..."))))
+               (error 'apply (errmsg 'msg:confused)))))
 
        ((= code $ex.nonproc)
-        (error "Attempt to apply " arg1 ", which is not a procedure."))
+        (error #f (errmsg 'msg:notproc) "tried to call " (list arg1)))
 
        ;; The pointer to the global Cell should now be in arg1 (RESULT).
        ;; Since a cell is a pair (currently!), and we know that the CDR
@@ -545,8 +615,9 @@
 
        ((= code $ex.undef-global)
         (if (pair? arg1)
-            (error "Undefined global variable \"" (cdr arg1) "\".")
-            (error "Undefined global variable [doesn't look like a cell].")))
+            (error #f "undefined global variable"
+                      (list (unmangle-global-variable (cdr arg1))))
+            (error #f "undefined global variable [doesn't look like a cell]")))
 
        ;; Here the cell is in arg2 (SECOND); if arg1 (RESULT) is undefined,
        ;; then it's an undefined-global error, otherwise it's a non-procedure
@@ -564,20 +635,20 @@
 
        ((= code $ex.dump)
         (cond ((not (procedure? arg2))
-               (error "sys$dump: " arg2 " is not a procedure."))
+               (error "sys$dump" (errmsg 'msg:notproc) (list arg2)))
               ((not (string? arg1))
-               (error "sys$dump: " arg1 " is not a string."))
+               (error "sys$dump" (errmsg 'msg:notstring) (list arg1)))
               (else
-               (error "sys$dump: filename too long: " arg1))))
+               (error "sys$dump" "filename too long" (list arg1)))))
 
        ((= code $ex.dumpfail)
-        (error "sys$dump: dump failed."))
+        (error "sys$dump" "dump failed"))
 
        ((= code $ex.unsupported)
-        (error "Unsupported primitive " arg1))
+        (error #f "unsupported primitive" (list arg1)))
 
        (else
-        (error "decode-system-error: Unhandled code: " code))))
+        (error "decode-system-error" "unhandled code" (list code)))))
 
 
 ; FIXME: OS-dependent, belongs in its own file.

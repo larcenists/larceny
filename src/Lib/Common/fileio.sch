@@ -18,7 +18,7 @@
   #t)
 
 (define (file-io/remember p)
-  (if (output-port? p)
+  (if (io/output-port? p)
       (set! *files-open* #t)))
 
 ; Actually closes all open ports, because custom output ports use
@@ -125,7 +125,10 @@
           (file-io/install-port-position-as-binary! p data)
           (file-io/remember p)
           p)
-        (begin (error "Unable to open file " filename " for " io-mode)
+        (begin (raise-r6rs-exception (make-i/o-filename-error filename)
+                                     'file-io/open-file
+                                     (errmsg 'msg:openerror)
+                                     (list filename io-mode))
                #t))))
 
 ; The R6RS says it's supposed to ignore the file options,
@@ -144,7 +147,10 @@
           (file-io/install-port-position-as-binary! p data)
           (file-io/remember p)
           p)
-        (begin (error 'open-file-input-port "unable to open file" filename)
+        (begin (raise-r6rs-exception (make-i/o-filename-error filename)
+                                     'open-file-input-port
+                                     (errmsg 'msg:openerror)
+                                     (list filename))
                #t))))
 
 (define (file-io/open-file-output-port filename options bufmode transcoder)
@@ -159,8 +165,7 @@
                    (else 'block)))
          (exists? (file-io/file-exists? filename)))
     (cond ((and exists? (not dont-create) (not dont-fail))
-           (let* ((exec-mode (assq 'execution-mode (system-features)))
-                  (exec-mode (if exec-mode (cdr exec-mode) 'r5rs)))
+           (let* ((exec-mode (larceny:execution-mode)))
              (case exec-mode
               ((r5rs) #t)
               ((err5rs)
@@ -192,7 +197,10 @@
             (file-io/install-port-position-as-binary! p data)
             (file-io/remember p)
             p)
-          (begin (error 'open-file-output-port "unable to open file" filename)
+          (begin (raise-r6rs-exception (make-i/o-filename-error filename)
+                                       'open-file-output-port
+                                       (errmsg 'msg:openerror)
+                                       (list filename))
                  #t)))))
 
 ; FIXME:  This should be implemented better.
@@ -209,8 +217,7 @@
                    (else 'block)))
          (exists? (file-io/file-exists? filename)))
     (cond ((and exists? (not dont-create) (not dont-fail))
-           (let* ((exec-mode (assq 'execution-mode (system-features)))
-                  (exec-mode (if exec-mode (cdr exec-mode) 'r5rs)))
+           (let* ((exec-mode (larceny:execution-mode)))
              (case exec-mode
               ((r5rs) #t)
               ((err5rs)

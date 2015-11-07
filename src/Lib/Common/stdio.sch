@@ -16,10 +16,10 @@
 ; works (to some extent) by going through an error handler.
 
 (define current-input-port 
-  (make-parameter "current-input-port" #f (lambda (x) (input-port? x))))
+  (make-parameter "current-input-port" #f (lambda (x) (io/input-port? x))))
 
 (define current-output-port 
-  (make-parameter "current-output-port" #f (lambda (x) (output-port? x))))
+  (make-parameter "current-output-port" #f (lambda (x) (io/output-port? x))))
 
 ; Rebinding the current-error-port can cause an infinite loop
 ; when errors occur, so current-error-port isn't a parameter.
@@ -152,6 +152,51 @@
          (error "char-ready?: too many arguments.")
          #t)))
 
+;;; New for R7RS.  FIXME: Performance could be improved.
+
+(define (read-line . rest)
+  (get-line (if (null? rest) (current-input-port) (car rest))))
+
+(define (read-string k . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (get-string-n p k)))
+
+(define (read-u8 . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (get-u8 p)))
+
+(define (peek-u8 . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (lookahead-u8 p)))
+
+(define (u8-ready? . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (io/u8-ready? p)))
+
+(define (write-u8 n . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (put-u8 p n)))
+
+(define (read-bytevector k . rest)
+  (let ((p (if (null? rest) (current-input-port) (car rest))))
+    (get-bytevector-n p k)))
+
+(define (read-bytevector! bv . rest)
+  (let* ((p (if (null? rest) (current-input-port) (car rest)))
+         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
+         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
+                  (bytevector-length bv)
+                  (caddr rest))))
+    (get-bytevector-n! p bv start (- end start))))
+
+(define (write-bytevector bv . rest)
+  (let* ((p (if (null? rest) (current-input-port) (car rest)))
+         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
+         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
+                  (bytevector-length bv)
+                  (caddr rest))))
+    (put-bytevector p bv start (- end start))))
+
 ; Write-char has been re-coded in MAL for performance; see Lib/malcode.mal.
 ;
 ;(define (write-char c . rest)
@@ -180,11 +225,26 @@
                  #t))
       (io/write-string string (current-output-port))))
 
+;;; The R7RS says these next two procedures accept any argument.
+
 (define (input-port? p)
-  (io/input-port? p))
+  (and (port? p)
+       (io/r7rs-input-port? p)))
 
 (define (output-port? p)
-  (io/output-port? p))
+  (and (port? p)
+       (io/r7rs-output-port? p)))
+
+;;; The next two procedures still require a port as their argument,
+;;; but no great harm should come from generalizing that.
+
+(define (input-port-open? p)
+  (and (input-port? p)
+       (io/open-port? p)))
+
+(define (output-port-open? p)
+  (and (output-port? p)
+       (io/open-port? p)))
 
 (define (port-name p)
   (io/port-name p))
@@ -259,18 +319,18 @@
   (bytevector-io/reset-output-bytevector port))
 
 (define (close-input-port p) 
-  (cond ((input-port? p)
+  (cond ((io/input-port? p)
          (io/close-port p))
-        ((not (output-port? p)) ; HACK: port is closed
+        ((input-port? p)    ; port is closed
          (unspecified))
         (else
          (error "close-input-port: not an input port: " p)
          #t)))
 
 (define (close-output-port p)
-  (cond ((output-port? p)
+  (cond ((io/output-port? p)
          (io/close-port p))
-        ((not (input-port? p)) ; HACK: port is closed
+        ((output-port? p)    ; port is closed
          (unspecified))
         (else
          (error "close-output-port: not an output port: " p)

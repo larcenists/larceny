@@ -10,14 +10,20 @@
 ;
 ; Larceny's parameters pre-date SRFI 39, which is incompatible with
 ; Larceny's parameters.  The following definition has been modified
-; to be almost compatible with SRFI 39.  The one remaining incompatibility
-; occurs when the first argument is a string and the second a procedure.
-; In that case, the ambiguity is resolved by using Larceny's semantics.
+; to be fully compatible with SRFI 39.
+;
+; With one argument, it's SRFI-style.
+; With two arguments, and the second is a procedure, it's SRFI-style.
+; With two arguments, and the second is not a procedure, it's not SRFI-style.
+; With three arguments, it's not SRFI-style.
+;
+; Watch out for legacy code that passes a string or symbol as the
+; first argument and a procedure as the second argument.  In the
+; old days, Larceny's old semantics would be used instead of SRFI 39.
 
 (define (make-parameter arg1 . rest)
   (let* ((srfi39-style? (or (null? rest)
-                            (and (not (string? arg1))
-                                 (not (symbol? arg1))
+                            (and (null? (cdr rest))
                                  (procedure? (car rest)))))
          (converter (if (and srfi39-style? (pair? rest))
                         (car rest)

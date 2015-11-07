@@ -1,0 +1,133 @@
+ABOUT R7RS
+
+The Scheme programming language is described by the R7RS (small)
+standard, which was approved in 2013 by 86% of the voters [1].
+
+The R7RS standard extends and is mostly compatible with the
+older R5RS and IEEE standards [2].  The most significant
+incompatibility is case-sensitivity: By default, R7RS lexical
+syntax is case-sensitive whereas R5RS and IEEE 1178 syntax is
+not.
+
+The R7RS is not entirely compatible with the previous R6RS
+standard [3], mainly because R7RS lexical syntax differs from
+R6RS lexical syntax in several respects.
+
+The R7RS allows implementations to extend its lexical syntax.
+To preserve backward compatibility, Larceny accepts both R7RS
+and R6RS lexical syntax.  Larceny also accepts R6RS library
+syntax as an alternative to R7RS define-library syntax.  In
+Larceny, the language described by the older R6RS standard is
+a proper subset of the R7RS language as extended by Larceny.
+
+
+R7RS READ/EVAL/PRINT LOOP
+
+To interact with a traditional read/eval/print loop, invoke
+Larceny with the -r7rs or -r7r6 option:
+
+    larceny -r7rs
+or
+    larceny -r7r6
+
+The -r7rs option imports the R7RS (scheme base) library, while
+the -r7r6 option imports all of the standard R7RS and R6RS
+libraries (renaming the R6RS bytevector-copy! procedure to
+r6rs:bytevector-copy! because it would otherwise conflict with
+the R7RS bytevector-copy! procedure).
+
+You can define or import additional libraries while interacting
+with the read/eval/print loop.
+
+
+RUNNING AN R7RS PROGRAM
+
+To execute an R7RS program that is contained within a file named
+pgm, type:
+
+    larceny -r7rs -program pgm
+or
+    larceny -r7r6 -program pgm
+
+
+RUNNING AN R7RS PROGRAM WITH ADDITIONAL LIBRARIES
+
+To execute an R7RS program that is contained within a file named
+pgm and uses libraries defined within other files in the current
+directory, type:
+
+    larceny -r7rs -path . -program pgm
+or
+    larceny -r7r6 -path . -program pgm
+
+Files that contain library definitions must be named using
+Larceny's standard naming conventions, which are specified in
+Larceny's user manual [4].
+
+
+R7RS PROGRAMS
+
+An R7RS program is a sequence of declarations, definitions,
+and expressions.  R7RS programs subsume R6RS and R5RS programs.
+An R6RS top-level program is equivalent to an R7RS program
+that begins with an import declaration and contains no other
+declarations.  An R5RS program is equivalent to an R7RS program
+that contains no declarations at all.
+
+
+DEFINING LIBRARIES
+
+As an extension to the R7RS, Larceny allows programs to define
+R7RS libraries within the file that contains the program.  These
+library definitions must come before the program itself and be
+arranged so that no library depends upon libraries that come
+later in the file.
+
+This extension is supported by the Chicken implementation of
+R7 Scheme and may be supported by other implementations as well,
+but it is not fully portable.  Some implementations of the R7RS
+may require every library definition to be placed within a
+separate file.
+
+
+LIBRARY PATH
+
+As an extension to the R7RS, Larceny automatically loads
+libraries when they are first imported, provided Larceny can
+find the libraries in its library search path.  The library
+search path defaults to a path that contains the predefined
+libraries listed in Larceny's user manual [4], but more
+directories can be added to the library search path using
+Larceny's -path command-line option.
+
+Autoloaded libraries must be defined in files that follow
+Larceny's standard naming conventions for R7RS/R6RS library
+files.  These naming conventions are described in Larceny's
+user manual [4].
+
+Several other implementations of R7 Scheme provide a similar
+feature, but some apparently do not.  Some implementations may
+provide a similar feature but use a mapping from library names
+to file names that differs from Larceny's mapping.
+
+
+LIBRARY PATH ENVIRONMENT VARIABLE
+
+As an extension to the R7RS, Larceny allows the library path to
+be specified by a LARCENY_LIBPATH environment variable instead
+of the --path command-line option.
+
+
+PREDEFINED LIBRARIES
+
+In addition to the standard R7RS libraries, Larceny predefines a
+variety of other libraries that R7RS programs and libraries can
+import.  For a partial list of these predefined libraries, see
+Larceny's user manual [4].
+
+--------
+
+[1] http://www.scheme-reports.org/
+[2] http://www.schemers.org/Documents/Standards/
+[3] http://www.r6rs.org/
+[4] http://larceny.ccs.neu.edu/doc/

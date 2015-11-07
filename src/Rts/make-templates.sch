@@ -117,9 +117,9 @@
      . ,(lambda ()
 	  (values make-template-petit-osf1-decc
 		  make-template-target-petit-unix-static)))
-    (arm-linux-gcc-v4-gas
+    (arm-hardfp-linux-gcc-v4-gas
      . ,(lambda ()
-          (values make-template-arm-linux
+          (values make-template-arm-hardfp-linux
                   make-template-target-arm-linux)))
     (x86-win32-static-visualc-nasm
      . ,(lambda ()
@@ -219,7 +219,7 @@ ASFLAGS+=-f macho -g -IIAssassin/ -IBuild/ -DMACOSX"))
 
 ;; FIXME: There are references here not just to the Android tool chain,
 ;; but to directories on lth's personal Windows computer.
-(define make-template-arm-linux
+(define make-template-arm-softfp-android
   (template-common
 "ANDROID_NDK_ROOT=c:/android-ndk-r8
 PLATFORM_ROOT=$(ANDROID_NDK_ROOT)/platforms/android-9/arch-arm
@@ -232,6 +232,28 @@ WARNINGS=-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-label
 CFLAGS+=-c -march=armv7-a -mfloat-abi=softfp -mfpu=vfp -ISys -IBuild -I$(PLATFORM_ROOT)/usr/include $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
 LDXFLAGS+=-B$(PLATFORM_ROOT)/usr/lib
 ASFLAGS+=-c
+default_target: larceny.bin
+smoke-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.smoke10.sh 
+quick-test: larceny.bin
+	cp larceny.bin LRoot/
+	cd Bench; LARCENY=\"../../../larceny -rrof -size0 1M -size1 8M \" ./bench-gc.quick.sh 
+
+LIBS=-ldl -lm
+AS=$(CC)"))
+
+(define make-template-arm-hardfp-linux
+  (template-common
+"O=o
+CC=gcc
+DEBUGINFO=#-g -gstabs+
+OPTIMIZE=-O3 -DNDEBUG2 # -DNDEBUG
+# FIXME (should clear up these warnings instead of turning them off)
+WARNINGS=-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-label
+CFLAGS+=-c -march=armv7-a -marm -mfloat-abi=hard -mfpu=vfp -DARM -ISys -IBuild $(DEBUGINFO) $(OPTIMIZE) $(WARNINGS)
+LDXFLAGS=
+ASFLAGS+=-c -march=armv7-a -marm
 default_target: larceny.bin
 smoke-test: larceny.bin
 	cp larceny.bin LRoot/
@@ -270,11 +292,12 @@ LIBS=-lm
   (template-common
 "O=obj
 CC=cl
-AS=nasmw
+CFLAGS+=/arch:IA32 
+AS=nasm
 .asm.obj: 
-	nasmw -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Nasm -I$(INC_ROOT)/ -o $*.obj $<
+	nasm -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Nasm -I$(INC_ROOT)/ -o $*.obj $<
 .c.obj:
-	cl /c /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT)/Standard-C /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<"))
+	cl /c /arch:IA32 /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT)/Standard-C /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<"))
 
 ; Petit Larceny: DEC Alpha OSF/1: DEC C compiler
 ; Probably not up-to-date, has not been tested for some time!
@@ -334,9 +357,9 @@ ASFLAGS+=-P -ISparc
 "O=obj
 CC=cl
 .asm.obj: 
-	nasmw -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/ -I$(INC_ROOT)/ -o $*.obj $<
+	nasm -f win32 -DWIN32 -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/ -I$(INC_ROOT)/ -o $*.obj $<
 .c.obj:
-	cl /c /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<
+	cl /c /arch:IA32 /Zp4 /O2 /Zi /ISys /I$(INC_ROOT)/Sys /I$(INC_ROOT)/Shared /I$(INC_ROOT) /DSTDC_SOURCE /Fo$*.obj $<
 "))
 
 ;;;;;

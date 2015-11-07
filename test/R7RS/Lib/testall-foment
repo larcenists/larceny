@@ -1,0 +1,80 @@
+#! /usr/bin/env bash
+
+# For running Larceny's R7RS test suite (derived from Racket's R6RS tests).
+#
+# Usage: ./testall
+
+R7PATH="`pwd`"
+SRC="./tests/scheme/run"
+
+FOMENT=${FOMENT:-"foment"}
+
+TESTS="                            \
+    base                       \
+    case-lambda                \
+    char                       \
+    complex                    \
+    cxr                        \
+    eval                       \
+    file                       \
+    inexact                    \
+    lazy                       \
+    load                       \
+    read                       \
+    repl                       \
+    time                       \
+    write                      \
+    process-context"
+
+# missing from the list above:
+#
+# r5rs
+# run
+# test
+
+echo "${FOMENT} --version" > testresults
+echo >> testresults
+
+runtest ()
+{
+    sleep 1
+    {
+        echo "${SRC}/$1"
+        time ${FOMENT} < "${SRC}/$1.sps"
+    } 2>&1 | tee -a testresults
+}
+
+for program in ${TESTS} ; do
+{
+    echo $program
+    runtest $program
+}
+done
+
+runtest_with_options ()
+{
+    sleep 1
+    {
+        echo "${SRC}/$1 $2"
+        time ${FOMENT} < "${SRC}/$1.sps" $2
+        if [ $? = $3 ]; then
+            echo "1 tests passed"
+        else
+            echo "1 tests failed:"
+            echo "Incorrect exit status from exit or emergency-exit:"
+            echo $?
+            echo "1 of 1 tests failed."
+        fi
+    } 2>&1 | tee -a testresults
+}
+
+export TEMPORARY_ENV_VAR=2776e8e
+runtest_with_options process-context.sps "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e" 0
+
+runtest_with_options process-context.sps "-- --test-emergency-exit" 0
+
+runtest_with_options process-context.sps "-- --test-emergency-exit 37" 37
+
+runtest_with_options process-context.sps "-- --test-exit" 0
+
+runtest_with_options process-context.sps "-- --test-exit 46" 46

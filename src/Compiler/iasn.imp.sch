@@ -267,6 +267,13 @@
     (.>:flo:flo       2 >:flo:flo        #f            -1 ,:immortal ,:none)
     (.>=:flo:flo      2 >=:flo:flo       #f            -1 ,:immortal ,:none)
 
+    (.bignum-add-step!
+                      0 bignum-add-step! #f            -1 ,:dead   ,:string #f)
+    (.bignum-subtract-step!
+                      0 bignum-subtract-step! #f       -1 ,:dead   ,:string #f)
+    (.bignum-multiply-step!
+                      0 bignum-multiply-step! #f       -1 ,:dead   ,:string #f)
+
     ;; FIXME: This is not a good place for these, because the compiler
     ;; doesn't need to see them:
 

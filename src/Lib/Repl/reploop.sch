@@ -93,16 +93,17 @@
 
 (define repl-prompt
   (make-parameter "repl-prompt"
-		    (lambda (level port)
-                      (newline port)
-                      (display (make-string level #\>) port)
-                      (display " " port))))
+                  (lambda (level port)
+                    (newline port)
+                    (display (make-string level #\>) port)
+                    (display " " port))
+                  procedure?))
 
 (define repl-evaluator
-  (make-parameter "repl-evaluator" eval))
+  (make-parameter "repl-evaluator" eval procedure?))
 
 (define repl-printer
-  (make-parameter "repl-printer" ur-printer))
+  (make-parameter "repl-printer" ur-printer procedure?))
 
 
 ; eof

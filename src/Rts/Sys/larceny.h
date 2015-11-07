@@ -69,6 +69,8 @@ struct opt {
   bool       nofoldcase;        /* case-sensitive mode */
   bool       r5rs;              /* R5RS mode */
   bool       err5rs;            /* ERR5RS mode */
+  bool       r7rs;              /* R7RS mode */
+  bool       r7r6;              /* R7RS mode with all standard libraries */
   bool       r6rs;              /* R6RS (batch/script) mode */
   bool       ignore1;           /* R6RS ignore-line-1 mode; requires r6rs */
   bool       r6fast;            /* R6RS-compatible mode; requires r6rs */
@@ -86,7 +88,11 @@ extern opt_t command_line_options;
 
 extern int  panic_exit( const char *fmt, ... );
 extern int  panic_abort( const char *fmt, ... );
+#ifdef __GNUC__
 extern void annoyingmsg( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
+#else
+extern void annoyingmsg( const char *fmt, ... );
+#endif
 extern void supremely_annoyingmsg( const char *fmt, ... );
 extern void consolemsg( const char *fmt, ... );
 extern void hardconsolemsg( const char *fmt, ... );
@@ -145,6 +151,8 @@ extern void primitive_get_stats( word );
 extern void primitive_dumpheap( word, word );
 extern void primitive_getenv( word );
 extern void primitive_setenv( word, word );
+extern void primitive_listenv_init( void );
+extern void primitive_listenv( word );
 extern void primitive_garbage_collect( word, word );
 extern void primitive_iflush( word );
 extern void primitive_flonum_exp( word, word );
@@ -182,7 +190,9 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
+#ifdef ARM
 extern void localdebugger_step( word* globals );
+#endif
 extern void debugvsm( void );
 
 /* In Rts/Sys/osdep-*.c */
@@ -370,8 +380,10 @@ extern int memfail( int code, char *fmt, ... );
 #define debug2msg  1?(void)0:(void)
 #endif
 
-/* self-initialize so that GCC -Wuninitialized does not complain. */
-#define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name
+/* self-initialize so that GCC -Wuninitialized does not complain.   */
+/* but that no longer works with gcc 4.2.1 (Apple LLVM version 5.1) */
+/* FIXME: this hack should be removed                               */
+/* #define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name */
 
 #endif /* if INCLUDED_LARCENY_H */
 

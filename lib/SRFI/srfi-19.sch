@@ -199,11 +199,14 @@
 ;; A table of leap seconds
 ;; See ftp://maia.usno.navy.mil/ser7/tai-utc.dat
 ;; and update as necessary.
-;; this procedures reads the file in the abover
+;; this procedures reads the file in the above
 ;; format and creates the leap second table
 ;; it also calls the almost standard, but not R5 procedures read-line 
 ;; & open-input-string
 ;; ie (set! tm:leap-second-table (tm:read-tai-utc-date "tai-utc.dat"))
+;;
+;; FIXME: the third and fourth lines of that file cause a syntax error with
+;; Larceny's default lexical syntax, so insert a space before the last S.
 
 (define (tm:read-tai-utc-data filename)
   (define (convert-jd jd)
@@ -227,7 +230,9 @@
 ;; each entry is ( utc seconds since epoch . # seconds to add for tai )
 ;; note they go higher to lower, and end in 1972.
 (define tm:leap-second-table
-  '((1230768000 . 34) ; January 1, 2009
+  '((1435708800 . 36) ; June 30, 2015
+    (1341100800 . 35) ; June 30, 2012
+    (1230768000 . 34) ; January 1, 2009
     (1136073600 . 33)
     (915148800 . 32)
     (867715200 . 31)

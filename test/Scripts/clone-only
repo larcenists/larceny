@@ -1,0 +1,165 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script builds Larceny from source code found within a directory
+## created (most probably) by clone-only, logging the attempt.
+##
+## This script should be invoked in a context with all of the following
+## environment variables set:
+##
+##     TODAY
+##     TRACK
+##     DIRNAME
+##     DIR
+##     SCHEME_PGM
+##     SETUP_ARGS
+##     FINAL_LARCENY_SCRIPT
+##     FIXPATH_CMD
+##     FINAL_LARCENY_BIN
+##     FINAL_TWOBIT_BIN
+##     HEAP_DUMP_SCRIPT
+##     MAKETEXTSAFE
+## 
+## Here is a sample simple wrapper script meant to demonstrate how 
+## to invoke this script:
+## 
+## export TODAY=`date +%Y-%m-%d` 
+## export TRACK="Nightly"
+## export DIRNAME=default
+## export DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
+## export SCHEME_PGM="larceny -- "
+## export SETUP_ARGS="'scheme: 'larceny 'host: 'linux86 'sassy 'string-rep: 'flat4"
+## export FINAL_LARCENY_SCRIPT=larceny
+## export FIXPATH_CMD=echo
+## export FINAL_LARCENY_BIN=larceny.bin
+## export FINAL_TWOBIT_BIN=larceny.bin
+## export HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+## export MAKETEXTSAFE="iconv -t utf8 -c"
+## LOGFILE=${HOME}/logs/build.${TODAY}.log
+## ${HOME}/bin/clone-only >> $LOGFILE 2>&1
+##
+## In practice, the wrapper script will probably invoke several other
+## scripts following this one.
+##
+########################################################################
+
+MY_CDASHLOG="${DIR}/cdash-update-sub.xml"
+
+GITTRUNK=${GITTRUNK:-"https://github.com/larcenists/larceny"}
+
+################################################################
+##
+## Utilities likely to be duplicated in all of these scripts.
+##
+################################################################
+
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
+
+function cdashlog {
+   echo "$@" >> ${MY_CDASHLOG}
+}
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+	STATUS="passed" 
+    else
+	STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+## A trick for outputting stdout, stderr _and_ stdout&stderr to three
+## separate files with the appropriate ordering on messages.  Does not
+## preserve the status code of the argument command (given as i$1)
+# function cmdlog {
+#     ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3                        \
+#           | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+# }
+
+# Converts & < > to their HTML equivalents.
+# FIXME: we should be able to use iconv now.
+
+function quotefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} \
+         | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+         >> $2
+}
+
+# Until we again have a functioning CDASH, cdash_submit is useless
+# and its error messages just clutter up the build.*.log files.
+
+function cdash_submit {
+echo "omitting call to cdash_submit"
+}
+
+function remove {
+    if test -e $1; then rm $1; fi
+}
+
+################################################################
+##
+## Specific to this script.
+##
+################################################################
+
+pushd ${HOME}/larcenytest
+
+YESTERDAY_DIR=`ls -trd *-${DIRNAME}-${TRACK}-*[0-9] | tail -1`
+echo compressing ${YESTERDAY_DIR} to ${YESTERDAY_DIR}.tar.gz
+tar czf ${YESTERDAY_DIR}.tar.gz ${YESTERDAY_DIR} && rm -rf ${YESTERDAY_DIR}
+
+popd
+
+mkdir -p ${DIR}
+
+function update_from_git {
+  CMD="git clone ${GITTRUNK}"
+  remove $MY_CDASHLOG
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>'
+  
+  cdashlog '<Update mode="Client" Generator="'"${MY_GENERATOR}"'">   '
+  cdashlog '  <Site>'"`hostname`"'</Site>                            '
+  cdashlog '  <BuildName>'"${MY_BUILDNAME}"'</BuildName>	           '
+  cdashlog '  <BuildStamp>'"${MY_BUILDSTAMP}"'</BuildStamp>          '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>              '
+
+  cdashlog '  <UpdateCommand>'"${CMD}"'</UpdateCommand>	           '
+  cdashlog '  <UpdateType>GIT</UpdateType>		           '
+
+  pushd ${DIR} > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  mv larceny larceny_src
+  rm -rf larceny
+  popd         > /dev/null
+
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>	           '
+  cdashlog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>   '
+  cdashlog '  <Log>                                                  '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '  </Log>				                   '
+
+  cdashlog '</Update>                                                '
+  
+  cdash_submit $MY_CDASHLOG
+  cp ${TEMPLOG} ${DIR}/update.log
+}
+
+update_from_git;
+if [ $STATUS == "failed" ] 
+then echo UPDATE FAILED ; exit 1;
+fi
+
+################################################################

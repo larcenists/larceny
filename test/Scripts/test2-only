@@ -1,0 +1,229 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script tests Larceny, logging the attempt.
+##
+## This script should be invoked in a context with all of the following
+## environment variables set:
+##
+##     TODAY
+##     TRACK
+##     DIRNAME
+##     DIR
+##     SCHEME_PGM
+##     SETUP_ARGS
+##     FINAL_LARCENY_SCRIPT
+##     FIXPATH_CMD
+##     FINAL_LARCENY_BIN
+##     FINAL_TWOBIT_BIN
+##     HEAP_DUMP_SCRIPT
+##     MAKETEXTSAFE
+## 
+## See clone-only and build-only for an example of how to set those.
+##
+########################################################################
+
+RACKET_TESTS="${DIR}/../../RacketTests"
+
+MY_CDASHLOG1="${DIR}/cdash-tests1-sub.xml"
+MY_CDASHLOG2="${DIR}/cdash-tests2-sub.xml"
+MY_CDASHLOG3="${DIR}/cdash-tests3-sub.xml"
+MY_CDASHLOG4="${DIR}/cdash-tests4-sub.xml"
+
+MY_CDASHLOG=${MY_CDASHLOG1}
+
+################################################################
+##
+## Utilities likely to be duplicated in all of these scripts.
+##
+################################################################
+
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
+
+function cdashlog {
+   echo "$@" >> ${MY_CDASHLOG}
+}
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+        STATUS="passed" 
+    else
+        STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+## A trick for outputting stdout, stderr _and_ stdout&stderr to three
+## separate files with the appropriate ordering on messages.  Does not
+## preserve the status code of the argument command (given as i$1)
+# function cmdlog {
+#     ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3                        \
+#           | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+# }
+
+# Converts & < > to their HTML equivalents.
+# FIXME: we should be able to use iconv now.
+
+function quotefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} \
+         | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+         >> $2
+}
+
+# Until we again have a functioning CDASH, cdash_submit is useless
+# and its error messages just clutter up the build.*.log files.
+
+function cdash_submit {
+echo "omitting call to cdash_submit"
+}
+
+function remove {
+    if test -e $1; then rm $1; fi
+}
+
+################################################################
+##
+## Specific to this script.
+##
+################################################################
+
+export LARCENY=${DIR}/larceny_src/${FINAL_LARCENY_SCRIPT}
+
+function test_prologue {
+  remove $MY_CDASHLOG
+
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
+  cdashlog '<?xml-stylesheet type="text/xsl" href="../cdash-tests.xsl"?>      '
+  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
+  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
+  cdashlog '      Name="'"`hostname`"'"                                       '
+  cdashlog '      Generator="'"${MY_GENERATOR}"'">                            '
+  cdashlog ' <Testing>                                                        '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>                       '
+  cdashlog '  <TestList>                                                      '
+  cdashlog '   <Test>R7RS (Larceny)</Test>                                    '
+  cdashlog '  </TestList>                                                     '
+
+  TEST_SECS_BEGIN=`date +%s`
+
+}
+
+function test_epilogue {
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>                           '
+  cdashlog '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>       '
+  cdashlog ' </Testing>                                                       '
+  cdashlog '</Site>                                                           '
+  
+  cdash_submit $MY_CDASHLOG
+}
+
+function r6rs_test {
+  MY_CDASHLOG=${MY_CDASHLOG1}
+  CMD="./testall"
+
+  test_prologue
+
+  pushd ${RACKET_TESTS} > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd > /dev/null
+
+  echo r6rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+  cdashlog '  <Test Status="'"${STATUS}"'">                                   '
+  cdashlog '   <Name>R7RS</Name>                                              '
+  cdashlog '   <Path>test/R7RS/Lib</Path>                                     '
+  cdashlog '   <FullName>R7RS tests (Larceny)</FullName>                      '
+  cdashlog '   <FullCommandLine>'"$CMD"'</FullCommandLine>                    '
+  cdashlog '   <Results>                                                      '
+  cdashlog '    <NamedMeasurement type="numeric/double" name="Execution Time">'
+  cdashlog '     <Value>'"${SECS_ELAPSED}"'</Value>                           '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Completion Status">'
+  cdashlog '     <Value>Completed</Value>                                     '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Command Line">     '
+  cdashlog '     <Value>'"$CMD"'</Value>                                      '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <Measurement>                                                 '
+  cdashlog '     <Value>                                                      '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '     </Value>                                                     '
+  cdashlog '    </Measurement>                                                '
+  cdashlog '   </Results>                                                     '
+  cdashlog '  </Test>                                                         '
+
+  test_epilogue
+
+  cat ${TEMPLOG} >> ${DIR}/tests1.log
+}
+
+function r7rs_test {
+  MY_CDASHLOG=${MY_CDASHLOG2}
+  CMD="./testall"
+
+  test_prologue
+
+  pushd ${DIR}/larceny_src/test/R7RS/Lib > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd > /dev/null
+
+  echo r7rs_test ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+  cdashlog '  <Test Status="'"${STATUS}"'">                                   '
+  cdashlog '   <Name>R7RS</Name>                                              '
+  cdashlog '   <Path>test/R7RS/Lib</Path>                                     '
+  cdashlog '   <FullName>R7RS tests (Larceny)</FullName>                      '
+  cdashlog '   <FullCommandLine>'"$CMD"'</FullCommandLine>                    '
+  cdashlog '   <Results>                                                      '
+  cdashlog '    <NamedMeasurement type="numeric/double" name="Execution Time">'
+  cdashlog '     <Value>'"${SECS_ELAPSED}"'</Value>                           '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Completion Status">'
+  cdashlog '     <Value>Completed</Value>                                     '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Command Line">     '
+  cdashlog '     <Value>'"$CMD"'</Value>                                      '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <Measurement>                                                 '
+  cdashlog '     <Value>                                                      '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '     </Value>                                                     '
+  cdashlog '    </Measurement>                                                '
+  cdashlog '   </Results>                                                     '
+  cdashlog '  </Test>                                                         '
+
+  test_epilogue
+
+  cat ${TEMPLOG} >> ${DIR}/tests2.log
+}
+
+function conformance_tests {
+  remove $MY_CDASHLOG1
+  remove $MY_CDASHLOG2
+
+  r6rs_test
+  r7rs_test
+
+}
+
+conformance_tests;
+if [ $STATUS == "failed" ] 
+then echo TESTS FAILED ; exit 1; 
+fi

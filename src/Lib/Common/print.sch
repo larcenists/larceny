@@ -15,7 +15,8 @@
                            (car (vector-ref co 0))
                            ">")
             port
-            #f))))
+            #f))
+   procedure?))
 
 (define environment-printer
   (make-parameter
@@ -25,13 +26,15 @@
                            (environment-name environment)
                            ">")
             port
-            #f))))
+            #f))
+   procedure?))
 
 (define hashtable-printer
   (make-parameter
    "hashtable-printer"
    (lambda (hashtable port slashify)
-     (print "#<HASHTABLE>" port #f))))
+     (print "#<HASHTABLE>" port #f))
+   procedure?))
 
 (define procedure-printer
   (make-parameter
@@ -44,13 +47,15 @@
                                  ""))
                            ">")
             port
-            #f))))
+            #f))
+   procedure?))
 
 (define weird-printer
   (make-parameter
    "weird-printer"
    (lambda (weirdo port slashify)
-     (print "#<WEIRD OBJECT>" port #f))))
+     (print "#<WEIRD OBJECT>" port #f))
+   procedure?))
 
 ; If slashify is true, print something that can be read back in.
 ; If slashify is false, use display semantics.
@@ -63,13 +68,13 @@
                     syntax quasisyntax unsyntax unsyntax-splicing))
 
   (define quoter-strings '((quote . "'")
-			   (quasiquote . "`")
-			   (unquote . ",")
-			   (unquote-splicing . ",@")
+                           (quasiquote . "`")
+                           (unquote . ",")
+                           (unquote-splicing . ",@")
                            (syntax . "#'")
-			   (quasisyntax . "#`")
-			   (unsyntax . "#,")
-			   (unsyntax-splicing . "#,@")))
+                           (quasisyntax . "#`")
+                           (unsyntax . "#,")
+                           (unsyntax-splicing . "#,@")))
 
  ;FIXME: R6RS won't allow a backslash before semicolon
  ;(define funny-characters (list #\" #\\ #\;))
@@ -115,17 +120,17 @@
                 (zero? level))
            (printstr "..." p))
           ((not (pair? x)) (patom x p slashify level))
-	  ((and (memq (car x) quoters)
-		(pair? (cdr x))
-		(null? (cddr x)))
-	   (print-quoted x p slashify level))
+          ((and (memq (car x) quoters)
+                (pair? (cdr x))
+                (null? (cddr x)))
+           (print-quoted x p slashify level))
           ((and (not slashify)
                 (zero? (- level 1)))
            (printstr "(...)" p))
           ((and (not slashify)
                 (eqv? 0 (print-length)))
            (printstr "(...)" p))
-	  (else
+          (else
            (write-char (string-ref "(" 0) p)
            (print (car x) p slashify (- level 1))
            (print-cdr (cdr x) p slashify
@@ -143,7 +148,7 @@
            (print (car x) p slashify level)
            (print-cdr (cdr x) p slashify level (- length 1)))
           (else
-	   (printstr " . " p)
+           (printstr " . " p)
            (patom x p slashify level)
            (write-char (string-ref ")" 0) p))))
 
@@ -153,8 +158,8 @@
 
     (define (loop x p i n)
       (if (< i n)
-	  (begin (write-char (string-ref x i) p)
-		 (loop x p (+ 1 i) n))))
+          (begin (write-char (string-ref x i) p)
+                 (loop x p (+ 1 i) n))))
 
     (loop s p 0 (string-length s)))
 
@@ -165,10 +170,10 @@
              (printstr s p))
             ((io/port-allows-r7rs-weirdness? p)
              (write-char #\| p)
-             (print-slashed-symbol-string s p)
+             (print-slashed-symbol-string s p #t)
              (write-char #\| p))
             (else
-             (print-slashed-symbol-string s p)))))
+             (print-slashed-symbol-string s p #f)))))
 
   ;; A symbol is vanilla if it's safe to print by displaying its string.
 
@@ -231,20 +236,21 @@
                      (loop (+ i 1)))
                     (else #f)))))
 
-      (loop 0)))
+      (and (> n 0) (loop 0))))
 
-  ;; Prints the string as though it were enclosed within vertical bars,
-  ;; using inline hex escapes for any odd characters.
+  ;; Prints the string as though it were enclosed within vertical bars.
+  ;; If r7rs? is true, rely on R7RS lexical syntax for strings and symbols.
+  ;; Otherwise use inline hex escapes for all odd characters.
 
-  (define (print-slashed-symbol-string s p)
+  (define (print-slashed-symbol-string s p r7rs?)
 
     (let* ((n (string-length s)))
 
       (define (loop i)
         (if (< i n)
             (let ((c (string-ref s i)))
-              (cond ((or (and (char<=? #\a c) (char<=? c #\z))
-                         (and (char<=? #\A c) (char<=? c #\Z))
+              (cond ((or (char<=? #\a c #\z)
+                         (char<=? #\A c #\Z)
                          (case c
                           ((#\! #\$ #\% #\& #\* #\/ #\: 
                             #\< #\= #\> #\? #\^ #\_ #\~)
@@ -254,7 +260,7 @@
                             #\5 #\6 #\7 #\8 #\9
                             #\+ #\- #\. #\@)
                            ; special subsequent
-                           (< 0 i))
+                           (or r7rs? (< 0 i)))
                           (else
                            (if (memq (transcoder-codec (port-transcoder p))
                                      '(utf-8 utf-16))
@@ -263,18 +269,41 @@
                                           (memq cat
                                                 '(Lu Ll Lt Lm Lo Mn Nl No
                                                   Pd Pc Po Sc Sm Sk So Co)))
-                                     (and (< 0 i)
+                                     (and (or r7rs? (< 0 i))
                                           (memq cat '(Nd Mc Me)))))
                                #f))))
                      (write-char c p)
                      (loop (+ i 1)))
-                    (else
-                     (let ((hexstring (number->string (char->integer c) 16)))
+                    (r7rs?
+                     (case c
+                      ((#\\ #\|)
                        (write-char #\\ p)
-                       (write-char #\x p)
-                       (print-slashed-string hexstring p)
-                       (write-char #\; p)
-                       (loop (+ i 1))))))))
+                       (write-char c p))
+                      ((#\alarm #\backspace #\tab #\newline #\return)
+                       (write-char #\\ p)
+                       (write-char (cdr (assq c mnemonic-escape-table)) p))
+                      (else
+                       (if (char<=? #\space c #\~)
+                           (write-char c p)
+                           (print-inline-hex-escape c))))
+                     (loop (+ i 1)))
+                    (else
+                     (print-inline-hex-escape c)
+                     (loop (+ i 1)))))))
+
+      (define (print-inline-hex-escape c)
+        (let ((hexstring (number->string (char->integer c) 16)))
+          (write-char #\\ p)
+          (write-char #\x p)
+          (print-slashed-string hexstring p)
+          (write-char #\; p)))
+
+      (define mnemonic-escape-table
+        '((#\alarm . #\a)
+          (#\backspace . #\b)
+          (#\tab . #\t)
+          (#\newline . #\n)
+          (#\return . #\r)))
 
       (loop 0)))
 
@@ -317,67 +346,74 @@
 
     (define (loop x p i n)
       (if (< i n)
-	  (let ((c (integer->char (bytevector-ref x i))))
-	    (if (memq c funny-characters)
-		(write-char #\\ p))
-	    (write-char c p)
-	    (loop x p (+ 1 i) n))))
+          (let ((c (integer->char (bytevector-ref x i))))
+            (if (memq c funny-characters)
+                (write-char #\\ p))
+            (write-char c p)
+            (loop x p (+ 1 i) n))))
 
     (loop s p 0 (bytevector-length s)))
 
   (define (patom x p slashify level)
     (cond ((eq? x '())              (printstr "()" p))
-	  ((not x)                  (printstr "#f" p))
-	  ((eq? x #t)               (printstr "#t" p))
-	  ((symbol? x)
+          ((not x)                  (printstr "#f" p))
+          ((eq? x #t)               (printstr "#t" p))
+          ((symbol? x)
            (if slashify
                (print-slashed-symbol x p)
                (printsym (symbol->string x) p)))
-	  ((number? x)              (printnumber x p slashify))
-	  ((char? x)
-	   (if slashify
-	       (printcharacter x p)
-	       (write-char x p)))
-	  ((string? x)
-	   (if slashify
-	       (begin (write-char #\" p)
-		      (print-slashed-string x p)
-		      (write-char #\" p))
-	       (printstr x p)))
+          ((number? x)              (printnumber x p slashify))
+          ((char? x)
+           (if slashify
+               (printcharacter x p)
+               (write-char x p)))
+          ((string? x)
+           (if slashify
+               (begin (write-char #\" p)
+                      (print-slashed-string x p)
+                      (write-char #\" p))
+               (printstr x p)))
 
-	  ((vector? x) (cond ((environment? x) (printenvironment x p slashify))
+          ;; FIXME: The environment?, code-object?, and hashtable? clauses
+          ;; look silly and probably are.  The code-object? part appears
+          ;; to have come from a pre-2006 version of Twobit (see
+          ;; src/Compiler/pass2.aux.sch).
+
+          ((vector? x) (cond ((environment? x) (printenvironment x p slashify))
                              ((code-object? x) (printcodeobject x p slashify))
                              ((hashtable? x)   (printhashtable x p slashify))
                              (else (write-char #\# p)
                                    (print (vector->list x) p slashify level))))
 
-	  ((procedure? x)           (printprocedure x p slashify))
-	  ((bytevector? x)          (printbytevector x p slashify level))
-	  ((eof-object? x)          (printeof x p slashify))
-	  ((port? x)                (printport x p slashify))
-	  ((eq? x (unspecified))    (printstr "#!unspecified" p))
-	  ((eq? x (undefined))      (printstr "#!undefined" p))
-	  ((structure? x)
-	   ((structure-printer) x p slashify))
-	  (else                     (printweird x p slashify))))
+          ((procedure? x)           (printprocedure x p slashify))
+          ((bytevector? x)          (printbytevector x p slashify level))
+          ((eof-object? x)          (printeof x p slashify))
+          ((port? x)                (printport x p slashify))
+          ((eq? x (unspecified))    (printstr "#!unspecified" p))
+          ((eq? x (undefined))      (printstr "#!undefined" p))
+          ((environment? x)
+           ((environment-printer) x p slashify))
+          ((structure? x)
+           ((structure-printer) x p slashify))
+          (else                     (printweird x p slashify))))
 
   (define (printnumber n p slashify)
     (if (eq? slashify **lowlevel**)
-	(cond ((flonum? n)
-	       (write-char #\# p)
-	       (write-char ctrl-F p)
-	       (do ((i 4 (+ i 1)))
-		   ((= i 12))
-		 (write-char (integer->char (bytevector-like-ref n i)) p)))
-	      ((compnum? n)
-	       (write-char #\# p)
-	       (write-char ctrl-C p)
-	       (do ((i 4 (+ i 1)))
-		   ((= i 20))
-		 (write-char (integer->char (bytevector-like-ref n i)) p)))
-	      (else
-	       (printstr (number->string n) p)))
-	(printstr (number->string n) p)))
+        (cond ((flonum? n)
+               (write-char #\# p)
+               (write-char ctrl-F p)
+               (do ((i 4 (+ i 1)))
+                   ((= i 12))
+                 (write-char (integer->char (bytevector-like-ref n i)) p)))
+              ((compnum? n)
+               (write-char #\# p)
+               (write-char ctrl-C p)
+               (do ((i 4 (+ i 1)))
+                   ((= i 20))
+                 (write-char (integer->char (bytevector-like-ref n i)) p)))
+              (else
+               (printstr (number->string n) p)))
+        (printstr (number->string n) p)))
 
   (define (printcharacter c p)
     (write-char #\# p)
@@ -422,11 +458,11 @@
 
   (define (printbytevector x p slashify level)
     (if (eq? slashify **lowlevel**)
-	(begin (write-char #\# p)
-	       (write-char ctrl-B p)
-	       (write-char #\" p)
-	       (print-slashed-bytevector x p)
-	       (write-char #\" p))
+        (begin (write-char #\# p)
+               (write-char ctrl-B p)
+               (write-char #\" p)
+               (print-slashed-bytevector x p)
+               (write-char #\" p))
         (begin (write-char #\# p)
                (cond ((io/port-allows-r7rs-weirdness? p) #t)
                      ((io/port-allows-r6rs-weirdness? p)
@@ -438,11 +474,11 @@
 
   (define (printport x p slashify)
     (printstr (string-append "#<" (cond ((input-port? x) "INPUT PORT ")
-					((output-port? x) "OUTPUT PORT ")
-					(else "PORT "))
-			     (port-name x)
-			     ">")
-	      p))
+                                        ((output-port? x) "OUTPUT PORT ")
+                                        (else "PORT "))
+                             (port-name x)
+                             ">")
+              p))
 
   (define (printeof x p slashify)
     (printstr "#<EOF>" p))
@@ -456,33 +492,24 @@
 
   (print x p slashify (+ (or (print-level) -2) 1)))
 
+;;; Don't print more than (print-length) elements of a list or vector,
+;;; and don't print more than (print-level) nested lists or vectors.
+;;;
+;;; FIXME: Not sure if (print-level) is being respected.
+
 (define print-length
-  (let ((*print-length* #f))
-    (lambda rest
-      (cond ((null? rest) *print-length*)
-            ((null? (cdr rest))
-             (let ((x (car rest)))
-               (if (not (or (not x)
-                            (and (fixnum? x) (>= x 0))))
-                   (error "Bad argument " x " to print-length."))
-               (set! *print-length* x)
-               x))
-            (else
-             (error "Wrong number of arguments to print-length."))))))
+  (make-parameter "print-length"
+                  #f
+                  (lambda (x)
+                    (or (not x)
+                        (and (fixnum? x) (>= x 0))))))
 
 (define print-level
-  (let ((*print-level* #f))
-    (lambda rest
-      (cond ((null? rest) *print-level*)
-            ((null? (cdr rest))
-             (let ((x (car rest)))
-               (if (not (or (not x)
-                            (and (fixnum? x) (>= x 0))))
-                   (error "Bad argument " x " to print-level."))
-               (set! *print-level* x)
-               x))
-            (else
-             (error "Wrong number of arguments to print-level."))))))
+  (make-parameter "print-level"
+                  #f
+                  (lambda (x)
+                    (or (not x)
+                        (and (fixnum? x) (>= x 0))))))
 
 (define **lowlevel** (list 0))   ; any unforgeable value
 
@@ -497,12 +524,26 @@
       (io/discretionary-flush p)
       **nonprinting-value**)))
 
-(define display
+;;; For the display procedure, see print-shared.sch
+
+(define display-simple
   (lambda (x . rest)
     (let ((p (if (pair? rest) (car rest) (current-output-port))))
       (print x p #f)
       (io/discretionary-flush p)
       **nonprinting-value**)))
+
+;;; Printing fasl files with shared structures as below does work,
+;;; but it doesn't appear to save enough space to justify the
+;;; compile-time overhead of detecting shared structures.
+
+;(define lowlevel-write
+;  (lambda (x . rest)
+;    (let ((p (if (pair? rest) (car rest) (current-output-port)))
+;          (simple-printer (lambda (x p) (print x p **lowlevel**))))
+;      (print-with-shared-structure x p simple-printer)
+;      (io/discretionary-flush p)
+;      **nonprinting-value**)))
 
 (define lowlevel-write
   (lambda (x . rest)

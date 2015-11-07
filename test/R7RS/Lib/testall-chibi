@@ -1,0 +1,98 @@
+#! /usr/bin/env bash
+
+# For running Larceny's R7RS test suite (derived from Racket's R6RS tests).
+#
+# Usage: ./testall
+
+R7PATH="`pwd`"
+SRC="./tests/scheme/run"
+
+CHIBI=${CHIBI:-"chibi-scheme"}
+
+TESTS="                            \
+    base                       \
+    case-lambda                \
+    char                       \
+    complex                    \
+    cxr                        \
+    eval                       \
+    file                       \
+    inexact                    \
+    lazy                       \
+    load                       \
+    read                       \
+    repl                       \
+    time                       \
+    write                      \
+    process-context"
+
+# missing from the list above:
+#
+# r5rs
+# run
+# test
+
+TEMPSCM="temp.scm"
+
+echo "${CHIBI} --version" > testresults
+echo >> testresults
+
+runtest ()
+{
+  cat > ${TEMPSCM} <<EOF
+(import (scheme load))
+(import (scheme process-context))
+(import (tests scheme test))
+(import (tests scheme $1))
+(load "tests/scheme/run/$1.sps")
+(exit)
+EOF
+    sleep 1
+    {
+        echo "${SRC}/$1"
+        time ${CHIBI} -I . < "${TEMPSCM}"
+    } 2>&1 | tee -a testresults
+}
+
+for program in ${TESTS} ; do
+{
+    echo $program
+    runtest $program
+}
+done
+
+runtest_with_options ()
+{
+  cat > ${TEMPSCM} <<EOF
+(import (scheme load))              ; for load
+(import (scheme process-context))   ; for exit
+(import (tests scheme test))
+(import (tests scheme $1))
+(load "tests/scheme/run/$1.sps")
+(exit)
+EOF
+    sleep 1
+    {
+        echo "${SRC}/$1 $2"
+        time ${CHIBI} -I . $2 < "${TEMPSCM}"
+        if [ $? = $3 ]; then
+            echo "1 tests passed"
+        else
+            echo "1 tests failed:"
+            echo "Incorrect exit status from exit or emergency-exit:"
+            echo $?
+            echo "1 of 1 tests failed."
+        fi
+    } 2>&1 | tee -a testresults
+}
+
+export TEMPORARY_ENV_VAR=2776e8e
+runtest_with_options process-context "-- --test-getenv TEMPORARY_ENV_VAR 2776e8e" 0
+
+runtest_with_options process-context "-- --test-emergency-exit" 0
+
+runtest_with_options process-context "-- --test-emergency-exit 37" 37
+
+runtest_with_options process-context "-- --test-exit" 0
+
+runtest_with_options process-context "-- --test-exit 46" 46

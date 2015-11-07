@@ -1,0 +1,6 @@
+(import (tests r6rs eval)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs eval)\n")
+(run-eval-tests)
+(report-test-results)

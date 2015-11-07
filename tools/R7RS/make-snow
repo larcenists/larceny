@@ -1,0 +1,53 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+################################################################
+#
+#    Converts (in-progress *) libraries into Snow packages.
+#
+#    See also upload-snow.
+#
+################################################################
+
+VERSION=0.0.3
+LICENSE=mit
+
+WILL="William D Cinger <will@ccs.neu.edu>"
+TAYLAN="Taylan Ulrich Bayırlı/Kammer <taylanbayirli@gmail.com>"
+
+make_snowball ()
+{
+  echo $2
+  echo   snow-chibi package --version=${VERSION} \
+      --license=${LICENSE} \
+      --description="$1" \
+      --authors="$3" \
+      --maintainers="${WILL}" \
+      --doc="$4" \
+      --test="$5" \
+      $2
+
+  snow-chibi package --version=${VERSION} \
+      --license=${LICENSE} \
+      --description="$1" \
+      --authors="$3" \
+      --maintainers="${WILL}" \
+      --doc="$4" \
+      --test="$5" \
+      $2
+
+}
+
+make_snowball 'Hash tables (HashTablesCowan).' \
+    in-progress/hash/tables.sld \
+    "${WILL}" \
+    hash-tablesDoc.html \
+    in-progress/hash/tables-test.sps
+
+make_snowball 'Bimaps (HashTablesCowan).' \
+    in-progress/hash/bimaps.sld \
+    "${WILL}" \
+    bimapsDoc.html \
+    in-progress/hash/tables-test.sps
+

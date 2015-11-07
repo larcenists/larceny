@@ -29,6 +29,13 @@
 #include "stats.h"
 #include "cheney.h"
 
+static void dumpwords( word *p, int n )
+{
+  int i;
+  for ( i = 0; i < n; i = i + 1 )
+    hardconsolemsg( "    0x%08d  0x%08x  0x%08x ", i - 1, &(p[i]), p[i] );
+}
+
 void gclib_check_memory_validity( word *p, int n )
 {
   int i;
@@ -40,6 +47,7 @@ void gclib_check_memory_validity( word *p, int n )
       if (i != 0) {
         hardconsolemsg( "Header 0x%08x found at offset %d in object 0x%08x!",
                         x, i, (word)p );
+        dumpwords( p, n );
         conditional_abort();
       }
       else if (sizefield( x ) > 4*1024*1024) {
@@ -61,6 +69,7 @@ void gclib_check_memory_validity( word *p, int n )
         else {
           hardconsolemsg( "Invalid immediate 0x%08x found at offset %d"
                          " in object 0x%08x!", x, i, (word)p );
+          dumpwords( p, n );
           conditional_abort();
         }
         break;
@@ -69,6 +78,7 @@ void gclib_check_memory_validity( word *p, int n )
         if (y != FORWARD_HDR && ishdr( y )) {
           hardconsolemsg( "Pair pointer 0x%08x at offset %d in object 0x%08x"
                           " points to a header (0x%08x)!", x, i, (word)p, y );
+          dumpwords( ptrof(x), 2 );
           conditional_abort();
         }
         break;
@@ -78,6 +88,8 @@ void gclib_check_memory_validity( word *p, int n )
           hardconsolemsg( "Vector pointer 0x%08x at offset %d in object 0x%08x"
                           " does not point to a vector header (0x%08x)!", 
                           x, i, (word)p, y );
+          dumpwords( p, n );
+          dumpwords( ptrof(x), 4 );
           conditional_abort();
         }
         break;
@@ -88,6 +100,8 @@ void gclib_check_memory_validity( word *p, int n )
                           "0x%08x does not point to a bytevector header "
                           "(0x%08x)!",
                           x, i, (word)p, y );
+          dumpwords( p, n );
+          dumpwords( ptrof(x), 4 );
           conditional_abort();
         }
         break;

@@ -3,24 +3,23 @@ Records
 
 [NOTE]
 ======================================================================
-Larceny's records have been extended to implement all
-http://scheme-punks.org/wiki/index.php?title=Main_Page[ERR5RS]
+Larceny's records have been extended to implement all SRFI 99
 and
 http://www.r6rs.org/[R6RS]
 procedures from
 
-    (err5rs records procedural)
-    (err5rs records inspection)
+    (srfi :99 records procedural)
+    (srfi :99 records inspection)
     (rnrs records procedural)
     (rnrs records inspection)
 
-We recommend that Larceny programmers use the ERR5RS APIs instead
+We recommend that Larceny programmers use the SRFI 99 APIs instead
 of the R6RS APIs.  This should entail no loss of portability, since
-the standard reference implementation of ERR5RS records should run
-efficiently in any implementation of the R6RS that permits new
+the standard reference implementation of SRFI 99 records should run
+efficiently in any implementation of the R7RS/R6RS that permits new
 libraries to defined at all.
 
-Larceny now has two kinds of records: old-style and ERR5RS/R6RS.
+Larceny now has two kinds of records: old-style and R7RS/R6RS/SRFI99/ERR5RS.
 Old-style records cannot be created in R6RS-conforming mode, so
 our extension of R6RS procedures to accept old-style records does
 not affect R6RS conformance.

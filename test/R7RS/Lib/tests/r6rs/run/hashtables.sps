@@ -1,0 +1,6 @@
+(import (tests r6rs hashtables)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs hashtables)\n")
+(run-hashtables-tests)
+(report-test-results)

@@ -59,5 +59,10 @@
 (define syscall:seterrno 48)
 (define syscall:time 49)
 (define syscall:lseek 50)
+(define syscall:listenv-init 51)
+(define syscall:listenv 52)
+(define syscall:listdir-open 53)
+(define syscall:listdir 54)
+(define syscall:listdir-close 55)
 
 ; eof

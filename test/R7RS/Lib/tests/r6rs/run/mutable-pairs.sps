@@ -1,0 +1,6 @@
+(import (tests r6rs mutable-pairs)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs mutable-pairs)\n")
+(run-mutable-pairs-tests)
+(report-test-results)

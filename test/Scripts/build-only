@@ -1,0 +1,252 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script builds Larceny from source code found within a directory
+## created (most probably) by clone-only, logging the attempt.
+##
+## This script should be invoked in a context with all of the following
+## environment variables set:
+##
+##     TODAY
+##     TRACK
+##     DIRNAME
+##     DIR
+##     SCHEME_PGM
+##     SETUP_ARGS
+##     FINAL_LARCENY_SCRIPT
+##     FIXPATH_CMD
+##     FINAL_LARCENY_BIN
+##     FINAL_TWOBIT_BIN
+##     HEAP_DUMP_SCRIPT
+##     MAKETEXTSAFE
+## 
+## Here is a sample simple wrapper script meant to demonstrate how 
+## to invoke this script:
+## 
+## export TODAY=`date +%Y-%m-%d` 
+## export TRACK="Nightly"
+## export DIRNAME=default
+## export DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
+## export SCHEME_PGM="larceny -- "
+## export SETUP_ARGS="'scheme: 'larceny 'host: 'linux86 'sassy 'string-rep: 'flat4"
+## export FINAL_LARCENY_SCRIPT=larceny
+## export FIXPATH_CMD=echo
+## export FINAL_LARCENY_BIN=larceny.bin
+## export FINAL_TWOBIT_BIN=larceny.bin
+## export HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+## export MAKETEXTSAFE="iconv -t utf8 -c"
+## LOGFILE=${HOME}/logs/build.${TODAY}.log
+## ${HOME}/bin/clone-only >> $LOGFILE 2>&1
+##
+## In practice, the wrapper script will probably invoke several other
+## scripts following this one.
+##
+########################################################################
+
+MY_CDASHCONFIGLOG="${DIR}/cdash-config-sub.xml"
+MY_CDASHBUILDLOG="${DIR}/cdash-build-sub.xml"
+
+# Will change before the build step.
+
+MY_CDASHLOG=${MY_CDASHCONFIGLOG}
+
+################################################################
+##
+## Utilities likely to be duplicated in all of these scripts.
+##
+################################################################
+
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
+
+function cdashlog {
+   echo "$@" >> ${MY_CDASHLOG}
+}
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+	STATUS="passed" 
+    else
+	STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+## A trick for outputting stdout, stderr _and_ stdout&stderr to three
+## separate files with the appropriate ordering on messages.  Does not
+## preserve the status code of the argument command (given as i$1)
+# function cmdlog {
+#     ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3                        \
+#           | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+# }
+
+# Converts & < > to their HTML equivalents.
+# FIXME: we should be able to use iconv now.
+
+function quotefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} \
+         | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+         >> $2
+}
+
+# Until we again have a functioning CDASH, cdash_submit is useless
+# and its error messages just clutter up the build.*.log files.
+
+function cdash_submit {
+echo "omitting call to cdash_submit"
+}
+
+function remove {
+    if test -e $1; then rm $1; fi
+}
+
+################################################################
+##
+## Specific to this script.
+##
+################################################################
+
+LARCENY_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/larceny/'`"
+TWOBIT_HEAP_DUMP_SCRIPT="`echo ${HEAP_DUMP_SCRIPT} | sed 's/HHH/twobit/'`"
+COMPILE_STDLIB_SCRIPT="src/Build/compile-standard-libraries.sch"
+
+function larceny_setup {
+  cat > ${TEMPSCM} <<EOF
+(load "setup.sch")
+(setup ${SETUP_ARGS} )
+(build-config-files)
+(exit)
+EOF
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}"
+  remove $MY_CDASHLOG
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>                          '
+  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"				  '
+  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'" 			  '
+  cdashlog '      Name="'"`hostname`"'"      				  '
+  cdashlog '      Generator="'"${MY_GENERATOR}"'">			  '
+  cdashlog ' <Configure>							  '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>		          '
+
+  cdashlog '  <ConfigureCommand>'"${CMD}"'</ConfigureCommand>               '
+
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+
+  cdashlog '  <Log>                                                         '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '  </Log>				                          '
+  cdashlog '  <ConfigureStatus>'"${STATUS}"'</ConfigureStatus>		  '
+
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>			  '
+  cdashlog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>	  '
+  cdashlog ' </Configure>							  '
+  cdashlog '</Site>                                                         '
+        
+  cdash_submit $MY_CDASHLOG
+  cp ${TEMPLOG} ${DIR}/setup.log
+}
+
+# The CMD used to finish with "df -kh", but df returns a nonzero exit status
+# on some machines, causing a spurious report that the build had failed.
+
+function larceny_build {
+  cat > ${TEMPSCM} <<EOF
+(load "setup.sch")
+(setup ${SETUP_ARGS} )
+(load-compiler)
+;(set! *make-verbose* #f)
+
+(build-heap)
+(build-runtime)
+(build-executable)
+(build-larceny-files)
+(build-twobit)
+
+(exit)
+EOF
+  CMD="cat ${TEMPSCM}; ${SCHEME_PGM} ${REALSCM}; echo | ./${FINAL_LARCENY_BIN} -stopcopy -- ${LARCENY_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_TWOBIT_BIN} -stopcopy -- ${TWOBIT_HEAP_DUMP_SCRIPT}; echo | ./${FINAL_LARCENY_SCRIPT} -- ${COMPILE_STDLIB_SCRIPT} ; du -skh ."
+  remove $MY_CDASHLOG
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>                                     '
+  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"					    '
+  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"   				    '
+  cdashlog '      Name="'"`hostname`"'"					            '
+  cdashlog '      Generator="'"${MY_GENERATOR}"'">					    '
+  cdashlog ' <Build>								    '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>			            '
+
+  cdashlog '  <BuildCommand>'"${CMD}"'</BuildCommand>'
+
+  pushd ${DIR}/larceny_src > /dev/null
+  cmdsetstatus "${CMD}"    > ${TEMPLOG} 2>&1
+  popd                     > /dev/null
+
+  if grep -qi warning ${TEMPLOG} ; then 
+     grep -n -i warning ${TEMPLOG} | while read WARNINGLINE ; do
+	 WARNINGLINENUM=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\1/'`
+	 WARNINGLINETXT=`echo $WARNINGLINE | sed -e 's/\([^:]*\):\(.*\)/\2/'`
+  cdashlog '  <Warning>                                                                '
+  cdashlog '   <BuildLogLine>'${WARNINGLINENUM}'</BuildLogLine>                        '
+  cdashlog '   <Text>'${WARNINGLINETXT}'</Text>                                        '
+  cdashlog '   <PreContext></PreContext>                                               '
+  cdashlog '   <PostContext></PostContext>                                             '
+  cdashlog '   <RepeatCount>0</RepeatCount>                                            '
+  cdashlog '  </Warning>                                                               '
+     done 
+  fi
+
+  cdashlog '  <Log encoding="utf-8">                                                   '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '  </Log>                                                                   '
+  cdashlog '  <LogByHand encoding="utf-8">                                             '
+  cdashlog '  A hand written build log entry...                                        '
+  cdashlog '  (the real Log is named LogOld in the xml)                                '
+  cdashlog '  </LogByHand>                                                             '
+  
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>				    '
+  cdashlog '  <ElapsedMinutes>'"${MINS_ELAPSED}"'</ElapsedMinutes>			    '
+  cdashlog ' </Build>								    '
+  cdashlog '</Site>                                                                    '
+  
+  cdash_submit $MY_CDASHLOG
+
+  # For some reason, submitting the build log causes the config log to
+  # be removed from the display provided by CDash.  I am working
+  # around this bug by submitting the config log again after the build
+  # log; this is however ridiculous and it would be better to figure
+  # out what is wrong with the server (or with the format of the logs
+  # I am submitting).
+  cdash_submit $MY_CDASHCONFIGLOG
+
+  cp ${TEMPLOG} ${DIR}/build.log
+}
+
+larceny_setup;
+if [ $STATUS == "failed" ] 
+then echo SETUP FAILED ; exit 1; 
+fi
+
+MY_CDASHLOG=${MY_CDASHBUILDLOG}
+
+larceny_build;
+if [ $STATUS == "failed" ] 
+then echo BUILD FAILED ; exit 1; 
+fi
+
+BUILD_STATUS=${STATUS}
+
+if [ $BUILD_STATUS == "failed" ] 
+then exit 1
+fi

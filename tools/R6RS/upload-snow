@@ -1,0 +1,36 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+################################################################
+#
+#    Uploads (r6rs *) libraries to snow-fort.org
+#
+#    See also make-snow.
+#
+################################################################
+
+VERSION=0.0.1
+
+upload_snowball ()
+{
+  echo $1
+  snow-chibi upload $1-${VERSION}.tgz
+}
+
+upload_snowball r6rs-base
+upload_snowball r6rs-bytevectors
+upload_snowball r6rs-control
+upload_snowball r6rs-enums
+upload_snowball r6rs-eval
+upload_snowball r6rs-exceptions
+upload_snowball r6rs-files
+upload_snowball r6rs-hashtables
+upload_snowball r6rs-io-simple
+upload_snowball r6rs-lists
+upload_snowball r6rs-mutable-pairs
+upload_snowball r6rs-mutable-strings
+upload_snowball r6rs-programs
+upload_snowball r6rs-r5rs
+upload_snowball r6rs-sorting
+upload_snowball r6rs-unicode

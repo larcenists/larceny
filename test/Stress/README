@@ -1,9 +1,14 @@
 Setup
 -----
-The bench shell script must be run from this directory.  When it is run,
-there must be a link in the directory to an executable 'larceny' and
-links to two heap images: 'r5rs.heap' should be the basic heap image,
-and 'twobit.heap' should be the twobit heap image.
+The bench shell script must be run from this directory.  When it is
+run, there must be a link IN THE DIRECTORY TWO LEVELS UP to an
+executable 'larceny' and links IN THAT DIRECTORY to two heap images:
+'r5rs.heap' should be the basic heap image, and 'twobit.heap' should
+be the twobit heap image.
+
+Note, even though 'bench' can benchmark other scheme systems there
+are hard-coded paths in the script that may have to be edited before
+such benchmarking will work.
 
 Running
 -------
@@ -11,8 +16,9 @@ To run, say:
 	./bench larceny all
 
 If the purpose of the run is to test performance, then
- - larceny.heap should have been initialized, re-dumped and treated 
-   with -reorganize-and-dump
+ - r5rs.heap should be a link to a heap that should have been
+   initialized, re-dumped and treated with -reorganize-and-dump;
+   linking to larceny.heap works fine
  - all files should reside on a local file system
 
 

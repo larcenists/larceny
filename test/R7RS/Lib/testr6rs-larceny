@@ -1,0 +1,49 @@
+#! /usr/bin/env bash
+
+# For running tests of (r6rs *) libraries that approximate 
+# R6RS standard libraries in implementations of R7 Scheme.
+#
+# Usage: ./testall-larceny
+
+R7PATH=${R7PATH:-".:../../../tools/R6RS"}
+SRC="./tests/r6rs/run"
+
+LARCENY=${LARCENY:-"../../../larceny"}
+
+TESTS="                            \
+    arithmetic/fixnums.sps         \
+    base.sps                       \
+    bytevectors.sps                \
+    control.sps                    \
+    enums.sps                      \
+    eval.sps                       \
+    exceptions.sps                 \
+    io/simple.sps                  \
+    lists.sps                      \
+    mutable-pairs.sps              \
+    mutable-strings.sps            \
+    programs.sps                   \
+    r5rs.sps                       \
+    sorting.sps                    \
+    unicode.sps"
+
+echo ${LARCENY} > testresults
+echo `${LARCENY} < /dev/null` >> testresults
+echo >> testresults
+
+runtest ()
+{
+    sleep 1
+    {
+        echo "${SRC}/$1"
+        time ${LARCENY} --path "$R7PATH" --r7rs --program "${SRC}/$1"
+    } 2>&1 | tee -a testresults
+}
+
+for program in ${TESTS} ; do
+{
+    echo $program
+    runtest $program
+}
+done
+

@@ -43,7 +43,6 @@
 ; Requires
 ;  osdep-???.sch      [for pathname manipulation]
 ;  list.sch           [for `filter' and `least']
-;  io.sch             [for `file-newer?']
 
 ; Load parameters
 

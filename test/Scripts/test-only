@@ -1,0 +1,261 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script tests Larceny, logging the attempt.
+##
+## This script should be invoked in a context with all of the following
+## environment variables set:
+##
+##     TODAY
+##     TRACK
+##     DIRNAME
+##     DIR
+##     SCHEME_PGM
+##     SETUP_ARGS
+##     FINAL_LARCENY_SCRIPT
+##     FIXPATH_CMD
+##     FINAL_LARCENY_BIN
+##     FINAL_TWOBIT_BIN
+##     HEAP_DUMP_SCRIPT
+##     MAKETEXTSAFE
+## 
+## See clone-only and build-only for an example of how to set those.
+##
+########################################################################
+
+MY_CDASHLOG="${DIR}/cdash-tests-sub.xml"
+
+################################################################
+##
+## Utilities likely to be duplicated in all of these scripts.
+##
+################################################################
+
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
+
+function cdashlog {
+   echo "$@" >> ${MY_CDASHLOG}
+}
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+        STATUS="passed" 
+    else
+        STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+## A trick for outputting stdout, stderr _and_ stdout&stderr to three
+## separate files with the appropriate ordering on messages.  Does not
+## preserve the status code of the argument command (given as i$1)
+# function cmdlog {
+#     ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3                        \
+#           | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+# }
+
+# Converts & < > to their HTML equivalents.
+# FIXME: we should be able to use iconv now.
+
+function quotefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} \
+         | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+         >> $2
+}
+
+# Until we again have a functioning CDASH, cdash_submit is useless
+# and its error messages just clutter up the build.*.log files.
+
+function cdash_submit {
+echo "omitting call to cdash_submit"
+}
+
+function remove {
+    if test -e $1; then rm $1; fi
+}
+
+################################################################
+##
+## Specific to this script.
+##
+################################################################
+
+function library_test {
+    cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 115)))
+(compile-file "test.sch")
+(compile-file "$1.sch")
+(load "test.fasl")
+(load "$1.fasl")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-$2-tests)
+  (exit num-fails))
+EOF
+    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}"
+
+    pushd ${DIR}/larceny_src/test/Lib > /dev/null
+    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+    popd > /dev/null
+
+echo library_test $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+  cdashlog '  <Test Status="'"${STATUS}"'">                                   '
+  cdashlog '   <Name>library '"$2"'</Name>                                    '
+  cdashlog '   <Path>'"library $1"'</Path>                                    '
+  cdashlog '   <FullName>'"library $2"'</FullName>                            '
+  cdashlog '   <FullCommandLine>'"$CMD"'</FullCommandLine>                    '
+  cdashlog '   <Results>                                                      '
+  cdashlog '    <NamedMeasurement type="numeric/double" name="Execution Time">'
+  cdashlog '     <Value>'"${SECS_ELAPSED}"'</Value>                           '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Completion Status">'
+  cdashlog '     <Value>Completed</Value>                                     '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Command Line">     '
+  cdashlog '     <Value>'"$CMD"'</Value>                                      '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <Measurement>                                                 '
+  cdashlog '     <Value>                                                      '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '     </Value>                                                     '
+  cdashlog '    </Measurement>                                                '
+  cdashlog '   </Results>                                                     '
+  cdashlog '  </Test>                                                         '
+
+  cat ${TEMPLOG} >> ${DIR}/tests.log
+}
+
+function compiler_tests {
+    cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 116)))
+(load "run-tests.sch")
+(let ((num-fails 0))
+  (test-reporter (lambda (id got expected) (set! num-fails (+ 1 num-fails))))
+  (run-compiler-tests $1)
+  (exit num-fails))
+EOF
+    CMD="cat ${TEMPSCM}; ../../${FINAL_LARCENY_SCRIPT} -- ${REALSCM}"
+
+echo compiler_tests $1 ${STATUS} ${MINS_ELAPSED} ${SECS_ELAPSED} ${TEMPLOG}
+
+    pushd ${DIR}/larceny_src/test/Compiler > /dev/null
+    cmdsetstatus "${CMD}" > ${TEMPLOG} 2>&1
+    popd > /dev/null
+
+  cdashlog '  <Test Status="'"${STATUS}"'">                                   '
+  cdashlog '   <Name>compiler '"$1"'</Name>                                   '
+  cdashlog '   <Path>'"compiler"'</Path>                                      '
+  cdashlog '   <FullName>'"compiler $1"'</FullName>                           '
+  cdashlog '   <FullCommandLine>'"$CMD"'</FullCommandLine>                    '
+  cdashlog '   <Results>                                                      '
+  cdashlog '    <NamedMeasurement type="numeric/double" name="Execution Time">'
+  cdashlog '     <Value>'"${SECS_ELAPSED}"'</Value>                           '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Completion Status">'
+  cdashlog '     <Value>Completed</Value>                                     '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <NamedMeasurement type="text/string" name="Command Line">     '
+  cdashlog '     <Value>'"$CMD"'</Value>                                      '
+  cdashlog '    </NamedMeasurement>                                           '
+  cdashlog '    <Measurement>                                                 '
+  cdashlog '     <Value>                                                      '
+  quotefile ${TEMPLOG} ${MY_CDASHLOG}
+  cdashlog '     </Value>                                                     '
+  cdashlog '    </Measurement>                                                '
+  cdashlog '   </Results>                                                     '
+  cdashlog '  </Test>                                                         '
+
+  cat ${TEMPLOG} >> ${DIR}/tests.log
+}
+
+function larceny_tests {
+  remove $MY_CDASHLOG
+
+  cdashlog '<?xml version="1.0" encoding="utf-8"?>                            '
+  cdashlog '<Site BuildName="'"${MY_BUILDNAME}"'"                             '
+  cdashlog '      BuildStamp="'"${MY_BUILDSTAMP}"'"                           '
+  cdashlog '      Name="'"`hostname`"'"                                       '
+  cdashlog '      Generator="'"${MY_GENERATOR}"'">                            '
+  cdashlog ' <Testing>                                                        '
+  cdashlog '  <StartDateTime>'"`date`"'</StartDateTime>                       '
+  cdashlog '  <TestList>                                                      '
+  cdashlog '   <Test>library boolean</Test>                                   '
+  cdashlog '   <Test>library print</Test>                                     '
+  cdashlog '   <Test>library char</Test>                                      '
+  cdashlog '   <Test>library string</Test>                                    '
+  cdashlog '   <Test>library normalization</Test>                             '
+  cdashlog '   <Test>library bytevector</Test>                                '
+  cdashlog '   <Test>library io</Test>                                        '
+  cdashlog '   <Test>library hashtable</Test>                                 '
+  cdashlog '   <Test>library predicate</Test>                                 '
+  cdashlog '   <Test>library number</Test>                                    '
+  cdashlog '   <Test>library fact</Test>                                      '
+  cdashlog '   <Test>library fib</Test>                                       '
+  cdashlog '   <Test>library ctak</Test>                                      '
+  cdashlog '   <Test>library dynamic-wind</Test>                              '
+  cdashlog '   <Test>library regression</Test>                                '
+  cdashlog '   <Test>library fixnum</Test>                                    '
+  cdashlog '   <Test>library wcm</Test>                                       '
+  cdashlog '   <Test>library record</Test>                                    '
+  cdashlog '   <Test>library condition</Test>                                 '
+  cdashlog '   <Test>library enumset</Test>                                   '
+  cdashlog '   <Test>compiler sanity-switches</Test>                          '
+  cdashlog '  </TestList>                                                     '
+
+  TEST_SECS_BEGIN=`date +%s`
+
+## Library tests
+library_test bool       boolean
+library_test print      print
+library_test char       char
+library_test string     string
+library_test normalization normalization
+## library_test complex
+library_test bytevector bytevector
+library_test io         io
+library_test hashtable  hashtable
+library_test pred       predicate
+library_test number     number
+library_test fact       fact 
+library_test fib        fib
+library_test ctak       ctak
+## library_test env       env
+library_test dynamic-wind dynamic-wind
+library_test regression regression
+library_test fixnums    fixnum
+library_test wcm        wcm
+library_test record     record
+library_test condition  condition
+library_test enum       enumset
+
+compiler_tests sanity-switches 
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashlog '  <EndDateTime>'"`date`"'</EndDateTime>                           '
+  cdashlog '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes>       '
+  cdashlog ' </Testing>                                                       '
+  cdashlog '</Site>                                                           '
+  
+  cdash_submit $MY_CDASHLOG
+}
+
+larceny_tests;
+if [ $STATUS == "failed" ] 
+then echo TESTS FAILED ; exit 1; 
+fi

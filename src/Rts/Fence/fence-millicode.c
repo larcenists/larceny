@@ -433,18 +433,26 @@ void EXPORT mc_restargs( word *globals )
 
   if (r <= n && n <= j) {
     /* Case 3 */
-    /* REGr won't be needed below, so store the result list immediately */
-    globals[G_REG0+r] = list_copy(globals, globals[G_REG0+r]);
+    /* At the moment, REGr contains (xr ... xn ... xj)
+     * We want REGr to become       (xr ... xn (... xj))
+     * k is the length of (xr ... xn), which is at least 1
+     * We want to skip over k elements, back up one element,
+     * and then perform a set-cdr!
+     */
     word k = n-(r-1);
-    word l = globals[G_REG0+r];
+    word l = list_copy(globals, globals[G_REG0+r]);
+    word prev;
+    /* REGr won't be needed below because we're using a side effect. */
+    globals[G_REG0+r] = l;
     while (k > 0) {
+      prev = l;
       l = pair_cdr(l);
       k--;
     }
-    /* The call to list1 may move l, so sequence carefully */
-    globals[G_REST1] = l;
-    word tail = list1(globals, pair_cdr(l));
-    /* l is garbage, don't use it */
+    /* The call to list1 may move prev, so sequence carefully */
+    globals[G_REST1] = prev;
+    word tail = list1(globals, l);
+    /* prev is now garbage, don't use it */
     list_setcdr(globals, globals[G_REST1], tail);
     return;
   }
@@ -845,11 +853,11 @@ static void check_signals( word *globals, cont_t k )
        | (saved R0)                           |
        | (saved R1)                           |
        | ...                                  |
-       | (saved R31)                          |
-       | (saved F0)                           |
-       | (saved F0)                           |
-       | (saved F0)                           |
-       | (saved F0)                           |
+       | (saved Rr)                           |
+       | (saved F0) first 16 bits             |
+       | (saved F0)  next 16 bits             |
+       | (saved F0)  next 16 bits             |
+       | (saved F0)  next 16 bits             |
        | ...                                  |
        | (saved Fn)                           |
        | (saved Fn)                           |
@@ -912,11 +920,12 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k /*unused*/,
   stkp[ 4 ] = globals[G_RETADDR];
   for ( i=0 ; i < NREGS ; i++ )
     stkp[ 5+i ] = globals[ G_REG0+i ];
+  /* FIXME: this next part assumes 32-bit words */
   for ( i=0 ; i < NFPREGS ; i++ ) {
-    stkp[ 5+NREGS+i   ] = (globals[ G_F0+i ] & 65535) << 2;
-    stkp[ 5+NREGS+i+1 ] = (globals[ G_F0+i ] >> 16) << 2;
-    stkp[ 5+NREGS+i+2 ] = (globals[ G_F0+i+1 ] & 65535) << 2;
-    stkp[ 5+NREGS+i+3 ] = (globals[ G_F0+i+1 ] >> 16) << 2;
+    stkp[ 5+NREGS+(4*i)   ] = (globals[ G_F0+(2*i) ] & 65535) << 2;
+    stkp[ 5+NREGS+(4*i)+1 ] = (globals[ G_F0+(2*i) ] >> 16) << 2;
+    stkp[ 5+NREGS+(4*i)+2 ] = (globals[ G_F0+(2*i)+1 ] & 65535) << 2;
+    stkp[ 5+NREGS+(4*i)+3 ] = (globals[ G_F0+(2*i)+1 ] >> 16) << 2;
   }
   stkp[ 5+NREGS+(4*NFPREGS) ]   = globals[ G_RESULT ];
   stkp[ 5+NREGS+(4*NFPREGS)+1 ] = (preserve ? TRUE_CONST : FALSE_CONST );
@@ -960,8 +969,8 @@ cont_t restore_context( CONT_PARAMS )
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
   for ( i=0 ; i < NFPREGS ; i++ ) {
-    globals[G_F0+i]   = (stkp[5+NREGS+i+1] << 14) | (stkp[5+NREGS+i] >> 2) ;
-    globals[G_F0+i+1] = (stkp[5+NREGS+i+3] << 14) | (stkp[5+NREGS+i+2] >> 2);
+    globals[G_F0+(2*i)]   = (stkp[5+NREGS+(4*i)+1] << 14) | (stkp[5+NREGS+(4*i)] >> 2) ;
+    globals[G_F0+(2*i)+1] = (stkp[5+NREGS+(4*i)+3] << 14) | (stkp[5+NREGS+(4*i)+2] >> 2);
   }
   k = stkp[ 4 ];
 

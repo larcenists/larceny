@@ -1,7 +1,7 @@
 = Common Larceny User Manual
 
 The most recent revision of this manual can always be found at
-http://www.ccs.neu.edu/home/will/Larceny/CommonLarceny/user-manual.html[].
+http://larceny.ccs.neu.edu/doc/CommonLarceny/user-manual.html[].
 
 == Background
 

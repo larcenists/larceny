@@ -1,0 +1,6 @@
+(import (tests r6rs enums)
+        (tests scheme test)
+        (scheme write))
+(display "Running tests for (rnrs enums)\n")
+(run-enums-tests)
+(report-test-results)

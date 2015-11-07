@@ -175,11 +175,13 @@
     "errmsg"            ; error messages
     "error"             ; error/reset system
     "raise"             ; R6RS exception mechanism
+    "time"              ; time in seconds
     "timer"             ; timer interrupts
     "exit"              ; exit procedure; exit/init hooks
     "dump"              ; dump-heap procedure
     "secret"            ; some "hidden" top-level names
     "hashtable"         ; hashtables
+    "circular"          ; detection and processing of circular objects
     "enum"              ; enumeration sets
     "unicode0"          ; general utility procedures for binary search
     "unicode1"          ; char-* procedures
@@ -228,6 +230,7 @@
     "str2num"           ; Number parser
     "javadot-symbol"    ; reader depends on this
     "javadot-syntax"    ;        and this
+    "reader-dfa"        ; Reader's state machine
     "reader"            ; Reader
     "env"               ; R5RS environments
     "procinfo"          ; Heuristic procedure information
@@ -631,7 +634,7 @@
                    '("r5rs-heap"
 		     "sparc-larceny-heap" "sparc-twobit-heap"
                      "iasn-larceny-heap" "iasn-twobit-heap"
-                     "arm-larceny-heap" "arm-twobit-heap"
+                     "arm-el-hardfp-larceny-heap" "arm-el-hardfp-twobit-heap"
                      "petit-larceny-heap" "petit-twobit-heap"))))
         (compiler-target/no-keywords
          (lambda (name)
@@ -870,7 +873,7 @@
         ("gc-testsuite.date" ,(lambda args #t)))
       `(dependencies
         ("gc-testsuite.date"
-         ,(objects "Testsuite/GC/" ".fasl" gc-testsuite-files))))))
+         ,(objects "test/GC/" ".fasl" gc-testsuite-files))))))
 
 (define (make-gc-testsuite . rest)
   (make:pretend (not (null? rest)))
@@ -893,7 +896,7 @@
         ("regression-test.date" ,(lambda args #t)))
       `(dependencies
         ("regression-test.date"
-         ,(objects "Testsuite/Lib/" ".fasl" regression-test-files))))))
+         ,(objects "test/Lib/" ".fasl" regression-test-files))))))
 
 (define (make-regression-test . rest)
   (make:pretend (not (null? rest)))

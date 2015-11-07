@@ -1,0 +1,32 @@
+This directory contains a set of R7RS benchmarks.  Most were
+derived from a very similar but larger set of R6RS benchmarks.
+
+Some of these benchmarks were originally collected by Richard
+Gabriel, while others were collected or written by Marc Feeley
+and Will Clinger.  Abdulaziz Ghuloum converted about 50 of the
+benchmarks to R6RS libraries.  R6RS libraries are non-portable
+by design, however, so Clinger rewrote the benchmarks as R6RS
+top-level programs and added a script for running benchmarks
+on Unix systems.  Clinger also added new benchmarks for R6RS.
+
+Files and directories:
+
+  * bench   : a shell script for running benchmarks
+  * src     : contains R6RS code for the benchmarks
+  * inputs  : contains inputs for the benchmarks
+  * outputs : will hold the outputs of some benchmarks
+
+For succinct instructions on running benchmarks, run the
+bench script without any arguments:
+
+  % ./bench
+
+The bench script creates a /tmp/larcenous directory to hold
+the source code constructed for the benchmarks.
+
+The bench script appends its results to files with names
+like results.Gauche, results.Larceny, and so forth.
+
+Will Clinger
+
+================================================================

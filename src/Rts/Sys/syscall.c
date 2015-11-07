@@ -18,7 +18,7 @@ static struct {
   int  interruptible;
 } syscall_table[] = { { (fptr)osdep_openfile, 3, 1 },
 		      { (fptr)osdep_unlinkfile, 1, 1 },
-		      { (fptr)osdep_closefile, 1, 1  },
+		      { (fptr)osdep_closefile, 1, 1 },
 		      { (fptr)osdep_readfile, 3, 1 },
 		      { (fptr)osdep_writefile, 4, 1 },
 		      { (fptr)primitive_get_stats, 1, 1 },
@@ -67,6 +67,11 @@ static struct {
 		      { (fptr)primitive_seterrno, 1, 0 },
 		      { (fptr)primitive_time, 1, 0 },
 	/* 50 */      { (fptr)osdep_lseekfile, 3, 0 },
+		      { (fptr)primitive_listenv_init, 0, 0 },
+		      { (fptr)primitive_listenv, 1, 0 },
+		      { (fptr)osdep_listdir_open, 1, 0 },
+		      { (fptr)osdep_listdir, 1, 0 },
+		      { (fptr)osdep_listdir_close, 1, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

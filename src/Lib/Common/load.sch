@@ -32,7 +32,8 @@
                              (eval expr env)))
                        (lambda ()
                          (if (eq? (interaction-environment) env)
-                             (interaction-environment old-env))))))))
+                             (interaction-environment old-env))))))
+                  procedure?))
 
 (define load-print
   ;; If not #f, print the return value(s) of each form as it is

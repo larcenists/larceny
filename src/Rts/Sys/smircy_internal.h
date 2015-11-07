@@ -6,7 +6,7 @@
  */
 
 #ifndef INCLUDED_SMIRCY_INTERNAL_H
-#define INCLUDED_SMIRCY_INTERnAL_H
+#define INCLUDED_SMIRCY_INTERNAL_H
 
 #if defined(BITS_32)
 # define BIT_IDX_SHIFT       3  /* shift to get doubleword bit address */

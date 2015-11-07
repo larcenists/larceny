@@ -13,39 +13,99 @@ In Larceny, file names generally follow Unix conventions,
 even on Windows.  The following suffixes have special
 meanings to some components of Larceny.
 
-`.sls`
-is the preferred suffix for files that consist
-of ERR5RS/R6RS-compatible library definitions.
+[horizontal]
+`.sld`::
+is the preferred suffix for files that contain libraries
+defined by the R7RS `define-library` syntax.
 
-`.sch`
-is the preferred suffix for files that contain R5RS
-source code.
+`.sls`::
+is the preferred suffix for files that contain libraries
+defined by the R6RS `library` syntax.
 
-`.scm`
-is an alternative suffix for files that contain R5RS source code.
+`.sps`::
+is the preferred suffix for files that contain R7RS/R6RS
+top-level programs (which consist of an `import` declaration
+followed by definitions and expressions).
 
-`.slfasl`
-is the suffix for files that contain the pre-compiled
-form of ERR5RS/R6RS-compatible code.
+`.scm`::
+is the preferred suffix for files that contain R7RS/R5RS
+definitions and expressions but don't contain any `import`
+declarations and don't define any R7RS/R6RS libraries.
 
-`.fasl`
-is the suffix for files that contain the pre-compiled form of R5RS code.
+`.sch`::
+is an alternative to `.scm` used by Larceny developers.
 
-`.mal`
+`.slfasl`::
+is the suffix for files that contain the compiled form of
+a `.sld`, `.sls`, or `.sps` file.
+
+`.fasl`::
+is the suffix for files that contain the compiled form of
+R5RS source code (usually `.scm` or `.sch`).
+
+`.mal`::
 is the preferred suffix for files that contain MacScheme
 assembly language in symbolic form.
 
-`.lap`
+`.lap`::
 is the suffix for files that contain MacScheme assembly language.
 
-`.lop`
+`.lop`::
 is the suffix for files that contain machine code
 segments in the form expected by Larceny's heap linker.
 
-`.heap`
+`.heap`::
 is the suffix for files that contain an executable heap
 image (must be combined with the
 <<InstallationSection,`larceny.bin`>> runtime).
+
+[NOTE]
+================================================================
+In Larceny, R7RS `define-library` and R6RS `library` syntaxes
+are mostly interchangeable.  The R6RS `for` and `meta` keywords
+may be needed when defining `syntax-case` macros, but the R7RS
+syntax is otherwise more versatile because of its `include` and
+`cond-expand` features.  For new code, we recommend the R7RS
+`define-library` syntax.
+================================================================
+
+[NOTE]
+================================================================
+Although the R7RS `define-library` syntax allows `export` and
+`import` declarations to be placed anywhere at the top level of
+the syntax, it is standard practice to use only one `export`
+declaration per library, placed immediately following the name
+of the library, and to use only one `import` declaration per
+library, placed immediately following the `export` declaration.
+================================================================
+
+[WARNING]
+================================================================
+Some of Larceny's compilation tools rely upon the convention
+described within the note above, and may not work if that
+convention is not followed.
+================================================================
+
+[TIP]
+================================================================
+An R7RS library definition may be split into two or more files,
+with the primary `.sld` file containing one or more `include`
+declarations that include `.scm` files.  If `foo.sld` is the
+primary file, then the included file is ordinarily named
+`foo.body.scm` and placed within the same directory as `foo.sld`.
+If more than one `.scm` file is included, we recommend
+`foo.body1.scm`, `foo.body2.scm`, and so on.  A Larceny-specific
+version of `foo.body2.scm` that's conditionally included using
+the `cond-expand` feature might be named `foo.body2.larceny.scm`.
+================================================================
+
+[TIP]
+================================================================
+Portable source code can be tailored to Larceny and other
+implementations of the R7RS by combining implementation-specific
+mechanisms such as Larceny's `-path` option with the `include`
+and `cond-expand` features of R7RS libraries.
+================================================================
 
 
 [[DirectorySection]]
@@ -94,9 +154,12 @@ loaded dynamically.
 Resolving references to libraries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The R6RS does not specify any mapping from library names to
-files or to other locations at which the code for a library
-might be found.  As R6RS non-normative appendix E puts it:
+The R7RS and R6RS standards do not specify any mapping from
+library names to files or other locations at which the code
+for a library might be found.
+
+R6RS non-normative appendix E emphasizes the arbitrariness of
+such mappings:
 
 ________________________________________________________________
 Implementations may take radically different approaches to
@@ -104,60 +167,88 @@ storing source code for libraries, among them: files in the
 file system where each file contains an arbitrary number of
 library forms, files in the file system where each file
 contains exactly one library form, records in a database,
-and data structures in memory....Implementations may provide
-a means for importing libraries....
+and data structures in memory.
+
+Similarly, programs and scripts may be stored in a variety of
+formats. Platform constraints may restrict the choices available
+to an implementation, which is why the report neither mandates
+nor recommends a specific method for storage.
+
+Implementations may provide a means for importing libraries....
+
+Similarly, implementations may provide a means for executing a
+program represented as a UTF-8 text file containing its source
+code....
 ________________________________________________________________
 
-In other words, implementations are allowed to extend the
-R6RS with arbitrary mechanisms for resolving references to
-imported libraries, but R6RS programs that rely on such
-mechanisms are not portable.  In particular, R6RS libraries
-are not portable.
+To put it more starkly:
 
-Larceny provides five distinct Larceny-specific
-mechanisms that non-portable R6RS programs can use to
-import or to define libraries:
+[WARNING]
+================================================================
+Although implementations of the R6RS _may_ "provide a means for
+importing libraries" or "executing a program", they don't have
+to.
+================================================================
 
-1.  ERR5RS and R6RS standard libraries may be imported.
+R7RS section 5.1 urges implementations to be reasonable:
+
+________________________________________________________________
+Implementations which store libraries in files should document
+the mapping from the name of a library to its location in the
+file system.
+________________________________________________________________
+
+Fortunately, _de facto_ standards have been emerging.
+Larceny supports those _de facto_ standards by providing these
+Larceny-specific mechanisms:
+
+1.  R7RS/R6RS standard libraries may be imported.
 Their code is located automagically.
 
 2.  Nonstandard libraries, such as `(larceny compiler)`,
-may be placed in one of the directories that are searched
+may be placed in one of the directories searched
 by Larceny's
-<<ERR5RSLibraryPathSection,autoload>> feature, provided
+<<R7rsLibraryPathSection,autoload>> feature, provided
 those libraries are located in files that follow Larceny's
-standard naming conventions as described in the next section.
+standard naming conventions as described in
+<<LibraryTranslationSection,the next section>>.
 
-3.  R6RS top-level programs may use
-<<R6RSLibraryPathSection, Larceny's `-path` option>>
+3.  R7RS/R6RS top-level programs may use
+<<R7rsLibraryPathSection, Larceny's `-path` option>>
 to specify directories that contain other libraries
 the program may import, provided those libraries are
 located in files that follow Larceny's standard naming
-conventions as described in the next section.
+conventions as described in
+<<LibraryTranslationSection,the next section>>.
 
-4.  R6RS top-level programs may use
-<<R6RSLibraryVariableSection, Larceny's `LARCENY_LIBPATH` environment variable>>
+4.  R7RS/R6RS top-level programs may use
+<<R7rsLibraryVariableSection,Larceny's `LARCENY_LIBPATH` environment variable>>
 to specify directories that contain other libraries
 the program may import, provided those libraries are
 located in files that follow Larceny's standard naming
-conventions as described in the next section.
+conventions as described in
+<<LibraryTranslationSection,the next section>>.
 
-5.  R6RS top-level programs and Scheme scripts may
+5.  R7RS/R6RS top-level programs and Scheme scripts may
 <<DefiningLibrariesSection, define their own libraries>>
 in the same file that contains the top-level program or
 Scheme script.
 
-ERR5RS programs may use any of those five mechanisms,
+R7RS programs may use any of those five mechanisms,
 and may also use a sixth mechanism:
-An ERR5RS program can be written as a little configuration
+An R7RS program can be written as a little configuration
 program that loads the program's libraries from files
 before any libraries are imported.  This sixth mechanism
-is portable, but is not available to R6RS programs.
+appears to be portable, but is not available to
+R6RS programs executing in Larceny's R6RS mode because
+it mixes execution with macro expansion, which is
+explicitly forbidden by one of the R6RS standard's
+"absolute requirements".
 
 
 [[LibraryTranslationSection]]
 
-Mapping library names to files (ERR5RS/R6RS)
+Mapping library names to files (R7RS/R6RS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Suppose Larceny's `-path` option is used to specify
@@ -168,17 +259,23 @@ Larceny will search for that library in the following
 files:
 
 - `_directory_/_name1_/_name2_/.../_lastname_.larceny.slfasl`
+- `_directory_/_name1_/_name2_/.../_lastname_.larceny.sld`
 - `_directory_/_name1_/_name2_/.../_lastname_.larceny.sls`
 - `_directory_/_name1_/_name2_/.../_lastname_.slfasl`
+- `_directory_/_name1_/_name2_/.../_lastname_.sld`
 - `_directory_/_name1_/_name2_/.../_lastname_.sls`
 - ...
 - `_directory_/_name1_/_name2_.larceny.slfasl`
+- `_directory_/_name1_/_name2_.larceny.sld`
 - `_directory_/_name1_/_name2_.larceny.sls`
 - `_directory_/_name1_/_name2_.slfasl`
+- `_directory_/_name1_/_name2_.sld`
 - `_directory_/_name1_/_name2_.sls`
 - `_directory_/_name1_.larceny.slfasl`
+- `_directory_/_name1_.larceny.sld`
 - `_directory_/_name1_.larceny.sls`
 - `_directory_/_name1_.slfasl`
+- `_directory_/_name1_.sld`
 - `_directory_/_name1_.sls`
 
 The search starts with the first of those file names,
@@ -192,10 +289,10 @@ is found (except as noted in the next paragraph).
 If the search ends by finding a file whose name ends
 with `.slfasl`, then Larceny checks to see whether
 there is a file in the same directory with the same
-root name but ending with `.sls` instead of `.slfasl`.
-If the `.sls` file has been modified since the `.slfasl`
+root name but ending with `.sld` or `.sls` instead of `.slfasl`.
+If the `.sld` or `.sls` file has been modified since the `.slfasl`
 file was last modified, then a warning is printed and
-the `.sls` file is loaded instead of the `.slfasl` file.
+the `.sld` or `.sls` file is loaded instead of the `.slfasl` file.
 Otherwise the `.slfasl` file is loaded.
 
 [NOTE]
@@ -213,7 +310,8 @@ identical except for their version numbers, which have no
 meaningful semantics.  Although Larceny's treatment of versions
 conforms to the R6RS specification, it should be clear that
 version numbers serve no purpose in Larceny.  Since the R6RS
-version feature has no usefully portable semantics, it is
+version feature has no usefully portable semantics and has
+been ignored by most implementations of the R6RS, it is
 deprecated.
 ================================================================
 
@@ -240,7 +338,7 @@ by LARCENY_LIBPATH and the `-path` option:
 
 These files are expected to contain R5RS code, not
 library definitions.  Otherwise the search proceeds
-much the same as when searching for an ERR5RS/R6RS
+much the same as when searching for an R7RS/R6RS
 library.
 
 [NOTE]
@@ -250,7 +348,7 @@ root directory, but may be changed dynamically using the
 `current-require-path` parameter.  Changing the `require` path
 is not recommended, however, because Larceny relies on the
 `require` path for dynamic loading of libraries used by several
-important features of Larceny, notably ERR5RS and R6RS modes.
+important features of Larceny, notably R7RS and R6RS modes.
 ================================================================
 
 proc:require[args="libname"]
@@ -271,7 +369,7 @@ proctempl:current-require-path[args="stringlist"]
 
 The optional argument is a list of directory names
 (without slashes at the end) that should be searched
-by <<require,`require`>> and (in ERR5RS/R6RS modes)
+by <<require,`require`>> and (in R7RS/R6RS modes)
 by Larceny's <<ERR5RSLibraryPathSection,autoload>>
 feature.
 Returns the list of directory names that will be

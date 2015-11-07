@@ -1,0 +1,242 @@
+#!/bin/bash
+# vim: tw=0
+set -o errexit
+
+########################################################################
+##
+## This script builds Larceny from source code found within a directory
+## created (most probably) by clone-only, logging the attempt.
+##
+## This script should be invoked in a context with all of the following
+## environment variables set:
+##
+##     TODAY
+##     TRACK
+##     DIRNAME
+##     DIR
+##     SCHEME_PGM
+##     SETUP_ARGS
+##     FINAL_LARCENY_SCRIPT
+##     FIXPATH_CMD
+##     FINAL_LARCENY_BIN
+##     FINAL_TWOBIT_BIN
+##     HEAP_DUMP_SCRIPT
+##     MAKETEXTSAFE
+## 
+## Here is a sample simple wrapper script meant to demonstrate how 
+## to invoke this script:
+## 
+## export TODAY=`date +%Y-%m-%d` 
+## export TRACK="Nightly"
+## export DIRNAME=default
+## export DIR=${HOME}/larcenytest/larceny-${DIRNAME}-${TRACK}-${TODAY}
+## export SCHEME_PGM="larceny -- "
+## export SETUP_ARGS="'scheme: 'larceny 'host: 'linux86 'sassy 'string-rep: 'flat4"
+## export FINAL_LARCENY_SCRIPT=larceny
+## export FIXPATH_CMD=echo
+## export FINAL_LARCENY_BIN=larceny.bin
+## export FINAL_TWOBIT_BIN=larceny.bin
+## export HEAP_DUMP_SCRIPT=src/Build/iasn-HHH-heap.sch
+## export MAKETEXTSAFE="iconv -t utf8 -c"
+## LOGFILE=${HOME}/logs/build.${TODAY}.log
+## ${HOME}/bin/clone-only >> $LOGFILE 2>&1
+##
+## In practice, the wrapper script will probably invoke several other
+## scripts following this one.
+##
+########################################################################
+
+MY_CDASHLOG="${DIR}/cdash-bench-sub.xml"
+
+################################################################
+##
+## Utilities likely to be duplicated in all of these scripts.
+##
+################################################################
+
+TEMPLOG="${DIR}/temp.log"
+TEMPSCM="${DIR}/temp.scm"
+REALSCM="`${FIXPATH_CMD} "${TEMPSCM}" | sed 's@\\\\@\\\\\\\\@g'`"
+CALCDATE="date +%Y-%m-%dT%H:%M:%S.000%z" # dunno how to get ms from date
+CALCDATESTAMP="date +%Y%m%d-%H%M"
+
+function cdashlog {
+   echo "$@" >> ${MY_CDASHLOG}
+}
+
+function cmdsetstatus {
+    echo cmdsetstatus $1
+    SECS_BEGIN=`date +%s`
+    if eval "$1" ; then
+        STATUS="passed" 
+    else
+        STATUS="failed"
+    fi
+    SECS_FINIS=`date +%s`
+    SECS_ELAPSED=`echo " ($SECS_FINIS - $SECS_BEGIN)             " | bc`
+    MINS_ELAPSED=`echo "(($SECS_FINIS - $SECS_BEGIN) * 0.0166666)" | bc`
+}
+
+## A trick for outputting stdout, stderr _and_ stdout&stderr to three
+## separate files with the appropriate ordering on messages.  Does not
+## preserve the status code of the argument command (given as i$1)
+# function cmdlog {
+#     ((($1 | tee ${TEMPOUT}) 3>&1 1>&2 2>&3                        \
+#           | tee ${TEMPERR}) 3>&1 1>&2 2>&3) > ${TEMPLOG} 2>&1
+# }
+
+# Converts & < > to their HTML equivalents.
+# FIXME: we should be able to use iconv now.
+
+function quotefile { # esc_html
+  # On CCIS Sun, iconv doesn't have a working iconv with the -c option. 
+  # On non CCIS Sun, we don't have native2ascii.
+  cat $1 | ${MAKETEXTSAFE} \
+         | sed -e 's/\&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+         >> $2
+}
+
+# Until we again have a functioning CDASH, cdash_submit is useless
+# and its error messages just clutter up the build.*.log files.
+
+function cdash_submit {
+echo "omitting call to cdash_submit"
+}
+
+function remove {
+    if test -e $1; then rm $1; fi
+}
+
+################################################################
+##
+## Specific to this script.
+##
+################################################################
+
+# usage: run_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
+function run_benchmarks {
+  echo "`pwd`/../../../$1"
+  echo "./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1"
+  LARCENY=`pwd`/../../../$1
+  if [ ! -d sys ]
+  then
+    mkdir sys
+  fi
+  if [ ! -d sys/larceny ]
+  then
+    mkdir sys/larceny
+  fi
+  ./bench -r 3 -s $2 larceny all > ${TEMPLOG} 2>&1
+}
+
+# usage: process_benchmarks SCRIPTNAME RNRS_BENCHNAME RNRS_DARTNAME
+function process_benchmarks {
+cat > ${TEMPSCM} <<EOF
+(error-handler (lambda l (display l) (newline) (exit 117)))
+(load "summarize.sch")
+(let ((os (open-output-string)))
+    (with-output-to-port os
+      (lambda () 
+        ((summarize larceny-results) "results.Larceny-$2")))
+    (let* ((str (get-output-string os))
+           (is (open-input-string str))
+           (decoded (decode-summary is))
+           (lines (caddr decoded))
+           (format-measurement (lambda (name type val)
+                                 (format #t "<Measurement name=~s type=~s>~s</Measurement>" 
+                                         name type val)
+                                 (newline)))
+           (format (lambda args
+                     (apply format args)
+                     (newline))))
+      (for-each 
+       (lambda (line)
+         (cond ((eq? (list-ref line 1) 'Error:)
+                (let ((name (list-ref line 0)))
+
+                  (format #t "<Test Status=\"failed\">")
+                  (format #t " <Name>benchmark ~a ~a ~s</Name>" "$3" "$1" name)
+                  (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
+                  (format #t " <FullName>benchmark ~s</FullName>" name)
+                  (format #t " <FullCommandLine></FullCommandLine>")
+                  (format #t "</Test>")
+                  (newline)))
+               (else
+                (let ((name (list-ref line 0))
+                      (cpu  (list-ref line 1))
+                      (real (list-ref line 2))
+                      (gc   (list-ref line 3))
+                      (numt "numeric/integer"))
+                  (format #t "<Test Status=\"passed\">")
+                  (format #t "<Status>passed</Status>")
+                  (format #t " <Name>benchmark ~a ~a ~s</Name>" "$3" "$1" name)
+                  (format #t " <Path>benchmark ~a ~a ~s</Path>" "$3" "$1" name)
+                  (format #t " <FullName>benchmark ~s</FullName>" name)
+                  (format #t " <FullCommandLine></FullCommandLine>")
+                  (format #t " <Results>")
+                  (format #t "  <NamedMeasurement type=\"numeric/integer\" name=\"Execution Time\">")
+                  (format #t "    <Value>~s</Value>" (/ real 60.0))
+                  (format #t "  </NamedMeasurement>")
+                  (format #t "  <NamedMeasurement type=\"numeric/string\" name=\"Completion Status\">")
+                  (format #t "    <Value>Completed</Value>")
+                  (format #t "  </NamedMeasurement>")
+                  (format #t " </Results>")
+                  (format #t "</Test>")
+                  (newline)))))
+       lines)))
+(exit)
+EOF
+# This is not benchmarked, so use standard name rather than parameter $1
+../../../${FINAL_LARCENY_SCRIPT} -nobanner -- -e '(herald #f)' ${REALSCM} >> ${MY_CDASHLOG}
+
+if [ ! -d Results ]
+then
+  mkdir Results
+fi
+cat results.Larceny-$2 >> Results/results.Larceny
+rm results.Larceny-$2
+}
+
+function larceny_bench {
+  remove $MY_CDASHLOG
+
+  cdashlog  '<?xml version="1.0" encoding="utf-8"?>                      '
+  cdashlog  '<Site BuildName="'"${MY_BUILDNAME}"'"                       '
+  cdashlog  '      BuildStamp="'"${MY_BUILDSTAMP}"'"                     '
+  cdashlog  '      Name="'"`hostname`"'"                                 '
+  cdashlog  '      Generator="'"${MY_GENERATOR}"'">                      '
+  cdashlog  ' <Testing>                                                  '
+  cdashlog  '  <StartDateTime>'"`date`"'</StartDateTime>                 '
+  cdashlog  '  <TestList>                                                '
+  cdashlog  '   <Test>benchmark XXX YYY ZZZ</Test>                       '
+  cdashlog  '  </TestList>                                               '
+
+  TEST_SECS_BEGIN=`date +%s`
+
+  pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
+  run_benchmarks     ${FINAL_LARCENY_SCRIPT} r5rs r5rs-real
+  popd                                                     > /dev/null
+
+  pushd ${DIR}/larceny_src/test/Benchmarking/CrossPlatform > /dev/null
+  process_benchmarks ${FINAL_LARCENY_SCRIPT} r5rs r5rs-real
+  popd                                                     > /dev/null
+
+  TEST_SECS_FINIS=`date +%s`
+  TEST_MINS_ELAPSED=`echo "(($TEST_SECS_FINIS - $TEST_SECS_BEGIN) * 0.0166666)" | bc`
+
+  cdashlog  '  <EndDateTime>'"`date`"'</EndDateTime>                     '
+  cdashlog  '  <ElapsedMinutes>'"${TEST_MINS_ELAPSED}"'</ElapsedMinutes> '
+  cdashlog  ' </Testing>                                                 '
+  cdashlog  '</Site>                                                     '
+  
+  cdash_submit $MY_CDASHLOG
+}
+
+if [ $FINAL_LARCENY_BIN == "petit-larceny.bin" ]
+then echo skipping larceny_bench as Petit is slooow.
+else larceny_bench;
+fi
+
+if [ "${STATUS}" == "failed" ] 
+then exit 1
+fi

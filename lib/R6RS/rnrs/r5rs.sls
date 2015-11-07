@@ -6,7 +6,9 @@
   (import (primitives exact->inexact inexact->exact quotient remainder modulo)
           (rnrs eval)
           (rnrs base)
-          (rnrs control))
+          (rnrs control)
+          (only (larceny r7rs promises)
+                delay force))
   
   (define (scheme-report-environment n)
     (unless (= n 5)
@@ -28,28 +30,6 @@
         (unless (= n 5)
           (assertion-violation 'null-environment "Argument should be 5" n))
         null-env)))
-  
-  (define force
-    (lambda (object)
-      (object)))
-  
-  (define-syntax delay
-    (syntax-rules ()
-      ((delay expression)
-       (make-promise (lambda () expression)))))
-  
-  (define make-promise
-    (lambda (proc)
-      (let ((result-ready? #f)
-            (result #f))
-        (lambda ()
-          (if result-ready?
-              result
-              (let ((x (proc)))
-                (if result-ready?
-                    result
-                    (begin (set! result-ready? #t)
-                           (set! result x)
-                           result))))))))
+
   ) ; rnrs r5rs
 

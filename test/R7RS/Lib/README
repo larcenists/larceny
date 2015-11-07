@@ -1,0 +1,168 @@
+This directory contains two R7RS test suites obtained by modifying
+Racket's R6RS test suite.  Racket's R6RS test suite is covered by
+the LGPL, so this derivative work is also covered by the LGPL.
+See README2 for more information on copyright and licensing.
+
+Matthew Flatt wrote most of Racket's R6RS test suite, and Will
+Clinger rewrote that test suite as necessary for R7RS.  There
+have been other contributors as well.
+
+The tests/scheme directory contains tests of R7RS standard libraries.
+The tests/r6rs directory contains tests of (r6rs *) libraries that
+emulate the R6RS standard libraries in R7RS systems; those tests are
+almost exactly the same as Racket's R6RS tests, but have been changed
+to use R7RS syntax; each file's version control history begins with
+an exact copy of the corresponding file in Racket's R6RS tests.
+
+------------------------- An R7RS Test Suite -------------------------
+
+======================================================================
+Requirements
+======================================================================
+
+It should be possible to run the test suite in any implementation of
+R7RS (small) that provides the standard libraries (scheme base) and
+(scheme write) and implements R7RS include and cond-expand correctly.
+Tests of unavailable libraries and unsupported number syntax will be
+bypassed using cond-expand and include.
+
+======================================================================
+Files and libraries
+======================================================================
+
+The "testall-larceny" shell script runs all tests in Larceny, with
+console output duplicated into a file named "testresults".  To run
+the tests in other systems, edit a suitably named copy of that file.
+
+Files that end with ".sps" are R7RS programs.  Programs that test
+just one library can be found in the "tests/scheme/run" directory.
+(Eventually there should be a run.sps program that runs all tests.)
+
+Files that end with ".sld" are R7RS libraries. For example,
+"base.sld" is a library that implements `(tests scheme base)', which
+is a set of tests for `(scheme base)'. Many R7RS implementations
+will auto-load these ".sld" files if you tell them to search the
+"tests" subdirectory (or its parent directory "tests/..").
+
+For each `(scheme <id>)' library described by the R7RS (small)
+standard:
+
+ * There's a library of tests named "tests/scheme/<id>.sld". It
+   defines and exports a procedure named `run-<id>-tests'.
+
+ * There may be a file named "tests/scheme/<id>.body.scm".  If it
+   exists, it contains source code to be included by "<id>.sld".
+
+ * There's also a program "tests/scheme/run/<id>.sps" that imports
+   `(tests scheme <id>)', runs the exported `run-<id>-tests'
+   procedure, and reports the results.
+
+And then there's 
+
+ * "tests/scheme/test.sld", containing `(tests scheme test)', which
+   implements the testing utilities used by all the other libraries
+
+======================================================================
+Limitations and feedback
+======================================================================
+
+The test suite tries to cover all of the bindings of R7RS, and tries
+to check a variety of uses.
+
+One goal of this test suite is to avoid using `eval' (except when
+specifically testing `eval'). Avoiding `eval' makes the test suite as
+useful as possible to ahead-of-time compilers that implement `eval'
+with a separate interpreter. A drawback of the current approach,
+however, is that if an R7RS implementation doesn't supply one binding
+or does not support a bit of syntax used by a set of tests, then the
+whole set of tests fails to load.
+
+A related problem is that each set of tests may be placed into one
+function that runs all the tests. This format creates a block of code
+that is much larger than in a typical program, which might give some
+compilers trouble.
+
+In any case, reports of bugs (in the tests) and new tests would be
+very much appreciated. Please send bug reports and new tests to
+larceny@ccs.neu.edu.
+
+======================================================================
+Hints on running the tests
+======================================================================
+
+R7RS tests
+----------
+
+The testall shell script runs all of the tests in Larceny.  See also
+
+    testall-chicken
+    testall-chibi
+    testall-foment
+    testall-gauche
+    testall-kawa
+    testall-sagittarius
+
+Chicken version 4.9.0 does not complete the following tests:
+
+    base            apparently does not implement datum labels
+    complex         runs out of heap memory
+    inexact         runs out of heap memory
+    read            equal? fails on circular structures
+
+Chibi version 0.7.3 does not complete the following tests:
+
+    base            apparently does not implement datum labels
+    complex         apparently does not implement polar syntax
+    write           apparently does not allow the symbol +.!
+
+Foment 0.4 (debug) does not complete the following tests:
+
+    base            could not open included file base-test1.scm
+
+Gauche version 0.9.4 does not complete the following tests:
+
+    base            restricts define-record-type to top level
+    inexact         internal assertion fails ("libnum.scm", line 347)
+    process-context apparently interprets --test-getenv as a file
+
+Kawa 2.0 does not complete the following tests:
+
+    base            appears to enter an infinite loop, probably in equal?
+    eval            ArrayIndexOutOfBoundsException in PrettyWriter
+    file            ArrayIndexOutOfBoundsException in PrettyWriter
+    load            ArrayIndexOutOfBoundsException in PrettyWriter
+    read            StackOverflowError in IsEqual.apply
+    repl            ArrayIndexOutOfBoundsException in PrettyWriter
+    write           StackOverflowError in IsEqual.apply
+
+
+R6RS tests
+----------
+
+The (r6rs *) libraries can be tested in Chibi, Larceny, and Sagittarius
+by running the testr6rs-chibi, testr6rs-larceny, and testr6rs-sagittarius
+scripts.  These implementations support the same file naming convention
+and provide a command-line option for specifying an R7RS library search
+path.
+
+Individual test programs for the (r6rs *) libraries can be run from
+inside the test/R7RS/Lib directory like this:
+
+    chibi-scheme -I . -I ../../../tools/R6RS/                 \
+        tests/r6rs/run/bytevectors.sps
+
+    larceny --r7rs --path .:../../../tools/R6RS               \
+                   --program tests/r6rs/run/base.sps
+
+    larceny --r7rs --path .:../../../tools/R6RS               \
+                   --program tests/r6rs/run/bytevectors.sps
+
+    sagittarius -r7 -d -L . -L ../../../tools/R6RS/           \
+        tests/r6rs/run/base.sps
+
+    sagittarius -r7 -d -L . -L ../../../tools/R6RS/           \
+        tests/r6rs/run/bytevectors.sps
+
+To force Larceny or Sagittarius to use portable code for (r6rs *)
+libraries instead of relying upon a corresponding (rnrs *) library,
+define a library named (r6rs no-rnrs).

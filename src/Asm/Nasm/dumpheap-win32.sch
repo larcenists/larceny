@@ -52,7 +52,7 @@
   (execute
    (twobit-format 
     #f
-    "nasmw -O1 -f win32 -IRts\\Intel\\ -IRts\\Build\\ -o \"~a\" \"~a\""
+    "nasm -O1 -f win32 -IRts\\Intel\\ -IRts\\Build\\ -o \"~a\" \"~a\""
     o-name
     asm-name)))
 
