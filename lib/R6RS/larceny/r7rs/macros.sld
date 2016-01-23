@@ -10,6 +10,7 @@
    syntax-error)
 
   (import (rnrs base)
+          (rnrs mutable-pairs) ; needed by define-values
           (for (rename (only (core syntax-rules)
                              r7rs:syntax-error)
                        (r7rs:syntax-error syntax-error))

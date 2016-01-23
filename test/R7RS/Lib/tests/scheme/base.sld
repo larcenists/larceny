@@ -1066,6 +1066,11 @@
              (+ x y))
            3)
 
+     (test (let ()                                  ; bug #738 in Larceny 0.98
+             (define-values (a b c) (values 1 2 3))
+             (list a b c))
+           '(1 2 3))
+
      ;;     define-syntax                           ; R7RS 5.4
 
      (test (let ((x 1) (y 2))
