@@ -181,7 +181,7 @@ do step 4.
 Run Larceny in its default -r5rs mode, and compile the
 R7RS/R6RS standard libraries as follows.
 
-    % larceny
+    % ./larceny
     Larceny v0.98 "Funny in the Head" (...)
 
     > (require 'r7rsmode)
