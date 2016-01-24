@@ -686,6 +686,16 @@
     ;; This makes a much smaller external representation of an
     ;; environment table by factoring shared structure.
 
+    ;; Pattern variable bindings can never be
+    ;; used in client, so don't waste space.
+    ;; Should really do the same with all local
+    ;; bindings, but there are usually much less
+    ;; of them, so don't bother for now.
+    ;;
+    ;; Suppressed pattern variable bindings aren't saved in compiled files,
+    ;; so those bindings won't be present when a compiled file is loaded,
+    ;; so missing bindings must be special-cased below.  See bug #740.
+
     (define (compress env-table)
       (let ((frame-table '())
             (count 0))
@@ -693,7 +703,9 @@
                     (for-each (lambda (frame)
                                 (if (not (assq frame frame-table))
                                     (begin
-                                      (set! frame-table (cons (cons frame count) frame-table))
+                                      (set! frame-table
+                                            (cons (cons frame count)
+                                                  frame-table))
                                       (set! count (+ 1 count)))))
                               (cdr entry)))
                   env-table)
@@ -707,13 +719,11 @@
                      (cons (cdr frame-entry)
                            (list (map (lambda (mapping)
                                         (cons (car mapping)
-                                              (let ((binding (cdr mapping)))
+                                              (let ((binding
+                                                     ;; see bug #740
+                                                     (or (cdr mapping)
+                                                         '(pattern-variable))))
                                                 (case (binding-type binding)
-                                                  ;; Pattern variable bindings can never be
-                                                  ;; used in client, so don't waste space.
-                                                  ;; Should really do the same with all local
-                                                  ;; bindings, but there are usually much less
-                                                  ;; of them, so don't bother for now.
                                                   ((pattern-variable) #f) ; +++
                                                   (else binding)))))
                                       (caar frame-entry)))))
