@@ -112,6 +112,7 @@ setup ()
   FOMENT=${FOMENT:-"foment"}
   GAUCHE=${GAUCHE:-"gosh"}
   HUSKI=${HUSKI:-"huski"}
+  CYCLONE=${CYCLONE:-"cyclone"}
   KAWA=${KAWA:-"kawa"}
   MOSH=${MOSH:-"mosh"}
   PICRIN=${PICRIN:-"picrin"}
@@ -136,6 +137,7 @@ Usage: bench [-r runs] <system> <benchmark>
   foment           for Foment
   gauche           for Gauche
   husk             for Husk
+  cyclone          for Cyclone
   kawa             for Kawa
   larceny          for Larceny
   mosh             for Mosh
@@ -322,6 +324,16 @@ husk_exec ()
   time "${HUSKI}" "$1" < "$2"
 }
 
+cyclone_comp ()
+{
+  ${CYCLONE} $1
+}
+
+cyclone_exec ()
+{
+  time `dirname $1`/`basename $1 .scm`
+}
+
 # -----------------------------------------------------------------------------
 # Definitions specific to Kawa
 
@@ -495,6 +507,16 @@ for system in $systems ; do
       husk) NAME='Husk'
             COMP=husk_comp
             EXEC=husk_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+      cyclone) NAME='Cyclone'
+            COMP=cyclone_comp
+            EXEC=cyclone_exec
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
