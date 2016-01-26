@@ -331,7 +331,7 @@ cyclone_comp ()
 
 cyclone_exec ()
 {
-  time `dirname $1`/`basename $1 .scm`
+  time `dirname $1`/`basename $1 .scm` < "$2"
 }
 
 # -----------------------------------------------------------------------------
