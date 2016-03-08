@@ -2653,6 +2653,11 @@
             read-line)
            "Do you read this?")
 
+     (test (map (lambda (s)
+                  (call-with-port (open-input-string s) read-line))
+                '("abc\ndef" "abc\rdef" "abc\r\ndef"))
+           '("abc" "abc" "abc"))
+
      (test (call-with-port
             (open-output-string)
             (lambda (p)
