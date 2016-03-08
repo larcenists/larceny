@@ -617,6 +617,17 @@
    (test "Ticket #744 (max)"            ; Bug in v0.98 and previous
          (max +nan.0 0)
          +nan.0)
+
+   (test "Ticket #749"                  ; Bug in v0.93 through v0.98
+         (let* ((filename "temptemp")
+                (ignored (delete-file filename))
+                (opts (file-options no-fail no-truncate))
+                (p (open-file-input/output-port filename opts))
+                (x (get-u8 p)))
+           (close-port p)
+           (delete-file filename)
+           (eof-object? x))
+         #t)
    ))
 
 (define (bug-105-test1)

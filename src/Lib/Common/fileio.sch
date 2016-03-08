@@ -232,6 +232,9 @@
                 'open-file-input/output-port
                 (errmsg 'msg:fileexists)
                 (list filename opts))))))
+          ((and (not exists?)
+                (not dont-create))
+           (call-with-port (open-file-output-port filename) values))
           ((not exists?)
            (raise-r6rs-exception
             (make-i/o-file-does-not-exist-error filename)
