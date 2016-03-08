@@ -491,7 +491,7 @@
               make-vector make-bytevector make-string
               endianness big little
               = < > <= >= + * - /
-              abs negative? positive? min max
+              abs negative? positive? min max nan?
               exact-integer?
               square
               div mod
@@ -979,7 +979,10 @@
     (let ((x ?x) (y ?y))
       (let ((r (if (<= x y) x y)))
         (if (or (inexact? x) (inexact? y))
-            (+ r 0.0)
+            (+ r 
+               (if (or (not (= x x)) (not (= y y)))
+                   +nan.0
+                   0.0))
             r))))
 `  ((_ larceny min (min ?x ?y ?z ...))
     (let ((x ?x) (y (min ?y ?z ...)))
@@ -989,11 +992,18 @@
     (let ((x ?x) (y ?y))
       (let ((r (if (>= x y) x y)))
         (if (or (inexact? x) (inexact? y))
-            (+ r 0.0)
+            (+ r 
+               (if (or (not (= x x)) (not (= y y)))
+                   +nan.0
+                   0.0))
             r))))
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
+
+`  ((_ larceny nan? (nan? ?x))
+    (let ((x ?x))
+      (and (number? x) (not (= x x)))))
 
 `  ((_ larceny exact-integer? (exact-integer? ?e1))
     (let* ((t1 ?e1))
