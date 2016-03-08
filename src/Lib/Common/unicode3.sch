@@ -165,7 +165,7 @@
 
       (cond ((= i n)
 
-             ; Concatenate the characters and strings.
+             ;; Concatenate the characters and strings.
              (let* ((n2 (do ((mapped chars (cdr mapped))
                              (n2 0
                                  (+ n2 (if (char? (car mapped))
@@ -173,20 +173,24 @@
                                            (string-length (car mapped))))))
                             ((null? mapped) n2)))
                     (s2 (make-string n2)))
+
+               ;; i is index of rightmost unassigned character in s2
+               ;; mapped is a list of strings and characters, in reverse order,
+               ;;     to be stored into s2
+
                (define (loop i mapped)
                  (if (null? mapped)
                      s2
                      (let ((c2 (car mapped)))
                        (if (char? c2)
-                           (let ((i1 (- i 1)))
-                             (string-set! s2 i1 c2)
-                             (loop i1 (cdr mapped)))
+                           (begin (string-set! s2 i c2)
+                                  (loop (- i 1) (cdr mapped)))
                            (do ((j (- (string-length c2) 1) (- j 1))
-                                (i (- i 1) (- i 1)))
+                                (i i (- i 1)))
                                ((< j 0)
                                 (loop i (cdr mapped)))
                              (string-set! s2 i (string-ref c2 j)))))))
-               (loop n2 chars)))
+               (loop (- n2 1) chars)))
 
             (else
              (let* ((c (string-ref s i))
@@ -362,15 +366,14 @@
               s2
               (let ((c2 (car mapped)))
                 (if (char? c2)
-                    (let ((i1 (- i 1)))
-                      (string-set! s2 i1 c2)
-                      (loop i1 (cdr mapped)))
+                    (begin (string-set! s2 i c2)
+                           (loop (- i 1) (cdr mapped)))
                     (do ((j (- (string-length c2) 1) (- j 1))
-                         (i (- i 1) (- i 1)))
+                         (i i (- i 1)))
                         ((< j 0)
-                         (loop (+ i 1) (cdr mapped)))
+                         (loop i (cdr mapped)))
                       (string-set! s2 i (string-ref c2 j)))))))
-        (loop n2 mapped))))
+        (loop (- n2 1) mapped))))
 
 ; Given a string s and an index i into s,
 ; returns #t if and only if C = (string-ref s i) is

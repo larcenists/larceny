@@ -628,6 +628,10 @@
            (delete-file filename)
            (eof-object? x))
          #t)
+
+   (test "Ticket #750"                  ; Bug in v0.98 and previous
+         (string-titlecase "x\x130;")
+         "Xi\x307;")
    ))
 
 (define (bug-105-test1)
