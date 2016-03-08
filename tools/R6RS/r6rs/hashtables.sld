@@ -33,7 +33,10 @@
 
   (cond-expand
 
-   ((library (rnrs hashtables)))    ; nothing to do
+   ((and (library (rnrs hashtables))
+         (not (library (r6rs no-rnrs))))
+    ;; nothing to do
+    )
 
    ((library (scheme inexact))
     (import (scheme inexact))
