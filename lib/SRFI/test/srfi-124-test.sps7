@@ -1,0 +1,97 @@
+;;; Test of SRFI 124, Ephemerons.
+;;;
+;;; The number of references to an object is very implementation-dependent.
+;;; For some reason, this test program didn't break the ephemerons it should
+;;; have broken until the tests were split into a separate procedure in a
+;;; separate library.  I suspect that's overkill, but I'm tired of looking
+;;; for the problem.
+
+(define-library (local tests)
+  (export doit)
+  (import (scheme base)
+          (scheme write)
+          (srfi 124))
+
+(begin 
+
+ (define (writeln . xs)
+   (for-each display xs)
+   (newline))
+
+ (define (fail token . more)
+   (writeln "Error: test failed: " token)
+   #f)
+
+ (define (iota n)
+   (define (loop n z)
+     (if (= n 0)
+         z
+         (loop (- n 1) (cons (- n 1) z))))
+   (loop n '()))
+
+ (define keys
+   (map (lambda (n)
+          (list (+ n 89870)))
+        (iota 10)))
+
+ (define vals
+   (map vector
+        (map (lambda (n) (+ n 5000))
+             (map car keys))))
+
+ (define ephemera
+   (map make-ephemeron keys vals))
+
+ (define N 5)
+ (define gcs 20)
+
+ (define (force-gc)
+   (define (loop n)
+     (if (> n 0)
+         (cons n (loop (- n 1)))
+         '()))
+   (loop 1000000))
+
+ (define (doit)
+
+   (or (equal? (map ephemeron-key ephemera)
+               keys)
+       (fail 'ephemeron-key))
+
+   (or (equal? (map ephemeron-datum ephemera)
+               vals)
+       (fail 'ephemeron-datum))
+
+   (or (equal? (map ephemeron-broken? ephemera)
+               (map (lambda (x) #f) ephemera))
+       (fail 'ephemeron-broken?))
+
+   (set! keys (reverse (reverse (list-tail keys N))))
+
+   (do ((i 0 (+ i 1)))
+       ((= i gcs))
+     (force-gc))
+
+   (or (equal? (map ephemeron-key (list-tail ephemera N))
+               keys)
+       (fail 'ephemeron-key-after-breaking))
+
+   (or (equal? (map ephemeron-datum (list-tail ephemera N))
+               (list-tail vals N))
+       (fail 'ephemeron-datum-after-breaking))
+
+   (or (equal? (map ephemeron-broken? ephemera)
+               (append (vector->list (make-vector N #t))
+                       (map (lambda (x) #f)
+                            (list-tail ephemera N))))
+       (fail 'ephemeron-broken?-after-breaking))
+
+   (writeln "Done."))))
+
+(import (scheme base)
+        (scheme write)
+        (srfi 124)
+        (local tests))
+
+(doit)
+
