@@ -152,8 +152,10 @@
 
 (import (scheme base)
         (scheme write)
-        (tests srfi-123))
+        (tests srfi-123)
+        (primitives system))
 
 (run-tests)
 
+(system "fgrep \"result-kind:\" SRFI-123.log")
 (display "Done.\n")
