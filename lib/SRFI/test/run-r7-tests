@@ -56,6 +56,7 @@ echo srfi-115-test; ${LARCENY} --r7rs --program srfi-115-test.sps7; echo
 echo srfi-116-test; ${LARCENY} --r7rs --program srfi-116-test.sps7; echo
 echo srfi-117-test; ${LARCENY} --r7rs --program srfi-117-test.sps7; echo
 echo srfi-121-test; ${LARCENY} --r7rs --program srfi-121-test.sps7; echo
+echo srfi-123-test; ${LARCENY} --r7rs --program srfi-123-test.sps7; echo
 echo srfi-124-test; ${LARCENY} --r7rs --program srfi-124-test.sps7; echo
 echo srfi-128-test; ${LARCENY} --r7rs --program srfi-128-test.sps7; echo
 echo srfi-129-test; ${LARCENY} --r7rs --program srfi-129-test.sps7; echo
