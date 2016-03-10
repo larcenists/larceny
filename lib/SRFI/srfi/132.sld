@@ -27,7 +27,9 @@
           (rename (only (scheme base) vector-copy vector-copy!)
                   (vector-copy  r7rs-vector-copy)
                   (vector-copy! r7rs-vector-copy!))
-          (scheme cxr))
+          (scheme cxr)
+          (only (rnrs base) assert)
+          (only (srfi 27) random-integer))
 
   (include "132/delndups.scm")
   (include "132/lmsort.scm")
@@ -40,26 +42,33 @@
   (include "132/vqsort3.scm")
   (include "132/sort.scm") ; must be last
 
+  ;; Added for Larceny.
+
+  (include "132/select.scm")
+
   ;; These procedures are missing from the reference implementation.
 
   (begin
 
    ;; Although the median can be found in linear time, SRFI 132
    ;; is written as though the median must be found by sorting.
+   ;; Well, fie on that.
 
    (define (vector-find-median < v knil . rest)
      (let* ((mean (if (null? rest)
                       (lambda (a b) (/ (+ a b) 2))
                       (car rest)))
-            (n (vector-length v))
-            (v (vector-sort < v)))
+            (n (vector-length v)))
        (cond ((zero? n)
               knil)
              ((odd? n)
-              (vector-ref v (quotient n 2)))
+              (%vector-select < v (quotient n 2) 0 n))
              (else
-              (mean (vector-ref v (- (quotient n 2) 1))
-                    (vector-ref v (quotient n 2)))))))
+              (mean (%vector-select < v (- (quotient n 2) 1) 0 n)
+                    (%vector-select < v (quotient n 2) 0 n))))))
+
+   ;; For this procedure, however, the SRFI 132 specification
+   ;; demands the vector be sorted (by side effect).
 
    (define (vector-find-median! < v knil . rest)
      (let* ((mean (if (null? rest)
