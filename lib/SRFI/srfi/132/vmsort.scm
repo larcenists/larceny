@@ -103,7 +103,13 @@
 (define (vector-merge-sort < v . maybe-args)
   (let ((ans (vector-copy v)))
     (apply vector-merge-sort! < ans maybe-args)
-    ans))
+    (call-with-values
+     (lambda () (vector-start+end v maybe-args))
+     (lambda (start end)
+       (if (and (= start 0)
+                (= end   (vector-length v)))
+           ans
+           (r7rs-vector-copy ans start end))))))
 
 
 ;;; %VECTOR-MERGE-SORT! is not exported.
@@ -207,7 +213,8 @@
 			(lp (+ pfxlen nr-len) (+ pfxlen2 pfxlen2)
 			    temp v (not v=v0?))))))))))
        (lambda (ignored-len ignored-ansvec ansvec=v0?)
-	 (if (not ansvec=v0?) (vector-portion-copy! v0 temp0 l r))))))
+	 (if (not ansvec=v0?)
+             (r7rs-vector-copy! v0 l temp0 l r))))))
 
 
 ;;; Copyright

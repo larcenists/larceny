@@ -23,7 +23,10 @@
           vector-select!                                   ; not part of ref impl
           )
 
-  (import (except (scheme base) vector-copy)
+  (import (except (scheme base) vector-copy vector-copy!)
+          (rename (only (scheme base) vector-copy vector-copy!)
+                  (vector-copy  r7rs-vector-copy)
+                  (vector-copy! r7rs-vector-copy!))
           (scheme cxr))
 
   (include "132/delndups.scm")
