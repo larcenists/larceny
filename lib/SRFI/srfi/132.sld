@@ -28,6 +28,7 @@
                   (vector-copy  r7rs-vector-copy)
                   (vector-copy! r7rs-vector-copy!))
           (scheme cxr)
+          (scheme write) ; FIXME
           (only (rnrs base) assert)
           (only (srfi 27) random-integer))
 
@@ -64,8 +65,10 @@
              ((odd? n)
               (%vector-select < v (quotient n 2) 0 n))
              (else
-              (mean (%vector-select < v (- (quotient n 2) 1) 0 n)
-                    (%vector-select < v (quotient n 2) 0 n))))))
+              (call-with-values
+               (lambda () (%vector-select2 < v (- (quotient n 2) 1) 0 n))
+               (lambda (a b)
+                 (mean a b)))))))
 
    ;; For this procedure, however, the SRFI 132 specification
    ;; demands the vector be sorted (by side effect).

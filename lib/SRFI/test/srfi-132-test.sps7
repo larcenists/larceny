@@ -1286,6 +1286,54 @@
             '#(9 13 13))
     (fail 'vector-select!:ten:3:2:8))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Sorting routines often have internal boundary cases or
+;;; randomness, so it's prudent to run a lot of tests with
+;;; different lengths.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (all-sorts-okay? m n)
+  (if (> m 0)
+      (let* ((v (random-vector n))
+             (v2 (vector-copy v))
+             (lst (vector->list v))
+             (ans (vector-sort < v2))
+             (med (cond ((= n 0) -97)
+                        ((odd? n)
+                         (vector-ref ans (quotient n 2)))
+                        (else
+                         (/ (+ (vector-ref ans (- (quotient n 2) 1))
+                               (vector-ref ans (quotient n 2)))
+                            2)))))
+        (define (dsort vsort!)
+          (let ((v2 (vector-copy v)))
+            (vsort! < v2)
+            v2))
+        (and (equal? ans (list->vector (list-sort < lst)))
+             (equal? ans (list->vector (list-stable-sort < lst)))
+             (equal? ans (list->vector (list-sort! < (list-copy lst))))
+             (equal? ans (list->vector (list-stable-sort! < (list-copy lst))))
+             (equal? ans (vector-sort < v2))
+             (equal? ans (vector-stable-sort < v2))
+             (equal? ans (dsort vector-sort!))
+             (equal? ans (dsort vector-stable-sort!))
+             (equal? med (vector-find-median < v2 -97))
+             (equal? v v2)
+             (equal? lst (vector->list v))
+             (equal? med (vector-find-median! < v2 -97))
+             (equal? ans v2)
+             (all-sorts-okay? (- m 1) n)))
+      #t))
+
+(define (test-all-sorts m n)
+  (or (all-sorts-okay? m n)
+      (fail (list 'test-all-sorts m n))))
+
+(for-each test-all-sorts
+          '( 3  5 10 10 10 20 20 10 10 10 10 10  10  10  10  10  10)
+          '( 0  1  2  3  4  5 10 20 30 40 50 99 100 101 499 500 501))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -1341,6 +1389,12 @@
                 (lambda (< v)
                   (vector-find-median! < v -1))
                 v)))
+
+(if display-benchmark-results?
+    (run-some-benchmarks 10000 100))
+
+(if display-benchmark-results?
+    (run-some-benchmarks 100 9999))
 
 (if display-benchmark-results?
     (run-some-benchmarks 100 10000))
