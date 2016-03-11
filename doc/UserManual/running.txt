@@ -469,8 +469,8 @@ R7RS or R6RS libraries or syntax (shown in parentheses):
     (srfi 95 sorting-and-merging)          ; sorting and merging (rnrs sorting)
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
-because they have been superseded by the R7RS and SRFI 99 record
-facilities:
+because they have been superseded by the R7RS, SRFI 99, and SRFI 131
+record facilities:
 
     (err5rs records procedural)            ; ERR5RS records (procedural API)
     (err5rs records inspection)            ; ERR5RS records (inspection API)
