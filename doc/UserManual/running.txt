@@ -428,6 +428,16 @@ SRFI libraries:
     (srfi 114 comparators)                 ; comparators
     (srfi 115 regexp)                      ; regular expressions
     (srfi 116 ilists)                      ; immutable lists
+    (srfi 117)                             ; queues based on lists
+    (srfi 121)                             ; generators
+    (srfi 123)                             ; generic accessor/modifier operators
+    (srfi 124)                             ; ephemerons
+    (srfi 126)                             ; R6RS-based hashtables
+    (srfi 127)                             ; lazy sequences
+    (srfi 128)                             ; comparators (reduced)
+    (srfi 129)                             ; titlecase procedures
+    (srfi 131)                             ; ERR5RS record syntax (reduced)
+    (srfi 132)                             ; sort libraries
 
 [NOTE]
 ================================================================
