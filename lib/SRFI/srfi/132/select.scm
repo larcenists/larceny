@@ -4,6 +4,64 @@
 ;;; Selecting the kth and (k+1)st smallest elements from an unsorted vector.
 ;;; Selecting the median from an unsorted vector.
 
+;;; These procedures are part of SRFI 132 but are missing from
+;;; its reference implementation as of 10 March 2016.
+
+;;; Although the median can be found in linear time, SRFI 132
+;;; is written as though the median must be found by sorting.
+;;; Well, fie on that.
+
+(define (vector-find-median < v knil . rest)
+  (let* ((mean (if (null? rest)
+                   (lambda (a b) (/ (+ a b) 2))
+                   (car rest)))
+         (n (vector-length v)))
+    (cond ((zero? n)
+           knil)
+          ((odd? n)
+           (%vector-select < v (quotient n 2) 0 n))
+          (else
+           (call-with-values
+            (lambda () (%vector-select2 < v (- (quotient n 2) 1) 0 n))
+            (lambda (a b)
+              (mean a b)))))))
+
+;;; For this procedure, however, the SRFI 132 specification
+;;; demands the vector be sorted (by side effect).
+
+(define (vector-find-median! < v knil . rest)
+  (let* ((mean (if (null? rest)
+                   (lambda (a b) (/ (+ a b) 2))
+                   (car rest)))
+         (n (vector-length v)))
+    (vector-sort! < v)
+    (cond ((zero? n)
+           knil)
+          ((odd? n)
+           (vector-ref v (quotient n 2)))
+          (else
+           (mean (vector-ref v (- (quotient n 2) 1))
+                 (vector-ref v (quotient n 2)))))))
+
+;;; This could be made slightly more efficient, but who cares?
+
+(define (vector-select! < v k . rest)
+  (let* ((start (if (null? rest)
+                    0
+                    (car rest)))
+         (end (if (and (pair? rest)
+                       (pair? (cdr rest)))
+                  (car (cdr rest))
+                  (vector-length v))))
+    (vector-sort! < v start end)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; For small ranges, sorting may be the fastest way to find the kth element.
+;;; This threshold is not at all critical, and may not even be worthwhile.
+
+(define just-sort-it-threshold 50)
+
 ;;; Given
 ;;;     an irreflexive total order <?
 ;;;     a vector v
@@ -65,6 +123,8 @@
                   (vector-ref v (+ k start)))
                  (else
                   (vector-ref v (+ (- 1 k) start)))))
+          ((< size just-sort-it-threshold)
+           (vector-ref (r6rs-vector-sort <? (r7rs-vector-copy v start end)) k))
           (else
            (let* ((ip (random-integer size))
                   (pivot (vector-ref v (+ start ip))))
@@ -102,6 +162,10 @@
                     (values a b))
                    (else
                     (values b a)))))
+          ((< size just-sort-it-threshold)
+           (let ((v2 (r6rs-vector-sort <? (r7rs-vector-copy v start end))))
+             (values (vector-ref v2 k)
+                     (vector-ref v2 (+ k 1)))))
           (else
            (let* ((ip (random-integer size))
                   (pivot (vector-ref v (+ start ip))))

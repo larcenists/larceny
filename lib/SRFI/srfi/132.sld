@@ -28,8 +28,11 @@
                   (vector-copy  r7rs-vector-copy)
                   (vector-copy! r7rs-vector-copy!))
           (scheme cxr)
-          (scheme write) ; FIXME
           (only (rnrs base) assert)
+          (rename (rnrs sorting)
+                  (list-sort    r6rs-list-sort)
+                  (vector-sort  r6rs-vector-sort)
+                  (vector-sort! r6rs-vector-sort!))
           (only (srfi 27) random-integer))
 
   (include "132/delndups.scm")
@@ -41,65 +44,19 @@
   (include "132/vmsort.scm")
   (include "132/vqsort2.scm")
   (include "132/vqsort3.scm")
-  (include "132/sort.scm") ; must be last
+
+  ;; In non-Larceny implementations, the following include must be
+  ;; preceded by the above includes.
+
+  (cond-expand
+   (larceny
+    (include "132/sortfaster.scm"))
+   (else
+    (include "132/sort.scm")))
 
   ;; Added for Larceny.
 
   (include "132/select.scm")
-
-  ;; These procedures are missing from the reference implementation.
-
-  (begin
-
-   ;; Although the median can be found in linear time, SRFI 132
-   ;; is written as though the median must be found by sorting.
-   ;; Well, fie on that.
-
-   (define (vector-find-median < v knil . rest)
-     (let* ((mean (if (null? rest)
-                      (lambda (a b) (/ (+ a b) 2))
-                      (car rest)))
-            (n (vector-length v)))
-       (cond ((zero? n)
-              knil)
-             ((odd? n)
-              (%vector-select < v (quotient n 2) 0 n))
-             (else
-              (call-with-values
-               (lambda () (%vector-select2 < v (- (quotient n 2) 1) 0 n))
-               (lambda (a b)
-                 (mean a b)))))))
-
-   ;; For this procedure, however, the SRFI 132 specification
-   ;; demands the vector be sorted (by side effect).
-
-   (define (vector-find-median! < v knil . rest)
-     (let* ((mean (if (null? rest)
-                      (lambda (a b) (/ (+ a b) 2))
-                      (car rest)))
-            (n (vector-length v)))
-       (vector-sort! < v)
-       (cond ((zero? n)
-              knil)
-             ((odd? n)
-              (vector-ref v (quotient n 2)))
-             (else
-              (mean (vector-ref v (- (quotient n 2) 1))
-                    (vector-ref v (quotient n 2)))))))
-
-   ;; This could be made slightly more efficient, but who cares?
-
-   (define (vector-select! < v k . rest)
-     (let* ((start (if (null? rest)
-                       0
-                       (car rest)))
-            (end (if (and (pair? rest)
-                          (pair? (cdr rest)))
-                     (car (cdr rest))
-                     (vector-length v))))
-       (vector-sort! < v start end)))
-
-   )
 
   )
 
