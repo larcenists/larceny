@@ -1,25 +1,21 @@
-;;; Olin's test harness tests some procedures that aren't part of SRFI 132,
-;;; so (srfi 132 plus) is here just to support Olin's tests.
+;;; To use (a corrected version of) the SRFI 132 reference implementation,
+;;; comment out the following library definition.
 
-(define-library (srfi 132 plus)
 
-  (export list-sorted? vector-sorted?
-          list-merge-sort  vector-merge-sort               ; not part of SRFI 132
-          list-merge-sort! vector-merge-sort!              ; not part of SRFI 132
-          vector-insert-sort vector-insert-sort!           ; not part of SRFI 132
-          vector-heap-sort   vector-heap-sort!             ; not part of SRFI 132
-          vector-quick-sort  vector-quick-sort!            ; not part of SRFI 132
-;         vector-binary-search vector-binary-search3       ; not part of SRFI 132
-          vector-quick-sort3 vector-quick-sort3!           ; not part of SRFI 132
-          list-merge vector-merge
-          list-sort vector-sort
-          list-stable-sort vector-stable-sort
-          list-merge! vector-merge!
-          list-sort! vector-sort!
-          list-stable-sort! vector-stable-sort!
-          list-delete-neighbor-dups vector-delete-neighbor-dups
+(define-library (srfi 132 use-r6rs-sorting))
+
+(define-library (srfi 132 sorting)
+
+  (export list-sorted?               vector-sorted?
+          list-sort                  vector-sort
+          list-stable-sort           vector-stable-sort
+          list-sort!                 vector-sort!
+          list-stable-sort!          vector-stable-sort!
+          list-merge                 vector-merge
+          list-merge!                vector-merge!
+          list-delete-neighbor-dups  vector-delete-neighbor-dups
           list-delete-neighbor-dups! vector-delete-neighbor-dups!
-          vector-find-median vector-find-median!           ; not part of ref impl
+          vector-find-median         vector-find-median!   ; not part of ref impl
           vector-select!                                   ; not part of ref impl
           )
 
@@ -35,23 +31,32 @@
                   (vector-sort! r6rs-vector-sort!))
           (only (srfi 27) random-integer))
 
-  (include "132/delndups.scm")
-  (include "132/lmsort.scm")
-  (include "132/sortp.scm")
-  (include "132/vector-util.scm")
-  (include "132/vhsort.scm")
-  (include "132/visort.scm")
-  (include "132/vmsort.scm")
-  (include "132/vqsort2.scm")
-  (include "132/vqsort3.scm")
-
-  ;; In non-Larceny implementations, the following include must be
-  ;; preceded by the above includes.
+  ;; If the (srfi 132 use-r6rs-sorting) library is defined above,
+  ;; we'll use the (rnrs sorting) library for all sorting and trim
+  ;; Olin's reference implementation to remove unnecessary code.
+  ;; The merge.scm file, for example, extracts the list-merge,
+  ;; list-merge!, vector-merge, and vector-merge! procedures from
+  ;; Olin's lmsort.scm and vmsort.scm files.
 
   (cond-expand
-   (larceny
+
+   ((library (srfi 132 use-r6rs-sorting))
+    (include "132/merge.scm")
+    (include "132/delndups.scm")     ; list-delete-neighbor-dups etc
+    (include "132/sortp.scm")        ; list-sorted?, vector-sorted?
+    (include "132/vector-util.scm")
     (include "132/sortfaster.scm"))
+
    (else
+    (include "132/delndups.scm")     ; list-delete-neighbor-dups etc
+    (include "132/lmsort.scm")       ; list-merge, list-merge!
+    (include "132/sortp.scm")        ; list-sorted?, vector-sorted?
+    (include "132/vector-util.scm")
+    (include "132/vhsort.scm")
+    (include "132/visort.scm")
+    (include "132/vmsort.scm")       ; vector-merge, vector-merge!
+    (include "132/vqsort2.scm")
+    (include "132/vqsort3.scm")
     (include "132/sort.scm")))
 
   ;; Added for Larceny.
@@ -62,17 +67,17 @@
 
 (define-library (srfi 132)
 
-  (export list-sorted? vector-sorted?
-          list-merge vector-merge
-          list-sort vector-sort
-          list-stable-sort vector-stable-sort
-          list-merge! vector-merge!
-          list-sort! vector-sort!
-          list-stable-sort! vector-stable-sort!
-          list-delete-neighbor-dups vector-delete-neighbor-dups
+  (export list-sorted?               vector-sorted?
+          list-sort                  vector-sort
+          list-stable-sort           vector-stable-sort
+          list-sort!                 vector-sort!
+          list-stable-sort!          vector-stable-sort!
+          list-merge                 vector-merge
+          list-merge!                vector-merge!
+          list-delete-neighbor-dups  vector-delete-neighbor-dups
           list-delete-neighbor-dups! vector-delete-neighbor-dups!
-          vector-find-median vector-find-median!
-          vector-select!
+          vector-find-median         vector-find-median!   ; not part of ref impl
+          vector-select!                                   ; not part of ref impl
           )
 
-  (import (srfi 132 plus)))
+  (import (srfi 132 sorting)))

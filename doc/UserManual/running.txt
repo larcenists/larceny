@@ -470,7 +470,7 @@ R7RS or R6RS libraries or syntax (shown in parentheses):
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
 because they have been superseded by the R7RS, SRFI 99, and SRFI 131
-record facilities:
+record facilities: 
 
     (err5rs records procedural)            ; ERR5RS records (procedural API)
     (err5rs records inspection)            ; ERR5RS records (inspection API)
@@ -735,7 +735,7 @@ In R6RS mode, which is batch-only, errors should result in an
 error message followed by a clean exit from the program.
 
 If your program encounters an error in an interactive mode
-(R5RS or R75RS), it will enter the debugger; this is
+(R5RS or R7RS), it will enter the debugger; this is
 believed to be a feature.
 
 Despite its crudity, and to some extent because of it,
