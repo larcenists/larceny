@@ -43,6 +43,18 @@
            (mean (vector-ref v (- (quotient n 2) 1))
                  (vector-ref v (quotient n 2)))))))
 
+;;; After rest argument processing, calls the private version defined below.
+
+(define (vector-select < v k . rest)
+  (let* ((start (if (null? rest)
+                    0
+                    (car rest)))
+         (end (if (and (pair? rest)
+                       (pair? (cdr rest)))
+                  (car (cdr rest))
+                  (vector-length v))))
+    (%vector-select < v k start end)))
+
 ;;; This could be made slightly more efficient, but who cares?
 
 (define (vector-select! < v k . rest)
@@ -124,7 +136,7 @@
                  (else
                   (vector-ref v (+ (- 1 k) start)))))
           ((< size just-sort-it-threshold)
-           (vector-ref (r6rs-vector-sort <? (r7rs-vector-copy v start end)) k))
+           (vector-ref (vector-sort <? (r7rs-vector-copy v start end)) k))
           (else
            (let* ((ip (random-integer size))
                   (pivot (vector-ref v (+ start ip))))
@@ -163,7 +175,7 @@
                    (else
                     (values b a)))))
           ((< size just-sort-it-threshold)
-           (let ((v2 (r6rs-vector-sort <? (r7rs-vector-copy v start end))))
+           (let ((v2 (vector-sort <? (r7rs-vector-copy v start end))))
              (values (vector-ref v2 k)
                      (vector-ref v2 (+ k 1)))))
           (else
