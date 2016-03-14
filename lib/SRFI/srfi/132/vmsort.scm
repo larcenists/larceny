@@ -105,7 +105,7 @@
    (lambda () (vector-start+end v maybe-args))
    (lambda (start end)
      (let ((ans (r7rs-vector-copy v start end)))
-       (vector-merge-sort! < ans start end)
+       (vector-merge-sort! < ans)
        ans))))
 
 

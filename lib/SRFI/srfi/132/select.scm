@@ -7,9 +7,11 @@
 ;;; These procedures are part of SRFI 132 but are missing from
 ;;; its reference implementation as of 10 March 2016.
 
-;;; Although the median can be found in linear time, SRFI 132
-;;; is written as though the median must be found by sorting.
-;;; Well, fie on that.
+;;; SRFI 132 says this procedure runs in O(n) time.
+;;; As implemented, however, the worst-case time is O(n^2) because
+;;; vector-select is implemented using randomized quickselect.
+;;; The average time is O(n), and you'd have to be unlucky
+;;; to approach the worst case.
 
 (define (vector-find-median < v knil . rest)
   (let* ((mean (if (null? rest)
@@ -26,7 +28,7 @@
             (lambda (a b)
               (mean a b)))))))
 
-;;; For this procedure, however, the SRFI 132 specification
+;;; For this procedure, the SRFI 132 specification
 ;;; demands the vector be sorted (by side effect).
 
 (define (vector-find-median! < v knil . rest)
@@ -43,6 +45,11 @@
            (mean (vector-ref v (- (quotient n 2) 1))
                  (vector-ref v (quotient n 2)))))))
 
+;;; SRFI 132 says this procedure runs in O(n) time.
+;;; As implemented, however, the worst-case time is O(n^2).
+;;; The average time is O(n), and you'd have to be unlucky
+;;; to approach the worst case.
+;;;
 ;;; After rest argument processing, calls the private version defined below.
 
 (define (vector-select < v k . rest)
@@ -55,9 +62,16 @@
                   (vector-length v))))
     (%vector-select < v k start end)))
 
+;;; The vector-select procedure is needed internally to implement
+;;; vector-find-median, but SRFI 132 has been changed (for no good
+;;; reason) to export vector-select! instead of vector-select.
+;;; Fortunately, vector-select! is not required to have side effects.
+
+(define vector-select! vector-select)
+
 ;;; This could be made slightly more efficient, but who cares?
 
-(define (vector-select! < v k . rest)
+(define (vector-separate! < v k . rest)
   (let* ((start (if (null? rest)
                     0
                     (car rest)))
@@ -65,7 +79,19 @@
                        (pair? (cdr rest)))
                   (car (cdr rest))
                   (vector-length v))))
-    (vector-sort! < v start end)))
+    (if (and (> k 0)
+             (> end start))
+        (let ((pivot (vector-select < v (- k 1) start end)))
+          (call-with-values
+           (lambda () (count-smaller < pivot v start end 0 0))
+           (lambda (count count2)
+             (let* ((v2 (make-vector count))
+                    (v3 (make-vector (- end start count count2))))
+               (copy-smaller! < pivot v2 0 v start end)
+               (copy-bigger! < pivot v3 0 v start end)
+               (r7rs-vector-copy! v start v2)
+               (r7rs-vector-fill! v pivot (+ start count) (+ start count count2))
+               (r7rs-vector-copy! v (+ start count count2) v3))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
