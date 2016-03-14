@@ -84,7 +84,7 @@
 ;;;     0 <= k < (- end start)
 ;;;     0 <= start < end <= (vector-length v)
 ;;; returns
-;;;     (vector-ref (vector-sort <? (vector-copy v start end)) k)
+;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ start k))
 ;;; but is usually faster than that.
 
 (define (%vector-select <? v k start end)
@@ -108,8 +108,8 @@
 ;;;     0 <= k < (- end start 1)
 ;;;     0 <= start < end <= (vector-length v)
 ;;; returns two values:
-;;;     (vector-ref (vector-sort <? (vector-copy v start end)) k)
-;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ k 1))
+;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ start k))
+;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ start k 1))
 ;;; but is usually faster than that.
 
 (define (%vector-select2 <? v k start end)
@@ -159,8 +159,8 @@
 
 ;;; Like %%vector-select, but returns two values:
 ;;;
-;;;     (vector-ref (vector-sort <? (vector-copy v start end)) k)
-;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ k 1))
+;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ start k))
+;;;     (vector-ref (vector-sort <? (vector-copy v start end)) (+ start k 1))
 ;;;
 ;;; Returning two values is useful when finding the median of an even
 ;;; number of things.

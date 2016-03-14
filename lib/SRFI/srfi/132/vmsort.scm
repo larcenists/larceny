@@ -101,15 +101,12 @@
        (%vector-merge-sort! < v start end temp)))))
 
 (define (vector-merge-sort < v . maybe-args)
-  (let ((ans (vector-copy v)))
-    (apply vector-merge-sort! < ans maybe-args)
-    (call-with-values
-     (lambda () (vector-start+end v maybe-args))
-     (lambda (start end)
-       (if (and (= start 0)
-                (= end   (vector-length v)))
-           ans
-           (r7rs-vector-copy ans start end))))))
+  (call-with-values
+   (lambda () (vector-start+end v maybe-args))
+   (lambda (start end)
+     (let ((ans (r7rs-vector-copy v start end)))
+       (vector-merge-sort! < ans start end)
+       ans))))
 
 
 ;;; %VECTOR-MERGE-SORT! is not exported.
