@@ -16,15 +16,19 @@
           ;; Conversion 
           reverse-vector->list reverse-list->vector
           )
-  (import (except (scheme base)
-                  vector-copy vector-copy!
-                  vector->list list->vector
-                  vector->string string->vector
-                  vector-append vector-fill!
-                  vector-map vector-for-each)
+  (import (scheme base)
           (scheme cxr))
 
   (include "133.body.scm")
+
+  ;; Using vector-map to implement vector-map! takes more space,
+  ;; but the simplicity and reliability of maintaining just one
+  ;; version wins out.  When there's more than one vector, this
+  ;; will be faster as well.
+
+  (begin
+   (define (vector-map! f vec . vectors)
+     (vector-copy! vec 0 (apply vector-map f vec vectors))))
   )
 
 

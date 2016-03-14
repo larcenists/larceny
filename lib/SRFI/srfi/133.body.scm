@@ -414,6 +414,10 @@
 
 ;;; (%VECTOR-MAP! <f> <target> <length> <vector>) -> target
 ;;;     (F <index> <elt>) -> elt'
+;;;
+;;; [wdc] commented out because it's dead code when R7RS procedure is used
+
+#;
 (define %vector-map1!
   (letrec ((loop (lambda (f target vec i)
                    (if (zero? i)
@@ -427,6 +431,10 @@
 
 ;;; (%VECTOR-MAP2+! <f> <target> <vectors> <len>) -> target
 ;;;     (F <index> <elt> ...) -> elt'
+;;;
+;;; [wdc] commented out because it's dead code when R7RS procedure is used
+
+#;
 (define %vector-map2+!
   (letrec ((loop (lambda (f target vectors i)
                    (if (zero? i)
@@ -535,7 +543,6 @@
                  (unfold1!  f vec i (car initial-seeds)))
                 (else
                  (unfold2+! f vec i initial-seeds)))))))
-
 ;;; (VECTOR-COPY <vector> [<start> <end> <fill>]) -> vector
 ;;;   Create a newly allocated vector containing the elements from the
 ;;;   range [START,END) in VECTOR.  START defaults to 0; END defaults
@@ -543,6 +550,10 @@
 ;;;   VECTOR, in which case the vector is enlarged; if FILL is passed,
 ;;;   the new locations from which there is no respective element in
 ;;;   VECTOR are filled with FILL.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector-copy vec . args)
   (let ((vec (check-type vector? vec vector-copy)))
     ;; We can't use LET-VECTOR-START+END, because we have one more
@@ -563,6 +574,10 @@
 
 ;;; Auxiliary for VECTOR-COPY.
 ;;; [wdc] Corrected to allow 0 <= start <= (vector-length vec).
+;;;
+;;; [wdc] commented out because it's dead code when R7RS procedure is used
+
+#;
 (define (vector-copy:parse-args vec args)
   (define (parse-args start end n fill)
     (let ((start (check-type nonneg-int? start vector-copy))
@@ -604,6 +619,10 @@
 ;;; (VECTOR-APPEND <vector> ...) -> vector
 ;;;   Append VECTOR ... into a newly allocated vector and return that
 ;;;   new vector.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector-append . vectors)
   (vector-concatenate:aux vectors vector-append))
 
@@ -833,6 +852,10 @@
 ;;;   arguments.  Each element at index I of the new vector is mapped
 ;;;   from the old vectors by (F I (vector-ref VECTOR I) ...).  The
 ;;;   dynamic order of application of F is unspecified.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector-map f vec . vectors)
   (let ((f   (check-type procedure? f   vector-map))
         (vec (check-type vector?    vec vector-map)))
@@ -852,6 +875,10 @@
 ;;;   inserted into the first vector.  Again, the dynamic order of
 ;;;   application of F is unspecified, so it is dangerous for F to
 ;;;   manipulate the first VECTOR.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead (see 133.sld)
+
+#;
 (define (vector-map! f vec . vectors)
   (let ((f   (check-type procedure? f   vector-map!))
         (vec (check-type vector?    vec vector-map!)))
@@ -871,6 +898,10 @@
 ;;;   contrast with VECTOR-MAP, F is reliably applied to each
 ;;;   subsequent elements, starting at index 0 from left to right, in
 ;;;   the vectors.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define vector-for-each
   (letrec ((for-each1
             (lambda (f vec i len)
@@ -1154,6 +1185,10 @@
 ;;;   is 0, and END, whose default is the length of VECTOR, with VALUE.
 ;;;
 ;;; This one can probably be made really fast natively.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector-fill! vec value . maybe-start+end)
    (let-vector-start+end vector-fill! vec maybe-start+end (start end)
      (do ((i start (+ i 1)))
@@ -1165,6 +1200,10 @@
 ;;;   Copy the values in the locations in [SSTART,SEND) from SOURCE to
 ;;;   to TARGET, starting at TSTART in TARGET.
 ;;; [wdc] Corrected to allow 0 <= sstart <= send <= (vector-length source).
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector-copy! target tstart source . maybe-sstart+send)
   (define (doit! sstart send source-length)
     (let ((tstart (check-type nonneg-int? tstart vector-copy!))
@@ -1255,6 +1294,10 @@
 ;;;   [R5RS+] Produce a list containing the elements in the locations
 ;;;   between START, whose default is 0, and END, whose default is the
 ;;;   length of VECTOR, from VECTOR.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector->list vec . maybe-start+end)
   (let-vector-start+end vector->list vec maybe-start+end (start end)
     (do ((i (- end 1) (- i 1))
@@ -1283,6 +1326,10 @@
 ;;; and causes - to fail as well.  Given a LENGTH* that computes the
 ;;; length of a list's cycle, this wouldn't diverge, and would work
 ;;; great for circular lists.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (list->vector lst . maybe-start+end)
    ;; We can't use LET-VECTOR-START+END, because we're using the
    ;; bounds of a _list_, not a vector.
@@ -1348,6 +1395,10 @@
 ;;;   Produce a string containing the elements in the locations
 ;;;   between START, whose default is 0, and END, whose default is the
 ;;;   length of VECTOR, from VECTOR.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (vector->string vec . maybe-start+end)
   (let* ((len (vector-length vec))
          (start (if (null? maybe-start+end) 0 (car maybe-start+end)))
@@ -1367,6 +1418,10 @@
 ;;;   Produce a vector containing the elements in STRING
 ;;;   between START, whose default is 0, & END,
 ;;;   whose default is the length of STRING, from STRING.
+;;;
+;;; [wdc] commented out to use R7RS procedure instead
+
+#;
 (define (string->vector str . maybe-start+end)
   (let* ((len (string-length str))
          (start (if (null? maybe-start+end) 0 (car maybe-start+end)))
