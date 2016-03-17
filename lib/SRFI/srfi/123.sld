@@ -6,10 +6,14 @@
   (import
    (except (scheme base) set! define-record-type)
    (scheme case-lambda)
-   (r6rs hashtables)
    (srfi 1)
    (srfi 17)
    (srfi 31))
+  (cond-expand
+   ((library (r6rs hashtables))
+    (import (r6rs hashtables)))
+   ((library (rnrs hashtables))
+    (import (rnrs hashtables))))
   (cond-expand
    ;; Favor SRFI-99.
    ((library (srfi 99))
