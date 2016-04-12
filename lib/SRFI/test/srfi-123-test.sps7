@@ -24,9 +24,13 @@
 (define-library (tests srfi-123)
   (export run-tests)
   (import (except (scheme base) define-record-type set!)
-          (r6rs hashtables)
           (srfi 64)
           (srfi 123))
+  (cond-expand
+   ((library (r6rs hashtables))
+    (import (r6rs hashtables)))
+   ((library (rnrs hashtables))
+    (import (rnrs hashtables))))
   (cond-expand
    ((library (srfi 99))
     (import (srfi 99)))
