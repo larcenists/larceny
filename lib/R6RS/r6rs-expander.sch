@@ -850,7 +850,7 @@
       (cond ((assq (binding-name binding) *macro-table*) => cdr)
             (else
              (syntax-violation
-              #f "Reference to macro keyword out of context" t))))
+              #f "Undefined variable or reference to macro keyword out of context" t))))
 
     ;; Registering macro.
 
@@ -1956,7 +1956,7 @@
                    (import-libraries-for-expand imported-libraries (map not imported-libraries) 0)
                    (if (eq? library-type 'define-library)              ; [R7RS]
                        (env-import! keyword
-                                    (make-library-language)
+                                    (make-r7rs-library-language)
                                     *usage-env*))
                    (env-import! keyword imports *usage-env*)
 
@@ -2883,16 +2883,56 @@
     ;;
     ;;===================================================================
 
-    (define library-language-names
-      `(program library export import for run expand meta only
-                except prefix rename primitives >= <= and or not
-                define-library begin cond-expand                       ; [R7RS]
-                include include-ci include-library-declarations))      ; [R7RS]
+    ;; [R7RS]  These definitions have been refactored for R7RS.
 
-    (define (make-library-language)
+    (define library-language-names:common
+      `(program library define-library
+                export import
+                only except prefix rename primitives))
+
+    (define library-language-names:r7rs-only
+      `(begin cond-expand                                              ; [R7RS]
+        include include-ci include-library-declarations))              ; [R7RS]
+
+    (define library-language-names:r6rs-only
+      `(for run expand meta
+        >= <= and or not))
+
+    (define library-language-names
+      (append library-language-names:common
+              library-language-names:r7rs-only
+              library-language-names:r6rs-only))
+
+    (define r7rs-library-language-names
+      (append library-language-names:common
+              library-language-names:r7rs-only))
+
+    (define r6rs-library-language-names
+      (append library-language-names:common
+              library-language-names:r6rs-only))
+
+    (define (make-a-specific-library-language names)
       (map (lambda (name)
              (cons name (make-binding 'macro name '(0) #f '())))
-           library-language-names))
+           names))
+
+    ;; FIXME: unused
+
+    (define (make-minimal-library-language)
+      (make-a-specific-library-language library-language-names:common))
+
+    (define (make-library-language)
+      (make-a-specific-library-language library-language-names))
+
+    (define (make-r7rs-library-language)
+      (make-a-specific-library-language r7rs-library-language-names))
+
+    ;; FIXME: unused
+
+    (define (make-r6rs-library-language)
+      (make-a-specific-library-language r6rs-library-language-names))
+
+    ;; [R7RS]  End of refactored definitions for R7RS.
 
     ;;===================================================================
     ;;
