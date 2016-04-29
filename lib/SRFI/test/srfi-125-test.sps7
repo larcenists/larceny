@@ -30,8 +30,7 @@
         (scheme process-context) ; for exit
         (srfi 114 comparators)
         (r6rs sorting)
-        (in-progress hash tables)
-        (in-progress hash bimaps))
+        (srfi 125))
 
 (define (writeln . xs)
   (for-each write xs)
@@ -755,6 +754,8 @@
        (hash-table-ref ht-default "this key won't be present"))
       'key-not-found)
 
+#|
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
 ;;; Test of bimaps.
@@ -1418,6 +1419,8 @@
                       (make-bimap (make-hash-table string-comparator)
                                   string-comparator)))
       #t)
+
+|#
 
 (displayln "Done.")
 

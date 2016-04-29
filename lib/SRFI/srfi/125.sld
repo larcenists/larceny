@@ -1,4 +1,4 @@
-(define-library (in-progress hash tables)
+(define-library (srfi 125)
 
   (export
 
@@ -72,6 +72,6 @@
    (else
     (begin (define string-ci=? string=?))))
 
-  (include "tables.body.scm")
+  (include "125.body.scm")
 
   ) ; eof
