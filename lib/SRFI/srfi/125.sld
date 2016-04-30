@@ -64,9 +64,10 @@
 
   (import (scheme base)
           (scheme write) ; for warnings about deprecated features
-          (except (r6rs hashtables) string-hash string-ci-hash symbol-hash) ; FIXME
-;         (srfi 114 comparators)
-          (srfi 128))
+          (srfi 126)
+          (except (srfi 128)
+                  string-hash string-ci-hash symbol-hash hash-salt) ; FIXME
+          )
 
   (cond-expand
    ((library (scheme char))

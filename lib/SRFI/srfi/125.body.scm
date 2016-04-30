@@ -198,9 +198,8 @@
 ;;; that permission?  This implementation uses the superior
 ;;; solution provided by SRFI 126 whenever:
 ;;;
-;;;     A comparator is passed as first argument, its equality
-;;;     predicate is eq? or eqv?, and its hash function is the
-;;;     default-hash function of SRFI 128.
+;;;     A comparator is passed as first argument and its equality
+;;;     predicate is eq? or eqv?.
 ;;;
 ;;;     The eq? or eqv? procedure is passed as first argument
 ;;;     (which is a deprecated usage).
