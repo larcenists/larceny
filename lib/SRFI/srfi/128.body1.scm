@@ -163,7 +163,7 @@
     ((nan? obj) (%salt%))
     ((and (infinite? obj) (positive? obj)) (* 2 (%salt%)))
     ((infinite? obj) (* (%salt%) 3))
-    ((real? obj) (abs (exact obj)))
+    ((real? obj) (abs (exact (round obj))))
     (else (+ (number-hash (real-part obj)) (number-hash (imag-part obj))))))
 
 ;; Lexicographic ordering of complex numbers
@@ -349,7 +349,7 @@
           (len (length obj)))
       (let loop ((n 0))
         (cond
-          ((> n len) (acc))
+          ((= n len) (acc))
           (else (acc (ref obj n)) (loop (+ n 1))))))))
 
 (define (string-hash obj)
