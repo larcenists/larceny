@@ -13,22 +13,51 @@
 
 ;;; Private stuff, not exported.
 
+;;; Ten of the SRFI 125 procedures are deprecated, and another
+;;; two allow alternative arguments that are deprecated.
+
+(define (issue-deprecated-warnings?) #t)
+
+(define (issue-warning-deprecated name-of-deprecated-misfeature)
+  (if (not (memq name-of-deprecated-misfeature already-warned))
+      (begin
+       (set! already-warned
+             (cons name-of-deprecated-misfeature already-warned))
+       (if (issue-deprecated-warnings?)
+           (let ((out (current-error-port)))
+             (display "WARNING: " out)
+             (display name-of-deprecated-misfeature out)
+             (newline out)
+             (display "    is deprecated by SRFI 125.  See" out)
+             (newline out)
+             (display "    " out)
+             (display url:deprecated out)
+             (newline out))))))
+
+(define url:deprecated
+  "http://srfi.schemers.org/srfi-125/srfi-125.html")
+
+; List of deprecated features for which a warning has already
+; been issued.
+
+(define already-warned '())
+
 ;;; Comparators contain a type test predicate, which implementations
 ;;; of the hash-table-set! procedure can use to reject invalid keys.
 ;;; That's hard to do without sacrificing interoperability with R6RS
-;;; and/or SRFI 69 hash tables.
+;;; and/or SRFI 69 and/or SRFI 126 hash tables.
 ;;;
 ;;; Full interoperability means the hash tables implemented here are
-;;; interchangeable with the R6RS hashtables used to implement them.
-;;; SRFI 69 and R6RS hashtables don't contain comparators, so any
-;;; association between a hash table and its comparator would have to
-;;; be maintained outside the representation of hash tables themselves,
+;;; interchangeable with the SRFI 126 hashtables used to implement them.
+;;; SRFI 69 and R6RS and SRFI 126 hashtables don't contain comparators,
+;;; so any association between a hash table and its comparator would have
+;;; to be maintained outside the representation of hash tables themselves,
 ;;; which is problematic unless weak pointers are available.
 ;;;
 ;;; Not all of the hash tables implemented here will have comparators
 ;;; associated with them anyway, because an equivalence procedure
 ;;; and hash function can be used to create a hash table instead of
-;;; a comparator.
+;;; a comparator (although that usage is deprecated by SRFI 125).
 ;;;
 ;;; One way to preserve interoperability while enforcing a comparator's
 ;;; type test is to incorporate that test into a hash table's hash
@@ -37,11 +66,13 @@
 ;;;
 ;;;     If the type test is slow, then hashing would also be slower.
 ;;;
-;;;     The R6RS and SRFI 69 APIs (but not the API implemented here)
-;;;     allow extraction of a hash function from some hash tables.
+;;;     The R6RS, SRFI 69, and SRFI 126 APIs allow extraction of
+;;;     a hash function from some hash tables.
 ;;;     Some programmers might expect that hash function to be the
 ;;;     hash function encapsulated by the comparator (in the sense
-;;;     of eq?, perhaps) even though this API makes no such guarantee.
+;;;     of eq?, perhaps) even though this API makes no such guarantee
+;;;     (and extraction of that hash function from an existing hash
+;;;     table can only be done by calling a deprecated procedure).
 
 ;;; If %enforce-comparator-type-tests is true, then make-hash-table,
 ;;; when passed a comparator, will use a hash function that enforces
@@ -53,7 +84,7 @@
 ;;; by the comparator's type test.
 
 (define (%comparator-hash-function comparator)
-  (let ((okay? (comparator-type-test-procedure comparator))
+  (let ((okay? (comparator-type-test-predicate comparator))
         (hash-function (comparator-hash-function comparator)))
     (if %enforce-comparator-type-tests
         (lambda (x . rest)
@@ -95,13 +126,16 @@
              (error-object-irritants obj))
        #t))
 
-;;; FIXME: thread-safe, weak-keys, and weak-values are not supported
-;;; by this portable reference implementation.
+;;; FIXME: thread-safe, weak-keys, ephemeral-keys, weak-values,
+;;; and ephemeral-values are not supported by this portable
+;;; reference implementation.
 
 (define (%check-optional-arguments procname args)
   (if (or (memq 'thread-safe args)
           (memq 'weak-keys args)
-          (memq 'weak-values args))
+          (memq 'weak-values args)
+          (memq 'ephemeral-keys args)
+          (memq 'ephemeral-values args))
       (error (string-append (symbol->string procname)
                             ": unsupported optional argument(s)")
              args)))
@@ -117,77 +151,92 @@
 ;;; The first argument can be a comparator or an equality predicate.
 ;;;
 ;;; If the first argument is a comparator, any remaining arguments
-;;; are implementation-dependent, but "an error should be signalled"
-;;; if those arguments include any of the symbols thread-safe,
-;;; weak-keys, or weak-values.
+;;; are implementation-dependent, but a non-negative exact integer
+;;; should be interpreted as an initial capacity and the symbols
+;;; thread-safe, weak-keys, ephemeral-keys, weak-values, and
+;;; emphemeral-values should be interpreted specially.  (These
+;;; special symbols are distinct from the analogous special symbols
+;;; in SRFI 126.)
 ;;;
 ;;; If the first argument is not a comparator, then it had better
-;;; be an equality predicate.  If a second argument is present and
-;;; is a procedure, then it's a hash function.  If a second argument
-;;; is not a procedure, then it's an implementation-dependent
-;;; optional argument, as are all arguments beyond the second.
+;;; be an equality predicate (which is deprecated by SRFI 125).
+;;; If a second argument is present and is a procedure, then it's
+;;; a hash function (which is allowed only for the deprecated case
+;;; in which the first argument is an equality predicate).  If a
+;;; second argument is not a procedure, then it's some kind of
+;;; implementation-dependent optional argument, as are all arguments
+;;; beyond the second.
 ;;;
-;;; SRFI 114 allows the hash function of a comparator to return
-;;; different results for mutable objects following mutations of
-;;; those objects, but HashTablesCowan says "It is the programmer's
-;;; responsibility to ensure that if two objects are the same in the
-;;; sense of the equality predicate, then they return the same value
-;;; when passed to the hash function."  That means the programmer is
-;;; responsible for not using any comparators that don't have that
-;;; property.  In particular, the eq-comparator and eqv-comparator
-;;; specified by SRFI 114 are not guaranteed to have that property,
-;;; and the eq-comparator and eqv-comparator defined by the reference
-;;; implementation of SRFI 114 do not have that property.  That means
-;;; passing eq-comparator or eqv-comparator to make-hash-table is
-;;; likely to be an error.  There is no practical way to tell whether
-;;; eq-comparator and eqv-comparator have the required property, so
-;;; the implementation of make-hash-table below has special cases for
-;;; eq-comparator and eqv-comparator.
+;;; SRFI 128 defines make-eq-comparator, make-eqv-comparator, and
+;;; make-equal-comparator procedures whose hash function is the
+;;; default-hash procedure of SRFI 128, which is inappropriate
+;;; for use with eq? and eqv? unless the object being hashed is
+;;; never mutated.  Neither SRFI 125 nor 128 provide any way to
+;;; define a comparator whose hash function is truly compatible
+;;; with the use of eq? or eqv? as an equality predicate.
 ;;;
-;;; When a comparator is passed, HashTablesCowan says the hash
-;;; function is extracted from the comparator, but also says the
-;;; make-hash-table procedure can use implementation-dependent
-;;; hash functions when the equality predicate is a refinement
-;;; of the equal? predicate.  That sanctions the special casing
-;;; of eq-comparator and eqv-comparator.
+;;; That would make SRFI 125 almost as bad as SRFI 69 if not for
+;;; the following paragraph of SRFI 125:
+;;;
+;;;     Implementations are permitted to ignore user-specified
+;;;     hash functions in certain circumstances. Specifically,
+;;;     if the equality predicate, whether passed as part of a
+;;;     comparator or explicitly, is more fine-grained (in the
+;;;     sense of R7RS-small section 6.1) than equal?, the
+;;;     implementation is free — indeed, is encouraged — to
+;;;     ignore the user-specified hash function and use something
+;;;     implementation-dependent. This allows the use of addresses
+;;;     as hashes, in which case the keys must be rehashed if
+;;;     they are moved by the garbage collector. Such a hash
+;;;     function is unsafe to use outside the context of
+;;;     implementation-provided hash tables. It can of course be
+;;;     exposed by an implementation as an extension, with
+;;;     suitable warnings against inappropriate uses.
+;;;
+;;; That gives implementations permission to do something more
+;;; useful, but when should implementations take advantage of
+;;; that permission?  This implementation uses the superior
+;;; solution provided by SRFI 126 whenever:
+;;;
+;;;     A comparator is passed as first argument, its equality
+;;;     predicate is eq? or eqv?, and its hash function is the
+;;;     default-hash function of SRFI 128.
+;;;
+;;;     The eq? or eqv? procedure is passed as first argument
+;;;     (which is a deprecated usage).
 
 (define (make-hash-table comparator/equiv . rest)
   (if (comparator? comparator/equiv)
-      (begin (%check-optional-arguments 'make-hash-table rest)
-             (cond ((equal? comparator/equiv eq-comparator)
-                    (make-eq-hashtable))
-                   ((equal? comparator/equiv eqv-comparator)
-                    (make-eqv-hashtable))
-                   (else
-                    (let ((equiv
-                           (comparator-equality-predicate comparator/equiv))
-                          (hash-function
-                           (%comparator-hash-function comparator/equiv)))
-                      (make-hashtable hash-function equiv)))))
-      (let ((equiv comparator/equiv)
-            (hash-function (if (and (not (null? rest))
-                                    (procedure? (car rest)))
-                               (car rest)
-                               #f)))
-	(%check-optional-arguments 'make-hash-table
-                                   (if hash-function (cdr rest) rest))
-        (cond ((equal? equiv eq?)
-               (make-eq-hashtable))
-              ((equal? equiv eqv?)
-               (make-eqv-hashtable))
-              (hash-function
-               (make-hashtable hash-function equiv))
-              ((equal? equiv equal?)
-               (make-hashtable equal-hash equiv))
-              ((equal? equiv string=?)
-               (make-hashtable string-hash equiv))
-              ((equal? equiv string-ci=?)
-               (make-hashtable string-ci-hash equiv))
-              ((equal? equiv symbol=?)
-               (make-hashtable symbol-hash equiv))
-              (else
-               (error "make-hash-table: unable to infer hash function"
-                      equiv))))))
+      (let ((equiv (comparator-equality-predicate comparator/equiv))
+            (hash-function (%comparator-hash-function comparator/equiv)))
+        (%make-hash-table equiv hash-function rest))
+      (let* ((equiv comparator/equiv)
+             (hash-function (if (and (not (null? rest))
+                                     (procedure? (car rest)))
+                                (car rest)
+                                #f))
+             (rest (if hash-function (cdr rest) rest)))
+        (%make-hash-table equiv hash-function rest))))
+
+(define (%make-hash-table equiv hash-function opts)
+  (%check-optional-arguments 'make-hash-table opts)
+  (cond ((equal? equiv eq?)
+         (make-eq-hashtable))
+        ((equal? equiv eqv?)
+         (make-eqv-hashtable))
+        (hash-function
+         (make-hashtable hash-function equiv))
+        ((equal? equiv equal?)
+         (make-hashtable equal-hash equiv))
+        ((equal? equiv string=?)
+         (make-hashtable string-hash equiv))
+        ((equal? equiv string-ci=?)
+         (make-hashtable string-ci-hash equiv))
+        ((equal? equiv symbol=?)
+         (make-hashtable symbol-hash equiv))
+        (else
+         (error "make-hash-table: unable to infer hash function"
+                equiv))))
 
 ;;; FIXME: assumes hash-table-set! goes right to left.
 

@@ -28,7 +28,7 @@
         (scheme char)
         (scheme write)
         (scheme process-context) ; for exit
-        (srfi 114 comparators)
+        (srfi 128)
         (r6rs sorting)
         (srfi 125))
 
@@ -72,6 +72,30 @@
   (syntax-rules ()
    ((_ expr)
     (or (not expr) (fail 'expr)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Transition from SRFI 114 to SRFI 128.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define default-comparator (make-default-comparator))
+
+;;; SRFI 128 says the following definition will work, but that's
+;;; an error in SRFI 128; the hash function produce non-integers.
+
+(define number-comparator
+  (make-comparator real? = < (lambda (x) (exact (abs x)))))
+
+(define string-comparator
+  (make-comparator string? string=? string<? string-hash))
+
+(define string-ci-comparator
+  (make-comparator string? string-ci=? string-ci<? string-ci-hash))
+
+(define eq-comparator (make-eq-comparator))
+
+(define eqv-comparator (make-eqv-comparator))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
