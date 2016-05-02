@@ -233,6 +233,7 @@
                                 (car rest)
                                 #f))
              (rest (if hash-function (cdr rest) rest)))
+        (issue-warning-deprecated 'srfi-69-style:make-hash-table)
         (%make-hash-table equiv hash-function rest))))
 
 (define (%make-hash-table equiv hash-function opts)
@@ -289,6 +290,9 @@
              (loop (successor seed))))))))
 
 (define (alist->hash-table alist comparator/equiv . rest)
+  (if (and (not (null? rest))
+           (procedure? (car rest)))
+      (issue-warning-deprecated 'srfi-69-style:alist->hash-table))
   (let ((ht (apply make-hash-table comparator/equiv rest))
         (entries (reverse alist)))
     (for-each (lambda (entry)
@@ -584,17 +588,19 @@
      (map proc keys vals))))
 
 (define (hash-table-fold proc init ht)
-  (call-with-values
-   (lambda () (hash-table-entries ht))
-   (lambda (keys vals)
-     (let loop ((keys keys)
-                (vals vals)
-                (x    init))
-       (if (null? keys)
-           x
-           (loop (cdr keys)
-                 (cdr vals)
-                 (proc (car keys) (car vals) x)))))))
+  (if (hashtable? proc)
+      (deprecated:hash-table-fold proc init ht)
+      (call-with-values
+       (lambda () (hash-table-entries ht))
+       (lambda (keys vals)
+         (let loop ((keys keys)
+                    (vals vals)
+                    (x    init))
+           (if (null? keys)
+               x
+               (loop (cdr keys)
+                     (cdr vals)
+                     (proc (car keys) (car vals) x))))))))
 
 (define (hash-table-prune! proc ht)
   (hash-table-for-each (lambda (key val)
@@ -685,5 +691,57 @@
          (hashtable-set! ht1 key2 val2)))
    ht2)
   ht1)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; The following procedures are deprecated by SRFI 125, but must
+;;; be exported nonetheless.
+;;;
+;;; Programs that import the (srfi 125) library must rename the
+;;; deprecated string-hash and string-ci-hash procedures to avoid
+;;; conflict with the string-hash and string-ci-hash procedures
+;;; exported by SRFI 126 and SRFI 128.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (deprecated:hash obj . rest)
+  (issue-warning-deprecated 'hash)
+  (default-hash obj))
+
+(define (deprecated:string-hash obj . rest)
+  (issue-warning-deprecated 'srfi-125:string-hash)
+  (string-hash obj))
+
+(define (deprecated:string-ci-hash obj . rest)
+  (issue-warning-deprecated 'srfi-125:string-ci-hash)
+  (string-ci-hash obj))
+
+(define (deprecated:hash-by-identity obj . rest)
+  (issue-warning-deprecated 'hash-by-identity)
+  (deprecated:hash obj))
+
+(define (deprecated:hash-table-equivalence-function ht)
+  (issue-warning-deprecated 'hash-table-equivalence-function)
+  (hashtable-equivalence-function ht))
+
+(define (deprecated:hash-table-hash-function ht)
+  (issue-warning-deprecated 'hash-table-hash-function)
+  (hashtable-hash-function ht))
+
+(define (deprecated:hash-table-exists? ht key)
+  (issue-warning-deprecated 'hash-table-exists?)
+  (hash-table-contains? ht key))
+
+(define (deprecated:hash-table-walk ht proc)
+  (issue-warning-deprecated 'hash-table-walk)
+  (hash-table-for-each proc ht))
+
+(define (deprecated:hash-table-fold ht proc seed)
+  (issue-warning-deprecated 'srfi-69-style:hash-table-fold)
+  (hash-table-fold proc seed ht))
+
+(define (deprecated:hash-table-merge! ht1 ht2)
+  (issue-warning-deprecated 'hash-table-merge!)
+  (hash-table-union! ht1 ht2))
 
 ; eof

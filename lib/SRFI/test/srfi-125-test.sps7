@@ -30,7 +30,9 @@
         (scheme process-context) ; for exit
         (srfi 128)
         (r6rs sorting)
-        (srfi 125))
+        (rename (srfi 125)
+                (string-hash    deprecated:string-hash)
+                (string-ci-hash deprecated:string-ci-hash)))
 
 (define (writeln . xs)
   (for-each write xs)
@@ -84,8 +86,12 @@
 ;;; SRFI 128 says the following definition will work, but that's
 ;;; an error in SRFI 128; the hash function produce non-integers.
 
+#;
 (define number-comparator
   (make-comparator real? = < (lambda (x) (exact (abs x)))))
+
+(define number-comparator
+  (make-comparator real? = < (lambda (x) (exact (abs (round x))))))
 
 (define string-comparator
   (make-comparator string? string=? string<? string-hash))
@@ -866,6 +872,136 @@
               (else 'key-not-found))
        (hash-table-ref ht-default "this key won't be present"))
       'key-not-found)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Desultory tests of deprecated procedures and usages.
+;;; Deprecated usage of make-hash-table and alist->hash-table
+;;; has already been tested above.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(test (let* ((x (list 1 2 3))
+             (y (cons 1 (cdr x)))
+             (h1 (hash x))
+             (h2 (hash y)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x "abcd")
+             (y (string-append "ab" "cd"))
+             (h1 (deprecated:string-hash x))
+             (h2 (deprecated:string-hash y)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x "Hello There!")
+             (y "hello THERE!")
+             (h1 (deprecated:string-ci-hash x))
+             (h2 (deprecated:string-ci-hash y)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x '#(a "bcD" #\c (d 2.718) -42 #u8() #() #u8(19 20)))
+             (y x)
+             (h1 (hash-by-identity x))
+             (h2 (hash-by-identity y)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x (list 1 2 3))
+             (y (cons 1 (cdr x)))
+             (h1 (hash x 60))
+             (h2 (hash y 60)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x "abcd")
+             (y (string-append "ab" "cd"))
+             (h1 (deprecated:string-hash x 97))
+             (h2 (deprecated:string-hash y 97)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x "Hello There!")
+             (y "hello THERE!")
+             (h1 (deprecated:string-ci-hash x 101))
+             (h2 (deprecated:string-ci-hash y 101)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let* ((x '#(a "bcD" #\c (d 2.718) -42 #u8() #() #u8(19 20)))
+             (y x)
+             (h1 (hash-by-identity x 102))
+             (h2 (hash-by-identity y 102)))
+        (list (exact-integer? h1)
+              (exact-integer? h2)
+              (= h1 h2)))
+      '(#t #t #t))
+
+(test (let ((f (hash-table-equivalence-function ht-fixnum)))
+        (if (procedure? f)
+            (f 34 34)
+            #t))
+      #t)
+
+(test (let ((f (hash-table-hash-function ht-fixnum)))
+        (if (procedure? f)
+            (= (f 34) (f 34))
+            #t))
+      #t)
+
+(test (map (lambda (key) (hash-table-exists? ht-fixnum2 key))
+           '(0 1 2 3 4 5 6 7 8 9 10))
+      '(#t #t #f #f #t #f #f #f #f #t #f))
+
+(test (let ((n 0))
+        (hash-table-walk ht-fixnum2
+                         (lambda (key val) (set! n (+ n key))))
+        n)
+      (apply +
+             (map (lambda (x) (* x x))
+                  '(0 1 2 3 4 5 6 7 8 9))))
+
+(test (list-sort < (hash-table-fold ht-fixnum2
+                                    (lambda (key val acc)
+                                      (cons key acc))
+                                    '()))
+      '(0 1 4 9 16 25 36 49 64 81))
+
+(test (let ((ht (hash-table-copy ht-fixnum2 #t))
+            (ht2 (hash-table number-comparator
+                             .25 .5 64 9999 81 9998 121 -11 144 -12)))
+        (hash-table-merge! ht ht2)
+        (list-sort (lambda (x y) (< (car x) (car y)))
+                   (hash-table->alist ht)))
+      '((0 . 0)
+        (.25 . .5)
+        (1 . 1)
+        (4 . 2)
+        (9 . 3)
+        (16 . 4)
+        (25 . 5)
+        (36 . 6)
+        (49 . 7)
+        (64 . 8)
+        (81 . 9)
+        (121 . -11)
+        (144 . -12)))
 
 #|
 

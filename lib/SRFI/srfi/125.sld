@@ -65,6 +65,20 @@
    hash-table-difference!
    hash-table-xor!
 
+   ;; The following procedures are deprecated by SRFI 125:
+
+   (rename deprecated:hash                     hash)
+   (rename deprecated:string-hash              string-hash)
+   (rename deprecated:string-ci-hash           string-ci-hash)
+   (rename deprecated:hash-by-identity         hash-by-identity)
+
+   (rename deprecated:hash-table-equivalence-function
+                                               hash-table-equivalence-function)
+   (rename deprecated:hash-table-hash-function hash-table-hash-function)
+   (rename deprecated:hash-table-exists?       hash-table-exists?)
+   (rename deprecated:hash-table-walk          hash-table-walk)
+   (rename deprecated:hash-table-merge!        hash-table-merge!)
+
    )
 
   (import (scheme base)
