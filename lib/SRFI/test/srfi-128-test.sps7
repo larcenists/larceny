@@ -551,6 +551,20 @@
     (test-assert (not (negative? (number-hash -3))))
     (test-assert (exact-integer? (number-hash 3.0)))
     (test-assert (not (negative? (number-hash 3.0))))
+    (test-assert (exact-integer? (number-hash 3.47)))
+    (test-assert (not (negative? (number-hash 3.47))))
+    (test-assert (exact-integer? (default-hash '())))
+    (test-assert (not (negative? (default-hash '()))))
+    (test-assert (exact-integer? (default-hash '(a "b" #\c #(dee) 2.718))))
+    (test-assert (not (negative? (default-hash '(a "b" #\c #(dee) 2.718)))))
+    (test-assert (exact-integer? (default-hash '#u8())))
+    (test-assert (not (negative? (default-hash '#u8()))))
+    (test-assert (exact-integer? (default-hash '#u8(8 6 3))))
+    (test-assert (not (negative? (default-hash '#u8(8 6 3)))))
+    (test-assert (exact-integer? (default-hash '#())))
+    (test-assert (not (negative? (default-hash '#()))))
+    (test-assert (exact-integer? (default-hash '#(a "b" #\c #(dee) 2.718))))
+    (test-assert (not (negative? (default-hash '#(a "b" #\c #(dee) 2.718)))))
 
   ) ; end comparators/hash
 

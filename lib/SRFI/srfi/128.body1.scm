@@ -290,7 +290,7 @@
       (let loop ((obj obj))
         (cond
           ((empty? obj) (acc))
-          (else (acc (head obj)) (loop (tail obj))))))))
+          (else (acc (elem-hash (head obj))) (loop (tail obj))))))))
 
 
 ;;; Vector comparator
@@ -350,7 +350,7 @@
       (let loop ((n 0))
         (cond
           ((= n len) (acc))
-          (else (acc (ref obj n)) (loop (+ n 1))))))))
+          (else (acc (elem-hash (ref obj n))) (loop (+ n 1))))))))
 
 (define (string-hash obj)
   (let ((acc (make-hasher))
