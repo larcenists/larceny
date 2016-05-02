@@ -140,6 +140,24 @@
                             ": unsupported optional argument(s)")
              args)))
 
+;;; This was exported by an earlier draft of SRFI 125,
+;;; and is still used by hash-table=?
+
+(define (hash-table-every proc ht)
+  (call-with-values
+   (lambda () (hash-table-entries ht))
+   (lambda (keys vals)
+     (let loop ((keys keys)
+                (vals vals))
+       (if (null? keys)
+           #t
+           (let* ((key (car keys))
+                  (val (car vals))
+                  (x   (proc key val)))
+             (and x
+                  (loop (cdr keys)
+                        (cdr vals)))))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
 ;;; Exported procedures
@@ -247,7 +265,7 @@
     ht))
 
 ;;; Returns an immutable hash table.
-
+#;; FIXME
 (define (hash-table-tabulate comparator n proc)
   (let ((ht (make-hash-table comparator)))
     (do ((i 0 (+ i 1)))
@@ -359,28 +377,28 @@
   (for-each (lambda (key)
               (hashtable-delete! ht key))
             keys))
-
+#;; FIXME
 (define (hash-table-extend! ht key . rest)
   (let* ((not-found? (not (hashtable-contains? ht key)))
          (result (apply hash-table-ref ht key rest)))
     (if not-found?
         (hash-table-set! ht key result))
     result))
-
+#;; FIXME
 (define (hash-table-extend!/default ht key default)
   (let* ((not-found? (not (hashtable-contains? ht key)))
          (result (hashtable-ref ht key default)))
     (if not-found?
         (hash-table-set! ht key result))
     result))
-
+#;; FIXME
 (define (hash-table-replace! ht key . rest)
   (let* ((found? (hashtable-contains? ht key))
          (result (apply hash-table-ref ht key rest)))
     (if found?
         (hash-table-set! ht key result))
     result))
-
+#;; FIXME
 (define (hash-table-replace!/default ht key . rest)
   (let* ((found? (hashtable-contains? ht key))
          (result (apply hash-table-ref ht key rest)))
@@ -411,7 +429,7 @@
           (else
            (hashtable-set! ht key (cdr x))
            (car x)))))
-
+#;; FIXME
 (define (hash-table-search! ht key failure success)
   (let ((x (hashtable-ref ht key %not-found)))
     (if (eq? x %not-found)
@@ -474,7 +492,7 @@
              (loop (cdr keys)
                    (cdr vals)
                    (if x (+ n 1) n))))))))
-
+#;; FIXME
 (define (hash-table-any proc ht)
   (call-with-values
    (lambda () (hash-table-entries ht))
@@ -489,7 +507,7 @@
              (or x
                  (loop (cdr keys)
                        (cdr vals)))))))))
-
+#;; FIXME
 (define (hash-table-every proc ht)
   (call-with-values
    (lambda () (hash-table-entries ht))
@@ -520,7 +538,7 @@
             (hashtable-set! result key1 val1)))))
      ht)
     result))
-
+#;; FIXME
 (define (hash-table-map-values proc comparator ht)
   (let ((result (make-hash-table comparator)))
     (hash-table-for-each
@@ -543,7 +561,7 @@
   (hash-table-for-each (lambda (key val)
                          (hashtable-set! ht key (proc key val)))
                        ht))
-
+#;; FIXME
 (define (hash-table-collect proc ht)
   (call-with-values
    (lambda () (hash-table-entries ht))
@@ -562,14 +580,14 @@
            (loop (cdr keys)
                  (cdr vals)
                  (proc (car keys) (car vals) x)))))))
-
+#;; FIXME
 (define (hash-table-filter! proc ht)
   (hash-table-for-each (lambda (key val)
                          (if (not (proc key val))
                              (hashtable-delete! ht key)))
                        ht)
   ht)
-
+#;; FIXME
 (define (hash-table-remove! proc ht)
   (hash-table-for-each (lambda (key val)
                          (if (proc key val)
@@ -583,10 +601,13 @@
   (apply hashtable-copy ht rest))
 
 (define (hash-table->alist ht)
-  (hash-table-collect cons ht))
+  (call-with-values
+   (lambda () (hash-table-entries ht))
+   (lambda (keys vals)
+     (map cons keys vals))))
 
 ;;; Hash tables as functions.
-
+#;; FIXME
 (define (hash-table-accessor ht . rest)
   (cond ((null? rest)
          (lambda (key) (hash-table-ref ht key)))
@@ -597,7 +618,7 @@
          (let ((failure (car rest))
                (success (cadr rest)))
            (lambda (key) (hash-table-ref ht key failure success))))))
-
+#;; FIXME
 (define (hash-table-accessor/default ht default)
   (lambda (key) (hash-table-ref/default ht key default)))
 
