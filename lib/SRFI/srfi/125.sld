@@ -17,9 +17,7 @@
    hash-table-ref/default 
 
    hash-table-set!
-   hash-table-set-entries!       ; FIXME: listed in index but not specified
    hash-table-delete!
-   hash-table-delete-keys!       ; FIXME: listed in index but not specified
    hash-table-intern!
    hash-table-update!
    hash-table-update!/default

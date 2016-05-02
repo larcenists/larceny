@@ -354,9 +354,8 @@
              (list-sort < (hash-table-keys ht-fixnum)))
       '(121 144 169))
 
-(test (begin (hash-table-set-entries! ht-fixnum
-                                      '(0 25 1 4 9 16 25 36 49 64 81)
-                                      '(0 -5 1 2 3  4  5  6  7  8  9))
+(test (begin (hash-table-set! ht-fixnum
+                              0 0 1 1 4 2 9 3 16 4 25 5 36 6 49 7 64 8 81 9)
              (list-sort < (hash-table-keys ht-fixnum)))
       '(0 1 4 9 16 25 36 49 64 81 121 144 169))
 
@@ -374,7 +373,7 @@
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(-1 12 -1 0 -1 2 -1 4 -1 6 -1 8 -1))
 
-(test (begin (hash-table-delete-keys! ht-fixnum '(200 100 0 81 36))
+(test (begin (hash-table-delete! ht-fixnum 200 100 0 81 36)
              (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(-1 12 -1 -1 -1 2 -1 4 -1 -1 -1 8 -1))

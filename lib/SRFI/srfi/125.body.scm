@@ -339,18 +339,7 @@
                  (error "hash-table-set!: wrong number of arguments"
                         (cons ht rest))))))))
 
-;;; hash-table-set-entries! goes left-to-right instead of right-to-left
-;;; like hash-table-set!.
-
-(define (hash-table-set-entries! ht keys vals)
-  (define (htset! key val)
-    (hashtable-set! ht key val))
-  (for-each htset! keys vals))
-
 (define (hash-table-delete! ht . keys)
-  (hash-table-delete-keys! ht keys))
-
-(define (hash-table-delete-keys! ht keys)
   (for-each (lambda (key)
               (hashtable-delete! ht key))
             keys))
