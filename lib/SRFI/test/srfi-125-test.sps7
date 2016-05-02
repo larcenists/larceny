@@ -373,13 +373,35 @@
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(-1 12 -1 -1 -1 2 -1 4 -1 -1 -1 8 -1))
 
-(test (begin (hash-table-set! ht-fixnum 169 13)
-             (hash-table-set! ht-fixnum 121 11)
-             (hash-table-set! ht-fixnum   0  0)
-             (hash-table-set! ht-fixnum   1  1)
+(test (begin (hash-table-intern! ht-fixnum 169 (lambda () 13))
+             (hash-table-intern! ht-fixnum 121 (lambda () 11))
+             (hash-table-intern! ht-fixnum   0 (lambda ()  0))
+             (hash-table-intern! ht-fixnum   1 (lambda ()  1))
+             (hash-table-intern! ht-fixnum   1 (lambda () 99))
+             (hash-table-intern! ht-fixnum 121 (lambda () 66))
              (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(13 12 11 0 1 2 -1 4 -1 -1 -1 8 -1))
+
+(test (list-sort (lambda (v1 v2) (< (vector-ref v1 0) (vector-ref v2 0)))
+                 (hash-table-map->list vector ht-fixnum))
+      '(#(0 0) #(1 1) #(4 2) #(16 4) #(64 8) #(121 11) #(144 12) #(169 13)))
+
+(test (begin (hash-table-prune! (lambda (key val)
+                                  (and (odd? key) (> val 10)))
+                                ht-fixnum)
+             (list-sort (lambda (l1 l2)
+                          (< (car l1) (car l2)))
+                        (hash-table-map->list list ht-fixnum)))
+      '((0 0) (1 1) (4 2) (16 4) (64 8) #;(121 11) (144 12) #;(169 13)))
+
+(test (begin (hash-table-intern! ht-fixnum 169 (lambda () 13))
+             (hash-table-intern! ht-fixnum 144 (lambda () 9999))
+             (hash-table-intern! ht-fixnum 121 (lambda () 11))
+             (list-sort (lambda (l1 l2)
+                          (< (car l1) (car l2)))
+                        (hash-table-map->list list ht-fixnum)))
+      '((0 0) (1 1) (4 2) (16 4) (64 8) (121 11) (144 12) (169 13)))
 
 #| ; FIXME
 
@@ -390,7 +412,7 @@
              (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(-1 12 -1 -1 -1 2 -1 4 -1 -1 -1 8 -1))
-                 
+
 (test (begin (hash-table-extend! ht-fixnum 169 (lambda () 13))
              (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
@@ -478,9 +500,11 @@
 
 |#
 
-(test (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
-           '(169 144 121 0 1 4 9 16 25 36 49 64 81))
-      '(13 12 11 0 1 2 3 4 5 6 -1 8 -1))
+(test (begin (hash-table-set! ht-fixnum 36 6)
+             (hash-table-set! ht-fixnum 81 9)
+             (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
+                  '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
+      '(13 12 11 0 1 2 3 4 5 6 -1 8 9))
 
 #| ; FIXME
 (test (hash-table-search! ht-fixnum
@@ -530,6 +554,13 @@
 (test (begin (hash-table-set! ht-eq 'foo 13 'bar 14 'baz 18)
              (hash-table-size ht-eq))
       3)
+
+(test (let* ((ht (hash-table-empty-copy ht-eq))
+             (n0 (hash-table-size ht))
+             (ignored (hash-table-set! ht 'foo 13 'bar 14 'baz 18))
+             (n1 (hash-table-size ht)))
+        (list n0 n1 (hash-table=? default-comparator ht ht-eq)))
+      '(0 3 #t))
 
 (test (begin (hash-table-clear! ht-eq)
              (hash-table-size ht-eq))

@@ -18,9 +18,10 @@
    hash-table-ref/default 
 
    hash-table-set!
-   hash-table-set-entries!
+   hash-table-set-entries!       ; FIXME: listed in index but not specified
    hash-table-delete!
-   hash-table-delete-keys!
+   hash-table-delete-keys!       ; FIXME: listed in index but not specified
+   hash-table-intern!
 ;  hash-table-extend!
 ;  hash-table-extend!/default
 ;  hash-table-replace!
@@ -45,12 +46,15 @@
 ;  hash-table-map-values
    hash-table-for-each
    hash-table-map!
+   hash-table-map->list
 ;  hash-table-collect
    hash-table-fold
+   hash-table-prune!
 ;  hash-table-filter!
 ;  hash-table-remove! 
 
    hash-table-copy
+   hash-table-empty-copy
    hash-table->alist 
 
 ;  hash-table-accessor
@@ -59,7 +63,8 @@
    hash-table-union!
    hash-table-intersection!
    hash-table-difference!
-   hash-table-xor! 
+   hash-table-xor!
+
    )
 
   (import (scheme base)

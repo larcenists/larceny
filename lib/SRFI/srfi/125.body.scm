@@ -377,6 +377,14 @@
   (for-each (lambda (key)
               (hashtable-delete! ht key))
             keys))
+
+(define (hash-table-intern! ht key failure)
+  (if (hashtable-contains? ht key)
+      (hash-table-ref ht key)
+      (let ((val (failure)))
+        (hash-table-set! ht key val)
+        val)))
+
 #;; FIXME
 (define (hash-table-extend! ht key . rest)
   (let* ((not-found? (not (hashtable-contains? ht key)))
@@ -538,6 +546,13 @@
             (hashtable-set! result key1 val1)))))
      ht)
     result))
+
+(define (hash-table-map->list proc ht)
+  (call-with-values
+   (lambda () (hash-table-entries ht))
+   (lambda (keys vals)
+     (map proc keys vals))))
+
 #;; FIXME
 (define (hash-table-map-values proc comparator ht)
   (let ((result (make-hash-table comparator)))
@@ -580,6 +595,13 @@
            (loop (cdr keys)
                  (cdr vals)
                  (proc (car keys) (car vals) x)))))))
+
+(define (hash-table-prune! proc ht)
+  (hash-table-for-each (lambda (key val)
+                         (if (proc key val)
+                             (hashtable-delete! ht key)))
+                       ht))
+
 #;; FIXME
 (define (hash-table-filter! proc ht)
   (hash-table-for-each (lambda (key val)
@@ -599,6 +621,13 @@
 
 (define (hash-table-copy ht . rest)
   (apply hashtable-copy ht rest))
+
+(define (hash-table-empty-copy ht)
+  (let* ((ht2 (hashtable-copy ht #t))
+         (ignored (hashtable-clear! ht2)))
+    (if (hashtable-mutable? ht)
+        ht2
+        (hashtable-copy ht2))))
 
 (define (hash-table->alist ht)
   (call-with-values
