@@ -29,7 +29,7 @@
         (scheme write)
         (scheme process-context) ; for exit
         (srfi 128)
-        (r6rs sorting)
+        (srfi 132)
         (rename (srfi 125)
                 (string-hash    deprecated:string-hash)
                 (string-ci-hash deprecated:string-ci-hash)))
