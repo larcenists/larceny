@@ -432,6 +432,7 @@ SRFI libraries:
     (srfi 121)                             ; generators
     (srfi 123)                             ; generic accessor/modifier operators
     (srfi 124)                             ; ephemerons
+    (srfi 125)                             ; hash tables
     (srfi 126)                             ; R6RS-based hashtables
     (srfi 127)                             ; lazy sequences
     (srfi 128)                             ; comparators (reduced)
@@ -463,7 +464,7 @@ R7RS or R6RS libraries or syntax (shown in parentheses):
     (srfi 60 integer-bits)                 ; see (rnrs arithmetic bitwise)
     (srfi 62)                              ; S-expression comments ( #; )
     (srfi 66 octet-vectors)                ; octet vectors (scheme base)
-    (srfi 69 basic-hash-tables)            ; hash tables (rnrs hashtables)
+    (srfi 69 basic-hash-tables)            ; hash tables (srfi 125), (srfi 126)
     (srfi 71 let)                          ; extensions of let, let*, letrec
     (srfi 74 blobs)                        ; see (rnrs bytevectors)
     (srfi 95 sorting-and-merging)          ; sorting and merging (rnrs sorting)
