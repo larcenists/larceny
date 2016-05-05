@@ -1,0 +1,48 @@
+;;; FIXME: this should become a real test program.
+
+;;; Regression test for ticket #633.
+
+(import (scheme base)
+        (scheme write)
+        (srfi 99))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
+(define-syntax def-foo
+  (syntax-rules ()
+    ((_ make pred (field accessor setter) ...)
+     (define-record-type foo
+       make
+       pred
+       (field accessor setter) ...))))
+
+;;; The following defines make-foo, foo?, foo-x, and foo-x-set!
+;;; without defining foo.
+
+(def-foo make-foo foo? (x foo-x foo-x-set!))
+
+(define a (make-foo 13))
+
+(or (equal? (map procedure? (list make-foo foo? foo-x foo-x-set!))
+            '(#t #t #t #t))
+    (fail 'definitions))
+
+(or (foo? a)
+    (fail 'predicate))
+
+(or (= 13 (foo-x a))
+    (fail 'accessor))
+
+(or (begin (foo-x-set! a 99)
+           (= 99 (foo-x a)))
+    (fail 'mutator))
+
+(writeln "Done.")
+
+; eof
