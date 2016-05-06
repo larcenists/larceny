@@ -387,6 +387,23 @@
            ((name expr (&etc ...))
             (begin expr (&etc ...))))))))
 
+   ;; These macros were contributed by Alex Shinn, who reported them
+   ;; as bugs in Larceny v0.98.
+
+   (define-syntax underscore-as-literal
+    (syntax-rules (_)
+     ((underscore-as-literal _)
+      'under)
+     ((underscore-as-literal x)
+      'other)))
+
+  (define-syntax ellipses-as-literal
+    (syntax-rules (...)
+     ((ellipses-as-literal ...)
+      'under)
+     ((ellipses-as-literal x)
+      'other)))
+
    ;; For a test of R7RS 5.3.1
 
    (define add3
@@ -1011,6 +1028,11 @@
      (test (let ((=> #f))
              (cond (#t => 'ok)))
            'ok)
+
+     (test (underscore-as-literal _) 'under)
+     (test (underscore-as-literal 5) 'other)
+     (test (ellipses-as-literal ...) 'under)
+     (test (ellipses-as-literal 6)   'other)
     
      ;;     syntax-error                            ; R7RS 4.3.3
 

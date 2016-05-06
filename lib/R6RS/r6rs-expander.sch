@@ -601,6 +601,7 @@
       (if binding
           (or (memv (source-level id)
                     (binding-levels binding))
+              #t ; FIXME: no for / meta / run / expand in R7RS         ; [r7rs]
               (syntax-violation
                "invalid reference"
                (string-append "Attempt to use binding of " (symbol->string (id-name id))
@@ -1580,7 +1581,7 @@
     (define (expand-syntax-case exp)
       (define (literal? x)
         (and (identifier? x)
-             (not (or (free=? x '_)
+#;           (not (or (free=? x '_)
                       (free=? x '...)))))
       (match exp
         ((- e ((? literal? literals) ___) clauses ___)
@@ -1615,14 +1616,23 @@
               `(let ((,temp ,input))
                  ,(process-match temp pattern sk fk)))
             (match pattern
-              ((syntax _)         sk)
-              ((? ellipsis? :::)  (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
-              (()                 `(if (null? ,input) ,sk ,fk))
               ((? literal? id)    `(if (and (ex:identifier? ,input)
                                             (ex:free-identifier=? ,input ,(syntax-reflect id)))
                                        ,sk
                                        ,fk))
+              ((syntax _)         sk)
+              ((? ellipsis? :::)  (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
+              (()                 `(if (null? ,input) ,sk ,fk))
               ((? identifier? id) `(let ((,(binding-name (binding id)) ,input)) ,sk))
+              ((p (? literal? id) . tail)
+               `(if (pair? ,input)
+                    ,(process-match `(car ,input)
+                                    p
+                                    (process-match `(cdr ,input)
+                                                   (cdr pattern)
+                                                   sk fk)
+                                    fk)
+                    ,fk))
               ((p (? ellipsis? :::))
                (let ((mapped-pvars (map (lambda (pvar) (binding-name (binding pvar)))
                                         (map car (pattern-vars p 0)))))
@@ -1679,6 +1689,9 @@
 
       (define (pattern-vars pattern level)
         (match pattern
+          ((? literal? -)               '())
+          ((p (? literal? -) . tail)    (append (pattern-vars p level)
+                                                (pattern-vars tail level)))
           ((p (? ellipsis? :::) . tail) (append (pattern-vars p (+ level 1))
                                                 (pattern-vars tail level)))
           ((p1 . p2)                    (append (pattern-vars p1 level)
@@ -1686,7 +1699,6 @@
           (#(ps ___)                    (pattern-vars ps level))
           ((? ellipsis? :::)            '())
           ((syntax _)                   '())
-          ((? literal? -)               '())
           ((? identifier? id)           (list (cons id level)))
           (-                            '())))
 
