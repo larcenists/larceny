@@ -379,23 +379,13 @@
            ((name expr (... ...))
             (begin expr (... ...))))))))
 
-   (cond-expand
-    (larceny
-     (define-syntax be-like-begin-alt
-       (syntax-rules ()
-        ((be-like-begin-alt name)
-         (define-syntax name
-           (syntax-rules ()
-            ((name exp (... ...))
-             "R7RS ellipsis feature is not yet implemented")))))))
-    ((not larceny)
-     (define-syntax be-like-begin-alt
-       (syntax-rules &etc ()
-        ((be-like-begin-alt name)
-         (define-syntax name
-           (syntax-rules ()
-             ((name expr (&etc ...))
-              (begin expr (&etc ...))))))))))
+   (define-syntax be-like-begin-alt
+     (syntax-rules &etc ()
+      ((be-like-begin-alt name)
+       (define-syntax name
+         (syntax-rules ()
+           ((name expr (&etc ...))
+            (begin expr (&etc ...))))))))
 
    ;; For a test of R7RS 5.3.1
 

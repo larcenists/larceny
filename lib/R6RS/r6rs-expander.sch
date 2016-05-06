@@ -350,6 +350,8 @@
          ;; expressions - if not, save lots of space by not including
          ;; env-table in object code
          (*syntax-reflected* #f)
+         ;; what counts as an ellipsis; see standard-ellipsis below    ; [r7rs]
+         (*ellipsis* #f)                                               ; [r7rs]
 
          ;;==========================================================================
          ;;
@@ -398,6 +400,8 @@
     (define id-transformer-envs (record-accessor :identifier 2))
     (define id-displacement     (record-accessor :identifier 3))
     (define id-maybe-library    (record-accessor :identifier 4))
+
+    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [r7rs]
 
     (define (id-library id)
       (or (id-maybe-library id)
@@ -1580,9 +1584,22 @@
                       (free=? x '...)))))
       (match exp
         ((- e ((? literal? literals) ___) clauses ___)
-         (let ((input (generate-guid 'input)))
-           `(let ((,input ,(expand e)))
-              ,(process-clauses clauses input literals))))))
+         (expand-syntax-case2 e standard-ellipsis literals clauses))   ; [r7rs]
+        ;; [r7rs]
+        ((- e (? identifier? ellipsis) ((? literal? literals) ___) clauses ___)
+         (expand-syntax-case2 e ellipsis literals clauses))))          ; [r7rs]
+
+    ;; [r7rs]  Some rewriting was needed to support the R7RS ellipsis feature.
+
+    (define (expand-syntax-case2 e ellipsis literals clauses)          ; [r7rs]
+      (fluid-let ((*ellipsis* ellipsis))                               ; [r7rs]
+        (let ((input (generate-guid 'input)))
+          `(let ((,input ,(expand e)))
+             ,(process-clauses clauses input literals)))))
+
+    (define (ellipsis? x)                                              ; [r7rs]
+      (and (identifier? x)                                             ; [r7rs]
+           (free-identifier=? x *ellipsis*)))                          ; [r7rs]
 
     (define (process-clauses clauses input literals)
 
@@ -1599,14 +1616,14 @@
                  ,(process-match temp pattern sk fk)))
             (match pattern
               ((syntax _)         sk)
-              ((syntax ...)       (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
+              ((? ellipsis? :::)  (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
               (()                 `(if (null? ,input) ,sk ,fk))
               ((? literal? id)    `(if (and (ex:identifier? ,input)
                                             (ex:free-identifier=? ,input ,(syntax-reflect id)))
                                        ,sk
                                        ,fk))
               ((? identifier? id) `(let ((,(binding-name (binding id)) ,input)) ,sk))
-              ((p (syntax ...))
+              ((p (? ellipsis? :::))
                (let ((mapped-pvars (map (lambda (pvar) (binding-name (binding pvar)))
                                         (map car (pattern-vars p 0)))))
                  (if (and (identifier? p)                                   ; +++
@@ -1630,7 +1647,7 @@
                                                        ',(map (lambda (ignore) '()) mapped-pvars)
                                                        (apply map list ,columns)))
                                             ,fk)))))))
-              ((p (syntax ...) . tail)
+              ((p (? ellipsis? :::) . tail)
                (let ((tail-length (dotted-length tail)))
                  `(if (>= (ex:dotted-length ,input) ,tail-length)
                       ,(process-match `(ex:dotted-butlast ,input ,tail-length)
@@ -1662,16 +1679,16 @@
 
       (define (pattern-vars pattern level)
         (match pattern
-          ((p (syntax ...) . tail) (append (pattern-vars p (+ level 1))
-                                           (pattern-vars tail level)))
-          ((p1 . p2)               (append (pattern-vars p1 level)
-                                           (pattern-vars p2 level)))
-          (#(ps ___)               (pattern-vars ps level))
-          ((syntax ...)            '())
-          ((syntax _)              '())
-          ((? literal? -)          '())
-          ((? identifier? id)      (list (cons id level)))
-          (-                       '())))
+          ((p (? ellipsis? :::) . tail) (append (pattern-vars p (+ level 1))
+                                                (pattern-vars tail level)))
+          ((p1 . p2)                    (append (pattern-vars p1 level)
+                                                (pattern-vars p2 level)))
+          (#(ps ___)                    (pattern-vars ps level))
+          ((? ellipsis? :::)            '())
+          ((syntax _)                   '())
+          ((? literal? -)               '())
+          ((? identifier? id)           (list (cons id level)))
+          (-                            '())))
 
       (define (process-clause clause input fk)
         (match clause
@@ -1720,7 +1737,7 @@
 
     (define (process-template template dim ellipses-quoted?)
       (match template
-        ((syntax ...)
+        ((? ellipsis? :::)
          (if (not ellipses-quoted?)
              (syntax-violation 'syntax "Invalid occurrence of ellipses in syntax template" template))
          (syntax-reflect template))
@@ -1738,13 +1755,13 @@
                            (syntax-violation 'syntax "Template dimension error (too few ...'s?)" id))))
                  (else
                   (syntax-reflect id)))))
-        (((syntax ...) p)                          ; Andre van Tonder gave us
+        (((? ellipsis? :::) p)                     ; Andre van Tonder gave us
          (if ellipses-quoted?                      ; this patch for ticket #637
              `(list ,(process-template (car template) dim #t)
                     ,(process-template p dim #t))
              (process-template p dim #t)))
         ((? (lambda (_) (not ellipses-quoted?))
-            (t (syntax ...) . tail))
+            (t (? ellipsis? :::) . tail))
          (let* ((head (segment-head template)) 
                 (vars
                  (map (lambda (mapping)
@@ -1801,7 +1818,7 @@
                                    dim))))
                    (cons (cons id binding) free)
                    free))))
-        ((t (syntax ...) . rest)
+        ((t (? ellipsis? :::) . rest)
          (free-meta-variables t 
                               dim 
                               (free-meta-variables (segment-tail template) dim free deeper)
@@ -1816,7 +1833,7 @@
 
     (define (segment-depth pattern)
       (match pattern
-        ((p (syntax ...) . rest)
+        ((p (? ellipsis? :::) . rest)
          (+ 1 (segment-depth (cdr pattern))))
         (- 0)))
       
@@ -1826,12 +1843,12 @@
       (let ((head
              (let recur ((pattern pattern))
                (match pattern
-                 ((h (syntax ...) (syntax ...) . rest)
+                 ((h (? ellipsis? :::) (? ellipsis? ::) . rest)
                   (cons h (recur (cdr pattern))))
-                 ((h (syntax ...) . rest)
+                 ((h (? ellipsis? :::) . rest)
                   (list h))))))
         (match head 
-          ((h (syntax ...) . rest)
+          ((h (? ellipsis? :::) . rest)
            head)
           (- (car head)))))   
 
@@ -1840,7 +1857,7 @@
     (define (segment-tail pattern)
       (let loop ((pattern (cdr pattern)))
         (match pattern
-          (((syntax ...) . tail)
+          (((? ellipsis? :::) . tail)
            (loop tail))
           (- pattern))))
 
@@ -2939,6 +2956,8 @@
     ;; Bootstrap library containing macros defined in this expander.
     ;;
     ;;===================================================================
+
+    (set! *ellipsis* standard-ellipsis)                                ; [r7rs]
 
     (ex:register-library!
      (let ((primitive-macro-mapping
