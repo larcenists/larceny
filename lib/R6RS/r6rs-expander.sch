@@ -350,8 +350,8 @@
          ;; expressions - if not, save lots of space by not including
          ;; env-table in object code
          (*syntax-reflected* #f)
-         ;; what counts as an ellipsis; see standard-ellipsis below    ; [r7rs]
-         (*ellipsis* #f)                                               ; [r7rs]
+         ;; what counts as an ellipsis; see standard-ellipsis below    ; [R7RS]
+         (*ellipsis* #f)                                               ; [R7RS]
 
          ;;==========================================================================
          ;;
@@ -401,7 +401,7 @@
     (define id-displacement     (record-accessor :identifier 3))
     (define id-maybe-library    (record-accessor :identifier 4))
 
-    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [r7rs]
+    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [R7RS]
 
     (define (id-library id)
       (or (id-maybe-library id)
@@ -601,7 +601,7 @@
       (if binding
           (or (memv (source-level id)
                     (binding-levels binding))
-              #t ; FIXME: no for / meta / run / expand in R7RS         ; [r7rs]
+              #t ; FIXME: no for / meta / run / expand in R7RS         ; [R7RS]
               (syntax-violation
                "invalid reference"
                (string-append "Attempt to use binding of " (symbol->string (id-name id))
@@ -1048,6 +1048,25 @@
 
     ;;=========================================================================
     ;;
+    ;; Cond-expand:
+    ;;
+    ;;=========================================================================
+
+    (define (expand-cond-expand body-type type form)
+      (check-cond-expand body-type type form)
+      (let ((form2 (cons (car form)
+                         (map (lambda (clause)
+                                (cons (syntax->datum (car clause))
+                                      (cdr clause)))
+                              (cdr form)))))
+        (larceny:cond-expand form2)))
+
+    (define (cond-expand-expander form)
+      (let ((exps (expand-cond-expand 'expression-sequence 'expression form)))
+        (expand-begin `(,(rename 'macro 'begin) ,@exps))))
+
+    ;;=========================================================================
+    ;;
     ;; Lambda:
     ;;
     ;;=========================================================================
@@ -1231,9 +1250,7 @@
                                     exports
                                     defs-okay?)))))))
                       ((cond-expand)
-                       (let* ((decls-raw
-                               (larceny:cond-expand (syntax->datum form)))
-                              (decls (datum->syntax (car form) decls-raw))
+                       (let* ((decls (expand-cond-expand body-type type form))
                               (wraps (map (lambda (decl)
                                             (make-wrap *usage-env* decl))
                                           decls)))
@@ -1504,6 +1521,18 @@
         include include-ci include-library-declarations
         cond-expand))
 
+    (define (check-cond-expand body-type type form)                    ; [R7RS]
+      (and (list? form)
+           (pair? form)
+           (pair? (cdr form))
+           (not (null? (filter (lambda (clause)
+                                 (not (and (list? clause)
+                                           (pair? clause))))
+                               (cdr form))))
+           (syntax-violation type
+                             "Invalid cond-expand syntax"
+                             form)))
+
     (define (check-expression-sequence body-type type form)
 #;
       (if (memq 'define-library (list body-type type))                  ; FIXME
@@ -1579,28 +1608,24 @@
     ;;=========================================================================
 
     (define (expand-syntax-case exp)
-      (define (literal? x)
-        (and (identifier? x)
-#;           (not (or (free=? x '_)
-                      (free=? x '...)))))
       (match exp
-        ((- e ((? literal? literals) ___) clauses ___)
-         (expand-syntax-case2 e standard-ellipsis literals clauses))   ; [r7rs]
-        ;; [r7rs]
-        ((- e (? identifier? ellipsis) ((? literal? literals) ___) clauses ___)
-         (expand-syntax-case2 e ellipsis literals clauses))))          ; [r7rs]
+        ((- e ((? identifier? literals) ___) clauses ___)
+         (expand-syntax-case2 e standard-ellipsis literals clauses))   ; [R7RS]
+        ((- e (? identifier? ellipsis) ((? identifier? literals) ___)  ; [R7RS]
+            clauses ___)                                               ; [R7RS]
+         (expand-syntax-case2 e ellipsis literals clauses))))          ; [R7RS]
 
-    ;; [r7rs]  Some rewriting was needed to support the R7RS ellipsis feature.
+    ;; [R7RS]  Some rewriting was needed to support the R7RS ellipsis feature.
 
-    (define (expand-syntax-case2 e ellipsis literals clauses)          ; [r7rs]
-      (fluid-let ((*ellipsis* ellipsis))                               ; [r7rs]
+    (define (expand-syntax-case2 e ellipsis literals clauses)          ; [R7RS]
+      (fluid-let ((*ellipsis* ellipsis))                               ; [R7RS]
         (let ((input (generate-guid 'input)))
           `(let ((,input ,(expand e)))
              ,(process-clauses clauses input literals)))))
 
-    (define (ellipsis? x)                                              ; [r7rs]
-      (and (identifier? x)                                             ; [r7rs]
-           (free-identifier=? x *ellipsis*)))                          ; [r7rs]
+    (define (ellipsis? x)                                              ; [R7RS]
+      (and (identifier? x)                                             ; [R7RS]
+           (free-identifier=? x *ellipsis*)))                          ; [R7RS]
 
     (define (process-clauses clauses input literals)
 
@@ -2969,7 +2994,7 @@
     ;;
     ;;===================================================================
 
-    (set! *ellipsis* standard-ellipsis)                                ; [r7rs]
+    (set! *ellipsis* standard-ellipsis)                                ; [R7RS]
 
     (ex:register-library!
      (let ((primitive-macro-mapping
@@ -3029,7 +3054,8 @@
     (register-macro! 'include-library-declarations                     ; [R7RS]
                      (make-expander invalid-form))                     ; [R7RS]
     (register-macro! 'begin (make-expander invalid-form))              ; [R7RS]
-    (register-macro! 'cond-expand (make-expander invalid-form))        ; [R7RS]
+    (register-macro! 'cond-expand                                      ; [R7RS]
+                     (make-expander cond-expand-expander))             ; [R7RS]
 
     ;;==========================================================================
     ;;

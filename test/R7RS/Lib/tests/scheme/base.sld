@@ -633,6 +633,16 @@
                     "12")))
       (else))
 
+     ;; The previous cond-expand is a top-level expression.
+     ;; A cond-expand can appear anywhere within an expression.
+
+     (test (+ 1
+              (cond-expand (larceny 2)
+                           ((not larceny) 3))
+              (cond-expand (larceny 3)
+                           (else 2)))
+           6)
+
      ;;     let                                     ; R7RS 4.2.2
      ;;     let*
      ;;     letrec
