@@ -97,7 +97,7 @@
 (define (record-rtd rec)
   (if (record? rec)
       (record-type-descriptor rec)
-      (assertion-violation 'record-rtd "illegal argument" rec)))
+      (assertion-violation 'record-rtd (errmsg 'msg:illegalarg) rec)))
 
 (define make-record-constructor-descriptor)
 
@@ -158,14 +158,14 @@
                  ((or (null? indices) (null? vals))
                   (if (not (and (null? indices) (null? vals)))
                       (error #f
-                             "wrong number of arguments to record constructor"
+                             (errmsg 'msg:wna:constructor)
                              rtd vals0))
                   (typetag-set! r sys$tag.structure-typetag)
                   r)
                (.vector-set!:trusted r (car indices) (car vals))))))
         (else
          (assertion-violation 'record-constructor
-                              "internal error" rtd n indices))))
+                              (error 'msg:internalerror) rtd n indices))))
 
 (define (make-bummed-record-predicate rtd depth)
   (lambda (obj)
@@ -537,11 +537,11 @@
                  (assert-index k)
                  (if (< k (length mutabilities))
                      (list-ref mutabilities k)
-                     (error "Field index out of range: " rtd k)))
+                     (error "field index out of range: " rtd k)))
                (let ((field-names (rtd-field-names rtd)))
                  (if (and (symbol? k) (memq k field-names))
                      #t
-                     (error "Illegal record field name: " k)))))
+                     (error "illegal record field name: " k)))))
 
          (define (make-record-type-descriptor
                   name parent uid sealed? opaque? fields0)
@@ -550,7 +550,7 @@
                         (and (record-type-descriptor? parent)
                              (rtd-r6rs? parent)
                              (if (rtd-sealed? parent)
-                                 (error "Parent type is sealed: " parent)
+                                 (error "parent type is sealed: " parent)
                                  #t)))
                     (or (symbol? uid) (eq? uid #f))
                     (boolean? sealed?)
@@ -607,15 +607,15 @@
                            (not (or (eq? (car field) 'immutable)
                                     (eq? (car field) 'mutable)))
                            (not (symbol? (cadr field)))))
-                     (error "Bad field passed to make-record-type-descriptor: "
+                     (error "bad field passed to make-record-type-descriptor: "
                             (car fields))))
-               (error "Bad arguments to make-record-type-descriptor: "
+               (error "bad arguments to make-record-type-descriptor: "
                             (list name parent
                                   uid sealed? opaque? fields0))))
 
          (define (r6rs-record-constructor cd)
            (define wna
-             "Wrong number of values supplied when constructing record: ")
+             "wrong number of values supplied when constructing record: ")
            (if (r6rs-record-constructor-descriptor? cd)
                (let ((rtd (r6rs-record-constructor-descriptor-rtd cd))
                      (parent-cd
@@ -633,7 +633,7 @@
                      (r6rs-record-constructor-general-case rtd cd)
                      (error
                       'record-constructor
-                      "illegal arguments"
+                      (errmsg 'msg:illegalargs)
                       rtd parent-cd protocol)))
                (error 'record-constructor
                       "illegal arguments to constructor-descriptor" cd)))
@@ -681,7 +681,7 @@
                                        rtd parent-cd))
                                (f (make-r6rs-initializer maker cd-rtd parent)))
                           (protocol f))))
-                 (error "Illegal argument to constructor-descriptor: " cd))))
+                 (error "illegal argument to constructor-descriptor: " cd))))
 
          ; Returns a default protocol for cd-rtd.
          ; FIXME: the 5.97 draft specification contradicts itself
@@ -838,25 +838,25 @@
 
          (define (assert-rtd obj)
            (if (not (record-type-descriptor? obj))
-               (error "Not a record type descriptor: " obj)))
+               (error "not a record type descriptor: " obj)))
 
          (define (assert-r6rs-rtd obj)
            (if (or (not (record-type-descriptor? obj))
                    (not (rtd-r6rs? obj)))
-               (error "Not an R6RS record type descriptor: " obj)))
+               (error "not an R6RS record type descriptor: " obj)))
 
          (define (assert-record obj)
            (if (not (record? obj))
-               (error "Not a record: " obj)))
+               (error "not a record: " obj)))
 
          (define (assert-record-of-type obj rtd)
            (if (not (record-with-type? obj rtd))
-               (error "Object is not record of type: " (rtd-name rtd) 
+               (error "object is not record of type: " (rtd-name rtd) 
                       ": " obj)))
 
          (define (assert-index obj)
            (if (or (not (fixnum? obj)) (negative? obj))
-               (error "Not an index: " obj)))
+               (error "not an index: " obj)))
 
          (define (error:constructor:wna rtd args)
            (assertion-violation
@@ -1138,7 +1138,7 @@
                 (record-field-mutable? rtd (- (length names) (length probe)))
                 (loop (rtd-parent rtd))))
           (assertion-violation 'rtd-field-mutable?
-                               "illegal argument" rtd0 fieldname)))
+                               (errmsg 'msg:illegalarg) rtd0 fieldname)))
     (loop rtd0))
 
   )
@@ -1237,7 +1237,7 @@
                 (record-accessor rtd (- (length names) (length probe)))
                 (loop (rtd-parent rtd))))
           (assertion-violation 'rtd-accessor
-                               "illegal argument" rtd0 fieldname)))
+                               (errmsg 'msg:illegalarg) rtd0 fieldname)))
     (loop rtd0))
   
   (define (rtd-mutator rtd0 fieldname)
@@ -1246,10 +1246,15 @@
           (let* ((names (vector->list (rtd-field-names rtd)))
                  (probe (memq fieldname names)))
             (if probe
-                (record-mutator rtd (- (length names) (length probe)))
+                (let ((index (- (length names) (length probe))))
+                  (if (record-field-mutable? rtd index)
+                      (record-mutator rtd index)
+                      (assertion-violation 'rtd-mutator
+                                           (errmsg 'msg:illegalarg)
+                                           rtd0 fieldname)))
                 (loop (rtd-parent rtd))))
           (assertion-violation 'rtd-mutator
-                               "illegal argument" rtd0 fieldname)))
+                               (errmsg 'msg:illegalarg) rtd0 fieldname)))
     (loop rtd0))
 
   )

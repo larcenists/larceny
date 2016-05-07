@@ -146,7 +146,11 @@
                        #'predicate-spec)
                       (else (complain))))
 
-               ;; field-specs is a list of syntax objects
+               ;; field-specs is a list of lists of these forms:
+               ;;     (immutable <identifier> <symbol>)
+               ;;     (immutable <identifier> <identifier>)
+               ;;     (mutable   <identifier> <symbol> <symbol>)
+               ;;     (mutable   <identifier> <identifier> <identifier>)
   
                (field-specs
                 (map (lambda (fspec)
@@ -166,19 +170,22 @@
                              ((not (for-all identifier? (syntax-list fspec)))
                               (complain))
                              ((null? (cdr (syntax-list fspec)))
-                              (list 'mutable
-                                    (syntax-car fspec)
-                                    (string->symbol
-                                     (string-append
-                                      type-name-string
-                                      "-"
-                                      (symbol->string (syntax-car fspec))))
-                                    (string->symbol
-                                     (string-append
-                                      type-name-string
-                                      "-"
-                                      (symbol->string (syntax-car fspec))
-                                      "-set!"))))
+                              (let* ((field-name (syntax-car fspec))
+                                     (field-name-as-string
+                                      (syntax->datum field-name)))
+                                (list 'mutable
+                                      (syntax-car fspec)
+                                      (string->symbol
+                                       (string-append
+                                        type-name-string
+                                        "-"
+                                        (symbol->string field-name-as-string)))
+                                      (string->symbol
+                                       (string-append
+                                        type-name-string
+                                        "-"
+                                        (symbol->string field-name-as-string)
+                                        "-set!")))))
                              ((null? (syntax-cdr (syntax-cdr fspec)))
                               (list 'immutable
                                     (syntax-car fspec)
@@ -189,13 +196,22 @@
                              (else (complain))))
                      fspecs))
 
-               ;; fields is a vector of syntax objects
+               ;; fields is a vector of list of the forms
+               ;;     (immutable <identifier>)
+               ;;     (mutable   <identifier>)
 
                (fields (list->vector
-                        (map (lambda (x) (syntax-car (syntax-cdr x)))
+                        (map (lambda (x)
+                               (let ((field-name (syntax-car (syntax-cdr x)))
+                                     (mutable? (= 4 (length (syntax-list x)))))
+                                 (list (if mutable? 'mutable 'immutable)
+                                       field-name)))
                              field-specs)))
   
-               ;; accessor-fields is a list of syntax objects
+               ;; accessor-fields is a list of lists of these forms:
+               ;;     (<symbol> <identifier>)
+               ;;     (<identifier> <identifier>)
+               ;; where the first element of each list names an accessor
 
                (accessor-fields
                 (map (lambda (x)
@@ -204,7 +220,10 @@
                      (filter (lambda (x) (>= (length (syntax-list x)) 3))
                              field-specs)))
   
-               ;; mutator-fields is a list of syntax objects
+               ;; mutator-fields is a list of lists of these forms:
+               ;;     (<symbol> <identifier>)
+               ;;     (<identifier> <identifier>)
+               ;; where the first element of each list names a mutator
 
                (mutator-fields
                 (map (lambda (x)
