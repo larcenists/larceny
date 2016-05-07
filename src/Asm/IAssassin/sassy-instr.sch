@@ -2292,7 +2292,7 @@
     (ia86.check_char regno l0)
     (ia86.t_skip l1)
     `(label ,l0)
-    (ia86.exception_noncontinuable $ex.mkbvl)
+    (ia86.exception_noncontinuable $ex.mkstr)
     `(label ,l1)
     ;; FIXME: exception code wrong, but matches Sparc
     (ia86.make_indexed_structure_word
