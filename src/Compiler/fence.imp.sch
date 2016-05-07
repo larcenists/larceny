@@ -470,7 +470,7 @@
     (fxlsh            2 fxlsh            #f            74 ,:immortal ,:none #f)
     (fxrsha           2 fxrsha           #f            75 ,:immortal ,:none #f)
     (fxrshl           2 fxrshl           #f            76 ,:immortal ,:none #f)
-    (rot              2 rot              #f            77 ,:immortal ,:none #f)
+;   (rot              2 rot              #f            77 ,:immortal ,:none #f)
     (bytevector-ref   2 bytevector-ref   ,fence-imm?    82 ,:string   ,:none #f)
     (procedure-ref    2 procedure-ref    #f            83 ,:dead     ,:none #f)
     (sys$partial-list->vector 2 sys$partial-list->vector #f 90 ,:dead ,:all #f)

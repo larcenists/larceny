@@ -368,7 +368,7 @@
     (fxlsh            2 fxlsh            #f          #xc3 ,:immortal ,:none)
     (fxrsha           2 fxrsha           #f            -1 ,:immortal ,:none)
     (fxrshl           2 fxrshl           #f            -1 ,:immortal ,:none)
-    (rot              2 rot              #f          #xc4 ,:immortal ,:none)
+;   (rot              2 rot              #f          #xc4 ,:immortal ,:none)
     (bytevector-ref   2 bytevector-ref   ,sparc-imm? #xd5 ,:string   ,:none)
     (procedure-ref    2 procedure-ref    #f          #xd7 ,:dead     ,:none)
     
