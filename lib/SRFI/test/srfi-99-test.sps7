@@ -1,5 +1,3 @@
-;;; FIXME: this should become a real test program.
-
 ;;; Regression test for ticket #633.
 
 (import (scheme base)

@@ -172,19 +172,20 @@
                              ((null? (cdr (syntax-list fspec)))
                               (let* ((field-name (syntax-car fspec))
                                      (field-name-as-string
-                                      (syntax->datum field-name)))
+                                      (symbol->string
+                                       (syntax->datum field-name))))
                                 (list 'mutable
                                       (syntax-car fspec)
                                       (string->symbol
                                        (string-append
                                         type-name-string
                                         "-"
-                                        (symbol->string field-name-as-string)))
+                                        field-name-as-string))
                                       (string->symbol
                                        (string-append
                                         type-name-string
                                         "-"
-                                        (symbol->string field-name-as-string)
+                                        field-name-as-string
                                         "-set!")))))
                              ((null? (syntax-cdr (syntax-cdr fspec)))
                               (list 'immutable
