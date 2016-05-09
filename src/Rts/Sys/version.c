@@ -69,9 +69,9 @@
 #include "config.h"
 
 int  larceny_major_version = 0;
-int  larceny_minor_version = 98;
+int  larceny_minor_version = 99;
 /* char *larceny_version_qualifier = " \"General Ripper\""; */
-char *larceny_version_qualifier = "+ \"General Ripper\"";
+char *larceny_version_qualifier = "a1 (alpha test)";
 
 char *date = DATE " " TIME;
 char *user = USER;
