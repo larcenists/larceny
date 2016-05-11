@@ -2,11 +2,15 @@
 ;
 ; $Id$
 ;
-; Reasonably portable hashing on EQ?, EQV?, EQUAL?.
+; Hashing on EQ?, EQV?, EQUAL?.
 ; Requires bignums, SYMBOL-HASH.
+; FIXME: Larceny-specific because of how records and procedures are hashed.
 ;
 ; Given any Scheme object, returns a non-negative exact integer
 ; less than 2^24.
+;
+; The equal? procedure doesn't look inside records,
+; so equal-hash of a record can't depend on any mutable fields.
 
 ; FIXME: object-hash is not required by R5RS or R6RS, but
 ; Larceny's implementation of it should still be improved.
@@ -33,9 +37,23 @@
       (adj:complex  7700000)
       (adj:flonum   7000000)
       (adj:compnum  6900000)
+      (adj:nan      6765432)
+      (adj:neginf   6645789)
+      (adj:posinf   6567123)
       (adj:char     6111000)
       (adj:string   5022200)
+      (adj:bvector  4488623)
+      (adj:bvector0 3537986)
+      (adj:bvector1 3194063)
+      (adj:bvector2 3633447)
+      (adj:bvector3  959672)
       (adj:vector   4003330)
+      (adj:vector0  4749990)
+      (adj:vector1  5127702)
+      (adj:vector2  5061590)
+      (adj:vector3  1429329)
+      (adj:record   5196360)
+      (adj:proc     4591091)
       (adj:misc     3000444)
       (adj:pair     2555000)
       (adj:iport    2321002)
@@ -64,6 +82,29 @@
                       (hash-on-equal (vector-ref x (quotient n 2))
                                      (+ budget budget)))
                      adj:vector)))
+              ((bytevector? x)
+               (let* ((n (bytevector-length x))
+                      (limit (min n budget))
+                      (i1 (quotient n 3))
+                      (i2 (quotient (+ n n) 3)))
+                 (if (> n 0)
+                     (combine
+                      (combine (do ((i 0 (+ i 1))
+                                    (h adj:bvector0
+                                       (combine h (bytevector-ref x i))))
+                                   ((= i limit)
+                                    h))
+                               (bytevector-ref x i1))
+                      (combine (bytevector-ref x i2)
+                               (bytevector-ref x (- n 1))))
+                     adj:bvector)))
+              ((record? x)
+               (combine (hash-on-equal (record-type-name (record-rtd x))
+                                       budget)
+                        adj:record))
+              ((procedure? x)
+               (combine (hash-on-equal (procedure-ref x 0) budget)
+                        adj:proc))
               (else
                (object-hash x)))
         adj:weird))
@@ -93,10 +134,10 @@
                                      (object-hash (imag-part x))))
                            (else
                             adj:weird))
-                     (cond (#t
-                            ; We can't really do anything with inexact numbers
-                            ; unless infinities and NaNs behave reasonably.
-                            adj:flonum)
+                     (cond ((nan? x)
+                            adj:nan)
+                           ((infinite? x)
+                            (if (< x 0) adj:neginf adj:posinf))
                            ((rational? x)
                             (combine
                              (combine (object-hash
