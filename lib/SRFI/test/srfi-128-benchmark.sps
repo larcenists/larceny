@@ -34,7 +34,8 @@
 ;;; by Larceny's sro procedure, and a unary predicate, uses the
 ;;; hash function to compute the hash value for every object that
 ;;; has the given pointer tag and type tag and satisfies the predicate,
-;;; and returns three values:
+;;; and returns four values:
+;;;     the number of objects hashed
 ;;;     the number of hash collisions per hash
 ;;;     the RMS number of objects per bucket (with as many buckets as objects)
 ;;;     how many seconds it took to compute the hash values
@@ -68,7 +69,8 @@
                 (sum 0 (+ sum (square (vector-ref pseudo-buckets i)))))
                ((= i m)
                 (let ((m (max m 1)))
-                  (values (inexact (/ (- m n) m))
+                  (values m
+                          (inexact (/ (- m n) m))
                           (inexact (sqrt (/ sum m)))
                           (inexact (/ dt m))))))))))))
 
@@ -99,24 +101,29 @@
            (right-justify (number->string x) n))
           (else
            (write x))))
-  (define (run-hash-function hf)
+  (define (run-hash-function hf first?)
     (call-with-values
      (lambda () (hash-test hf pointer-tag type-tag okay?))
-     (lambda (collisions/hash rms/bucket time/hash)
+     (lambda (m collisions/hash rms/bucket time/hash)
+       (if first?
+           (begin (newline)
+                  (display name)
+                  (display " (")
+                  (write m)
+                  (display ")")
+                  (newline)))
        (show-percentage collisions/hash)
        (display "    ")
        (show-rms rms/bucket)
        (display "    ")
        (show-nanoseconds (exact (round (* 1e9 time/hash))))
        (newline))))
-  (newline)
-  (display name)
-  (newline)
   (for-each run-hash-function
             (list equal-hash
                   srfi-126-equal-hash
                   default-hash
-                  hash-by-identity)))
+                  hash-by-identity)
+            '(#t #f #f #f)))
 
 (define (non-circular? x)
   (not (object-is-circular? x)))
@@ -139,4 +146,6 @@
 ;;; SRFI-128 default-hash runs out of memory while hashing
 ;;; one of the non-circular lists.
 
-;(run-hash-benchmark "lists" 1 -1 non-circular?)
+(run-hash-benchmark "lists" 1 -1 non-circular?)
+
+(run-hash-benchmark "all non-circular" -1 -1 non-circular?)
