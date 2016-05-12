@@ -288,6 +288,7 @@
   (environment-set! r4rs 'force force)
   (environment-set! r4rs 'call-with-current-continuation
                     call-with-current-continuation)
+  (environment-set! r4rs 'make-case-lambda make-case-lambda)
 
   ;; i/o
 
