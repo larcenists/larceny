@@ -5,7 +5,13 @@
 ;;;     (rnrs hashtable)            R6RS hashtables
 ;;;     (srfi 126)                  R6RS-based hashtables
 ;;;     (srfi 128)                  comparators (reduced)
+;;;     (srfi 128-reference)        comparators (reduced), reference impl
 ;;;     (srfi 125)                  intermediate hash tables
+;;;
+;;; The reference implementation of SRFI 128 is still being benchmarked
+;;; because it serves as a stress test for Larceny's garbage collectors
+;;; and is being used to track down a possible bug in Larceny's regional
+;;; collector.
 
 (import (scheme base)
         (scheme time)
@@ -16,6 +22,8 @@
         (rename (only (srfi 126) equal-hash)
                 (equal-hash srfi-126-equal-hash))
         (only (srfi 128) default-hash)
+        (rename (only (srfi 128 reference) default-hash)
+                (default-hash srfi-128-reference-default-hash))
         (only (srfi 125) hash-by-identity))
 
 ;;; Given a hash function and a vector of objects to hash,
@@ -122,8 +130,9 @@
             (list equal-hash
                   srfi-126-equal-hash
                   default-hash
+                  srfi-128-reference-default-hash
                   hash-by-identity)
-            '(#t #f #f #f)))
+            '(#t #f #f #f #f)))
 
 (define (non-circular? x)
   (not (object-is-circular? x)))

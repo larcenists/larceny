@@ -106,20 +106,16 @@
     ; Add more here
     (else (binary<? (registered-comparator type) a b))))
 
-;;; The author of SRFI 128 has suggested a post-finalization note
-;;; saying the first and third bullet items stating "must" requirements
-;;; for default-hash may be ignored.  That allows a better hash function
-;;; to be used for lists and vectors.
-
 (define (default-hash obj)
   (case (object-type obj)
-    ((0 1 7) ; empty list, pair, or vector
-     ((make-hasher) (equal-hash obj)))
+    ((0) 0)
+    ((1) ((make-pair-hash (make-default-comparator) (make-default-comparator)) obj))
     ((2) (boolean-hash obj))
     ((3) (char-hash obj))
     ((4) (string-hash obj))
     ((5) (symbol-hash obj))
     ((6) (number-hash obj))
+    ((7) ((make-vector-hash (make-default-comparator) vector? vector-length vector-ref) obj))
     ((8) ((make-vector-hash (make-default-comparator)
                              bytevector? bytevector-length bytevector-u8-ref) obj))
     ; Add more here

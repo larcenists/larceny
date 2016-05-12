@@ -1,4 +1,4 @@
-(define-library (srfi 128)
+(define-library (srfi 128 reference)
   (export comparator? comparator-ordered? comparator-hashable?
           make-comparator
           make-pair-comparator make-list-comparator make-vector-comparator
@@ -17,9 +17,9 @@
           (scheme case-lambda)
           (scheme char)
           (scheme inexact)
-          (scheme complex)
-          (only (srfi 126) equal-hash))
+          (scheme complex))
 
-  (include "128.body1.scm")
-  (include "128.body2.scm")
+
+  (include "reference.body1.scm")
+  (include "reference.body2.scm")
 )

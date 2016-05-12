@@ -2244,7 +2244,7 @@ static void incremental_rgnl_activity( gc_t *gc )
   dA = 1;  /* FIXME */
 
   if (m_cN >= 1.0)
-    annoyingmsg( "m/cN = %d (%)", (int) (100.0 * m_cN) );
+    annoyingmsg( "m/cN = %d (%%)", (int) (100.0 * m_cN) );
 
   completed_cycle
     = sm_construction_progress( DATA(gc)->summaries, 
