@@ -61,7 +61,8 @@
   (import (scheme base)
           (scheme case-lambda)
           (scheme write)
-          (srfi 114 comparators)
+          ;(srfi 114 comparators)
+          (except (srfi 128) string-hash string-ci-hash)
           (srfi 69))
 
   (include "113.body.scm")

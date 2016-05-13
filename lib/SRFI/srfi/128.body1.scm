@@ -58,7 +58,12 @@
      (parameterize ((%salt% new-salt)) (hash-func obj)))))
 
 ;;; Definition of comparator records with accessors and basic comparator
+;;;
+;;; These next two definitions are commented out because they've been
+;;; replaced by (srfi 128 kernel), which allows the comparators of
+;;; SRFI 114 and SRFI 128 to be interoperable and interchangeable.
 
+#;
 (define-record-type comparator
   (make-raw-comparator type-test equality ordering hash ordering? hash?)
   comparator?
@@ -70,6 +75,8 @@
   (hash? comparator-hashable?))
 
 ;; Public constructor
+
+#;
 (define (make-comparator type-test equality ordering hash)
   (make-raw-comparator
     (if (eq? type-test #t) (lambda (x) #t) type-test)

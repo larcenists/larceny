@@ -29,8 +29,34 @@
         (scheme complex)
         (rnrs conditions)
         (rnrs records syntactic)
-        (srfi 114)
+        ;(srfi 114)
+        (only (scheme char) string-ci=? string-ci<?)
+        (srfi 128)
         (srfi 113))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Conversion from SRFI 114 to SRFI 128 comparators.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define default-comparator (make-default-comparator))
+(define number-comparator  (make-default-comparator))
+(define eq-comparator      (make-eq-comparator))
+(define eqv-comparator     (make-eqv-comparator))
+
+(define string-comparator
+  (make-comparator string? string=?    string<?    string-hash))
+(define string-ci-comparator
+  (make-comparator string? string-ci=? string-ci<? string-ci-hash))
+(define char-comparator
+  (make-comparator char?   char=?      char<?      default-hash))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; End conversion from SRFI 114 to SRFI 128.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; Uses "the Chicken test egg, which is provided on Chibi as
 ;;; the (chibi test) library."  So we have to fake that here.

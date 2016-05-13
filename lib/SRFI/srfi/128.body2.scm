@@ -93,7 +93,7 @@
 
 (define (dispatch-ordering type a b)
   (case type
-    ((0) 0) ; All empty lists are equal
+    ((0) #f) ; All empty lists are equal
     ((1) ((make-pair<? (make-default-comparator) (make-default-comparator)) a b))
     ((2) (boolean<? a b))
     ((3) (char<? a b))
@@ -129,8 +129,8 @@
   (let ((a-type (object-type a))
         (b-type (object-type b)))
     (cond
-      ((< a-type b-type) -1)
-      ((> a-type b-type) 1)
+      ((< a-type b-type) #t)
+      ((> a-type b-type) #f)
       (else (dispatch-ordering a-type a b)))))
 
 (define (default-equality a b)

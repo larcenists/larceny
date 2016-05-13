@@ -31,6 +31,16 @@
         (rnrs conditions)
         (rnrs records syntactic)
         (srfi 116)
+        ;; FIXME: we shouldn't have to exclude any imports here
+        (except (srfi 114)
+                comparator-test-type
+                comparator-check-type
+                comparator-hash
+                =? <? >? <=? >=?
+                comparator-register-default!
+                make-vector-comparator
+                make-pair-comparator
+                make-list-comparator)
         (srfi 128))
 
 ;;; Uses "the Chicken test egg, which is provided on Chibi as
@@ -622,6 +632,17 @@
 
   ) ; end comparators/default
 
+  ;; SRFI 128 does not actually require a comparator's four procedures
+  ;; to be eq? to the procedures originally passed to make-comparator.
+  ;; For interoperability/interchangeability between the comparators
+  ;; of SRFI 114 and SRFI 128, some of the procedures passed to
+  ;; make-comparator may need to be wrapped inside another lambda
+  ;; expression before they're returned by the corresponding accessor.
+  ;;
+  ;; So this next group of tests is incorrect, hence commented out
+  ;; and replaced by a slightly less naive group of tests.
+
+#;
   (test-group "comparators/accessors"
     (define ttp (lambda (x) #t))
     (define eqp (lambda (x y) #t))
@@ -632,6 +653,22 @@
     (test eqp (comparator-equality-predicate comp))
     (test orp (comparator-ordering-predicate comp))
     (test hf (comparator-hash-function comp))
+  ) ; end comparators/accessors
+
+  (test-group "comparators/accessors"
+    (define x1 0)
+    (define x2 0)
+    (define x3 0)
+    (define x4 0)
+    (define ttp (lambda (x) (set! x1 111) #t))
+    (define eqp (lambda (x y) (set! x2 222) #t))
+    (define orp (lambda (x y) (set! x3 333) #t))
+    (define hf (lambda (x) (set! x4 444) 0))
+    (define comp (make-comparator ttp eqp orp hf))
+    (test #t (and ((comparator-type-test-predicate comp) x1)   (= x1 111)))
+    (test #t (and ((comparator-equality-predicate comp) x1 x2) (= x2 222)))
+    (test #t (and ((comparator-ordering-predicate comp) x1 x3) (= x3 333)))
+    (test #t (and (zero? ((comparator-hash-function comp) x1)) (= x4 444)))
   ) ; end comparators/accessors
 
   (test-group "comparators/invokers"

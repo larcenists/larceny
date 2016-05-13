@@ -5,7 +5,7 @@
 ;;;     (rnrs hashtable)            R6RS hashtables
 ;;;     (srfi 126)                  R6RS-based hashtables
 ;;;     (srfi 128)                  comparators (reduced)
-;;;     (srfi 128-reference)        comparators (reduced), reference impl
+;;;     (srfi 128 reference)        comparators (reduced), reference impl
 ;;;     (srfi 125)                  intermediate hash tables
 ;;;
 ;;; The reference implementation of SRFI 128 is still being benchmarked
