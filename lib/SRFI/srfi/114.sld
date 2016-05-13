@@ -57,7 +57,8 @@
           (scheme case-lambda)
           (scheme complex)
           (scheme inexact)
-          (srfi 128 kernel))
+          (srfi 128 kernel)
+          (srfi 128))
 
   (include "114.basics.scm")
   (include "114.default.scm")

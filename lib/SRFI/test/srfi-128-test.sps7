@@ -31,16 +31,7 @@
         (rnrs conditions)
         (rnrs records syntactic)
         (srfi 116)
-        ;; FIXME: we shouldn't have to exclude any imports here
-        (except (srfi 114)
-                comparator-test-type
-                comparator-check-type
-                comparator-hash
-                =? <? >? <=? >=?
-                comparator-register-default!
-                make-vector-comparator
-                make-pair-comparator
-                make-list-comparator)
+        (srfi 114) ; just to show compatibility between SRFI 114 and 128
         (srfi 128))
 
 ;;; Uses "the Chicken test egg, which is provided on Chibi as

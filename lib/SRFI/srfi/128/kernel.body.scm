@@ -60,9 +60,7 @@
   (cond ((eq? ordering/comparison #f)
          (make-raw-comparator
           (if (eq? type-test #t) universal-type-test type-test)
-          (if (eq? equality #t)
-              (lambda (x y) (eqv? (ordering/comparison x y) 0))
-              equality)
+          equality
           no-ordering
           no-comparison
           (if hash hash no-hash)
@@ -107,7 +105,7 @@
                        (if (boolean? result)
                            (begin (srfi-128-style!)
                                   (cond (result -1)
-                                        ((ordering x y) 0)
+                                        ((equality x y) 0)
                                         (else +1)))
                            (begin (srfi-114-style!)
                                   result)))))
