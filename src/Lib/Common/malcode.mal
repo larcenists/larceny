@@ -479,11 +479,10 @@
 ;;;    (lambda args
 ;;;      (let ((n (length args)))
 ;;;        (case n
-;;;         ((0) (proc 0 0 0 0 n))
-;;;         ((1) (proc (car args) 0 0 0 n))
-;;;         ((2) (proc (car args) (cadr args) 0 0 n))
-;;;         ((3) (proc (car args) (cadr args) (caddr args) 0 n))
-;;;         ((4) (proc (car args) (cadr args) (caddr args) (cadddr args) n))
+;;;         ((0) (proc 0 0 0 n))
+;;;         ((1) (proc (car args) 0 0 n))
+;;;         ((2) (proc (car args) (cadr args) 0 n))
+;;;         ((3) (proc (car args) (cadr args) (caddr args) n))
 ;;;         (else
 ;;;          (assertion-violation 'case-lambda "bug in case-lambda" n))))))
 ;;;
@@ -492,9 +491,9 @@
 `((,$lambda ((,$.proc)
              (,$args= 1)
              (,$lambda ((,$.proc)
-                        (,$setreg  5)
+                        (,$setreg  4)
                         (,$lexical 0 1)
-                        (,$invoke  5))
+                        (,$invoke  4))
                        1
                        #(#f #f 0.0 #f #f #f))
              (,$return))

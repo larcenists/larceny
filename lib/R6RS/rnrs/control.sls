@@ -46,7 +46,8 @@
   ;; Bummed for Larceny.
   ;; FIXME: reverts to the original general case if any clause
   ;;     uses a rest argument
-  ;;  or has more than 4 formal parameters
+  ;;  or has more than 3 formal parameters
+  ;;         (the 3 is determined by ARM version's REG0 through REG5)
 
   (define-syntax case-lambda
     (syntax-rules ()
@@ -65,14 +66,12 @@
        (case-lambda-prepass (c1 ... ((x1 x2) b1 b2 ...)) clause2 ...))
       ((_ (c1 ...) ((x1 x2 x3) b1 b2 ...) clause2 ...)
        (case-lambda-prepass (c1 ... ((x1 x2 x3) b1 b2 ...)) clause2 ...))
-      ((_ (c1 ...) ((x1 x2 x3 x4) b1 b2 ...) clause2 ...)
-       (case-lambda-prepass (c1 ... ((x1 x2 x3 x4) b1 b2 ...)) clause2 ...))
       ((_ (c1 ...) clause1 clause2 ...)
        (case-lambda-for-general-case c1 ... clause1 clause2 ...))
       ((_ (c1 ...))
        (make-case-lambda
-        (lambda (x1 x2 x3 x4 n)
-          (case-lambda-dispatch (x1 x2 x3 x4 n) c1 ...))))))
+        (lambda (x1 x2 x3 n)
+          (case-lambda-dispatch (x1 x2 x3 n) c1 ...))))))
 
   ;; FIXME: this is temporary, just for testing the concept
 #;
@@ -84,33 +83,28 @@
          ((1) (proc (car args) 0 0 0 n))
          ((2) (proc (car args) (cadr args) 0 0 n))
          ((3) (proc (car args) (cadr args) (caddr args) 0 n))
-         ((4) (proc (car args) (cadr args) (caddr args) (cadddr args) n))
          (else
           (assertion-violation 'case-lambda "bug in case-lambda" n))))))
 
   (define-syntax case-lambda-dispatch
     (syntax-rules ()
-      ((_ (x1 x2 x3 x4 n) (() b1 b2 ...) c2 ...)
+      ((_ (x1 x2 x3 n) (() b1 b2 ...) c2 ...)
        (if (eq? n 0)
            (let () b1 b2 ...)
-           (case-lambda-dispatch (x1 x2 x3 x4 n) c2 ...)))
-      ((_ (x1 x2 x3 x4 n) ((y1) b1 b2 ...) c2 ...)
+           (case-lambda-dispatch (x1 x2 x3 n) c2 ...)))
+      ((_ (x1 x2 x3 n) ((y1) b1 b2 ...) c2 ...)
        (if (eq? n 1)
            (let ((y1 x1)) b1 b2 ...)
-           (case-lambda-dispatch (x1 x2 x3 x4 n) c2 ...)))
-      ((_ (x1 x2 x3 x4 n) ((y1 y2) b1 b2 ...) c2 ...)
+           (case-lambda-dispatch (x1 x2 x3 n) c2 ...)))
+      ((_ (x1 x2 x3 n) ((y1 y2) b1 b2 ...) c2 ...)
        (if (eq? n 2)
            (let ((y1 x1) (y2 x2)) b1 b2 ...)
-           (case-lambda-dispatch (x1 x2 x3 x4 n) c2 ...)))
-      ((_ (x1 x2 x3 x4 n) ((y1 y2 y3) b1 b2 ...) c2 ...)
+           (case-lambda-dispatch (x1 x2 x3 n) c2 ...)))
+      ((_ (x1 x2 x3 n) ((y1 y2 y3) b1 b2 ...) c2 ...)
        (if (eq? n 3)
            (let ((y1 x1) (y2 x2) (y3 x3)) b1 b2 ...)
-           (case-lambda-dispatch (x1 x2 x3 x4 n) c2 ...)))
-      ((_ (x1 x2 x3 x4 n) ((y1 y2 y3 y4) b1 b2 ...) c2 ...)
-       (if (eq? n 4)
-           (let ((y1 x1) (y2 x2) (y3 x3) (y4 x4)) b1 b2 ...)
-           (case-lambda-dispatch (x1 x2 x3 x4 n) c2 ...)))
-      ((_ (x1 x2 x3 x4 n))
+           (case-lambda-dispatch (x1 x2 x3 n) c2 ...)))
+      ((_ (x1 x2 x3 n))
        (assertion-violation #f "unexpected number of arguments"))))
 
   (define-syntax case-lambda-for-general-case
