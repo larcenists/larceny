@@ -102,9 +102,71 @@
 
 ;; BEGIN PLATFORM DEPENDENT
 
-(require 'time)        ; CURRENT-TIME and TIMEZONE-OFFSET
-(define larceny/current-time current-utc-time)
-(define larceny/timezone-offset timezone-offset)
+;; On some platforms, Larceny's FFI is absent or unreliable.
+
+(define larceny:platform
+  (let* ((probe1 (assq 'arch-name (system-features)))
+	 (probe2 (assq 'os-name (system-features)))
+	 (arch (if probe1 (cdr probe1) 'unknown))
+	 (os (if probe2 (cdr probe2) 'unknown)))
+    (cond ((not (string? arch)) 'unknown)
+	  ((not (string? os)) 'unknown)
+	  ((and (string=? arch "ARM")
+		(string=? os "Linux"))
+	   'arm-linux)
+	  ((string=? os "Linux")
+	   'linux)
+	  ((string=? os "MacOS X")
+	   'macosx)
+	  ((string=? os "Win32")
+	   'windows)
+	  (else 'unknown))))
+
+(case larceny:platform
+  ((linux) (require 'time)) ; CURRENT-TIME and TIMEZONE-OFFSET
+  (else #f))
+
+(define larceny:timezone
+  (let ()
+    (define (make-tempname name)
+      (define (make n)
+	(if (> n 0)
+	    (let ((filename (string-append name "." (number->string (random 65536) 16))))
+	      (if (file-exists? filename)
+		  (make (- n 1))
+		  filename))
+	    #f))
+      (make 10))
+    (case larceny:platform
+      ((linux)
+       (timezone-offset (current-seconds)))
+      ((arm-linux macosx)
+       (guard (exn
+	       (else 0))
+	      (let* ((tempfile (make-tempname "/tmp/temp"))
+		     (result (system (string-append "date +%z > " tempfile)))
+		     (n (if (zero? result)
+			    (call-with-input-file tempfile read)
+			    "0"))
+		     (n (if (exact-integer? n) n 0)))
+		(* 3600 (quotient n 100)))))
+      (else 0))))
+
+(define larceny/current-time
+  (case larceny:platform
+    ((linux)
+     current-utc-time)
+    (else
+     (lambda ()
+       (values (current-seconds)
+	       (* 1000 (remainder (memstats-elapsed-time (memstats)) 1000)))))))
+
+(define larceny/timezone-offset
+  (case larceny:platform
+    ((linux)
+     timezone-offset)
+    (else
+     (lambda args larceny:timezone))))
 
 (define current-process-milliseconds
   (lambda ()
@@ -114,8 +176,6 @@
 (define current-gc-milliseconds
   (lambda ()
     (memstats-gc-total-cpu-time (memstats))))
-
-(define read-line get-line)
 
 ;; END PLATFORM DEPENDENT
 
