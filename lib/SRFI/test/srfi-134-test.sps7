@@ -1,0 +1,39 @@
+(import (scheme base)
+        (scheme char)
+        (scheme cxr)
+        (scheme write)
+        (scheme file)
+        (scheme process-context)
+        (scheme inexact)
+        (scheme complex)
+        (rnrs conditions)
+        (rnrs records syntactic)
+        (srfi 1)
+        (srfi 8)
+        (srfi 121)
+        (srfi 116)
+        (srfi 134))
+
+(include "test-group.scm")
+(include "srfi-134-test.body.scm")
+
+;;; Glarg.
+
+#;
+(cond-expand
+ (gauche
+  (use gauche.test)
+  (use compat.chibi-test)
+  (use srfi-121)
+  (test-start "ideque")
+  (add-load-path "." :relative)
+  (use ideque)
+  (test-module 'ideque)
+  (chibi-test
+   (include "ideque-tests.scm"))
+  (test-end))
+ (else
+  (display "Add implementation-specific test runner.\n")))
+
+(test-end)
+(test-exit)
