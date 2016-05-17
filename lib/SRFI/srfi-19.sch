@@ -92,9 +92,9 @@
 ;; changed 10000 to nsec/msec and defined nsec/msec as 1000000.
 ;; Will Clinger 8 March 2009.
 
-(cond-expand (srfi-6))			; string ports
-(cond-expand (srfi-8))			; RECEIVE
-(cond-expand (srfi-9))			; records
+(cond-expand (srfi-6))                        ; string ports
+(cond-expand (srfi-8))                        ; RECEIVE
+(cond-expand (srfi-9))                        ; records
 
 ;; BUG FIX [Clinger, 8 March 2009]
 
@@ -106,21 +106,21 @@
 
 (define larceny:platform
   (let* ((probe1 (assq 'arch-name (system-features)))
-	 (probe2 (assq 'os-name (system-features)))
-	 (arch (if probe1 (cdr probe1) 'unknown))
-	 (os (if probe2 (cdr probe2) 'unknown)))
+         (probe2 (assq 'os-name (system-features)))
+         (arch (if probe1 (cdr probe1) 'unknown))
+         (os (if probe2 (cdr probe2) 'unknown)))
     (cond ((not (string? arch)) 'unknown)
-	  ((not (string? os)) 'unknown)
-	  ((and (string=? arch "ARM")
-		(string=? os "Linux"))
-	   'arm-linux)
-	  ((string=? os "Linux")
-	   'linux)
-	  ((string=? os "MacOS X")
-	   'macosx)
-	  ((string=? os "Win32")
-	   'windows)
-	  (else 'unknown))))
+          ((not (string? os)) 'unknown)
+          ((and (string=? arch "ARM")
+                (string=? os "Linux"))
+           'arm-linux)
+          ((string=? os "Linux")
+           'linux)
+          ((string=? os "MacOS X")
+           'macosx)
+          ((string=? os "Win32")
+           'windows)
+          (else 'unknown))))
 
 (case larceny:platform
   ((linux) (require 'time)) ; CURRENT-TIME and TIMEZONE-OFFSET
@@ -130,26 +130,26 @@
   (let ()
     (define (make-tempname name)
       (define (make n)
-	(if (> n 0)
-	    (let ((filename (string-append name "." (number->string (random 65536) 16))))
-	      (if (file-exists? filename)
-		  (make (- n 1))
-		  filename))
-	    #f))
+        (if (> n 0)
+            (let ((filename (string-append name "." (number->string (random 65536) 16))))
+              (if (file-exists? filename)
+                  (make (- n 1))
+                  filename))
+            #f))
       (make 10))
     (case larceny:platform
       ((linux)
        (timezone-offset (current-seconds)))
       ((arm-linux macosx)
        (guard (exn
-	       (else 0))
-	      (let* ((tempfile (make-tempname "/tmp/temp"))
-		     (result (system (string-append "date +%z > " tempfile)))
-		     (n (if (zero? result)
-			    (call-with-input-file tempfile read)
-			    "0"))
-		     (n (if (exact-integer? n) n 0)))
-		(* 3600 (quotient n 100)))))
+               (else 0))
+              (let* ((tempfile (make-tempname "/tmp/temp"))
+                     (result (system (string-append "date +%z > " tempfile)))
+                     (n (if (zero? result)
+                            (call-with-input-file tempfile read)
+                            "0"))
+                     (n (if (exact-integer? n) n 0)))
+                (* 3600 (quotient n 100)))))
       (else 0))))
 
 (define larceny/current-time
@@ -159,7 +159,7 @@
     (else
      (lambda ()
        (values (current-seconds)
-	       (* 1000 (remainder (memstats-elapsed-time (memstats)) 1000)))))))
+               (* 1000 (remainder (memstats-elapsed-time (memstats)) 1000)))))))
 
 (define larceny/timezone-offset
   (case larceny:platform
@@ -750,8 +750,8 @@
 (define (tm:fractional-part r)
   (if (integer? r) "0"
       (let ((str (number->string (+ 1.0 r))))
-	(let ((ppos (tm:char-pos #\. str 0 (string-length str))))
-	  (substring str  (+ ppos 1) (string-length str))))))
+        (let ((ppos (tm:char-pos #\. str 0 (string-length str))))
+          (substring str  (+ ppos 1) (string-length str))))))
 
 
 ;; gives the seconds/date/month/year 
@@ -1131,17 +1131,17 @@
                                     #\space 2)
                         port)))
    (cons #\f (lambda (date pad-with port)
-	       (if (> (date-nanosecond date)
-		      tm:nano)
-		   (display (tm:padding (+ (date-second date) 1)
-					pad-with 2)
-			    port)
-		   (display (tm:padding (date-second date)
-					pad-with 2)
-			    port))
-	       (let* ((ns (tm:fractional-part (/ 
-					       (date-nanosecond date)
-					       tm:nano 1.0))))
+               (if (> (date-nanosecond date)
+                      tm:nano)
+                   (display (tm:padding (+ (date-second date) 1)
+                                        pad-with 2)
+                            port)
+                   (display (tm:padding (date-second date)
+                                        pad-with 2)
+                            port))
+               (let* ((ns (tm:fractional-part (/ 
+                                               (date-nanosecond date)
+                                               tm:nano 1.0))))
                  (display tm:locale-number-separator port)
                  (display ns port))))
    (cons #\h (lambda (date pad-with port)
@@ -1164,8 +1164,8 @@
                                     pad-with 3)
                         port)))
    (cons #\k (lambda (date pad-with port)
-	       (display (tm:padding (date-hour date)
-				    #\space 2)
+               (display (tm:padding (date-hour date)
+                                    #\space 2)
                         port)))
    (cons #\l (lambda (date pad-with port)
                (let ((hr (if (> (date-hour date) 12)
@@ -1183,9 +1183,9 @@
    (cons #\n (lambda (date pad-with port)
                (newline port)))
    (cons #\N (lambda (date pad-with port)
-	       (display (tm:padding (date-nanosecond date)
-				    pad-with 9)
-			port)))
+               (display (tm:padding (date-nanosecond date)
+                                    pad-with 9)
+                        port)))
    (cons #\p (lambda (date pad-with port)
                (display (tm:locale-am/pm (date-hour date)) port)))
    (cons #\r (lambda (date pad-with port)
