@@ -359,21 +359,14 @@
 (define (hash-table-update!/default ht key updater default)
   (hash-table-set! ht key (updater (hashtable-ref ht key default))))
 
-(define (hash-table-push! ht key val failure)
-  (let ((x (hashtable-ref ht key %not-found)))
-    (if (eq? x %not-found)
-        (hash-table-set! ht key (failure))
-        (hash-table-set! ht key (cons val x)))))
-
-(define (hash-table-pop! ht key failure)
-  (let ((x (hashtable-ref ht key %not-found)))
-    (cond ((eq? x %not-found)
-           (failure))
-          ((not (pair? x))
-           (error "hash-table-pop!: current value not a pair" ht key x))
-          (else
-           (hashtable-set! ht key (cdr x))
-           (car x)))))
+(define (hash-table-pop! ht)
+  (call/cc
+    (lambda (return)
+      (hash-table-for-each
+        (lambda (key value)
+          (hash-table-delete! ht key)
+          (return key value))
+        ht))))
 
 (define (hash-table-clear! ht)
   (hashtable-clear! ht))
@@ -399,7 +392,7 @@
      (values (vector->list keys)
              (vector->list vals)))))
 
-(define (hash-table-find ht proc failure)
+(define (hash-table-find proc ht failure)
   (call-with-values
    (lambda () (hash-table-entries ht))
    (lambda (keys vals)
@@ -414,7 +407,7 @@
                  (loop (cdr keys)
                        (cdr vals)))))))))
 
-(define (hash-table-count ht pred)
+(define (hash-table-count pred ht)
   (call-with-values
    (lambda () (hash-table-entries ht))
    (lambda (keys vals)
@@ -432,17 +425,11 @@
 
 ;;; Mapping and folding.
 
-(define (hash-table-map proc comparator merger ht)
+(define (hash-table-map proc comparator ht)
   (let ((result (make-hash-table comparator)))
     (hash-table-for-each
      (lambda (key val)
-       (call-with-values
-        (lambda () (proc key val))
-        (lambda (key1 val1)
-          (let ((key1 (if (hashtable-contains? result key1)
-                          (merger key val key1 val1)
-                          key1)))
-            (hashtable-set! result key1 val1)))))
+       (hash-table-set! result key (proc val)))
      ht)
     result))
 

@@ -21,7 +21,6 @@
    hash-table-intern!
    hash-table-update!
    hash-table-update!/default
-   hash-table-push!
    hash-table-pop!
    hash-table-clear! 
 
@@ -68,8 +67,11 @@
           (scheme write) ; for warnings about deprecated features
           (srfi 126)
           (except (srfi 128)
-                  string-hash string-ci-hash symbol-hash hash-salt) ; FIXME
-          )
+                  hash-salt      ; exported by (srfi 126)
+                  string-hash    ; exported by (srfi 126)
+                  string-ci-hash ; exported by (srfi 126)
+                  symbol-hash    ; exported by (srfi 126)
+                  ))
 
   (cond-expand
    ((library (scheme char))

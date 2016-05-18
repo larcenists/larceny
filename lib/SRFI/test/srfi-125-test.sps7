@@ -433,26 +433,14 @@
                   '(169 144 121 0 1 4 9 16 25 36 49 64 81)))
       '(13 12 11 0 1 2 3 4 5 -1 -1 8 -1))
 
-(test (begin (hash-table-push! ht-fixnum 75 '*** (lambda () 8.66))
-             (hash-table-ref/default ht-fixnum 75 -1))
-      8.66)
-
-(test (begin (hash-table-push! ht-fixnum 64 '* (lambda () 'okra))
-             (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
-                  '(169 144 121 0 1 4 9 16 25 36 49 64 75 81)))
-      '(13 12 11 0 1 2 3 4 5 -1 -1 (* . 8) 8.66 -1))
-
-(test (hash-table-pop! ht-fixnum 64 (lambda () 'whatever))
-      '*)
-
-(test (hash-table-pop! ht-fixnum 65 (lambda () 'whatever))
-      'whatever)
-
-;;; FIXME: glass-box (implementations not required to raise an exception here)
-
-(test (guard (exn (else 'error))
-       (hash-table-pop! ht-fixnum 75 (lambda () 'whatever)))
-      'error)
+(test (let* ((n0 (hash-table-size ht-fixnum))
+             (ht (hash-table-copy ht-fixnum #t)))
+        (call-with-values
+         (lambda () (hash-table-pop! ht))
+         (lambda (key val)
+           (list (= key (* val val))
+                 (= (- n0 1) (hash-table-size ht))))))
+      '(#t #t))
 
 (test (begin (hash-table-delete! ht-fixnum 75)
              (map (lambda (i) (hash-table-ref/default ht-fixnum i -1))
@@ -490,23 +478,23 @@
              (hash-table-size ht-eq))
       0)
 
-(test (hash-table-find ht-fixnum
-                       (lambda (key val)
+(test (hash-table-find (lambda (key val)
                          (if (= 144 key (* val val))
                              (list key val)
                              #f))
+                       ht-fixnum
                        (lambda () 99))
       '(144 12))
 
-(test (hash-table-find ht-fixnum
-                       (lambda (key val)
+(test (hash-table-find (lambda (key val)
                          (if (= 144 key val)
                              (list key val)
                              #f))
+                       ht-fixnum
                        (lambda () 99))
       99)
 
-(test (hash-table-count ht-fixnum <=)
+(test (hash-table-count <= ht-fixnum)
       2)
 
 ;;; Mapping and folding.
@@ -515,16 +503,12 @@
            '(0 1 4 9 16 25 36 49 64 81 100 121 144 169 196))
       '(0 1 2 3 4 5 6 -1 8 9 -1 11 12 13 -1))
 
-(test (let ((ht (hash-table-map (lambda (key val)
-                                  (let ((n (+ val 1)))
-                                    (values (* n n) n)))
+(test (let ((ht (hash-table-map (lambda (val) (* val val))
                                 eqv-comparator
-                                (lambda (oldkey oldval newkey newval)
-                                  newkey)
                                 ht-fixnum)))
         (map (lambda (i) (hash-table-ref/default ht i -1))
              '(0 1 4 9 16 25 36 49 64 81 100 121 144 169 196)))
-      '(-1 1 2 3 4 5 6 7 -1 9 10 -1 12 13 14))
+      '(0 1 4 9 16 25 36 -1 64 81 -1 121 144 169 -1))
 
 (test (let ((keys (make-vector 15 -1))
             (vals (make-vector 15 -1)))
