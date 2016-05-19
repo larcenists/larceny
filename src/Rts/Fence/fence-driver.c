@@ -112,6 +112,7 @@ void scheme_start( word *globals )
 
   switch (x = setjmp( *dispatch_jump_buffer )) {
   case 0 :
+  case DISPATCH_CALL_R0 :
     assert2( tagof( globals[ G_REG0 ]) == PROC_TAG );
     globals[G_RETADDR] = 0;     /* Start at the beginning of the code vector */
     fence_scheme_jump(globals); /* Never returns */  
