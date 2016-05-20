@@ -170,6 +170,7 @@ rm -f doc/HOWTO-ERR5RS
 rm -f doc/KNOWN-BUGS
 rm -f doc/larcenydoc.conf
 rm -f doc/Makefile
+rm -f doc/index.html
 rm -f doc/UserManual/*
 
 # Fetch current user manual and standards.
@@ -204,5 +205,7 @@ wget http://larceny.ccs.neu.edu/nightly/r5rs.pdf
 wget http://larceny.ccs.neu.edu/nightly/r6rs.pdf
 wget http://larceny.ccs.neu.edu/nightly/r6rs-lib.pdf
 wget http://larceny.ccs.neu.edu/nightly/r7rs.pdf
+
+maybe_mv LarcenyNotes UserManual
 
 cd ..
