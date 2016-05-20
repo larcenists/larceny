@@ -161,13 +161,25 @@
                             (else (error "longer?: Improper list " right))))
         (else (error "longer?: Improper list " left))))
 
+; If either of the (scheme base) or (srfi 1) libraries has been
+; imported, we'll use R7RS semantics for map and for-each even
+; if the execution mode is r6rs.
+
+(define using-r7rs-semantics #f)
+
+(define (larceny:use-r7rs-semantics!)
+  (set! using-r7rs-semantics #t))
+
 ; FIXME:  The performance of map can be improved.
 ; That doesn't matter so much because map is usually inlined.
 
 (define (map f x . rest)
 
-  (define (lists-of-different-lengths)
-    (if (eq? 'r6rs (larceny:execution-mode))
+  (define (lists-of-different-lengths . args)
+    (if (or (and (eq? 'r6rs (larceny:execution-mode))
+                 (not using-r7rs-semantics))
+            (not (every? (lambda (x) (or (null? x) (pair? x)))
+                         args)))
         (assertion-violation 'map
                              (errmsg 'msg:illegalargs)
                              (cons f (cons x rest)))
@@ -180,7 +192,7 @@
           (cons a b))
         (if (null? x)
             '()
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x))))
 
   (define (map2 f x y)
     (if (and (pair? x) (pair? y))
@@ -189,7 +201,7 @@
           (cons a b))
         (if (and (null? x) (null? y))
             '()
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x y))))
 
   (define (map3 f x y z)
     (if (and (pair? x) (pair? y) (pair? z))
@@ -198,7 +210,7 @@
           (cons a b))
         (if (and (null? x) (null? y) (null? z))
             '()
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x y z))))
 
   (define (map4 f x y z w)
     (if (and (pair? x) (pair? y) (pair? z) (pair? w))
@@ -207,7 +219,7 @@
           (cons a b))
         (if (and (null? x) (null? y) (null? z) (null? w))
             '()
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x y z w))))
 
   (define (mapn f lists)
     (cond ((every? pair? lists)
@@ -217,7 +229,7 @@
           ((every? null? lists)
            '())
           (else
-           (lists-of-different-lengths))))
+           (apply lists-of-different-lengths lists))))
 
   (case (length rest)
     ((0)  (map1 f x))
@@ -305,8 +317,11 @@
 
 (define (for-each f x . rest)
 
-  (define (lists-of-different-lengths)
-    (if (eq? 'r6rs (larceny:execution-mode))
+  (define (lists-of-different-lengths . args)
+    (if (or (and (eq? 'r6rs (larceny:execution-mode))
+                 (not using-r7rs-semantics))
+            (not (every? (lambda (x) (or (null? x) (pair? x)))
+                         args)))
         (assertion-violation 'for-each
                              (errmsg 'msg:illegalargs)
                              (cons f (cons x rest)))
@@ -323,7 +338,7 @@
                (for-each1 f (cdr x)))
         (if (null? x)
             (unspecified)
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x))))
 
   (define (for-each2 f x y)
     (if (and (pair? x) (pair? y))
@@ -331,7 +346,7 @@
                (for-each2 f (cdr x) (cdr y)))
         (if (and (null? x) (null? y))
             (unspecified)
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x y))))
 
   (define (for-each3 f x y z)
     (if (and (pair? x) (pair? y) (pair? z))
@@ -339,7 +354,7 @@
                (for-each3 f (cdr x) (cdr y) (cdr z)))
         (if (and (null? x) (null? y) (null? z))
             (unspecified)
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x y z))))
 
   (define (for-each4 f x y z w)
     (if (and (pair? x) (pair? y) (pair? z) (pair? w))
@@ -347,7 +362,7 @@
                (for-each4 f (cdr x) (cdr y) (cdr z) (cdr w)))
         (if (and (null? x) (null? y) (null? z) (null? z))
             (unspecified)
-            (lists-of-different-lengths))))
+            (lists-of-different-lengths x y z w))))
 
   (define (for-each-n f lists)
     (cond ((every? pair? lists)
@@ -356,7 +371,7 @@
           ((every? null? lists)
            (unspecified))
           (else
-           (lists-of-different-lengths))))
+           (apply lists-of-different-lengths lists))))
 
   (case (length rest)
     ((0)  (for-each1 f x))

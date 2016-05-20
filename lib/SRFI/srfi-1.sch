@@ -11,25 +11,35 @@
 ;;;  - fixed a bug in delete-duplicates!: consed when it didn't need to
 ;;;  - added missing FOR-EACH implementation (due to Michael Sperber)
 ;;;
-;;; NOTE that Twobit may open-code calls to MAP and FOR-EACH and thus
-;;; ignore the definitions in this file.  The versions of MAP and
-;;; FOR-EACH in Larceny are not compliant with SRFI-1: they fail on
-;;; lists of unequal length.  Here are three workarounds:
-;;;
-;;;     use map and for-each only when all list arguments are
-;;;         proper lists and have the same length
-;;;
-;;;     call srfi1:map and srfi1:for-each instead of map and for-each
-;;;
-;;;     use (integrate-procedures #f) before compiling or loading
-;;;         to disable inlining of all procedures, including
-;;;         map and for-each
-;;;
 ;;; Modifications for Larceny appear both here and at the very end.
 ;;; Here we just capture some of Larceny's procedures so we can use
 ;;; them at the end of the file.
 
 (require 'srfi-0)
+
+;;; NOTE that Twobit may open-code calls to MAP and FOR-EACH and thus
+;;; ignore the definitions in this file.  The versions of MAP and
+;;; FOR-EACH specified by the R6RS are not compliant with SRFI-1 and
+;;; the R7RS: the R6RS requires map and for-each to raise exceptions
+;;; on lists of unequal length.
+;;;
+;;; As of Larceny v0.99, this incompatibility is resolved as follows:
+;;;
+;;;     open-coded calls to map and for-each perform a closed call
+;;;         if their list arguments have different lengths
+;;;
+;;;     in Larceny's r5rs and r7rs execution modes, map and for-each
+;;;         use SRFI 1 and R7RS semantics
+;;;
+;;;     in Larceny's r6rs execution mode, map and for-each enforce
+;;;         the R6RS requirement unless the program has imported
+;;;         the (srfi 1) or (scheme base) library, which imply
+;;;         SRFI 1 and R7RS semantics
+;;;
+;;;     the (srfi 1) and (scheme base) libraries announce their
+;;;         use by calling a larceny:use-r7rs-semantics! procedure
+
+(larceny:use-r7rs-semantics!)
 
 (define-syntax save-binding
   (syntax-rules ()

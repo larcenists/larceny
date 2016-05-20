@@ -255,7 +255,7 @@
 
      (else
       (display "Unrecognized execution mode: ")
-      (write (larceny:execution-mode))
+      (write emode)
       (newline)
       (exit 1)))))
 

@@ -10,6 +10,7 @@
    ex:interaction-environment
    jiffies-per-second
    larceny:features
+   larceny:use-r7rs-semantics!
    r7rs:bytevector-copy!
    )
 
@@ -22,4 +23,5 @@
     current-seconds
     ex:interaction-environment
     larceny:features
+    larceny:use-r7rs-semantics!
     r7rs:bytevector-copy!)))

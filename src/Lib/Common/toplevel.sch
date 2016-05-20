@@ -1385,6 +1385,8 @@
   (environment-set! larc 'collect collect)
   (environment-set! larc 'gcctl gcctl)
   (environment-set! larc 'sro sro)
+  (environment-set! larc 'larceny:use-r7rs-semantics!
+                    larceny:use-r7rs-semantics!)
   (environment-set! larc 'larceny:execution-mode larceny:execution-mode)
   (environment-set! larc 'system-features system-features)
   (environment-set! larc 'stats-dump-on stats-dump-on)

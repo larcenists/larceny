@@ -303,6 +303,9 @@
 ; Consequences:  A compiler macro can assume that all inlined R4RS
 ; procedures have their usual values, but cannot assume that non-R4RS
 ; procedures are intact.
+;
+; FIXME: we assume all procedures listed by src/Lib/Common/toplevel.sch
+; are available.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1524,7 +1527,11 @@
                     (results '() (cons (?f (car ?y1) (car ?y2) ...)
                                        results)))
                    ((or (null? ?y1) (null? ?y2) ...)
-                    (reverse results))))))))
+                    (reverse
+                     (if (and (null? ?y1) (null? ?y2) ...)
+                         results
+                         (append (reverse (larceny:map ?f ?y1 ?y2 ...))
+                                          results))))))))))
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
 
@@ -1551,7 +1558,9 @@
                     (?y2 ?e2 (cdr ?y2))
                     ...)
                    ((or (null? ?y1) (null? ?y2) ...)
-                    (if #f #f))
+                    (if (and (null? ?y1) (null? ?y2) ...)
+                        (if #f #f)
+                        (larceny:for-each ?f ?y1 ?y2 ...)))
                    (?f (car ?y1) (car ?y2) ...)))))))
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
