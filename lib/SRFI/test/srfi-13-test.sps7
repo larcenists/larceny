@@ -14,6 +14,14 @@
 ;
 ; $Id$
 
+; 2016-05-21 / wdc
+;
+; Olin's implementation of string-trim-right ignore any start argument
+; that was passed, and the tests of string-trim-right that passed a
+; start argument are insisting upon the incorrect result.  I have
+; commented out the incorrect tests and added my own at the end of
+; the file.
+
 (import (except (rnrs base) string->list string-copy string-for-each)
         (except (rnrs unicode) string-upcase string-downcase string-titlecase)
         (rnrs exceptions)
@@ -431,22 +439,24 @@
   (pass-if "no char/pred"
     (string=? " \tfoo" (string-trim-right " \tfoo ")))
 
-  (pass-if "start index, pred"
+  ;; These tests are incorrect, so I've commented them out.
+
+#;(pass-if "start index, pred"
     (string=? " \tfoo" (string-trim-right " \tfoo " char-whitespace? 1)))
 
-  (pass-if "start and end index, pred"
+#;(pass-if "start and end index, pred"
     (string=? " \tf" (string-trim-right " \tfoo " char-whitespace? 1 3)))
 
-  (pass-if "start index, char"
+#;(pass-if "start index, char"
     (string=? " \tfoo" (string-trim-right " \tfoo " #\space 1)))
 
-  (pass-if "start and end index, char"
+#;(pass-if "start and end index, char"
     (string=? " \tf" (string-trim-right " \tfoo " #\space 1 3)))
 
-  (pass-if "start index, charset"
+#;(pass-if "start index, charset"
     (string=? " \tfoo" (string-trim-right " \tfoo " char-set:whitespace 1)))
 
-  (pass-if "start and end index, charset"
+#;(pass-if "start and end index, charset"
     (string=? " \tf" (string-trim-right " \tfoo " char-set:whitespace 1 3))))
 
 (with-test-prefix "string-trim-both"
@@ -1745,6 +1755,36 @@
        (guard (c (#t (k #f)))
          (string=? "abrcaaba" (string-delete "abrAcaDabRa" char-set:upper-case)))))
     (fail 'string-delete:regression:1))
+
+; Corrected tests for string-trim-right:
+
+(with-test-prefix "string-trim-right"
+
+  (pass-if "empty string"
+    (string=? "" (string-trim-right "")))
+
+  (pass-if "no char/pred"
+    (string=? " \tfoo" (string-trim-right " \tfoo ")))
+
+  ;; These tests are incorrect, so I've commented them out.
+
+  (pass-if "start index, pred"
+    (string=? "\tfoo" (string-trim-right " \tfoo " char-whitespace? 1)))
+
+  (pass-if "start and end index, pred"
+    (string=? "\tf" (string-trim-right " \tfoo " char-whitespace? 1 3)))
+
+  (pass-if "start index, char"
+    (string=? "\tfoo" (string-trim-right " \tfoo " #\space 1)))
+
+  (pass-if "start and end index, char"
+    (string=? "\tf" (string-trim-right " \tfoo " #\space 1 3)))
+
+  (pass-if "start index, charset"
+    (string=? "\tfoo" (string-trim-right " \tfoo " char-set:whitespace 1)))
+
+  (pass-if "start and end index, charset"
+    (string=? "\tf" (string-trim-right " \tfoo " char-set:whitespace 1 3))))
 
 ;;;
 
