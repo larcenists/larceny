@@ -1,7 +1,12 @@
 ;;; Tests for SRFI 130.
 ;;;
-;;; These tests are glass-box because they assume cursors and indexes
-;;; are the same.
+;;; FIXME: These tests are incomplete because there's  a combinatorial
+;;; explosion of possibilities for optional arguments that could be
+;;; either indexes or cursors.  Consider string-prefix-length, for
+;;; example.  For each test that calls that procedure with all four
+;;; optional arguments, there are 16 possible combinations of indexes
+;;; and cursors.  Beginning with string-take, the optional arguments
+;;; tested are indexes rather than cursors.
 
 (import (scheme base)
         (scheme write)
@@ -13,344 +18,718 @@
   (newline))
 
 (define (fail token . more)
+  (newline)
   (writeln "Error: test failed: " token)
+  (display " ")
+  (write current-test)
+  (newline)
   #f)
 
-;;; To display a test before it is run, change its "or" to "OR".
+;;; To display tests that fail, change "(or " to "(OR ".
+;;; To display tests before they are run, uncomment the write below.
+
+(define current-test #f)
 
 (define-syntax OR
   (syntax-rules ()
    ((_ expr1 expr ...)
-    (begin (write 'expr1)
-           (newline)
+    (begin (set! current-test 'expr1)
+;          (write current-test)
+;          (newline)
            (or expr1 expr ...)))))
+
+;;; Unicode is the main motivation for string cursors, so we ought
+;;; to use at least some non-ASCII strings for testing.
+;;; Some systems would blow up if this file were to contain non-ASCII
+;;; characters, however, so we have to be careful here.
+
+(cond-expand (full-unicode
+              (define ABC
+                (list->string (map integer->char
+                                   '(#x3b1 #x3b2 #x3b3))))
+              (define ABCDEF
+                (list->string (map integer->char
+                                   '(#x0c0 #x062 #x0c7 #x064 #x0c9 #x066)))))
+             (else
+              (define ABC "abc")
+              (define ABCDEF "abcdef")))
 
 ;;; Cursor operations
 
-(or (string-cursor? 0)
+(or (string-cursor? (string-index->cursor "" 0))
     (fail 'string-cursor?))
 
-(or (not (string-cursor? -1))
+(or (not (string-cursor? #f))
     (fail 'string-cursor?))
 
-(or (string-cursor? 9999)
+(or (string-cursor? (string-index->cursor (make-string 10000) 9999))
     (fail 'string-cursor?))
 
-(or (= 0 (string-cursor-start ""))
+(or (= 0
+       (string-cursor->index "" (string-cursor-start "")))
     (fail 'string-cursor-start))
 
-(or (= 0 (string-cursor-start "abc"))
+(or (= 0
+       (string-cursor->index ABC (string-cursor-start ABC)))
     (fail 'string-cursor-start))
 
-(or (= 0 (string-cursor-end ""))
+(or (= 0
+       (string-cursor->index "" (string-cursor-end "")))
     (fail 'string-cursor-end))
 
-(or (= 3 (string-cursor-end "abc"))
+(or (= 3
+       (string-cursor->index ABC (string-cursor-end ABC)))
     (fail 'string-cursor-end))
 
-(or (= 1 (string-cursor-next "abc" 0))
+(or (= 1
+       (string-cursor->index ABC (string-cursor-next ABC 0)))
     (fail 'string-cursor-next))
 
-(or (= 2 (string-cursor-next "abc" 1))
+(or (= 2
+       (string-cursor->index ABC (string-cursor-next ABC 1)))
     (fail 'string-cursor-next))
 
-(or (= 3 (string-cursor-next "abc" 2))
+(or (= 3
+       (string-cursor->index ABC (string-cursor-next ABC 2)))
     (fail 'string-cursor-next))
 
-(or (= 0 (string-cursor-prev "abc" 1))
+(or (= 0
+       (string-cursor->index ABC (string-cursor-prev ABC 1)))
     (fail 'string-cursor-prev))
 
-(or (= 1 (string-cursor-prev "abc" 2))
+(or (= 1
+       (string-cursor->index ABC (string-cursor-prev ABC 2)))
     (fail 'string-cursor-prev))
 
-(or (= 2 (string-cursor-prev "abc" 3))
+(or (= 2
+       (string-cursor->index ABC (string-cursor-prev ABC 3)))
     (fail 'string-cursor-prev))
 
-(or (= 0 (string-cursor-forward "abc" 0 0))
+(or (= 0
+       (string-cursor->index ABC (string-cursor-forward ABC 0 0)))
     (fail 'string-cursor-forward))
 
-(or (= 2 (string-cursor-forward "abc" 0 2))
+(or (= 2
+       (string-cursor->index ABC (string-cursor-forward ABC 0 2)))
     (fail 'string-cursor-forward))
 
-(or (= 3 (string-cursor-forward "abc" 1 2))
+(or (= 3
+       (string-cursor->index ABC (string-cursor-forward ABC 1 2)))
     (fail 'string-cursor-forward))
 
-(or (= 3 (string-cursor-forward "abc" 3 0))
+(or (= 3
+       (string-cursor->index ABC (string-cursor-forward ABC 3 0)))
     (fail 'string-cursor-forward))
 
-(or (= 0 (string-cursor-back "abc" 0 0))
+(or (= 0
+       (string-cursor->index ABC (string-cursor-back ABC 0 0)))
     (fail 'string-cursor-back))
 
-(or (= 0 (string-cursor-back "abc" 2 2))
+(or (= 0
+       (string-cursor->index ABC (string-cursor-back ABC 2 2)))
     (fail 'string-cursor-back))
 
-(or (= 1 (string-cursor-back "abc" 3 2))
+(or (= 1
+       (string-cursor->index ABC (string-cursor-back ABC 3 2)))
     (fail 'string-cursor-back))
 
-(or (= 3 (string-cursor-back "abc" 3 0))
+(or (= 3
+       (string-cursor->index ABC (string-cursor-back ABC 3 0)))
     (fail 'string-cursor-back))
 
-(or (string-cursor=? "" 0 0)
+
+;;; These are supposed to work on both indexes and cursors.
+
+(or (string-cursor=? 0 0)
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 0 1))
+(or (not (string-cursor=? 0 1))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 0 2))
+(or (not (string-cursor=? 0 2))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 0 3))
+(or (not (string-cursor=? 0 3))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 1 0))
+(or (not (string-cursor=? 1 0))
     (fail 'string-cursor=?))
 
-(or (string-cursor=? "abc" 1 1)
+(or (string-cursor=? 1 1)
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 1 2))
+(or (not (string-cursor=? 1 2))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 1 3))
+(or (not (string-cursor=? 1 3))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 2 0))
+(or (not (string-cursor=? 2 0))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 2 1))
+(or (not (string-cursor=? 2 1))
     (fail 'string-cursor=?))
 
-(or (string-cursor=? "abc" 2 2)
+(or (string-cursor=? 2 2)
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 2 3))
+(or (not (string-cursor=? 2 3))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 3 0))
+(or (not (string-cursor=? 3 0))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 3 1))
+(or (not (string-cursor=? 3 1))
     (fail 'string-cursor=?))
 
-(or (not (string-cursor=? "abc" 3 2))
+(or (not (string-cursor=? 3 2))
     (fail 'string-cursor=?))
 
-(or (string-cursor=? "abc" 3 3)
+(or (string-cursor=? 3 3)
     (fail 'string-cursor=?))
 
 
-(or (not (string-cursor<? "" 0 0))
+(or (not (string-cursor<? 0 0))
     (fail 'string-cursor<?))
 
-(or (string-cursor<? "abc" 0 1)
+(or (string-cursor<? 0 1)
     (fail 'string-cursor<?))
 
-(or (string-cursor<? "abc" 0 2)
+(or (string-cursor<? 0 2)
     (fail 'string-cursor<?))
 
-(or (string-cursor<? "abc" 0 3)
+(or (string-cursor<? 0 3)
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 1 0))
+(or (not (string-cursor<? 1 0))
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 1 1))
+(or (not (string-cursor<? 1 1))
     (fail 'string-cursor<?))
 
-(or (string-cursor<? "abc" 1 2)
+(or (string-cursor<? 1 2)
     (fail 'string-cursor<?))
 
-(or (string-cursor<? "abc" 1 3)
+(or (string-cursor<? 1 3)
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 2 0))
+(or (not (string-cursor<? 2 0))
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 2 1))
+(or (not (string-cursor<? 2 1))
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 2 2))
+(or (not (string-cursor<? 2 2))
     (fail 'string-cursor<?))
 
-(or (string-cursor<? "abc" 2 3)
+(or (string-cursor<? 2 3)
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 3 0))
+(or (not (string-cursor<? 3 0))
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 3 1))
+(or (not (string-cursor<? 3 1))
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 3 2))
+(or (not (string-cursor<? 3 2))
     (fail 'string-cursor<?))
 
-(or (not (string-cursor<? "abc" 3 3))
+(or (not (string-cursor<? 3 3))
     (fail 'string-cursor<?))
 
 
-(or (not (string-cursor>? "" 0 0))
+(or (not (string-cursor>? 0 0))
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 0 1))
+(or (not (string-cursor>? 0 1))
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 0 2))
+(or (not (string-cursor>? 0 2))
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 0 3))
+(or (not (string-cursor>? 0 3))
     (fail 'string-cursor>?))
 
-(or (string-cursor>? "abc" 1 0)
+(or (string-cursor>? 1 0)
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 1 1))
+(or (not (string-cursor>? 1 1))
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 1 2))
+(or (not (string-cursor>? 1 2))
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 1 3))
+(or (not (string-cursor>? 1 3))
     (fail 'string-cursor>?))
 
-(or (string-cursor>? "abc" 2 0)
+(or (string-cursor>? 2 0)
     (fail 'string-cursor>?))
 
-(or (string-cursor>? "abc" 2 1)
+(or (string-cursor>? 2 1)
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 2 2))
+(or (not (string-cursor>? 2 2))
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 2 3))
+(or (not (string-cursor>? 2 3))
     (fail 'string-cursor>?))
 
-(or (string-cursor>? "abc" 3 0)
+(or (string-cursor>? 3 0)
     (fail 'string-cursor>?))
 
-(or (string-cursor>? "abc" 3 1)
+(or (string-cursor>? 3 1)
     (fail 'string-cursor>?))
 
-(or (string-cursor>? "abc" 3 2)
+(or (string-cursor>? 3 2)
     (fail 'string-cursor>?))
 
-(or (not (string-cursor>? "abc" 3 3))
+(or (not (string-cursor>? 3 3))
     (fail 'string-cursor>?))
 
 
-(or (string-cursor<=? "" 0 0)
+(or (string-cursor<=? 0 0)
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 0 1)
+(or (string-cursor<=? 0 1)
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 0 2)
+(or (string-cursor<=? 0 2)
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 0 3)
+(or (string-cursor<=? 0 3)
     (fail 'string-cursor<=?))
 
-(or (not (string-cursor<=? "abc" 1 0))
+(or (not (string-cursor<=? 1 0))
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 1 1)
+(or (string-cursor<=? 1 1)
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 1 2)
+(or (string-cursor<=? 1 2)
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 1 3)
+(or (string-cursor<=? 1 3)
     (fail 'string-cursor<=?))
 
-(or (not (string-cursor<=? "abc" 2 0))
+(or (not (string-cursor<=? 2 0))
     (fail 'string-cursor<=?))
 
-(or (not (string-cursor<=? "abc" 2 1))
+(or (not (string-cursor<=? 2 1))
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 2 2)
+(or (string-cursor<=? 2 2)
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 2 3)
+(or (string-cursor<=? 2 3)
     (fail 'string-cursor<=?))
 
-(or (not (string-cursor<=? "abc" 3 0))
+(or (not (string-cursor<=? 3 0))
     (fail 'string-cursor<=?))
 
-(or (not (string-cursor<=? "abc" 3 1))
+(or (not (string-cursor<=? 3 1))
     (fail 'string-cursor<=?))
 
-(or (not (string-cursor<=? "abc" 3 2))
+(or (not (string-cursor<=? 3 2))
     (fail 'string-cursor<=?))
 
-(or (string-cursor<=? "abc" 3 3)
+(or (string-cursor<=? 3 3)
     (fail 'string-cursor<=?))
 
 
-(or (string-cursor>=? "" 0 0)
+(or (string-cursor>=? 0 0)
     (fail 'string-cursor>=?))
 
-(or (not (string-cursor>=? "abc" 0 1))
+(or (not (string-cursor>=? 0 1))
     (fail 'string-cursor>=?))
 
-(or (not (string-cursor>=? "abc" 0 2))
+(or (not (string-cursor>=? 0 2))
     (fail 'string-cursor>=?))
 
-(or (not (string-cursor>=? "abc" 0 3))
+(or (not (string-cursor>=? 0 3))
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 1 0)
+(or (string-cursor>=? 1 0)
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 1 1)
+(or (string-cursor>=? 1 1)
     (fail 'string-cursor>=?))
 
-(or (not (string-cursor>=? "abc" 1 2))
+(or (not (string-cursor>=? 1 2))
     (fail 'string-cursor>=?))
 
-(or (not (string-cursor>=? "abc" 1 3))
+(or (not (string-cursor>=? 1 3))
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 2 0)
+(or (string-cursor>=? 2 0)
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 2 1)
+(or (string-cursor>=? 2 1)
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 2 2)
+(or (string-cursor>=? 2 2)
     (fail 'string-cursor>=?))
 
-(or (not (string-cursor>=? "abc" 2 3))
+(or (not (string-cursor>=? 2 3))
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 3 0)
+(or (string-cursor>=? 3 0)
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 3 1)
+(or (string-cursor>=? 3 1)
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 3 2)
+(or (string-cursor>=? 3 2)
     (fail 'string-cursor>=?))
 
-(or (string-cursor>=? "abc" 3 3)
+(or (string-cursor>=? 3 3)
     (fail 'string-cursor>=?))
 
 
-(or (= 0 (string-cursor-diff "" 0 0))
+(or (string-cursor=? (string-index->cursor ABC 0)
+                     (string-index->cursor ABC 0))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor=?))
+
+(or (string-cursor=? (string-index->cursor ABC 1)
+                     (string-index->cursor ABC 1))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor=?))
+
+(or (string-cursor=? (string-index->cursor ABC 2)
+                     (string-index->cursor ABC 2))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor=?))
+
+(or (not (string-cursor=? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor=?))
+
+(or (string-cursor=? (string-index->cursor ABC 3)
+                     (string-index->cursor ABC 3))
+    (fail 'string-cursor=?))
+
+
+(or (not (string-cursor<? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor<?))
+
+(or (string-cursor<? (string-index->cursor ABC 0)
+                     (string-index->cursor ABC 1))
+    (fail 'string-cursor<?))
+
+(or (string-cursor<? (string-index->cursor ABC 0)
+                     (string-index->cursor ABC 2))
+    (fail 'string-cursor<?))
+
+(or (string-cursor<? (string-index->cursor ABC 0)
+                     (string-index->cursor ABC 3))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor<?))
+
+(or (string-cursor<? (string-index->cursor ABC 1)
+                     (string-index->cursor ABC 2))
+    (fail 'string-cursor<?))
+
+(or (string-cursor<? (string-index->cursor ABC 1)
+                     (string-index->cursor ABC 3))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor<?))
+
+(or (string-cursor<? (string-index->cursor ABC 2)
+                     (string-index->cursor ABC 3))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor<?))
+
+(or (not (string-cursor<? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor<?))
+
+
+(or (not (string-cursor>? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 0)))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 0)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor>?))
+
+(or (string-cursor>? (string-index->cursor ABC 1)
+                     (string-index->cursor ABC 0))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 1)))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 1)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor>?))
+
+(or (string-cursor>? (string-index->cursor ABC 2)
+                     (string-index->cursor ABC 0))
+    (fail 'string-cursor>?))
+
+(or (string-cursor>? (string-index->cursor ABC 2)
+                     (string-index->cursor ABC 1))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 2)))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 2)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor>?))
+
+(or (string-cursor>? (string-index->cursor ABC 3)
+                     (string-index->cursor ABC 0))
+    (fail 'string-cursor>?))
+
+(or (string-cursor>? (string-index->cursor ABC 3)
+                     (string-index->cursor ABC 1))
+    (fail 'string-cursor>?))
+
+(or (string-cursor>? (string-index->cursor ABC 3)
+                     (string-index->cursor ABC 2))
+    (fail 'string-cursor>?))
+
+(or (not (string-cursor>? (string-index->cursor ABC 3)
+                          (string-index->cursor ABC 3)))
+    (fail 'string-cursor>?))
+
+
+(or (string-cursor<=? (string-index->cursor ABC 0)
+                      (string-index->cursor ABC 0))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 0)
+                      (string-index->cursor ABC 1))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 0)
+                      (string-index->cursor ABC 2))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 0)
+                      (string-index->cursor ABC 3))
+    (fail 'string-cursor<=?))
+
+(or (not (string-cursor<=? (string-index->cursor ABC 1)
+                           (string-index->cursor ABC 0)))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 1)
+                      (string-index->cursor ABC 1))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 1)
+                      (string-index->cursor ABC 2))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 1)
+                      (string-index->cursor ABC 3))
+    (fail 'string-cursor<=?))
+
+(or (not (string-cursor<=? (string-index->cursor ABC 2)
+                           (string-index->cursor ABC 0)))
+    (fail 'string-cursor<=?))
+
+(or (not (string-cursor<=? (string-index->cursor ABC 2)
+                           (string-index->cursor ABC 1)))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 2)
+                      (string-index->cursor ABC 2))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 2)
+                      (string-index->cursor ABC 3))
+    (fail 'string-cursor<=?))
+
+(or (not (string-cursor<=? (string-index->cursor ABC 3)
+                           (string-index->cursor ABC 0)))
+    (fail 'string-cursor<=?))
+
+(or (not (string-cursor<=? (string-index->cursor ABC 3)
+                           (string-index->cursor ABC 1)))
+    (fail 'string-cursor<=?))
+
+(or (not (string-cursor<=? (string-index->cursor ABC 3)
+                           (string-index->cursor ABC 2)))
+    (fail 'string-cursor<=?))
+
+(or (string-cursor<=? (string-index->cursor ABC 3)
+                      (string-index->cursor ABC 3))
+    (fail 'string-cursor<=?))
+
+
+(or (string-cursor>=? (string-index->cursor ABC 0)
+                      (string-index->cursor ABC 0))
+    (fail 'string-cursor>=?))
+
+(or (not (string-cursor>=? (string-index->cursor ABC 0)
+                           (string-index->cursor ABC 1)))
+    (fail 'string-cursor>=?))
+
+(or (not (string-cursor>=? (string-index->cursor ABC 0)
+                           (string-index->cursor ABC 2)))
+    (fail 'string-cursor>=?))
+
+(or (not (string-cursor>=? (string-index->cursor ABC 0)
+                           (string-index->cursor ABC 3)))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 1)
+                      (string-index->cursor ABC 0))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 1)
+                      (string-index->cursor ABC 1))
+    (fail 'string-cursor>=?))
+
+(or (not (string-cursor>=? (string-index->cursor ABC 1)
+                           (string-index->cursor ABC 2)))
+    (fail 'string-cursor>=?))
+
+(or (not (string-cursor>=? (string-index->cursor ABC 1)
+                           (string-index->cursor ABC 3)))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 2)
+                      (string-index->cursor ABC 0))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 2)
+                      (string-index->cursor ABC 1))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 2)
+                      (string-index->cursor ABC 2))
+    (fail 'string-cursor>=?))
+
+(or (not (string-cursor>=? (string-index->cursor ABC 2)
+                           (string-index->cursor ABC 3)))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 3)
+                      (string-index->cursor ABC 0))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 3)
+                      (string-index->cursor ABC 1))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 3)
+                      (string-index->cursor ABC 2))
+    (fail 'string-cursor>=?))
+
+(or (string-cursor>=? (string-index->cursor ABC 3)
+                      (string-index->cursor ABC 3))
+    (fail 'string-cursor>=?))
+
+
+(or (= 0 (string-cursor-diff ""
+                             (string-index->cursor ABC 0)
+                             (string-index->cursor ABC 0)))
     (fail 'string-cursor-diff))
 
-(or (= 3 (string-cursor-diff "abc" 0 3))
+(or (= 3 (string-cursor-diff ABC
+                             (string-index->cursor ABC 0)
+                             (string-index->cursor ABC 3)))
     (fail 'string-cursor-diff))
 
-(or (= 0 (string-cursor->index "" 0))
+(or (= 0 (string-cursor->index "" (string-index->cursor "" 0)))
     (fail 'string-cursor->index))
 
-(or (= 3 (string-cursor->index "abc" 3))
+(or (= 3 (string-cursor->index ABC (string-index->cursor ABC 3)))
     (fail 'string-cursor->index))
 
-(or (= 0 (string-index->cursor "" 0))
+(or (= 0 (string-index->cursor "" (string-index->cursor "" 0)))
     (fail 'string-index->cursor))
 
-(or (= 3 (string-index->cursor "abc" 3))
+(or (= 3 (string-index->cursor ABC (string-index->cursor ABC 3)))
     (fail 'string-index->cursor))
 
 ;;; Predicates
@@ -370,6 +749,12 @@
 (or (eqv? #f (string-every (lambda (c) (if (char>? c #\b) c #f)) "abc"))
     (fail 'string-every))
 
+(or (eqv? #\c (string-every (lambda (c) (if (char>? c #\b) c #f)) "abc" 2))
+    (fail 'string-every))
+
+(or (eqv? #t (string-every (lambda (c) (if (char>? c #\b) c #f)) "abc" 1 1))
+    (fail 'string-every))
+
 (or (eqv? #f (string-any (lambda (c) (if (char? c) c #f)) ""))
     (fail 'string-any))
 
@@ -377,6 +762,12 @@
     (fail 'string-any))
 
 (or (eqv? #\c (string-any (lambda (c) (if (char>? c #\b) c #f)) "abc"))
+    (fail 'string-any))
+
+(or (eqv? #\c (string-any (lambda (c) (if (char>? c #\b) c #f)) "abc" 2))
+    (fail 'string-any))
+
+(or (eqv? #f (string-any (lambda (c) (if (char>? c #\b) c #f)) "abc" 0 2))
     (fail 'string-any))
 
 ;;; Constructors
@@ -457,6 +848,12 @@
 (or (equal? '(#\b #\c) (string->list/cursors "abc" 1 3))
     (fail 'string->list/cursors))
 
+(or (equal? '(#\b #\c)
+            (string->list/cursors "abc"
+                                  (string-index->cursor "abc" 1)
+                                  (string-index->cursor "abc" 3)))
+    (fail 'string->list/cursors))
+
 (or (equal? '#() (string->vector/cursors ""))
     (fail 'string->vector/cursors))
 
@@ -473,6 +870,12 @@
     (fail 'string->vector/cursors))
 
 (or (equal? '#(#\b #\c) (string->vector/cursors "abc" 1 3))
+    (fail 'string->vector/cursors))
+
+(or (equal? '#(#\b #\c)
+            (string->vector/cursors "abc"
+                                  (string-index->cursor "abc" 1)
+                                  (string-index->cursor "abc" 3)))
     (fail 'string->vector/cursors))
 
 (or (equal? "" (reverse-list->string '()))
@@ -562,10 +965,18 @@
             (string-join '("" "ab" "cd" "" "e" "f" "") "xyz" 'prefix))
     (fail 'string-join))
 
+;;; Selection
+
 (or (char=? #\a (string-ref/cursor "abc" 0))
     (fail 'string-ref/cursor))
 
 (or (char=? #\c (string-ref/cursor "abc" 2))
+    (fail 'string-ref/cursor))
+
+(or (char=? #\a (string-ref/cursor "abc" (string-index->cursor "abc" 0)))
+    (fail 'string-ref/cursor))
+
+(or (char=? #\c (string-ref/cursor "abc" (string-index->cursor "abc" 2)))
     (fail 'string-ref/cursor))
 
 (or (string=? "" (substring/cursors "" 0 0))
@@ -577,7 +988,13 @@
 (or (string=? "" (substring/cursors "abc" 3 3))
     (fail 'substring/cursors))
 
-(or (string=? "abc" (substring/cursors "abc" 0 3))
+(or (string=? ABC (substring/cursors ABC 0 3))
+    (fail 'substring/cursors))
+
+(or (string=? ABC
+              (substring/cursors ABC
+                                 (string-index->cursor "abc" 0)
+                                 (string-index->cursor "abc" 3)))
     (fail 'substring/cursors))
 
 (or (string=? "b" (substring/cursors "abc" 1 2))
@@ -614,6 +1031,12 @@
     (fail 'string-copy/cursors))
 
 (or (string=? "b" (string-copy/cursors "abc" 1 2))
+    (fail 'string-copy/cursors))
+
+(or (string=? (substring ABC 1 2)
+              (string-copy/cursors ABC
+                                   (string-index->cursor "abc" 1)
+                                   (string-index->cursor "abc" 2)))
     (fail 'string-copy/cursors))
 
 (or (string=? "" (string-take "" 0))
@@ -1639,341 +2062,620 @@
 
 ;;; Searching
 
-(or (= 0 (string-index "" char?))
+(or (= 0
+       (string-cursor->index ""
+                             (string-index "" char?)))
     (fail 'string-index))
 
-(or (= 0 (string-index "abcdef" char?))
+(or (= 0
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef" char?)))
     (fail 'string-index))
 
-(or (= 4 (string-index "abcdef" (lambda (c) (char>? c #\d))))
+(or (= 4
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef"
+                                           (lambda (c) (char>? c #\d)))))
     (fail 'string-index))
 
-(or (= 6 (string-index "abcdef" char-whitespace?))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef" char-whitespace?)))
     (fail 'string-index))
 
-(or (= 0 (string-index-right "" char?))
+(or (= 0
+       (string-cursor->index "abcdef"
+                             (string-index-right "" char?)))
     (fail 'string-index-right))
 
-(or (= 5 (string-index-right "abcdef" char?))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef" char?)))
     (fail 'string-index-right))
 
-(or (= 5 (string-index-right "abcdef" (lambda (c) (char>? c #\d))))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef"
+                                                 (lambda (c) (char>? c #\d)))))
     (fail 'string-index-right))
 
-(or (= 0 (string-index-right "abcdef" char-whitespace?))
+(or (= 0
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef" char-whitespace?)))
     (fail 'string-index-right))
 
-(or (= 0 (string-skip "" string?))
+(or (= 0
+       (string-cursor->index "" (string-skip "" string?)))
     (fail 'string-skip))
 
-(or (= 0 (string-skip "abcdef" string?))
+(or (= 0
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef" string?)))
     (fail 'string-skip))
 
-(or (= 4 (string-skip "abcdef" (lambda (c) (char<=? c #\d))))
+(or (= 4
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef"
+                                          (lambda (c) (char<=? c #\d)))))
     (fail 'string-skip))
 
-(or (= 6 (string-skip "abcdef" char?))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef" char?)))
     (fail 'string-skip))
 
-(or (= 0 (string-skip-right "" string?))
+(or (= 0
+       (string-cursor->index "" (string-skip-right "" string?)))
     (fail 'string-skip-right))
 
-(or (= 5 (string-skip-right "abcdef" string?))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef" string?)))
     (fail 'string-skip-right))
 
-(or (= 5 (string-skip-right "abcdef" (lambda (c) (char<=? c #\d))))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef"
+                                                (lambda (c) (char<=? c #\d)))))
     (fail 'string-skip-right))
 
-(or (= 0 (string-skip-right "abcdef" char?))
-    (fail 'string-skip-right))
-
-
-(or (= 2 (string-index "abcdef" char? 2))
-    (fail 'string-index))
-
-(or (= 4 (string-index "abcdef" (lambda (c) (char>? c #\d)) 2))
-    (fail 'string-index))
-
-(or (= 6 (string-index "abcdef" char-whitespace? 2))
-    (fail 'string-index))
-
-(or (= 5 (string-index-right "abcdef" char? 2))
-    (fail 'string-index-right))
-
-(or (= 5 (string-index-right "abcdef" (lambda (c) (char>? c #\d)) 2))
-    (fail 'string-index-right))
-
-(or (= 2 (string-index-right "abcdef" char-whitespace? 2))
-    (fail 'string-index-right))
-
-(or (= 2 (string-skip "abcdef" string? 2))
-    (fail 'string-skip))
-
-(or (= 4 (string-skip "abcdef" (lambda (c) (char<=? c #\d)) 2))
-    (fail 'string-skip))
-
-(or (= 6 (string-skip "abcdef" char? 2))
-    (fail 'string-skip))
-
-(or (= 5 (string-skip-right "abcdef" string? 2))
-    (fail 'string-skip-right))
-
-(or (= 5 (string-skip-right "abcdef" (lambda (c) (char<=? c #\d)) 2))
-    (fail 'string-skip-right))
-
-(or (= 2 (string-skip-right "abcdef" char? 2))
+(or (= 0
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef" char?)))
     (fail 'string-skip-right))
 
 
-(or (= 2 (string-index "abcdef" char? 2 5))
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef" char? 2)))
     (fail 'string-index))
 
-(or (= 4 (string-index "abcdef" (lambda (c) (char>? c #\d)) 2 5))
+(or (= 4
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef"
+                                           (lambda (c) (char>? c #\d)) 2)))
     (fail 'string-index))
 
-(or (= 5 (string-index "abcdef" char-whitespace? 2 5))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef" char-whitespace? 2)))
     (fail 'string-index))
 
-(or (= 4 (string-index-right "abcdef" char? 2 5))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef" char? 2)))
     (fail 'string-index-right))
 
-(or (= 4 (string-index-right "abcdef" (lambda (c) (char>? c #\d)) 2 5))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef"
+                                                 (lambda (c)
+                                                   (char>? c #\d)) 2)))
     (fail 'string-index-right))
 
-(or (= 2 (string-index-right "abcdef" char-whitespace? 2 5))
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef" char-whitespace? 2)))
     (fail 'string-index-right))
 
-(or (= 2 (string-skip "abcdef" string? 2 5))
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef" string? 2)))
     (fail 'string-skip))
 
-(or (= 4 (string-skip "abcdef" (lambda (c) (char<=? c #\d)) 2 5))
+(or (= 4
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef"
+                                          (lambda (c)
+                                            (char<=? c #\d)) 2)))
     (fail 'string-skip))
 
-(or (= 5 (string-skip "abcdef" char? 2 5))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef" char? 2)))
     (fail 'string-skip))
 
-(or (= 4 (string-skip-right "abcdef" string? 2 5))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef" string? 2)))
     (fail 'string-skip-right))
 
-(or (= 4 (string-skip-right "abcdef" (lambda (c) (char<=? c #\d)) 2 5))
+(or (= 6
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef"
+                                                (lambda (c)
+                                                  (char<=? c #\d)) 2)))
     (fail 'string-skip-right))
 
-(or (= 2 (string-skip-right "abcdef" char? 2 5))
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef" char? 2)))
     (fail 'string-skip-right))
 
 
-(or (eqv? 0 (string-contains "" ""))
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef" char? 2 5)))
+    (fail 'string-index))
+
+(or (= 4
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef"
+                                           (lambda (c) (char>? c #\d)) 2 5)))
+    (fail 'string-index))
+
+(or (= 5
+       (string-cursor->index "abcdef"
+                             (string-index "abcdef" char-whitespace? 2 5)))
+    (fail 'string-index))
+
+(or (= 5
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef" char? 2 5)))
+    (fail 'string-index-right))
+
+(or (= 5
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef"
+                                                 (lambda (c)
+                                                   (char>? c #\d)) 2 5)))
+    (fail 'string-index-right))
+
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-index-right "abcdef"
+                                                 char-whitespace? 2 5)))
+    (fail 'string-index-right))
+
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef" string? 2 5)))
+    (fail 'string-skip))
+
+(or (= 4
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef"
+                                          (lambda (c) (char<=? c #\d)) 2 5)))
+    (fail 'string-skip))
+
+(or (= 5
+       (string-cursor->index "abcdef"
+                             (string-skip "abcdef" char? 2 5)))
+    (fail 'string-skip))
+
+(or (= 5
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef" string? 2 5)))
+    (fail 'string-skip-right))
+
+(or (= 5
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef"
+                                                (lambda (c)
+                                                  (char<=? c #\d)) 2 5)))
+    (fail 'string-skip-right))
+
+(or (= 2
+       (string-cursor->index "abcdef"
+                             (string-skip-right "abcdef" char? 2 5)))
+    (fail 'string-skip-right))
+
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains "" "")))
     (fail 'string-contains))
 
-(or (eqv? 0 (string-contains "abcdeffffoo" ""))
+(or (eqv? 0
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "")))
     (fail 'string-contains))
 
-(or (eqv? 0 (string-contains "abcdeffffoo" "a"))
+(or (eqv? 0
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "a")))
     (fail 'string-contains))
 
-(or (eqv? 5 (string-contains "abcdeffffoo" "ff"))
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "ff")))
     (fail 'string-contains))
 
-(or (eqv? 4 (string-contains "abcdeffffoo" "eff"))
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "eff")))
     (fail 'string-contains))
 
-(or (eqv? 8 (string-contains "abcdeffffoo" "foo"))
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "foo")))
     (fail 'string-contains))
 
-(or (eqv? #f (string-contains "abcdeffffoo" "efffoo"))
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "efffoo")))
     (fail 'string-contains))
 
-(or (eqv? 0 (string-contains-right "" ""))
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains-right "" "")))
     (fail 'string-contains-right))
 
-(or (eqv? 11 (string-contains-right "abcdeffffoo" ""))
+(or (eqv? 11
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo" "")))
     (fail 'string-contains-right))
 
-(or (eqv? 0 (string-contains-right "abcdeffffoo" "a"))
+(or (eqv? 0
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo" "a")))
     (fail 'string-contains-right))
 
-(or (eqv? 7 (string-contains-right "abcdeffffoo" "ff"))
+(or (eqv? 7
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo" "ff")))
     (fail 'string-contains-right))
 
-(or (eqv? 4 (string-contains-right "abcdeffffoo" "eff"))
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo" "eff")))
     (fail 'string-contains-right))
 
-(or (eqv? 8 (string-contains-right "abcdeffffoo" "foo"))
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo" "foo")))
     (fail 'string-contains-right))
 
-(or (eqv? #f (string-contains-right "abcdeffffoo" "efffoo"))
-    (fail 'string-contains-right))
-
-
-(or (eqv? 0 (string-contains "" "" 0))
-    (fail 'string-contains))
-
-(or (eqv? 2 (string-contains "abcdeffffoo" "" 2))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "a" 2))
-    (fail 'string-contains))
-
-(or (eqv? 5 (string-contains "abcdeffffoo" "ff" 2))
-    (fail 'string-contains))
-
-(or (eqv? 4 (string-contains "abcdeffffoo" "eff" 2))
-    (fail 'string-contains))
-
-(or (eqv? 8 (string-contains "abcdeffffoo" "foo" 2))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "efffoo" 2))
-    (fail 'string-contains))
-
-(or (eqv? 0 (string-contains-right "" "" 0))
-    (fail 'string-contains-right))
-
-(or (eqv? 11 (string-contains-right "abcdeffffoo" "" 2))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "a" 2))
-    (fail 'string-contains-right))
-
-(or (eqv? 7 (string-contains-right "abcdeffffoo" "ff" 2))
-    (fail 'string-contains-right))
-
-(or (eqv? 4 (string-contains-right "abcdeffffoo" "eff" 2))
-    (fail 'string-contains-right))
-
-(or (eqv? 8 (string-contains-right "abcdeffffoo" "foo" 2))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "efffoo" 2))
-    (fail 'string-contains-right))
-
-
-(or (eqv? 0 (string-contains "" "" 0 0))
-    (fail 'string-contains))
-
-(or (eqv? 2 (string-contains "abcdeffffoo" "" 2 10))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "a" 2 10))
-    (fail 'string-contains))
-
-(or (eqv? 5 (string-contains "abcdeffffoo" "ff" 2 10))
-    (fail 'string-contains))
-
-(or (eqv? 4 (string-contains "abcdeffffoo" "eff" 2 10))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "foo" 2 10))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "efffoo" 2 10))
-    (fail 'string-contains))
-
-(or (eqv? 0 (string-contains-right "" "" 0 0))
-    (fail 'string-contains-right))
-
-(or (eqv? 10 (string-contains-right "abcdeffffoo" "" 2 10))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "a" 2 10))
-    (fail 'string-contains-right))
-
-(or (eqv? 7 (string-contains-right "abcdeffffoo" "ff" 2 10))
-    (fail 'string-contains-right))
-
-(or (eqv? 4 (string-contains-right "abcdeffffoo" "eff" 2 10))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "foo" 2 10))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "efffoo" 2 10))
-    (fail 'string-contains-right))
-
-
-(or (eqv? 0 (string-contains "" "" 0 0 0))
-    (fail 'string-contains))
-
-(or (eqv? 2 (string-contains "abcdeffffoo" "" 2 10 0))
-    (fail 'string-contains))
-
-(or (eqv? 2 (string-contains "abcdeffffoo" "a" 2 10 1))
-    (fail 'string-contains))
-
-(or (eqv? 5 (string-contains "abcdeffffoo" "ff" 2 10 1))
-    (fail 'string-contains))
-
-(or (eqv? 5 (string-contains "abcdeffffoo" "eff" 2 10 1))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "foo" 2 10 1))
-    (fail 'string-contains))
-
-(or (eqv? #f (string-contains "abcdeffffoo" "efffoo" 2 10 1))
-    (fail 'string-contains))
-
-(or (eqv? 0 (string-contains-right "" "" 0 0 0))
-    (fail 'string-contains-right))
-
-(or (eqv? 10 (string-contains-right "abcdeffffoo" "" 2 10 0))
-    (fail 'string-contains-right))
-
-(or (eqv? 10 (string-contains-right "abcdeffffoo" "a" 2 10 1))
-    (fail 'string-contains-right))
-
-(or (eqv? 8 (string-contains-right "abcdeffffoo" "ff" 2 10 1))
-    (fail 'string-contains-right))
-
-(or (eqv? 7 (string-contains-right "abcdeffffoo" "eff" 2 10 1))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "foo" 2 10 1))
-    (fail 'string-contains-right))
-
-(or (eqv? #f (string-contains-right "abcdeffffoo" "efffoo" 2 10 1))
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "efffoo")))
     (fail 'string-contains-right))
 
 
-(or (eqv? 0 (string-contains "" "" 0 0 0 0))
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains "" "" 0)))
     (fail 'string-contains))
 
-(or (eqv? 2 (string-contains "abcdeffffoo" "" 2 10 0 0))
+(or (eqv? 2
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "" 2)))
     (fail 'string-contains))
 
-(or (eqv? 2 (string-contains "abcdeffffoo" "a" 2 10 1 1))
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "a" 2)))
     (fail 'string-contains))
 
-(or (eqv? 5 (string-contains "abcdeffffoo" "ff" 2 10 1 2))
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "ff" 2)))
     (fail 'string-contains))
 
-(or (eqv? 5 (string-contains "abcdeffffoo" "eff" 2 10 1 2))
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "eff" 2)))
     (fail 'string-contains))
 
-(or (eqv? 9 (string-contains "abcdeffffoo" "foo" 2 10 1 2))
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "foo" 2)))
     (fail 'string-contains))
 
-(or (eqv? 4 (string-contains "abcdeffffoo" "efffoo" 2 10 0 2))
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo" "efffoo" 2)))
     (fail 'string-contains))
 
-(or (eqv? 0 (string-contains-right "" "" 0 0 0 0))
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains-right "" "" 0)))
     (fail 'string-contains-right))
 
-(or (eqv? 10 (string-contains-right "abcdeffffoo" "" 2 10 0 0))
+(or (eqv? 11
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "" 2)))
     (fail 'string-contains-right))
 
-(or (eqv? 10 (string-contains-right "abcdeffffoo" "a" 2 10 1 1))
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "a" 2)))
     (fail 'string-contains-right))
 
-(or (eqv? 8 (string-contains-right "abcdeffffoo" "ff" 2 10 1 2))
+(or (eqv? 7
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "ff" 2)))
     (fail 'string-contains-right))
 
-(or (eqv? 8 (string-contains-right "abcdeffffoo" "eff" 2 10 1 2))
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "eff" 2)))
     (fail 'string-contains-right))
 
-(or (eqv? 9 (string-contains-right "abcdeffffoo" "foo" 2 10 1 2))
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "foo" 2)))
     (fail 'string-contains-right))
 
-(or (eqv? 7 (string-contains-right "abcdeffffoo" "efffoo" 2 10 1 3))
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "efffoo" 2)))
+    (fail 'string-contains-right))
+
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains "" "" 0 0)))
+    (fail 'string-contains))
+
+(or (eqv? 2
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "" 2 10)))
+    (fail 'string-contains))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "a" 2 10)))
+    (fail 'string-contains))
+
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "ff" 2 10)))
+    (fail 'string-contains))
+
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "eff" 2 10)))
+    (fail 'string-contains))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "foo" 2 10)))
+    (fail 'string-contains))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "efffoo" 2 10)))
+    (fail 'string-contains))
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains-right "" "" 0 0)))
+    (fail 'string-contains-right))
+
+(or (eqv? 10
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "" 2 10)))
+    (fail 'string-contains-right))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "a" 2 10)))
+    (fail 'string-contains-right))
+
+(or (eqv? 7
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "ff" 2 10)))
+    (fail 'string-contains-right))
+
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "eff" 2 10)))
+    (fail 'string-contains-right))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "foo" 2 10)))
+    (fail 'string-contains-right))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "efffoo" 2 10)))
+    (fail 'string-contains-right))
+
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains "" "" 0 0 0)))
+    (fail 'string-contains))
+
+(or (eqv? 2
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "" 2 10 0)))
+    (fail 'string-contains))
+
+(or (eqv? 2
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "a" 2 10 1)))
+    (fail 'string-contains))
+
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "ff" 2 10 1)))
+    (fail 'string-contains))
+
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "eff" 2 10 1)))
+    (fail 'string-contains))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "foo" 2 10 1)))
+    (fail 'string-contains))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "efffoo" 2 10 1)))
+    (fail 'string-contains))
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains-right "" "" 0 0 0)))
+    (fail 'string-contains-right))
+
+(or (eqv? 10
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "" 2 10 0)))
+    (fail 'string-contains-right))
+
+(or (eqv? 10
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "a" 2 10 1)))
+    (fail 'string-contains-right))
+
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "ff" 2 10 1)))
+    (fail 'string-contains-right))
+
+(or (eqv? 7
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "eff" 2 10 1)))
+    (fail 'string-contains-right))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "foo" 2 10 1)))
+    (fail 'string-contains-right))
+
+(or (eqv? #f
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "efffoo" 2 10 1)))
+    (fail 'string-contains-right))
+
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains "" "" 0 0 0 0)))
+    (fail 'string-contains))
+
+(or (eqv? 2
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "" 2 10 0 0)))
+    (fail 'string-contains))
+
+(or (eqv? 2
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "a" 2 10 1 1)))
+    (fail 'string-contains))
+
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "ff" 2 10 1 2)))
+    (fail 'string-contains))
+
+(or (eqv? 5
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "eff" 2 10 1 2)))
+    (fail 'string-contains))
+
+(or (eqv? 9
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "foo" 2 10 1 2)))
+    (fail 'string-contains))
+
+(or (eqv? 4
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains "abcdeffffoo"
+                                                 "efffoo" 2 10 0 2)))
+    (fail 'string-contains))
+
+(or (eqv? 0
+          (string-cursor->index ""
+                                (string-contains-right "" "" 0 0 0 0)))
+    (fail 'string-contains-right))
+
+(or (eqv? 10
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "" 2 10 0 0)))
+    (fail 'string-contains-right))
+
+(or (eqv? 10
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "a" 2 10 1 1)))
+    (fail 'string-contains-right))
+
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "ff" 2 10 1 2)))
+    (fail 'string-contains-right))
+
+(or (eqv? 8
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "eff" 2 10 1 2)))
+    (fail 'string-contains-right))
+
+(or (eqv? 9
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "foo" 2 10 1 2)))
+    (fail 'string-contains-right))
+
+(or (eqv? 7
+          (string-cursor->index "abcdeffffoo"
+                                (string-contains-right "abcdeffffoo"
+                                                       "efffoo" 2 10 1 3)))
     (fail 'string-contains-right))
 
 ;;; The whole string

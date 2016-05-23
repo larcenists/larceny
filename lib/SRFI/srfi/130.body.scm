@@ -14,11 +14,11 @@
 (define (string-cursor-prev s curs) (- curs 1))                         ; FIXME
 (define (string-cursor-forward s curs n) (+ curs n))                    ; FIXME
 (define (string-cursor-back s curs n) (- curs n))                       ; FIXME
-(define (string-cursor=? s curs1 curs2) (= curs1 curs2))
-(define (string-cursor<? s curs1 curs2) (< curs1 curs2))
-(define (string-cursor>? s curs1 curs2) (> curs1 curs2))
-(define (string-cursor<=? s curs1 curs2) (<= curs1 curs2))
-(define (string-cursor>=? s curs1 curs2) (>= curs1 curs2))
+(define (string-cursor=? curs1 curs2) (= curs1 curs2))
+(define (string-cursor<? curs1 curs2) (< curs1 curs2))
+(define (string-cursor>? curs1 curs2) (> curs1 curs2))
+(define (string-cursor<=? curs1 curs2) (<= curs1 curs2))
+(define (string-cursor>=? curs1 curs2) (>= curs1 curs2))
 (define (string-cursor-diff s start end) (- end start))                 ; FIXME
 (define (string-cursor->index s curs) curs)
 (define (string-index->cursor s idx) idx)
@@ -30,7 +30,10 @@
 (define substring/cursors substring)
 (define string-copy/cursors string-copy)
 
-;;; The SRFI 13 procedures return #f sometimes, so they aren't the same.
+;;; The SRFI 13 procedures return #f sometimes, so they can't be the same
+;;; even if cursors are the same as indexes.
+;;; Furthermore string-index-right and string-skip-right return the
+;;; successor of the cursor for the character found.
 
 (define string-index
   (case-lambda
@@ -49,8 +52,8 @@
    ((s pred start)
     (string-index-right s pred start (string-length s)))
    ((s pred start end)
-    (or (srfi-13:string-index-right s pred start end)
-        start))))
+    (let ((i (srfi-13:string-index-right s pred start end)))
+      (if i (+ i 1) start)))))
 
 (define (string-skip s pred . rest)
   (apply string-index s (lambda (x) (not (pred x))) rest))
@@ -80,8 +83,6 @@
               (loop j (string-contains s1 s2 (+ j 1) end1 start2 end2))
               i))))))
 
-;;; Example is incorrect in SRFI 130.
-
 (define string-for-each-cursor
   (case-lambda
    ((proc s)
@@ -92,9 +93,6 @@
     (do ((i start (+ i 1)))
         ((>= i end))
       (proc i)))))
-
-;;; SRFI 130 refers to a non-existent string-replicate procedure in SRFI 13.
-;;; It's trying to refer to xsubstring.
 
 (define string-replicate
   (case-lambda
