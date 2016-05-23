@@ -1,4 +1,4 @@
-Building Larceny
+]Building Larceny
 
 
 WHAT YOU NEED
@@ -58,14 +58,13 @@ The STRING-REP option determines the representation used
 for strings.  The flat4 representation uses 4 bytes per
 character, is the default on all versions of Larceny, and
 is the only representation that can be used when building
-Common Larceny or Petit Larceny.  The flat1 representation
+Petit Larceny or Common Larceny.  The flat1 representation
 of strings uses 1 byte per character, which limits it to
-strings of Latin-1 characters.  Native Larceny (SPARC or
-x86-32) can be built to use either the flat4 or flat1
-representations; be sure to perform a full build when
-switching from one representation to the other.  Native
-Larceny on ARM currently can only be built with the flat4
-representation.
+strings of Latin-1 characters.  Native Larceny for x86-32
+can be built to use either the flat4 or flat1 representations;
+be sure to perform a full build when switching from one
+representation to the other.  At present, native Larceny
+on ARM can only be built with the flat4 representation.
 
 Some useful examples which are known to work:
 
@@ -77,8 +76,11 @@ To build native Larceny:
 
 To build native Larceny on little-endian ARMv7 on any Linux
 system an explicit target: is required to specify the floating
-point ABI for the runtime [6]:
-  > (setup 'scheme: 'larceny 'host: 'linux-arm-el 'target: 'linux-arm-el-hardfp 'native)
+point ABI for the runtime [5]:
+
+  > (setup 'scheme: 'larceny
+           'host: 'linux-arm-el
+           'target: 'linux-arm-el-hardfp 'native)
 
 To build Petit Larceny:
     > (setup 'scheme: 'larceny 'host: 'linux86 'always-source)
@@ -89,7 +91,7 @@ To build Petit Larceny:
 After the development environment is setup, you should compile the core
 system:
 
-    > (build-config-files)              ; [5]
+    > (build-config-files)              ; [6]
     > (load-compiler)
     > (build-heap)
     > (build-runtime)
@@ -121,21 +123,13 @@ Larceny will run with DEP set to OptOut, OptIn, or AlwaysOff.
 
 3. Create heap images
 
-Step 2 above creates a bootstrap heap (petit.heap, sparc.heap, or
+Step 2 above creates a bootstrap heap (petit.heap, arm.heap, or
 sasstrap.heap).  To create the user and development heap images, exit
 the host Scheme back to your command shell.  Then perform one of the
 following three sets of commands (omitting those for twobit unless
 you want the Twobit compiler development environment):
 
-On Native Larceny (SPARC):
-
-    % ./larceny.bin -stopcopy -- src/Build/sparc-larceny-heap.fasl
-    > (exit)
-
-    % ./larceny.bin -stopcopy -- src/Build/sparc-twobit-heap.fasl
-    > (exit)
-
-On IAssassin Larceny (Intel) [6]:
+On IAssassin Larceny (Intel) [7]:
 
     % "./larceny.bin" -stopcopy -- src/Build/iasn-larceny-heap.fasl
     > (exit)
@@ -176,10 +170,10 @@ do step 4.
 
 
 
-4. Compile the ERR5RS/R6RS standard libraries.
+4. Compile the R7RS/R6RS/SRFI standard libraries.
 
 Run Larceny in its default -r5rs mode, and compile the
-R7RS/R6RS standard libraries as follows.
+R7RS/R6RS/SRFI standard libraries as follows.
 
     % ./larceny
     Larceny v0.98 "Funny in the Head" (...)
@@ -230,7 +224,17 @@ On Windows, the Microsoft Visual Studio Community 2013 download
 contains everything you need (and a lot more than you need).  We
 use the "VS2013 x86 Native Tools Command Prompt".
 
-[4] Some other potentially useful flags, given optionally at the end of
+[4] Larceny requires CPU support for floating point instructions.
+Several sub-ABIs exist for floating point on the ARM architecture.
+The two APIs are known as "soft" (hardware instructions are generated but
+the calling convention is as for software floating point; gcc calls
+this "softfp") and "hard" (hardware instructions are generated and the
+calling convention uses FPU registers).  Larceny needs to know the ABI
+when it compiles C code, and the target name therefore contains either
+"softfp" or "hardfp".  Generally the operating system sets the ABI and
+all programs on the system use it; check your local documentation.
+
+[5] Some other potentially useful flags, given optionally at the end of
 the call to setup:
 
     'code-cov
@@ -254,19 +258,10 @@ the call to setup:
         correctly now that we have added the string-rep: parameter to
         setup.
 
-[5] This is only strictly necessary the first time and when the options
+[6] This is only strictly necessary the first time and when the options
 given to setup have changed, but it should be safe to do every time.
 
-[6] The quotation marks around "./larceny.bin" are a uniform syntax that
+[7] The quotation marks around "./larceny.bin" are a uniform syntax that
 works on both Microsoft Windows and UNIX-like shells.  The reason is
 left as an exercise for the reader.
 
-[6] Several sub-ABIs exist for floating point on the ARM architecture.
-Larceny requires CPU support for floating point instructions so the
-two APIs are known as "soft" (hardware instructions are generated but
-the calling convention is as for software floating point; gcc calls
-this "softfp") and "hard" (hardware instructions are generated and the
-calling convention uses FPU registers).  Larceny needs to know the ABI
-when it compiles C code, and the target name therefore contains either
-"softfp" or "hardfp".  Generally the operating system sets the ABI and
-all programs on the system use it; check your local documentation.

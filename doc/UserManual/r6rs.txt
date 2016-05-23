@@ -49,7 +49,6 @@ interfere with interoperability between R6RS and R7RS code,
 and are best honored in the breach.
 
 
-
 [[R6rsBaseSection]]
 
 Base library
@@ -60,6 +59,16 @@ exported by the `(rnrs base)` library.
 
 Larceny's R5RS mode does not support `library`, `import`, or
 `identifier-syntax`.
+
+[NOTE]
+================================================================
+As of v0.99, Larceny ignores the R6RS `for` and `meta` keywords
+of R6RS `library` syntax, which were intended to enforce proper
+phasing in libraries and programs that define `syntax-case` macros.
+Several other implementations of the R6RS have been ignoring those
+keywords, and there is growing consensus that they are unnecessary
+and unhelpful.
+================================================================
 
 [NOTE]
 ================================================================
@@ -78,7 +87,7 @@ Unicode
 All of Larceny's modes support all features of the `(rnrs unicode)`
 library.
 
-Larceny v0.98 tries to conform to
+Larceny v0.99 conforms to
 <<Standards, The Unicode Standard>>, Version 7.0.
 
 

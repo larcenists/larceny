@@ -12,8 +12,8 @@ There are two main varieties of Larceny.
 
 Native Larceny is the fastest and most convenient variety
 of Larceny.  It compiles directly to native machine code
-for Intel x86 microprocessors running Linux, Apple OS X,
-or Windows operating systems.
+for Intel x86 or ARMv7 microprocessors running Linux and
+for x86 machines running Apple's MacOS X or Microsoft Windows.
 
 Petit Larceny compiles to C instead of machine code.  It
 can be made to run on most Unix machines.
@@ -32,7 +32,8 @@ System requirements
 
 Binary distributions of native Larceny are available for
 just about any Intel x86-compatible microprocessor
-running a Linux, Apple OS X, or Windows operating system.
+running a Linux, Apple OS X, or Windows operating system,
+and for ARMv7 microprocessors running Linux.
 Although Larceny still uses 32-bit pointers, it will run
 on 64-bit machines provided the appropriate 32-bit
 libraries have been installed.
@@ -41,13 +42,17 @@ Binary distributions of Petit Larceny are available for
 x86 machines running Linux.  Petit Larceny requires the `gcc`
 compiler as well as the appropriate 32-bit libraries.
 
+Unless you intend to modify Larceny yourself, you do not
+need its source code, which is available at
+https://github.com/larcenists/larceny[Larceny's GitHub site].
+
 ////////////////////////////////////////////////////////////////
 To use some features of the FFI, you'll need the appropriate
 C compiler (`gcc` except on Windows) and 32-bit libraries.
 ////////////////////////////////////////////////////////////////
 
 For more details, see
-http://larceny.ccs.neu.edu/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].
+https://github.com/larcenists/larceny/blob/master/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].
 If you want to build Larceny or Petit Larceny from source code, see
 http://larceny.ccs.neu.edu/doc/HOWTO-BUILD[`doc/HOWTO-BUILD`].
 
@@ -92,7 +97,7 @@ as 0.98) for "X.Y":
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
         tar -xzf larceny-X.Y-bin-native-ia32-macosx.tar.gz
         tar -xzf larceny-X.Y-bin-native-ia32-win32.tar.gz
-        tar -xzf larceny-X.Y-bin-petit-stdc-macosx.tar.gz
+        tar -xzf larceny-X.Y-bin-petit-stdc-linux86.tar.gz
         tar -xzf larceny-X.Y-src.tar.gz
     
 

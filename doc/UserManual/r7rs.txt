@@ -5,6 +5,9 @@ R7RS standard libraries
 
 The R7RS standard libraries are described by
 <<Standards,the R7RS (small) standard>> approved in 2013.
+The
+<<R7rsPreDefinedSection,Predefined libraries>> section
+of this manual lists the names of those libraries.
 
 Larceny provides all of the R7RS standard libraries,
 supports the full numeric tower, and can represent all
@@ -22,17 +25,21 @@ option, only `(scheme base)` is imported at startup.
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Larceny v0.98 does not implement these features of
+Larceny v0.99 does not implement these features of
 the R7RS standard:
 
-- the second (arbitrary ellipsis) form of `syntax-rules`
-  described in R7RS section 4.3.2
 - `include` and `include-ci` at expression level
-- `cond-expand` at expression level
 
-`include`, `include-ci`, and `cond-expand` are fully supported
+`include` and `include-ci` are fully supported
 at the top-level declaration and definition levels of R7RS
 libraries.
+
+Larceny v0.99 does not allow libraries to define the names
+`primitives` or `program`.
+(Larceny reserves <<R7rsPrimitivesSection,primitives>> as a
+keyword for importing identifiers from the R5RS global
+environment, and reserves `program` for no good reason.)
+Larceny does allow top-level programs to define those names.
 
 To simplify interoperability with R6RS libraries and
 programs, the `integer?`, `rational?`, and `real?`

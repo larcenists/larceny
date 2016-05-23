@@ -46,7 +46,7 @@ should already be installed.  If they aren't, installing the
 Apple Developer command-line tools should fix the problem.
 
 On Windows, the DEP feature must be told to allow Larceny to
-opt-out.
+opt-out.  (See below.)
 
 
 Long version:
@@ -65,8 +65,8 @@ Larceny is usually started by a script, which has two functions:
    that the script is in.
 
  - It dispatches on the name of the script, to choose both a Larceny
-   executable (such as twobit.bin) and a heap image (such as
-   petit.heap).
+   executable (such as larceny.bin) and a heap image (such as
+   larceny.heap).
 
 Which scripts you have depends on what platform you are using:
 
