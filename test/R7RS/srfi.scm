@@ -1,30 +1,4 @@
-;;; Tests for name conflicts between SRFIs and R7RS libraries.
-;;;
-;;; Known conflicts:
-;;;
-;;;     bytevector-copy!    (unresolvable; requires renaming)
-;;;
-;;;     define-record-type  (resolved by allowing both R7RS and R6RS syntax)
-;;;     error               (resolved by heuristic overloading)
-;;;     map                 (resolved by using R7RS extended semantics)
-;;;     for-each            (resolved by using R7RS extended semantics)
-;;;     finite?             (resolved by using R7RS extended semantics)
-;;;     infinite?           (resolved by using R7RS extended semantics)
-;;;     nan?                (resolved by using R7RS extended semantics)
-;;;     string-copy         (resolved by using R7RS extended semantics)
-;;;     string-fill!        (resolved by using R7RS extended semantics)
-;;;     vector-copy         (resolved by using R7RS extended semantics)
-;;;     bytevector-copy     (resolved by using R7RS extended semantics)
-;;;     utf8->string        (resolved by using R7RS extended semantics)
-;;;     string->utf8        (resolved by using R7RS extended semantics)
-;;;     textual-port?       (resolved by using R7RS extended semantics)
-;;;     binary-port?        (resolved by using R7RS extended semantics)
-;;;
-;;; Possible conflicts:
-;;;
-;;;     
-
-
+;;; Tests for name conflicts between SRFIs and R7RS/R6RS libraries.
 
 (import ;(except (rnrs) bytevector-copy!)
         ;(rnrs eval)
@@ -56,7 +30,7 @@
         (srfi 8)
         (srfi 9)
         (srfi 11)
-        (except (srfi 13) string-downcase string-upcase
+        (except (srfi 13) string-downcase string-upcase string-titlecase
                           string-for-each string-map string-hash)
         (srfi 14)
         (srfi 16)
@@ -90,9 +64,9 @@
         (srfi 64)
         (srfi 66)
         (except (srfi 67) string-compare string-compare-ci)
-        (except (srfi 69) string-hash)
+        (except (srfi 69) string-hash string-ci-hash)
         (except (srfi 71) let let* letrec)
-        (srfi 74)
+        (except (srfi 74) endianness)
         (srfi 78)
         (srfi 87)
         (srfi 95)
@@ -113,33 +87,170 @@
                 if3 if=? if<? if>? if<=? if>=? if-not=? =? <? >? <=? >=?)
         (srfi 115)
         (srfi 116)
+        (srfi 117)
+        (srfi 121)
+        (except (srfi 123) set!)       ; replaces (srfi 17)
+        (srfi 124)
+        (except (srfi 125)             ; replaces (srfi 69)
+                make-hash-table
+                hash-table?
+                alist->hash-table
+                hash-table-equivalence-function
+                hash-table-hash-function
+                hash-table-ref
+                hash-table-ref/default
+                hash-table-set!
+                hash-table-delete!
+                hash-table-exists?
+                hash-table-update!
+                hash-table-update!/default
+                hash-table-size
+                hash-table-keys
+                hash-table-values
+                hash-table-walk
+                hash-table-fold
+                hash-table->alist
+                hash-table-copy
+                hash-table-merge!
+                hash
+                string-hash
+                string-ci-hash
+                hash-by-identity
+                )
+        (srfi 126)
+        (srfi 127)
+        (except (srfi 128)
+                hash-salt string-hash string-ci-hash symbol-hash
+                =? <? >? <=? >=?)
+        (srfi 129)
+        (except (srfi 130)
+                string-index string-index-right string-skip string-skip-right)
+        (srfi 131)
+        (srfi 132)
+        (except (srfi 133)             ; replaces (srfi 43 vectors)
+                vector-unfold
+                vector-unfold-right
+                vector-reverse-copy
+                vector-concatenate
+                vector-empty?
+                vector=
+                vector-fold
+                vector-fold-right
+                vector-map!
+                vector-count
+                vector-index
+                vector-index-right
+                vector-skip
+                vector-skip-right
+                vector-binary-search
+                vector-any
+                vector-every
+                vector-swap!
+                vector-reverse!
+                vector-reverse-copy!
+                reverse-vector->list
+                reverse-list->vector
+                )
+        (srfi 134)
+
         )
 
-(display "All libraries loaded with these name conflicts:\n")
-(for-each (lambda (name) (display "    ") (write name) (newline))
-          '((let (srfi 5))
-            (string-downcase string-upcase string-for-each string-map
-             string-hash
-             (srfi 13))
-            (set! (srfi 17))
-            (format (srfi 28 29))
-            (list->vector
-             vector-copy vector-copy!
-             vector-for-each vector-map
-             vector-append vector-fill! (srfi 43))
-            (cond (srfi 61))
-            (equal? array? make-array array-rank array-ref array-set!
-             (srfi 25 63))
-            (string-compare string-compare-ci (srfi 13 67))
-            (string-hash (srfi 69))
-            (let let* letrec (srfi 71))
-            (cons list make-list pair? null? list? car cdr
-             caar cadr cdar cddr
-             caaar caadr caddr cadar cdaar cdadr cdddr cddar                
-             caaaar caaadr caaddr caadar cadaar cadadr cadddr caddar
-             cdaaar cdaadr cdaddr cdadar cddaar cddadr cddddr cdddar
-             list-ref list-tail length append reverse
-             for-each map quote (srfi 101))
-            (if3 if=? if<? if>? if<=? if>=? if-not=? =? <? >? <=? >=?
-             (srfi 67 114))))
+(define name-conflicts
+  '(
+        (except (srfi 5) let)
+        (except (srfi 13) string-downcase string-upcase string-titlecase
+                          string-for-each string-map string-hash)
+        (except (srfi 17) set!)
+        (except (srfi 28) format)
+        (except (srfi 29) format)
+        (except (srfi 43)
+                list->vector
+                vector-copy vector-copy!
+                vector-for-each vector-map
+                vector-append vector-fill!)
+        (except (srfi 61) cond)
+        (except (srfi 63)
+                equal? array? make-array array-rank array-ref array-set!)
+        (except (srfi 67) string-compare string-compare-ci)
+        (except (srfi 69) string-hash string-ci-hash)
+        (except (srfi 71) let let* letrec)
+        (except (srfi 74) endianness)
+        (except (srfi 101)
+                cons list make-list pair? null? list? car cdr
+                caar cadr cdar cddr
+                caaar caadr caddr cadar cdaar cdadr cdddr cddar                
+                caaaar caaadr caaddr caadar cadaar cadadr cadddr caddar
+                cdaaar cdaadr cdaddr cdadar cddaar cddadr cddddr cdddar
+                list-ref list-tail length append reverse
+                for-each map quote)
+        (except (srfi 114)
+                if3 if=? if<? if>? if<=? if>=? if-not=? =? <? >? <=? >=?)
+        (except (srfi 123) set!)       ; replaces (srfi 17)
+        (except (srfi 125)             ; replaces (srfi 69)
+                make-hash-table
+                hash-table?
+                alist->hash-table
+                hash-table-equivalence-function
+                hash-table-hash-function
+                hash-table-ref
+                hash-table-ref/default
+                hash-table-set!
+                hash-table-delete!
+                hash-table-exists?
+                hash-table-update!
+                hash-table-update!/default
+                hash-table-size
+                hash-table-keys
+                hash-table-values
+                hash-table-walk
+                hash-table-fold
+                hash-table->alist
+                hash-table-copy
+                hash-table-merge!
+                hash
+                string-hash
+                string-ci-hash
+                hash-by-identity
+                )
+        (except (srfi 128)
+                hash-salt string-hash string-ci-hash symbol-hash
+                =? <? >? <=? >=?)
+        (except (srfi 130)
+                string-index string-index-right string-skip string-skip-right)
+        (except (srfi 133)             ; replaces (srfi 43 vectors)
+                vector-unfold
+                vector-unfold-right
+                vector-reverse-copy
+                vector-concatenate
+                vector-empty?
+                vector=
+                vector-fold
+                vector-fold-right
+                vector-map!
+                vector-count
+                vector-index
+                vector-index-right
+                vector-skip
+                vector-skip-right
+                vector-binary-search
+                vector-any
+                vector-every
+                vector-swap!
+                vector-reverse!
+                vector-reverse-copy!
+                reverse-vector->list
+                reverse-list->vector
+                )
+        ))
+
+(display "\nAll R7RS and SRFI libraries loaded with these name conflicts:\n\n")
+
+(for-each (lambda (except-clause)
+            (write (cadr except-clause))
+            (newline)
+            (for-each (lambda (name)
+                        (display "    ") (write name) (newline))
+                      (cddr except-clause)))
+          name-conflicts)
+
 (newline)

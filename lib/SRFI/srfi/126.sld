@@ -16,7 +16,11 @@
    hashtable-empty? hashtable-pop! hashtable-inc! hashtable-dec!
    hashtable-equivalence-function hashtable-hash-function hashtable-weakness
    hashtable-mutable?
-   hash-salt equal-hash string-hash string-ci-hash symbol-hash)
+   hash-salt
+   (rename rnrs-equal-hash equal-hash)
+   (rename rnrs-string-hash string-hash)
+   (rename rnrs-string-ci-hash string-ci-hash)
+   (rename rnrs-symbol-hash symbol-hash))
   (import
    (scheme base)
    (scheme case-lambda)
