@@ -8,7 +8,9 @@ whatever name you like.
 
 Copy the startup scripts (larceny and scheme-script) wherever
 you like, and edit them to set LARCENY_ROOT to the absolute
-path of Larceny's main directory.
+path of Larceny's main directory.  (On Linux systems, you can
+just create links to those startup scripts instead of copying
+them, and you don't need to edit them.)
 
 If the directory that contains the startup scripts is not
 already part of your path, then add it to your path.
