@@ -98,3 +98,50 @@ by replacing the "`.sch`" or "`.scm`" suffix with
 
 For R7RS/R6RS libraries and top-level programs,
 <<CompilingErr5rsSection,see above>>.
+
+
+[[LoadingR5intoR7Section]]
+
+Loading compiled R5RS files into an R7RS session
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a file is compiled, the compiler must make assumptions
+about the meanings of its free identifiers.
+
+When R5RS code is compiled, Larceny's compiler assumes all
+free identifiers refer to the flat global naming environment
+prescribed by the R5RS standard.
+
+When an R7RS/R6RS library or top-level program is compiled,
+Larceny's compiler assumes all free identifiers refer to
+identifiers imported from other libraries.  That assumption
+is checked at both compile time and at run time.  At compile
+time, the compiler refuses to compile a library if one or
+more of its free identifiers is not imported.  The compiler
+also records the current versions of all imported libraries,
+so Larceny's import mechanism can check at run time to make
+sure all of the imported libraries are still consistent with
+the libraries imported at compile time.
+
+The facts stated above imply compiled R5RS code can only be
+loaded into the flat global environment provided by Larceny's
+underlying R5RS layer, and compiled R7RS/R6RS code can only
+be imported by or loaded into an R7RS/R6RS program or
+interactive session.
+
+R5RS source code can be loaded into an interactive R7RS
+session, but it will be loaded as though it were R7RS code
+rather than R5RS code.  That means loading R5RS source code
+into an interactive R7RS session behaves differently from
+loading compiled R5RS code into an interactive R7RS session.
+
+When compiled R5RS code is loaded into an interactive R7RS
+session, it is loaded into Larceny's underlying R5RS layer.
+The procedures it defines can then be imported into
+the R7RS session using Larceny's
+<<R7rsPrimitivesSection,primitives>>
+extension to `import` syntax.
+
+When R5RS source code is loaded into an interactive R7RS
+session, however, it will behave as though the source code
+had been typed interactively.

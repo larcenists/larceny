@@ -173,7 +173,8 @@ programs to import both `(scheme base)` and `(rnrs)` without
 having to rename one version of `define-record-type`.
 
 Larceny also extends its unified R7RS/R6RS `define-record-type`
-to support all features of `(srfi :99 records syntactic)`.
+to support all features of `(srfi :99 records syntactic)` and
+`(srfi 131)`.
 So long as the deprecated R6RS syntax is not used, Larceny's
 `define-record-type` is fully compatible with the procedural
 layers defined by `(srfi :99 records procedural)` and by
@@ -207,7 +208,7 @@ using the
     > (require 'srfi-9)
 ----------------------------------------------------------------
 
-We recommend the R7RS and/or SRFI 9 libraries be used instead
+We recommend the R7RS, SRFI 9, and/or SRFI 131 libraries be used instead
 of the corresponding R6RS libraries.
 
 [WARNING]

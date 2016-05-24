@@ -12,7 +12,8 @@ The libraries discussed within this chapter cannot be used in
 Larceny's R5RS mode.
 
 
-==== Interactive computing
+Interactive computing
+~~~~~~~~~~~~~~~~~~~~~
 
 Larceny's `-r7rs` command-line option automatically imports the
 `(scheme base)` library.  The `-r7r6` command-line option imports
@@ -23,7 +24,8 @@ deprecated by Larceny.
 [[Err5rsAutomaticLoadingSection]]
 [[R7rsAutomaticLoadingSection]]
 
-==== Automatic loading
+Automatic loading
+~~~~~~~~~~~~~~~~~
 
 As an extension to the R7RS and R6RS, Larceny attempts to load
 libraries automatically when they are first imported.
@@ -48,12 +50,14 @@ including libraries you've written yourself, you can:
 [[Err5rsDynamicLoadingSection]]
 [[R7rsDynamicLoadingSection]]
 
-==== Explicit loading
+Explicit loading
+~~~~~~~~~~~~~~~~
 
 Larceny automatically loads R7RS/R6RS libraries when
 they are first imported.  This is usually the most
 convenient way to load a library, but autoloading
-can't be used to load a top-level program.  Explicit
+can't be used to load a top-level program into an
+interactive session.  Explicit
 loading is needed for top-level programs, for libraries
 that don't reside in Larceny's
 <<current-require-path,`current-require-path`>>,
@@ -115,7 +119,8 @@ and definitions you evaluate at the top level.
 [[Err5rsPreDefinedSection]]
 [[R7rsPreDefinedSection]]
 
-==== Predefined libraries
+Predefined libraries
+~~~~~~~~~~~~~~~~~~~~
 
 Larceny predefines several nonstandard libraries in addition
 to the standard R7RS and R6RS libraries, and autoloads them
@@ -304,7 +309,8 @@ Other autoloadable libraries:
 [[R7rsLibraryPathSection]]
 [[R7rsLibraryVariableSection]]
 
-==== Library path
+Library path
+~~~~~~~~~~~~
 
 Larceny's autoload feature locates R7RS/R6RS libraries
 by performing a
@@ -366,7 +372,8 @@ to file names may be incompatible with Larceny's.
 
 [[R6rsPreDefinedSection]]
 
-==== Using libraries with R6RS top-level programs
+Using libraries with R6RS top-level programs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The R6RS standard does not specify any way for a
 top-level program to define its own libraries.
@@ -382,7 +389,8 @@ their own libraries and to import any libraries that are
 
 [[DefiningLibrariesSection]]
 
-==== Defining libraries
+Defining libraries
+~~~~~~~~~~~~~~~~~~
 
 As an extension to the R7RS and R6RS, Larceny allows a top-level
 program or Scheme script to define R7RS/R6RS libraries within
@@ -401,7 +409,8 @@ We emphasize that this extension is non-portable.
 [[ERR5RSprimitivesSection]]
 [[R7rsPrimitivesSection]]
 
-==== Importing procedures from Larceny's underlying R5RS system
+Importing procedures from Larceny's underlying R5RS system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Any of Larceny's R5RS-mode top-level procedures can be imported
 into an R7RS or R6RS library or program by using an import

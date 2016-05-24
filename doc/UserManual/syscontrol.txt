@@ -34,7 +34,7 @@ startup. On a 32-bit system, the counter wraps around every
 1,073,741,824 collections.
 
 _gc-counter_ is a primitive and compiles to a single load instruction
-on the SPARC.
+on the x86 and ARM.
 
 proc:major-gc-counter[args="",result="fixnum"]
 
@@ -46,9 +46,18 @@ On a 32-bit system, the counter wraps around every
 1,073,741,824 collections.
 
 _major-gc-counter_ is a primitive and compiles to a single load
-instruction on the SPARC.  Its primary use to implement efficient
-hashtables that hash on object identity (make-eq-hashtable and
-make-eqv-hashtable).
+instruction on the x86 and ARM.
+
+[NOTE]
+================================================================
+Larceny uses _gc-counter_ and _major-gc-counter_ to implement
+efficient hashtables that hash on object identity by using an
+object's current address to compute its hash code.  Hash tables
+that use this kind of hash function (notably `make-eq-hashtable`
+and `make-eqv-hashtable`) may have to rehash some of their keys
+after a garbage collection that relocates objects.
+================================================================
+
 
 proc:gcctl[args="heap-number operation operand",result="unspecified"]
 

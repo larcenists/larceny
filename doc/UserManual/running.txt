@@ -176,7 +176,10 @@ renamed to `r6rs:bytevector-copy!`.
 ================================================================
 
 The `features` procedure will return a list of all `cond-expand`
-features and libraries available to you.  That procedure reads
+features, including the names of
+<<R7rsPreDefinedSection,libraries currently available>>
+for import.
+That procedure reads
 the source code for all library files found in your current
 <<R7rsLibraryPathSection,Larceny library path>>, so don't be
 surprised if it takes a few seconds.
