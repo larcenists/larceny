@@ -28,7 +28,7 @@
  *  Funny in the Head           0.97        19 Aug 2009     6398
  *  General Ripper              0.98b1      21 Oct 2011     fcbaf3b
  *                              0.98         7 Mar 2015     60876f5
- *  Goldie                      0.99
+ *  Goldie                      0.99        25 May 2016     4671a1f
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
  *  Hi There!
