@@ -508,6 +508,10 @@
     (vector-set! v (+ offset 3 $r.reg0) arm.REG3)
     (vector-set! v (+ offset 4 $r.reg0) arm.REG4)
     (vector-set! v (+ offset 5 $r.reg0) arm.REG5)
+    (if (= 8 *nregs*)
+	(begin
+         (vector-set! v (+ offset 6 $r.reg0) arm.REG6)
+         (vector-set! v (+ offset 7 $r.reg0) arm.REG7)))
     (lambda (r)
       (vector-ref v (+ r offset)))))
 

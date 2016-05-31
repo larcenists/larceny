@@ -7,6 +7,10 @@
  * file with GCC, it will run CPP on the file due to the .sx file type.
  *
  * Note: We can always destroy TMP0 and TMP1 in millicode.
+ *
+ * Note: There are two different register assignments for ARMv7.
+ * One does not use the platform register, and defines REG0 through REG5.
+ * The other uses the platform register and defines REG0 through REG7.
  */
         
 #include "asmdefs.h"
@@ -21,6 +25,25 @@
  * no guarantee MAL register order corresponds to HW register order
  * (though we could probably make that happen if we had to).
  */
+#if LASTREG > 5
+#define SAVE_SCHEME_CONTEXT \
+        str     RESULT, [GLOBALS, #G_RESULT] ;\
+        str     SECOND, [GLOBALS, #G_SECOND] ;\
+        str     STKP, [GLOBALS, #G_STKP]     ;\
+        str     REG0, [GLOBALS, #G_REG0]     ;\
+        str     REG1, [GLOBALS, #G_REG1]     ;\
+        str     REG2, [GLOBALS, #G_REG2]     ;\
+        str     REG3, [GLOBALS, #G_REG3]     ;\
+        str     REG4, [GLOBALS, #G_REG4]     ;\
+        str     REG5, [GLOBALS, #G_REG5]     ;\
+        str     REG6, [GLOBALS, #G_REG6]     ;\
+        str     REG7, [GLOBALS, #G_REG7]     ;\
+        vstr    d0, [GLOBALS, #G_F0]         ;\
+        vstr    d1, [GLOBALS, #G_F1]         ;\
+        vstr    d2, [GLOBALS, #G_F2]         ;\
+        vstr    d3, [GLOBALS, #G_F3]         ;\
+        str     lr, [GLOBALS, #G_RETADDR]
+#else
 #define SAVE_SCHEME_CONTEXT \
         str     RESULT, [GLOBALS, #G_RESULT] ;\
         str     SECOND, [GLOBALS, #G_SECOND] ;\
@@ -36,6 +59,7 @@
         vstr    d2, [GLOBALS, #G_F2]         ;\
         vstr    d3, [GLOBALS, #G_F3]         ;\
         str     lr, [GLOBALS, #G_RETADDR]
+#endif
 
 #define SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR \
         SAVE_SCHEME_CONTEXT                  ;\
@@ -45,6 +69,25 @@
         str     TMP0, [GLOBALS, #G_RETADDR]
 
 /* Load the Scheme context into registers assuming GLOBALS has been set up */
+#if LASTREG > 5
+#define LOAD_SCHEME_CONTEXT \
+        ldr     RESULT, [GLOBALS, #G_RESULT] ;\
+        ldr     SECOND, [GLOBALS, #G_SECOND] ;\
+        ldr     STKP, [GLOBALS, #G_STKP]     ;\
+        ldr     REG0, [GLOBALS, #G_REG0]     ;\
+        ldr     REG1, [GLOBALS, #G_REG1]     ;\
+        ldr     REG2, [GLOBALS, #G_REG2]     ;\
+        ldr     REG3, [GLOBALS, #G_REG3]     ;\
+        ldr     REG4, [GLOBALS, #G_REG4]     ;\
+        ldr     REG5, [GLOBALS, #G_REG5]     ;\
+        ldr     REG6, [GLOBALS, #G_REG6]     ;\
+        ldr     REG7, [GLOBALS, #G_REG7]     ;\
+        vldr    d0, [GLOBALS, #G_F0]         ;\
+        vldr    d1, [GLOBALS, #G_F1]         ;\
+        vldr    d2, [GLOBALS, #G_F2]         ;\
+        vldr    d3, [GLOBALS, #G_F3]         ;\
+        ldr     lr, [GLOBALS, #G_RETADDR]
+#else
 #define LOAD_SCHEME_CONTEXT \
         ldr     RESULT, [GLOBALS, #G_RESULT] ;\
         ldr     SECOND, [GLOBALS, #G_SECOND] ;\
@@ -60,6 +103,7 @@
         vldr    d2, [GLOBALS, #G_F2]         ;\
         vldr    d3, [GLOBALS, #G_F3]         ;\
         ldr     lr, [GLOBALS, #G_RETADDR]
+#endif
 
 #define LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR \
         LOAD_SCHEME_CONTEXT                  ;\

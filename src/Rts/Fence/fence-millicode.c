@@ -481,7 +481,7 @@ void EXPORT mc_syscall( word *globals, cont_t k )
 #if LASTREG < 5
   #error "More code required in mc_syscall"
 #endif
-#if LASTREG == 5                /* True for ARM, at least initially */
+#if LASTREG == 5                /* True for some ARM systems */
   if (nargs >= 4)
     globals[G_REG5] = pair_car(globals[G_REG5]);
 #endif
