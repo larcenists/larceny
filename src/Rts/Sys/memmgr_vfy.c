@@ -133,6 +133,11 @@ void verify_remsets_via_oracle( gc_t *gc )
   data.region = 0;
   data.major = FALSE;
   data.pointsinto = TRUE;
+  FIXME_UNUSED_VARIABLE(data.conserv_context);
+  FIXME_UNUSED_VARIABLE(data.gc);
+  FIXME_UNUSED_VARIABLE(data.region);
+  FIXME_UNUSED_VARIABLE(data.major);
+  FIXME_UNUSED_VARIABLE(data.pointsinto);
   msgc_end( context );
 }
 

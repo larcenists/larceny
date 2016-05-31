@@ -284,6 +284,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
     actuals = pair_cdr( actuals );
   }
   argc = i;
+  FIXME_UNUSED_VARIABLE(argc);
 
   if ((actuals == NIL_CONST) != (i == limit)) {
     /* error -- wrong number of arguments */

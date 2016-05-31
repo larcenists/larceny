@@ -369,6 +369,7 @@ static int decision( old_heap_t *heap )
 
   /* i: _index_ in ephemeral_area[] of this heap */
   i = data->gen_no-1;
+  FIXME_UNUSED_VARIABLE(i);
 
   /* Gather information */
   /* X: allocated in younger generations */

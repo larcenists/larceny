@@ -385,6 +385,13 @@ extern int memfail( int code, char *fmt, ... );
 /* FIXME: this hack should be removed                               */
 /* #define LARCENY_DECLARE_UNINITIALIZED(type, name) type name = name */
 
+/* This hack flags variables initialized but not used               */
+/* and suppresses gcc warnings about them.                          */
+
+#if 1
+#define FIXME_UNUSED_VARIABLE(x) (x)?(void)0:(void)1
+#endif
+
 #endif /* if INCLUDED_LARCENY_H */
 
 /* eof */

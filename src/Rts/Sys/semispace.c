@@ -691,6 +691,7 @@ static void ss_chunk_check_rep( ss_chunk_t *c, int i )
   assert( c->bytes == delta*sizeof(word));
   for ( p = c->bot; p < c->lim; p++) {
     see_value = *p; /* Attempt deref to signal segfault if things are bogus. */
+    FIXME_UNUSED_VARIABLE(see_value);
   }
 }
 

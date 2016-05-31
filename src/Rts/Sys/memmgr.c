@@ -1361,6 +1361,7 @@ static void summaryscan_buildup_ls( loc_t loc, void *my_data )
   locset_t *target_ls;
   static word last_obj = 0x0;
   static int last_offset = 0x0;
+  FIXME_UNUSED_VARIABLE(last_offset);
   data = (struct summaryscan_buildup_ls_data*)my_data;
   target_ls = data->target_ls;
 
@@ -1372,6 +1373,8 @@ static void summaryscan_buildup_ls( loc_t loc, void *my_data )
   ls_add_obj_offset( target_ls, obj, offset );
   last_obj = obj;
   last_offset = offset;
+  FIXME_UNUSED_VARIABLE(last_obj);
+  FIXME_UNUSED_VARIABLE(last_offset);
 }
 
 static void assert_summary_sanity( gc_t *gc, int rgn_next )
@@ -2932,6 +2935,7 @@ static int compact_all_ssbs( gc_t *gc )
     mut_effort_sumz = 
       (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
        DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+    FIXME_UNUSED_VARIABLE(mut_effort_full);
     if (mut_effort_sumz > cN) {
       annoyingmsg( "compact_all_ssbs force_progress because "
                    "mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
@@ -2947,6 +2951,8 @@ static int compact_all_ssbs( gc_t *gc )
   for (i = 0; i < gc->gno_count; i++) {
     bot = *gc->ssb[i]->bot;
     top = *gc->ssb[i]->top;
+    FIXME_UNUSED_VARIABLE(bot);
+    FIXME_UNUSED_VARIABLE(top);
     overflowed = process_seqbuf( gc, gc->ssb[i] ) || overflowed;
   }
 
@@ -3700,6 +3706,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
       mut_effort_sumz = 
         (DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle + 
          DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle);
+      FIXME_UNUSED_VARIABLE(mut_effort_full);
     }
     if (DATA(gc)->mut_activity_bounded 
         && DATA(gc)->summaries != NULL
