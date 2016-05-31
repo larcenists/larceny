@@ -2,7 +2,7 @@
   (let ((make-heap (case *heap-type* 
                      ((petit) make-petit-heap) 
                      ((sassy) make-sasstrap-heap)
-		     ((arm-native) make-arm-heap)
+		     ((arm-native arm-native0) make-arm-heap)
                      ((sparc-native) make-sparc-heap)) ))
     (apply make-heap args)))             ; Defined in Lib/makefile.sch
 
@@ -49,7 +49,7 @@
                           ((win32) "libpetit.lib")
                           (else    "libpetit.a")))
                        ((sparc-native) "larceny.bin")
-		       ((arm-native) "larceny.bin")
+		       ((arm-native arm-native0) "larceny.bin")
                        ((sassy-native) 
                         (case *host:os* 
                           ((win32) "larceny.bin.exe")
@@ -69,7 +69,7 @@
   (case *runtime-type*
     ((petit)        (build-application *petit-executable-name* '())
                     (copy-script "petit"))
-    ((sparc-native sassy-native arm-native) 
+    ((sparc-native sassy-native arm-native arm-native0) 
      (let* ((name (case *host:os*
                     ((win32) "larceny.bin.exe")
                     (else "larceny.bin")))
@@ -88,7 +88,7 @@
      (make-petit-development-environment))
     ((sparc-native)
      (make-development-environment))
-    ((arm-native)
+    ((arm-native arm-native0)
      (make-development-environment))
     ((sassy)
      (make-development-environment)
@@ -111,7 +111,7 @@
      (compile-and-assemble313 (param-filename 'auxiliary "pp.sch"))
      (build-application
       "petit-r5rs.bin" (param-filename 'auxiliary '("pp.lop"))))
-    ((sparc-native arm-native sassy)
+    ((sparc-native arm-native arm-native0 sassy)
      (compile-file (param-filename 'auxiliary "pp.sch"))
      (copy-script "larceny-r5rs"))
     (else (error 'build-r5rs-files "Unknown heap type"))))
@@ -126,7 +126,7 @@
        (build-application "petit-larceny.bin"
                           (petit-development-environment-lop-files)))
      (copy-script "larceny"))
-    ((sparc-native arm-native sassy)
+    ((sparc-native arm-native arm-native0 sassy)
      'done)
     (else (error 'build-larceny-files "Unknown heap type"))))
      

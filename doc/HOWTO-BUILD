@@ -74,13 +74,16 @@ To build native Larceny:
     > (setup 'scheme: 'larceny 'host: 'linux86 'sassy 'string-rep: 'flat1)
     > (setup 'scheme: 'larceny 'host: 'macosx-el 'sassy)
 
-To build native Larceny on little-endian ARMv7 on any Linux
-system an explicit target: is required to specify the floating
-point ABI for the runtime [5]:
+To build native Larceny for little-endian ARMv7 running Linux
+an explicit target: will be required [5]:
 
-  > (setup 'scheme: 'larceny
-           'host: 'linux-arm-el
-           'target: 'linux-arm-el-hardfp 'native)
+    > (setup 'scheme: 'larceny
+             'host: 'linux-arm-el
+             'target: 'linux-arm-el-hardfp 'native)
+
+To build native Larceny for ARMv7 target platforms that reserve
+the ARM platform register, specify 'linux-arm-el-hardfp0 instead
+of 'linux-arm-el-hardfp.
 
 To build Petit Larceny:
     > (setup 'scheme: 'larceny 'host: 'linux86 'always-source)
