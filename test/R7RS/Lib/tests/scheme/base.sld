@@ -818,6 +818,11 @@
                             (f 12))))
            #t)
 
+     (test (let ((param (make-parameter 1 (lambda (x) (* 10 x)))))
+             (parameterize ((param 2)) #f)
+             (param))
+           10)
+
      ;;     guard                                   ; R7RS 4.2.7
 
      (test (guard (condition

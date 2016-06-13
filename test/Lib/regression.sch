@@ -632,6 +632,12 @@
    (test "Ticket #750"                  ; Bug in v0.98 and previous
          (string-titlecase "x\x130;")
          "Xi\x307;")
+
+   (test "Ticket #767"                  ; Bug in v0.98 and v0.99
+         (let ((param (make-parameter 1 (lambda (x) (* 10 x)))))
+           (parameterize ((param 2)) #f)
+           (param))
+         10)
    ))
 
 (define (bug-105-test1)

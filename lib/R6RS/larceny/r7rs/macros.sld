@@ -20,7 +20,8 @@
                   (define-record-type r6rs-define-record-type))
           (rename (only (err5rs records syntactic original)
                         define-record-type)
-                  (define-record-type r7rs-define-record-type)))
+                  (define-record-type r7rs-define-record-type))
+          (primitives parameter?))
 
 
   (include "macros.body.scm")

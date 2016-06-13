@@ -20,6 +20,12 @@
 ; Watch out for legacy code that passes a string or symbol as the
 ; first argument and a procedure as the second argument.  In the
 ; old days, Larceny's old semantics would be used instead of SRFI 39.
+;
+; The R7RS says the conversion procedure should not be applied when
+; the value is restored coming out of a parameterize form.
+; To avoid calling the conversion procedure, SRFI-style and R7RS-style
+; parameters created by make-parameter now accept a second argument
+; whose only legal value is the symbol no-conversion.
 
 (define (make-parameter arg1 . rest)
   (let* ((srfi39-style? (or (null? rest)
@@ -42,15 +48,21 @@
     (if srfi39-style?
         (lambda args
           (if (pair? args)
-              (if (null? (cdr args))
-                  (let ((new-value (converter (car args))))
-                    (set! value new-value)
-                    value)
-                  (complain-argcount))
+              (cond ((null? (cdr args))
+                     (let ((new-value (converter (car args))))
+                       (set! value new-value)
+                       value))
+                    ((eq? (cadr args) 'no-conversion)
+                     (let ((new-value (car args)))
+                       (set! value new-value)
+                       value))
+                    (else
+                     (complain-argcount)))
               value))
         (lambda args
           (if (pair? args)
-              (if (null? (cdr args))
+              (if (or (null? (cdr args))
+                      (eq? (cadr args) 'no-conversion))
                   (let ((new-value (car args)))
                     (if (ok? new-value)
                         (begin (set! value new-value)
@@ -58,6 +70,21 @@
                         (complain-bad-value (car args))))
                   (complain-argcount))
               value)))))
+
+; The parameterize form has to be able to recognize R7RS-style
+; parameters so it can know whether to pass the symbol no-conversion
+; as a second argument.
+
+(define larceny:r7rs-parameter-prototype (make-parameter 0))
+(define larceny:old-style-parameter-prototype (make-parameter "p" 0))
+
+(define (parameter? x)
+  (and (procedure? x)
+       (let ((code (procedure-ref x 0))
+             (code1 (procedure-ref larceny:r7rs-parameter-prototype 0))
+             (code2 (procedure-ref larceny:old-style-parameter-prototype 0)))
+         (or (eq? code code1)
+             (eq? code code2)))))
 
 ; Returns an assoc list of system information.
 

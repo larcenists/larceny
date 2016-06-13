@@ -1350,6 +1350,7 @@
   (environment-set! larc 'quit quit)
   (environment-set! larc 'quit-handler quit-handler)
   (environment-set! larc 'make-parameter make-parameter)
+  (environment-set! larc 'parameter? parameter?)
 
   ;; debugging.
 
