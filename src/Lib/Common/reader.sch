@@ -410,7 +410,7 @@
        (makeSharingUse ast1)))
     ((sharingdef)
      (let ((ast1 (parse-sharingdef)))
-       (let ((ast2 (parse-udatum)))
+       (let ((ast2 (parse-datum)))
          (makeSharingDef ast1 ast2))))
     ((boolean
        number
