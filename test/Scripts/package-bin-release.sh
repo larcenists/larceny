@@ -173,39 +173,41 @@ rm -f doc/Makefile
 rm -f doc/index.html
 rm -f doc/UserManual/*
 
-# Fetch current user manual and standards.
+# FIXME: this next part is disabled until we move to a new web server
 
-mkdir doc/UserManual/user-manual.chunked
-cd doc/UserManual/user-manual.chunked
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s02.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s03.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s04.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s05.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s06.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s07.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s08.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s09.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s10.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s11.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s12.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s13.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/index.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ix01.html
-
-cd ../../UserManual
-wget http://larceny.ccs.neu.edu/doc/index.html
-wget http://larceny.ccs.neu.edu/doc/builddate.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.pdf
-wget http://larceny.ccs.neu.edu/doc/user-manual-alt.html
-wget http://larceny.ccs.neu.edu/doc/user-manual.html
-wget http://larceny.ccs.neu.edu/doc/larceny-notes.html
-
-cd ../../doc
-wget http://larceny.ccs.neu.edu/nightly/r5rs.pdf
-wget http://larceny.ccs.neu.edu/nightly/r6rs.pdf
-wget http://larceny.ccs.neu.edu/nightly/r6rs-lib.pdf
-wget http://larceny.ccs.neu.edu/nightly/r7rs.pdf
-
-maybe_mv LarcenyNotes UserManual
-
-cd ..
+# # Fetch current user manual and standards.
+# 
+# mkdir doc/UserManual/user-manual.chunked
+# cd doc/UserManual/user-manual.chunked
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s02.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s03.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s04.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s05.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s06.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s07.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s08.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s09.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s10.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s11.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s12.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ar01s13.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/index.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.chunked/ix01.html
+# 
+# cd ../../UserManual
+# wget http://larceny.ccs.neu.edu/doc/index.html
+# wget http://larceny.ccs.neu.edu/doc/builddate.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.pdf
+# wget http://larceny.ccs.neu.edu/doc/user-manual-alt.html
+# wget http://larceny.ccs.neu.edu/doc/user-manual.html
+# wget http://larceny.ccs.neu.edu/doc/larceny-notes.html
+# 
+# cd ../../doc
+# wget http://larceny.ccs.neu.edu/nightly/r5rs.pdf
+# wget http://larceny.ccs.neu.edu/nightly/r6rs.pdf
+# wget http://larceny.ccs.neu.edu/nightly/r6rs-lib.pdf
+# wget http://larceny.ccs.neu.edu/nightly/r7rs.pdf
+# 
+# maybe_mv LarcenyNotes UserManual
+# 
+# cd ..
