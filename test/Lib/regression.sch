@@ -642,6 +642,19 @@
            (parameterize ((param 2)) #f)
            (param))
          10)
+
+   (test "Ticket #770"                  ; Bug in v0.99 and previous
+         (let* ((v1 '#(quote foo))
+                (v2 '#(syntax foo))
+                (q (open-output-string))
+                (ignored (begin (write v1 q)
+                                (write-char #\space q)
+                                (write v2 q)))
+                (s (get-output-string q))
+                (p (open-input-string s)))
+           (and (equal? v1 (read p))
+                (equal? v2 (read p))))
+         #t)
    ))
 
 (define (bug-105-test1)

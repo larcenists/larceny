@@ -379,11 +379,22 @@
           ;; to have come from a pre-2006 version of Twobit (see
           ;; src/Compiler/pass2.aux.sch).
 
-          ((vector? x) (cond ((environment? x) (printenvironment x p slashify))
-                             ((code-object? x) (printcodeobject x p slashify))
-                             ((hashtable? x)   (printhashtable x p slashify))
-                             (else (write-char #\# p)
-                                   (print (vector->list x) p slashify level))))
+          ;; The special case for 2-element vectors prevents #(quote foo)
+          ;; and #(syntax foo) from printing as #'foo and ##'foo.
+
+          ((vector? x)
+           (cond ((environment? x) (printenvironment x p slashify))
+                 ((code-object? x) (printcodeobject x p slashify))
+                 ((hashtable? x)   (printhashtable x p slashify))
+                 ((= 2 (vector-length x))
+                  (write-char #\# p)
+                  (write-char #\( p)
+                  (print (vector-ref x 0) p slashify level)
+                  (write-char #\space p)
+                  (print (vector-ref x 1) p slashify level)
+                  (write-char #\) p))
+                 (else (write-char #\# p)
+                       (print (vector->list x) p slashify level))))
 
           ((procedure? x)           (printprocedure x p slashify))
           ((bytevector? x)          (printbytevector x p slashify level))
