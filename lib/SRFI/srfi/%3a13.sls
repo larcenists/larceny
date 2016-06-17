@@ -40,7 +40,8 @@
    string-trim string-trim-right string-trim-both
    (rename (corrected-string-filter string-filter))
    (rename (corrected-string-delete string-delete))
-   string-index string-index-right 
+   string-index
+   (rename (corrected-string-index-right string-index-right))
    string-skip  string-skip-right
    string-count
    string-prefix-length string-prefix-length-ci
@@ -120,6 +121,29 @@
            (not (string? s)))
       (apply string-delete criterion s rest)
       (apply string-delete s criterion rest)))
+
+;;; Olin's definition says (>= i 0) in three places instead of (>= i start).
+;;; (See ticket #673).
+
+(define (corrected-string-index-right str criterion . maybe-start+end)
+  (let-string-start+end (start end) string-index-right str maybe-start+end
+    (cond ((char? criterion)
+	   (let lp ((i (- end 1)))
+	     (and (>= i start)
+		  (if (char=? criterion (string-ref str i)) i
+		      (lp (- i 1))))))
+	  ((char-set? criterion)
+	   (let lp ((i (- end 1)))
+	     (and (>= i start)
+		  (if (char-set-contains? criterion (string-ref str i)) i
+		      (lp (- i 1))))))
+	  ((procedure? criterion)
+	   (let lp ((i (- end 1)))
+	     (and (>= i start)
+		  (if (criterion (string-ref str i)) i
+		      (lp (- i 1))))))
+	  (else (error "Second param is neither char-set, char, or predicate procedure."
+		       string-index-right criterion)))))
 
 ;;; End Larceny changes
 
