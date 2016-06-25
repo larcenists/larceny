@@ -109,10 +109,10 @@ setup ()
   PETIT=${PETIT:-"../../../../PetitGit/larceny"}
   CHIBI=${CHIBI:-"chibi-scheme"}
   CHICKEN_CSC=${CHICKEN_CSC:-"csc"}
+  CYCLONE=${CYCLONE:-"cyclone"}
   FOMENT=${FOMENT:-"foment"}
   GAUCHE=${GAUCHE:-"gosh"}
   HUSKI=${HUSKI:-"huski"}
-  CYCLONE=${CYCLONE:-"cyclone"}
   KAWA=${KAWA:-"kawa"}
   MOSH=${MOSH:-"mosh"}
   PICRIN=${PICRIN:-"picrin"}
@@ -134,10 +134,10 @@ Usage: bench [-r runs] <system> <benchmark>
 
   chibi            for Chibi
   chicken          for Chicken
+  cyclone          for Cyclone
   foment           for Foment
   gauche           for Gauche
   husk             for Husk
-  cyclone          for Cyclone
   kawa             for Kawa
   larceny          for Larceny
   mosh             for Mosh
@@ -278,6 +278,19 @@ chicken_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Cyclone
+
+cyclone_comp ()
+{
+  ${CYCLONE} $1
+}
+
+cyclone_exec ()
+{
+  time `dirname $1`/`basename $1 .scm` < "$2"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Foment
 
 foment_comp ()
@@ -322,16 +335,6 @@ husk_comp ()
 husk_exec ()
 {
   time "${HUSKI}" "$1" < "$2"
-}
-
-cyclone_comp ()
-{
-  ${CYCLONE} $1
-}
-
-cyclone_exec ()
-{
-  time `dirname $1`/`basename $1 .scm` < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -424,7 +427,7 @@ case "$2" in
       kvw) benchmarks="$KVW_BENCHMARKS" ;;
     other) benchmarks="$OTHER_BENCHMARKS" ;;
       awk) benchmarks="$AWK_BENCHMARKS" ;;
-        c) benchmarks="$C_BENCHMARKS" ;;
+       gc) benchmarks="$GC_BENCHMARKS" ;;
      java) benchmarks="$JAVA_BENCHMARKS" ;;
         *) benchmarks="$2" ;;
 esac
@@ -484,6 +487,16 @@ for system in $systems ; do
 	    EXECCOMMANDS=""
             ;;
 
+      cyclone) NAME='Cyclone'
+            COMP=cyclone_comp
+            EXEC=cyclone_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
     foment) NAME='Foment'
             COMP=foment_comp
             EXEC=foment_exec
@@ -507,16 +520,6 @@ for system in $systems ; do
       husk) NAME='Husk'
             COMP=husk_comp
             EXEC=husk_exec
-            COMPOPTS=""
-            EXTENSION="scm"
-            EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
-            ;;
-
-      cyclone) NAME='Cyclone'
-            COMP=cyclone_comp
-            EXEC=cyclone_exec
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
