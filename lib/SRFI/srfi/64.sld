@@ -70,6 +70,7 @@
                 open-file-output-port file-options no-fail native-transcoder)
           (scheme read)
           (scheme write)
+          (scheme complex)
           (scheme eval))
 
   (include "64.body.scm"))
