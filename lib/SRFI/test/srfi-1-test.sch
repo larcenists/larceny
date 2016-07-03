@@ -642,4 +642,10 @@
 	   (equal? i '(c d))))
     (fail 'lset-diff+intersection!:1))
 
+;;; Regression tests added for Larceny (ticket #678).
+
+(or (equal? (lset-difference equal? '(a b c) '(d e a))
+            '(b c))
+    (fail 'lset-difference678))
+
 (writeln "Done.")

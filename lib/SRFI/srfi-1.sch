@@ -1727,7 +1727,9 @@
            (do ((lis lis (cdr lis)))
                ((or (null? lis)
                     (same? x (car lis)))
-                lis))))
+                (if (null? lis)
+                    #f
+                    lis)))))
         (else
          (complain))))
 
