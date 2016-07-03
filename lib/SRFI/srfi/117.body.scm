@@ -170,14 +170,20 @@
       list-queues)
      result))
 
-(define list-queue-append!
-  (case-lambda
-    (() (list-queue))
-    ((queue) queue)
-    (queues
-      (for-each (lambda (queue) (list-queue-join! (car queues) queue))
-                (cdr queues))
-      (car queues))))
+;;; Rewritten for Larceny to fix bug in sample implementation (ticket #776).
+
+(define (list-queue-append! . queues)
+  (let ((queues (filter (lambda (q)
+                          (not (list-queue-empty? q)))
+                        queues)))
+    (cond ((null? queues)
+           (list-queue))
+          ((null? (cdr queues))
+           (car queues))
+          (else
+           (for-each (lambda (queue) (list-queue-join! (car queues) queue))
+                     (cdr queues))
+           (car queues)))))
 
 ; Forcibly join two queues, destroying the second
 (define (list-queue-join! queue1 queue2)

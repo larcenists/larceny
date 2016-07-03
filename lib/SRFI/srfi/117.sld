@@ -35,7 +35,8 @@
           )
 
   (import (scheme base)
-          (scheme case-lambda))
+          (scheme case-lambda)
+          (primitives filter))    ; list-queue-append! rewritten for Larceny
 
   (include "117.body.scm")
 
