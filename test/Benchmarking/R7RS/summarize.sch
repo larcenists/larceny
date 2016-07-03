@@ -16,6 +16,7 @@
 (define (summarize-usual-suspects)
   ((summarize r7rs-results) "results.Chibi"       "summary.Chibi")
   ((summarize r7rs-results) "results.Chicken"     "summary.Chicken")
+  ((summarize r7rs-results) "results.Cyclone"     "summary.Cyclone")
   ((summarize r7rs-results) "results.Foment"      "summary.Foment")
   ((summarize r7rs-results) "results.Gauche"      "summary.Gauche")
   ((summarize r7rs-results) "results.Kawa"        "summary.Kawa")
@@ -30,6 +31,7 @@
          "summary.Petit"
          "summary.Chibi"
          "summary.Chicken"
+         "summary.Cyclone"
          "summary.Foment"
          "summary.Gauche"
          "summary.Kawa"

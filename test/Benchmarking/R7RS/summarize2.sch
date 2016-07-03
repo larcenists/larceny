@@ -101,6 +101,7 @@
     ("Chez"          "chez")
     ("Chibi"         "chibi")
     ("Chicken"       "chicken")
+    ("Cyclone"       "cyclone")
     ("Foment"        "foment")
     ("Gambit"        "gambit")
     ("Gauche"        "gauche")
@@ -129,6 +130,7 @@
     ("Chez"          "Chez")
     ("Chibi"         "Chibi")
     ("Chicken"       "Chicken")
+    ("Cyclone"       "Cyclone")
     ("Foment"        "Foment")
     ("Gambit"        "Gambit")
     ("Gauche"        "Gauche")
@@ -220,7 +222,8 @@
 
 (define (relative-performance2 summary summaries names)
 
-  (let* ((timings (summary:timings summary))
+  (let* ((system (summary:system summary))
+         (timings (summary:timings summary))
          (timings (map (lambda (t)
                          (let ((realtime (timing:real t)))
                            (if (and (number? realtime)
@@ -247,6 +250,11 @@
                    (/ best realtime)
                    (begin (display "No positive timing: ")
                           (write name)
+                          (display " (")
+                          (display system)
+                          (display " ")
+                          (write realtime)
+                          (display ")")
                           (newline)
                           (* *arbitrary-relative-performance*
                              (/ best worst)))))))
