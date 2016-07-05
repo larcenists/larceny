@@ -1073,6 +1073,8 @@
   (environment-set! larc 'format format)
   (environment-set! larc 'get-output-string get-output-string)
   (environment-set! larc 'get-output-bytevector get-output-bytevector)
+  (environment-set! larc 'string-output-port? string-output-port?)
+  (environment-set! larc 'bytevector-output-port? bytevector-output-port?)
   (environment-set! larc 'hashtable-printer hashtable-printer)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
   (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
