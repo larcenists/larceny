@@ -195,8 +195,8 @@
                '(#\alarm #\backspace #\delete #\escape #\newline
                  #\null #\return #\space #\tab)
                (string-append
-                "(#\\alarm #\\backspace #\\delete #\\esc "
-                "#\\newline #\\nul #\\return #\\space #\\tab)"))
+                "(#\\alarm #\\backspace #\\delete #\\escape "
+                "#\\newline #\\null #\\return #\\space #\\tab)"))
 
    (print-test "strings"
                write

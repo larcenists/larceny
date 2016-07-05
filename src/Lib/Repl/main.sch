@@ -172,6 +172,14 @@
                 (load-evaluator aeryn-evaluator)
                 (repl-evaluator aeryn-evaluator)))))
 
+         (disallow-non-r6rs-syntax!
+          (lambda (p)
+            (io/port-allows-r6rs-weirdness! p #t)
+            (io/port-allows-r7rs-weirdness! p #f)
+            (io/port-allows-larceny-weirdness! p #f)
+            (io/port-allows-traditional-weirdness! p #f)
+            (io/port-allows-mzscheme-weirdness! p #f)))
+
          (emode (get-feature 'execution-mode)))
 
     (case emode
@@ -235,6 +243,12 @@
                      (read-larceny-weirdness? #f)
                      (read-traditional-weirdness? #f)
                      (read-mzscheme-weirdness? #f))
+
+        (io/port-recognizes-javadot-symbols! (current-input-port) #f)
+        (disallow-non-r6rs-syntax! (current-input-port))
+        (disallow-non-r6rs-syntax! (current-output-port))
+        (disallow-non-r6rs-syntax! (current-error-port))
+
         ; Twobit has its own issue-warnings switch.
         ; FIXME: not working in Common Larceny
         (if (not clr?)
