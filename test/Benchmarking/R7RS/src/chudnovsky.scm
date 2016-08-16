@@ -60,7 +60,7 @@
          (s3 (number->string input3))
          (s2 (number->string input2))
          (s1 (number->string input1))
-         (name "pi"))
+         (name "chudnovsky"))
     (run-r7rs-benchmark
      (string-append name ":" s1 ":" s2 ":" s3 ":" s4)
      count
