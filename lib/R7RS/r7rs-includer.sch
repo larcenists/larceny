@@ -191,7 +191,7 @@
         (assertion-violation 'include "file not found" filename))))
 
 (define (larceny:include-file-forms filename)
-  (begin (display "Reading ") ; FIXME: temporary aid to debugging
+#;(begin (display "Reading ") ; FIXME: temporary aid to debugging
          (display filename)
          (newline))
   (call-with-input-file
