@@ -4168,6 +4168,63 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 
   data = (gc_data_t*)must_malloc( sizeof( gc_data_t ) );
 
+  /* Through v0.99, this code contained a latent bug by relying   */
+  /* on the operating system to zero out the allocated structure. */
+  /* The fields that were left uninitialized through v0.99 are    */
+  /* initialized to zero here.  Some may be set to nonzero values */
+  /* by later processing, but they should start out with some     */
+  /* definite value rather than garbage, if only for debugging.   */
+
+  memset( data, 0, sizeof(gc_data_t) );
+
+  data->use_np_collector = FALSE;
+  data->remset_undirected = FALSE;
+  data->mut_activity_bounded = FALSE;
+  data->generations = 0;
+  data->generations_after_gc = 0;
+  data->static_generation = 0;
+  data->satb_ssb_bot = 0;
+  data->satb_ssb_top = 0;
+  data->satb_ssb_lim = 0;
+  data->ssb_entry_count = 0;
+  data->rrof_load_factor_soft = 2.0;
+  data->rrof_load_factor_hard = 2.0;
+  /* Rely on memset for data->rrof_sumz_params. */
+  data->rrof_alloc_mark_bmp_once = FALSE;
+  data->rrof_prefer_big_summ = FALSE;
+  data->rrof_prefer_lil_summ = FALSE;
+  data->rrof_prefer_lat_summ = FALSE;
+  data->enumerate_major_with_minor_remsets = FALSE;
+  /* Rely on memset for data->summary. */
+  data->next_summary_to_use = 0;
+  data->summaries = 0;
+  data->secondary_space = 0;
+  /* Rely on memset for pause_timer_elapsed, pause_timer_cpu. */
+  data->last_pause_elapsed = 0;
+  data->last_pause_cpu = 0;
+  data->major_page_fault_count_at_gc_start = 0;
+  data->minor_page_fault_count_at_gc_start = 0;
+  data->stat_last_ms_remset_sumrize = 0;
+  data->stat_last_ms_remset_sumrize_cpu = 0;
+  data->stat_last_ms_smircy_mark = 0;
+  data->stat_last_ms_smircy_mark_cpu = 0;
+  data->stat_last_ms_smircy_refine = 0;
+  data->stat_last_ms_smircy_refine_cpu = 0;
+  data->stat_length_minor_gc_run = 0;         /* cause of ticket #784 */
+  data->print_float_stats_each_cycle = FALSE;
+  data->print_float_stats_each_major = FALSE;
+  data->print_float_stats_each_minor = FALSE;
+  data->print_float_stats_each_refine = FALSE;
+  /* Rely on memset for since_finished_snapshot_began. */
+  /* Rely on memset for since_developing_snapshot_began. */
+  /* Rely on memset for since_cycle_began. */
+  /* Rely on memset for since_finished_snapshot_at_time_cycle_began_began. */
+  /* Rely on memset for mutator_effort. */
+  data->oracle_countdown = 0;
+  data->oracle_pointsrun = 0;
+
+  /* End of initialization of previously uninitialized fields. */
+
   data->globals = globals;
   data->is_partitioned_system = 0;
   data->shrink_heap = 0;
