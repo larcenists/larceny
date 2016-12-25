@@ -655,7 +655,21 @@
            (and (equal? v1 (read p))
                 (equal? v2 (read p))))
          #t)
+
+   (test "Ticket #782"                  ; Bug in v0.99 and previous
+         (let ()                        ; (compiler bug: constant propagation)
+           (define (g f x y z)
+             (if (= z 0)
+                 (f 1)
+                 (g (lambda (g13)
+                      (f (* z g13)))
+                    #f y (- z 1))))
+           (g (lambda (g16)
+                (display g16) (newline))
+              #f #f 3))
+         6)
    ))
+
 
 (define (bug-105-test1)
   (do ((i 0 (+ i 1))
