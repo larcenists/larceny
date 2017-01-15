@@ -1,6 +1,6 @@
 ;;; PI -- Compute PI using bignums.
 
-					; See http://mathworld.wolfram.com/Pi.html for the various algorithms.
+;;; See http://mathworld.wolfram.com/Pi.html for the various algorithms.
 
 (import (scheme base)
         (scheme char)
@@ -11,16 +11,16 @@
 
 (define (square-root x)
   (call-with-values
-      (lambda ()
-	(exact-integer-sqrt x))
-    (lambda (q r)
-      q)))
+   (lambda ()
+     (exact-integer-sqrt x))
+   (lambda (q r)
+     q)))
 
 (define (quartic-root x)
   (square-root (square-root x)))
 
 
-					; Compute pi using the 'brent-salamin' method.
+;;; Compute pi using the 'brent-salamin' method.
 
 (define (pi-brent-salamin nb-digits)
   (let ((one (expt 10 nb-digits)))
@@ -34,12 +34,12 @@
             (loop new-a
                   (square-root (* a b))
                   (- t
-		     (quotient
-		      (* x (square (- new-a a)))
-		      one))
+                     (quotient
+                      (* x (square (- new-a a)))
+                      one))
                   (* 2 x)))))))
 
-					; Compute pi using the quadratically converging 'borwein' method.
+;;; Compute pi using the quadratically converging 'borwein' method.
 
 (define (pi-borwein2 nb-digits)
   (let* ((one (expt 10 nb-digits))
@@ -53,7 +53,7 @@
                (y qurt2)
                (p (+ (* 2 one) sqrt2)))
       (let ((new-p (quotient (* p (+ x one))
-			     (+ y one))))
+                             (+ y one))))
         (if (= x one)
             new-p
             (let ((sqrt-x (square-root (* one x))))
@@ -65,7 +65,7 @@
                      (* (+ y one) sqrt-x))
                     new-p)))))))
 
-					; Compute pi using the quartically converging 'borwein' method.
+;;; Compute pi using the quartically converging 'borwein' method.
 
 (define (pi-borwein4 nb-digits)
   (let* ((one (expt 10 nb-digits))
@@ -85,15 +85,15 @@
                       (square (quotient (square (+ one t2)) one))
                       one))
                  (t4 (+ one
-			(+ t2
-			   (quotient (square t2) one)))))
+                        (+ t2
+                           (quotient (square t2) one)))))
             (loop t2
                   (quotient
                    (- (* t3 a) (* x (* t2 t4)))
                    one)
                   (* 4 x)))))))
 
-					; Try it.
+;;; Try it.
 
 (define (pies n m s)
   (if (< m n)
