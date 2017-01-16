@@ -646,12 +646,75 @@
    (lambda () (div0-and-mod0 x y))
    (lambda (q r) r)))
 
+;;; Derived from Gambit's implementation as of 15 January 2016.
+;;; https://github.com/gambit/gambit/blob/master/lib/_num.scm
+
+#;
 (define (exact-integer-sqrt k)
   (if (and (exact? k) (integer? k) (<= 0 k))
-      (do ((s 1 (quotient (+ s (quotient k s)) 2)))
-          ((<= (* s s) k (* s (+ s 2)))
-           (values s (- k (* s s)))))
+      (call-with-values
+       (lambda () (exact-int.sqrt k))
+       (lambda (q r)
+         (assert (<= (* q q) k))
+         (assert (< k (* (+ q 1) (+ q 1))))
+         (assert (= (+ (* q q) r) k))
+         (values q r)))
       (assertion-violation 'exact-integer-sqrt "illegal argument" k)))
+
+(define (exact-integer-sqrt x)
+
+  (if (not (and (exact? x) (integer? x) (<= 0 x)))
+      (assertion-violation 'exact-integer-sqrt "illegal argument" x))
+
+  ;; Derived from the paper "Karatsuba Square Root" by Paul Zimmermann,
+  ;; INRIA technical report RR-3805, 1999.  (Used in gmp 4.*)
+
+  ;; x = a3 * b^3 + a2 * b^2 + a1 * b + a0
+  ;; (so the bits of x are a3,a2,a1,a0 when chopped into 4 pieces)
+
+  ;; Note that the statement of the theorem requires that
+  ;; b/4 <= high-order digit of x < b which can be impossible when b is a
+  ;; power of 2; the paper later notes that it is the lower bound that is
+  ;; necessary, which we preserve.
+
+  (if (and (fixnum? x)
+           ;; we require that
+           ;; (< (flsqrt (- (* y y) 1)) y) => #t
+           ;; whenever x=y^2 is in this range.  Here we assume we
+           ;; have at least as much precision as IEEE double precision.
+           (or (not (fixnum? 4294967296))          ; 32-bit fixnums
+               (<= x 4503599627370496)))           ; 2^52
+
+      (let* ((s (exact (truncate (sqrt (inexact x)))))
+             (r (- x (* s s))))
+        (values s r))
+
+      (let* ((length/4 (quotient (+ (bitwise-length x) 1) 4))
+             (length/2 (+ length/4 length/4))
+             (hibits (bitwise-arithmetic-shift-right x length/2))
+             (lobits (- x
+                        (bitwise-arithmetic-shift-left hibits length/2)))
+             (a1 (bitwise-arithmetic-shift-right lobits length/4))
+             (a0 (- lobits (bitwise-arithmetic-shift-left a1 length/4))))
+        (call-with-values
+         (lambda ()
+           (exact-integer-sqrt hibits))
+         (lambda (s-prime r-prime)
+           (let* ((r-prime*b (bitwise-arithmetic-shift-left r-prime length/4))
+                  (r-prime*b+a1 (+ r-prime*b a1))
+                  (s-prime*2 (+ s-prime s-prime))
+                  (q (quotient r-prime*b+a1 s-prime*2))
+                  (u (- r-prime*b+a1
+                        (* q s-prime*2))))
+             (let ((s
+                    (+ (bitwise-arithmetic-shift s-prime length/4) q))
+                   (r
+                    (- (+ (bitwise-arithmetic-shift u length/4) a0)
+                       (* q q))))
+               (if (negative? r)
+                   (values (- s 1)
+                           (- (+ r s s) 1))
+                   (values s r)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;

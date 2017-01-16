@@ -157,6 +157,8 @@
                 (bitwise-arithmetic-shift-left z y)
                 x)))
 
+;;; FIXME: this is really slow
+
 (define (bitwise-bit-field x y z)
   (assert (>= y 0))
   (assert (>= z 0))
@@ -183,17 +185,55 @@
                 to)))
 
 (define (bitwise-arithmetic-shift x y)
-  (floor (* x (expt 2 y))))
+  ;; returns  (floor (* x (expt 2 y)))
+  (if (< y 0)
+      (bitwise-arithmetic-shift-right x (- y))
+      (bitwise-arithmetic-shift-left  x y)))
 
 (define (bitwise-arithmetic-shift-left x y)
   (assert (<= 0 y))
-  (bitwise-arithmetic-shift x y))
+  (cond ((= y 0)
+         x)
+        ((fixnum? x)
+         (* x (expt 2 y)))
+        ((and (bignum? x)
+              (fixnum? y))
+         (let* ((n (bignum-length x))
+                (result (bignum-alloc (+ 2 n (quotient y bits-per-bigit)))))
+           (bignum-shift-left! x result y)
+           (let ((result (big-normalize! result)))
+             (if (< x 0)
+                 (- result)
+                 result))))
+        (else
+         (assertion-violation 'bitwise-arithmetic-shift-left
+                              (errmsg 'msg:notexactintegers)
+                              x y))))
 
 (define (bitwise-arithmetic-shift-right x y)
   (define (accelerate n)
     (bitwise-arithmetic-shift-right (div x (expt 2 n)) (- y n)))
   (assert (<= 0 y))
-  (cond ((= x 0) x)
+  (cond ((< (bitwise-length x) y)
+         (if (< x 0)
+             -1
+             0))
+        ((fixnum? x)
+         (div x (expt 2 y)))
+        ((and (bignum? x)
+              (fixnum? y))
+         (let* ((n (bignum-length x))
+                ;; FIXME: not sure why the (+ n 2) can't be n,
+                ;; but the bignum code throws exceptions if it's just n
+                (n (max 2 (- (+ n 2) (quotient y bits-per-bigit))))
+                (result (bignum-alloc n)))
+           (bignum-shift-right! x result y)
+           (let ((result (big-normalize! result)))
+             (if (< x 0)
+                 (- result)
+                 result))))
+        ;; FIXME: the following code should never be executed
+        ((= x 0) x)
         ((= x -1) x)
         ((> y 256)
          (accelerate 256))
