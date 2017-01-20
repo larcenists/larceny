@@ -667,6 +667,13 @@
            (g (lambda (x) x)
               #f #f 3))
          6)
+
+   (test "Ticket #786"                  ; Bug in v0.99 and previous
+         (let ((x 2.9802322e-8)
+               (bv (make-bytevector 4)))
+           (bytevector-ieee-single-native-set! bv 0 x)
+           (bytevector-ieee-single-native-ref bv 0))
+         2.9802322387695312e-8)
    ))
 
 
