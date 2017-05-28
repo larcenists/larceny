@@ -1,0 +1,283 @@
+;;; Regression test for ticket #633.
+
+(import (scheme base)
+        (scheme write)
+        (srfi 99))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (writeln "Error: test failed: " token)
+  #f)
+
+(define-syntax def-foo
+  (syntax-rules ()
+    ((_ make pred (field accessor setter) ...)
+     (define-record-type foo
+       make
+       pred
+       (field accessor setter) ...))))
+
+;;; The following defines make-foo, foo?, foo-x, and foo-x-set!
+;;; without defining foo.
+
+(def-foo make-foo foo? (x foo-x foo-x-set!))
+
+(define a (make-foo 13))
+
+(or (equal? (map procedure? (list make-foo foo? foo-x foo-x-set!))
+            '(#t #t #t #t))
+    (fail 'definitions))
+
+(or (foo? a)
+    (fail 'predicate))
+
+(or (= 13 (foo-x a))
+    (fail 'accessor))
+
+(or (begin (foo-x-set! a 99)
+           (= 99 (foo-x a)))
+    (fail 'mutator))
+
+;;; Procedural layer.
+
+(define foo0
+  (make-rtd 'foo-base '#(x (immutable y) (mutable z))))
+
+(define foo1
+  (make-rtd 'foo1 '#((immutable a) (mutable b) c) foo0))
+
+(or (and (rtd? foo0) (rtd? foo1))
+    (fail 'rtd?))
+
+(define make-foo0 (rtd-constructor foo0))
+(define make-foo1 (rtd-constructor foo1))
+(define foo0?     (rtd-predicate foo0))
+(define foo1?     (rtd-predicate foo1))
+(define foo0.x    (rtd-accessor foo0 'x))
+(define foo0.y    (rtd-accessor foo0 'y))
+(define foo0.z    (rtd-accessor foo0 'z))
+(define foo1.x    (rtd-accessor foo1 'x))
+(define foo1.y    (rtd-accessor foo1 'y))
+(define foo1.z    (rtd-accessor foo1 'z))
+(define foo1.a    (rtd-accessor foo1 'a))
+(define foo1.b    (rtd-accessor foo1 'b))
+(define foo1.c    (rtd-accessor foo1 'c))
+(define foo0.x!   (rtd-mutator foo0 'x))
+(define foo0.z!   (rtd-mutator foo0 'z))
+(define foo1.x!   (rtd-mutator foo1 'x))
+(define foo1.z!   (rtd-mutator foo1 'z))
+(define foo1.b!   (rtd-mutator foo1 'b))
+(define foo1.c!   (rtd-mutator foo1 'c))
+
+(define t1 (make-foo0 101 102 103))
+(define t2 (make-foo1 81 82 83 84 85 86))
+
+(or (equal? (list (foo0.x t1) (foo0.y t1) (foo0.z t1))
+            '(101 102 103))
+    (fail 'foo0-accessors))
+
+(or (equal? (list (foo0.x t2) (foo0.y t2) (foo0.z t2))
+            '(81 82 83))
+    (fail 'foo0-accessors1))
+
+(or (equal? (list (foo1.x t2) (foo1.y t2) (foo1.z t2))
+            '(81 82 83))
+    (fail 'foo1-accessors0))
+
+(or (equal? (list (foo1.a t2) (foo1.b t2) (foo1.c t2))
+            '(84 85 86))
+    (fail 'foo1-accessors))
+
+(foo0.x! t1 991)
+(foo0.z! t1 993)
+(foo1.x! t2 512)
+(foo1.z! t2 1024)
+(foo1.b! t2 2048)
+(foo1.c! t2 4096)
+
+(or (equal? (list (foo0.x t1) (foo0.y t1) (foo0.z t1))
+            '(991 102 993))
+    (fail 'foo0-accessors))
+
+(or (equal? (list (foo0.x t2) (foo0.y t2) (foo0.z t2))
+            '(512 82 1024))
+    (fail 'foo0-accessors1))
+
+(or (equal? (list (foo1.x t2) (foo1.y t2) (foo1.z t2))
+            '(512 82 1024))
+    (fail 'foo1-accessors0))
+
+(or (equal? (list (foo1.a t2) (foo1.b t2) (foo1.c t2))
+            '(84 2048 4096))
+    (fail 'foo1-accessors))
+
+;;; Inspection layer.
+
+(or (and (record? t1) (record? t2))
+    (fail 'record?))
+
+(or (eq? foo0 (record-rtd t1))
+    (fail 'record-rtd1))
+
+(or (eq? foo1 (record-rtd t2))
+    (fail 'record-rtd2))
+
+(or (eq? 'foo-base (rtd-name (record-rtd t1)))
+    (fail 'rtd-name1))
+
+(or (eq? 'foo1 (rtd-name (record-rtd t2)))
+    (fail 'rtd-name2))
+
+(or (eq? #f (rtd-parent (record-rtd t1)))
+    (fail 'rtd-parent1))
+
+(or (eq? foo0 (rtd-parent (record-rtd t2)))
+    (fail 'rtd-parent2))
+
+(or (equal? (rtd-field-names foo0)
+            '#(x y z))
+    (fail 'rtd-field-names0))
+
+(or (equal? (rtd-field-names foo1)
+            '#(a b c))
+    (fail 'rtd-field-names1))
+
+(or (equal? (rtd-all-field-names foo0)
+            '#(x y z))
+    (fail 'rtd-all-field-names0))
+
+(or (equal? (rtd-all-field-names foo1)
+            '#(x y z a b c))
+    (fail 'rtd-all-field-names1))
+
+(or (equal? (map (lambda (field) (rtd-field-mutable? foo0 field))
+                 '(x y z))
+            '(#t #f #t))
+    (fail 'rtd-field-mutable?0))
+
+(or (equal? (map (lambda (field) (rtd-field-mutable? foo1 field))
+                 '(x y z a b c))
+            '(#t #f #t #f #t #t))
+    (fail 'rtd-field-mutable?1))
+
+;;; Syntactic layer.
+
+(let ()
+
+  (define-record-type foo-base
+     make-foo0
+     foo0?
+     (x foo0.x foo0.x!)
+     (y foo0.y)
+     (z foo0.z foo0.z!))
+
+  (define-record-type (foo1 foo-base) #t #t a (b) (c))
+
+  (define t1 (make-foo0 101 102 103))
+  (define t2 (make-foo1 81 82 83 84 85 86))
+
+  (define foo1-x (rtd-accessor foo1 'x))
+  (define foo1-y (rtd-accessor foo1 'y))
+  (define foo1-z (rtd-accessor foo1 'z))
+
+  (define foo1-x-set! (rtd-mutator foo1 'x))
+  (define foo1-z-set! (rtd-mutator foo1 'z))
+  
+  (or (and (rtd? foo0) (rtd? foo1))
+      (fail 'rtd?))
+  
+  (or (equal? (list (foo0.x t1) (foo0.y t1) (foo0.z t1))
+              '(101 102 103))
+      (fail 'foo0-accessors))
+  
+  (or (equal? (list (foo0.x t2) (foo0.y t2) (foo0.z t2))
+              '(81 82 83))
+      (fail 'foo0-accessors1))
+  
+  (or (equal? (list (foo1-x t2) (foo1-y t2) (foo1-z t2))
+              '(81 82 83))
+      (fail 'foo1-accessors0))
+  
+  (or (equal? (list (foo1-a t2) (foo1-b t2) (foo1-c t2))
+              '(84 85 86))
+      (fail 'foo1-accessors))
+  
+  (foo0.x! t1 991)
+  (foo0.z! t1 993)
+  (foo1-x-set! t2 512)
+  (foo1-z-set! t2 1024)
+  (foo1-b-set! t2 2048)
+  (foo1-c-set! t2 4096)
+  
+  (or (equal? (list (foo0.x t1) (foo0.y t1) (foo0.z t1))
+              '(991 102 993))
+      (fail 'foo0-accessors))
+  
+  (or (equal? (list (foo0.x t2) (foo0.y t2) (foo0.z t2))
+              '(512 82 1024))
+      (fail 'foo0-accessors1))
+  
+  (or (equal? (list (foo1-x t2) (foo1-y t2) (foo1-z t2))
+              '(512 82 1024))
+      (fail 'foo1-accessors0))
+  
+  (or (equal? (list (foo1-a t2) (foo1-b t2) (foo1-c t2))
+              '(84 2048 4096))
+      (fail 'foo1-accessors))
+  
+  (or (and (record? t1) (record? t2))
+      (fail 'record?))
+  
+  (or (eq? foo-base (record-rtd t1))
+      (fail 'record-rtd1))
+  
+  (or (eq? foo1 (record-rtd t2))
+      (fail 'record-rtd2))
+  
+  (or (eq? 'foo-base (rtd-name (record-rtd t1)))
+      (fail 'rtd-name1))
+  
+  (or (eq? 'foo1 (rtd-name (record-rtd t2)))
+      (fail 'rtd-name2))
+  
+  (or (eq? #f (rtd-parent (record-rtd t1)))
+      (fail 'rtd-parent1))
+  
+  (or (eq? foo-base (rtd-parent (record-rtd t2)))
+      (fail 'rtd-parent2))
+  
+  (or (equal? (rtd-field-names foo0)
+              '#(x y z))
+      (fail 'rtd-field-names0))
+  
+  (or (equal? (rtd-field-names foo1)
+              '#(a b c))
+      (fail 'rtd-field-names1))
+  
+  (or (equal? (rtd-all-field-names foo0)
+              '#(x y z))
+      (fail 'rtd-all-field-names0))
+  
+  (or (equal? (rtd-all-field-names foo1)
+              '#(x y z a b c))
+      (fail 'rtd-all-field-names1))
+  
+  (or (equal? (map (lambda (field) (rtd-field-mutable? foo0 field))
+                   '(x y z))
+              '(#t #f #t))
+      (fail 'rtd-field-mutable?0))
+  
+  (or (equal? (map (lambda (field) (rtd-field-mutable? foo1 field))
+                   '(x y z a b c))
+              '(#t #f #t #f #t #t))
+      (fail 'rtd-field-mutable?1))
+  )
+
+;;;
+
+(writeln "Done.")
+
+; eof

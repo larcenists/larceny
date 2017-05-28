@@ -350,6 +350,8 @@
          ;; expressions - if not, save lots of space by not including
          ;; env-table in object code
          (*syntax-reflected* #f)
+         ;; what counts as an ellipsis; see standard-ellipsis below    ; [R7RS]
+         (*ellipsis* #f)                                               ; [R7RS]
 
          ;;==========================================================================
          ;;
@@ -398,6 +400,8 @@
     (define id-transformer-envs (record-accessor :identifier 2))
     (define id-displacement     (record-accessor :identifier 3))
     (define id-maybe-library    (record-accessor :identifier 4))
+
+    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [R7RS]
 
     (define (id-library id)
       (or (id-maybe-library id)
@@ -597,6 +601,7 @@
       (if binding
           (or (memv (source-level id)
                     (binding-levels binding))
+              #t ; FIXME: no for / meta / run / expand in R7RS         ; [R7RS]
               (syntax-violation
                "invalid reference"
                (string-append "Attempt to use binding of " (symbol->string (id-name id))
@@ -686,6 +691,16 @@
     ;; This makes a much smaller external representation of an
     ;; environment table by factoring shared structure.
 
+    ;; Pattern variable bindings can never be
+    ;; used in client, so don't waste space.
+    ;; Should really do the same with all local
+    ;; bindings, but there are usually much less
+    ;; of them, so don't bother for now.
+    ;;
+    ;; Suppressed pattern variable bindings aren't saved in compiled files,
+    ;; so those bindings won't be present when a compiled file is loaded,
+    ;; so missing bindings must be special-cased below.  See bug #740.
+
     (define (compress env-table)
       (let ((frame-table '())
             (count 0))
@@ -693,7 +708,9 @@
                     (for-each (lambda (frame)
                                 (if (not (assq frame frame-table))
                                     (begin
-                                      (set! frame-table (cons (cons frame count) frame-table))
+                                      (set! frame-table
+                                            (cons (cons frame count)
+                                                  frame-table))
                                       (set! count (+ 1 count)))))
                               (cdr entry)))
                   env-table)
@@ -707,13 +724,11 @@
                      (cons (cdr frame-entry)
                            (list (map (lambda (mapping)
                                         (cons (car mapping)
-                                              (let ((binding (cdr mapping)))
+                                              (let ((binding
+                                                     ;; see bug #740
+                                                     (or (cdr mapping)
+                                                         '(pattern-variable))))
                                                 (case (binding-type binding)
-                                                  ;; Pattern variable bindings can never be
-                                                  ;; used in client, so don't waste space.
-                                                  ;; Should really do the same with all local
-                                                  ;; bindings, but there are usually much less
-                                                  ;; of them, so don't bother for now.
                                                   ((pattern-variable) #f) ; +++
                                                   (else binding)))))
                                       (caar frame-entry)))))
@@ -840,7 +855,7 @@
       (cond ((assq (binding-name binding) *macro-table*) => cdr)
             (else
              (syntax-violation
-              #f "Reference to macro keyword out of context" t))))
+              #f "Undefined variable or reference to macro keyword out of context" t))))
 
     ;; Registering macro.
 
@@ -1033,6 +1048,25 @@
 
     ;;=========================================================================
     ;;
+    ;; Cond-expand:
+    ;;
+    ;;=========================================================================
+
+    (define (expand-cond-expand body-type type form)
+      (check-cond-expand body-type type form)
+      (let ((form2 (cons (car form)
+                         (map (lambda (clause)
+                                (cons (syntax->datum (car clause))
+                                      (cdr clause)))
+                              (cdr form)))))
+        (larceny:cond-expand form2)))
+
+    (define (cond-expand-expander form)
+      (let ((exps (expand-cond-expand 'expression-sequence 'expression form)))
+        (expand-begin `(,(rename 'macro 'begin) ,@exps))))
+
+    ;;=========================================================================
+    ;;
     ;; Lambda:
     ;;
     ;;=========================================================================
@@ -1216,9 +1250,7 @@
                                     exports
                                     defs-okay?)))))))
                       ((cond-expand)
-                       (let* ((decls-raw
-                               (larceny:cond-expand (syntax->datum form)))
-                              (decls (datum->syntax (car form) decls-raw))
+                       (let* ((decls (expand-cond-expand body-type type form))
                               (wraps (map (lambda (decl)
                                             (make-wrap *usage-env* decl))
                                           decls)))
@@ -1489,6 +1521,18 @@
         include include-ci include-library-declarations
         cond-expand))
 
+    (define (check-cond-expand body-type type form)                    ; [R7RS]
+      (and (list? form)
+           (pair? form)
+           (pair? (cdr form))
+           (not (null? (filter (lambda (clause)
+                                 (not (and (list? clause)
+                                           (pair? clause))))
+                               (cdr form))))
+           (syntax-violation type
+                             "Invalid cond-expand syntax"
+                             form)))
+
     (define (check-expression-sequence body-type type form)
 #;
       (if (memq 'define-library (list body-type type))                  ; FIXME
@@ -1564,15 +1608,24 @@
     ;;=========================================================================
 
     (define (expand-syntax-case exp)
-      (define (literal? x)
-        (and (identifier? x)
-             (not (or (free=? x '_)
-                      (free=? x '...)))))
       (match exp
-        ((- e ((? literal? literals) ___) clauses ___)
-         (let ((input (generate-guid 'input)))
-           `(let ((,input ,(expand e)))
-              ,(process-clauses clauses input literals))))))
+        ((- e ((? identifier? literals) ___) clauses ___)
+         (expand-syntax-case2 e standard-ellipsis literals clauses))   ; [R7RS]
+        ((- e (? identifier? ellipsis) ((? identifier? literals) ___)  ; [R7RS]
+            clauses ___)                                               ; [R7RS]
+         (expand-syntax-case2 e ellipsis literals clauses))))          ; [R7RS]
+
+    ;; [R7RS]  Some rewriting was needed to support the R7RS ellipsis feature.
+
+    (define (expand-syntax-case2 e ellipsis literals clauses)          ; [R7RS]
+      (fluid-let ((*ellipsis* ellipsis))                               ; [R7RS]
+        (let ((input (generate-guid 'input)))
+          `(let ((,input ,(expand e)))
+             ,(process-clauses clauses input literals)))))
+
+    (define (ellipsis? x)                                              ; [R7RS]
+      (and (identifier? x)                                             ; [R7RS]
+           (free-identifier=? x *ellipsis*)))                          ; [R7RS]
 
     (define (process-clauses clauses input literals)
 
@@ -1588,15 +1641,24 @@
               `(let ((,temp ,input))
                  ,(process-match temp pattern sk fk)))
             (match pattern
-              ((syntax _)         sk)
-              ((syntax ...)       (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
-              (()                 `(if (null? ,input) ,sk ,fk))
               ((? literal? id)    `(if (and (ex:identifier? ,input)
                                             (ex:free-identifier=? ,input ,(syntax-reflect id)))
                                        ,sk
                                        ,fk))
+              ((syntax _)         sk)
+              ((? ellipsis? :::)  (syntax-violation 'syntax-case "Invalid use of ellipses" pattern))
+              (()                 `(if (null? ,input) ,sk ,fk))
               ((? identifier? id) `(let ((,(binding-name (binding id)) ,input)) ,sk))
-              ((p (syntax ...))
+              ((p (? literal? id) . tail)
+               `(if (pair? ,input)
+                    ,(process-match `(car ,input)
+                                    p
+                                    (process-match `(cdr ,input)
+                                                   (cdr pattern)
+                                                   sk fk)
+                                    fk)
+                    ,fk))
+              ((p (? ellipsis? :::))
                (let ((mapped-pvars (map (lambda (pvar) (binding-name (binding pvar)))
                                         (map car (pattern-vars p 0)))))
                  (if (and (identifier? p)                                   ; +++
@@ -1620,7 +1682,7 @@
                                                        ',(map (lambda (ignore) '()) mapped-pvars)
                                                        (apply map list ,columns)))
                                             ,fk)))))))
-              ((p (syntax ...) . tail)
+              ((p (? ellipsis? :::) . tail)
                (let ((tail-length (dotted-length tail)))
                  `(if (>= (ex:dotted-length ,input) ,tail-length)
                       ,(process-match `(ex:dotted-butlast ,input ,tail-length)
@@ -1652,16 +1714,18 @@
 
       (define (pattern-vars pattern level)
         (match pattern
-          ((p (syntax ...) . tail) (append (pattern-vars p (+ level 1))
-                                           (pattern-vars tail level)))
-          ((p1 . p2)               (append (pattern-vars p1 level)
-                                           (pattern-vars p2 level)))
-          (#(ps ___)               (pattern-vars ps level))
-          ((syntax ...)            '())
-          ((syntax _)              '())
-          ((? literal? -)          '())
-          ((? identifier? id)      (list (cons id level)))
-          (-                       '())))
+          ((? literal? -)               '())
+          ((p (? literal? -) . tail)    (append (pattern-vars p level)
+                                                (pattern-vars tail level)))
+          ((p (? ellipsis? :::) . tail) (append (pattern-vars p (+ level 1))
+                                                (pattern-vars tail level)))
+          ((p1 . p2)                    (append (pattern-vars p1 level)
+                                                (pattern-vars p2 level)))
+          (#(ps ___)                    (pattern-vars ps level))
+          ((? ellipsis? :::)            '())
+          ((syntax _)                   '())
+          ((? identifier? id)           (list (cons id level)))
+          (-                            '())))
 
       (define (process-clause clause input fk)
         (match clause
@@ -1710,7 +1774,7 @@
 
     (define (process-template template dim ellipses-quoted?)
       (match template
-        ((syntax ...)
+        ((? ellipsis? :::)
          (if (not ellipses-quoted?)
              (syntax-violation 'syntax "Invalid occurrence of ellipses in syntax template" template))
          (syntax-reflect template))
@@ -1728,13 +1792,13 @@
                            (syntax-violation 'syntax "Template dimension error (too few ...'s?)" id))))
                  (else
                   (syntax-reflect id)))))
-        (((syntax ...) p)                          ; Andre van Tonder gave us
+        (((? ellipsis? :::) p)                     ; Andre van Tonder gave us
          (if ellipses-quoted?                      ; this patch for ticket #637
              `(list ,(process-template (car template) dim #t)
                     ,(process-template p dim #t))
              (process-template p dim #t)))
         ((? (lambda (_) (not ellipses-quoted?))
-            (t (syntax ...) . tail))
+            (t (? ellipsis? :::) . tail))
          (let* ((head (segment-head template)) 
                 (vars
                  (map (lambda (mapping)
@@ -1791,7 +1855,7 @@
                                    dim))))
                    (cons (cons id binding) free)
                    free))))
-        ((t (syntax ...) . rest)
+        ((t (? ellipsis? :::) . rest)
          (free-meta-variables t 
                               dim 
                               (free-meta-variables (segment-tail template) dim free deeper)
@@ -1806,7 +1870,7 @@
 
     (define (segment-depth pattern)
       (match pattern
-        ((p (syntax ...) . rest)
+        ((p (? ellipsis? :::) . rest)
          (+ 1 (segment-depth (cdr pattern))))
         (- 0)))
       
@@ -1816,12 +1880,12 @@
       (let ((head
              (let recur ((pattern pattern))
                (match pattern
-                 ((h (syntax ...) (syntax ...) . rest)
+                 ((h (? ellipsis? :::) (? ellipsis? ::) . rest)
                   (cons h (recur (cdr pattern))))
-                 ((h (syntax ...) . rest)
+                 ((h (? ellipsis? :::) . rest)
                   (list h))))))
         (match head 
-          ((h (syntax ...) . rest)
+          ((h (? ellipsis? :::) . rest)
            head)
           (- (car head)))))   
 
@@ -1830,7 +1894,7 @@
     (define (segment-tail pattern)
       (let loop ((pattern (cdr pattern)))
         (match pattern
-          (((syntax ...) . tail)
+          (((? ellipsis? :::) . tail)
            (loop tail))
           (- pattern))))
 
@@ -1946,7 +2010,7 @@
                    (import-libraries-for-expand imported-libraries (map not imported-libraries) 0)
                    (if (eq? library-type 'define-library)              ; [R7RS]
                        (env-import! keyword
-                                    (make-library-language)
+                                    (make-r7rs-library-language)
                                     *usage-env*))
                    (env-import! keyword imports *usage-env*)
 
@@ -2873,22 +2937,64 @@
     ;;
     ;;===================================================================
 
-    (define library-language-names
-      `(program library export import for run expand meta only
-                except prefix rename primitives >= <= and or not
-                define-library begin cond-expand                       ; [R7RS]
-                include include-ci include-library-declarations))      ; [R7RS]
+    ;; [R7RS]  These definitions have been refactored for R7RS.
 
-    (define (make-library-language)
+    (define library-language-names:common
+      `(program library define-library
+                export import
+                only except prefix rename primitives))
+
+    (define library-language-names:r7rs-only
+      `(begin cond-expand                                              ; [R7RS]
+        include include-ci include-library-declarations))              ; [R7RS]
+
+    (define library-language-names:r6rs-only
+      `(for run expand meta
+        >= <= and or not))
+
+    (define library-language-names
+      (append library-language-names:common
+              library-language-names:r7rs-only
+              library-language-names:r6rs-only))
+
+    (define r7rs-library-language-names
+      (append library-language-names:common
+              library-language-names:r7rs-only))
+
+    (define r6rs-library-language-names
+      (append library-language-names:common
+              library-language-names:r6rs-only))
+
+    (define (make-a-specific-library-language names)
       (map (lambda (name)
              (cons name (make-binding 'macro name '(0) #f '())))
-           library-language-names))
+           names))
+
+    ;; FIXME: unused
+
+    (define (make-minimal-library-language)
+      (make-a-specific-library-language library-language-names:common))
+
+    (define (make-library-language)
+      (make-a-specific-library-language library-language-names))
+
+    (define (make-r7rs-library-language)
+      (make-a-specific-library-language r7rs-library-language-names))
+
+    ;; FIXME: unused
+
+    (define (make-r6rs-library-language)
+      (make-a-specific-library-language r6rs-library-language-names))
+
+    ;; [R7RS]  End of refactored definitions for R7RS.
 
     ;;===================================================================
     ;;
     ;; Bootstrap library containing macros defined in this expander.
     ;;
     ;;===================================================================
+
+    (set! *ellipsis* standard-ellipsis)                                ; [R7RS]
 
     (ex:register-library!
      (let ((primitive-macro-mapping
@@ -2948,7 +3054,8 @@
     (register-macro! 'include-library-declarations                     ; [R7RS]
                      (make-expander invalid-form))                     ; [R7RS]
     (register-macro! 'begin (make-expander invalid-form))              ; [R7RS]
-    (register-macro! 'cond-expand (make-expander invalid-form))        ; [R7RS]
+    (register-macro! 'cond-expand                                      ; [R7RS]
+                     (make-expander cond-expand-expander))             ; [R7RS]
 
     ;;==========================================================================
     ;;

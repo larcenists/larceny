@@ -1,13 +1,17 @@
 Although Larceny continues to support the R6RS standard, parts
 of that standard (notably lexical syntax) have been superseded
-by the R7RS (small) standard.  See HOWTO-R7RS.
+by the R7RS (small) standard [3].  See HOWTO-R7RS.
 
 
 ABOUT R6RS
 
 In August 2007, the R6RS standard for the Scheme programming
 language was ratified by 65.7% of the voters, which exceeded the
-required 60% supermajority [1].
+required 60% supermajority [1].  Most of the R6RS standard has
+been superseded by the R7RS-small standard, which was ratified
+in 2013 by 85.7% of the voters [3].  The R7RS-large standard,
+which is being developed by Scheme Working Group 2, is expected
+to replace the R6RS standard in its entirety.
 
 The most important thing to know about the R6RS is that it was a
 supplement to the R5RS, not a replacement.  The R6RS had nothing
@@ -87,12 +91,12 @@ As an extension to the R6RS, Larceny automatically loads
 libraries when they are first imported, provided Larceny
 can find the libraries in its library search path.  The
 library search path defaults to a path that contains
-the predefined libraries listed in HOWTO-ERR5RS, but
-more directories can be added to the library search path
+the predefined libraries listed in Larceny's user manual [4],
+but more directories can be added to the library search path
 using Larceny's --path command-line option.
 
 Autoloaded libraries must be defined in files that follow
-Larceny's standard naming conventions for ERR5RS/R6RS
+Larceny's standard naming conventions for R7RS/R6RS
 library files.  These naming conventions are described
 in Larceny's user manual [4].
 
@@ -142,15 +146,19 @@ In addition to the standard R6RS libraries, Larceny
 predefines a variety of other libraries that R6RS
 programs and libraries can import.  For a partial
 list of predefined libraries, see Larceny's user
-manual [4].
+manual [4].  (R7RS libraries and programs can use the R7RS
+cond-expand facility to determine whether specific libraries
+are available, but cond-expand cannot be used within R6RS
+libraries.)
 
-We recommend that R6RS programs use SRFI 99 records
-instead of the corresponding R6RS libraries.  SRFI 99
-record types interoperate more smoothly with R6RS records
-than R6RS record types themselves interoperate with
-R6RS records, and the standard reference implementation
-of SRFI 99 records should run efficiently in any
-R6RS-compatible system that allows new libraries to be
+We recommend that R6RS programs use SRFI 9, SRFI 99, SRFI 131,
+or R7RS records instead of the corresponding R6RS libraries.
+SRFI 9, 99, 131, and R7RS record types interoperate more
+smoothly with R6RS records than R6RS record types themselves
+interoperate with R6RS records, and the standard reference
+implementation of SRFI 99 records (which is a superset of SRFI
+9, SRFI 131, and R7RS records) should run efficiently in
+any R6RS-compatible system that allows new libraries to be
 defined at all.
 
 
@@ -168,7 +176,8 @@ all of the checking for non-portable code that the
 R6RS requires implementations to perform.  Since R6RS
 libraries are non-portable anyway, the R6RS-mandated
 checking for other portability problems is overly
-prescriptive.
+prescriptive, and would interfere with interoperability
+between R6RS and R7RS libraries and programs.
 
 Larceny performs all checks needed to ensure safety
 as that concept has traditionally been defined.

@@ -88,7 +88,8 @@
      "ecodes.sch"
      "layouts.sch"
      ,@(case *runtime-type* 
-        ((sparc-native sassy-native arm-native) '("regs.sch"))
+        ((sparc-native sassy-native arm-native arm-native0)
+         '("regs.sch"))
         (else '())))))
 
 (define *nbuild:sparcasm-files*

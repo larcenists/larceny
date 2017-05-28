@@ -201,6 +201,7 @@
     (and (vector? d)
 	 (> (vector-length d) 0)
          (memq (vector-ref d 0)
-               '(bytevector-output-port bytevector-input/output-port)))))
+               '(bytevector-output-port bytevector-input/output-port))
+         #t)))
 
 ; eof

@@ -379,23 +379,30 @@
            ((name expr (... ...))
             (begin expr (... ...))))))))
 
-   (cond-expand
-    (larceny
-     (define-syntax be-like-begin-alt
-       (syntax-rules ()
-        ((be-like-begin-alt name)
-         (define-syntax name
-           (syntax-rules ()
-            ((name exp (... ...))
-             "R7RS ellipsis feature is not yet implemented")))))))
-    ((not larceny)
-     (define-syntax be-like-begin-alt
-       (syntax-rules &etc ()
-        ((be-like-begin-alt name)
-         (define-syntax name
-           (syntax-rules ()
-             ((name expr (&etc ...))
-              (begin expr (&etc ...))))))))))
+   (define-syntax be-like-begin-alt
+     (syntax-rules &etc ()
+      ((be-like-begin-alt name)
+       (define-syntax name
+         (syntax-rules ()
+           ((name expr (&etc ...))
+            (begin expr (&etc ...))))))))
+
+   ;; These macros were contributed by Alex Shinn, who reported them
+   ;; as bugs in Larceny v0.98.
+
+   (define-syntax underscore-as-literal
+    (syntax-rules (_)
+     ((underscore-as-literal _)
+      'under)
+     ((underscore-as-literal x)
+      'other)))
+
+  (define-syntax ellipses-as-literal
+    (syntax-rules (...)
+     ((ellipses-as-literal ...)
+      'under)
+     ((ellipses-as-literal x)
+      'other)))
 
    ;; For a test of R7RS 5.3.1
 
@@ -626,6 +633,16 @@
                     "12")))
       (else))
 
+     ;; The previous cond-expand is a top-level expression.
+     ;; A cond-expand can appear anywhere within an expression.
+
+     (test (+ 1
+              (cond-expand (larceny 2)
+                           ((not larceny) 3))
+              (cond-expand (larceny 3)
+                           (else 2)))
+           6)
+
      ;;     let                                     ; R7RS 4.2.2
      ;;     let*
      ;;     letrec
@@ -800,6 +817,11 @@
                            (parameterize ((radix 0))
                             (f 12))))
            #t)
+
+     (test (let ((param (make-parameter 1 (lambda (x) (* 10 x)))))
+             (parameterize ((param 2)) #f)
+             (param))
+           10)
 
      ;;     guard                                   ; R7RS 4.2.7
 
@@ -1021,6 +1043,11 @@
      (test (let ((=> #f))
              (cond (#t => 'ok)))
            'ok)
+
+     (test (underscore-as-literal _) 'under)
+     (test (underscore-as-literal 5) 'other)
+     (test (ellipses-as-literal ...) 'under)
+     (test (ellipses-as-literal 6)   'other)
     
      ;;     syntax-error                            ; R7RS 4.3.3
 
@@ -1065,6 +1092,11 @@
              (define-values (x y) (values 1 2))
              (+ x y))
            3)
+
+     (test (let ()                                  ; bug #738 in Larceny 0.98
+             (define-values (a b c) (values 1 2 3))
+             (list a b c))
+           '(1 2 3))
 
      ;;     define-syntax                           ; R7RS 5.4
 
@@ -2647,6 +2679,11 @@
             (open-input-string "Do you read this?")
             read-line)
            "Do you read this?")
+
+     (test (map (lambda (s)
+                  (call-with-port (open-input-string s) read-line))
+                '("abc\ndef" "abc\rdef" "abc\r\ndef"))
+           '("abc" "abc" "abc"))
 
      (test (call-with-port
             (open-output-string)

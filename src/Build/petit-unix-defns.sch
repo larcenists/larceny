@@ -89,6 +89,7 @@
     ((sparc-native) (config (in-rts "sparc-regs.cfg")))
     ((sassy-native) (config (in-rts "iasn-regs.cfg")))
     ((arm-native) (config (in-rts "fence-arm-regs.cfg")))
+    ((arm-native0) (config (in-rts "fence-arm-regs0.cfg")))
     ((petit) #t)
     (else (error "No registers config file for this runtime-type: " *runtime-type*)))
   (catfiles (map in-include
@@ -106,7 +107,8 @@
                    "layouts.ah"
                    "mprocs.ah"
                    ,@(case *runtime-type* 
-                       ((sparc-native sassy-native arm-native) '("regs.ah"))
+                       ((sparc-native sassy-native arm-native arm-native0)
+                        '("regs.ah"))
                        (else '()))))
             (in-include "asmdefs.h"))
 

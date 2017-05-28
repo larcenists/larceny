@@ -75,7 +75,7 @@
    ;; within the context of this expander.  
    
    (primitives
-   
+
     ;; Procedures and values defined in the core expander:
     
     ex:make-variable-transformer ex:identifier? ex:bound-identifier=?
@@ -133,10 +133,12 @@
            (syntax
             (lambda (x) (syntax-case x (k ...) cl ...)))))
         ((_ ellipsis (k ...) cl ...)
-         (identifier? (syntax ellipsis))
-         (syntax-violation 'syntax-rules
-                           "R7RS ellipsis feature is not yet implemented"
-                           x)))))
+         (and (identifier? (syntax ellipsis))
+              (for-all identifier? (syntax (k ...))))
+         (with-syntax (((cl ...) (map clause (syntax (cl ...)))))
+           (syntax
+            (lambda (x) (syntax-case x ellipsis (k ...) cl ...))))))))
+
 
   (define-syntax syntax-error
     (lambda (exp)

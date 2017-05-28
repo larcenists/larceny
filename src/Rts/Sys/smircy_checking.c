@@ -232,6 +232,7 @@ static void *smircy_enumerate_whole_stack( smircy_context_t *context,
 
   obj_stack = &context->stack.obj;
   los_stack = &context->stack.los;
+  FIXME_UNUSED_VARIABLE(los_stack);
   seg = obj_stack->seg;
   stkp = obj_stack->stkp;
   stkbot = obj_stack->stkbot;

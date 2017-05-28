@@ -1,450 +1,962 @@
-; Test suite for SRFI 64
-;
-; $Id$
-;
-; Two tests have been commented out because they reveal a bug
-; in the reference implementation of SRFI 25 for which no fix
-; appears to have been published.  That bug is irrelevant to
-; SRFI 64.  Search for [Larceny].
+;;; This file had no copyright notice, but the HTML for SRFI 64
+;;; implies something like the following copyright notice.
 
-(import (rnrs base)
-        (rnrs io simple)                ; [Larceny] just for the last two lines
-        (srfi 25 multi-dimensional-arrays)
-        (srfi 64 testing))
+;; Copyright (c) 2005, 2006 Donovan Kolbly
+;;
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+;;
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+;;
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+;; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+;; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+;; SOFTWARE.
 
-;(test-begin "arrays" 169) ; [Larceny]
-(test-begin "arrays" 167)
+(import (scheme base)
+        (srfi 64))
 
-;;; array test
-;;; 2001 Jussi Piitulainen
-;;; 2002 Per Bothner modified to fit Kawa testing framework.
-;;; 2006 Per Bothner modified to fit SRFI-64 testing framework.
-
-;;; Simple tests
-
-(test-equal "shape" #t
-      (and (array? (shape))
-	   (array? (shape -1 -1))
-	   (array? (shape -1 0))
-	   (array? (shape -1 1))
-	   (array? (shape 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8))))
-
-(test-equal "make-array" #t
-      (and (array? (make-array (shape)))
-	   (array? (make-array (shape) *))
-	   (array? (make-array (shape -1 -1)))
-	   (array? (make-array (shape -1 -1) *))
-	   (array? (make-array (shape -1 1)))
-	   (array? (make-array (shape 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8 1 2 3 4) *))))
-
-(test-equal "array" #t
-      (and (array? (array (shape) *))
-	   (array? (array (shape -1 -1)))
-	   (array? (array (shape -1 1) * *))
-	   (array? (array (shape 1 2 3 4 5 6 7 8 1 2 3 4 5 6 7 8) *))))
-
-(test-equal 2 (array-rank (shape)))
-(test-equal 2 (array-rank (shape -1 -1)))
-(test-equal 2 (array-rank (shape -1 1)))
-(test-equal 2 (array-rank (shape 1 2 3 4 5 6 7 8)))
-
-(test-equal 0 (array-rank (make-array (shape))))
-(test-equal 1 (array-rank (make-array (shape -1 -1))))
-(test-equal 1 (array-rank (make-array (shape -1 1))))
-(test-equal 4 (array-rank (make-array (shape 1 2 3 4 5 6 7 8))))
-
-(test-equal 0 (array-rank (array (shape) *)))
-(test-equal 1 (array-rank (array (shape -1 -1))))
-(test-equal 1 (array-rank (array (shape -1 1) * *)))
-(test-equal 4 (array-rank (array (shape 1 2 3 4 5 6 7 8) *)))
-
-(test-equal 0 (array-start (shape -1 -1) 0))
-(test-equal 0 (array-start (shape -1 -1) 1))
-(test-equal 0 (array-start (shape -1 1) 0))
-(test-equal 0 (array-start (shape -1 1) 1))
-(test-equal 0 (array-start (shape 1 2 3 4 5 6 7 8) 0))
-(test-equal 0 (array-start (shape 1 2 3 4 5 6 7 8) 1))
-
-(test-equal 1 (array-end (shape -1 -1) 0))
-(test-equal 2 (array-end (shape -1 -1) 1))
-(test-equal 1 (array-end (shape -1 1) 0))
-(test-equal 2 (array-end (shape -1 1) 1))
-(test-equal 4 (array-end (shape 1 2 3 4 5 6 7 8) 0))
-(test-equal 2 (array-end (shape 1 2 3 4 5 6 7 8) 1))
-
-(test-equal -1 (array-start (make-array (shape -1 -1)) 0))
-(test-equal -1 (array-start (make-array (shape -1 1)) 0))
-(test-equal 1 (array-start (make-array (shape 1 2 3 4 5 6 7 8)) 0))
-(test-equal 3 (array-start (make-array (shape 1 2 3 4 5 6 7 8)) 1))
-(test-equal 5 (array-start (make-array (shape 1 2 3 4 5 6 7 8)) 2))
-(test-equal 7 (array-start (make-array (shape 1 2 3 4 5 6 7 8)) 3))
-
-(test-equal -1 (array-end (make-array (shape -1 -1)) 0))
-(test-equal 1 (array-end (make-array (shape -1 1)) 0))
-(test-equal 2 (array-end (make-array (shape 1 2 3 4 5 6 7 8)) 0))
-(test-equal 4 (array-end (make-array (shape 1 2 3 4 5 6 7 8)) 1))
-(test-equal 6 (array-end (make-array (shape 1 2 3 4 5 6 7 8)) 2))
-(test-equal 8 (array-end (make-array (shape 1 2 3 4 5 6 7 8)) 3))
-
-;; array-start of array
-(test-equal -1 (array-start (array (shape -1 -1)) 0))
-(test-equal -1 (array-start (array (shape -1 1) * *) 0))
-(test-equal 1 (array-start (array (shape 1 2 3 4 5 6 7 8) *) 0))
-(test-equal 3 (array-start (array (shape 1 2 3 4 5 6 7 8) *) 1))
-(test-equal 5 (array-start (array (shape 1 2 3 4 5 6 7 8) *) 2))
-(test-equal 7 (array-start (array (shape 1 2 3 4 5 6 7 8) *) 3))
-
-;; array-end of array
-(test-equal -1 (array-end (array (shape -1 -1)) 0))
-(test-equal 1 (array-end (array (shape -1 1) * *) 0))
-(test-equal 2 (array-end (array (shape 1 2 3 4 5 6 7 8) *) 0))
-(test-equal 4 (array-end (array (shape 1 2 3 4 5 6 7 8) *) 1))
-(test-equal 6 (array-end (array (shape 1 2 3 4 5 6 7 8) *) 2))
-(test-equal 8 (array-end (array (shape 1 2 3 4 5 6 7 8) *) 3))
-
-;; array-ref of make-array with arguments
-(test-equal 'a (array-ref (make-array (shape) 'a)))
-(test-equal 'b (array-ref (make-array (shape -1 1) 'b) -1))
-(test-equal 'c (array-ref (make-array (shape -1 1) 'c) 0))
-(test-equal 'd (array-ref (make-array (shape 1 2 3 4 5 6 7 8) 'd) 1 3 5 7))
-
-;; array-ref of make-array with vector
-(test-equal 'a (array-ref (make-array (shape) 'a) '#()))
-(test-equal 'b (array-ref (make-array (shape -1 1) 'b) '#(-1)))
-(test-equal 'c (array-ref (make-array (shape -1 1) 'c) '#(0)))
-(test-equal 'd (array-ref (make-array (shape 1 2 3 4 5 6 7 8) 'd) '#(1 3 5 7)))
-
-;; array-ref of make-array with array
-(test-equal 'a (array-ref (make-array (shape) 'a) (array (shape 0 0))))
-(test-equal 'b (array-ref (make-array (shape -1 1) 'b) (array (shape 0 1) -1)))
-(test-equal 'c (array-ref (make-array (shape -1 1) 'c) (array (shape 0 1) 0)))
-(test-equal 'd (array-ref (make-array (shape 1 2 3 4 5 6 7 8) 'd)
-      (array (shape 0 4) 1 3 5 7)))
-
-;; array-set! of make-array with arguments
-(test-equal "set" 'a
-      (let ((arr (make-array (shape) 'o)))
-	(array-set! arr 'a)
-	(array-ref arr)))
-(let ((arr (make-array (shape -1 1) 'o)))
-  (array-set! arr -1 'b)
-  (array-set! arr 0 'c)
-  (test-equal 'b (array-ref arr -1))
-  (test-equal 'c (array-ref arr 0)))
-(let ((arr (make-array (shape 1 2 3 4 5 6 7 8) 'o)))
-  (array-set! arr 1 3 5 7 'd)
-  (test-equal 'd (array-ref arr 1 3 5 7)))
-
-;; array-set! of make-array with vector
-(let ((arr (make-array (shape) 'o)))
-  (array-set! arr '#() 'a)
-  (test-equal 'a (array-ref arr)))
-(let ((arr (make-array (shape -1 1) 'o)))
-  (array-set! arr '#(-1) 'b)
-  (array-set! arr '#(0) 'c)
-  (test-equal 'b (array-ref arr -1))
-  (test-equal 'c (array-ref arr 0)))
-(let ((arr (make-array (shape 1 2 3 4 5 6 7 8) 'o)))
-  (array-set! arr '#(1 3 5 7) 'd)
-  (test-equal 'd (array-ref arr 1 3 5 7)))
-
-;; array-set! of make-array with array
-(let ((arr (make-array (shape) 'o)))
-  (array-set! arr 'a)
-  (test-equal 'a (array-ref arr)))
-(let ((arr (make-array (shape -1 1) 'o)))
-  (array-set! arr (array (shape 0 1) -1) 'b)
-  (array-set! arr (array (shape 0 1) 0) 'c)
-  (test-equal 'b (array-ref arr -1))
-  (test-equal 'c (array-ref arr 0)))
-(let ((arr (make-array (shape 1 2 3 4 5 6 7 8) 'o)))
-  (array-set! arr (array (shape 0 4) 1 3 5 7) 'd)
-  (test-equal 'd (array-ref arr 1 3 5 7)))
-
-;;; Share and change:
 ;;;
-;;;  org     brk     swp            box
+;;;  This is a test suite written in the notation of 
+;;;  SRFI-64, A Scheme API for test suites
 ;;;
-;;;   0 1     1 2     5 6
-;;; 6 a b   2 a b   3 d c   0 2 4 6 8: e
-;;; 7 c d   3 e f   4 f e
-;;; 8 e f
 
-;; shared change
-(let* ((org (array (shape 6 9 0 2) 'a 'b 'c 'd 'e 'f))
-       (brk (share-array
-	     org
-	     (shape 2 4 1 3)
-	     (lambda (r k)
-	       (values
-		(+ 6 (* 2 (- r 2)))
-		(- k 1)))))
-       (swp (share-array
-	     org
-	     (shape 3 5 5 7)
-	     (lambda (r k)
-	       (values
-		(+ 7 (- r 3))
-		(- 1 (- k 5))))))
-       (box (share-array
-	     swp
-	     (shape 0 1 2 3 4 5 6 7 8 9)
-	     (lambda _ (values 4 6))))
-       (org-contents (lambda ()
-		       (list (array-ref org 6 0) (array-ref org 6 1)
-			     (array-ref org 7 0) (array-ref org 7 1)
-			     (array-ref org 8 0) (array-ref org 8 1))))
-       (brk-contents (lambda ()
-		       (list (array-ref brk 2 1) (array-ref brk 2 2)
-			     (array-ref brk 3 1) (array-ref brk 3 2))))
-       (swp-contents (lambda ()
-		       (list (array-ref swp 3 5) (array-ref swp 3 6)
-			     (array-ref swp 4 5) (array-ref swp 4 6))))
-       (box-contents (lambda ()
-		       (list (array-ref box 0 2 4 6 8)))))
-  (test-equal '(a b c d e f) (org-contents))
-  (test-equal '(a b e f) (brk-contents))
-  (test-equal '(d c f e) (swp-contents))
-  (test-equal '(e) (box-contents))
-  (array-set! org 6 0 'x)
-  (test-equal '(x b c d e f) (org-contents))
-  (test-equal '(x b e f) (brk-contents))
-  (test-equal '(d c f e) (swp-contents))
-  (test-equal '(e) (box-contents))
-  (array-set! brk 3 1 'y)
-  (test-equal '(x b c d y f) (org-contents))
-  (test-equal '(x b y f) (brk-contents))
-  (test-equal  '(d c f y) (swp-contents))
-  (test-equal '(y) (box-contents))
-  (array-set! swp 4 5 'z)
-  (test-equal '(x b c d y z) (org-contents))
-  (test-equal '(x b y z) (brk-contents))
-  (test-equal '(d c z y) (swp-contents))
-  (test-equal '(y) (box-contents))
-  (array-set! box 0 2 4 6 8 'e)
-  (test-equal '(x b c d e z) (org-contents))
-  (test-equal '(x b e z) (brk-contents))
-  (test-equal '(d c z e) (swp-contents))
-  (test-equal '(e) (box-contents)))
+(test-begin "SRFI 64 - Meta-Test Suite")
 
-;;; Check that arrays copy the shape specification
-
-;; array-set! of shape
-(let ((shp (shape 10 12)))
-  (let ((arr (make-array shp))
-	(ars (array shp * *))
-	(art (share-array (make-array shp) shp (lambda (k) k))))
-    (array-set! shp 0 0 '?)
-    (array-set! shp 0 1 '!)
-    (test-equal 2 (array-rank shp))
-    (test-equal 0 (array-start shp 0))
-    (test-equal 1 (array-end shp 0))
-    (test-equal 0 (array-start shp 1))
-    (test-equal 2 (array-end shp 1))
-    (test-equal '? (array-ref shp 0 0))
-    (test-equal '! (array-ref shp 0 1))
-    (test-equal 1 (array-rank arr))
-    (test-equal 10 (array-start arr 0))
-    (test-equal 12 (array-end arr 0))
-    (test-equal 1 (array-rank ars))
-    (test-equal 10 (array-start ars 0))
-    (test-equal 12 (array-end ars 0))
-    (test-equal 1 (array-rank art))
-    (test-equal 10 (array-start art 0))
-    (test-equal 12 (array-end art 0))))
-
-;;; Check that index arrays work even when they share
 ;;;
-;;; arr       ixn
-;;;   5  6      0 1
-;;; 4 nw ne   0 4 6
-;;; 5 sw se   1 5 4
-
-;; array access with sharing index array
-(let ((arr (array (shape 4 6 5 7) 'nw 'ne 'sw 'se))
-      (ixn (array (shape 0 2 0 2) 4 6 5 4)))
-  (let ((col0 (share-array
-	       ixn
-	       (shape 0 2)
-	       (lambda (k) (values k 0))))
-	(row0 (share-array
-	       ixn
-	       (shape 0 2)
-	       (lambda (k) (values 0 k))))
-	(wor1 (share-array
-	       ixn
-	       (shape 0 2)
-	       (lambda (k) (values 1 (- 1 k)))))
-	(cod (share-array
-	      ixn
-	      (shape 0 2)
-	      (lambda (k)
-		(case k
-		  ((0) (values 1 0))
-		  ((1) (values 0 1))))))
-	(box (share-array
-	      ixn
-	      (shape 0 2)
-	      (lambda (k) (values 1 0)))))
-    (test-equal 'nw (array-ref arr col0))
-    (test-equal 'ne (array-ref arr row0))
-    (test-equal 'nw (array-ref arr wor1))
-    (test-equal 'se (array-ref arr cod))
-    (test-equal 'sw (array-ref arr box))
-    (array-set! arr col0 'ul)
-    (array-set! arr row0 'ur)
-    (array-set! arr cod 'lr)
-    (array-set! arr box 'll)
-    (test-equal 'ul (array-ref arr 4 5))
-    (test-equal 'ur (array-ref arr 4 6))
-    (test-equal 'll (array-ref arr 5 5))
-    (test-equal 'lr (array-ref arr 5 6))
-    (array-set! arr wor1 'xx)
-    (test-equal 'xx (array-ref arr 4 5))))
-
-;;; Check that shape arrays work even when they share
+;;;  Ironically, in order to set up the meta-test environment,
+;;;  we have to invoke one of the most sophisticated features:
+;;;  custom test runners
 ;;;
-;;; arr             shp       shq       shr       shs
-;;;    1  2  3  4      0  1      0  1      0  1      0  1 
-;;; 1 10 12 16 20   0 10 12   0 12 20   0 10 10   0 12 12
-;;; 2 10 11 12 13   1 10 11   1 11 13   1 11 12   1 12 12
-;;;                                     2 12 16
-;;;                                     3 13 20
 
-;; sharing shape array
-(let ((arr (array (shape 1 3 1 5) 10 12 16 20 10 11 12 13)))
-  (let ((shp (share-array
-	      arr
-	      (shape 0 2 0 2)
-	      (lambda (r k) (values (+ r 1) (+ k 1)))))
-	(shq (share-array
-	      arr
-	      (shape 0 2 0 2)
-	      (lambda (r k) (values (+ r 1) (* 2 (+ 1 k))))))
-	(shr (share-array
-	      arr
-	      (shape 0 4 0 2)
-	      (lambda (r k) (values (- 2 k) (+ r 1)))))
-	(shs (share-array
-	      arr
-	      (shape 0 2 0 2)
-	      (lambda (r k) (values 2 3)))))
-    (let ((arr-p (make-array shp)))
-      (test-equal  2 (array-rank arr-p))
-      (test-equal 10 (array-start arr-p 0))
-      (test-equal 12 (array-end arr-p 0))
-      (test-equal 10 (array-start arr-p 1))
-      (test-equal 11 (array-end arr-p 1)))
-    (let ((arr-q (array shq * * * *  * * * *  * * * *  * * * *)))
-      (test-equal 2 (array-rank arr-q))
-      (test-equal 12 (array-start arr-q 0))
-      (test-equal 20 (array-end arr-q 0))
-      (test-equal 11 (array-start arr-q 1))
-      (test-equal 13 (array-end arr-q 1)))
-    (let ((arr-r (share-array
-		  (array (shape) *)
-		  shr
-		  (lambda _ (values)))))
-      (test-equal 4 (array-rank arr-r))
-      (test-equal 10 (array-start arr-r 0))
-      (test-equal 10 (array-end arr-r 0))
-      (test-equal 11 (array-start arr-r 1))
-      (test-equal 12 (array-end arr-r 1))
-      (test-equal 12 (array-start arr-r 2))
-      (test-equal 16 (array-end arr-r 2))
-      (test-equal 13 (array-start arr-r 3))
-      (test-equal 20 (array-end arr-r 3)))
-    (let ((arr-s (make-array shs)))
-      (test-equal 2 (array-rank arr-s))
-      (test-equal 12 (array-start arr-s 0))
-      (test-equal 12 (array-end arr-s 0))
-      (test-equal 12 (array-start arr-s 1))
-      (test-equal 12 (array-end arr-s 1) 12))
-    (let ((arr-s (make-array shs)))
-      (test-equal 2 (array-rank arr-s))
-      (test-equal 12 (array-start arr-s 0))
-      (test-equal 12 (array-end arr-s 0))
-      (test-equal 12 (array-start arr-s 1))
-      (test-equal 12 (array-end arr-s 1) 12))))
+;;;  The `prop-runner' invokes `thunk' in the context of a new
+;;;  test runner, and returns the indicated properties of the 
+;;;  last-executed test result.
 
-;; sharing with sharing subshape
-(let ((super (array (shape 4 7 4 7)
-                    1 * *
-                    * 2 *
-                    * * 3))
-      (subshape (share-array
-                 (array (shape 0 2 0 3)
-                        * 4 *
-                        * 7 *)
-                 (shape 0 1 0 2)
-                 (lambda (r k)
-                   (values k 1)))))
-  (let ((sub (share-array super subshape (lambda (k) (values k k)))))
-    ;(array-equal? subshape (shape 4 7))
-    (test-equal 2 (array-rank subshape))
-    (test-equal 0 (array-start subshape 0))
-    (test-equal 1 (array-end subshape 0))
-    (test-equal 0 (array-start subshape 1))
-    (test-equal 2 (array-end subshape 1))
-    (test-equal 4 (array-ref subshape 0 0))
-    (test-equal 7 (array-ref subshape 0 1))
-    ;(array-equal? sub (array (shape 4 7) 1 2 3))
-    (test-equal 1 (array-rank sub))
-    (test-equal 4 (array-start sub 0))
-    (test-equal 7 (array-end sub 0))
-    (test-equal 1 (array-ref sub 4))
-    (test-equal 2 (array-ref sub 5))
-    (test-equal 3 (array-ref sub 6))))
+(define (prop-runner props thunk)
+  (let ((r (test-runner-null))
+        (plist '()))
+    ;;
+    (test-runner-on-test-end!
+     r
+     (lambda (runner)
+       (set! plist (test-result-alist runner))))
+    ;;
+    (test-with-runner r (thunk))
+    ;; reorder the properties so they are in the order
+    ;; given by `props'.  Note that any property listed in `props'
+    ;; that is not in the property alist will occur as #f
+    (map (lambda (k)
+           (assq k plist))
+         props)))
 
-;; Bug reported by Chris Dean <ctdean@mercedsystems.com>
+;;;  `on-test-runner' creates a null test runner and then
+;;;  arranged for `visit' to be called with the runner
+;;;  whenever a test is run.  The results of the calls to
+;;;  `visit' are returned in a list
 
-(define a-2-9 (make-array (shape 0 2 0 9)))
-(array-set! a-2-9 1 3 'e)
-(test-equal 'e (array-ref a-2-9 1 3))
+(define (on-test-runner thunk visit)
+  (let ((r (test-runner-null))
+        (results '()))
+    ;;
+    (test-runner-on-test-end!
+     r
+     (lambda (runner)
+       (set! results (cons (visit r) results))))
+    ;;
+    (test-with-runner r (thunk))
+    (reverse results)))
 
-;; Savannah [bug #4310] share-array edge case.  All these tests should
-;; return ok without an error or IndexOutOfBoundsException
-(define (make-simple-affine ndims hibound)
-  (lambda (i)
-    (if (> i hibound) 
-        (error "index out of bounds" i hibound))
-    (apply values (vector->list (make-vector ndims i)))))
+;;;
+;;;  The `triv-runner' invokes `thunk'
+;;;  and returns a list of 6 lists, the first 5 of which
+;;;  are a list of the names of the tests that, respectively,
+;;;  PASS, FAIL, XFAIL, XPASS, and SKIP.
+;;;  The last item is a list of counts.
+;;;
 
-(define four-dee-array (array (shape 0 2 0 2 0 2 0 2)
-			      'a 'b 'c 'd 'e 'f 'g 'h
-			      'i 'j 'k 'l 'm 'n 'o 'p))
-(define four-dee-lil-array (make-array (shape 0 1 0 1 0 1 0 1) 'ok))
+(define (triv-runner thunk)
+  (let ((r (test-runner-null))
+        (accum-pass '())
+        (accum-fail '())
+        (accum-xfail '())
+        (accum-xpass '())
+        (accum-skip '()))
+    ;;
+    (test-runner-on-bad-count!
+     r
+     (lambda (runner count expected-count)
+       (error (string-append "bad count " (number->string count)
+			     " but expected "
+			     (number->string expected-count)))))
+    (test-runner-on-bad-end-name!
+     r
+     (lambda (runner begin end)
+       (error (string-append "bad end grojup name " end
+			     " but expected " begin))))
+    (test-runner-on-test-end! 
+     r 
+     (lambda (runner)
+       (let ((n (test-runner-test-name runner)))
+         (case (test-result-kind runner)
+           ((pass) (set! accum-pass (cons n accum-pass)))
+           ((fail) (set! accum-fail (cons n accum-fail)))
+           ((xpass) (set! accum-xpass (cons n accum-xpass)))
+           ((xfail) (set! accum-xfail (cons n accum-xfail)))
+           ((skip) (set! accum-skip (cons n accum-skip)))))))
+    ;;
+    (test-with-runner r (thunk))
+    (list (reverse accum-pass)    ; passed as expected
+          (reverse accum-fail)    ; failed, but was expected to pass
+          (reverse accum-xfail)   ; failed as expected
+          (reverse accum-xpass)   ; passed, but was expected to fail
+          (reverse accum-skip)    ; was not executed
+          (list (test-runner-pass-count r)
+                (test-runner-fail-count r)
+                (test-runner-xfail-count r)
+                (test-runner-xpass-count r)
+                (test-runner-skip-count r)))))
 
-; [Larceny] comments out this test
-'
-(test-equal 'ok
-	    (array-ref
-	     (share-array four-dee-lil-array (shape 0 1) (make-simple-affine 4 0))
-	     0))
-; [Larceny] comments out this test
-'
-(test-equal 'a
-	    (array-ref
-	     (share-array four-dee-array (shape 0 1) (make-simple-affine 4 0))
-	     0))
-(test-equal 'a
-	    (array-ref
-	     (share-array four-dee-array (shape 0 2) (make-simple-affine 4 1))
-	     0))
+(define (path-revealing-runner thunk)
+  (let ((r (test-runner-null))
+        (seq '()))
+    ;;
+    (test-runner-on-test-end! 
+     r 
+     (lambda (runner)
+       (set! seq (cons (list (test-runner-group-path runner)
+                             (test-runner-test-name runner))
+                       seq))))
+    (test-with-runner r (thunk))
+    (reverse seq)))
+
+;;;
+;;;  Now we can start testing compliance with SRFI-64
+;;;
+
+(test-begin "1. Simple test-cases")
+
+(test-begin "1.1. test-assert")
+
+(define (t)
+  (triv-runner
+   (lambda ()
+     (test-assert "a" #t)
+     (test-assert "b" #f))))
+
 (test-equal
- '(a p)
- (map
-  (lambda (i)
-    (array-ref
-     (share-array four-dee-array (shape 0 2) (make-simple-affine 4 1))
-     i))
-  '(0 1)))
-(test-equal 'p
-	    (array-ref
-	     (share-array four-dee-array (shape 1 2) (make-simple-affine 4 1))
-	     1))
+ "1.1.1. Very simple"
+ '(("a") ("b") () () () (1 1 0 0 0))
+ (t))
+
+(test-equal
+ "1.1.2. A test with no name"
+ '(("a") ("") () () () (1 1 0 0 0))
+ (triv-runner (lambda () (test-assert "a" #t) (test-assert #f))))
+
+(test-equal
+ "1.1.3. Tests can have the same name"
+ '(("a" "a") () () () () (2 0 0 0 0))
+ (triv-runner (lambda () (test-assert "a" #t) (test-assert "a" #t))))
+
+(define (choke)
+  (vector-ref '#(1 2) 3))
+
+(test-equal
+ "1.1.4. One way to FAIL is to throw an error"
+ '(() ("a") () () () (0 1 0 0 0))
+ (triv-runner (lambda () (test-assert "a" (choke)))))
+
+(test-end);1.1
+
+(test-begin "1.2. test-eqv")
+
+(define (mean x y)
+  (/ (+ x y) 2.0))
+
+(test-equal
+ "1.2.1.  Simple numerical equivalence"
+ '(("c") ("a" "b") () () () (1 2 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-eqv "a" (mean 3 5) 4)
+    (test-eqv "b" (mean 3 5) 4.5)
+    (test-eqv "c" (mean 3 5) 4.0))))
+
+(test-end);1.2
+
+(test-end "1. Simple test-cases")
+
+;;;
+;;;
+;;;
+
+(test-begin "2. Tests for catching errors")
+
+(test-begin "2.1. test-error")
+
+(test-equal
+ "2.1.1. Baseline test; PASS with no optional args"
+ '(("") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    ;; PASS
+    (test-error (vector-ref '#(1 2) 9)))))
+
+(test-equal
+ "2.1.2. Baseline test; FAIL with no optional args"
+ '(() ("") () () () (0 1 0 0 0))
+ (triv-runner
+  (lambda ()
+    ;; FAIL: the expr does not raise an error and `test-error' is
+    ;;       claiming that it will, so this test should FAIL
+    (test-error (vector-ref '#(1 2) 0)))))
+
+(test-equal
+ "2.1.3. PASS with a test name and error type"
+ '(("a") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    ;; PASS
+    (test-error "a" #t (vector-ref '#(1 2) 9)))))
+
+(test-end "2.1. test-error")
+
+(test-end "2. Tests for catching errors")
+
+;;;
+;;;
+;;;
+
+(test-begin "3. Test groups and paths")
+
+(test-equal
+ "3.1. test-begin with unspecific test-end"
+ '(("b") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-assert "b" #t)
+    (test-end))))
+
+(test-equal
+ "3.2. test-begin with name-matching test-end"
+ '(("b") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-assert "b" #t)
+    (test-end "a"))))
+
+;;; since the error raised by `test-end' on a mismatch is not a test
+;;; error, we actually expect the triv-runner itself to fail
+
+(test-error
+ "3.3. test-begin with mismatched test-end"
+#t
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-assert "b" #t)
+    (test-end "x"))))
+
+(test-equal
+ "3.4. test-begin with name and count"
+ '(("b" "c") () () () () (2 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-begin "a" 2)
+    (test-assert "b" #t)
+    (test-assert "c" #t)
+    (test-end "a"))))
+
+;; similarly here, a mismatched count is a lexical error
+;; and not a test failure...
+
+(test-error
+ "3.5. test-begin with mismatched count"
+ #t
+ (triv-runner
+  (lambda ()
+    (test-begin "a" 99)
+    (test-assert "b" #t)
+    (test-end "a"))))
+
+(test-equal
+ "3.6. introspecting on the group path"
+ '((() "w")
+   (("a" "b") "x")
+   (("a" "b") "y")
+   (("a") "z"))
+ ;;
+ ;;  `path-revealing-runner' is designed to return a list
+ ;;  of the tests executed, in order.  Each entry is a list
+ ;;  (GROUP-PATH TEST-NAME), and each GROUP-PATH is a list
+ ;;  of test groups starting from the topmost
+ ;;
+ (path-revealing-runner
+  (lambda ()
+    (test-assert "w" #t)
+    (test-begin "a")
+    (test-begin "b")
+    (test-assert "x" #t)
+    (test-assert "y" #t)
+    (test-end)
+    (test-assert "z" #t))))
+
+
+(test-end "3. Test groups and paths")
+
+;;;
+;;;
+;;;
+
+(test-begin "4. Handling set-up and cleanup")
+
+(test-equal "4.1. Normal exit path"
+             '(in 1 2 out)
+             (let ((ex '()))
+               (define (do s)
+                 (set! ex (cons s ex)))
+               ;;
+               (triv-runner
+                (lambda ()
+                  (test-group-with-cleanup
+                   "foo"
+                   (do 'in)
+                   (do 1)
+                   (do 2)
+                   (do 'out))))
+               (reverse ex)))
+               
+(test-equal "4.2. Exception exit path"
+             '(in 1 out)
+             (let ((ex '()))
+               (define (do s)
+                 (set! ex (cons s ex)))
+               ;;
+               ;; the outer runner is to run the `test-error' in, to
+               ;; catch the exception raised in the inner runner,
+               ;; since we don't want to depend on any other
+               ;; exception-catching support
+               ;;
+               (triv-runner
+                (lambda ()
+                  (test-error
+                   (triv-runner
+                    (lambda ()
+                      (test-group-with-cleanup
+                       "foo"
+                       (do 'in) (test-assert #t)
+                       (do 1)   (test-assert #t)
+                       (choke)  (test-assert #t)
+                       (do 2)   (test-assert #t)
+                       (do 'out)))))))
+               (reverse ex)))
+
+(test-end "4. Handling set-up and cleanup")
+
+;;;
+;;;
+;;;
+
+(test-begin "5. Test specifiers")
+
+(test-begin "5.1. test-match-named")
+
+(test-equal "5.1.1. match test names"
+            '(("y") () () () ("x") (1 0 0 0 1))
+            (triv-runner
+             (lambda ()
+               (test-skip (test-match-name "x"))
+               (test-assert "x" #t)
+               (test-assert "y" #t))))
+
+(test-equal "5.1.2. but not group names"
+            '(("z") () () () () (1 0 0 0 0))
+            (triv-runner
+             (lambda ()
+               (test-skip (test-match-name "x"))
+               (test-begin "x")
+               (test-assert "z" #t)
+               (test-end))))
 
 (test-end)
 
-(display "Done.") ; [Larceny]
-(newline)         ; [Larceny]
+(test-begin "5.2. test-match-nth")
+;; See also: [6.4. Short-circuit evaluation]
+
+(test-equal "5.2.1. skip the nth one after"
+            '(("v" "w" "y" "z") () () () ("x") (4 0 0 0 1))
+            (triv-runner
+             (lambda ()
+               (test-assert "v" #t)
+               (test-skip (test-match-nth 2))
+               (test-assert "w" #t)             ; 1
+               (test-assert "x" #t)             ; 2 SKIP
+               (test-assert "y" #t)             ; 3
+               (test-assert "z" #t))))          ; 4
+
+(test-equal "5.2.2. skip m, starting at n"
+            '(("v" "w" "z") () () () ("x" "y") (3 0 0 0 2))
+            (triv-runner
+             (lambda ()
+               (test-assert "v" #t)
+               (test-skip (test-match-nth 2 2))
+               (test-assert "w" #t)             ; 1
+               (test-assert "x" #t)             ; 2 SKIP
+               (test-assert "y" #t)             ; 3 SKIP
+               (test-assert "z" #t))))          ; 4
+
+(test-end)
+
+(test-begin "5.3. test-match-any")
+(test-equal "5.3.1. basic disjunction"
+            '(("v" "w" "z") () () () ("x" "y") (3 0 0 0 2))
+            (triv-runner
+             (lambda ()
+               (test-assert "v" #t)
+               (test-skip (test-match-any (test-match-nth 3)
+                                          (test-match-name "x")))
+               (test-assert "w" #t)             ; 1
+               (test-assert "x" #t)             ; 2 SKIP(NAME)
+               (test-assert "y" #t)             ; 3 SKIP(COUNT)
+               (test-assert "z" #t))))          ; 4
+
+(test-equal "5.3.2. disjunction is commutative"
+            '(("v" "w" "z") () () () ("x" "y") (3 0 0 0 2))
+            (triv-runner
+             (lambda ()
+               (test-assert "v" #t)
+               (test-skip (test-match-any (test-match-name "x")
+                                          (test-match-nth 3)))
+               (test-assert "w" #t)             ; 1
+               (test-assert "x" #t)             ; 2 SKIP(NAME)
+               (test-assert "y" #t)             ; 3 SKIP(COUNT)
+               (test-assert "z" #t))))          ; 4
+
+(test-end)
+
+(test-begin "5.4. test-match-all")
+(test-equal "5.4.1. basic conjunction"
+            '(("v" "w" "y" "z") () () () ("x") (4 0 0 0 1))
+            (triv-runner
+             (lambda ()
+               (test-assert "v" #t)
+               (test-skip (test-match-all (test-match-nth 2 2)
+                                          (test-match-name "x")))
+               (test-assert "w" #t)             ; 1
+               (test-assert "x" #t)             ; 2 SKIP(NAME) & SKIP(COUNT)
+               (test-assert "y" #t)             ; 3 SKIP(COUNT)
+               (test-assert "z" #t))))          ; 4
+
+(test-equal "5.4.2. conjunction is commutative"
+            '(("v" "w" "y" "z") () () () ("x") (4 0 0 0 1))
+            (triv-runner
+             (lambda ()
+               (test-assert "v" #t)
+               (test-skip (test-match-all (test-match-name "x")
+                                          (test-match-nth 2 2)))
+               (test-assert "w" #t)             ; 1
+               (test-assert "x" #t)             ; 2 SKIP(NAME) & SKIP(COUNT)
+               (test-assert "y" #t)             ; 3 SKIP(COUNT)
+               (test-assert "z" #t))))          ; 4
+
+(test-end)
+
+(test-end "5. Test specifiers")
+
+;;;
+;;;
+;;;
+
+(test-begin "6. Skipping selected tests")
+
+(test-equal
+ "6.1. Skip by specifier - match-name"
+ '(("x") () () () ("y") (1 0 0 0 1))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip (test-match-name "y"))
+    (test-assert "x" #t)      ; PASS
+    (test-assert "y" #f)      ; SKIP
+    (test-end))))
+
+(test-equal
+ "6.2. Shorthand specifiers"
+ '(("x") () () () ("y") (1 0 0 0 1))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip "y")
+    (test-assert "x" #t)      ; PASS
+    (test-assert "y" #f)      ; SKIP
+    (test-end))))
+
+(test-begin "6.3. Specifier Stack")
+
+(test-equal
+ "6.3.1. Clearing the Specifier Stack"
+ '(("x" "x") ("y") () () ("y") (2 1 0 0 1))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip "y")
+    (test-assert "x" #t)      ; PASS
+    (test-assert "y" #f)      ; SKIP
+    (test-end)
+    (test-begin "b")
+    (test-assert "x" #t)      ; PASS
+    (test-assert "y" #f)      ; FAIL
+    (test-end))))
+
+(test-equal
+ "6.3.2. Inheriting the Specifier Stack"
+ '(("x" "x") () () () ("y" "y") (2 0 0 0 2))
+ (triv-runner
+  (lambda ()
+    (test-skip "y")
+    (test-begin "a")
+    (test-assert "x" #t)      ; PASS
+    (test-assert "y" #f)      ; SKIP
+    (test-end)
+    (test-begin "b")
+    (test-assert "x" #t)      ; PASS
+    (test-assert "y" #f)      ; SKIP
+    (test-end))))
+
+(test-end);6.3
+
+(test-begin "6.4. Short-circuit evaluation")
+
+(test-equal
+ "6.4.1. In test-match-all"
+ '(("x") ("y" "x" "z") () () ("y") (1 3 0 0 1))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip (test-match-all "y" (test-match-nth 2)))
+    ;; let's label the substructure forms so we can
+    ;; see which one `test-match-nth' is going to skip
+    ;;                        ; #   "y"  2   result
+    (test-assert "x" #t)      ; 1 - #f   #f  PASS   
+    (test-assert "y" #f)      ; 2 - #t   #t  SKIP 
+    (test-assert "y" #f)      ; 3 - #t   #f  FAIL
+    (test-assert "x" #f)      ; 4 - #f   #f  FAIL
+    (test-assert "z" #f)      ; 5 - #f   #f  FAIL
+    (test-end))))
+
+(test-equal
+ "6.4.2. In separate skip-list entries"
+ '(("x") ("x" "z") () () ("y" "y") (1 2 0 0 2))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip "y")
+    (test-skip (test-match-nth 2))
+    ;; let's label the substructure forms so we can
+    ;; see which one `test-match-nth' is going to skip
+    ;;                        ; #   "y"  2   result
+    (test-assert "x" #t)      ; 1 - #f   #f  PASS   
+    (test-assert "y" #f)      ; 2 - #t   #t  SKIP 
+    (test-assert "y" #f)      ; 3 - #t   #f  SKIP
+    (test-assert "x" #f)      ; 4 - #f   #f  FAIL
+    (test-assert "z" #f)      ; 5 - #f   #f  FAIL
+    (test-end))))
+
+(test-begin "6.4.3. Skipping test suites")
+
+(test-equal
+ "6.4.3.1. Introduced using 'test-begin'"
+ '(("x") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip "b")
+    (test-begin "b")            ; not skipped
+    (test-assert "x" #t)
+    (test-end "b")
+    (test-end "a"))))
+
+(test-expect-fail 1) ;; ???
+(test-equal
+ "6.4.3.2. Introduced using 'test-group'"
+ '(() () () () () (0 0 0 0 1))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip "b")
+    (test-group 
+     "b"            ; skipped
+     (test-assert "x" #t))
+    (test-end "a"))))
+
+(test-equal
+ "6.4.3.3. Non-skipped 'test-group'"
+ '(("x") () () () () (1 0 0 0 0))
+ (triv-runner
+  (lambda ()
+    (test-begin "a")
+    (test-skip "c")
+    (test-group "b" (test-assert "x" #t))
+    (test-end "a"))))
+
+(test-end) ; 6.4.3
+ 
+(test-end);6.4
+
+(test-end "6. Skipping selected tests")
+
+;;;
+;;;
+;;;
+
+(test-begin "7. Expected failures")
+
+(test-equal "7.1. Simple example"
+            '(() ("x") ("z") () () (0 1 1 0 0))
+            (triv-runner
+             (lambda ()
+               (test-assert "x" #f)
+               (test-expect-fail "z")
+               (test-assert "z" #f))))
+
+(test-equal "7.2. Expected exception"
+            '(() ("x") ("z") () () (0 1 1 0 0))
+            (triv-runner
+             (lambda ()
+               (test-assert "x" #f)
+               (test-expect-fail "z")
+               (test-assert "z" (choke)))))
+
+(test-equal "7.3. Unexpectedly PASS"
+            '(() () ("y") ("x") () (0 0 1 1 0))
+            (triv-runner
+             (lambda ()
+               (test-expect-fail "x")
+               (test-expect-fail "y")
+               (test-assert "x" #t)
+               (test-assert "y" #f))))
+               
+
+
+(test-end "7. Expected failures")
+
+;;;
+;;;
+;;;
+
+(test-begin "8. Test-runner")
+
+;;;
+;;;  Because we want this test suite to be accurate even
+;;;  when the underlying implementation chooses to use, e.g.,
+;;;  a global variable to implement what could be thread variables
+;;;  or SRFI-39 parameter objects, we really need to save and restore
+;;;  their state ourselves
+;;;
+(define (with-factory-saved thunk)
+  (let* ((saved (test-runner-factory))
+         (result (thunk)))
+    (test-runner-factory saved)
+    result))
+
+(test-begin "8.1. test-runner-current")
+(test-assert "8.1.1. automatically restored"
+             (let ((a 0)
+                   (b 1)
+                   (c 2))
+               ;
+               (triv-runner
+                (lambda ()
+                  (set! a (test-runner-current))
+                  ;;
+                  (triv-runner
+                   (lambda ()
+                     (set! b (test-runner-current))))
+                  ;;
+                  (set! c (test-runner-current))))
+               ;;
+               (and (eq? a c)
+                    (not (eq? a b)))))
+              
+(test-end)
+
+(test-begin "8.2. test-runner-simple")
+(test-assert "8.2.1. default on-test hook"
+             (eq? (test-runner-on-test-end (test-runner-simple))
+                  test-on-test-end-simple))
+(test-assert "8.2.2. default on-final hook"
+             (eq? (test-runner-on-final (test-runner-simple))
+                  test-on-final-simple))
+(test-end)
+
+(test-begin "8.3. test-runner-factory")
+
+(test-assert "8.3.1. default factory"
+             (eq? (test-runner-factory) test-runner-simple))
+
+(test-assert "8.3.2. settable factory"
+             (with-factory-saved
+              (lambda ()
+                (test-runner-factory test-runner-null)
+                ;; we have no way, without bringing in other SRFIs,
+                ;; to make sure the following doesn't print anything,
+                ;; but it shouldn't:
+                (test-with-runner
+                 (test-runner-create)
+                 (lambda ()
+                   (test-begin "a")
+                   (test-assert #t)             ; pass
+                   (test-assert #f)             ; fail
+                   (test-assert (vector-ref '#(3) 10))  ; fail with error
+                   (test-end "a")))
+                (eq? (test-runner-factory) test-runner-null))))
+                
+(test-end)
+
+;;; This got tested about as well as it could in 8.3.2
+
+(test-begin "8.4. test-runner-create")
+(test-end)
+
+;;; This got tested about as well as it could in 8.3.2 
+
+(test-begin "8.5. test-runner-factory")
+(test-end)
+
+(test-begin "8.6. test-apply")
+(test-equal "8.6.1. Simple (form 1) test-apply"
+            '(("w" "p" "v") () () () ("x") (3 0 0 0 1))
+            (triv-runner
+             (lambda ()
+               (test-begin "a")
+               (test-assert "w" #t)
+               (test-apply
+                (test-match-name "p")
+                (lambda ()
+                  (test-begin "p")
+                  (test-assert "x" #t)
+                  (test-end)
+                  (test-begin "z")
+                  (test-assert "p" #t)  ; only this one should execute in here
+                  (test-end)))
+               (test-assert "v" #t))))
+
+(test-equal "8.6.2. Simple (form 2) test-apply"
+            '(("w" "p" "v") () () () ("x") (3 0 0 0 1))
+            (triv-runner
+             (lambda ()
+               (test-begin "a")
+               (test-assert "w" #t)
+               (test-apply
+                (test-runner-current)
+                (test-match-name "p")
+                (lambda ()
+                  (test-begin "p")
+                  (test-assert "x" #t)
+                  (test-end)
+                  (test-begin "z")
+                  (test-assert "p" #t)  ; only this one should execute in here
+                  (test-end)))
+               (test-assert "v" #t))))
+
+(test-expect-fail 1) ;; depends on all test-match-nth being called.
+(test-equal "8.6.3. test-apply with skips"
+            '(("w" "q" "v") () () () ("x" "p" "x") (3 0 0 0 3))
+            (triv-runner
+             (lambda ()
+               (test-begin "a")
+               (test-assert "w" #t)
+               (test-skip (test-match-nth 2))
+               (test-skip (test-match-nth 4))
+               (test-apply
+                (test-runner-current)
+                (test-match-name "p")
+                (test-match-name "q")
+                (lambda ()
+                                        ; only execute if SKIP=no and APPLY=yes
+                  (test-assert "x" #t)  ; # 1 SKIP=no  APPLY=no
+                  (test-assert "p" #t)  ; # 2 SKIP=yes APPLY=yes
+                  (test-assert "q" #t)  ; # 3 SKIP=no  APPLY=yes
+                  (test-assert "x" #f)  ; # 4 SKIP=yes APPLY=no
+                  0))
+               (test-assert "v" #t))))
+
+;;;  Unfortunately, since there is no way to UNBIND the current test runner,
+;;;  there is no way to test the behavior of `test-apply' in the absence
+;;;  of a current runner within our little meta-test framework.
+;;;
+;;;  To test the behavior manually, you should be able to invoke:
+;;;
+;;;     (test-apply "a" (lambda () (test-assert "a" #t)))
+;;;
+;;;  from the top level (with SRFI 64 available) and it should create a
+;;;  new, default (simple) test runner.
+
+(test-end)
+
+;;;  This entire suite depends heavily on 'test-with-runner'.  If it didn't
+;;;  work, this suite would probably go down in flames
+(test-begin "8.7. test-with-runner")
+(test-end)
+
+;;;  Again, this suite depends heavily on many of the test-runner
+;;;  components.  We'll just test those that aren't being exercised
+;;;  by the meta-test framework
+(test-begin "8.8. test-runner components")
+
+(define (auxtrack-runner thunk)
+  (let ((r (test-runner-null)))
+    (test-runner-aux-value! r '())
+    (test-runner-on-test-end! r (lambda (r)
+                              (test-runner-aux-value!
+                               r
+                               (cons (test-runner-test-name r)
+                                     (test-runner-aux-value r)))))
+    (test-with-runner r (thunk))
+    (reverse (test-runner-aux-value r))))
+
+(test-equal "8.8.1. test-runner-aux-value"
+            '("x" "" "y")
+            (auxtrack-runner
+             (lambda ()
+               (test-assert "x" #t)
+               (test-begin "a")
+               (test-assert #t)
+               (test-end)
+               (test-assert "y" #f))))
+
+(test-end) ; 8.8
+
+(test-end "8. Test-runner")
+
+(test-begin "9. Test Result Properties")
+
+(test-begin "9.1. test-result-alist")
+
+(define (symbol-alist? l)
+  (if (null? l)
+      #t
+      (and (pair? l)
+           (pair? (car l))
+           (symbol? (caar l))
+           (symbol-alist? (cdr l)))))
+
+;;; check the various syntactic forms
+
+(test-assert (symbol-alist?
+              (car (on-test-runner
+                    (lambda ()
+                      (test-assert #t))
+                    (lambda (r)
+                      (test-result-alist r))))))
+
+(test-assert (symbol-alist?
+              (car (on-test-runner
+                    (lambda ()
+                      (test-assert #t))
+                    (lambda (r)
+                      (test-result-alist r))))))
+
+;;; check to make sure the required properties are returned
+
+(test-equal '((result-kind . pass))
+	    (prop-runner
+             '(result-kind)
+             (lambda ()
+               (test-assert #t)))
+	    )
+
+(test-equal 
+            '((result-kind . fail)
+              (expected-value . 2)
+              (actual-value . 3))
+	    (prop-runner
+             '(result-kind expected-value actual-value)
+             (lambda ()
+               (test-equal 2 (+ 1 2)))))
+
+(test-end "9.1. test-result-alist")
+
+(test-begin "9.2. test-result-ref")
+
+(test-equal '(pass)
+	    (on-test-runner
+             (lambda ()
+               (test-assert #t))
+             (lambda (r)
+               (test-result-ref r 'result-kind))))
+
+(test-equal '(pass)
+	    (on-test-runner
+             (lambda ()
+               (test-assert #t))
+             (lambda (r)
+               (test-result-ref r 'result-kind))))
+
+(test-equal '(fail pass)
+	    (on-test-runner
+             (lambda ()
+               (test-assert (= 1 2))
+               (test-assert (= 1 1)))
+             (lambda (r)
+               (test-result-ref r 'result-kind))))
+
+(test-end "9.2. test-result-ref")
+
+(test-begin "9.3. test-result-set!")
+
+(test-equal '(100 100)
+	    (on-test-runner
+             (lambda ()
+               (test-assert (= 1 2))
+               (test-assert (= 1 1)))
+             (lambda (r)
+               (test-result-set! r 'foo 100)
+               (test-result-ref r 'foo))))
+
+(test-end "9.3. test-result-set!")
+
+(test-end "9. Test Result Properties")
+
+;;;
+;;;
+;;;
+
+#|  Time to stop having fun...
+
+(test-begin "9. For fun, some meta-test errors")
+
+(test-equal
+ "9.1. Really PASSes, but test like it should FAIL"
+ '(() ("b") () () ())
+ (triv-runner
+  (lambda ()
+    (test-assert "b" #t))))
+
+(test-expect-fail "9.2. Expect to FAIL and do so")
+(test-expect-fail "9.3. Expect to FAIL but PASS")
+(test-skip "9.4. SKIP this one")
+
+(test-assert "9.2. Expect to FAIL and do so" #f)
+(test-assert "9.3. Expect to FAIL but PASS" #t)
+(test-assert "9.4. SKIP this one" #t)
+
+(test-end)
+ |#
+
+(test-end "SRFI 64 - Meta-Test Suite")
+
+;;;

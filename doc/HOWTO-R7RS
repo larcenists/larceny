@@ -62,7 +62,9 @@ or
 
 Files that contain library definitions must be named using
 Larceny's standard naming conventions, which are specified in
-Larceny's user manual [4].
+Larceny's user manual [4].  Libraries and programs can use the
+R7RS cond-expand facility to determine whether specific
+libraries are available.
 
 
 R7RS PROGRAMS

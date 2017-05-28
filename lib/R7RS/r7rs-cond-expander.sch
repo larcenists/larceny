@@ -227,7 +227,7 @@
     posix
     windows
     unix darwin gnu-linux bsd freebsd solaris
-    i386 x86-64 ppc sparc jvm clr llvm
+    i386 x86-64 ppc sparc jvm clr llvm arm
     ilp32 lp64 ilp64
     big-endian little-endian))
 

@@ -150,6 +150,7 @@ static void print_stack( smircy_context_t *context )
   {
     obj_stack = &context->stack.obj;
     los_stack = &context->stack.los;
+    FIXME_UNUSED_VARIABLE(los_stack);
     seg = obj_stack->seg;
     stkp = obj_stack->stkp;
     stkbot = obj_stack->stkbot;
@@ -256,6 +257,7 @@ int smircy_stack_count( smircy_context_t *context )
   objcount = 0;
   obj_stack = &context->stack.obj;
   full_objseg_count = 0;
+  FIXME_UNUSED_VARIABLE(full_objseg_count);
   objseg = obj_stack->seg;
   stkp = obj_stack->stkp;
   stkbot = obj_stack->stkbot;
@@ -893,6 +895,7 @@ static bool fill_from_los_stack( smircy_context_t *context )
   dbmsg("fill_from_los_stack( context )" );
 
   obj_stack = &context->stack.obj;
+  FIXME_UNUSED_VARIABLE(obj_stack);
   los_stack = &context->stack.los;
   if (los_stack->seg == NULL) {
     return FALSE;
@@ -1702,6 +1705,7 @@ void smircy_push_elems( smircy_context_t *context, word *bot, word *top )
     w = *q;
     assert(w != 0x0);
     gno = gen_of(w);
+    FIXME_UNUSED_VARIABLE(gno);
     push( context, w, 0x0 );
   }
 

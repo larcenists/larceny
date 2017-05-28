@@ -13,22 +13,51 @@
 
 ;;; Private stuff, not exported.
 
+;;; Ten of the SRFI 125 procedures are deprecated, and another
+;;; two allow alternative arguments that are deprecated.
+
+(define (issue-deprecated-warnings?) #t)
+
+(define (issue-warning-deprecated name-of-deprecated-misfeature)
+  (if (not (memq name-of-deprecated-misfeature already-warned))
+      (begin
+       (set! already-warned
+             (cons name-of-deprecated-misfeature already-warned))
+       (if (issue-deprecated-warnings?)
+           (let ((out (current-error-port)))
+             (display "WARNING: " out)
+             (display name-of-deprecated-misfeature out)
+             (newline out)
+             (display "    is deprecated by SRFI 125.  See" out)
+             (newline out)
+             (display "    " out)
+             (display url:deprecated out)
+             (newline out))))))
+
+(define url:deprecated
+  "http://srfi.schemers.org/srfi-125/srfi-125.html")
+
+; List of deprecated features for which a warning has already
+; been issued.
+
+(define already-warned '())
+
 ;;; Comparators contain a type test predicate, which implementations
 ;;; of the hash-table-set! procedure can use to reject invalid keys.
 ;;; That's hard to do without sacrificing interoperability with R6RS
-;;; and/or SRFI 69 hash tables.
+;;; and/or SRFI 69 and/or SRFI 126 hash tables.
 ;;;
 ;;; Full interoperability means the hash tables implemented here are
-;;; interchangeable with the R6RS hashtables used to implement them.
-;;; SRFI 69 and R6RS hashtables don't contain comparators, so any
-;;; association between a hash table and its comparator would have to
-;;; be maintained outside the representation of hash tables themselves,
+;;; interchangeable with the SRFI 126 hashtables used to implement them.
+;;; SRFI 69 and R6RS and SRFI 126 hashtables don't contain comparators,
+;;; so any association between a hash table and its comparator would have
+;;; to be maintained outside the representation of hash tables themselves,
 ;;; which is problematic unless weak pointers are available.
 ;;;
 ;;; Not all of the hash tables implemented here will have comparators
 ;;; associated with them anyway, because an equivalence procedure
 ;;; and hash function can be used to create a hash table instead of
-;;; a comparator.
+;;; a comparator (although that usage is deprecated by SRFI 125).
 ;;;
 ;;; One way to preserve interoperability while enforcing a comparator's
 ;;; type test is to incorporate that test into a hash table's hash
@@ -37,11 +66,13 @@
 ;;;
 ;;;     If the type test is slow, then hashing would also be slower.
 ;;;
-;;;     The R6RS and SRFI 69 APIs (but not the API implemented here)
-;;;     allow extraction of a hash function from some hash tables.
+;;;     The R6RS, SRFI 69, and SRFI 126 APIs allow extraction of
+;;;     a hash function from some hash tables.
 ;;;     Some programmers might expect that hash function to be the
 ;;;     hash function encapsulated by the comparator (in the sense
-;;;     of eq?, perhaps) even though this API makes no such guarantee.
+;;;     of eq?, perhaps) even though this API makes no such guarantee
+;;;     (and extraction of that hash function from an existing hash
+;;;     table can only be done by calling a deprecated procedure).
 
 ;;; If %enforce-comparator-type-tests is true, then make-hash-table,
 ;;; when passed a comparator, will use a hash function that enforces
@@ -53,7 +84,7 @@
 ;;; by the comparator's type test.
 
 (define (%comparator-hash-function comparator)
-  (let ((okay? (comparator-type-test-procedure comparator))
+  (let ((okay? (comparator-type-test-predicate comparator))
         (hash-function (comparator-hash-function comparator)))
     (if %enforce-comparator-type-tests
         (lambda (x . rest)
@@ -72,10 +103,6 @@
 
 (define %not-found (list '%not-found))
 
-;;; FIXME: %not-found-irritant and %not-found-message were used
-;;; to implement hash-table-key-not-found?, which is no longer
-;;; part of the HashTablesCowan API.
-
 ;;; A unique (in the sense of eq?) value that escapes only as an irritant
 ;;; when a hash-table key is not found.
 
@@ -85,26 +112,37 @@
 
 (define %not-found-message "hash-table key not found")
 
-;;; FIXME: no longer exported; keeping it here in case it comes back
-
-(define (hash-table-key-not-found? obj)
-  (and (error-object? obj)
-       (string=? (error-object-message obj)
-                 %not-found-message)
-       (memq %not-found-irritant
-             (error-object-irritants obj))
-       #t))
-
-;;; FIXME: thread-safe, weak-keys, and weak-values are not supported
-;;; by this portable reference implementation.
+;;; FIXME: thread-safe, weak-keys, ephemeral-keys, weak-values,
+;;; and ephemeral-values are not supported by this portable
+;;; reference implementation.
 
 (define (%check-optional-arguments procname args)
   (if (or (memq 'thread-safe args)
           (memq 'weak-keys args)
-          (memq 'weak-values args))
+          (memq 'weak-values args)
+          (memq 'ephemeral-keys args)
+          (memq 'ephemeral-values args))
       (error (string-append (symbol->string procname)
                             ": unsupported optional argument(s)")
              args)))
+
+;;; This was exported by an earlier draft of SRFI 125,
+;;; and is still used by hash-table=?
+
+(define (hash-table-every proc ht)
+  (call-with-values
+   (lambda () (hash-table-entries ht))
+   (lambda (keys vals)
+     (let loop ((keys keys)
+                (vals vals))
+       (if (null? keys)
+           #t
+           (let* ((key (car keys))
+                  (val (car vals))
+                  (x   (proc key val)))
+             (and x
+                  (loop (cdr keys)
+                        (cdr vals)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -117,77 +155,92 @@
 ;;; The first argument can be a comparator or an equality predicate.
 ;;;
 ;;; If the first argument is a comparator, any remaining arguments
-;;; are implementation-dependent, but "an error should be signalled"
-;;; if those arguments include any of the symbols thread-safe,
-;;; weak-keys, or weak-values.
+;;; are implementation-dependent, but a non-negative exact integer
+;;; should be interpreted as an initial capacity and the symbols
+;;; thread-safe, weak-keys, ephemeral-keys, weak-values, and
+;;; emphemeral-values should be interpreted specially.  (These
+;;; special symbols are distinct from the analogous special symbols
+;;; in SRFI 126.)
 ;;;
 ;;; If the first argument is not a comparator, then it had better
-;;; be an equality predicate.  If a second argument is present and
-;;; is a procedure, then it's a hash function.  If a second argument
-;;; is not a procedure, then it's an implementation-dependent
-;;; optional argument, as are all arguments beyond the second.
+;;; be an equality predicate (which is deprecated by SRFI 125).
+;;; If a second argument is present and is a procedure, then it's
+;;; a hash function (which is allowed only for the deprecated case
+;;; in which the first argument is an equality predicate).  If a
+;;; second argument is not a procedure, then it's some kind of
+;;; implementation-dependent optional argument, as are all arguments
+;;; beyond the second.
 ;;;
-;;; SRFI 114 allows the hash function of a comparator to return
-;;; different results for mutable objects following mutations of
-;;; those objects, but HashTablesCowan says "It is the programmer's
-;;; responsibility to ensure that if two objects are the same in the
-;;; sense of the equality predicate, then they return the same value
-;;; when passed to the hash function."  That means the programmer is
-;;; responsible for not using any comparators that don't have that
-;;; property.  In particular, the eq-comparator and eqv-comparator
-;;; specified by SRFI 114 are not guaranteed to have that property,
-;;; and the eq-comparator and eqv-comparator defined by the reference
-;;; implementation of SRFI 114 do not have that property.  That means
-;;; passing eq-comparator or eqv-comparator to make-hash-table is
-;;; likely to be an error.  There is no practical way to tell whether
-;;; eq-comparator and eqv-comparator have the required property, so
-;;; the implementation of make-hash-table below has special cases for
-;;; eq-comparator and eqv-comparator.
+;;; SRFI 128 defines make-eq-comparator, make-eqv-comparator, and
+;;; make-equal-comparator procedures whose hash function is the
+;;; default-hash procedure of SRFI 128, which is inappropriate
+;;; for use with eq? and eqv? unless the object being hashed is
+;;; never mutated.  Neither SRFI 125 nor 128 provide any way to
+;;; define a comparator whose hash function is truly compatible
+;;; with the use of eq? or eqv? as an equality predicate.
 ;;;
-;;; When a comparator is passed, HashTablesCowan says the hash
-;;; function is extracted from the comparator, but also says the
-;;; make-hash-table procedure can use implementation-dependent
-;;; hash functions when the equality predicate is a refinement
-;;; of the equal? predicate.  That sanctions the special casing
-;;; of eq-comparator and eqv-comparator.
+;;; That would make SRFI 125 almost as bad as SRFI 69 if not for
+;;; the following paragraph of SRFI 125:
+;;;
+;;;     Implementations are permitted to ignore user-specified
+;;;     hash functions in certain circumstances. Specifically,
+;;;     if the equality predicate, whether passed as part of a
+;;;     comparator or explicitly, is more fine-grained (in the
+;;;     sense of R7RS-small section 6.1) than equal?, the
+;;;     implementation is free — indeed, is encouraged — to
+;;;     ignore the user-specified hash function and use something
+;;;     implementation-dependent. This allows the use of addresses
+;;;     as hashes, in which case the keys must be rehashed if
+;;;     they are moved by the garbage collector. Such a hash
+;;;     function is unsafe to use outside the context of
+;;;     implementation-provided hash tables. It can of course be
+;;;     exposed by an implementation as an extension, with
+;;;     suitable warnings against inappropriate uses.
+;;;
+;;; That gives implementations permission to do something more
+;;; useful, but when should implementations take advantage of
+;;; that permission?  This implementation uses the superior
+;;; solution provided by SRFI 126 whenever:
+;;;
+;;;     A comparator is passed as first argument and its equality
+;;;     predicate is eq? or eqv?.
+;;;
+;;;     The eq? or eqv? procedure is passed as first argument
+;;;     (which is a deprecated usage).
 
 (define (make-hash-table comparator/equiv . rest)
   (if (comparator? comparator/equiv)
-      (begin (%check-optional-arguments 'make-hash-table rest)
-             (cond ((equal? comparator/equiv eq-comparator)
-                    (make-eq-hashtable))
-                   ((equal? comparator/equiv eqv-comparator)
-                    (make-eqv-hashtable))
-                   (else
-                    (let ((equiv
-                           (comparator-equality-predicate comparator/equiv))
-                          (hash-function
-                           (%comparator-hash-function comparator/equiv)))
-                      (make-hashtable hash-function equiv)))))
-      (let ((equiv comparator/equiv)
-            (hash-function (if (and (not (null? rest))
-                                    (procedure? (car rest)))
-                               (car rest)
-                               #f)))
-	(%check-optional-arguments 'make-hash-table
-                                   (if hash-function (cdr rest) rest))
-        (cond ((equal? equiv eq?)
-               (make-eq-hashtable))
-              ((equal? equiv eqv?)
-               (make-eqv-hashtable))
-              (hash-function
-               (make-hashtable hash-function equiv))
-              ((equal? equiv equal?)
-               (make-hashtable equal-hash equiv))
-              ((equal? equiv string=?)
-               (make-hashtable string-hash equiv))
-              ((equal? equiv string-ci=?)
-               (make-hashtable string-ci-hash equiv))
-              ((equal? equiv symbol=?)
-               (make-hashtable symbol-hash equiv))
-              (else
-               (error "make-hash-table: unable to infer hash function"
-                      equiv))))))
+      (let ((equiv (comparator-equality-predicate comparator/equiv))
+            (hash-function (%comparator-hash-function comparator/equiv)))
+        (%make-hash-table equiv hash-function rest))
+      (let* ((equiv comparator/equiv)
+             (hash-function (if (and (not (null? rest))
+                                     (procedure? (car rest)))
+                                (car rest)
+                                #f))
+             (rest (if hash-function (cdr rest) rest)))
+        (issue-warning-deprecated 'srfi-69-style:make-hash-table)
+        (%make-hash-table equiv hash-function rest))))
+
+(define (%make-hash-table equiv hash-function opts)
+  (%check-optional-arguments 'make-hash-table opts)
+  (cond ((equal? equiv eq?)
+         (make-eq-hashtable))
+        ((equal? equiv eqv?)
+         (make-eqv-hashtable))
+        (hash-function
+         (make-hashtable hash-function equiv))
+        ((equal? equiv equal?)
+         (make-hashtable equal-hash equiv))
+        ((equal? equiv string=?)
+         (make-hashtable string-hash equiv))
+        ((equal? equiv string-ci=?)
+         (make-hashtable string-ci-hash equiv))
+        ((equal? equiv symbol=?)
+         (make-hashtable symbol-hash equiv))
+        (else
+         (error "make-hash-table: unable to infer hash function"
+                equiv))))
 
 ;;; FIXME: assumes hash-table-set! goes right to left.
 
@@ -197,19 +250,6 @@
            ht
            rest)
     ht))
-
-;;; Returns an immutable hash table.
-
-(define (hash-table-tabulate comparator n proc)
-  (let ((ht (make-hash-table comparator)))
-    (do ((i 0 (+ i 1)))
-        ((= i n)
-         (hashtable-copy ht))
-      (call-with-values
-       (lambda ()
-         (proc i))
-       (lambda (key val)
-         (hash-table-set! ht key val))))))
 
 (define (hash-table-unfold stop? mapper successor seed comparator . rest)
   (let ((ht (apply make-hash-table comparator rest)))
@@ -223,6 +263,9 @@
              (loop (successor seed))))))))
 
 (define (alist->hash-table alist comparator/equiv . rest)
+  (if (and (not (null? rest))
+           (procedure? (car rest)))
+      (issue-warning-deprecated 'srfi-69-style:alist->hash-table))
   (let ((ht (apply make-hash-table comparator/equiv rest))
         (entries (reverse alist)))
     (for-each (lambda (entry)
@@ -296,49 +339,17 @@
                  (error "hash-table-set!: wrong number of arguments"
                         (cons ht rest))))))))
 
-;;; hash-table-set-entries! goes left-to-right instead of right-to-left
-;;; like hash-table-set!.
-
-(define (hash-table-set-entries! ht keys vals)
-  (define (htset! key val)
-    (hashtable-set! ht key val))
-  (for-each htset! keys vals))
-
 (define (hash-table-delete! ht . keys)
-  (hash-table-delete-keys! ht keys))
-
-(define (hash-table-delete-keys! ht keys)
   (for-each (lambda (key)
               (hashtable-delete! ht key))
             keys))
 
-(define (hash-table-extend! ht key . rest)
-  (let* ((not-found? (not (hashtable-contains? ht key)))
-         (result (apply hash-table-ref ht key rest)))
-    (if not-found?
-        (hash-table-set! ht key result))
-    result))
-
-(define (hash-table-extend!/default ht key default)
-  (let* ((not-found? (not (hashtable-contains? ht key)))
-         (result (hashtable-ref ht key default)))
-    (if not-found?
-        (hash-table-set! ht key result))
-    result))
-
-(define (hash-table-replace! ht key . rest)
-  (let* ((found? (hashtable-contains? ht key))
-         (result (apply hash-table-ref ht key rest)))
-    (if found?
-        (hash-table-set! ht key result))
-    result))
-
-(define (hash-table-replace!/default ht key . rest)
-  (let* ((found? (hashtable-contains? ht key))
-         (result (apply hash-table-ref ht key rest)))
-    (if found?
-        (hash-table-set! ht key result))
-    result))
+(define (hash-table-intern! ht key failure)
+  (if (hashtable-contains? ht key)
+      (hash-table-ref ht key)
+      (let ((val (failure)))
+        (hash-table-set! ht key val)
+        val)))
 
 (define (hash-table-update! ht key updater . rest)
   (hash-table-set! ht
@@ -348,29 +359,14 @@
 (define (hash-table-update!/default ht key updater default)
   (hash-table-set! ht key (updater (hashtable-ref ht key default))))
 
-(define (hash-table-push! ht key val failure)
-  (let ((x (hashtable-ref ht key %not-found)))
-    (if (eq? x %not-found)
-        (hash-table-set! ht key (failure))
-        (hash-table-set! ht key (cons val x)))))
-
-(define (hash-table-pop! ht key failure)
-  (let ((x (hashtable-ref ht key %not-found)))
-    (cond ((eq? x %not-found)
-           (failure))
-          ((not (pair? x))
-           (error "hash-table-pop!: current value not a pair" ht key x))
-          (else
-           (hashtable-set! ht key (cdr x))
-           (car x)))))
-
-(define (hash-table-search! ht key failure success)
-  (let ((x (hashtable-ref ht key %not-found)))
-    (if (eq? x %not-found)
-        (failure (lambda (val) (hash-table-set! ht key val)))
-        (success x
-                 (lambda (val) (hash-table-set! ht key val))
-                 (lambda () (hashtable-delete! ht key))))))
+(define (hash-table-pop! ht)
+  (call/cc
+    (lambda (return)
+      (hash-table-for-each
+        (lambda (key value)
+          (hash-table-delete! ht key)
+          (return key value))
+        ht))))
 
 (define (hash-table-clear! ht)
   (hashtable-clear! ht))
@@ -396,7 +392,7 @@
      (values (vector->list keys)
              (vector->list vals)))))
 
-(define (hash-table-find ht proc failure)
+(define (hash-table-find proc ht failure)
   (call-with-values
    (lambda () (hash-table-entries ht))
    (lambda (keys vals)
@@ -411,7 +407,7 @@
                  (loop (cdr keys)
                        (cdr vals)))))))))
 
-(define (hash-table-count ht pred)
+(define (hash-table-count pred ht)
   (call-with-values
    (lambda () (hash-table-entries ht))
    (lambda (keys vals)
@@ -427,59 +423,21 @@
                    (cdr vals)
                    (if x (+ n 1) n))))))))
 
-(define (hash-table-any proc ht)
-  (call-with-values
-   (lambda () (hash-table-entries ht))
-   (lambda (keys vals)
-     (let loop ((keys keys)
-                (vals vals))
-       (if (null? keys)
-           #f
-           (let* ((key (car keys))
-                  (val (car vals))
-                  (x   (proc key val)))
-             (or x
-                 (loop (cdr keys)
-                       (cdr vals)))))))))
-
-(define (hash-table-every proc ht)
-  (call-with-values
-   (lambda () (hash-table-entries ht))
-   (lambda (keys vals)
-     (let loop ((keys keys)
-                (vals vals))
-       (if (null? keys)
-           #t
-           (let* ((key (car keys))
-                  (val (car vals))
-                  (x   (proc key val)))
-             (and x
-                  (loop (cdr keys)
-                        (cdr vals)))))))))
-
 ;;; Mapping and folding.
 
-(define (hash-table-map proc comparator merger ht)
+(define (hash-table-map proc comparator ht)
   (let ((result (make-hash-table comparator)))
     (hash-table-for-each
      (lambda (key val)
-       (call-with-values
-        (lambda () (proc key val))
-        (lambda (key1 val1)
-          (let ((key1 (if (hashtable-contains? result key1)
-                          (merger key val key1 val1)
-                          key1)))
-            (hashtable-set! result key1 val1)))))
+       (hash-table-set! result key (proc val)))
      ht)
     result))
 
-(define (hash-table-map-values proc comparator ht)
-  (let ((result (make-hash-table comparator)))
-    (hash-table-for-each
-     (lambda (key val)
-       (hashtable-set! result key (proc val)))
-     ht)
-    result))
+(define (hash-table-map->list proc ht)
+  (call-with-values
+   (lambda () (hash-table-entries ht))
+   (lambda (keys vals)
+     (map proc keys vals))))
 
 ;;; With this particular implementation, the proc can safely mutate ht.
 ;;; That property is not guaranteed by the specification, but can be
@@ -496,62 +454,44 @@
                          (hashtable-set! ht key (proc key val)))
                        ht))
 
-(define (hash-table-collect proc ht)
-  (call-with-values
-   (lambda () (hash-table-entries ht))
-   (lambda (keys vals)
-     (map proc keys vals))))
-
 (define (hash-table-fold proc init ht)
-  (call-with-values
-   (lambda () (hash-table-entries ht))
-   (lambda (keys vals)
-     (let loop ((keys keys)
-                (vals vals)
-                (x    init))
-       (if (null? keys)
-           x
-           (loop (cdr keys)
-                 (cdr vals)
-                 (proc (car keys) (car vals) x)))))))
+  (if (hashtable? proc)
+      (deprecated:hash-table-fold proc init ht)
+      (call-with-values
+       (lambda () (hash-table-entries ht))
+       (lambda (keys vals)
+         (let loop ((keys keys)
+                    (vals vals)
+                    (x    init))
+           (if (null? keys)
+               x
+               (loop (cdr keys)
+                     (cdr vals)
+                     (proc (car keys) (car vals) x))))))))
 
-(define (hash-table-filter! proc ht)
-  (hash-table-for-each (lambda (key val)
-                         (if (not (proc key val))
-                             (hashtable-delete! ht key)))
-                       ht)
-  ht)
-
-(define (hash-table-remove! proc ht)
+(define (hash-table-prune! proc ht)
   (hash-table-for-each (lambda (key val)
                          (if (proc key val)
                              (hashtable-delete! ht key)))
-                       ht)
-  ht)
+                       ht))
 
 ;;; Copying and conversion.
 
 (define (hash-table-copy ht . rest)
   (apply hashtable-copy ht rest))
 
+(define (hash-table-empty-copy ht)
+  (let* ((ht2 (hashtable-copy ht #t))
+         (ignored (hashtable-clear! ht2)))
+    (if (hashtable-mutable? ht)
+        ht2
+        (hashtable-copy ht2))))
+
 (define (hash-table->alist ht)
-  (hash-table-collect cons ht))
-
-;;; Hash tables as functions.
-
-(define (hash-table-accessor ht . rest)
-  (cond ((null? rest)
-         (lambda (key) (hash-table-ref ht key)))
-        ((null? (cdr rest))
-         (let ((failure (car rest)))
-           (lambda (key) (hash-table-ref ht key failure))))
-        (else
-         (let ((failure (car rest))
-               (success (cadr rest)))
-           (lambda (key) (hash-table-ref ht key failure success))))))
-
-(define (hash-table-accessor/default ht default)
-  (lambda (key) (hash-table-ref/default ht key default)))
+  (call-with-values
+   (lambda () (hash-table-entries ht))
+   (lambda (keys vals)
+     (map cons keys vals))))
 
 ;;; Hash tables as sets.
 
@@ -587,5 +527,57 @@
          (hashtable-set! ht1 key2 val2)))
    ht2)
   ht1)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; The following procedures are deprecated by SRFI 125, but must
+;;; be exported nonetheless.
+;;;
+;;; Programs that import the (srfi 125) library must rename the
+;;; deprecated string-hash and string-ci-hash procedures to avoid
+;;; conflict with the string-hash and string-ci-hash procedures
+;;; exported by SRFI 126 and SRFI 128.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (deprecated:hash obj . rest)
+  (issue-warning-deprecated 'hash)
+  (default-hash obj))
+
+(define (deprecated:string-hash obj . rest)
+  (issue-warning-deprecated 'srfi-125:string-hash)
+  (string-hash obj))
+
+(define (deprecated:string-ci-hash obj . rest)
+  (issue-warning-deprecated 'srfi-125:string-ci-hash)
+  (string-ci-hash obj))
+
+(define (deprecated:hash-by-identity obj . rest)
+  (issue-warning-deprecated 'hash-by-identity)
+  (deprecated:hash obj))
+
+(define (deprecated:hash-table-equivalence-function ht)
+  (issue-warning-deprecated 'hash-table-equivalence-function)
+  (hashtable-equivalence-function ht))
+
+(define (deprecated:hash-table-hash-function ht)
+  (issue-warning-deprecated 'hash-table-hash-function)
+  (hashtable-hash-function ht))
+
+(define (deprecated:hash-table-exists? ht key)
+  (issue-warning-deprecated 'hash-table-exists?)
+  (hash-table-contains? ht key))
+
+(define (deprecated:hash-table-walk ht proc)
+  (issue-warning-deprecated 'hash-table-walk)
+  (hash-table-for-each proc ht))
+
+(define (deprecated:hash-table-fold ht proc seed)
+  (issue-warning-deprecated 'srfi-69-style:hash-table-fold)
+  (hash-table-fold proc seed ht))
+
+(define (deprecated:hash-table-merge! ht1 ht2)
+  (issue-warning-deprecated 'hash-table-merge!)
+  (hash-table-union! ht1 ht2))
 
 ; eof

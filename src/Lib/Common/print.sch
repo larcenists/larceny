@@ -379,11 +379,22 @@
           ;; to have come from a pre-2006 version of Twobit (see
           ;; src/Compiler/pass2.aux.sch).
 
-          ((vector? x) (cond ((environment? x) (printenvironment x p slashify))
-                             ((code-object? x) (printcodeobject x p slashify))
-                             ((hashtable? x)   (printhashtable x p slashify))
-                             (else (write-char #\# p)
-                                   (print (vector->list x) p slashify level))))
+          ;; The special case for 2-element vectors prevents #(quote foo)
+          ;; and #(syntax foo) from printing as #'foo and ##'foo.
+
+          ((vector? x)
+           (cond ((environment? x) (printenvironment x p slashify))
+                 ((code-object? x) (printcodeobject x p slashify))
+                 ((hashtable? x)   (printhashtable x p slashify))
+                 ((= 2 (vector-length x))
+                  (write-char #\# p)
+                  (write-char #\( p)
+                  (print (vector-ref x 0) p slashify level)
+                  (write-char #\space p)
+                  (print (vector-ref x 1) p slashify level)
+                  (write-char #\) p))
+                 (else (write-char #\# p)
+                       (print (vector->list x) p slashify level))))
 
           ((procedure? x)           (printprocedure x p slashify))
           ((bytevector? x)          (printbytevector x p slashify level))
@@ -425,15 +436,21 @@
                    ((= k **linefeed**) (printstr "linefeed" p))
                    ((= k **return**) (printstr "return" p))
                    ((= k **tab**) (printstr "tab" p))
-                   ((= k **nul**) (printstr "nul" p))
                    ((= k **alarm**) (printstr "alarm" p))
                    ((= k **backspace**) (printstr "backspace" p))
                    ((= k **vtab**) (printstr "vtab" p))
                    ((= k **page**) (printstr "page" p))
-                   ((= k **esc**) (printstr "esc" p))
                    (else
-                    (printstr "x" p)
-                    (printstr (number->string k 16) p))))
+                    (let ((r7rs?
+                           (or (io/port-allows-r7rs-weirdness? p)
+                               (not (io/port-allows-r6rs-weirdness? p)))))
+                      (cond ((= k **nul**)
+                             (printstr (if r7rs? "null" "nul") p))
+                            ((= k **esc**)
+                             (printstr (if r7rs? "escape" "esc") p))
+                            (else
+                             (printstr "x" p)
+                             (printstr (number->string k 16) p)))))))
             ((< k **delete**) (write-char c p))
             ((= k **delete**) (printstr "delete" p))
             ((and (memq (transcoder-codec (port-transcoder p))

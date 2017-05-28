@@ -288,6 +288,7 @@
   (environment-set! r4rs 'force force)
   (environment-set! r4rs 'call-with-current-continuation
                     call-with-current-continuation)
+  (environment-set! r4rs 'make-case-lambda make-case-lambda)
 
   ;; i/o
 
@@ -1072,6 +1073,8 @@
   (environment-set! larc 'format format)
   (environment-set! larc 'get-output-string get-output-string)
   (environment-set! larc 'get-output-bytevector get-output-bytevector)
+  (environment-set! larc 'string-output-port? string-output-port?)
+  (environment-set! larc 'bytevector-output-port? bytevector-output-port?)
   (environment-set! larc 'hashtable-printer hashtable-printer)
   (environment-set! larc 'io/make-port io/make-port) ; XXX
   (environment-set! larc 'io/get-u8 io/get-u8)       ; FIXME (common.imp.sch)
@@ -1349,6 +1352,7 @@
   (environment-set! larc 'quit quit)
   (environment-set! larc 'quit-handler quit-handler)
   (environment-set! larc 'make-parameter make-parameter)
+  (environment-set! larc 'parameter? parameter?)
 
   ;; debugging.
 
@@ -1384,6 +1388,8 @@
   (environment-set! larc 'collect collect)
   (environment-set! larc 'gcctl gcctl)
   (environment-set! larc 'sro sro)
+  (environment-set! larc 'larceny:use-r7rs-semantics!
+                    larceny:use-r7rs-semantics!)
   (environment-set! larc 'larceny:execution-mode larceny:execution-mode)
   (environment-set! larc 'system-features system-features)
   (environment-set! larc 'stats-dump-on stats-dump-on)

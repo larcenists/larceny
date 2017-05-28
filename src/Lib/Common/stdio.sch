@@ -154,8 +154,44 @@
 
 ;;; New for R7RS.  FIXME: Performance could be improved.
 
+;;; R7RS read-line is not compatible with R6RS get-line because
+;;; "For the purpose of this procedure, an end of line consists
+;;; of either a linefeed character, a carriage return character,
+;;; or a sequence of carriage return character followed by a
+;;; linefeed character.  Implementations may also recognize
+;;; other end of line characters or sequences."
+;;;
+;;; That specification is ambiguous because "abc\r\r\r\ndef"
+;;; could be read as two, three, four, or five lines.  The
+;;; last sentence quoted authorizes implementations to resolve
+;;; that ambiguity by recognizing other end of line sequences.
+;;; For now at least, Larceny will recognize these sequences
+;;; as an end of line (so far as read-line is concerned):
+;;;     "\n"
+;;;     "\r\n"
+;;;     "\r"
+
 (define (read-line . rest)
-  (get-line (if (null? rest) (current-input-port) (car rest))))
+  (define (loop p chars)
+    (let ((c (get-char p)))
+      (define (finish c)
+        (if (and (null? chars)
+                 (eof-object? c))
+            c
+            (list->string (reverse chars))))
+      (cond ((not (char? c))
+             (finish c))
+            ((char=? c #\newline)
+             (finish c))
+            ((char=? c #\return)
+             (let ((c2 (peek-char p)))
+               (if (char=? c2 #\newline)
+                   (get-char p)))
+             (finish c))
+            (else
+             (loop p (cons c chars))))))
+  (loop (if (null? rest) (current-input-port) (car rest))
+        '()))
 
 (define (read-string k . rest)
   (let ((p (if (null? rest) (current-input-port) (car rest))))

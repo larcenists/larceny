@@ -161,45 +161,75 @@
                             (else (error "longer?: Improper list " right))))
         (else (error "longer?: Improper list " left))))
 
+; If either of the (scheme base) or (srfi 1) libraries has been
+; imported, we'll use R7RS semantics for map and for-each even
+; if the execution mode is r6rs.
+
+(define using-r7rs-semantics #f)
+
+(define (larceny:use-r7rs-semantics!)
+  (set! using-r7rs-semantics #t))
+
 ; FIXME:  The performance of map can be improved.
 ; That doesn't matter so much because map is usually inlined.
 
 (define (map f x . rest)
+
+  (define (lists-of-different-lengths . args)
+    (if (or (and (eq? 'r6rs (larceny:execution-mode))
+                 (not using-r7rs-semantics))
+            (not (every? (lambda (x) (or (null? x) (pair? x)))
+                         args)))
+        (assertion-violation 'map
+                             (errmsg 'msg:illegalargs)
+                             (cons f (cons x rest)))
+        '()))
 
   (define (map1 f x)
     (if (pair? x)
         (let* ((a (f (car x)))
                (b (map1 f (cdr x))))
           (cons a b))
-        '()))
+        (if (null? x)
+            '()
+            (lists-of-different-lengths x))))
 
   (define (map2 f x y)
-    (if (pair? x)
+    (if (and (pair? x) (pair? y))
         (let* ((a (f (car x) (car y)))
                (b (map2 f (cdr x) (cdr y))))
           (cons a b))
-        '()))
+        (if (and (null? x) (null? y))
+            '()
+            (lists-of-different-lengths x y))))
 
   (define (map3 f x y z)
-    (if (pair? x)
+    (if (and (pair? x) (pair? y) (pair? z))
         (let* ((a (f (car x) (car y) (car z)))
                (b (map3 f (cdr x) (cdr y) (cdr z))))
           (cons a b))
-        '()))
+        (if (and (null? x) (null? y) (null? z))
+            '()
+            (lists-of-different-lengths x y z))))
 
   (define (map4 f x y z w)
-    (if (pair? x)
+    (if (and (pair? x) (pair? y) (pair? z) (pair? w))
         (let* ((a (f (car x) (car y) (car z) (car w)))
                (b (map4 f (cdr x) (cdr y) (cdr z) (cdr w))))
           (cons a b))
-        '()))
+        (if (and (null? x) (null? y) (null? z) (null? w))
+            '()
+            (lists-of-different-lengths x y z w))))
 
   (define (mapn f lists)
-    (if (pair? (car lists))
-        (let* ((a (apply f (map car lists)))
-               (b (mapn f (map1 cdr lists))))
-          (cons a b))
-        '()))
+    (cond ((every? pair? lists)
+           (let* ((a (apply f (map car lists)))
+                  (b (mapn f (map1 cdr lists))))
+             (cons a b)))
+          ((every? null? lists)
+           '())
+          (else
+           (apply lists-of-different-lengths lists))))
 
   (case (length rest)
     ((0)  (map1 f x))
@@ -287,6 +317,16 @@
 
 (define (for-each f x . rest)
 
+  (define (lists-of-different-lengths . args)
+    (if (or (and (eq? 'r6rs (larceny:execution-mode))
+                 (not using-r7rs-semantics))
+            (not (every? (lambda (x) (or (null? x) (pair? x)))
+                         args)))
+        (assertion-violation 'for-each
+                             (errmsg 'msg:illegalargs)
+                             (cons f (cons x rest)))
+        (unspecified)))
+
   (define (map1 f x)
     (if (pair? x)
         (cons (f (car x)) (map1 f (cdr x)))
@@ -296,31 +336,42 @@
     (if (pair? x)
         (begin (f (car x))
                (for-each1 f (cdr x)))
-        (unspecified)))
+        (if (null? x)
+            (unspecified)
+            (lists-of-different-lengths x))))
 
   (define (for-each2 f x y)
-    (if (pair? x)
+    (if (and (pair? x) (pair? y))
         (begin (f (car x) (car y))
                (for-each2 f (cdr x) (cdr y)))
-        (unspecified)))
+        (if (and (null? x) (null? y))
+            (unspecified)
+            (lists-of-different-lengths x y))))
 
   (define (for-each3 f x y z)
-    (if (pair? x)
+    (if (and (pair? x) (pair? y) (pair? z))
         (begin (f (car x) (car y) (car z))
                (for-each3 f (cdr x) (cdr y) (cdr z)))
-        (unspecified)))
+        (if (and (null? x) (null? y) (null? z))
+            (unspecified)
+            (lists-of-different-lengths x y z))))
 
   (define (for-each4 f x y z w)
-    (if (pair? x)
+    (if (and (pair? x) (pair? y) (pair? z) (pair? w))
         (begin (f (car x) (car y) (car z) (car w))
                (for-each4 f (cdr x) (cdr y) (cdr z) (cdr w)))
-        (unspecified)))
+        (if (and (null? x) (null? y) (null? z) (null? z))
+            (unspecified)
+            (lists-of-different-lengths x y z w))))
 
   (define (for-each-n f lists)
-    (if (pair? (car lists))
-        (begin (apply f (map car lists))
-               (for-each-n f (map1 cdr lists)))
-        (unspecified)))
+    (cond ((every? pair? lists)
+           (apply f (map car lists))
+           (for-each-n f (map1 cdr lists)))
+          ((every? null? lists)
+           (unspecified))
+          (else
+           (apply lists-of-different-lengths lists))))
 
   (case (length rest)
     ((0)  (for-each1 f x))

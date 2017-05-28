@@ -64,19 +64,20 @@
   (aux-value test-runner-aux-value test-runner-aux-value!))
 
 (define (test-runner-reset runner)
-    (test-runner-pass-count! runner 0)
-    (test-runner-fail-count! runner 0)
-    (test-runner-xpass-count! runner 0)
-    (test-runner-xfail-count! runner 0)
-    (test-runner-skip-count! runner 0)
-    (%test-runner-total-count! runner 0)
-    (%test-runner-count-list! runner '())
-    (%test-runner-run-list! runner #t)
-    (%test-runner-skip-list! runner '())
-    (%test-runner-fail-list! runner '())
-    (%test-runner-skip-save! runner '())
-    (%test-runner-fail-save! runner '())
-    (test-runner-group-stack! runner '()))
+  (test-result-alist! runner '())
+  (test-runner-pass-count! runner 0)
+  (test-runner-fail-count! runner 0)
+  (test-runner-xpass-count! runner 0)
+  (test-runner-xfail-count! runner 0)
+  (test-runner-skip-count! runner 0)
+  (%test-runner-total-count! runner 0)
+  (%test-runner-count-list! runner '())
+  (%test-runner-run-list! runner #t)
+  (%test-runner-skip-list! runner '())
+  (%test-runner-fail-list! runner '())
+  (%test-runner-skip-save! runner '())
+  (%test-runner-fail-save! runner '())
+  (test-runner-group-stack! runner '()))
 
 (define (test-runner-group-path runner)
   (reverse (test-runner-group-stack runner)))
@@ -138,7 +139,7 @@
         (error "test-runner not initialized - test-begin missing?"))
     r))
 
-(define (%test-specificier-matches spec runner)
+(define (%test-specifier-matches spec runner)
   (spec runner))
 
 (define (test-runner-create)
@@ -149,7 +150,7 @@
     (let loop ((l list))
       (cond ((null? l) result)
             (else
-             (if (%test-specificier-matches (car l) runner)
+             (if (%test-specifier-matches (car l) runner)
                  (set! result #t))
              (loop (cdr l)))))))
 
@@ -177,17 +178,17 @@
   (let ((runner (test-runner-current)))
     ((test-runner-on-group-begin runner) runner suite-name count)
     (%test-runner-skip-save! runner
-                               (cons (%test-runner-skip-list runner)
-                                     (%test-runner-skip-save runner)))
+                             (cons (%test-runner-skip-list runner)
+                                   (%test-runner-skip-save runner)))
     (%test-runner-fail-save! runner
-                               (cons (%test-runner-fail-list runner)
-                                     (%test-runner-fail-save runner)))
+                             (cons (%test-runner-fail-list runner)
+                                   (%test-runner-fail-save runner)))
     (%test-runner-count-list! runner
-                             (cons (cons (%test-runner-total-count runner)
-                                         count)
-                                   (%test-runner-count-list runner)))
+                              (cons (cons (%test-runner-total-count runner)
+                                          count)
+                                    (%test-runner-count-list runner)))
     (test-runner-group-stack! runner (cons suite-name
-                                        (test-runner-group-stack runner)))))
+                                           (test-runner-group-stack runner)))))
 (cond-expand
  (kawa
   ;; Kawa has test-begin built in, implemented as:
@@ -240,8 +241,7 @@
         (begin
           (display "Group end: " log)
           (display (car (test-runner-group-stack runner)) log)
-          (newline log)
-          (close-output-port log))))
+          (newline log))))
   #f)
 
 (define (%test-on-bad-count-write runner count expected-count port)
@@ -289,7 +289,10 @@
   (%test-final-report-simple runner (current-output-port))
   (let ((log (test-runner-aux-value runner)))
     (if (output-port? log)
-        (%test-final-report-simple runner log))))
+        (begin
+         (%test-final-report-simple runner log)
+         (display "%%%% Closing log file\n")
+         (close-output-port log)))))
 
 (define (%test-format-line runner)
    (let* ((line-info (test-result-alist runner))
@@ -431,9 +434,9 @@
          (p (assq pname alist)))
     (if p
         (test-result-alist! runner
-                                   (let loop ((r alist))
-                                     (if (eq? r p) (cdr r)
-                                         (cons (car r) (loop (cdr r)))))))))
+                            (let loop ((r alist))
+                              (if (eq? r p) (cdr r)
+                                  (cons (car r) (loop (cdr r)))))))))
 
 (define (test-result-kind . rest)
   (let ((runner (if (pair? rest) (car rest) (test-runner-current))))
@@ -460,10 +463,27 @@
     (%test-runner-total-count! r (+ 1 (%test-runner-total-count r)))
     ((test-runner-on-test-end r) r)))
 
-(define-syntax %test-evaluate-with-catch
-  (syntax-rules ()
-    ((%test-evaluate-with-catch test-expression)
-     (guard (err (else #f)) test-expression))))
+;;; Hack for Larceny's R5RS mode, in which guard catches exceptions
+;;; raised by calling the raise procedure but does not catch exceptions
+;;; raised by most standard procedures.
+;;;
+;;; FIXME: Larceny's R6RS and R7RS runtimes can be and usually are
+;;; compiled in R5RS execution mode, which is why the exact-closed
+;;; feature appears below.  Larceny's implementation of SRFI 0
+;;; does not recognize exact-closed, so it will be recognized only
+;;; if R7RS cond-expand is in effect, which is what we want here.
+
+(cond-expand
+ ((or r6rs r7rs (not larceny) (and larceny exact-closed))
+  (define-syntax %test-evaluate-with-catch
+    (syntax-rules ()
+      ((%test-evaluate-with-catch test-expression)
+       (guard (err (else #f)) test-expression)))))
+ (larceny
+  (define-syntax %test-evaluate-with-catch
+    (syntax-rules ()
+      ((%test-evaluate-with-catch test-expression)
+       (call-without-errors (lambda () test-expression) #f))))))
             
 (define (%test-on-test-begin r)
   (%test-should-execute r)
@@ -491,10 +511,16 @@
                            (%test-on-test-end r (comp exp res)))))
                    (%test-report-result)))))
 
-(define (%test-approximimate= error)
+(define (%test-approximate= error)
   (lambda (value expected)
-    (and (>= value (- expected error))
-         (<= value (+ expected error)))))
+    (let ((rval (real-part value))
+          (ival (imag-part value))
+          (rexp (real-part expected))
+          (iexp (imag-part expected)))
+      (and (>= rval (- rexp error))
+           (>= ival (- iexp error))
+           (<= rval (+ rexp error))
+           (<= ival (+ rexp error))))))
 
 (define-syntax %test-comp1body
   (syntax-rules ()
@@ -506,6 +532,7 @@
                (test-result-set! r 'actual-value res)
                (%test-on-test-end r res))))
        (%test-report-result)))))
+
 (define-syntax test-end
   (syntax-rules ()
     ((test-end)
@@ -555,30 +582,54 @@
 (define-syntax test-approximate
   (syntax-rules ()
     ((test-approximate tname expected expr error)
-     (%test-comp2 (%test-approximimate= error) tname expected expr))
+     (%test-comp2 (%test-approximate= error) tname expected expr))
     ((test-approximate expected expr error)
-     (%test-comp2 (%test-approximimate= error) expected expr))))
+     (%test-comp2 (%test-approximate= error) expected expr))))
 
-(define-syntax %test-error
-  (syntax-rules ()
-    ((%test-error r etype expr)
-     (call-with-current-continuation
-      (lambda (k)
-        (%test-comp1body r
-                         (with-exception-handler
-                          (lambda (x) (k #t))
-                          (lambda ()
-                            (test-result-set! r 'actual-value expr)
-                            #f))))))))
+;;; Hack for Larceny's R5RS mode, in which guard catches exceptions
+;;; raised by calling the raise procedure but does not catch exceptions
+;;; raised by most standard procedures.
+;;;
+;;; FIXME: See earlier note concerning exact-closed.
+
+(cond-expand
+ ((or r6rs r7rs (not larceny) (and larceny exact-closed))
+  (define-syntax %test-error
+    (syntax-rules ()
+      ((%test-error r etype expr)
+       (%test-comp1body r (guard (ex (else #t)) expr #f))))))
+ (larceny
+  (define-syntax %test-error
+    (syntax-rules ()
+      ((%test-error r etype expr)
+       (%test-comp1body r
+                        (call-without-errors (lambda () expr #f) #t)))))))
 
 (define-syntax test-error
   (syntax-rules ()
     ((test-error name etype expr)
-     (test-assert name (%test-error (test-runner-get) etype expr)))
+     (let ((r (test-runner-get)))
+       (test-result-alist! r `((test-name . ,name)))
+       (%test-error r etype expr)))
     ((test-error etype expr)
-     (test-assert (%test-error (test-runner-get) etype expr)))
+     (let ((r (test-runner-get)))
+       (test-result-alist! r '())
+       (%test-error r etype expr)))
     ((test-error expr)
-     (test-assert (%test-error (test-runner-get) #t expr)))))
+     (let ((r (test-runner-get)))
+       (test-result-alist! r '())
+       (%test-error r #t expr)))))
+
+;;; In R5RS, macros must be defined before they're used.
+
+(define-syntax test-with-runner
+  (syntax-rules ()
+    ((test-with-runner runner form ...)
+     (let ((saved-runner (test-runner-current)))
+       (dynamic-wind
+           (lambda () (test-runner-current runner))
+           (lambda () form ...)
+           (lambda () (test-runner-current saved-runner)))))))
 
 (define (test-apply first . rest)
   (if (test-runner? first)
@@ -600,15 +651,6 @@
             (let ((r (test-runner-create)))
               (test-with-runner r (apply test-apply first rest))
               ((test-runner-on-final r) r))))))
-
-(define-syntax test-with-runner
-  (syntax-rules ()
-    ((test-with-runner runner form ...)
-     (let ((saved-runner (test-runner-current)))
-       (dynamic-wind
-           (lambda () (test-runner-current runner))
-           (lambda () form ...)
-           (lambda () (test-runner-current saved-runner)))))))
 
 ;;; Predicates
 

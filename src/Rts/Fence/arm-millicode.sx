@@ -7,6 +7,10 @@
  * file with GCC, it will run CPP on the file due to the .sx file type.
  *
  * Note: We can always destroy TMP0 and TMP1 in millicode.
+ *
+ * Note: There are two different register assignments for ARMv7.
+ * One does not use the platform register, and defines REG0 through REG5.
+ * The other uses the platform register and defines REG0 through REG7.
  */
         
 #include "asmdefs.h"
@@ -21,6 +25,25 @@
  * no guarantee MAL register order corresponds to HW register order
  * (though we could probably make that happen if we had to).
  */
+#if LASTREG > 5
+#define SAVE_SCHEME_CONTEXT \
+        str     RESULT, [GLOBALS, #G_RESULT] ;\
+        str     SECOND, [GLOBALS, #G_SECOND] ;\
+        str     STKP, [GLOBALS, #G_STKP]     ;\
+        str     REG0, [GLOBALS, #G_REG0]     ;\
+        str     REG1, [GLOBALS, #G_REG1]     ;\
+        str     REG2, [GLOBALS, #G_REG2]     ;\
+        str     REG3, [GLOBALS, #G_REG3]     ;\
+        str     REG4, [GLOBALS, #G_REG4]     ;\
+        str     REG5, [GLOBALS, #G_REG5]     ;\
+        str     REG6, [GLOBALS, #G_REG6]     ;\
+        str     REG7, [GLOBALS, #G_REG7]     ;\
+        vstr    d0, [GLOBALS, #G_F0]         ;\
+        vstr    d1, [GLOBALS, #G_F1]         ;\
+        vstr    d2, [GLOBALS, #G_F2]         ;\
+        vstr    d3, [GLOBALS, #G_F3]         ;\
+        str     lr, [GLOBALS, #G_RETADDR]
+#else
 #define SAVE_SCHEME_CONTEXT \
         str     RESULT, [GLOBALS, #G_RESULT] ;\
         str     SECOND, [GLOBALS, #G_SECOND] ;\
@@ -36,6 +59,7 @@
         vstr    d2, [GLOBALS, #G_F2]         ;\
         vstr    d3, [GLOBALS, #G_F3]         ;\
         str     lr, [GLOBALS, #G_RETADDR]
+#endif
 
 #define SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR \
         SAVE_SCHEME_CONTEXT                  ;\
@@ -45,6 +69,25 @@
         str     TMP0, [GLOBALS, #G_RETADDR]
 
 /* Load the Scheme context into registers assuming GLOBALS has been set up */
+#if LASTREG > 5
+#define LOAD_SCHEME_CONTEXT \
+        ldr     RESULT, [GLOBALS, #G_RESULT] ;\
+        ldr     SECOND, [GLOBALS, #G_SECOND] ;\
+        ldr     STKP, [GLOBALS, #G_STKP]     ;\
+        ldr     REG0, [GLOBALS, #G_REG0]     ;\
+        ldr     REG1, [GLOBALS, #G_REG1]     ;\
+        ldr     REG2, [GLOBALS, #G_REG2]     ;\
+        ldr     REG3, [GLOBALS, #G_REG3]     ;\
+        ldr     REG4, [GLOBALS, #G_REG4]     ;\
+        ldr     REG5, [GLOBALS, #G_REG5]     ;\
+        ldr     REG6, [GLOBALS, #G_REG6]     ;\
+        ldr     REG7, [GLOBALS, #G_REG7]     ;\
+        vldr    d0, [GLOBALS, #G_F0]         ;\
+        vldr    d1, [GLOBALS, #G_F1]         ;\
+        vldr    d2, [GLOBALS, #G_F2]         ;\
+        vldr    d3, [GLOBALS, #G_F3]         ;\
+        ldr     lr, [GLOBALS, #G_RETADDR]
+#else
 #define LOAD_SCHEME_CONTEXT \
         ldr     RESULT, [GLOBALS, #G_RESULT] ;\
         ldr     SECOND, [GLOBALS, #G_SECOND] ;\
@@ -60,6 +103,7 @@
         vldr    d2, [GLOBALS, #G_F2]         ;\
         vldr    d3, [GLOBALS, #G_F3]         ;\
         ldr     lr, [GLOBALS, #G_RETADDR]
+#endif
 
 #define LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR \
         LOAD_SCHEME_CONTEXT                  ;\
@@ -150,20 +194,23 @@ asmname:                                       ;\
 
 /* Simplify on ARM, because we can */
 #define MILLIPROC1(asmname,cname) \
-        MILLIPROC2(asmname,cname,0)
+        MILLIPROC2(asmname,cname,4)
         
 /* For the sake of simplicity the C millicode entry points are
  * compatible with the i386 and Petit Larceny millicode in the sense
  * that they accept a redundant (for native code) continuation argument
- * in many cases, but we always pass 0 for that argument because it
- * is unused.  C millicode can rely on that.
+ * in many cases.  We always pass 4 for that argument because it
+ * is used only as a flag in Fence/ARM.  (Zero would mean
+ * mc_scheme_callout needs to perform a longjmp to avoid
+ * returning to C code that shouldn't be executed.)
+ *
  */
 MILLIPROC1(fmc_morecore,mc_morecore)
 MILLIPROC1(fmc_stack_overflow,mc_stack_overflow)
-MILLIPROC2(fmc_timer_exception,mc_timer_exception,0)
-MILLIPROC2(fmc_add,mc_add,0)
-MILLIPROC2(fmc_sub,mc_sub,0)
-MILLIPROC2(fmc_equalp,mc_equalp,0)
+MILLIPROC2(fmc_timer_exception,mc_timer_exception,4)
+MILLIPROC2(fmc_add,mc_add,4)
+MILLIPROC2(fmc_sub,mc_sub,4)
+MILLIPROC2(fmc_equalp,mc_equalp,4)
 MILLIPROC1(fmc_alloc,mc_alloc)
 MILLIPROC1(fmc_alloci,mc_alloci)
 MILLIPROC1(fmc_alloc_bv,mc_alloc_bv)
@@ -176,33 +223,33 @@ MILLIPROC2(fmc_global_exception,mc_exception,EX_UNDEF_GLOBAL)
 MILLIPROC2(fmc_invoke_exception,mc_exception,EX_NONPROC)
 MILLIPROC2(fmc_global_invoke_exception,mc_exception,EX_GLOBAL_INVOKE)
 MILLIPROC2(fmc_argc_exception,mc_exception,EX_ARGC)
-MILLIPROC2(fmc_enable_interrupts,mc_enable_interrupts,0)
-MILLIPROC2(fmc_disable_interrupts,mc_disable_interrupts,0)
+MILLIPROC2(fmc_enable_interrupts,mc_enable_interrupts,4)
+MILLIPROC2(fmc_disable_interrupts,mc_disable_interrupts,4)
 MILLIPROC1(fmc_apply,mc_apply)
 MILLIPROC1(fmc_restargs,mc_restargs)
-MILLIPROC2(fmc_syscall,mc_syscall,0)
+MILLIPROC2(fmc_syscall,mc_syscall,4)
 MILLIPROC1(fmc_typetag,mc_typetag)
 MILLIPROC1(fmc_typetag_set,mc_typetag_set)
-MILLIPROC2(fmc_eqv,mc_eqv,0)
+MILLIPROC2(fmc_eqv,mc_eqv,4)
 MILLIPROC1(fmc_partial_list2vector,mc_partial_list2vector)
 MILLIPROC1(fmc_bytevector_like_fill,mc_bytevector_like_fill)
 MILLIPROC1(fmc_bytevector_like_compare,mc_bytevector_like_compare)
-MILLIPROC2(fmc_mul,mc_mul,0)
-MILLIPROC2(fmc_div,mc_div,0)
-MILLIPROC2(fmc_quo,mc_quo,0)
-MILLIPROC2(fmc_rem,mc_rem,0)
-MILLIPROC2(fmc_neg,mc_neg,0)
-MILLIPROC2(fmc_abs,mc_abs,0)
-MILLIPROC2(fmc_lessp,mc_lessp,0)
-MILLIPROC2(fmc_less_or_equalp,mc_less_or_equalp,0)
-MILLIPROC2(fmc_greaterp,mc_greaterp,0)
-MILLIPROC2(fmc_greater_or_equalp,mc_greater_or_equalp,0)
-MILLIPROC2(fmc_exact2inexact,mc_exact2inexact,0)
-MILLIPROC2(fmc_inexact2exact,mc_inexact2exact,0)
+MILLIPROC2(fmc_mul,mc_mul,4)
+MILLIPROC2(fmc_div,mc_div,4)
+MILLIPROC2(fmc_quo,mc_quo,4)
+MILLIPROC2(fmc_rem,mc_rem,4)
+MILLIPROC2(fmc_neg,mc_neg,4)
+MILLIPROC2(fmc_abs,mc_abs,4)
+MILLIPROC2(fmc_lessp,mc_lessp,4)
+MILLIPROC2(fmc_less_or_equalp,mc_less_or_equalp,4)
+MILLIPROC2(fmc_greaterp,mc_greaterp,4)
+MILLIPROC2(fmc_greater_or_equalp,mc_greater_or_equalp,4)
+MILLIPROC2(fmc_exact2inexact,mc_exact2inexact,4)
+MILLIPROC2(fmc_inexact2exact,mc_inexact2exact,4)
 MILLIPROC1(fmc_real_part,mc_real_part)
 MILLIPROC1(fmc_imag_part,mc_imag_part)
-MILLIPROC2(fmc_round,mc_round,0)
-MILLIPROC2(fmc_truncate,mc_truncate,0)
+MILLIPROC2(fmc_round,mc_round,4)
+MILLIPROC2(fmc_truncate,mc_truncate,4)
 MILLIPROC1(fmc_zerop,mc_zerop)
 MILLIPROC1(fmc_complexp,mc_complexp)
 MILLIPROC1(fmc_rationalp,mc_rationalp)

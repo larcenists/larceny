@@ -306,6 +306,8 @@ void rs_del_elem( remset_t *rs, word w )
   remset_data_t *data = DATA(rs);
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
+  FIXME_UNUSED_VARIABLE(pooltop);
+  FIXME_UNUSED_VARIABLE(poollim);
   tbl = data->tbl_bot;
   tblsize = data->tbl_lim - tbl;
   mask = tblsize-1;
@@ -672,6 +674,7 @@ void rs_describe_self( remset_t *rs )
   tbl = data->tbl_bot;
   tblsize = data->tbl_lim - tbl;
   mask = tblsize-1;
+  FIXME_UNUSED_VARIABLE(mask);
   h = 0;
   consolemsg("TBL%d tblsize: %d", rs->identity, tblsize);
 

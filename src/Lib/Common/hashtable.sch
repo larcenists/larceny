@@ -7,6 +7,8 @@
 ; Requires vector-like-cas! and .internal:machine-address.
 ; This code should be thread-safe provided VECTOR-REF is atomic.
 
+($$trace "hashtable")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; R6RS hashtable API.

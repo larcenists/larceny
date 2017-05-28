@@ -1,0 +1,12 @@
+(import
+ (scheme base)
+ (scheme write)
+ (srfi 1)
+ (srfi 64)
+ (srfi 126)
+ (primitives system))              ; added for Larceny
+
+;; INCLUDE test-suite.body.scm
+
+(include "srfi-126-test.body.scm") ; added for Larceny
+                                   ; (unsure why it was missing)

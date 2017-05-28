@@ -30,6 +30,8 @@
         (rnrs conditions)
         (rnrs records syntactic)
         (srfi 114)
+        (only (scheme char) string-ci=? string-ci<?)
+        (srfi 128)
         (srfi 113))
 
 ;;; Uses "the Chicken test egg, which is provided on Chibi as

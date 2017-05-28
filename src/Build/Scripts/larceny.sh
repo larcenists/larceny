@@ -22,7 +22,13 @@ if [ -z "$LARCENY_ROOT" ]; then
     # script.  If it's a relative path, we make it absolute.  Then, if it ends
     # in Scripts, we chop off that component.
 
-    dir="`dirname "$0"`"
+    if [ `uname` = Linux ]; then
+        script=`readlink -f "$0"`
+        dir="`dirname "$script"`"
+        :
+    else
+        dir="`dirname "$0"`"
+    fi
     dir="`( cd $dir; pwd )`"
     [ "`basename "$dir"`" = Scripts ] && dir="`dirname "$dir"`"
 

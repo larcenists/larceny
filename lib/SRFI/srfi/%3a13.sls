@@ -38,8 +38,10 @@
    string-drop string-drop-right
    string-pad string-pad-right
    string-trim string-trim-right string-trim-both
-   string-filter string-delete
-   string-index string-index-right 
+   (rename (corrected-string-filter string-filter))
+   (rename (corrected-string-delete string-delete))
+   string-index
+   (rename (corrected-string-index-right string-index-right))
    string-skip  string-skip-right
    string-count
    string-prefix-length string-prefix-length-ci
@@ -97,6 +99,51 @@
   (not (char=? (char-upcase c) (char-downcase c))))
 
 ;(define char-titlecase char-upcase)
+
+;;; Olin's definitions of string-filter and string-delete are incorrect
+;;; because they expect a string as their first argument, whereas
+;;; SRFI 13 says that string should be the second argument.
+;;; I'm afraid to fix that because some programs may be depending
+;;; upon the incorrect order of arguments, so I'll just patch it here.
+
+(define (corrected-string-filter criterion s . rest)
+  ;; calls the incorrect version with arguments in incorrect order,
+  ;; so it will work
+  (if (and (string? criterion)
+           (not (string? s)))
+      (apply string-filter criterion s rest)
+      (apply string-filter s criterion rest)))
+
+(define (corrected-string-delete criterion s . rest)
+  ;; calls the incorrect version with arguments in incorrect order,
+  ;; so it will work
+  (if (and (string? criterion)
+           (not (string? s)))
+      (apply string-delete criterion s rest)
+      (apply string-delete s criterion rest)))
+
+;;; Olin's definition says (>= i 0) in three places instead of (>= i start).
+;;; (See ticket #673).
+
+(define (corrected-string-index-right str criterion . maybe-start+end)
+  (let-string-start+end (start end) string-index-right str maybe-start+end
+    (cond ((char? criterion)
+	   (let lp ((i (- end 1)))
+	     (and (>= i start)
+		  (if (char=? criterion (string-ref str i)) i
+		      (lp (- i 1))))))
+	  ((char-set? criterion)
+	   (let lp ((i (- end 1)))
+	     (and (>= i start)
+		  (if (char-set-contains? criterion (string-ref str i)) i
+		      (lp (- i 1))))))
+	  ((procedure? criterion)
+	   (let lp ((i (- end 1)))
+	     (and (>= i start)
+		  (if (criterion (string-ref str i)) i
+		      (lp (- i 1))))))
+	  (else (error "Second param is neither char-set, char, or predicate procedure."
+		       string-index-right criterion)))))
 
 ;;; End Larceny changes
 
@@ -1115,7 +1162,7 @@
   (let-optionals* criterion+start+end ((criterion char-set:whitespace) rest)
     (let-string-start+end (start end) string-trim-right s rest
       (cond ((string-skip-right s criterion start end) =>
-	     (lambda (i) (%substring/shared s 0 (+ 1 i))))
+	     (lambda (i) (%substring/shared s start (+ 1 i))))
 	    (else "")))))
 
 (define (string-trim-both s . criterion+start+end)

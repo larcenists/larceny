@@ -312,4 +312,7 @@
              (vector-set! v 1 (list v))
              v))
 
+     (test (read-datum "(#0=#1=(a) #0#)")
+           '((a) (a)))
+
      )))

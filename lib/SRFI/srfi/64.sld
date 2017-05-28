@@ -33,7 +33,7 @@
    test-approximate test-error test-apply test-with-runner
    test-match-nth test-match-all test-match-any test-match-name
    test-skip test-expect-fail test-read-eval-string
-   test-runner-group-path test-group-with-cleanup
+   test-runner-group-path test-group test-group-with-cleanup
    test-result-ref test-result-set! test-result-clear test-result-remove
    test-result-kind test-passed?
    test-log-to-file
@@ -70,6 +70,7 @@
                 open-file-output-port file-options no-fail native-transcoder)
           (scheme read)
           (scheme write)
+          (scheme complex)
           (scheme eval))
 
   (include "64.body.scm"))
@@ -83,7 +84,7 @@
    test-approximate test-error test-apply test-with-runner
    test-match-nth test-match-all test-match-any test-match-name
    test-skip test-expect-fail test-read-eval-string
-   test-runner-group-path test-group-with-cleanup
+   test-runner-group-path test-group test-group-with-cleanup
    test-result-ref test-result-set! test-result-clear test-result-remove
    test-result-kind test-passed?
    test-log-to-file

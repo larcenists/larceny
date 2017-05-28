@@ -263,11 +263,15 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris clr-be)                  'big)
-      ((macosx-el linux-el linux-arm-el linux-arm-el-hardfp cygwin win32 clr-el) 'little)
+      ((macosx-el linux-el linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
+                  cygwin win32 clr-el)
+       'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx macosx-el solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp) 'unix)
+      ((macosx macosx-el solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp
+               linux-arm-el-hardfp0)
+       'unix)
       ((win32) 'win32)
       ((clr-be) 'unix)     ; FIXME
       ((clr-el) 'win32)    ; FIXME
@@ -320,7 +324,7 @@
           ((macosx)       'features-petit-macosx)
           ((solaris)      (cond (native 'features-sparc-solaris)
                                 (else 'features-petit-solaris)))
-          ((linux-arm-el-hardfp)
+          ((linux-arm-el-hardfp linux-arm-el-hardfp0)
                            (cond (native    'features-arm-el-hardfp-linux)
                                  (else      (error 'setup.sch "Only the native system is supported on ARM Linux"))))
           ((linux-el)     (cond (sassy     'features-x86-sassy-linux)
@@ -354,7 +358,8 @@
             macosx-el) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
-          ((linux-el linux-arm-el-hardfp) "petitdebianlinux")
+          ((linux-el linux-arm-el-hardfp linux-arm-el-hardfp0)
+           "petitdebianlinux")
           ((clr-be clr-le) "common")))        ; FIXME
 
   (set! *host:endianness* (platform->endianness host-arch))
@@ -397,6 +402,13 @@
             (set! *makefile-configuration* 'arm-hardfp-linux-gcc-v4-gas)
             (set! *heap-type* 'arm-native)
             (set! *runtime-type* 'arm-native))
+
+           ((linux-arm-el-hardfp0)
+            (set! *target:machine* 'arm)
+            (set! *target:machine-source* "Fence")
+            (set! *makefile-configuration* 'arm-hardfp-linux-gcc-v4-gas)
+            (set! *heap-type* 'arm-native0)
+            (set! *runtime-type* 'arm-native0))
 
            ;; Win32 native is just Petit with extasm of NASM rather than C
 

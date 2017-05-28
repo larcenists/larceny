@@ -168,6 +168,7 @@ void ls_add_loc( locset_t *ls, loc_t loc )
   locset_data_t *data = DATA(ls);
   
   overflowed = FALSE;
+  FIXME_UNUSED_VARIABLE(overflowed);
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
   tbl = data->tbl_bot;

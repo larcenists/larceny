@@ -113,6 +113,8 @@
 ;;; Larceny changes
 ;
 ; BITWISE-AND has been modified to LOGAND
+; An error in string-index-right (ticket #673) has been fixed.
+; An error in string-trim-right has been fixed.
 ; Everything else is handled in the following block.
 
 (require 'shivers-syntax)		; :OPTIONAL, LET-OPTIONALS*, CHECK-ARG
@@ -1034,7 +1036,7 @@
   (let-optionals* criterion+start+end ((criterion char-set:whitespace) rest)
     (let-string-start+end (start end) string-trim-right s rest
       (cond ((string-skip-right s criterion start end) =>
-	     (lambda (i) (%substring/shared s 0 (+ 1 i))))
+	     (lambda (i) (%substring/shared s start (+ 1 i))))
 	    (else "")))))
 
 (define (string-trim-both s . criterion+start+end)
@@ -1178,17 +1180,17 @@
   (let-string-start+end (start end) string-index-right str maybe-start+end
     (cond ((char? criterion)
 	   (let lp ((i (- end 1)))
-	     (and (>= i 0)
+	     (and (>= i start)
 		  (if (char=? criterion (string-ref str i)) i
 		      (lp (- i 1))))))
 	  ((char-set? criterion)
 	   (let lp ((i (- end 1)))
-	     (and (>= i 0)
+	     (and (>= i start)
 		  (if (char-set-contains? criterion (string-ref str i)) i
 		      (lp (- i 1))))))
 	  ((procedure? criterion)
 	   (let lp ((i (- end 1)))
-	     (and (>= i 0)
+	     (and (>= i start)
 		  (if (criterion (string-ref str i)) i
 		      (lp (- i 1))))))
 	  (else (error "Second param is neither char-set, char, or predicate procedure."

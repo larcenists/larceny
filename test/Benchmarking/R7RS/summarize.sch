@@ -14,13 +14,16 @@
 
 
 (define (summarize-usual-suspects)
-  ((summarize r7rs-results) "results.Chibi"   "summary.Chibi")
-  ((summarize r7rs-results) "results.Chicken" "summary.Chicken")
-  ((summarize r7rs-results) "results.Foment"  "summary.Foment")
-  ((summarize r7rs-results) "results.Gauche"  "summary.Gauche")
-  ((summarize r7rs-results) "results.Kawa"    "summary.Kawa")
-  ((summarize r7rs-results) "results.Larceny" "summary.Larceny")
-  ((summarize r7rs-results) "results.Petit"   "summary.Petit"))
+  ((summarize r7rs-results) "results.Chibi"       "summary.Chibi")
+  ((summarize r7rs-results) "results.Chicken"     "summary.Chicken")
+  ((summarize r7rs-results) "results.Cyclone"     "summary.Cyclone")
+  ((summarize r7rs-results) "results.Foment"      "summary.Foment")
+  ((summarize r7rs-results) "results.Gauche"      "summary.Gauche")
+  ((summarize r7rs-results) "results.Kawa"        "summary.Kawa")
+  ((summarize r7rs-results) "results.Picrin"      "summary.Picrin")
+  ((summarize r7rs-results) "results.Sagittarius" "summary.Sagittarius")
+  ((summarize r7rs-results) "results.Larceny"     "summary.Larceny")
+  ((summarize r7rs-results) "results.Petit"       "summary.Petit"))
 
 (define (decode-usual-suspects)
   (map decode-summary
@@ -28,9 +31,12 @@
          "summary.Petit"
          "summary.Chibi"
          "summary.Chicken"
+         "summary.Cyclone"
          "summary.Foment"
          "summary.Gauche"
-         "summary.Kawa")))
+         "summary.Kawa"
+         "summary.Picrin"
+         "summary.Sagittarius")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

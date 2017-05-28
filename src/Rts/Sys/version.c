@@ -28,7 +28,7 @@
  *  Funny in the Head           0.97        19 Aug 2009     6398
  *  General Ripper              0.98b1      21 Oct 2011     fcbaf3b
  *                              0.98         7 Mar 2015     60876f5
- *  Goldie
+ *  Goldie                      0.99        25 May 2016     4671a1f
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
  *  Hi There!
@@ -68,10 +68,10 @@
 
 #include "config.h"
 
-int  larceny_major_version = 0;
-int  larceny_minor_version = 98;
-/* char *larceny_version_qualifier = " \"General Ripper\""; */
-char *larceny_version_qualifier = "+ \"General Ripper\"";
+int  larceny_major_version = 1;
+int  larceny_minor_version = 1;
+/* char *larceny_version_qualifier = " \"Goldie\""; */
+char *larceny_version_qualifier = "a2";
 
 char *date = DATE " " TIME;
 char *user = USER;

@@ -51,9 +51,27 @@
           (rnrs bytevectors)                         ; FIXME: workaround
           (rnrs r5rs)
           (srfi :9 records)
-          (primitives r5rs:require current-utc-time))
+         ;(primitives r5rs:require current-utc-time) ; FIXME: see below
+          (primitives current-seconds
+                      memstats
+                      memstats-elapsed-time
+                      memstats-gc-total-elapsed-time))
 
-(define ignored (r5rs:require 'time))           ; CURRENT-UTC-TIME
+; current-utc-time is defined by the time library,
+; which uses Larceny's FFI, which doesn't seem to work anymore
+; if Larceny was built on a Macintosh using a 64-bit MacOSX.
+;
+; Until that's fixed, it's safer to define a fake version of
+; current-utc-time.
+; 
+;(define ignored (r5rs:require 'time))           ; CURRENT-UTC-TIME
+
+(define (current-utc-time)
+  (let ((stats (memstats)))
+    (values (current-seconds)
+            (remainder (+ (* 1000 (memstats-gc-total-elapsed-time stats))
+                          (memstats-elapsed-time stats))
+                       1000000))))
 
 (define most-positive-fixnum greatest-fixnum)
 

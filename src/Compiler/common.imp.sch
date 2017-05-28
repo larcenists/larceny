@@ -303,6 +303,9 @@
 ; Consequences:  A compiler macro can assume that all inlined R4RS
 ; procedures have their usual values, but cannot assume that non-R4RS
 ; procedures are intact.
+;
+; FIXME: we assume all procedures listed by src/Lib/Common/toplevel.sch
+; are available.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -491,7 +494,7 @@
               make-vector make-bytevector make-string
               endianness big little
               = < > <= >= + * - /
-              abs negative? positive? min max
+              abs negative? positive? min max nan?
               exact-integer?
               square
               div mod
@@ -979,7 +982,10 @@
     (let ((x ?x) (y ?y))
       (let ((r (if (<= x y) x y)))
         (if (or (inexact? x) (inexact? y))
-            (+ r 0.0)
+            (+ r 
+               (if (or (not (= x x)) (not (= y y)))
+                   +nan.0
+                   0.0))
             r))))
 `  ((_ larceny min (min ?x ?y ?z ...))
     (let ((x ?x) (y (min ?y ?z ...)))
@@ -989,11 +995,18 @@
     (let ((x ?x) (y ?y))
       (let ((r (if (>= x y) x y)))
         (if (or (inexact? x) (inexact? y))
-            (+ r 0.0)
+            (+ r 
+               (if (or (not (= x x)) (not (= y y)))
+                   +nan.0
+                   0.0))
             r))))
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
+
+`  ((_ larceny nan? (nan? ?x))
+    (let ((x ?x))
+      (and (number? x) (not (= x x)))))
 
 `  ((_ larceny exact-integer? (exact-integer? ?e1))
     (let* ((t1 ?e1))
@@ -1514,7 +1527,11 @@
                     (results '() (cons (?f (car ?y1) (car ?y2) ...)
                                        results)))
                    ((or (null? ?y1) (null? ?y2) ...)
-                    (reverse results))))))))
+                    (reverse
+                     (if (and (null? ?y1) (null? ?y2) ...)
+                         results
+                         (append (reverse (larceny:map ?f ?y1 ?y2 ...))
+                                          results))))))))))
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))
 
@@ -1541,7 +1558,9 @@
                     (?y2 ?e2 (cdr ?y2))
                     ...)
                    ((or (null? ?y1) (null? ?y2) ...)
-                    (if #f #f))
+                    (if (and (null? ?y1) (null? ?y2) ...)
+                        (if #f #f)
+                        (larceny:for-each ?f ?y1 ?y2 ...)))
                    (?f (car ?y1) (car ?y2) ...)))))))
       
       (loop 1 (?exp1 ?exp2 ...) () ?proc (?exp1 ?exp2 ...))))

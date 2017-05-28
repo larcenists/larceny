@@ -109,6 +109,7 @@ setup ()
   PETIT=${PETIT:-"../../../../PetitGit/larceny"}
   CHIBI=${CHIBI:-"chibi-scheme"}
   CHICKEN_CSC=${CHICKEN_CSC:-"csc"}
+  CYCLONE=${CYCLONE:-"cyclone"}
   FOMENT=${FOMENT:-"foment"}
   GAUCHE=${GAUCHE:-"gosh"}
   HUSKI=${HUSKI:-"huski"}
@@ -133,6 +134,7 @@ Usage: bench [-r runs] <system> <benchmark>
 
   chibi            for Chibi
   chicken          for Chicken
+  cyclone          for Cyclone
   foment           for Foment
   gauche           for Gauche
   husk             for Husk
@@ -276,6 +278,19 @@ chicken_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Cyclone
+
+cyclone_comp ()
+{
+  ${CYCLONE} $1
+}
+
+cyclone_exec ()
+{
+  time `dirname $1`/`basename $1 .scm` < "$2"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Foment
 
 foment_comp ()
@@ -412,7 +427,7 @@ case "$2" in
       kvw) benchmarks="$KVW_BENCHMARKS" ;;
     other) benchmarks="$OTHER_BENCHMARKS" ;;
       awk) benchmarks="$AWK_BENCHMARKS" ;;
-        c) benchmarks="$C_BENCHMARKS" ;;
+       gc) benchmarks="$GC_BENCHMARKS" ;;
      java) benchmarks="$JAVA_BENCHMARKS" ;;
         *) benchmarks="$2" ;;
 esac
@@ -428,8 +443,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
      petit) NAME='Petit'
@@ -438,8 +453,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="slfasl"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
   henchman) NAME='Henchman'
@@ -448,8 +463,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="slfasl"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
      chibi) NAME='Chibi'
@@ -458,8 +473,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
    chicken) NAME='Chicken'
@@ -468,8 +483,18 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="chicken"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
+            ;;
+
+      cyclone) NAME='Cyclone'
+            COMP=cyclone_comp
+            EXEC=cyclone_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
     foment) NAME='Foment'
@@ -478,8 +503,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
     gauche) NAME='Gauche'
@@ -488,8 +513,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
       husk) NAME='Husk'
@@ -498,8 +523,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
       kawa) NAME='Kawa'
@@ -508,8 +533,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
       mosh) NAME='Mosh'
@@ -518,8 +543,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
     picrin) NAME='Picrin'
@@ -528,8 +553,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
   sagittarius) NAME='Sagittarius'
@@ -538,8 +563,8 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
-	    COMPCOMMANDS=""
-	    EXECCOMMANDS=""
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
             ;;
 
    esac

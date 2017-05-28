@@ -84,30 +84,6 @@
 ;        store / undo in many cases, saving one dynamic instruction
 
 
-; ARM hardware register assignments for MacScheme registers.
-;
-; TODO: can we get this information out of regs.sch somehow,
-; so that it's not maintained two places?
-
-(define arm.RESULT 0)
-(define arm.SECOND 1)
-(define arm.GLOBALS 2)
-(define arm.STKP 3)
-(define arm.TMP0 4)                     ; This is $r.tmp in pass5p2.sch
-(define arm.REG0 5)
-(define arm.REG1 6)
-(define arm.REG2 7)
-(define arm.REG3 8)
-(define arm.REG4 10)
-(define arm.REG5 11)
-(define arm.TMP1 12)                    ; This is not exposed to pass5p2.sch
-
-; Other ARM hardware registers.  FP=R11, not used here.
-
-(define arm.SP 13)
-(define arm.LR 14)
-(define arm.PC 15)
-
 ; MOVT was introduced in the ARMv6T2
 
 (define *arm.MOVT* #t)
@@ -532,6 +508,10 @@
     (vector-set! v (+ offset 3 $r.reg0) arm.REG3)
     (vector-set! v (+ offset 4 $r.reg0) arm.REG4)
     (vector-set! v (+ offset 5 $r.reg0) arm.REG5)
+    (if (= 8 *nregs*)
+	(begin
+         (vector-set! v (+ offset 6 $r.reg0) arm.REG6)
+         (vector-set! v (+ offset 7 $r.reg0) arm.REG7)))
     (lambda (r)
       (vector-ref v (+ r offset)))))
 

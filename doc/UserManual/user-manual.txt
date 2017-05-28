@@ -46,6 +46,8 @@ include::intro.txt[]
 
 include::running.txt[]
 
+include::libraries.txt[]
+
 include::lexical.txt[]
 
 include::naming.txt[]

@@ -95,7 +95,12 @@
      (if>=? p greaterequal undef))))
 
 ;;; Definition of comparator records with accessors and basic comparator
+;;;
+;;; These next two definitions are commented out because they've been
+;;; replaced by (srfi 128 kernel), which allows the comparators of
+;;; SRFI 114 and SRFI 128 to be interoperable and interchangeable.
 
+#;
 (define-record-type comparator
   (make-raw-comparator type-test equality comparison hash comparison? hash?)
   comparator?
@@ -106,6 +111,7 @@
   (comparison? comparator-comparison-procedure?)
   (hash? comparator-hash-function?))
 
+#;
 (define (make-comparator type-test equality comparison hash)
   (make-raw-comparator
     (if (eq? type-test #t) (lambda (x) #t) type-test)
@@ -115,13 +121,19 @@
     (if comparison #t #f)
     (if hash #t #f)))
 
+;;; A dozen procedure definitions have been commented out
+;;; because they are now imported from (srfi 128).
+;;; These comments are marked by "; now imported from (srfi 128)"
+
 ;; Primitive applicators
 
 ;; Invoke the test type
+#; ; now imported from (srfi 128)
 (define (comparator-test-type comparator obj)
   ((comparator-type-test-procedure comparator) obj))
 
 ;; Invoke the test type and throw an error if it fails
+#; ; now imported from (srfi 128)
 (define (comparator-check-type comparator obj)
   (if (comparator-test-type comparator obj)
     #t
@@ -136,6 +148,7 @@
   ((comparator-comparison-procedure comparator) obj1 obj2))
 
 ;; Invoke the hash function
+#; ; now imported from (srfi 128)
 (define (comparator-hash comparator obj)
   ((comparator-hash-function comparator) obj))
 
@@ -236,26 +249,31 @@
 
 ;;; Comparison predicates
 
+#; ; now imported from (srfi 128)
 (define (=? comparator a b . objs)
   (if (comparator-equal? comparator a b)
     (if (null? objs) #t (apply =? comparator b objs))
     #f))
 
+#; ; now imported from (srfi 128)
 (define (<? comparator a b . objs)
   (if (eqv? (comparator-compare comparator a b) -1)
     (if (null? objs) #t (apply <? comparator b objs))
     #f))
 
+#; ; now imported from (srfi 128)
 (define (>? comparator a b . objs)
   (if (eqv? (comparator-compare comparator a b) 1)
     (if (null? objs) #t (apply >? comparator b objs))
     #f))
 
+#; ; now imported from (srfi 128)
 (define (<=? comparator a b . objs)
   (if (not (eqv? (comparator-compare comparator a b) 1))
     (if (null? objs) #t (apply <=? comparator b objs))
     #f))
 
+#; ; now imported from (srfi 128)
 (define (>=? comparator a b . objs)
   (if (not (eqv? (comparator-compare comparator a b) -1))
     (if (null? objs) #t (apply >=? comparator b objs))

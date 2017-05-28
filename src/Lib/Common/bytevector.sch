@@ -550,10 +550,15 @@
                                  (error 'bytevector:ieee-parts
                                         "this shouldn't happen: " x bias q)))
                            (let* ((factor (/ den q))
-                                  (num*factor (/ num factor)))
-                             (values sign
-                                     biased-exponent
-                                     (round num*factor)))))
+                                  (num*factor (/ num factor))
+                                  (p (round num*factor)))
+                             (if (< p (+ q q))
+                                 (values sign
+                                         biased-exponent
+                                         p)
+                                 (values sign
+                                         (+ biased-exponent 1)
+                                         (- p q))))))
                       ((>= biased-exponent (+ bias bias 1))
                        ; infinity
                        (values (if (positive? x) 0 1) (+ bias bias 1) 0))

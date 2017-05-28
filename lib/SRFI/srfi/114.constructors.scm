@@ -31,6 +31,7 @@
     (b -1)
     (else 0)))
 
+#; ; now imported from (srfi 128)
 (define (boolean-hash obj) (if obj 1 0))
 
 (define boolean-comparator
@@ -38,6 +39,7 @@
 
 (define char-comparison (make-comparison=/< char=? char<?))
 
+#; ; now imported from (srfi 128)
 (define (char-hash obj) (abs (char->integer obj)))
 
 (define char-comparator
@@ -45,6 +47,7 @@
 
 (define char-ci-comparison (make-comparison=/< char-ci=? char-ci<?))
 
+#; ; now imported from (srfi 128)
 (define (char-ci-hash obj) (abs (char->integer (char-foldcase obj))))
 
 (define char-ci-comparator
@@ -76,6 +79,7 @@
 
 ;(define (number-hash obj) (exact (abs obj)))
 
+#; ; now imported from (srfi 128)
 (define (number-hash z)
   (cond ((exact-integer? z)
          (abs z))
@@ -227,17 +231,20 @@
                (sum (modulo (+ prod (hash (ref obj index))) limit)))
           (loop (- index 1) sum))))))
 
+#; ; now imported from (srfi 128)
 (define string-hash
   (make-vectorwise-hash char-hash string-length string-ref))
 
 (define string-comparator
   (make-comparator string? string=? string-comparison string-hash))
 
+#; ; now imported from (srfi 128)
 (define (string-ci-hash obj) (string-hash (string-foldcase obj)))
 
 (define string-ci-comparator
   (make-comparator string? string-ci=? string-ci-comparison string-ci-hash))
 
+#; ; now imported from (srfi 128)
 (define (symbol-hash obj) (string-hash (symbol->string obj)))
 
 (define symbol-comparator
@@ -261,17 +268,33 @@
     (make-vectorwise-hash
       (comparator-hash-function comparator) length ref)))
 
+#; ; now imported from (srfi 128) with a different number of arguments
 (define (make-list-comparator comparator)
    (make-listwise-comparator
      (lambda (obj) (or (null? obj) (pair? obj)))
      comparator null? car cdr))
 
-(define list-comparator (make-list-comparator default-comparator))
+;;; SRFI 128 adds four more formal parameters to make-list-comparator
 
+;(define list-comparator (make-list-comparator default-comparator))
+
+(define list-comparator
+  (make-list-comparator default-comparator
+                        (lambda (obj) (or (null? obj) (pair? obj)))
+                        null?
+                        car
+                        cdr))
+
+#; ; now imported from (srfi 128) with a different number of arguments
 (define (make-vector-comparator comparator)
   (make-vectorwise-comparator vector? comparator vector-length vector-ref))
 
-(define vector-comparator (make-vector-comparator default-comparator))
+;;; SRFI 128 adds three more formal parameters to make-vector-comparator
+
+;(define vector-comparator (make-vector-comparator default-comparator))
+
+(define vector-comparator
+  (make-vector-comparator default-comparator vector? vector-length vector-ref))
 
 (define vector-comparison (comparator-comparison-procedure vector-comparator))
 
@@ -323,6 +346,7 @@
       (comparator-hash car-comparator (car obj))
       (comparator-hash cdr-comparator (cdr obj)))))
 
+#; ; now imported from (srfi 128)
 (define (make-pair-comparator car-comparator cdr-comparator)
   (make-comparator
     pair?
@@ -372,6 +396,8 @@
 ;;; Wrapped equality predicates
 ;;; These comparators don't have comparison functions.
 
+#|
+
 (define eq-comparator
   (make-comparator
     #t
@@ -392,3 +418,9 @@
     equal?
     #f
     default-hash-function))
+
+|#
+
+(define eq-comparator (make-eq-comparator))
+(define eqv-comparator (make-eqv-comparator))
+(define equal-comparator (make-equal-comparator))

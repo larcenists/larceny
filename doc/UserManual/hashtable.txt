@@ -7,7 +7,7 @@ with a key may be looked up in constant time (on the average).
 
 [NOTE]
 ================================================================
-The R6RS hashtables library are a big improvement
+R6RS hashtables are a big improvement
 over Larceny's traditional hash tables, and should be used
 instead of the API described below.
 ================================================================

@@ -481,7 +481,7 @@ void EXPORT mc_syscall( word *globals, cont_t k )
 #if LASTREG < 5
   #error "More code required in mc_syscall"
 #endif
-#if LASTREG == 5                /* True for ARM, at least initially */
+#if LASTREG == 5                /* True for some ARM systems */
   if (nargs >= 4)
     globals[G_REG5] = pair_car(globals[G_REG5]);
 #endif
@@ -886,19 +886,19 @@ static void check_signals( word *globals, cont_t k )
 
 /* 'Index' is the index in the millicode support vector of the procedure.
    'Argc' is the number of arguments.
-   'K' is the continuation point in Scheme code (return address)
+   'K' is zero if a simple return is okay, nonzero if a longjmp is required
+        (On most versions of Larceny, a nonzero value means k is a return
+        address, but k is just a flag in the Fence/ARM version.)
    'Preserve' is 1 if RESULT is to be preserved across the callout.
    The procedure arguments are in RESULT, SECOND, THIRD, FOURTH.
    */
 
-void mc_scheme_callout( word *globals, int index, int argc, cont_t k /*unused*/, bool preserve )
+void mc_scheme_callout( word *globals, int index, int argc, cont_t k, bool preserve )
 {
   word *stkp;
   word *stklim;
   word callouts;
   int i;
-
-  (void)k;
 
  start:
   stkp = (word*)globals[ G_STKP ];
@@ -942,7 +942,17 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k /*unused*/,
 
   globals[ G_REG0 ] = vector_ref( callouts, index );
   globals[ G_RESULT ] = fixnum( argc );
-  globals[ G_RETADDR ] = 0;     /* Translated continuation address: start of the procedure */
+
+  if (k == 0) {
+    my_longjmp( dispatch_jump_buffer, DISPATCH_CALL_R0 );
+  }
+  else {
+
+    /* To call the procedure, return to its offset 0. */
+
+    globals[ G_RETADDR ] = 0;
+    return;
+  }
 }
 
 /* Return address for scheme-to-scheme call frame. */

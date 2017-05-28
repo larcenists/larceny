@@ -609,7 +609,73 @@
 		   x31 x32 x33 x34 x35 x36 rest)))
 	 '(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
            21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 (37 38 39 40)))
+
+   (test "Ticket #744 (min)"            ; Bug in v0.98 and previous
+         (min +nan.0 0)
+         +nan.0)
+
+   (test "Ticket #744 (max)"            ; Bug in v0.98 and previous
+         (max +nan.0 0)
+         +nan.0)
+
+   (test "Ticket #749"                  ; Bug in v0.93 through v0.98
+         (let* ((filename "temptemp")
+                (ignored (delete-file filename))
+                (opts (file-options no-fail no-truncate))
+                (p (open-file-input/output-port filename opts))
+                (x (get-u8 p)))
+           (close-port p)
+           (delete-file filename)
+           (eof-object? x))
+         #t)
+
+   (test "Ticket #750"                  ; Bug in v0.98 and previous
+         (string-titlecase "x\x130;")
+         "Xi\x307;")
+
+   (test "Ticket #766"                  ; Bug in v0.99 and previous
+         '(#0=#1=(a) #0#)
+         '((a) (a)))
+
+   (test "Ticket #767"                  ; Bug in v0.98 and v0.99
+         (let ((param (make-parameter 1 (lambda (x) (* 10 x)))))
+           (parameterize ((param 2)) #f)
+           (param))
+         10)
+
+   (test "Ticket #770"                  ; Bug in v0.99 and previous
+         (let* ((v1 '#(quote foo))
+                (v2 '#(syntax foo))
+                (q (open-output-string))
+                (ignored (begin (write v1 q)
+                                (write-char #\space q)
+                                (write v2 q)))
+                (s (get-output-string q))
+                (p (open-input-string s)))
+           (and (equal? v1 (read p))
+                (equal? v2 (read p))))
+         #t)
+
+   (test "Ticket #782"                  ; Bug in v0.99 and previous
+         (let ()                        ; (compiler bug: constant propagation)
+           (define (g f x y z)
+             (if (= z 0)
+                 (f 1)
+                 (g (lambda (g13)
+                      (f (* z g13)))
+                    #f y (- z 1))))
+           (g (lambda (x) x)
+              #f #f 3))
+         6)
+
+   (test "Ticket #786"                  ; Bug in v0.99 and previous
+         (let ((x 2.9802322e-8)
+               (bv (make-bytevector 4)))
+           (bytevector-ieee-single-native-set! bv 0 x)
+           (bytevector-ieee-single-native-ref bv 0))
+         2.9802322387695312e-8)
    ))
+
 
 (define (bug-105-test1)
   (do ((i 0 (+ i 1))

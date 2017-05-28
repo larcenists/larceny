@@ -42,9 +42,17 @@
   (display "  Returned value = ") (write ans) (newline)
   (display "  Correct value  = ") (write correct) (newline))
 
-(define (failure-message-succeeded id)
+(define (failure-message-succeeded id . rest)
   (display "********** FAILURE *********") (newline)
-  (display "  ") (display id) (display " did not pass test.")
+  (display "  ")
+  (if (not (null? rest))
+      (display "("))
+  (display id)
+  (if (not (null? rest))
+      (begin (for-each (lambda (arg) (display " '") (write arg))
+                       (car rest))
+             (display ")")))
+  (display " did not pass test.")
   (newline)
   (display "It should have failed but did not.") (newline))
 
@@ -145,7 +153,7 @@
 	    (lambda () 
 	      (error-handler eh)))))
 	(begin
-	  (failure-message-succeeded name)
+	  (failure-message-succeeded name args)
 	  #f)
 	#t)))
 

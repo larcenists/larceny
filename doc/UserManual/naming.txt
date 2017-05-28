@@ -62,11 +62,11 @@ image (must be combined with the
 [NOTE]
 ================================================================
 In Larceny, R7RS `define-library` and R6RS `library` syntaxes
-are mostly interchangeable.  The R6RS `for` and `meta` keywords
-may be needed when defining `syntax-case` macros, but the R7RS
-syntax is otherwise more versatile because of its `include` and
-`cond-expand` features.  For new code, we recommend the R7RS
-`define-library` syntax.
+are mostly interchangeable.  The `define-library` syntax is more
+versatile because of its `include` and `cond-expand` features,
+and because it allows the name of the library being defined to
+contain exact integers as well as identifiers.
+For new code, we recommend the R7RS `define-library` syntax.
 ================================================================
 
 [NOTE]

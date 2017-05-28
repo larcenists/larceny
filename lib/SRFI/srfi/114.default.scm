@@ -20,6 +20,10 @@
 ;; TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 ;; SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+;;; Superseded by SRFI 128.
+
+#|
+
 ;;; The default comparator
 
 ;; The unknown-object comparator, used as a fallback to everything else
@@ -37,6 +41,7 @@
 (define *registered-comparators* (list unknown-object-comparator))
 
 ;; Register a new comparator for use by the default comparator.
+#; ; now imported from (srfi 128)
 (define (comparator-register-default! comparator)
   (set! *registered-comparators* (cons comparator *registered-comparators*))
   (set! *next-comparator-index* (+ *next-comparator-index* 1)))
@@ -133,3 +138,6 @@
     default-comparison
     default-hash-function))
 
+|#
+
+(define default-comparator (make-default-comparator))

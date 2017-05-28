@@ -446,7 +446,7 @@
 
 (define (fxreverse-fixnum fx k)
   (if (negative? fx)
-      (+ 1 (fxreverse-fixnum (- fx (least-fixnum))))
+      (+ 1 (fxreverse-fixnum (- fx (least-fixnum)) k))
       (let loop ((fx fx)
                  (i (- k 1))
                  (bits 0)

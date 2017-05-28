@@ -54,7 +54,7 @@ xstring
 <outermost-datum> ::=  eofobj                                   #makeEOF
                   ::=  <datum>                                  #identity
 <datum>           ::=  <udatum>                                 #identity
-                  ::=  <sharingdef> <udatum>                    #makeSharingDef
+                  ::=  <sharingdef> <datum>                     #makeSharingDef
                   ::=  <sharinguse>                             #makeSharingUse
 <udatum>          ::=  boolean                                  #makeBool
                   ::=  number                                   #makeNum

@@ -530,6 +530,7 @@
     (define (compiled-name file)
       (and (exists (lambda (suffix) (file-type=? file suffix))
                    *library-file-types*)
+           (not (larceny:excluded-file-name? file))
            (let ((slfasl
                   (generate-fasl-name file)))
              (cond ((not (file-exists? slfasl))
@@ -564,6 +565,26 @@
           (compile-libraries path)))
        (else
         (larceny:unsupported-os))))))
+
+; FIXME: As reported in ticket #602, it's annoying when Larceny
+; compiles foo.larceny.sls and also compiles foo.vicare.sls in
+; the same directory.  As a temporary workaround, we won't compile
+; a file named X.Y.sls or X.Y.sld if a file named X.larceny.sls or
+; X.larceny.sld exists in the same directory.
+
+(define (larceny:excluded-file-name? file)
+  (and (or (file-type=? file ".sld")
+           (file-type=? file ".sls"))
+       (let* ((revchars (reverse (string->list file)))
+              (period1 (memv #\. revchars))
+              (period2 (and period1 (memv #\. (cdr period1))))
+              (n (and period2 (length (cdr period2))))
+              (x (and n (substring file 0 n))))
+         (and x
+              (or (file-exists? (string-append x ".larceny.sld"))
+                  (file-exists? (string-append x ".larceny.sls")))
+              (not (string=? (substring file 0 (- (string-length file) 4))
+                             (string-append x ".larceny")))))))
 
 ; Imported by (larceny compile-file).
 

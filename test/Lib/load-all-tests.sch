@@ -27,6 +27,7 @@
 (compile-file "record.sch")
 (compile-file "condition.sch")
 (compile-file "enum.sch")
+(compile-file "except.sch")
 
 (load "test.fasl")			; Scaffolding
 
@@ -52,6 +53,7 @@
 (load "record.fasl")                    ; Records
 (load "condition.fasl")                 ; Conditions
 (load "enum.fasl")                      ; Enumeration sets
+(load "except.fasl")                    ; Exceptions
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -82,6 +84,7 @@
   (run-record-tests)
   (run-condition-tests)
   (run-enumset-tests)
+  ;(run-exception-tests)    ; FIXME
   )
 
 

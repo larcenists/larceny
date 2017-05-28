@@ -14,6 +14,14 @@ the `load` procedure can load
 R5RS libraries and programs as well as R7RS/R6RS
 libraries.
 
+[WARNING]
+================================================================
+Loading an R5RS source file into an R7RS session is not equivalent
+to loading the compiled form of that file.  For explanation, see
+the previous section on
+<<LoadingR5intoR7Section,loading compiled R5RS files into an R7RS session>>.
+================================================================
+
 The `r5rs:require` procedure should be used only for dynamic loading of
 R5RS libraries into Larceny's underlying R5RS system.  The
 variables defined by that library can be imported into

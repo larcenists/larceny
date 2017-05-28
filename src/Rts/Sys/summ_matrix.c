@@ -2834,6 +2834,7 @@ static void sm_build_remset_summaries( summ_matrix_t *summ,
   check_rep_1( summ );
 
   goal = (int)ceil(((double)region_count) * DATA(summ)->goal);
+  FIXME_UNUSED_VARIABLE(goal);
 
   remsum.summ = summ;
   remsum.count_objects_visited = 0;
@@ -3688,6 +3689,7 @@ static bool coheres_with_snapshot( summ_matrix_t *summ,
   bool already_filtered_during_construction;
   already_filtered_during_construction = 
     (! col->construction_predates_snapshot);
+  FIXME_UNUSED_VARIABLE(already_filtered_during_construction);
 
   return ((isptr(w) &&
            ((gen_of(w) == 0) ||

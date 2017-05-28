@@ -382,7 +382,9 @@
                          (args (call.args call)
                                (cdr args))
                          (newargs '()
-                                  (if (and (eq? (car formals1) name:IGNORED)
+                                  (if (and (not (eq? (car formals0)
+                                                     (car formals1)))
+                                           (eq? (car formals1) name:IGNORED)
                                            (pair?
                                             (hashtable-get variables
                                                            (car formals0))))
