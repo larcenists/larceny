@@ -20,6 +20,21 @@
 ;;;     textual-port?       (resolved by using R7RS extended semantics)
 ;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;
+;;;     string-hash
+;;;     string-ci-hash
+;;;     find
+;;;     filter
+;;;     partition
+;;;     fold-right
+;;;     remove
+;;;     cons*
+;;;     list-sort
+;;;     vector-sort
+;;;     vector-sort!
+;;;     string-hash
+;;;     string-ci-hash
+;;;     symbol-hash
+;;;
 ;;; Possible conflicts:
 ;;;
 ;;;     
@@ -46,9 +61,50 @@
         (scheme time)
         (scheme write)
         (scheme r5rs)
+
+        ;; R7RS Red Edition
+
+        (except (scheme list)
+                find filter partition fold-right remove cons*)
+        (scheme vector)
+        (except (scheme sort)
+                list-sort vector-sort vector-sort!)
+        (scheme set)
+        (scheme charset)
+        (except (scheme hash-table)
+                string-hash string-ci-hash)
+        (scheme ilist)
+        (scheme rlist)
+        (scheme ideque)
+;       (scheme text)
+        (scheme generator)
+        (scheme lseq)
+        (scheme stream)
+        (scheme box)
+        (scheme list-queue)
+        (scheme ephemeron)
+        (except (scheme comparator)
+                string-hash string-ci-hash symbol-hash)
         )
 
 (display "All libraries loaded with these name conflicts:\n")
 (for-each (lambda (name) (display "    ") (write name) (newline))
-          '(bytevector-copy!))
+          '(bytevector-copy!
+
+            ;; new conflicts in R7RS Red Edition
+
+            string-hash
+            string-ci-hash
+            find
+            filter
+            partition
+            fold-right
+            remove
+            cons*
+            list-sort
+            vector-sort
+            vector-sort!
+            string-hash
+            string-ci-hash
+            symbol-hash))
 (newline)
