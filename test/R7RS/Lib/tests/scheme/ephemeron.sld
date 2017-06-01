@@ -8,6 +8,10 @@
 ;;;     ephemeron-key
 ;;;     ephemeron-datum
 ;;;     reference-barrier
+;;;
+;;; The number of references to an object is very implementation-dependent,
+;;; so these tests might not be completely portable.
+
 
 (define-library (tests scheme ephemeron)
   (export run-ephemeron-tests)

@@ -29,7 +29,9 @@ TESTS="                            \
     box.sps                        \
     charset.sps                    \
     comparator.sps                 \
-    ephemeron.sps"
+    ephemeron.sps                  \
+    generator.sps                  \
+    hash-table.sps"
 
 # missing from the list above:
 #
