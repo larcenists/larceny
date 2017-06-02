@@ -31,7 +31,13 @@ TESTS="                            \
     comparator.sps                 \
     ephemeron.sps                  \
     generator.sps                  \
-    hash-table.sps"
+    hash-table.sps                 \
+    ideque.sps                     \
+    ilist.sps                      \
+    list-queue.sps                 \
+    list.sps                       \
+    lseq.sps                       \
+    "
 
 # missing from the list above:
 #
