@@ -1002,9 +1002,11 @@
                                     (compare A B)))))
      
            (define E
-             (make-comparator #t #t
-                       element-compare
-                       (comparator-hash-function (make-default-comparator))))
+             (make-comparator
+              (lambda (x) #t)
+              equal?
+              element-compare
+              (comparator-hash-function (make-default-comparator))))
      
            (define C
              (make-improper-ilist-comparator E))

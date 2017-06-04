@@ -39,6 +39,8 @@ TESTS="                            \
     lseq.sps                       \
     rlist.sps                      \
     set.sps                        \
+    sort.sps                       \
+    stream.sps                     \
     "
 
 # missing from the list above:
