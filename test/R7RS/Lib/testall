@@ -42,6 +42,7 @@ TESTS="                            \
     sort.sps                       \
     stream.sps                     \
     vector.sps                     \
+    text.sps                       \
     "
 
 # missing from the list above:
