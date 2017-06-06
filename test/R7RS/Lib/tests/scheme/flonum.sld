@@ -163,7 +163,41 @@
   (import (scheme base)
           (srfi 144)
           (tests scheme test)
+          (primitives bytevector-like-ref) ; FIXME
+          (rnrs arithmetic bitwise) ; FIXME
+          (scheme write) ; FIXME
           (scheme inexact))
+
+  (begin
+;;; FIXME: Larceny-specific code for visualization of flonums.
+;;; Assumes IEEE double precision, Larceny's usual representation,
+;;; and little-endian.
+
+(define (show x)
+  (map (lambda (i) (bytevector-like-ref x i))
+       '(4 5 6 7 8 9 10 11)))
+
+(define (show-sign x)
+  (bitwise-arithmetic-shift (list-ref (show x) 7) -7))
+
+(define (show-exponent x)
+  (bitwise-ior
+   (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 7) 127)
+                             3)
+   (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 6) #b11100000)
+                             -5)))
+
+(define (show-significand x)
+  (let ((bytes (show x)))
+    (+ (* (list-ref bytes 0) 1)
+       (* (list-ref bytes 1) 256)
+       (* (list-ref bytes 2) 256 256)
+       (* (list-ref bytes 3) 256 256 256)
+       (* (list-ref bytes 4) 256 256 256 256)
+       (* (list-ref bytes 5) 256 256 256 256 256)
+       (* (bitwise-and (list-ref bytes 6) #b00011111)
+          256 256 256 256 256 256))))
+)
 
   (begin
 
@@ -187,6 +221,14 @@
       ((test/= expr1 expr2)
        (test expr2 expr1))))
 
+   (define-syntax test/FIXME
+     (syntax-rules ()
+      ((test/FIXME expr1 expr2)
+       (begin (test/= expr1 expr2)
+              (write 'expr2) (newline)
+              (write (show-significand expr2)) (newline)
+              (write (show-significand expr1)) (newline) (newline)))))
+
    ;; convenient values for test cases
 
    (define posints (map flonum '(1 2 3 4 5 10 65536 1e23)))
@@ -208,8 +250,10 @@
    (define somereals+weird
      (append somereals weird))
 
+   (define negzero (flonum -0.0))
    (define zero (flonum 0))
    (define one (flonum 1))
+   (define two (flonum 2))
 
    (define neginf (flonum -inf.0))
    (define posinf (flonum +inf.0))
@@ -233,7 +277,7 @@
      (test/= 2.3025850929940456840179915                   fl-log-10)
      (test/= 0.4342944819032518276511289189166050822944    fl-1/log-10)
 
-     (test/= 3.1415926535897982384626433832795028841972    fl-pi)
+     (test/= 3.1415926535897932384626433832795028841972    fl-pi)
      (test/= 0.3183098861837906715377675267450287240689    fl-1/pi)
      (test/= 6.283185307179586476925287                    fl-2pi)
      (test/= 1.570796326794896619231322                    fl-pi/2)
@@ -287,27 +331,146 @@
                      fl-greatest
                      posinf))
      (test-assert (= (* 2 fl-greatest) posinf))
-     (test-assert (= 1 (/ (+ 1.0 fl-epsilon) 2)))
+     (test-assert (= 1 (/ (+ 1 (+ 1.0 fl-epsilon)) 2)))
      (test-assert (= 0 (/ fl-least 2)))
 
      (test-assert (boolean? fl-fast-fl+*))
      (test-assert (exact-integer? fl-integer-exponent-zero))
      (test-assert (exact-integer? fl-integer-exponent-nan))
 
-     ;; Constructors (FIXME)
+     ;; Constructors
 
-     ;;     flonum
-     ;;     fladjacent
-     ;;     flcopysign
-     ;;     make-flonum
+     (test (flonum 3) (flonum 3.0))
+     (test (map flonum somereals) somereals)
+     (test (map flonum weird) weird)
 
-     ;; Accessors (FIXME)
+     (test (map fladjacent somereals somereals) somereals)
+     (test (map fladjacent weird weird) weird)
 
-     ;;     flinteger-fraction
-     ;;     flexponent
+     (test (fladjacent zero posinf) fl-least)
+     (test (fladjacent zero neginf) (fl- fl-least))
+     (test (fladjacent fl-least posinf) (fl+ fl-least fl-least))
+     (test (fladjacent fl-least neginf) zero)
+     (test (fladjacent (fl- fl-least) posinf) zero)
+     (test (fladjacent (fl- fl-least) neginf) (fl* -2.0 fl-least))
+
+     (test (fladjacent zero one) fl-least)
+     (test (fladjacent zero (fl- one)) (fl- fl-least))
+     (test (fladjacent fl-least one) (fl+ fl-least fl-least))
+     (test (fladjacent fl-least (fl- one)) zero)
+     (test (fladjacent (fl- fl-least) one) zero)
+     (test (fladjacent (fl- fl-least) (fl- one)) (fl* -2.0 fl-least))
+
+     (test (fl- (fladjacent one fl-greatest) one) fl-epsilon)
+     (test (fl- one (fladjacent one zero)) (fl/ fl-epsilon 2.0))
+
+     (test (fladjacent posinf zero) fl-greatest)
+     (test (fladjacent neginf zero) (fl- fl-greatest))
+
+     (test (flcopysign zero posinf) zero)
+     (test (flcopysign zero neginf) negzero)
+     (test (flcopysign zero one) zero)
+     (test (flcopysign zero (fl- one)) negzero)
+     (test (flcopysign one fl-least) one)
+     (test (flcopysign one (fl- fl-greatest)) (fl- one))
+     (test (flcopysign (fl- one) zero) one)
+     (test (map flcopysign somereals somereals) somereals)
+     (test (map flcopysign somereals (map fl- somereals))
+           (map fl- somereals))
+     (test (map flcopysign infinities infinities) infinities)
+     (test (map flcopysign infinities (reverse infinities))
+           (reverse infinities))
+
+     (test (make-flonum zero 12) zero)
+     (test (make-flonum zero -24) zero)
+     (test (make-flonum zero 0) zero)
+     (test (map make-flonum somereals (map (lambda (x) 0) somereals))
+           somereals)
+     (test (map make-flonum somereals (map (lambda (x) 2) somereals))
+           (map (lambda (x) (fl* (flonum 4) x)) somereals))
+     (test (map make-flonum somereals (map (lambda (x) -4) somereals))
+           (map (lambda (x) (fl/ x (flonum 16))) somereals))
+     (test (make-flonum fl-greatest 1) posinf)
+     (test (make-flonum (fl- fl-greatest) 1) neginf)
+     (test (make-flonum fl-greatest -1) (fl/ fl-greatest two))
+     (test (make-flonum (fl- fl-greatest) -1) (fl- (fl/ fl-greatest two)))
+     (test (make-flonum fl-least 1) (fl* two fl-least))
+     (test (make-flonum (fl- fl-least) 1) (fl- (fl* two fl-least)))
+     (test (make-flonum fl-least -1) zero)
+     (test (make-flonum (fl- fl-least) -1) negzero)
+
+     ;; Accessors
+
+     (call-with-values
+      (lambda () (flinteger-fraction 3.75))
+      (lambda (q r)
+        (test q (flonum 3))
+        (test r (flonum .75))))
+
+     (call-with-values
+      (lambda () (flinteger-fraction -3.75))
+      (lambda (q r)
+        (test q (flonum -3))
+        (test r (flonum -.75))))
+
+     (test/= (flonum 12.0)
+             (flexponent (flexpt two (flonum 12))))
+     (test/approx (flexponent (flexpt two (flonum 12.5)))
+                  (flonum 12.5))
+     (test/= (flonum -5.0)
+             (flexponent (flexpt two (flonum -5))))
+     (test/approx (flexponent (flexpt two (flonum -4.5)))
+                  (flonum -4.5))
+
+     ;; FIXME
      ;;     flinteger-exponent
-     ;;     flnormalized-fraction-exponent
-     ;;     flsign-bit
+
+     (let* ((correct?
+             (lambda (x y n)
+               (or (fl=? x (* y (expt two n)))
+                   (fl=? x (* 4.00 y (expt two (- n 2))))
+                   (fl=? x (* 0.25 y (expt two (+ n 2)))))))
+            (test-flnormalized-fraction-exponent
+             (lambda (x)
+               (call-with-values
+                (lambda () (flnormalized-fraction-exponent x))
+                (lambda (y n)
+                  (list (flonum? y)
+                        (exact-integer? n)
+                        (fl<=? (flonum 0.5) (flabs y))
+                        (fl<? (flabs y) one)
+                        (correct? x y n)))))))
+       (test (test-flnormalized-fraction-exponent zero)
+             '(#t #t #f #t #t))
+       (test (test-flnormalized-fraction-exponent negzero)
+             '(#t #t #f #t #t))
+       (test (test-flnormalized-fraction-exponent one)
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent two)
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent fl-least)
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent fl-greatest)
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent (fl- fl-least))
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent (fl- fl-greatest))
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent posinf)
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent neginf)
+             '(#t #t #t #t #t))
+       (test (test-flnormalized-fraction-exponent nan)
+             '(#t #t #f #f #f))
+
+       )
+
+     (test (flsign-bit one) 0)
+     (test (flsign-bit zero) 0)
+     (test (flsign-bit negzero) 1)
+     (test (flsign-bit (flonum -2)) 1)
+     (test (flsign-bit posinf) 0)
+     (test (flsign-bit neginf) 1)
 
      ;; Predicates
 
@@ -416,21 +579,21 @@
 
      (test-deny   (flzero? neginf))
      (test-deny   (flzero? (fl- fl-least)))
-     (test-assert (flzero? (flonum -0.0)))
+     (test-assert (flzero? negzero))
      (test-assert (flzero? zero))
      (test-deny   (flzero? fl-least))
      (test-deny   (flzero? posinf))
 
      (test-deny   (flpositive? neginf))
      (test-deny   (flpositive? (fl- fl-least)))
-     (test-deny   (flpositive? (flonum -0.0)))
+     (test-deny   (flpositive? negzero))
      (test-deny   (flpositive? zero))
      (test-assert (flpositive? fl-least))
      (test-assert (flpositive? posinf))
 
      (test-assert (flnegative? neginf))
      (test-assert (flnegative? (fl- fl-least)))
-     (test-deny   (flnegative? (flonum -0.0)))    ; explicit in SRFI 144
+     (test-deny   (flnegative? negzero))    ; explicit in SRFI 144
      (test-deny   (flnegative? zero))
      (test-deny   (flnegative? fl-least))
      (test-deny   (flnegative? posinf))
@@ -458,16 +621,18 @@
      (test (map flnan? somereals)
            (map (lambda (x) #f) somereals))
 
-;;;     flnormalized?
-;;;     fldenormalized?
+     (test-assert (flnormalized? fl-greatest))
+     (test-deny   (flnormalized? fl-least))
+     (test-deny   (fldenormalized? fl-greatest))
+     (test-assert (fldenormalized? fl-least))
 
      ;; Arithmetic
 
      (test (fl+) zero)
      (test (fl+ zero) zero)
-     (test (fl+ (flonum -0.0)) (flonum -0.0))
+     (test (flzero? (fl+ negzero)) #t)
      (test (fl+ one) one)
-     (test (fl+ one one) (flonum 2))
+     (test (fl+ one one) two)
      (test (fl+ nan one) nan)
      (test (fl+ one nan) nan)
      (test (map fl+ somereals somereals somereals)
@@ -480,7 +645,7 @@
      
      (test (fl*) one)
      (test (fl* zero) zero)
-     (test (fl* (flonum -0.0)) (flonum -0.0))
+     (test (flzero? (fl* negzero)) #t)
      (test (fl* one) one)
      (test (fl* one one) one)
      (test (fl* nan one) nan)
@@ -493,26 +658,96 @@
      (test (map fl* infinities (reverse infinities))
            (map (lambda (x) neginf) infinities))
      
+     (test (fl- zero) negzero)
+     (test (fl- negzero) zero)
+     (test (fl- one) (flonum -1))
+     (test (fl- one one) zero)
+     (test (fl- nan one) nan)
+     (test (fl- one nan) nan)
+     (test (map fl- somereals somereals somereals)
+           (map (lambda (x) (if (eqv? x zero) zero (fl- x)))
+                somereals))
+     (test (map flnan? (map fl- infinities infinities))
+           '(#t #t))
+     (test (map fl- infinities (reverse infinities))
+           infinities)
+     
+     (test (fl/ zero) posinf)
+     (test (fl/ negzero) neginf)
+     (test (fl/ one) one)
+     (test (fl/ one one) one)
+     (test (fl/ nan one) nan)
+     (test (fl/ one nan) nan)
+     (test (map fl/ somereals somereals somereals)
+           (map (lambda (x) (if (flzero? x) (fl/ zero zero) (fl/ x)))
+                somereals))
+     (test (map flnan? (map fl/ infinities infinities))
+           '(#t #t))
+     (test (map flnan? (map fl/ infinities (reverse infinities)))
+           '(#t #t))
+     
+     (test (flabs zero) zero)
+     (test (flabs negzero) zero)
+     (test (flabs one) one)
+     (test (flabs (flonum -5.25)) (flonum 5.25))
+     
+     (test (flabsdiff zero one) one)
+     (test (flabsdiff one zero) one)
+     (test (flabsdiff one one) zero)
+     (test (flabsdiff posinf neginf) posinf)
+     (test (flabsdiff neginf posinf) posinf)
 
+     (test (flsgn posinf) one)
+     (test (flsgn neginf) (fl- one))
+     (test (flsgn zero) one)
+     (test (flsgn negzero) (fl- one))
+     (test (flsgn two) one)
+     (test (flsgn (fl- two)) (fl- one))
+
+     (test (flnumerator (flonum 2.25)) (flonum 9))
+     (test (fldenominator (flonum 2.25)) (flonum 4))
+     (test (flnumerator (flonum -2.25)) (flonum -9))
+     (test (fldenominator (flonum -2.25)) (flonum 4))
+     (test (map flnumerator ints) ints)
+     (test (map fldenominator ints)
+           (map (lambda (x) one) ints))
+     (test (map flnumerator weird) weird)
+     (test (map fldenominator infinities) (list one one))
+     (test-assert (flnan? (flnumerator nan)))
+     (test-assert (flnan? (fldenominator nan)))
+
+     (test (flfloor    (flonum -3.125)) (flonum -4))
+     (test (flceiling  (flonum -3.125)) (flonum -3))
+     (test (flround    (flonum -3.125)) (flonum -3))
+     (test (fltruncate (flonum -3.125)) (flonum -3))
+
+     (test (flfloor    (flonum -3.75)) (flonum -4))
+     (test (flceiling  (flonum -3.75)) (flonum -3))
+     (test (flround    (flonum -3.75)) (flonum -4))
+     (test (fltruncate (flonum -3.75)) (flonum -3))
+
+     (test (flfloor    (flonum -3.5)) (flonum -4))
+     (test (flceiling  (flonum -3.5)) (flonum -3))
+     (test (flround    (flonum -3.5)) (flonum -4))
+     (test (fltruncate (flonum -3.5)) (flonum -3))
+
+     (test (map flfloor    ints) ints)
+     (test (map flceiling  ints) ints)
+     (test (map flround    ints) ints)
+     (test (map fltruncate ints) ints)
+
+     (test (map flfloor    posfracs) (map (lambda (x) zero) posfracs))
+     (test (map flceiling  posfracs) (map (lambda (x) one) posfracs))
+     (test (map flround    posfracs) (map (lambda (x) zero) posfracs))
+     (test (map fltruncate posfracs) (map (lambda (x) zero) posfracs))
+
+     (test (map flfloor    weird) weird)
+     (test (map flceiling  weird) weird)
+     (test (map flround    weird) weird)
+     (test (map fltruncate weird) weird)
 
      )))
 
-;;;
-;;;     fl+
-;;;     fl*
-;;;     fl+*
-;;;     fl-
-;;;     fl/
-;;;     flabs
-;;;     flabsdiff
-;;;     flsgn
-;;;     flnumerator
-;;;     fldenominator
-;;;     flfloor
-;;;     flceiling
-;;;     flround
-;;;     fltruncate
-;;;
 ;;;     flexp
 ;;;     flexp2
 ;;;     flexp-1

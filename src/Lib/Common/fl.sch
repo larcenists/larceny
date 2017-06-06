@@ -89,10 +89,18 @@
 ; until later.
 
 (define flnumerator
-  (flonum-restricted1 (lambda (x) (numerator x)) 'flnumerator))
+  (flonum-restricted1 (lambda (x)
+                        (if (flnan? x)
+                            x
+                            (numerator x)))
+                      'flnumerator))
 
 (define fldenominator
-  (flonum-restricted1 (lambda (x) (denominator x)) 'fldenominator))
+  (flonum-restricted1 (lambda (x)
+                        (if (flnan? x)
+                            x
+                            (denominator x)))
+                      'fldenominator))
 
 (define flfloor (flonum-restricted1 floor 'flfloor))
 (define flceiling (flonum-restricted1 ceiling 'flceiling))

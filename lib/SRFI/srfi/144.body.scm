@@ -175,16 +175,24 @@
 
 (define fl-e (exp 1))
 (define fl-1/e (/ fl-e))
-(define fl-e-2 (* fl-e fl-e))
+
+(define fl-e-2 ; (* fl-e fl-e) is 1 bit low (Linux, IEEE double)
+  7.389056098930650227230427)
+
 (define fl-e-pi/4 (exp (/ (acos -1.0) 4.0)))
 (define fl-log2-e (log fl-e 2.0))
-(define fl-log10-e (log fl-e 10.0))
+
+(define fl-log10-e ; (log fl-e 10.0) is 1 bit low (Linux, IEEE double)
+  .4342944819032518276511289)
+
 (define fl-log-2 (log 2.0))
 (define fl-1/log-2 (/ fl-log-2))
 (define fl-log-3 (log 3.0))
 (define fl-log-pi (log (acos -1.0)))
 (define fl-log-10 (log 10.0))
-(define fl-1/log-10 (/ fl-log-10))
+(define fl-1/log-10 ; (/ fl-log-10) is 1 bit low (Linux, IEEE double)
+  fl-log10-e)
+
 (define fl-pi (acos -1.0))
 (define fl-1/pi (/ fl-pi))
 (define fl-2pi (* 2.0 fl-pi))
@@ -200,18 +208,27 @@
 (define fl-sqrt-3 (sqrt 3.0))
 (define fl-sqrt-5 (sqrt 5.0))
 (define fl-sqrt-10 (sqrt 10.0))
-(define fl-1/sqrt-2 (/ fl-sqrt-2))
+
+(define fl-1/sqrt-2 ; (/ fl-sqrt-2) is 1 bit low (Linux, IEEE double)
+  (/ fl-sqrt-2 2.0))
+
 (define fl-cbrt-2 (expt 2.0 (inexact 1/3)))
 (define fl-cbrt-3 (expt 3.0 (inexact 1/3)))
 (define fl-4thrt-2 (expt 2.0 .25))
 (define fl-phi (/ (+ 1.0 (sqrt 5.0)) 2.0))
 (define fl-log-phi (log fl-phi))
-(define fl-1/log-phi (/ fl-log-phi))
+
+(define fl-1/log-phi ; fl-log-phi) ; is 1 bit low (Linux, IEEE double)
+  2.0780869212350275376013226061177957677422)
+
 (define fl-euler 0.57721566490153286060651209008240243104215933593992)
 (define fl-e-euler (exp fl-euler))
 (define fl-sin-1 (sin 1.0))
 (define fl-cos-1 (cos 1.0))
-(define fl-gamma-1/2 (sqrt fl-pi))
+
+(define fl-gamma-1/2 ; (sqrt fl-pi) is 13 bits high (Linux, IEEE double)
+  1.7742438509055160272981674833411451827975)
+
 (define fl-gamma-1/3 2.6789385347077476336556929409746776441287)
 (define fl-gamma-2/3 1.3541179394264004169452880281545137855193)
 
@@ -250,35 +267,46 @@
       (inexact x)
       (error "bad argument passed to flonum" x)))
 
-;;; FIXME: goes into infinite loop for extreme arguments
-
 (define fladjacent
   (flop2 'fladjacent
          (lambda (x y)
-           (cond ((fl=? x y)
+           (define (loop y)
+             (let ((y2 (fl/ (fl+ x y) 2.0)))
+               (cond ((fl=? x y2)
+                      y)
+                     ((fl=? y y2)
+                      y)
+                     (else
+                      (loop y2)))))
+           (cond ((flinfinite? x)
+                  (cond ((fl<? x y) (fl- fl-greatest))
+                        ((fl>? x y) fl-greatest)
+                        (else x)))
+                 ((fl=? x y)
                   x)
-                 ((or (fl<? x y) (fl>? x y))    ; FIXME: near infinity
-                  (let loop ((y y))
-                    (let ((y2 (fl/ (fl+ x y) 2.0)))
-                      (if (fl=? x y2)
-                          y
-                          (loop y2)))))
-                 (else x)))))
+                 ((flzero? x)
+                  (if (flpositive? y)
+                      fl-least
+                      (fl- fl-least)))
+                 ((fl<? x y)
+                  (loop (flmin y
+                               fl-greatest
+                               (flmax (* 2.0 x)
+                                      (* 0.5 x)))))
+                 ((fl>? x y)
+                  (loop (flmax y
+                               (fl- fl-greatest)
+                               (flmin (* 2.0 x)
+                                      (* 0.5 x)))))
+                 (else    ; x or y is a NaN
+                  x)))))
 
 (define flcopysign
   (flop2 'flcopysign
          (lambda (x y)
-           (let ((z (fl* x y)))
-             (cond ((flpositive? z)
-                    x)
-                   ((flnegative? z)
-                    (fl- x))
-                   ((and (flzero? z)
-                         (eqv? y -0.0))
-                    (fl- x))
-                   (else                ; FIXME: ignores sign of NaN
-                    x))))))
-                 
+           (if (= (flsign-bit x) (flsign-bit y))
+               x
+               (fl- x)))))
 
 (define (make-flonum x n)
   (let ((y (expt 2.0 n)))
@@ -297,7 +325,7 @@
 (define (flinteger-fraction x)
   (check-flonum! 'flinteger-fraction x)
   (let* ((result1 (fltruncate x))
-         (result2 (flcopysign (fl- (flabs x) result1) x)))
+         (result2 (fl- x result1)))
     (values result1 result2)))
 
 (define (flexponent x)
@@ -306,29 +334,52 @@
 (define (flinteger-exponent x)    ; spec doesn't make sense
   FIXME)
 
-;;; FIXME: not yet implemented
-
-(define (flnormalized-fraction-exponent x) ; unspecified for infinities, NaNs
+(define (flnormalized-fraction-exponent x)
+  (define (return result1 result2)
+    (cond ((fl<? result1 0.5)
+           (values (fl* 2.0 result1) (- result2 1)))
+          ((fl>=? result1 1.0)
+           (values (fl* 0.5 result1) (+ result2 1)))
+          (else
+           (values result1 result2))))
   (check-flonum! 'flnormalized-fraction-exponent x)
-  (if (not (flfinite? x))    ; unspecified for this case
-      (values 0.0 0)
-      (let ((result2 (exact (flceiling (flexponent x)))))
-        (if (> result2 0)
-            (let* ((two^result2 (expt 2.0 result2))
-                   (result1 (if (flfinite? two^result2)
-                                (fl/ x two^result2)
-                                FIXME)))
-              FIXME)))))
+  (cond ((flnan? x)    ; unspecified for NaN
+         (values x 0))
+        ((fl<? x 0.0)
+         (call-with-values
+          (lambda () (flnormalized-fraction-exponent (fl- x)))
+          (lambda (y n)
+            (values (fl- y) n))))
+        ((fl=? x 0.0)    ; unspecified for 0.0
+         (values 0.0 0))
+        ((flinfinite? x)
+         (values 0.5 (+ 3 (exact (round (flexponent fl-greatest))))))
+        ((flnormalized? x)
+         (let* ((result2 (exact (flround (flexponent x))))
+                (two^result2 (inexact (expt 2.0 result2))))
+           (if (flinfinite? two^result2)
+               (call-with-values
+                (lambda () (flnormalized-fraction-exponent (fl/ x 4.0)))
+                (lambda (y n)
+                  (values y (+ n 2))))
+               (return (fl/ x two^result2) result2))))
+        (else
+         (let* ((k (+ 2 precision-bits))
+                (two^k (expt 2 k)))
+           (call-with-values
+            (lambda ()
+              (flnormalized-fraction-exponent (fl* x (inexact two^k))))
+            (lambda (y n)
+              (return y (- n k))))))))
 
-(define flsign-bit
-  (flop1 'flsign-bit
-         (lambda (x)
-           (cond ((fl<? x 0.0)
-                  1)
-                 ((eqv? x -0.0)
-                  1)
-                 (else
-                  0)))))
+(define (flsign-bit x)
+  (check-flonum! 'flsign-bit x)
+  (cond ((fl<? x 0.0)
+         1)
+        ((eqv? x -0.0)
+         1)
+        (else
+         0)))
 
 
 ;;; Predicates
@@ -379,8 +430,20 @@
 ;(define flinfinite? R6RS)           ; defined by (rnrs flonums)
 ;(define flnan? R6RS)                ; defined by (rnrs flonums)
 
-(define flnormalized? FIXME)
-(define fldenormalized? FIXME)
+(define flnormalized?
+  (lambda (x)
+    (check-flonum! 'flnormalized? x)
+    (let ((x (flabs x)))
+      (and (flfinite? x)
+           (fl<? (fl/ fl-greatest) x)))))
+
+(define fldenormalized?
+  (lambda (x)
+    (check-flonum! 'fldenormalized? x)
+    (let ((x (flabs x)))
+      (and (flfinite? x)
+           (fl<? 0.0 x)
+           (fl<=? x (fl/ fl-greatest))))))
 
 ;;; Arithmetic
 
