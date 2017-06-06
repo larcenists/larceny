@@ -1447,8 +1447,8 @@
       (.check! (flonum? y) ,$ex.fl- x y)
       (.-:flo:flo x y)))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
-    (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
-      (fl- x (fl+ y z))))
+    (let* ((x ?x) (y ?y))
+      (fl- (fl- x y) ?z ...)))
 
 `  ((_ larceny fl/ (fl/ ?x))
     (let ((x ?x))
@@ -1466,8 +1466,8 @@
       (.check! (flonum? y) ,$ex.fl/ x y)
       (./:flo:flo x y)))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
-    (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
-      (fl/ x (fl* y z))))
+    (let* ((x ?x) (y ?y))
+      (fl/ (fl/ x y) ?z ...)))
 
    ; These three compiler macros cannot be expressed using SYNTAX-RULES.
 
