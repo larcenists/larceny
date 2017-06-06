@@ -141,13 +141,22 @@
 
   ; x is nonzero, and y is an exact natural number.
 
-  (define (e x y)
+  (define (e x y)    ; y is exact and non-negative
     (cond ((= y 0)
            1)
           ((odd? y)
            (* x (e x (- y 1))))
           (else 
            (let ((v (e x (quotient y 2))))
+             (* v v)))))
+
+  (define (e2 x y)    ; y is exact and negative or zero
+    (cond ((= y 0)
+           1)
+          ((odd? y)
+           (/ (e2 x (+ y 1)) x))
+          (else 
+           (let ((v (e2 x (quotient y 2))))
              (* v v)))))
 
   (cond ((zero? x)
@@ -159,7 +168,7 @@
                (exact->inexact result))))
         ((and (exact? y) (integer? y))
          (if (negative? y)
-                 (/ (expt x (abs y)))
+             (e2 x y)
              (e x y)))
         (else
          (exp (* y (log x))))))
