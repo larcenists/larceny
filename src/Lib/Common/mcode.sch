@@ -57,7 +57,8 @@
                (expt 2.0 k))
               ((> k 0)
                (loop p (* q (expt 2 k)) k))
-              ((< k (- flonum:minexponent n))
+              ;; subtracting n twice allows for denormalized results
+              ((< k (- flonum:minexponent n n))
                0.0)
               (else
                (loop (* p (expt 2 (- k))) q k)))))
