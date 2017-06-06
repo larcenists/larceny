@@ -1368,7 +1368,7 @@
     (let ((x ?x))
       (if (fl<? x 0.0)
           (fl- x)
-          x)))
+          (fl+ x 0.0))))    ; so (flabs -0.0) returns 0.0 (ticket #791)
 
 `  ((_ larceny flfloor (flfloor ?x))
     (let ((x ?x))
