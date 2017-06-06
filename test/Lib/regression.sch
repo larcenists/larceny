@@ -682,6 +682,14 @@
    (test "Ticket #793"                  ; Bug in v0.99 and previous
          (inexact (expt 2 -1024))
          5.562684646268003e-309)
+
+   (test "Ticket #794"                  ; Bug in v0.99 and previous
+         (fl- 1e308 1e308 1e308)
+         -1e308)
+
+   (test "Ticket #794"                  ; Bug in v0.99 and previous
+         (fl/ 1e308 1e308 2.0)
+         0.5)
    ))
 
 
