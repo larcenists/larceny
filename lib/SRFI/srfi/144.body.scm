@@ -63,34 +63,41 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; FIXME: Larceny-specific code for visualization of flonums.
-;;; Assumes IEEE double precision, Larceny's usual representation,
-;;; and little-endian.
+(cond-expand
+ (larceny
 
-(define (show x)
-  (map (lambda (i) (bytevector-like-ref x i))
-       '(4 5 6 7 8 9 10 11)))
+  ;; FIXME: Larceny-specific code for visualization of flonums.
+  ;; Assumes IEEE double precision, Larceny's usual representation,
+  ;; and little-endian.
 
-(define (show-sign x)
-  (bitwise-arithmetic-shift (list-ref (show x) 7) -7))
+  (define (show x)
+    (map (lambda (i) (bytevector-like-ref x i))
+         '(4 5 6 7 8 9 10 11)))
 
-(define (show-exponent x)
-  (bitwise-ior
-   (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 7) 127)
-                             3)
-   (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 6) #b11100000)
-                             -5)))
+  (define (show-sign x)
+    (bitwise-arithmetic-shift (list-ref (show x) 7) -7))
 
-(define (show-significand x)
-  (let ((bytes (show x)))
-    (+ (* (list-ref bytes 0) 1)
-       (* (list-ref bytes 1) 256)
-       (* (list-ref bytes 2) 256 256)
-       (* (list-ref bytes 3) 256 256 256)
-       (* (list-ref bytes 4) 256 256 256 256)
-       (* (list-ref bytes 5) 256 256 256 256 256)
-       (* (bitwise-and (list-ref bytes 6) #b00011111)
-          256 256 256 256 256 256))))
+  (define (show-exponent x)
+    (bitwise-ior
+     (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 7) 127)
+                               3)
+     (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 6) #b11100000)
+                               -5)))
+
+  (define (show-significand x)
+    (let ((bytes (show x)))
+      (+ (* (list-ref bytes 0) 1)
+         (* (list-ref bytes 1) 256)
+         (* (list-ref bytes 2) 256 256)
+         (* (list-ref bytes 3) 256 256 256)
+         (* (list-ref bytes 4) 256 256 256 256)
+         (* (list-ref bytes 5) 256 256 256 256 256)
+         (* (bitwise-and (list-ref bytes 6) #b00011111)
+            256 256 256 256 256 256))))
+
+  )
+ (else))
+
 
 ;;; Private but portable code.
 
@@ -452,12 +459,15 @@
 ;(define fl+ R6RS)                   ; defined by (rnrs flonums)
 ;(define fl* R6RS)                   ; defined by (rnrs flonums)
 
-;;; FIXME: not "as if to infinite precision and rounded only once"
+;;; Spec says "as if to infinite precision and rounded only once".
 
 (define fl+*
   (flop3 'fl+*
          (lambda (x y z)
-           (fl+ (fl* x y) z))))
+           (let ((x (exact x))
+                 (y (exact y))
+                 (z (exact z)))
+             (flonum (+ (* x y) z))))))
 
 ;(define fl- R6RS)                   ; defined by (rnrs flonums)
 ;(define fl/ R6RS)                   ; defined by (rnrs flonums)
@@ -573,24 +583,21 @@
 (define flsinh
   (flop1 'flsinh
          (lambda (x)
-           (cond ((flzero? x) x)
-                 ((not (flfinite? x)) x)
+           (cond ((not (flfinite? x)) x)
                  (else
                   (fl/ (fl- (flexp x) (flexp (fl- x))) 2.0))))))
 
 (define flcosh
   (flop1 'flcosh
          (lambda (x)
-           (cond ((flzero? x) x)
-                 ((not (flfinite? x)) (flabs x))
+           (cond ((not (flfinite? x)) (flabs x))
                  (else
                   (fl/ (fl+ (flexp x) (flexp (fl- x))) 2.0))))))
 
 (define fltanh
   (flop1 'fltanh
          (lambda (x)
-           (cond ((flzero? x) x)
-                 ((flinfinite? x) (flcopysign 1.0 x))
+           (cond ((flinfinite? x) (flcopysign 1.0 x))
                  ((flnan? x) x)
                  (else
                   (fl/ (flsinh x) (flcosh x)))))))
@@ -619,16 +626,26 @@
 
 ;;; Integer division
 
-(define flquotient (flop2 'flquotient quotient))
+(define flquotient
+  (flop2 'flquotient
+         (lambda (x y)
+           (fltruncate (fl/ x y)))))
 
 ;;; FIXME: should probably implement the following part of the C spec:
 ;;; "If the returned value is 0, it will have the same sign as x."
 
-(define flremainder (flop2 'flremainder remainder))
+(define flremainder
+  (flop2 'flremainder
+         (lambda (x y)
+           (fl- x (fl* y (flquotient x y))))))
 
 (define (flremquo x y)
-  (values (flremainder x y)
-          (flquotient x y)))
+  (check-flonum! 'flremquo x)
+  (check-flonum! 'flremquo y)
+  (let* ((quo (flround (fl/ x y)))
+         (rem (fl- x (fl* y quo))))
+    (values rem
+            (exact quo))))
 
 ;; Special functions are defined in 144.special.scm
 

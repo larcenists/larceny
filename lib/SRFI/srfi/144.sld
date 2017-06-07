@@ -188,8 +188,12 @@
           (scheme inexact)
           (except (rnrs arithmetic flonums)
                   flmax flmin)
-          (rnrs arithmetic bitwise)
-          (primitives bytevector-like-ref))    ; FIXME
+          (rnrs arithmetic bitwise))
+
+  (cond-expand
+   (larceny
+    (import (primitives bytevector-like-ref)))
+   (else))
 
   (include "144.body.scm")
   (include "144.special.scm"))

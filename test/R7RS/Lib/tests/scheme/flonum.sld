@@ -163,42 +163,8 @@
   (import (scheme base)
           (srfi 144)
           (tests scheme test)
-          (primitives bytevector-like-ref) ; FIXME
-          (rnrs arithmetic bitwise) ; FIXME
-          (scheme write) ; FIXME
           (scheme inexact)
           (only (scheme list) filter iota))
-
-  (begin
-;;; FIXME: Larceny-specific code for visualization of flonums.
-;;; Assumes IEEE double precision, Larceny's usual representation,
-;;; and little-endian.
-
-(define (show x)
-  (map (lambda (i) (bytevector-like-ref x i))
-       '(4 5 6 7 8 9 10 11)))
-
-(define (show-sign x)
-  (bitwise-arithmetic-shift (list-ref (show x) 7) -7))
-
-(define (show-exponent x)
-  (bitwise-ior
-   (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 7) 127)
-                             3)
-   (bitwise-arithmetic-shift (bitwise-and (list-ref (show x) 6) #b11100000)
-                             -5)))
-
-(define (show-significand x)
-  (let ((bytes (show x)))
-    (+ (* (list-ref bytes 0) 1)
-       (* (list-ref bytes 1) 256)
-       (* (list-ref bytes 2) 256 256)
-       (* (list-ref bytes 3) 256 256 256)
-       (* (list-ref bytes 4) 256 256 256 256)
-       (* (list-ref bytes 5) 256 256 256 256 256)
-       (* (bitwise-and (list-ref bytes 6) #b00011111)
-          256 256 256 256 256 256))))
-)
 
   (begin
 
@@ -221,14 +187,6 @@
      (syntax-rules ()
       ((test/= expr1 expr2)
        (test expr2 expr1))))
-
-   (define-syntax test/FIXME
-     (syntax-rules ()
-      ((test/FIXME expr1 expr2)
-       (begin (test/= expr1 expr2)
-              (write 'expr2) (newline)
-              (write (show-significand expr2)) (newline)
-              (write (show-significand expr1)) (newline) (newline)))))
 
    ;; convenient values for test cases
 
@@ -659,6 +617,25 @@
      (test (map fl* infinities (reverse infinities))
            (map (lambda (x) neginf) infinities))
      
+     (let ((three (flonum 3))
+           (four  (flonum 4))
+           (five  (flonum 5))
+           (x23   (flonum 23))
+           (ten11 (flonum (expt 10 11)))
+           (ten12 (flonum (expt 10 12))))
+       (test (fl+* four five three) x23)
+       (test (fl+* ten11 ten12 one)
+             (flonum (+ (* (exact ten11) (exact ten12)) (exact one))))
+       (test (fl+* ten11 ten12 (fl- one))
+             (flonum (+ (* (exact ten11) (exact ten12)) (exact (fl- one)))))
+
+       ;; FIXME: the following test assumes IEEE double precision,
+       ;; in which (expt 10 23) lies exactly halfway between the
+       ;; two nearest flonums.
+
+       (test-deny (fl=? (fl+* ten11 ten12 one)
+                        (fl+* ten11 ten12 (fl- one)))))
+
      (test (fl- zero) negzero)
      (test (fl- negzero) zero)
      (test (fl- one) (flonum -1))
@@ -746,6 +723,8 @@
      (test (map flceiling  weird) weird)
      (test (map flround    weird) weird)
      (test (map fltruncate weird) weird)
+
+     ;; Exponents and logarithms
 
      (test (flexp negzero) one)
      (test (flexp zero) one)
@@ -891,25 +870,183 @@
                              (filter positive? somereals))))
                '(3 7 19))
 
-     ;; FIXME
+     ;; Trigonometric functions
 
-;;;     flsin
-;;;     flcos
-;;;     fltan
-;;;     flasin
-;;;     flacos
-;;;     flatan
-;;;     flsinh
-;;;     flcosh
-;;;     fltanh
-;;;     flasinh
-;;;     flacosh
-;;;     flatanh
-;;;
-;;;     flquotient
-;;;     flremainder
-;;;     flremquo
-;;;
+     (test/approx (flsin zero)           zero)
+     (test/approx (flcos zero)           one)
+     (test/approx (fltan zero)           zero)
+     (test/approx (flsin (flonum 0.2))   0.19866933079506121545941)
+     (test/approx (flcos (flonum 0.2))   0.98006657784124163112420)
+     (test/approx (flsin (flonum 0.5))   0.47942553860420300027329)
+     (test/approx (flcos (flonum 0.5))   0.87750256189037271611628)
+     (test/approx (flsin (flonum 0.7))   0.64421768723769105367261)
+     (test/approx (flcos (flonum 0.7))   0.76484218728448842625586)
+     (test/approx (flsin fl-pi/4)        fl-1/sqrt-2)
+     (test/approx (flcos fl-pi/4)        fl-1/sqrt-2)
+     (test/approx (flsin one)            0.84147098480789651665250)
+     (test/approx (flcos one)            0.54030230586813971740094)
+     (test/approx (flsin fl-pi/2)        one)
+     (test/approx (flcos fl-pi/2)        zero)
+     (test/approx (flsin two)            0.90929742682568169539602)
+     (test/approx (flcos two)            -0.41614683654714238699757)
+     (test/approx (flsin (flonum 3))     0.14112000805986722210074)
+     (test/approx (flcos (flonum 3))     -0.98999249660044545727157)
+     (test/approx (flsin fl-pi)          zero)
+     (test/approx (flcos fl-pi)          (fl- one))
+     (test/approx (flsin fl-2pi)         zero)
+     (test/approx (flcos fl-2pi)         one)
+     (test/approx (flsin (flonum 35))    -0.42818266949615100440675)
+     (test/approx (flcos (flonum 35))    -0.90369220509150675984730)
+
+     (for-each (lambda (x)
+                 (test/approx (flsin x) (fl- (flsin (fl- x))))
+                 (test/approx (flcos x) (flcos (fl- fl-2pi x)))
+                 (test/approx (fltan x) (fl/ (flsin x) (flcos x)))
+                 (test/approx (flhypot (flsin x) (flcos x)) one))
+               (filter (lambda (x)
+                         (and (flnormalized? x)
+                              (fl<? (flabs x) (flonum 10000))))
+                       (append somereals posfracs)))
+
+     (for-each (lambda (x)
+                 (test/approx (flsin (flasin x))     x)
+                 (test/approx (flcos (flacos x))     x))
+               (filter (lambda (x) (fl<=? (fl- one) x one))
+                       (append somereals posfracs)))
+
+
+     (let ((xs (filter (lambda (x)
+                         (and (flnormalized? x)
+                              (fl<? (flabs x) (flonum 10000))))
+                       (append somereals posfracs))))
+       (for-each (lambda (x)
+                   (let ((theta (flatan x)))
+                     (test/approx (fl/ (flsin theta) (flcos theta)) x))
+                   (for-each (lambda (y)
+                               (let ((theta (flatan x)))
+                                 (test/approx (flatan (flsin theta)
+                                                      (flcos theta))
+                                              theta)))
+                             xs))
+                 xs))
+
+     (test/approx (flsinh zero)           zero)
+     (test/approx (flcosh zero)           one)
+     (test/approx (flsinh (flonum 0.2))   0.201336003)
+     (test/approx (flcosh (flonum 0.2))   1.020066756)
+     (test/approx (flsinh (flonum 0.5))   0.521095305)
+     (test/approx (flcosh (flonum 0.5))   1.127625965)
+     (test/approx (flsinh (flonum 0.7))   0.758583702)
+     (test/approx (flcosh (flonum 0.7))   1.255169006)
+     (test/approx (flsinh one)            1.175201194)
+     (test/approx (flcosh one)            1.543080635)
+     (test/approx (flsinh two)            3.626860408)
+     (test/approx (flcosh two)            3.762195691)
+     (test/approx (flsinh (flonum 3))     10.017874927)
+     (test/approx (flcosh (flonum 3))     10.067661996)
+     (test/approx (flsinh (flonum 10))    11013.232874703)
+     (test/approx (flcosh (flonum 10))    11013.232920103)
+
+     (for-each (lambda (x)
+                 (test/approx (flasinh (flsinh x)) x)
+                 (test/approx (flacosh (flcosh x)) (flabs x))
+                 (test/approx (flatanh (fltanh x)) x))
+               (filter (lambda (x)
+                         (fl<? (flabs x) (flonum 100)))
+                       (append somereals posfracs (map fl- posfracs))))
+
+     ;; Integer division
+
+     (test (flquotient  (flonum 9.75) (flonum 0.5))     (flonum 19))
+     (test (flremainder (flonum 9.75) (flonum 0.5))     (flonum 0.25))
+     (test (flquotient  (flonum -9.75) (flonum 0.5))    (flonum -19))
+     (test (flremainder (flonum -9.75) (flonum 0.5))    (flonum -0.25))
+     (test (flquotient  (flonum 9.75) (flonum -0.5))    (flonum -19))
+     (test (flremainder (flonum 9.75) (flonum -0.5))    (flonum 0.25))
+     (test (flquotient  (flonum -9.75) (flonum -0.5))   (flonum 19))
+     (test (flremainder (flonum -9.75) (flonum -0.5))   (flonum -0.25))
+
+     (let ((f (lambda (x y)
+                (call-with-values
+                 (lambda () (flremquo x y))
+                 (lambda (r q)
+                   (list r (modulo q 8)))))))
+
+       (test (f (flonum 15.875) (flonum 0.5))
+             (list (flonum -0.125) 0))
+       (test (f (flonum 16.000) (flonum 0.5))
+             (list (flonum +0.000) 0))
+       (test (f (flonum 16.125) (flonum 0.5))
+             (list (flonum +0.125) 0))
+       (test (f (flonum 16.250) (flonum 0.5))
+             (list (flonum +0.250) 0))
+
+       (test (f (flonum 16.875) (flonum 0.5))
+             (list (flonum -0.125) 2))
+       (test (f (flonum 17.000) (flonum 0.5))
+             (list (flonum +0.000) 2))
+       (test (f (flonum 17.125) (flonum 0.5))
+             (list (flonum +0.125) 2))
+       (test (f (flonum 17.250) (flonum 0.5))
+             (list (flonum +0.250) 2))
+
+       (test (f (flonum 17.875) (flonum 0.5))
+             (list (flonum -0.125) 4))
+       (test (f (flonum 18.000) (flonum 0.5))
+             (list (flonum +0.000) 4))
+       (test (f (flonum 18.125) (flonum 0.5))
+             (list (flonum +0.125) 4))
+       (test (f (flonum 18.250) (flonum 0.5))
+             (list (flonum +0.250) 4))
+
+       (test (f (flonum 18.875) (flonum 0.5))
+             (list (flonum -0.125) 6))
+       (test (f (flonum 19.000) (flonum 0.5))
+             (list (flonum +0.000) 6))
+       (test (f (flonum 19.125) (flonum 0.5))
+             (list (flonum +0.125) 6))
+       (test (f (flonum 19.250) (flonum 0.5))
+             (list (flonum +0.250) 6))
+
+       (test (f (flonum 15.375) (flonum 0.5))
+             (list (flonum -0.125) 7))
+       (test (f (flonum 16.500) (flonum 0.5))
+             (list (flonum +0.000) 1))
+       (test (f (flonum 16.625) (flonum 0.5))
+             (list (flonum +0.125) 1))
+       (test (f (flonum 16.750) (flonum 0.5))
+             (list (flonum -0.250) 2))
+
+       (test (f (flonum 16.375) (flonum 0.5))
+             (list (flonum -0.125) 1))
+       (test (f (flonum 17.500) (flonum 0.5))
+             (list (flonum +0.000) 3))
+       (test (f (flonum 17.625) (flonum 0.5))
+             (list (flonum +0.125) 3))
+       (test (f (flonum 17.750) (flonum 0.5))
+             (list (flonum -0.250) 4))
+
+       (test (f (flonum 17.375) (flonum 0.5))
+             (list (flonum -0.125) 3))
+       (test (f (flonum 18.500) (flonum 0.5))
+             (list (flonum +0.000) 5))
+       (test (f (flonum 18.625) (flonum 0.5))
+             (list (flonum +0.125) 5))
+       (test (f (flonum 38.750) (flonum 0.5))
+             (list (flonum -0.250) 6))
+
+       (test (f (flonum 18.375) (flonum 0.5))
+             (list (flonum -0.125) 5))
+       (test (f (flonum 19.500) (flonum 0.5))
+             (list (flonum +0.000) 7))
+       (test (f (flonum 19.625) (flonum 0.5))
+             (list (flonum +0.125) 7))
+       (test (f (flonum 19.750) (flonum 0.5))
+             (list (flonum -0.250) 0))
+
+       )
+
+     ;; Special functions
 
      (test/approx (flgamma (flonum 0.5)) fl-gamma-1/2)
      (test/approx (flgamma (flonum #i1/3)) fl-gamma-1/3)
