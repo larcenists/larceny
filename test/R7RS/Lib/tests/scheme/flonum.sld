@@ -167,7 +167,7 @@
           (rnrs arithmetic bitwise) ; FIXME
           (scheme write) ; FIXME
           (scheme inexact)
-          (only (scheme list) filter))
+          (only (scheme list) filter iota))
 
   (begin
 ;;; FIXME: Larceny-specific code for visualization of flonums.
@@ -306,7 +306,7 @@
      (test/= 0.8414709848078965066525023216302989996226    fl-sin-1)
      (test/= 0.5403023058681397174009366074420766037323    fl-cos-1)
 
-     (test/= 1.7742438509055160272981674833411451827975    fl-gamma-1/2)
+     (test/= 1.7724538509055160272981674833411451827975    fl-gamma-1/2)
      (test/= 2.6789385347077476336556929409746776441287    fl-gamma-1/3)
      (test/= 1.3541179394264004169452880281545137855193    fl-gamma-2/3)
 
@@ -891,8 +891,7 @@
                              (filter positive? somereals))))
                '(3 7 19))
 
-     )))
-
+     ;; FIXME
 
 ;;;     flsin
 ;;;     flcos
@@ -911,9 +910,85 @@
 ;;;     flremainder
 ;;;     flremquo
 ;;;
-;;;     flgamma
-;;;     flloggamma
+
+     (test/approx (flgamma (flonum 0.5)) fl-gamma-1/2)
+     (test/approx (flgamma (flonum #i1/3)) fl-gamma-1/3)
+     (test/approx (flgamma (flonum #i2/3)) fl-gamma-2/3)
+     (test/approx (flgamma (flonum 0.75)) (flonum 1.2254167024))
+     (test (flgamma one) one)
+     (test/approx (flgamma (flonum 1.25)) (flonum 0.9064024771))
+     (test/approx (flgamma (flonum 1.38)) (flonum 0.8885371494))
+     (test/approx (flgamma (flonum 1.50)) (fl/ (flsqrt fl-pi) two))
+     (test (flgamma two) one)
+     (test/approx (flgamma (flonum 11)) (flonum 3628800))
+     (test/approx (flgamma (flonum 11.5))
+                  (* 10.5 9.5 8.5 7.5 6.5 5.5 4.5 3.5 2.5 1.5 0.5
+                     fl-gamma-1/2))
+     (test/approx (flgamma (flonum 1.3))
+                  (* 0.3 -0.7 -1.7 -2.7 -3.7 -4.7 -5.7 -6.7
+                     (flgamma (flonum -6.7))))
+     (test/approx (flgamma (flonum 1.3))
+                  (* 0.3 -0.7 -1.7 -2.7 -3.7 -4.7 -5.7 -6.7 -7.7
+                     (flgamma (flonum -7.7))))
+     (test/approx (flgamma (flonum 76.5))
+                  (flonum 2.1592564e110))
+     (test/approx (flgamma (flonum 100))
+                  (flonum 9.3326215444e155))
+
+     (let* ((f (lambda (x)
+                 (call-with-values
+                  (lambda () (flloggamma x))
+                  list)))
+            (g (lambda (x) (car (f x))))
+            (s (lambda (x) (cadr (f x)))))
+       (test/approx (g (flonum 0.5)) (log fl-gamma-1/2))
+       (test/approx (g (flonum #i1/3)) (log fl-gamma-1/3))
+       (test/approx (g (flonum #i2/3)) (log fl-gamma-2/3))
+       (test/approx (g (flonum 0.75)) (log (flonum 1.2254167024)))
+       (test/approx (g one) (log one))
+       (test/approx (g (flonum 1.25)) (log (flonum 0.9064024771)))
+       (test/approx (g (flonum 1.38)) (log (flonum 0.8885371494)))
+       (test/approx (g (flonum 1.50)) (log (fl/ (flsqrt fl-pi) two)))
+       (test/approx (g two) (log one))
+       (test/approx (g (flonum 11)) (log (flonum 3628800)))
+       (test/approx (g (flonum 1000))
+                    (apply + (map log (cdr (iota 1000)))))
+       (test/approx (g (flonum -0.5))
+                    (log (flabs (flgamma (flonum -0.5)))))
+       (test/approx (g (flonum -49.2))
+                    (log (flabs (flgamma (flonum -49.2)))))
+       (test/approx (g (flonum -50.3))
+                    (log (flabs (flgamma (flonum -50.3)))))
+       (test/approx (g (flonum -100.5))
+                    (log (flabs (flgamma (flonum -100.5)))))
+       (test/approx (g posinf) posinf)
+       (test/unspec-or-exn (g neginf) &error)
+       (test/unspec-or-exn (g zero) &error)
+       (test/unspec-or-exn (g nan) &error)
+
+       (test (s (flonum 0.5))   one)
+       (test (s (flonum #i1/3)) one)
+       (test (s (flonum #i2/3)) one)
+       (test (s (flonum 0.75))  one)
+       (test (s one)            one)
+       (test (s (flonum 1.25))  one)
+       (test (s (flonum 1.38))  one)
+       (test (s (flonum 1.50))  one)
+       (test (s two)            one)
+       (test (s (flonum 11))    one)
+       (test (s (flonum 1000))  one)
+       (test (s (flonum -0.5))  (fl- one))
+       (test (s (flonum -49.2)) one)
+       (test (s (flonum -50.3)) (fl- one))
+       (test (s (flonum -999.5)) one)
+       (test (s (flonum -1000.5)) (fl- one))
+       )
+
+     ;; FIXME
+
 ;;;     flfirst-bessel
 ;;;     flsecond-bessel
 ;;;     flerf
 ;;;     flerfc
+
+     )))

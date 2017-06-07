@@ -228,8 +228,8 @@
 (define fl-sin-1 (sin 1.0))
 (define fl-cos-1 (cos 1.0))
 
-(define fl-gamma-1/2 ; (sqrt fl-pi) is 13 bits high (Linux, IEEE double)
-  1.7742438509055160272981674833411451827975)
+(define fl-gamma-1/2 ; (sqrt fl-pi) is 1 bit low (Linux, IEEE double)
+  1.7724538509055160272981674833411451827975)
 
 (define fl-gamma-1/3 2.6789385347077476336556929409746776441287)
 (define fl-gamma-2/3 1.3541179394264004169452880281545137855193)
