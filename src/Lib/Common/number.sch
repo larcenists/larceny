@@ -304,9 +304,11 @@
   (let* ((r (abs (real-part c)))
          (i (abs (imag-part c)))
          (x (max r i))
-         (y (min r i))
-         (y/x (/ y x)))
-    (* x (sqrt (+ 1 (* y/x y/x))))))
+         (y (min r i)))
+    (if (zero? x)
+        x
+        (let ((y/x (/ y x)))
+          (* x (sqrt (+ 1 (* y/x y/x))))))))
 
 
 ; The procedures flonum:{sin,cos,tan,asin,acos,atan,exp,log,sqrt} have
