@@ -166,7 +166,8 @@
           (primitives bytevector-like-ref) ; FIXME
           (rnrs arithmetic bitwise) ; FIXME
           (scheme write) ; FIXME
-          (scheme inexact))
+          (scheme inexact)
+          (only (scheme list) filter))
 
   (begin
 ;;; FIXME: Larceny-specific code for visualization of flonums.
@@ -746,22 +747,153 @@
      (test (map flround    weird) weird)
      (test (map fltruncate weird) weird)
 
+     (test (flexp negzero) one)
+     (test (flexp zero) one)
+     (test (flexp one) fl-e)
+     (test/approx (flexp (fl- one)) fl-1/e)
+     (test/approx (flexp two) fl-e-2)
+     (test/approx (flexp fl-pi/4) fl-e-pi/4)
+     (test (flexp posinf) posinf)
+     (test (flexp fl-greatest) posinf)
+     (test/approx (flexp fl-least) one)
+     (test/approx (flexp (fl- fl-greatest)) zero)
+     (test/approx (flexp neginf) zero)
+
+     (test (fl+ one (flexp-1 negzero)) one)
+     (test (fl+ one (flexp-1 zero)) one)
+     (test (fl+ one (flexp-1 one)) fl-e)
+     (test/approx (fl+ one (flexp-1 (fl- one))) fl-1/e)
+     (test/approx (fl+ one (flexp-1 two)) fl-e-2)
+     (test/approx (fl+ one (flexp-1 fl-pi/4)) fl-e-pi/4)
+     (test (fl+ one (flexp-1 posinf)) posinf)
+     (test (fl+ one (flexp-1 fl-greatest)) posinf)
+     (test/approx (fl+ one (flexp-1 fl-least)) one)
+     (test/approx (fl+ one (flexp-1 (fl- fl-greatest))) zero)
+     (test/approx (fl+ one (flexp-1 neginf)) zero)
+
+     (test (flexp2 negzero) one)
+     (test (flexp2 zero) one)
+     (test (flexp2 one) two)
+     (test (flexp2 (fl- one)) (fl/ two))
+     (test (flexp2 two) (fl* two two))
+     (test/approx (flexp2 fl-log2-e) fl-e)
+     (test/approx (flexp2 fl-log2-e) fl-e)
+     (test (flexp2 posinf) posinf)
+     (test (flexp2 fl-greatest) posinf)
+     (test/approx (flexp2 fl-least) one)
+     (test/approx (flexp2 (fl- fl-greatest)) zero)
+     (test/approx (flexp2 neginf) zero)
+
+     (test (flsquare zero) zero)
+     (test (flsquare one) one)
+     (test (flsquare two) (fl+ two two))
+     (test/approx (flsquare fl-sqrt-2) two)
+     (test/approx (flsquare fl-sqrt-3) (flonum 3))
+     (test/approx (flsquare fl-sqrt-5) (flonum 5))
+     (test/approx (flsquare fl-sqrt-10) (flonum 10))
+     (test (flsquare (flonum -5)) (flonum 25))
+     (test (flsquare neginf) posinf)
+     (test (flsquare posinf) posinf)
+
+     (test (flsqrt zero) zero)
+     (test (flsqrt one) one)
+     (test/approx (flsqrt two) fl-sqrt-2)
+     (test/approx (flsqrt (flonum 3)) fl-sqrt-3)
+     (test/approx (flsqrt (flonum 5)) fl-sqrt-5)
+     (test/approx (flsqrt (flonum 10)) fl-sqrt-10)
+     (test/approx (flsqrt (flonum 698)) (flonum 26.41968963))
+     (test (flsqrt posinf) posinf)
+
+     (test (flcbrt zero) zero)
+     (test (flcbrt one) one)
+     (test/approx (flcbrt two) fl-cbrt-2)
+     (test/approx (flcbrt (flonum 3)) fl-cbrt-3)
+     (test/approx (flcbrt (flonum 698)) (flonum 8.870575722))
+     (test/approx (flcbrt (flonum 11.390625)) (flonum 2.25))
+     (test/approx (flcbrt (flonum -11.390625)) (flonum -2.25))
+     (test (flcbrt posinf) posinf)
+     (test (flcbrt neginf) neginf)
+
+     (test (flhypot zero zero) zero)
+     (test (flhypot zero one) one)
+     (test/approx (flhypot two one) fl-sqrt-5)
+     (test/approx (flhypot (fl- two) one) fl-sqrt-5)
+     (test/approx (flhypot two (fl- one)) fl-sqrt-5)
+     (test/approx (flhypot (fl- two) (fl- one)) fl-sqrt-5)
+     (test/approx (flhypot (fl/ fl-greatest two) (fl/ fl-greatest two))
+                  (fl/ fl-greatest fl-sqrt-2))
+     (test (flhypot zero posinf) posinf)
+     (test (flhypot neginf zero) posinf)
+
+     (test (flexpt two zero) one)
+     (test (flexpt two one) two)
+     (test (flexpt two two) (flonum 4))
+     (test/approx (flexpt two (fl/ two)) fl-sqrt-2)
+     (test/approx (flexpt (flonum 441) (flonum 10))
+                  (flonum 2.782184294e26))
+     (test/approx (flexpt (flonum 441) (fl/ (flonum 5)))
+                  (flonum 3.379774445))
+     (for-each (lambda (x)
+                 (for-each (lambda (frac)
+                             (test/approx (flexpt (flexpt x frac) (fl/ frac))
+                                          x))
+                           posfracs))
+               (filter flpositive? somereals))
+
+     (test (fllog zero) neginf)
+     (test (fllog one) zero)
+     (test/approx (fllog two) fl-log-2)
+     (test/approx (fllog (flonum 3)) fl-log-3)
+     (test/approx (fllog fl-pi) fl-log-pi)
+     (test/approx (fllog (flonum 10)) fl-log-10)
+     (test (fllog posinf) posinf)
+     (for-each (lambda (x)
+                 (test/approx (flexp (fllog x)) x))
+               (filter flpositive? somereals))
+
+     (test (fllog2 zero) neginf)
+     (test (fllog2 one) zero)
+     (test (fllog2 two) one)
+     (test/approx (fllog2 fl-e) fl-log2-e)
+     (test (fllog2 posinf) posinf)
+     (for-each (lambda (x)
+                 (test/approx (flexpt two (fllog2 x)) x))
+               (filter flpositive? somereals))
+
+     (test (fllog10 zero) neginf)
+     (test (fllog10 one) zero)
+     (test/approx (fllog10 fl-e) fl-log10-e)
+     (test (fllog10 (flonum 10)) one)
+     (test (fllog10 posinf) posinf)
+     (for-each (lambda (x)
+                 (test/approx (flexpt (flonum 10) (fllog10 x)) x))
+               (filter flpositive? somereals))
+
+     (test-assert (flpositive? (fllog1+ fl-least)))
+     (test (fllog1+ (fl- zero one)) neginf)
+     (test (fllog1+ (fl- one one)) zero)
+     (test/approx (fllog1+ (fl- two one)) fl-log-2)
+     (test/approx (fllog1+ (fl- (flonum 3) one)) fl-log-3)
+     (test/approx (fllog1+ (fl- fl-pi one)) fl-log-pi)
+     (test/approx (fllog1+ (fl- (flonum 10) one)) fl-log-10)
+     (test (fllog1+ (fl- posinf one)) posinf)
+     (for-each (lambda (x)
+                 (test/approx (flexp (fllog1+ (fl- x one))) x))
+               (filter flpositive? somereals))
+
+     (test/approx ((make-fllog-base 2) fl-e) fl-log2-e)
+     (test/approx ((make-fllog-base 10) fl-e) fl-log10-e)
+;    (test/approx ((make-fllog-base fl-e) two) fl-log-2)
+     (for-each (lambda (base)
+                 (let ((f (make-fllog-base base)))
+                   (for-each (lambda (x)
+                               (test/approx (flexpt (flonum base) (f x)) x))
+                             (filter positive? somereals))))
+               '(3 7 19))
+
      )))
 
-;;;     flexp
-;;;     flexp2
-;;;     flexp-1
-;;;     flsquare
-;;;     flsqrt
-;;;     flcbrt
-;;;     flhypot
-;;;     flexpt
-;;;     fllog
-;;;     fllog1+
-;;;     fllog2
-;;;     fllog10
-;;;     make-fllog-base
-;;;
+
 ;;;     flsin
 ;;;     flcos
 ;;;     fltan
