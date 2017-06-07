@@ -300,13 +300,13 @@
 (define (angle c)
   (atan (imag-part c) (real-part c)))
 
-; NOTE: CLtL2 notes that this implementation may not be ideal for very
-;       large or very small numbers.
-
 (define (magnitude c)
-  (let ((r (real-part c))
-        (i (imag-part c)))
-    (sqrt (+ (* r r) (* i i)))))
+  (let* ((r (abs (real-part c)))
+         (i (abs (imag-part c)))
+         (x (max r i))
+         (y (min r i))
+         (y/x (/ y x)))
+    (* x (sqrt (+ 1 (* y/x y/x))))))
 
 
 ; The procedures flonum:{sin,cos,tan,asin,acos,atan,exp,log,sqrt} have

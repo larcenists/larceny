@@ -690,6 +690,10 @@
    (test "Ticket #794"                  ; Bug in v0.99 and previous
          (fl/ 1e308 1e308 2.0)
          0.5)
+
+   (test "Ticket #795"                  ; Bug in v0.99 and previous
+         (magnitude -1e308)
+         1e308)
    ))
 
 
