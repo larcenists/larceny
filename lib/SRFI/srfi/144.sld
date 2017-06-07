@@ -191,6 +191,7 @@
           (rnrs arithmetic bitwise)
           (primitives bytevector-like-ref))    ; FIXME
 
-  (include "144.body.scm"))
+  (include "144.body.scm")
+  (include "144.special.scm"))
 
 ;;; eof

@@ -48,6 +48,8 @@
 ;;; Spec of flinteger-exponent says it returns "the same as flexponent
 ;;; as an exact integer", but flexponent usually returns a non-integer.
 ;;;
+;;; Why must the argument to make-fllog-base be an exact integer?
+;;;
 ;;; FIXME: not as accurate as it should be
 ;;; FIXME: not as fast as it should be
 ;;; FIXME: assumes IEEE arithmetic or similar
@@ -504,7 +506,13 @@
 
 ;(define flsqrt R6RS)                ; defined by (rnrs flonums)
 
-(define flcbrt (flop1 'flcbrt (lambda (x) (flexpt x (fl/ 3.0)))))
+(define flcbrt
+  (flop1 'flcbrt
+         (lambda (x)
+           (cond ((flnegative? x)
+                  (fl- (flcbrt (fl- x))))
+                 (else
+                  (flexpt x (fl/ 3.0)))))))
 
 (define flhypot
   (flop2 'flhypot
@@ -518,7 +526,7 @@
                  (else
                   (let* ((y/x (fl/ y x))
                          (root (flsqrt (fl+ 1.0 (fl* y/x y/x)))))
-                    (fl* x root)))))))
+                    (fl* (flabs x) root)))))))
 
 ;(define flexpt R6RS)                ; defined by (rnrs flonums)
 ;(define fllog R6RS)                 ; defined by (rnrs flonums)
@@ -622,12 +630,6 @@
   (values (flremainder x y)
           (flquotient x y)))
 
-;; Special functions
+;; Special functions are defined in 144.special.scm
 
-(define flgamma FIXME)
-(define flloggamma FIXME)
-(define flfirst-bessel FIXME)
-(define flsecond-bessel FIXME)
-(define flerf FIXME)
-(define flerfc FIXME)
-
+; eof
