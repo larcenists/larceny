@@ -310,14 +310,14 @@
      (test (fladjacent zero neginf) (fl- fl-least))
      (test (fladjacent fl-least posinf) (fl+ fl-least fl-least))
      (test (fladjacent fl-least neginf) zero)
-     (test (fladjacent (fl- fl-least) posinf) zero)
+     (test (fladjacent (fl- fl-least) posinf) negzero)
      (test (fladjacent (fl- fl-least) neginf) (fl* -2.0 fl-least))
 
      (test (fladjacent zero one) fl-least)
      (test (fladjacent zero (fl- one)) (fl- fl-least))
      (test (fladjacent fl-least one) (fl+ fl-least fl-least))
      (test (fladjacent fl-least (fl- one)) zero)
-     (test (fladjacent (fl- fl-least) one) zero)
+     (test (fladjacent (fl- fl-least) one) negzero)
      (test (fladjacent (fl- fl-least) (fl- one)) (fl* -2.0 fl-least))
 
      (test (fl- (fladjacent one fl-greatest) one) fl-epsilon)
@@ -635,6 +635,20 @@
 
        (test-deny (fl=? (fl+* ten11 ten12 one)
                         (fl+* ten11 ten12 (fl- one)))))
+
+     (test-assert (flnan? (fl+* zero posinf one)))
+     (test-assert (flnan? (fl+* zero neginf one)))
+     (test-assert (flnan? (fl+* posinf zero one)))
+     (test-assert (flnan? (fl+* neginf zero one)))
+     (test-assert (flnan? (fl+* zero posinf nan)))
+     (test-assert (flnan? (fl+* zero neginf nan)))
+     (test-assert (flnan? (fl+* posinf zero nan)))
+     (test-assert (flnan? (fl+* neginf zero nan)))
+     (test-assert (flnan? (fl+* fl-greatest fl-greatest neginf)))
+     (test-assert (flnan? (fl+* fl-greatest (fl- fl-greatest) posinf)))
+     (test-assert (flnan? (fl+* nan one one)))
+     (test-assert (flnan? (fl+* one nan one)))
+     (test-assert (flnan? (fl+* one one nan)))
 
      (test (fl- zero) negzero)
      (test (fl- negzero) zero)

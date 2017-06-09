@@ -187,12 +187,15 @@
   (import (scheme base)
           (scheme inexact)
           (except (rnrs arithmetic flonums)
-                  flmax flmin)
-          (rnrs arithmetic bitwise))
+                  flmax flmin flnumerator fldenominator)
+          (prefix (only (rnrs arithmetic flonums)
+                        flnumerator fldenominator)
+                  r6rs:))
 
   (cond-expand
    (larceny
-    (import (primitives bytevector-like-ref)))
+    (import (rnrs arithmetic bitwise)
+            (primitives bytevector-like-ref)))
    (else))
 
   (include "144.body.scm")

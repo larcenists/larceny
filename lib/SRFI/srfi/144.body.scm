@@ -55,7 +55,7 @@
 ;;; FIXME: assumes IEEE arithmetic or similar
 ;;; FIXME: assumes all inexact reals are flonums
 ;;; FIXME: assumes (scheme inexact)
-;;; FIXME: assumes (rnrs flonums)
+;;; FIXME: assumes (rnrs arithmetic flonums)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -393,17 +393,19 @@
 
 ;;; Predicates
 
-;(define flonum? R6RS)               ; defined by (rnrs flonums)
-;(define fl=? R6RS)                  ; defined by (rnrs flonums)
-;(define fl<? R6RS)                  ; defined by (rnrs flonums)
-;(define fl>? R6RS)                  ; defined by (rnrs flonums)
-;(define fl<=? R6RS)                 ; defined by (rnrs flonums)
-;(define fl>=? R6RS)                 ; defined by (rnrs flonums)
+;(define flonum? R6RS)               ; defined by (rnrs arithmetic flonums)
+;(define fl=? R6RS)                  ; defined by (rnrs arithmetic flonums)
+;(define fl<? R6RS)                  ; defined by (rnrs arithmetic flonums)
+;(define fl>? R6RS)                  ; defined by (rnrs arithmetic flonums)
+;(define fl<=? R6RS)                 ; defined by (rnrs arithmetic flonums)
+;(define fl>=? R6RS)                 ; defined by (rnrs arithmetic flonums)
 
 (define (flunordered? x y)
   (or (flnan? x) (flnan? y)))
 
-(define flmax                        ; incompatible with (rnrs flonums)
+;;; incompatible with (rnrs arithmetic flonums) in zero-argument case
+
+(define flmax
   (let ((flmax2 (flop2 'flmax max)))
     (lambda args
       (cond ((null? args)
@@ -416,7 +418,9 @@
              (flmax2 (flmax2 (car args) (cadr args))
                      (apply flmax (cddr args))))))))
 
-(define flmin                        ; incompatible with (rnrs flonums)
+;;; incompatible with (rnrs arithmetic flonums) in zero-argument case
+
+(define flmin
   (let ((flmin2 (flop2 'flmin min)))
     (lambda args
       (cond ((null? args)
@@ -429,15 +433,15 @@
              (flmin2 (flmin2 (car args) (cadr args))
                      (apply flmin (cddr args))))))))
 
-;(define flinteger? R6RS)            ; defined by (rnrs flonums)
-;(define flzero? R6RS)               ; defined by (rnrs flonums)
-;(define flpositive? R6RS)           ; defined by (rnrs flonums)
-;(define flnegative? R6RS)           ; defined by (rnrs flonums)
-;(define flodd? R6RS)                ; defined by (rnrs flonums)
-;(define fleven? R6RS)               ; defined by (rnrs flonums)
-;(define flfinite? R6RS)             ; defined by (rnrs flonums)
-;(define flinfinite? R6RS)           ; defined by (rnrs flonums)
-;(define flnan? R6RS)                ; defined by (rnrs flonums)
+;(define flinteger? R6RS)            ; defined by (rnrs arithmetic flonums)
+;(define flzero? R6RS)               ; defined by (rnrs arithmetic flonums)
+;(define flpositive? R6RS)           ; defined by (rnrs arithmetic flonums)
+;(define flnegative? R6RS)           ; defined by (rnrs arithmetic flonums)
+;(define flodd? R6RS)                ; defined by (rnrs arithmetic flonums)
+;(define fleven? R6RS)               ; defined by (rnrs arithmetic flonums)
+;(define flfinite? R6RS)             ; defined by (rnrs arithmetic flonums)
+;(define flinfinite? R6RS)           ; defined by (rnrs arithmetic flonums)
+;(define flnan? R6RS)                ; defined by (rnrs arithmetic flonums)
 
 (define flnormalized?
   (lambda (x)
@@ -456,22 +460,25 @@
 
 ;;; Arithmetic
 
-;(define fl+ R6RS)                   ; defined by (rnrs flonums)
-;(define fl* R6RS)                   ; defined by (rnrs flonums)
+;(define fl+ R6RS)                   ; defined by (rnrs arithmetic flonums)
+;(define fl* R6RS)                   ; defined by (rnrs arithmetic flonums)
 
 ;;; Spec says "as if to infinite precision and rounded only once".
 
 (define fl+*
   (flop3 'fl+*
          (lambda (x y z)
-           (let ((x (exact x))
-                 (y (exact y))
-                 (z (exact z)))
-             (flonum (+ (* x y) z))))))
+           (cond ((and (flfinite? x) (flfinite? y) (flfinite? z))
+                  (let ((x (exact x))
+                        (y (exact y))
+                        (z (exact z)))
+                    (flonum (+ (* x y) z))))
+                 (else
+                  (fl+ (fl* x y) z))))))
 
-;(define fl- R6RS)                   ; defined by (rnrs flonums)
-;(define fl/ R6RS)                   ; defined by (rnrs flonums)
-;(define flabs R6RS)                 ; defined by (rnrs flonums)
+;(define fl- R6RS)                   ; defined by (rnrs arithmetic flonums)
+;(define fl/ R6RS)                   ; defined by (rnrs arithmetic flonums)
+;(define flabs R6RS)                 ; defined by (rnrs arithmetic flonums)
 
 (define (flabsdiff x y)
   (flabs (fl- x y)))
@@ -479,16 +486,31 @@
 (define (flsgn x)
   (flcopysign 1.0 x))
 
-;(define flnumerator R6RS)           ; defined by (rnrs flonums)
-;(define fldenominator R6RS)         ; defined by (rnrs flonums)
-;(define flfloor R6RS)               ; defined by (rnrs flonums)
-;(define flceiling R6RS)             ; defined by (rnrs flonums)
-;(define flround R6RS)               ; defined by (rnrs flonums)
-;(define fltruncate R6RS)            ; defined by (rnrs flonums)
+;;; (flnumerator +nan.0) and (fldenominator +nan.0) must be NaNs, which
+;;; is not required by the R6RS specification of (rnrs arithmetic flonums).
+
+(define flnumerator
+  (flop1 'flnumerator
+         (lambda (x)
+           (if (flnan? x)
+               x
+               (r6rs:flnumerator x)))))
+
+(define fldenominator
+  (flop1 'fldenominator
+         (lambda (x)
+           (if (flnan? x)
+               x
+               (r6rs:fldenominator x)))))
+
+;(define flfloor R6RS)               ; defined by (rnrs arithmetic flonums)
+;(define flceiling R6RS)             ; defined by (rnrs arithmetic flonums)
+;(define flround R6RS)               ; defined by (rnrs arithmetic flonums)
+;(define fltruncate R6RS)            ; defined by (rnrs arithmetic flonums)
 
 ;;; Exponents and logarithms
 
-;(define flexp R6RS)                 ; defined by (rnrs flonums)
+;(define flexp R6RS)                 ; defined by (rnrs arithmetic flonums)
 
 (define flexp2 (flop1 'flexp2 (lambda (x) (flexpt 2.0 x))))
 
@@ -514,7 +536,7 @@
 
 (define flsquare (flop1 'flsquare (lambda (x) (fl* x x))))
 
-;(define flsqrt R6RS)                ; defined by (rnrs flonums)
+;(define flsqrt R6RS)                ; defined by (rnrs arithmetic flonums)
 
 (define flcbrt
   (flop1 'flcbrt
@@ -538,8 +560,8 @@
                          (root (flsqrt (fl+ 1.0 (fl* y/x y/x)))))
                     (fl* (flabs x) root)))))))
 
-;(define flexpt R6RS)                ; defined by (rnrs flonums)
-;(define fllog R6RS)                 ; defined by (rnrs flonums)
+;(define flexpt R6RS)                ; defined by (rnrs arithmetic flonums)
+;(define fllog R6RS)                 ; defined by (rnrs arithmetic flonums)
 
 ;;; FIXME
 ;;; I believe this is supposed to return log(x+1), as in C99 log1p,
@@ -573,12 +595,12 @@
 
 ;;; Trigonometric functions
 
-;(define flsin R6RS)                 ; defined by (rnrs flonums)
-;(define flcos R6RS)                 ; defined by (rnrs flonums)
-;(define fltan R6RS)                 ; defined by (rnrs flonums)
-;(define flasin R6RS)                ; defined by (rnrs flonums)
-;(define flacos R6RS)                ; defined by (rnrs flonums)
-;(define flatan R6RS)                ; defined by (rnrs flonums)
+;(define flsin R6RS)                 ; defined by (rnrs arithmetic flonums)
+;(define flcos R6RS)                 ; defined by (rnrs arithmetic flonums)
+;(define fltan R6RS)                 ; defined by (rnrs arithmetic flonums)
+;(define flasin R6RS)                ; defined by (rnrs arithmetic flonums)
+;(define flacos R6RS)                ; defined by (rnrs arithmetic flonums)
+;(define flatan R6RS)                ; defined by (rnrs arithmetic flonums)
 
 (define flsinh
   (flop1 'flsinh

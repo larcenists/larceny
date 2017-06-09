@@ -306,7 +306,7 @@
          (x (max r i))
          (y (min r i)))
     (if (zero? x)
-        x
+        0.0
         (let ((y/x (/ y x)))
           (* x (sqrt (+ 1 (* y/x y/x))))))))
 
