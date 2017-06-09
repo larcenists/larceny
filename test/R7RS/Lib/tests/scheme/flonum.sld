@@ -163,8 +163,23 @@
   (import (scheme base)
           (srfi 144)
           (tests scheme test)
-          (scheme inexact)
-          (only (scheme list) filter iota))
+          (scheme inexact))
+
+  (cond-expand
+   ((library (scheme list))
+    (import (only (scheme list) filter iota)))
+   ((library (srfi 1))
+    (import (only (srfi 1) filter iota)))
+   (else
+    (begin
+     (define (filter p? x)
+       (cond ((null? x)    x)
+             ((p? (car x)) (cons (car x) (filter p? (cdr x))))
+             (else         (filter p? (cdr x)))))
+     (define (iota n)
+       (do ((n (- n 1) (- n 1))
+            (x '() (cons n x)))
+           ((<= n 0) x))))))
 
   (begin
 

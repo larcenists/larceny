@@ -185,17 +185,35 @@
    )
 
   (import (scheme base)
-          (scheme inexact)
-          (except (rnrs arithmetic flonums)
-                  flmax flmin flnumerator fldenominator)
-          (prefix (only (rnrs arithmetic flonums)
-                        flnumerator fldenominator)
-                  r6rs:))
+          (scheme inexact))
+
+  ;; FIXME: this is just for visualization, and should go away eventually
 
   (cond-expand
    (larceny
     (import (rnrs arithmetic bitwise)
             (primitives bytevector-like-ref)))
+   (else))
+
+  ;; Use (rnrs arithmetic flonums) if that library is available.
+
+  (cond-expand
+   ((library (rnrs arithmetic flonums))
+    (import (except (rnrs arithmetic flonums)
+                    flmax flmin flnumerator fldenominator)
+            (prefix (only (rnrs arithmetic flonums)
+                          flnumerator fldenominator)
+                    r6rs:)))
+   (else
+    (import (scheme complex))))
+
+  (include "144.body0.scm")
+
+  ;; If (rnrs arithmetic flonums) is not available, fake it.
+
+  (cond-expand
+   ((not (library (rnrs arithmetic flonums)))
+    (include "144.r6rs.scm"))
    (else))
 
   (include "144.body.scm")

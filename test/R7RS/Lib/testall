@@ -43,7 +43,11 @@ TESTS="                            \
     stream.sps                     \
     vector.sps                     \
     text.sps                       \
+    flonum.sps                     \
     "
+
+# flonum.sps tests (srfi 144), whose spec is not yet final,
+# but it won't hurt for Larceny to run those tests nightly.
 
 # missing from the list above:
 #
