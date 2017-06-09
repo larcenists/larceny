@@ -510,6 +510,7 @@
               flmin flmax flabs
               flfloor flceiling fltruncate flround
               fl+ fl- fl* fl/
+              inexact
               eqv? memv assv memq
               map for-each
               char=? char<? char>? char<=? char>=?
@@ -981,12 +982,11 @@
 `  ((_ larceny min (min ?x ?y))
     (let ((x ?x) (y ?y))
       (let ((r (if (<= x y) x y)))
-        (if (or (inexact? x) (inexact? y))
-            (+ r 
-               (if (or (not (= x x)) (not (= y y)))
-                   +nan.0
-                   0.0))
-            r))))
+        (cond ((or (not (= x x)) (not (= y y)))
+               +nan.0)
+              ((or (inexact? x) (inexact? y))
+               (inexact r))
+              (else r)))))
 `  ((_ larceny min (min ?x ?y ?z ...))
     (let ((x ?x) (y (min ?y ?z ...)))
       (min x y)))
@@ -994,12 +994,11 @@
 `  ((_ larceny max (max ?x ?y))
     (let ((x ?x) (y ?y))
       (let ((r (if (>= x y) x y)))
-        (if (or (inexact? x) (inexact? y))
-            (+ r 
-               (if (or (not (= x x)) (not (= y y)))
-                   +nan.0
-                   0.0))
-            r))))
+        (cond ((or (not (= x x)) (not (= y y)))
+               +nan.0)
+              ((or (inexact? x) (inexact? y))
+               (inexact r))
+              (else r)))))
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
@@ -1468,6 +1467,10 @@
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
     (let* ((x ?x) (y ?y))
       (fl/ (fl/ x y) ?z ...)))
+
+`  ((_ larceny inexact (inexact ?x))
+    (let* ((x ?x))
+      (if (inexact? x) x (+ x 0.0))))
 
    ; These three compiler macros cannot be expressed using SYNTAX-RULES.
 

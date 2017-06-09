@@ -33,9 +33,9 @@
                          (cond ((< y1 x)
                                 (if exact
                                     (loop (cdr y) y1 (exact? y1))
-                                    (loop (cdr y) (+ y1 0.0) exact)))
+                                    (loop (cdr y) (inexact y1) exact)))
                                ((and exact (not (exact? y1)))
-                                (loop (cdr y) (+ x 0.0) #f))
+                                (loop (cdr y) (inexact x) #f))
                                (else (loop (cdr y) x exact))))))))
     min))
  
@@ -51,9 +51,9 @@
                          (cond ((> y1 x)
                                 (if exact
                                     (loop (cdr y) y1 (exact? y1))
-                                    (loop (cdr y) (+ y1 0.0) exact)))
+                                    (loop (cdr y) (inexact y1) exact)))
                                ((and exact (not (exact? y1)))
-                                (loop (cdr y) (+ x 0.0) #f))
+                                (loop (cdr y) (inexact x) #f))
                                (else (loop (cdr y) x exact))))))))
     max))
  

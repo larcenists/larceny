@@ -694,6 +694,10 @@
    (test "Ticket #795"                  ; Bug in v0.99 and previous
          (magnitude -1e308)
          1e308)
+
+   (test "Ticket #797"                  ; Bug in v0.99 and previous
+         (max -34.0 -0.0)
+         -0.0)
    ))
 
 
