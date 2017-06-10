@@ -129,6 +129,7 @@
    fl/
    flabs
    flabsdiff
+   flposdiff
    flsgn
    flnumerator
    fldenominator
@@ -207,6 +208,17 @@
    (else
     (import (scheme complex))))
 
+  ;; Use an FFI if one is available.
+
+  (cond-expand
+   ((and larceny i386)
+    (import (scheme time)    ; FIXME: for benchmarking
+            (scheme write)   ; FIXME: for benchmarking
+            (rename (primitives r5rs:require)
+                    (r5rs:require require))
+            (primitives foreign-procedure)))
+   (else))
+
   (include "144.body0.scm")
 
   ;; If (rnrs arithmetic flonums) is not available, fake it.
@@ -217,6 +229,21 @@
    (else))
 
   (include "144.body.scm")
-  (include "144.special.scm"))
+  (include "144.special.scm")
+
+  ;; If the C library is available, use it.
+
+  (cond-expand
+   ((and larceny i386)
+    (include "144.ffi.scm")
+    (begin (define c-functions-are-available #t)
+           (define fl-fast-fl+* #t)))
+   (else
+    (begin (define c-functions-are-available #f)
+           (define fl-fast-fl+* #f)
+           (define (fma x y z) (error "fma not defined"))
+           (define (jn n x) (error "jn not defined")))))
+
+  )
 
 ;;; eof

@@ -142,8 +142,6 @@
         (* 2.0 eps)
         (loop (/ eps 2.0)))))
 
-(define fl-fast-fl+* #f)
-
 (define fl-integer-exponent-zero                ; arbitrary
   (exact (- (log fl-least 2.0) 1.0)))
 
@@ -349,11 +347,15 @@
 (define fl+*
   (flop3 'fl+*
          (lambda (x y z)
-           (cond ((and (flfinite? x) (flfinite? y) (flfinite? z))
-                  (let ((x (exact x))
-                        (y (exact y))
-                        (z (exact z)))
-                    (flonum (+ (* x y) z))))
+           (cond (c-functions-are-available
+                  (fma x y z))
+                 ((and (flfinite? x) (flfinite? y))
+                  (if (flfinite? z)
+                      (let ((x (exact x))
+                            (y (exact y))
+                            (z (exact z)))
+                        (flonum (+ (* x y) z)))
+                      z))
                  (else
                   (fl+ (fl* x y) z))))))
 
@@ -363,6 +365,12 @@
 
 (define (flabsdiff x y)
   (flabs (fl- x y)))
+
+(define (flposdiff x y)
+  (let ((diff (fl- x y)))
+    (if (flnegative? diff)
+        0.0
+        diff)))
 
 (define (flsgn x)
   (flcopysign 1.0 x))

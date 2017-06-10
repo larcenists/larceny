@@ -177,8 +177,8 @@
            (values (log (flabs g))
                    (flcopysign 1.0 g))))))
 
-;;; This doesn't seem to be as accurate as the continued fraction,
-;;; so it's commented out for now.
+;;; This doesn't seem to be as accurate as the continued fraction
+;;; of equation 6.1.48, so it's commented out for now.
 
 #;
 (define (eqn6.1.41 x)
@@ -220,7 +220,116 @@
 
 (define flloggamma:upper-threshold 20.0)
 
-(define flfirst-bessel FIXME)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Bessel functions
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; FIXME: Equation 9.1.10 is fine for small x and n = 0, but
+;;; it's inaccurate for large x and large n.
+;;; FIXME: need something better for large x and large n
+
+(define (flfirst-bessel x n)
+  (check-flonum! 'flfirst-bessel x)
+  (cond (c-functions-are-available
+         (jn n x))
+        ((< n 0)
+         (let ((result (flfirst-bessel x (- n))))
+           (if (even? n) result (- result))))
+        ((and (< 9 n 100)                ; FIXME
+              (fl<? 1.0 x 25.0))         ; FIXME
+;        (write (list "9.1.75" x n)) (newline)
+         (eqn9.1.75 x n))
+        ((and (< 3 n 100)                ; FIXME
+              (fl>? x 50.0))            ; FIXME
+;        (write (list "9.2.1" x n)) (newline)
+         (eqn9.2.1 x n))
+        (else
+         (eqn9.1.10 x n 20))))
+
+(define (iota n)
+  (do ((n (- n 1) (- n 1))
+       (x '() (cons n x)))
+      ((< n 0) x)))
+
+;;; For n = 0, this seems to agree with C99 jn for 0 <= x <= 1.5.
+;;;
+;;; FIXME: should pre-compute the coefficients for small n
+
+(define (eqn9.1.10 x n kmax)
+  (fl* (inexact (expt (* 0.5 x) n))
+       (polynomial-at (flsquare x)
+                      (map (lambda (k)
+                             (fl/ (inexact (expt -0.25 k))
+                                  (fl* (factorial (inexact k))
+                                       (flgamma (inexact (+ n k 1))))))
+                           (iota (+ kmax 1))))))
+
+;;; Returns an approximation to J_{m+n}(x).
+;;;
+;;; FIXME: this doesn't seem to work at all, so I may have introduced a bug.
+
+(define (eqn9.1.14 x m n kmax)
+  (fl* (inexact (expt (* 0.5 x) (+ m n)))
+       (polynomial-at (flsquare x)
+                      (map (lambda (k)
+                             (fl/ (fl* (inexact (expt -0.25 k))
+                                       (flgamma (inexact (+ m n k k 1))))
+                                  (fl* (factorial (inexact k))
+                                       (flgamma (inexact (+ m k 1)))
+                                       (flgamma (inexact (+ n k 1)))
+                                       (flgamma (inexact (+ m n k 1))))))
+                           (iota (+ kmax 1))))))
+
+;;; Equation 9.1.27 says J_{n-1}(x) + J_{n+1}(x) = (2n/x) J_n(x)
+;;;
+;;; J_{n+1}(x) = (2n/x) J_n(x) - J_{n-1}(x)
+
+(define (eqn9.1.27 x n0)
+  (define (loop n jn jn-1)
+    (cond ((= n n0)
+           jn)
+          (else
+           (loop (+ n 1)
+                 (fl- (fl* (fl/ (inexact (+ n n)) x) jn)
+                      jn-1)
+                 jn))))
+  (if (< n0 1) ; FIXME
+      (flfirst-bessel x n0)
+      (loop 2 (flfirst-bessel x 2) (flfirst-bessel x 1))))
+
+;;; Equation 9.1.75 states an equality between J_n(x)/J_{n-1}(x)
+;;; and a continued fraction.
+;;;
+;;; Precondition: |x| > 0
+;;;
+;;; This works very well provided (flfirst-bessel x 0) is accurate
+;;; and x is small enough for it to run in reasonable time.
+
+(define (eqn9.1.75 x n)
+  (define k (max 10 (* 2 (exact (flceiling x)))))
+  (define (loop x2 m i)
+    (if (> i k)
+        (fl/ 1.0 (fl* m x2))
+        (fl/ 1.0
+             (fl- (fl* m x2)
+                  (loop x2 (+ m 1.0) (+ i 1))))))
+  (if (and (> n 0) (flpositive? x))
+      (fl* (eqn9.1.75 x (- n 1))
+           (loop (fl/ 2.0 x) (inexact n) 0))
+      (flfirst-bessel x n)))
+
+;;; Equation 9.2.1 states an asymptotic approximation that agrees
+;;; with C99 jn to 6 decimal places for n = 0 and x = 1e6.
+
+(define (eqn9.2.1 x n)
+  (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
+       (flcos (fl- x (fl* 0.5 (inexact n) fl-pi) (fl* 0.25 fl-pi)))))
+
+
+
+
 (define flsecond-bessel FIXME)
 (define flerf FIXME)
 (define flerfc FIXME)

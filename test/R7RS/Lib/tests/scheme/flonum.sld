@@ -111,6 +111,7 @@
 ;;;     fl/
 ;;;     flabs
 ;;;     flabsdiff
+;;;     flposdiff
 ;;;     flsgn
 ;;;     flnumerator
 ;;;     fldenominator
@@ -179,7 +180,7 @@
      (define (iota n)
        (do ((n (- n 1) (- n 1))
             (x '() (cons n x)))
-           ((<= n 0) x))))))
+           ((< n 0) x))))))
 
   (begin
 
@@ -659,8 +660,8 @@
      (test-assert (flnan? (fl+* zero neginf nan)))
      (test-assert (flnan? (fl+* posinf zero nan)))
      (test-assert (flnan? (fl+* neginf zero nan)))
-     (test-assert (flnan? (fl+* fl-greatest fl-greatest neginf)))
-     (test-assert (flnan? (fl+* fl-greatest (fl- fl-greatest) posinf)))
+     (test (fl+* fl-greatest fl-greatest neginf) neginf)
+     (test (fl+* fl-greatest (fl- fl-greatest) posinf) posinf)
      (test-assert (flnan? (fl+* nan one one)))
      (test-assert (flnan? (fl+* one nan one)))
      (test-assert (flnan? (fl+* one one nan)))
@@ -703,7 +704,13 @@
      (test (flabsdiff one one) zero)
      (test (flabsdiff posinf neginf) posinf)
      (test (flabsdiff neginf posinf) posinf)
-
+#|
+     (test (flposdiff zero one) zero)
+     (test (flposdiff one zero) one)
+     (test (flposdiff one one) zero)
+     (test (flposdiff posinf neginf) posinf)
+     (test (flposdiff neginf posinf) posinf)
+|#
      (test (flsgn posinf) one)
      (test (flsgn neginf) (fl- one))
      (test (flsgn zero) one)
@@ -1150,9 +1157,106 @@
        (test (s (flonum -1000.5)) (fl- one))
        )
 
+     (test (flfirst-bessel zero 0) one)
+     (test (flfirst-bessel zero 1) zero)
+     (test (flfirst-bessel zero 2) zero)
+     (test (flfirst-bessel zero 3) zero)
+     (test (flfirst-bessel zero 4) zero)
+     (test (flfirst-bessel zero 5) zero)
+     (test (flfirst-bessel zero 6) zero)
+     (test (flfirst-bessel zero 7) zero)
+     (test (flfirst-bessel zero 8) zero)
+     (test (flfirst-bessel zero 9) zero)
+
+     (test/approx (flfirst-bessel (flonum 0.4) 0)
+                  (flonum 0.960398226659563))
+     (test/approx (flfirst-bessel (flonum 0.4) 1)
+                  (flonum 0.1960265780))
+     (test/approx (flfirst-bessel (flonum 0.4) 2)
+                  (flonum 0.0197346631))
+     (test/approx (flfirst-bessel (flonum 0.4) 3)
+                  (flonum 1.3201e-3))
+     (test/approx (flfirst-bessel (flonum 0.4) 4)
+                  (flonum 6.6135e-5))
+     (test/approx (flfirst-bessel (flonum 0.4) 5)
+                  (flonum 2.6489e-6))
+     (test/approx (flfirst-bessel (flonum 0.4) 6)
+                  (flonum 8.8382e-8))
+     (test/approx (flfirst-bessel (flonum 0.4) 7)
+                  (flonum 2.5270e-9))
+     (test/approx (flfirst-bessel (flonum 0.4) 8)
+                  (flonum 6.3210e-11))
+     (test/approx (flfirst-bessel (flonum 0.4) 9)
+                  (flonum 1.4053e-12))
+
+     (test/approx (flfirst-bessel one 0)
+                  (flonum 0.765197686557967))
+     (test/approx (flfirst-bessel one 1)
+                  (flonum 0.4400505857))
+     (test/approx (flfirst-bessel one 2)
+                  (flonum 0.1149034849))
+     (test/approx (flfirst-bessel one 3)
+                  (flonum 1.9563e-2))
+     (test/approx (flfirst-bessel one 4)
+                  (flonum 2.4766e-3))
+     (test/approx (flfirst-bessel one 5)
+                  (flonum 2.4976e-4))
+     (test/approx (flfirst-bessel one 6)
+                  (flonum 2.0938e-5))
+     (test/approx (flfirst-bessel one 7)
+                  (flonum 1.5023e-6))
+     (test/approx (flfirst-bessel one 8)
+                  (flonum 9.4223e-8))
+     (test/approx (flfirst-bessel one 9)
+                  (flonum 5.2493e-9))
+
+     (test/approx (flfirst-bessel (flonum 17) 0)
+                  (flonum -0.169854252151184))
+     (test/approx (flfirst-bessel (flonum 17) 1)
+                  (flonum -0.0976684928))
+     (test/approx (flfirst-bessel (flonum 17) 2)
+                  (flonum 0.1583638412))
+     (test/approx (flfirst-bessel (flonum 17) 3)
+                  (flonum 0.13493))
+     (test/approx (flfirst-bessel (flonum 17) 4)
+                  (flonum -0.11074))
+     (test/approx (flfirst-bessel (flonum 17) 5)
+                  (flonum -0.18704))
+     (test/approx (flfirst-bessel (flonum 17) 6)
+                  (flonum 0.0007153))
+     (test/approx (flfirst-bessel (flonum 17) 7)
+                  (flonum 0.18755))
+     (test/approx (flfirst-bessel (flonum 17) 8)
+                  (flonum 0.15374))
+     (test/approx (flfirst-bessel (flonum 17) 9)
+                  (flonum -0.04286))
+
+     (let ((f (lambda (n x y)
+                (test/approx (fl/ (flfirst-bessel x n) y)
+                             (fl* (flexpt x (flonum n)))))))
+       (f 10 zero 2.69114446e-10)
+       (f 11 zero 1.22324748e-11)
+       (f 20 zero 3.91990e-25)
+       (f 21 zero 9.33311e-27)
+       (f 10 (flonum 8) 0.56593704e-10)
+       (f 11 (flonum 8) 0.29798448e-11)
+       (f 20 (flonum 8) 1.80462e-25)
+       (f 21 (flonum 8) 4.45624e-27))
+
+     (test/approx (flfirst-bessel (flonum 10) 10)  2.074861066e-1)
+     (test/approx (flfirst-bessel (flonum 10) 15)  4.507973144e-3)
+     (test/approx (flfirst-bessel (flonum 10) 20)  1.151336925e-5)
+     (test/approx (flfirst-bessel (flonum 10) 50)  1.784513608e-30)
+     (test/approx (flfirst-bessel (flonum 10) 100) 6.597316064e-89)
+
+     (test/approx (flfirst-bessel (flonum 100) 10)  -5.473217694e-2)
+     (test/approx (flfirst-bessel (flonum 100) 15)  +1.519812122e-2)
+     (test/approx (flfirst-bessel (flonum 100) 20)  +6.221745850e-2)
+     (test/approx (flfirst-bessel (flonum 100) 50)  -3.869833973e-2)
+     (test/approx (flfirst-bessel (flonum 100) 100) +9.636667330e-2)
+
      ;; FIXME
 
-;;;     flfirst-bessel
 ;;;     flsecond-bessel
 ;;;     flerf
 ;;;     flerfc
