@@ -74,7 +74,7 @@
 (define erf       (foreign-procedure "erf"       '(double)        'double))
 (define erfc      (foreign-procedure "lgamma"    '(double)        'double))
 
-#|
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -85,14 +85,17 @@
 (define-syntax cmp
   (syntax-rules ()
    ((cmp (f1 x1 ...) (f2 x2 ...))
-    (compare 'f1 'f2 (lambda () (f1 x1 ...)) (lambda () (f2 x2 ...))))))
+    (if (not c-functions-are-available)
+        (compare 'f1 'f2 (lambda () (f1 x1 ...)) (lambda () (f2 x2 ...)))))))
 
 (define (compare name1 name2 thunk1 thunk2)
   (define iterations 100000)
   (define (call-thunk thunk iters)
     (if (> iters 1)
         (begin (thunk) (call-thunk thunk (- iters 1)))
-        (thunk)))        
+        (thunk)))
+  (define (round1/ p q)
+    (/ (round (/ (* 10.0 p) (max 1.0 q))) 10.0))
   (display "Comparing ")
   (write name1)
   (display " and ")
@@ -109,7 +112,7 @@
     (write r1) (newline)
     (write r2) (newline)
     (display (if (< d1 d2) "        " "******* "))
-    (write (max (quotient d2 d1) (quotient d1 d2)))
+    (write (max (round1/ d2 d1) (round1/ d1 d2)))
     (display " times as ")
     (display (if (< d1 d2) "fast" "slow ********************************"))
     (newline) (newline)))
@@ -155,8 +158,8 @@
 (cmp (flsin .4) (c:sin .4))
 (cmp (flcos .4) (c:cos .4))
 (cmp (fltan 3.4) (c:tan 3.4))
-(cmp (flasin 3.4) (c:asin 3.4))
-(cmp (flacos 3.4) (c:acos 3.4))
+(cmp (flasin 0.4) (c:asin 0.4))
+(cmp (flacos 0.4) (c:acos 0.4))
 (cmp (flatan 3.4) (c:atan 3.4))
 (cmp (flatan 3.4 5.6) (atan2 3.4 5.6))
 
@@ -170,6 +173,7 @@
 (cmp (flgamma 3.4) (tgamma 3.4))
 (cmp (flloggamma 3.4) (lgamma 3.4))
 (cmp (flfirst-bessel 3.4 0) (jn 0 3.4))
+#|
 (cmp (flsecond-bessel 3.4 0) (yn 0 3.4))
 (cmp (flerf 3.4) (erf 3.4))
 (cmp (flerfc 3.4) (erfc 3.4))
