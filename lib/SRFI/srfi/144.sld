@@ -234,12 +234,7 @@
   ;; If the C library is available, use it.
 
   (cond-expand
-<<<<<<< HEAD
-   ((and larceny i386)
-=======
    ((and larceny i386 unix gnu-linux)
-    (include "144.ffi.scm")
->>>>>>> 24abbbdd65edaf30f36a14b896b713347b1bd63c
     (begin (define c-functions-are-available #t)
            (define fl-fast-fl+* #t))
     (include "144.ffi.scm"))
