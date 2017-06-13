@@ -104,11 +104,18 @@
       (fl+ (car coefs)
            (fl* x (polynomial-at x (cdr coefs))))))
 
+;;; Given a exact non-negative integer, returns its factorial.
+
+(define (fact x)
+  (if (zero? x)
+      1
+      (* x (fact (- x 1)))))
+
 ;;; Given a non-negative integral flonum x, returns its factorial.
 
 (define (factorial x)
   (if (flzero? x)
       1.0
-      (* x (factorial (fl- x 1.0)))))
+      (fl* x (factorial (fl- x 1.0)))))
 
 ; eof
