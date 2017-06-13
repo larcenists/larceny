@@ -226,8 +226,10 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; FIXME: Equation 9.1.10 is fine for small x and n = 0, but
-;;; it's inaccurate for large x and large n.
+;;; FIXME: Equation 9.1.10 is exact, but it's an infinite series.
+;;; It doesn't converge fast enough for x greater than 1.5 or so,
+;;; and underflows (using inexact arithmetic) for large n.
+;;;
 ;;; FIXME: need something better for large x and large n
 
 (define (flfirst-bessel x n)
@@ -237,34 +239,60 @@
         ((< n 0)
          (let ((result (flfirst-bessel x (- n))))
            (if (even? n) result (- result))))
-        ((and (< 9 n 100)                ; FIXME
-              (fl<? 1.0 x 25.0))         ; FIXME
+
+        ((and (< 9 n 101)                ; FIXME
+              (fl<? 1.0 x 125.0))         ; FIXME
 ;        (write (list "9.1.75" x n)) (newline)
          (eqn9.1.75 x n))
-        ((and (< 3 n 100)                ; FIXME
-              (fl>? x 50.0))            ; FIXME
+
+        ((and (< 2 n)
+              (fl>? x 50.0))
+         (eqn9.1.27 x n))
+
+        ((and (< n 3)
+              (fl>? x 50.0))
+         (eqn9.2.1 x n))
+#;
+        ((and (< 2 n)                    ; FIXME
+              (fl>? x 50.0))             ; FIXME
 ;        (write (list "9.2.1" x n)) (newline)
          (eqn9.2.1 x n))
         (else
-         (eqn9.1.10 x n 20))))
+         (eqn9.1.10 x n))))
 
 (define (iota n)
   (do ((n (- n 1) (- n 1))
        (x '() (cons n x)))
       ((< n 0) x)))
 
-;;; For n = 0, this seems to agree with C99 jn for 0 <= x <= 1.5.
-;;;
-;;; FIXME: should pre-compute the coefficients for small n
+;;; For n = 0 and kmax = 20, this agrees with C99 jn for 0 <= x <= 1.5.
+;;; It should become more accurate for larger n but less accurate for
+;;; larger x.  Should be okay if n > x.
 
-(define (eqn9.1.10 x n kmax)
+(define (eqn9.1.10 x n)
   (fl* (inexact (expt (* 0.5 x) n))
        (polynomial-at (flsquare x)
-                      (map (lambda (k)
-                             (fl/ (inexact (expt -0.25 k))
-                                  (fl* (factorial (inexact k))
-                                       (flgamma (inexact (+ n k 1))))))
-                           (iota (+ kmax 1))))))
+                      (cond ((= n 0)
+                             eqn9.1.10-coefficients-0)
+                            ((= n 1)
+                             eqn9.1.10-coefficients-1)
+                            (else
+                             (eqn9.1.10-coefficients n))))))
+
+(define (eqn9.1.10-coefficients n)
+  (define (loop k prev)
+    (if (flzero? (inexact prev))
+        '()
+        (let ((c (/ (* -1/4 prev) k (+ n k))))
+          (cons c (loop (+ k 1) c)))))
+  (let ((c (/ (fact n))))
+    (map inexact (cons c (loop 1 c)))))
+
+(define eqn9.1.10-coefficients-0
+  (eqn9.1.10-coefficients 0))
+
+(define eqn9.1.10-coefficients-1
+  (eqn9.1.10-coefficients 1))
 
 ;;; Returns an approximation to J_{m+n}(x).
 ;;;
@@ -315,7 +343,8 @@
         (fl/ 1.0
              (fl- (fl* m x2)
                   (loop x2 (+ m 1.0) (+ i 1))))))
-  (if (and (> n 0) (flpositive? x))
+; (if (and (> n 0) (flpositive? x))
+  (if (and (> n 3) (flpositive? x))
       (fl* (eqn9.1.75 x (- n 1))
            (loop (fl/ 2.0 x) (inexact n) 0))
       (flfirst-bessel x n)))
