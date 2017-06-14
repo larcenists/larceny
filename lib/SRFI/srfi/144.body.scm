@@ -91,8 +91,7 @@
 (define fl-2/sqrt-pi (/ 2.0 (sqrt fl-pi)))
 (define fl-pi-squared (* fl-pi fl-pi))
 (define fl-degree (/ fl-pi 180.0))
-;(define fl-2/pi (expt 2.0 fl-pi))    ; as specified, but I don't believe it
-(define fl-2/pi (/ 2.0 fl-pi))        ; this is more likely
+(define fl-2/pi (/ 2.0 fl-pi))
 ;(define fl-2/sqrt-pi fl-2/sqrt-pi)   ; specified twice in draft of SRFI 144
 (define fl-sqrt-2 (sqrt 2.0))
 (define fl-sqrt-3 (sqrt 3.0))
@@ -288,7 +287,7 @@
   (let ((flmax2 (flop2 'flmax max)))
     (lambda args
       (cond ((null? args)
-             -inf.0)                 ; spec says fl-greatest, but that's wrong
+             -inf.0)
             ((null? (cdr args))
              (car args))
             ((null? (cddr args))
@@ -452,9 +451,7 @@
 ;(define flexpt R6RS)                ; defined by (rnrs arithmetic flonums)
 ;(define fllog R6RS)                 ; defined by (rnrs arithmetic flonums)
 
-;;; FIXME
-;;; I believe this is supposed to return log(x+1), as in C99 log1p,
-;;; instead of the (log x) + 1 specified in the draft SRFI.
+;;; Returns log(x+1), as in C99 log1p.
 ;;;
 ;;; log (x + 1) = \sum_{n=1}^\infty - (-1)^n x^n/n
 

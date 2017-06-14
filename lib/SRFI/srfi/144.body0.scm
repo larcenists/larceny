@@ -101,8 +101,14 @@
 (define (polynomial-at x coefs)
   (if (null? coefs)
       0.0
+#;    (fma x (polynomial-at x (cdr coefs)) (car coefs)) ; doesn't help
       (fl+ (car coefs)
            (fl* x (polynomial-at x (cdr coefs))))))
+
+(define (iota n)
+  (do ((n (- n 1) (- n 1))
+       (x '() (cons n x)))
+      ((< n 0) x)))
 
 ;;; Given a exact non-negative integer, returns its factorial.
 

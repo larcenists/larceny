@@ -244,6 +244,7 @@
            (define (fma x y z) (error "fma not defined"))
            (define (jn n x) (error "jn not defined")))))
 
+  (import (scheme write)) ; FIXME
   )
 
 ;;; eof

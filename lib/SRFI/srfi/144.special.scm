@@ -134,9 +134,6 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; FIXME: the current draft spec for flloggamma is surely wrong.
-;;; Presumably the intended spec is as stated below.
-
 ;;; Returns two values:
 ;;;     log ( |Gamma(x)| )
 ;;;     sgn (Gamma(x))
@@ -226,46 +223,80 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; FIXME: Equation 9.1.10 is exact, but it's an infinite series.
-;;; It doesn't converge fast enough for x greater than 1.5 or so,
-;;; and underflows (using inexact arithmetic) for large n.
-;;;
-;;; FIXME: need something better for large x and large n
+;;; FIXME: This isn't as accurate as it should be, it's hard to test
+;;; because it combines so many different algorithms and intervals,
+;;; and it underflows to zero too soon.
 
 (define (flfirst-bessel x n)
   (check-flonum! 'flfirst-bessel x)
   (cond (c-functions-are-available
          (jn n x))
+
         ((< n 0)
          (let ((result (flfirst-bessel x (- n))))
            (if (even? n) result (- result))))
 
-        ((and (< 9 n 101)                ; FIXME
-              (fl<? 1.0 x 125.0))         ; FIXME
-;        (write (list "9.1.75" x n)) (newline)
-         (eqn9.1.75 x n))
-
-        ((and (< 2 n)
-              (fl>? x 50.0))
-         (eqn9.1.27 x n))
-
-        ((and (< n 3)
-              (fl>? x 50.0))
-         (eqn9.2.1 x n))
-#;
-        ((and (< 2 n)                    ; FIXME
-              (fl>? x 50.0))             ; FIXME
-;        (write (list "9.2.1" x n)) (newline)
-         (eqn9.2.1 x n))
         (else
-         (eqn9.1.10 x n))))
+         (case n
+          ((0 1)  (cond ((fl<? x 24.0)
+                         (eqn9.1.10 x n))
+                        ((fl<? x 1e12)
+                         (eqn9.2.5 x n))
+                        (else
+                         (eqn9.2.1 x n))))
+          (else   (cond ((fl<? x 16.0)
+                         (let ((jnx (eqn9.1.10-fast x n)))
+                           (if (flfinite? jnx)
+                               jnx
+                               0.0)))
+                        ((fl<? x 150.0)
+                         (if (fl>? (inexact n) x)
+                             (method9.12ex1 x n)
+                             (eqn9.1.75 x n)))
+                        ((or (and (fl<? x 500.0)
+                                  (<= n 32))
+                             (and (fl<? x 1000.0)
+                                  (<= n 64))
+                             (and (fl<? x 5000.0)
+                                  (<= n 128))
+                             (and (fl<? x 1e5)
+                                  (<= n 256))
+                             (and (fl<? x 1e6)
+                                  (<= n 1024))
+                             (and (fl<? x 1e12)
+                                  (<= n 4096)))
+                         (eqn9.2.5 x n))
+                        (else
+                         ;; FIXME
+                         0.0)))))))
 
-(define (iota n)
-  (do ((n (- n 1) (- n 1))
-       (x '() (cons n x)))
-      ((< n 0) x)))
+;;; For multiples of 1/16:
+;;;
+;;; For n = 0, this agrees with C99 jn for 0 <= x <= 1.5
+;;; and disagrees by no more than 1 bit for 0 <= x <= 2.0.
+;;; For n = 1, this disagrees by no more than 1 bit for 0 <= x <= 2.5.
+;;;
+;;;     n    0 <= x <= xmax    bits
+;;;
+;;;     0    0 <= x <= 1.5      0
+;;;     0    0 <= x <= 2.0      1
+;;;     1    0 <= x <= 2.5      1
+;;;     2    0 <= x <= 3.0      2
+;;;     3    0 <= x <= 2.5      4
+;;;     4    0 <= x <= 2.5      4
+;;;     5    0 <= x <= 3.0      3
+;;;     6    0 <= x <= 4.0      3
+;;;     7    0 <= x <= 6.5      4
+;;;     8    0 <= x <= 2.0      3
+;;;     9    0 <= x <= 1.5      4
+;;;    10    0 <= x <= 4.5      4
+;;;    20    0 <= x <= 3.5      6
+;;;    20    0 <= x <= 6.0      8
+;;;    30    0 <= x <= 1.0      6
+;;;    40    0 <= x <= 1.5      6
+;;;    50    0 <= x <= 1.0      6
 
-;;; For n = 0 and kmax = 20, this agrees with C99 jn for 0 <= x <= 1.5.
+
 ;;; It should become more accurate for larger n but less accurate for
 ;;; larger x.  Should be okay if n > x.
 
@@ -294,6 +325,23 @@
 (define eqn9.1.10-coefficients-1
   (eqn9.1.10-coefficients 1))
 
+;;; This is faster than using exact arithmetic to compute coefficients
+;;; at call time, and it seems to be about as accurate.
+
+(define (eqn9.1.10-fast x n)
+  (let* ((y (fl* 0.5 x))
+         (y2 (fl- (fl* y y)))
+         (bound (+ 25.0 (inexact n))))
+    (define (loop k n+k)
+      (if (fl>? n+k bound)
+          1.0
+          (fl+ 1.0
+               (fl* (fl/ y2 (fl* k n+k))
+                    (loop (fl+ 1.0 k) (fl+ 1.0 n+k))))))
+    (fl/ (fl* (inexact (expt y n))
+              (loop 1.0 (fl+ 1.0 (inexact n))))
+         (factorial (inexact n)))))
+
 ;;; Returns an approximation to J_{m+n}(x).
 ;;;
 ;;; FIXME: this doesn't seem to work at all, so I may have introduced a bug.
@@ -313,6 +361,11 @@
 ;;; Equation 9.1.27 says J_{n-1}(x) + J_{n+1}(x) = (2n/x) J_n(x)
 ;;;
 ;;; J_{n+1}(x) = (2n/x) J_n(x) - J_{n-1}(x)
+;;;
+;;; J_{n-1}(x) = (2n/x) J_n(x) - J_{n+1}(x)
+;;;
+;;; This has too much roundoff error if n > x or if x and n have
+;;; the same magnitude.
 
 (define (eqn9.1.27 x n0)
   (define (loop n jn jn-1)
@@ -323,9 +376,34 @@
                  (fl- (fl* (fl/ (inexact (+ n n)) x) jn)
                       jn-1)
                  jn))))
-  (if (< n0 1) ; FIXME
+  (if (<= n0 1)
       (flfirst-bessel x n0)
-      (loop 2 (flfirst-bessel x 2) (flfirst-bessel x 1))))
+      (loop 1 (flfirst-bessel x 1) (flfirst-bessel x 0))))
+
+;;; For x < n, Abramowitz and Stegun 9.12 Example 1 suggests this method:
+;;;
+;;;     1.  Choose odd N large enough so J_N(x) is essentially zero.
+;;;     2.  Choose an arbitrary trial value, say 1.0, for J_{N-1}(x).
+;;;     3.  Use equation 9.1.27 to estimate the relative values
+;;;         of J_{N-2}(x), J_{N-3}(x), ...
+;;;     4.  Normalize using equation 9.1.46 :
+;;;
+;;;             1 = J_0(x) + 2 J_2(x) + 2 J_4(x) + 2 J_6(x) + ...
+
+(define (method9.12ex1 x n0)
+  (define (loop n jn jn+1 jn0 sumEvens)
+    (if (= n 0)
+        (fl/ jn0 (+ jn sumEvens sumEvens))
+        (let ((jn-1 (fl- (fl/ (fl* 2.0 (inexact n) jn) x) jn+1)))
+          (loop (- n 1)
+                jn-1
+                jn
+                (if (= n n0) jn jn0)
+                (if (even? n) (fl+ jn sumEvens) sumEvens)))))
+  (let* ((n (min 200 (+ n0 20))) ; FIXME
+         (jn+1 (fl/ x (fl* 2.0 (inexact n))))
+         (jn 1.0))
+    (loop (- n 1) jn jn+1 0.0 0.0)))
 
 ;;; Equation 9.1.75 states an equality between J_n(x)/J_{n-1}(x)
 ;;; and a continued fraction.
@@ -343,8 +421,10 @@
         (fl/ 1.0
              (fl- (fl* m x2)
                   (loop x2 (+ m 1.0) (+ i 1))))))
-; (if (and (> n 0) (flpositive? x))
-  (if (and (> n 3) (flpositive? x))
+  (if (and (> n 0)
+           (flpositive? x)
+           (fl<? x 1e3))
+; (if (and (> n 3) (flpositive? x))
       (fl* (eqn9.1.75 x (- n 1))
            (loop (fl/ 2.0 x) (inexact n) 0))
       (flfirst-bessel x n)))
@@ -354,9 +434,56 @@
 
 (define (eqn9.2.1 x n)
   (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
-       (flcos (fl- x (fl* 0.5 (inexact n) fl-pi) (fl* 0.25 fl-pi)))))
+       (flcos (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
 
+;;; Equation 9.2.5 : For large x,
+;;;
+;;;     J_n(x) = sqrt (2/(pi x)) [ P(n, x) cos theta - Q (n, x) sin theta ]
+;;;
+;;; where
+;;;
+;;;     theta = x - (n/2 + 1/4) pi
+;;;
+;;; and P(n, x) and Q(n, x) are defined by equations 9.2.9 and 9.2.10.
 
+(define (eqn9.2.5 x n)
+  (let ((theta (fl- x (fl* (fl+ (/ n 2.0) 0.25) fl-pi))))
+    (fl* (flsqrt (fl/ 2.0 (fl* fl-pi x)))
+         (fl- (fl* (eqn9.2.9 n x) (flcos theta))
+              (fl* (eqn9.2.10 n x) (flsin theta))))))
+
+(define (eqn9.2.9 n x) ; returns P(n, x)
+  (define mu (fl* 4.0 (flsquare (inexact n))))
+  (define (coefficients k2 p fact2k)
+    (let ((c (fl/ p fact2k)))
+      (if (fl>? k2 20.0) ; FIXME
+          (list c)
+          (cons c (coefficients (fl+ k2 2.0)
+                                (fl* p
+                                     (fl- mu (flsquare (fl+ k2 1.0)))
+                                     (fl- mu (flsquare (fl+ k2 3.0))))
+                                (fl* fact2k
+                                     (fl+ k2 1.0)
+                                     (fl+ k2 2.0)))))))
+  (polynomial-at (fl- (fl/ (flsquare (fl* 8.0 x))))
+                 (coefficients 0.0 1.0 1.0)))
+
+(define (eqn9.2.10 n x) ; returns Q(n, x)
+  (define mu (fl* 4.0 (flsquare (inexact n))))
+  (define (coefficients k2+1 p fact2k+1)
+    (let ((c (fl/ p fact2k+1)))
+      (if (fl>? k2+1 20.0) ; FIXME
+          (list c)
+          (cons c (coefficients (fl+ k2+1 2.0)
+                                (fl* p
+                                     (fl- mu (flsquare (fl+ k2+1 2.0)))
+                                     (fl- mu (flsquare (fl+ k2+1 4.0))))
+                                (fl* fact2k+1
+                                     (fl+ k2+1 1.0)
+                                     (fl+ k2+1 2.0)))))))
+  (fl* (fl/ (fl* 8.0 x))
+       (polynomial-at (fl- (fl/ (flsquare (fl* 8.0 x))))
+                      (coefficients 1.0 (fl- mu 1.0) 1.0))))
 
 
 (define flsecond-bessel FIXME)
