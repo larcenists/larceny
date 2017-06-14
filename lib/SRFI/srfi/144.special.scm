@@ -270,6 +270,35 @@
                          ;; FIXME
                          0.0)))))))
 
+(define (flsecond-bessel x n)
+  (check-flonum! 'flfirst-bessel x)
+  (cond (c-functions-are-available
+         (yn n x))
+
+        ((< n 0)
+         (let ((result (flfirst-bessel x (- n))))
+           (if (even? n) result (- result))))
+
+        ((= x 0.0)
+         -inf.0)
+
+        (else
+         (case n
+          ((0)    (cond ((fl<? x 14.5)
+                         (eqn9.1.13 x 0))
+                        (else
+                         (eqn9.2.6 x 0))))
+          ((1)    (cond ((fl<? x 1e12)
+                         (eqn9.1.16 x n))
+                        (else
+                         (eqn9.2.6 x n))))
+          ((2 3)  (cond (else
+                         (eqn9.1.27-second-bessel x n))))
+          (else   (let ((ynx (eqn9.1.27-second-bessel x n)))
+                    (if (flnan? ynx)
+                        -inf.0
+                        ynx)))))))
+
 ;;; For multiples of 1/16:
 ;;;
 ;;; For n = 0, this agrees with C99 jn for 0 <= x <= 1.5
@@ -342,6 +371,48 @@
               (loop 1.0 (fl+ 1.0 (inexact n))))
          (factorial (inexact n)))))
 
+;;; Equation 9.1.11 :
+;;;
+;;;     Y_n(x) = - (1 / (pi (x/2)^n))
+;;;                  \sum_{k=0}^{n-1} ((n - k - 1)!/(k!)) (x^2/4)^k
+;;;              + (2/pi) log (x/2) J_n(x)
+;;;              - ((x/2)^n / pi)
+;;;                  \sum_{k=0}^\infty ((psi(k+1) + psi(n+k+1)) / (k! (n+k)!))
+;;;                                    (x^/4)^k
+;;; where
+;;;
+;;;     psi (1) = - gamma
+;;;     psi (n) = - gamma + \sum_{k=1}^{n-1} (1/k)
+
+;;; Equation 9.1.13 is the special case for Y_0(x) :
+;;;
+;;;     Y_0(x) = (2/pi) (log (x/2) + gamma) J_0(x)
+;;;            + (2/pi) ((x^2/4)^1 / (1!)^2
+;;;                          - (1 + 1/2) (x^2/4)^2 / (2!)^2
+;;;                          + (1 + 1/2 + 1/3) (x^2/4)^3 / (3!)^2
+;;;                          - ...)
+
+(define (eqn9.1.13 x n)
+  (if (not (= n 0)) (error "eqn9.1.13 requires n=0"))
+  (fl* 2.0
+       fl-1/pi
+       (fl+ (fl* (fl+ (fllog (fl/ x 2.0)) fl-euler)
+                 (flfirst-bessel x 0))
+            (polynomial-at (fl* 0.25 x x)
+                           eqn9.1.13-coefficients))))
+
+(define eqn9.1.13-coefficients
+  (map (lambda (k)
+         (cond ((= k 0) 0.0)
+               ((= k 1) 1.0)
+               (else
+                ;; (1 + 1/2 + 1/3 + ... + 1/k) / (k!)^2
+                (let ((c (/ (apply + (map / (cdr (iota (+ k 1)))))
+                            (let ((k! (fact k)))
+                              (* k! k!)))))
+                  (inexact (if (even? k) (- c) c))))))
+       (iota 25))) ; FIXME
+
 ;;; Returns an approximation to J_{m+n}(x).
 ;;;
 ;;; FIXME: this doesn't seem to work at all, so I may have introduced a bug.
@@ -358,16 +429,44 @@
                                        (flgamma (inexact (+ m n k 1))))))
                            (iota (+ kmax 1))))))
 
-;;; Equation 9.1.27 says J_{n-1}(x) + J_{n+1}(x) = (2n/x) J_n(x)
+;;; Equation 9.1.16 :
+;;;
+;;;     J_{n+1}(x) Y_n(x) - J_n(x) Y_{n+1}(x) = 2 / (pi x)
+;;; so
+;;;     Y_{n+1}(x) = (J_{n+1}(x) Y_n(x) - (2 / (pi x))) / J_n(x)
+
+(define (eqn9.1.16 x n+1)
+  (if (= 0 n+1)
+      (flsecond-bessel x 0)
+      (let ((n (- n+1 1)))
+        (fl/ (fl- (fl* (flfirst-bessel x n+1) (flsecond-bessel x n))
+                  (fl/ 2.0 (fl* fl-pi x)))
+             (flfirst-bessel x n)))))
+
+;;; Equation 9.1.27 says
+;;;
+;;; J_{n-1}(x) + J_{n+1}(x) = (2n/x) J_n(x)
 ;;;
 ;;; J_{n+1}(x) = (2n/x) J_n(x) - J_{n-1}(x)
 ;;;
 ;;; J_{n-1}(x) = (2n/x) J_n(x) - J_{n+1}(x)
 ;;;
+;;; Y_{n-1}(x) + Y_{n+1}(x) = (2n/x) Y_n(x)
+;;;
+;;; Y_{n+1}(x) = (2n/x) Y_n(x) - Y_{n-1}(x)
+;;;
+;;; Y_{n-1}(x) = (2n/x) Y_n(x) - Y_{n+1}(x)
+;;;
 ;;; This has too much roundoff error if n > x or if x and n have
 ;;; the same magnitude.
 
-(define (eqn9.1.27 x n0)
+(define (eqn9.1.27-first-bessel x n)
+  (eqn9.1.27 flfirst-bessel x n))
+
+(define (eqn9.1.27-second-bessel x n)
+  (eqn9.1.27 flsecond-bessel x n))
+
+(define (eqn9.1.27 f x n0)
   (define (loop n jn jn-1)
     (cond ((= n n0)
            jn)
@@ -377,8 +476,8 @@
                       jn-1)
                  jn))))
   (if (<= n0 1)
-      (flfirst-bessel x n0)
-      (loop 1 (flfirst-bessel x 1) (flfirst-bessel x 0))))
+      (f x n0)
+      (loop 1 (f x 1) (f x 0))))
 
 ;;; For x < n, Abramowitz and Stegun 9.12 Example 1 suggests this method:
 ;;;
@@ -429,12 +528,43 @@
            (loop (fl/ 2.0 x) (inexact n) 0))
       (flfirst-bessel x n)))
 
+;;; Equation 9.1.89 :
+;;;
+;;;     Y_0(x) = 2/pi (log (x/2) + gamma) J_0(x)
+;;;                 - 4/pi \sum_{k=1}^\infty (-1)^k J_{2k}(x)/k
+;;;
+;;; To reduce roundoff error, the infinite sum is computed
+;;; non-tail-recursively.
+
+(define (eqn9.1.89 x n)
+  (define (sum k)
+    (let* ((k2 (+ k k))
+           (j2k (flfirst-bessel x k2))
+           (y (if (even? k) j2k (fl- j2k))))
+      (if (flzero? y)
+          y
+          (fl+ y (sum (+ k 1))))))
+  (if (not (= n 0)) (error "eqn9.1.89 requires n=0"))
+  (fl- (fl* 2.0
+            fl-1/pi
+            (fl+ (fllog (fl/ x 2.0)) fl-euler)
+            (flfirst-bessel x 0))
+       (fl* 4.0 fl-1/pi (sum 1))))
+            
+            
+
 ;;; Equation 9.2.1 states an asymptotic approximation that agrees
 ;;; with C99 jn to 6 decimal places for n = 0 and x = 1e6.
 
 (define (eqn9.2.1 x n)
   (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
        (flcos (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
+
+;;; Equation 9.2.2 states an asymptotic approximation for Y_n.
+
+(define (eqn9.2.2 x n)
+  (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
+       (flsin (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
 
 ;;; Equation 9.2.5 : For large x,
 ;;;
@@ -451,6 +581,22 @@
     (fl* (flsqrt (fl/ 2.0 (fl* fl-pi x)))
          (fl- (fl* (eqn9.2.9 n x) (flcos theta))
               (fl* (eqn9.2.10 n x) (flsin theta))))))
+
+;;; Equation 9.2.6 : For large x,
+;;;
+;;;     Y_n(x) = sqrt (2/(pi x)) [ P(n, x) sin theta + Q (n, x) cos theta ]
+;;;
+;;; where
+;;;
+;;;     theta = x - (n/2 + 1/4) pi
+;;;
+;;; and P(n, x) and Q(n, x) are defined by equations 9.2.9 and 9.2.10.
+
+(define (eqn9.2.6 x n)
+  (let ((theta (fl- x (fl* (fl+ (/ n 2.0) 0.25) fl-pi))))
+    (fl* (flsqrt (fl/ 2.0 (fl* fl-pi x)))
+         (fl+ (fl* (eqn9.2.9 n x) (flsin theta))
+              (fl* (eqn9.2.10 n x) (flcos theta))))))
 
 (define (eqn9.2.9 n x) ; returns P(n, x)
   (define mu (fl* 4.0 (flsquare (inexact n))))
@@ -486,7 +632,6 @@
                       (coefficients 1.0 (fl- mu 1.0) 1.0))))
 
 
-(define flsecond-bessel FIXME)
 (define flerf FIXME)
 (define flerfc FIXME)
 
