@@ -242,7 +242,8 @@
     (begin (define c-functions-are-available #f)
            (define fl-fast-fl+* #f)
            (define (fma x y z) (error "fma not defined"))
-           (define (jn n x) (error "jn not defined")))))
+           (define (jn n x) (error "jn not defined"))
+           (define (yn n x) (error "yn not defined")))))
   )
 
 ;;; eof
