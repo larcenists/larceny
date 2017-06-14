@@ -675,6 +675,10 @@
            (bytevector-ieee-single-native-ref bv 0))
          2.9802322387695312e-8)
 
+   (test "Ticket #790"                  ; Bug in v0.99 and previous
+         (eqv? (fl+ -0.0) -0.0)
+         #t)
+
    (test "Ticket #792"                  ; Bug in v0.99 and previous
          (expt 2.0 -1024)
          5.562684646268003e-309)
