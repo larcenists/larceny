@@ -226,8 +226,15 @@
 ;;; FIXME: This isn't as accurate as it should be, it's hard to test
 ;;; because it combines so many different algorithms and intervals,
 ;;; and it underflows to zero too soon.
+;;;
+;;; FIXME: to reduce discontinuities at the boundaries, results
+;;; near boundaries should be computed as weighted averages of
+;;; the results returned by algorithms used on the two sides of
+;;; the boundary.
 
 (define (flfirst-bessel x n)
+  (define (nan-protected y)
+    (if (flfinite? y) y 0.0))
   (check-flonum! 'flfirst-bessel x)
   (cond (c-functions-are-available
          (jn n x))
@@ -238,40 +245,49 @@
 
         (else
          (case n
-          ((0 1)  (cond ((fl<? x 24.0)
+          ((0)    (cond ((fl<? x 4.5)
                          (eqn9.1.10 x n))
+                        ((fl<? x 155.0)
+                         (eqn9.1.18 x n))
                         ((fl<? x 1e12)
                          (eqn9.2.5 x n))
                         (else
                          (eqn9.2.1 x n))))
-          (else   (cond ((fl<? x 16.0)
-                         (let ((jnx (eqn9.1.10-fast x n)))
-                           (if (flfinite? jnx)
-                               jnx
-                               0.0)))
-                        ((fl<? x 150.0)
-                         (if (fl>? (inexact n) x)
-                             (method9.12ex1 x n)
-                             (eqn9.1.75 x n)))
-                        ((or (and (fl<? x 500.0)
-                                  (<= n 32))
-                             (and (fl<? x 1000.0)
-                                  (<= n 64))
-                             (and (fl<? x 5000.0)
-                                  (<= n 128))
-                             (and (fl<? x 1e5)
-                                  (<= n 256))
-                             (and (fl<? x 1e6)
-                                  (<= n 1024))
-                             (and (fl<? x 1e12)
-                                  (<= n 4096)))
+          ((1)    (cond ((fl<? x 11.0)
+                         (eqn9.1.10-fast x n))
+                        ((fl<? x 300.0)
+                         (eqn9.1.75 x n))
+                        ((fl<? x 1e12)
                          (eqn9.2.5 x n))
+                        (else
+                         (eqn9.2.1 x n))))
+          ((2)    (cond ((fl<? x 10.0)
+                         (eqn9.1.10-fast x n))
+                        ((fl<? x 1e19)
+                         (eqn9.1.27-first-bessel x n))
+                        (else
+                         ;; FIXME
+                         0.0)))
+          ((3)    (cond ((fl<? x 10.0)
+                         (eqn9.1.10-fast x n))
+                        ((fl<? x 1e6)
+                         (eqn9.1.27-first-bessel x n))
+                        (else
+                         (nan-protected (eqn9.2.5 x n)))))
+          (else   (cond ((fl<? x 12.0)
+                         (nan-protected (eqn9.1.10-fast x n)))
+                        ((fl<? x 150.0)
+                         (nan-protected (if (fl>? (inexact n) x)
+                                            (method9.12ex1 x n)
+                                            (eqn9.1.75 x n))))
+                        ((fl<? x 1e18)
+                         (nan-protected (eqn9.1.27-first-bessel x n)))
                         (else
                          ;; FIXME
                          0.0)))))))
 
 (define (flsecond-bessel x n)
-  (check-flonum! 'flfirst-bessel x)
+  (check-flonum! 'flsecond-bessel x)
   (cond (c-functions-are-available
          (yn n x))
 
@@ -442,6 +458,20 @@
         (fl/ (fl- (fl* (flfirst-bessel x n+1) (flsecond-bessel x n))
                   (fl/ 2.0 (fl* fl-pi x)))
              (flfirst-bessel x n)))))
+
+;;; Equation 9.1.18 :
+;;;
+;;;     J_0(x) = (1 / \pi) \int_0^\pi cos (x sin \theta) d\theta
+;;;            = (1 / \pi) \int_0^\pi cos (x cos \theta) d\theta
+
+(define (eqn9.1.18 x n)
+  (if (> n 0)
+      (flfirst-bessel x n)
+      (fl* fl-1/pi
+           (definite-integral 0.0
+                              fl-pi
+                              (lambda (theta)
+                                (flcos (fl* x (flsin theta))))))))
 
 ;;; Equation 9.1.27 says
 ;;;

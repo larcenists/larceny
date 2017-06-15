@@ -105,6 +105,26 @@
       (fl+ (car coefs)
            (fl* x (polynomial-at x (cdr coefs))))))
 
+;;; This uses Simpson's rule.
+
+(define (definite-integral lower upper f)
+  (let* ((range (fl- upper lower))
+         (kmax 200) ; FIXME: must be even
+         (n2 (inexact kmax))
+         (h (fl/ range n2)))
+    (define (loop k n sum)    ; n = (inexact k)
+      (cond ((= k 0)
+             (loop 1 1.0 (f lower)))
+            ((= k kmax)
+             (fl+ sum (f upper)))
+            (else
+             (let ((fn (f (+ lower (fl/ (fl* n range) n2)))))
+               (loop (+ k 1)
+                     (fl+ n 1.0)
+                     (fl+ sum (fl* (if (even? k) 2.0 4.0) fn)))))))
+    (fl/ (fl* h (loop 0 0.0 0.0))
+         3.0)))
+
 (define (iota n)
   (do ((n (- n 1) (- n 1))
        (x '() (cons n x)))
