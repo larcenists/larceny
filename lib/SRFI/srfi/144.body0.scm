@@ -107,9 +107,14 @@
 
 ;;; This uses Simpson's rule.
 
-(define (definite-integral lower upper f)
+(define (definite-integral lower upper f . rest)
   (let* ((range (fl- upper lower))
-         (kmax 200) ; FIXME: must be even
+         (kmax (if (or (null? rest)
+                       (not (and (exact-integer? (car rest))
+                                 (even? (car rest))
+                                 (positive? (car rest)))))
+                   1024 ; FIXME: must be even, should be power of 2
+                   (car rest)))
          (n2 (inexact kmax))
          (h (fl/ range n2)))
     (define (loop k n sum)    ; n = (inexact k)
@@ -124,6 +129,14 @@
                      (fl+ sum (fl* (if (even? k) 2.0 4.0) fn)))))))
     (fl/ (fl* h (loop 0 0.0 0.0))
          3.0)))
+
+;;; Given x between x0 and x1, interpolates between f0 and f1.
+;;; Can also extrapolate.
+
+(define (interpolate x x0 x1 f0 f1)
+  (let ((delta (fl- x1 x0)))
+    (fl+ (fl* (fl/ (fl- x1 x) delta) f0)
+         (fl* (fl/ (fl- x x0) delta) f1))))
 
 (define (iota n)
   (do ((n (- n 1) (- n 1))

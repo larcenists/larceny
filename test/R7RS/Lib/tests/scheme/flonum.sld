@@ -1393,9 +1393,57 @@
      (test/approx (flsecond-bessel (flonum 100) 50)  +7.650526379e-2)
      (test/approx (flsecond-bessel (flonum 100) 100) -1.669214112e-1)
 
-     ;; FIXME
 
-;;;     flerf
-;;;     flerfc
+     (test (flerf zero) zero)
+     (test (flerf posinf) one)
+     (test (flerf neginf) (fl- one))
+
+     (test/approx (flerf (flonum -0.5)) -0.5204998778)
+     (test/approx (flerf (flonum -1.0)) -0.8427007929)
+     (test/approx (flerf (flonum -1.5)) -0.9661051465)
+     (test/approx (flerf (flonum -2.0)) -0.9953222650)
+
+     (test/approx (flerf (flonum 0.25))  0.2763263902)
+     (test/approx (flerf (flonum 0.50))  0.5204998778)
+     (test/approx (flerf (flonum 0.75))  0.7111556337)
+     (test/approx (flerf (flonum 1.00))  0.8427007929)
+     (test/approx (flerf (flonum 1.25))  0.9229001283)
+     (test/approx (flerf (flonum 1.50))  0.9661051465)
+     (test/approx (flerf (flonum 1.75))  0.9866716712)
+     (test/approx (flerf (flonum 2.00))  0.9953222650)
+
+     (test (flerfc zero) one)
+     (test (flerfc posinf) zero)
+     (test (flerfc neginf) two)
+
+     (test/approx (flerfc (flonum -0.5)) 1.5204998778)
+     (test/approx (flerfc (flonum -1.0)) 1.8427007929)
+     (test/approx (flerfc (flonum -1.5)) 1.9661051465)
+     (test/approx (flerfc (flonum -2.0)) 1.9953222650)
+
+     (test/approx (flerfc (flonum 0.25)) (- 1.0 0.2763263902))
+     (test/approx (flerfc (flonum 0.50)) (- 1.0 0.5204998778))
+     (test/approx (flerfc (flonum 0.75)) (- 1.0 0.7111556337))
+     (test/approx (flerfc (flonum 1.00)) (- 1.0 0.8427007929))
+     (test/approx (flerfc (flonum 1.25)) (- 1.0 0.9229001283))
+     (test/approx (flerfc (flonum 1.50)) (- 1.0 0.9661051465))
+     (test/approx (flerfc (flonum 1.75)) (- 1.0 0.9866716712))
+     (test/approx (flerfc (flonum 2.00)) (- 1.0 0.9953222650))
+
+     (let* ((f (lambda (x y)
+                 (test/approx (fl* x (flexp (flsquare x)) (flerfc x))
+                              y)))
+            (g (lambda (x^-2 y)
+                 (f (flsqrt (fl/ x^-2)) y))))
+       (g (flonum 0.250) 0.5107914)
+       (g (flonum 0.125) 0.5340672)
+       (g (flonum 0.100) 0.5394141)
+       (g (flonum 0.075) 0.5450551)
+       (g (flonum 0.050) 0.5510295)
+       (g (flonum 0.025) 0.5573865)
+       (g (flonum 0.020) 0.5587090)
+       (g (flonum 0.015) 0.5600500)
+       (g (flonum 0.010) 0.5614099)
+       (g (flonum 0.005) 0.5627896))
 
      )))

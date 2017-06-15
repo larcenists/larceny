@@ -72,7 +72,7 @@
 (define jn        (foreign-procedure "jn"        '(int double)    'double))
 (define yn        (foreign-procedure "yn"        '(int double)    'double))
 (define erf       (foreign-procedure "erf"       '(double)        'double))
-(define erfc      (foreign-procedure "lgamma"    '(double)        'double))
+(define erfc      (foreign-procedure "erfc"      '(double)        'double))
 
 
 
@@ -173,9 +173,10 @@
 (cmp (flgamma 3.4) (tgamma 3.4))
 (cmp (flloggamma 3.4) (lgamma 3.4))
 (cmp (flfirst-bessel 3.4 0) (jn 0 3.4))
-#|
 (cmp (flsecond-bessel 3.4 0) (yn 0 3.4))
+(cmp (flfirst-bessel 6.8 0) (jn 0 6.8))
+(cmp (flsecond-bessel 6.8 0) (yn 0 6.8))
+(cmp (flerf 0.4) (erf 0.4))
+(cmp (flerfc 0.4) (erfc 0.4))
 (cmp (flerf 3.4) (erf 3.4))
 (cmp (flerfc 3.4) (erfc 3.4))
-
-|#

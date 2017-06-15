@@ -471,7 +471,8 @@
            (definite-integral 0.0
                               fl-pi
                               (lambda (theta)
-                                (flcos (fl* x (flsin theta))))))))
+                                (flcos (fl* x (flsin theta))))
+                              128))))
 
 ;;; Equation 9.1.27 says
 ;;;
@@ -662,6 +663,96 @@
                       (coefficients 1.0 (fl- mu 1.0) 1.0))))
 
 
-(define flerf FIXME)
-(define flerfc FIXME)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Error functions
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (flerf x)
+  (check-flonum! 'flerf x)
+  (cond ((flnegative? x)
+         (fl- (flerf (fl- x))))
+        ((fl<? x 2.0)
+         (eqn7.1.6 x))
+        ((fl<? x +inf.0)
+         (- 1.0 (eqn7.1.14 x)))
+        ((fl=? x +inf.0)
+         1.0)
+        (else x)))
+
+(define (flerfc x)
+  (check-flonum! 'flerfc x)
+  (cond ((flnegative? x)
+         (fl- 2.0 (flerfc (fl- x))))
+        ((fl<? x 2.0)
+         (eqn7.1.2 x))
+        ((fl<? x +inf.0)
+         (eqn7.1.14 x))
+        ((fl=? x +inf.0)
+         0.0)
+        (else x)))
+
+;;; Equation numbers are from Abramowitz and Stegun.
+
+;;; If the step size is small enough for good accuracy,
+;;; the integration is pretty slow.
+
+(define (eqn7.1.1 x)
+  (fl* fl-2/sqrt-pi
+       (definite-integral 0.0 x (lambda (t) (flexp (fl- (flsquare t)))))))
+
+(define (eqn7.1.2 x)
+  (fl- 1.0 (flerf x)))
+
+;;; Equation 7.1.6 :
+;;;
+;;;     erf x = (2 / sqrt(pi))
+;;;             exp(-x^2)
+;;;             \sum_{n=0}^\infty (2^n / (1 * 3 * ... * (2n+1))) x^(2n+1)
+;;;
+;;;           = (2 / sqrt(pi))
+;;;             exp(-x^2)
+;;;             x
+;;;             \sum_{n=0}^\infty (2^n / (1 * 3 * ... * (2n+1))) (x^2)^n
+
+(define (eqn7.1.6 x)
+  (let ((x^2 (flsquare x)))
+    (fl* fl-2/sqrt-pi
+         (flexp (fl- x^2))
+         x
+         (polynomial-at x^2 eqn7.1.6-coefficients))))
+
+(define eqn7.1.6-coefficients
+  (let ()
+    (define (loop n p)
+      (if (> n 32) ; FIXME
+          '()
+          (let ((p (fl* p (inexact (+ (* 2 n) 1)))))
+            (cons (fl/ (inexact (expt 2.0 n)) p)
+                  (loop (+ n 1) p)))))
+    (loop 0 1.0)))
+
+;;; Equation 7.1.14 :
+;;;
+;;;     2 e^(x^2) \int_x^\infty e^(-t^2) dt
+;;;   = 1 / (x + (1/2 / (x + (1 / (x + (3/2 / (x + (2 / (x + ...
+;;;   = x (1/x) (1 / (x + (1/2 / (x + (1 / (x + (3/2 / (x + (2 / (x + ...
+;;;   = x (1 / (x (x + (1/2 / (x + (1 / (x + (3/2 / (x + (2 / (x + ...
+;;;   = x (1 / (x^2 + (1/2 / (1 + (1 / (x^2 + (3/2 / (1 + (2 / (x^2 + ...
+;;;
+;;;     erfc(x) = (2 / sqrt(pi)) \int_x^\infty e^(-t^2) dt
+;;; so
+;;;     erfc(x) = (1 / (sqrt(pi) e^(x^2)))
+;;;                   times the continued fraction
+
+(define (eqn7.1.14 x)
+  (define (continued-fraction x)
+    (fl/ 1.0 (fl+ x (loop 1 0.5))))
+  (define (loop k frac)
+    (if (> k 70) ; FIXME
+        1.0
+        (fl/ frac (fl+ x (loop (+ k 1) (fl+ frac 0.5))))))
+  (fl/ (continued-fraction x)
+       (fl* (flsqrt fl-pi)
+            (flexp (flsquare x)))))
