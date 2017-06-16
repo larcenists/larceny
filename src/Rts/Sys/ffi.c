@@ -81,6 +81,13 @@ larceny_C_ffi_apply( word trampoline_bytevector,
   long long ll_result;
   unsigned long long ull_result;
 
+  /* FIXME: Will doesn't understand why, but this call eliminates
+   * a "Segmentation fault: 11" crash when using the FFI to call
+   * a C function on IAssassin systems built on a 64-bit Macintosh.
+   */
+
+  supremely_annoyingmsg("Using FFI to call C procedure");
+
   assert( sizeof( ffi_arg ) == 8 );
 
   /* Phase 1: Check the trampoline pointer */

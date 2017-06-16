@@ -211,7 +211,7 @@
   ;; Use an FFI if one is available.
 
   (cond-expand
-   ((and larceny i386 unix gnu-linux)
+   ((and larceny i386 unix (or gnu-linux darwin))
     (import (scheme time)    ; FIXME: for benchmarking
             (scheme write)   ; FIXME: for benchmarking
             (rename (primitives r5rs:require)
@@ -234,7 +234,7 @@
   ;; If the C library is available, use it.
 
   (cond-expand
-   ((and larceny i386 unix gnu-linux)
+   ((and larceny i386 unix (or gnu-linux darwin))
     (begin (define c-functions-are-available #t)
            (define fl-fast-fl+* #f))
     (include "144.ffi.scm"))
