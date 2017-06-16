@@ -65,7 +65,9 @@
   (cond ((fl>=? x flgamma:upper-cutoff)
          +inf.0)
         ((fl<=? x flgamma:lower-cutoff)
-         (cond ((flinteger? x)    ; pole error
+         (cond ((= x -inf.0)
+                +nan.0)
+               ((flinteger? x)    ; pole error
                 +nan.0)
                ((flodd? (fltruncate x)) 0.0)
                (else -0.0)))
@@ -253,6 +255,13 @@
          (let ((result (flfirst-bessel x (- n))))
            (if (even? n) result (- result))))
 
+        ((< x 0)
+         (let ((result (flfirst-bessel (- x) n)))
+           (if (even? n) result (- result))))
+
+        ((= x +inf.0)
+         0.0)
+
         (else
          (case n
           ((0)    (cond ((fl<? x 4.5)
@@ -307,6 +316,9 @@
 
         ((= x 0.0)
          -inf.0)
+
+        ((= x +inf.0)
+         0.0)
 
         (else
          (case n

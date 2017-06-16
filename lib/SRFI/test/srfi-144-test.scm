@@ -254,10 +254,14 @@
                               "log.data")
 (write-absolute-error-to-file "sin" c:sin flsin (minus-2pi-to-2pi)
                               "sin.data")
+#;
 (write-absolute-error-to-file "Gamma" tgamma flgamma
                               (let ((next (negative-infinity-to-infinity)))
                                 (next)
                                 next)
+                              "gamma.data")
+(write-absolute-error-to-file "Gamma" tgamma flgamma
+                              (negative-infinity-to-infinity)
                               "gamma.data")
 (write-absolute-error-to-file "Gamma" tgamma flgamma (minus-eight-to-eight)
                               "gamma-small.data")
@@ -281,6 +285,106 @@
                       (lambda (x) (flsecond-bessel x 0))
                       (minus-eight-to-eight)
                       "y0-small.data")
+(write-absolute-error-to-file "J_1"
+                      (lambda (x) (jn 1 x))
+                      (lambda (x) (flfirst-bessel x 1))
+                      (negative-infinity-to-infinity)
+                      "j1.data")
+(write-absolute-error-to-file "J_1"
+                      (lambda (x) (jn 1 x))
+                      (lambda (x) (flfirst-bessel x 1))
+                      (minus-eight-to-eight)
+                      "j1-small.data")
+(write-absolute-error-to-file "Y_1"
+                      (lambda (x) (yn 1 x))
+                      (lambda (x) (flsecond-bessel x 1))
+                      (negative-infinity-to-infinity)
+                      "y1.data")
+(write-absolute-error-to-file "Y_1"
+                      (lambda (x) (yn 1 x))
+                      (lambda (x) (flsecond-bessel x 1))
+                      (minus-eight-to-eight)
+                      "y1-small.data")
+(write-absolute-error-to-file "J_2"
+                      (lambda (x) (jn 2 x))
+                      (lambda (x) (flfirst-bessel x 2))
+                      (negative-infinity-to-infinity)
+                      "j2.data")
+(write-absolute-error-to-file "J_2"
+                      (lambda (x) (jn 2 x))
+                      (lambda (x) (flfirst-bessel x 2))
+                      (minus-eight-to-eight)
+                      "j2-small.data")
+(write-absolute-error-to-file "Y_2"
+                      (lambda (x) (yn 2 x))
+                      (lambda (x) (flsecond-bessel x 2))
+                      (negative-infinity-to-infinity)
+                      "y2.data")
+(write-absolute-error-to-file "Y_2"
+                      (lambda (x) (yn 2 x))
+                      (lambda (x) (flsecond-bessel x 2))
+                      (minus-eight-to-eight)
+                      "y2-small.data")
+(write-absolute-error-to-file "J_3"
+                      (lambda (x) (jn 3 x))
+                      (lambda (x) (flfirst-bessel x 3))
+                      (negative-infinity-to-infinity)
+                      "j3.data")
+(write-absolute-error-to-file "J_3"
+                      (lambda (x) (jn 3 x))
+                      (lambda (x) (flfirst-bessel x 3))
+                      (minus-eight-to-eight)
+                      "j3-small.data")
+(write-absolute-error-to-file "Y_3"
+                      (lambda (x) (yn 3 x))
+                      (lambda (x) (flsecond-bessel x 3))
+                      (negative-infinity-to-infinity)
+                      "y3.data")
+(write-absolute-error-to-file "Y_3"
+                      (lambda (x) (yn 3 x))
+                      (lambda (x) (flsecond-bessel x 3))
+                      (minus-eight-to-eight)
+                      "y3-small.data")
+(write-absolute-error-to-file "J_4"
+                      (lambda (x) (jn 4 x))
+                      (lambda (x) (flfirst-bessel x 4))
+                      (negative-infinity-to-infinity)
+                      "j4.data")
+(write-absolute-error-to-file "J_4"
+                      (lambda (x) (jn 4 x))
+                      (lambda (x) (flfirst-bessel x 4))
+                      (minus-eight-to-eight)
+                      "j4-small.data")
+(write-absolute-error-to-file "Y_4"
+                      (lambda (x) (yn 4 x))
+                      (lambda (x) (flsecond-bessel x 4))
+                      (negative-infinity-to-infinity)
+                      "y4.data")
+(write-absolute-error-to-file "Y_4"
+                      (lambda (x) (yn 4 x))
+                      (lambda (x) (flsecond-bessel x 4))
+                      (minus-eight-to-eight)
+                      "y4-small.data")
+(write-absolute-error-to-file "J_100"
+                      (lambda (x) (jn 100 x))
+                      (lambda (x) (flfirst-bessel x 100))
+                      (negative-infinity-to-infinity)
+                      "j100.data")
+(write-absolute-error-to-file "J_100"
+                      (lambda (x) (jn 100 x))
+                      (lambda (x) (flfirst-bessel x 100))
+                      (minus-eight-to-eight)
+                      "j100-small.data")
+(write-absolute-error-to-file "Y_100"
+                      (lambda (x) (yn 100 x))
+                      (lambda (x) (flsecond-bessel x 100))
+                      (negative-infinity-to-infinity)
+                      "y100.data")
+(write-absolute-error-to-file "Y_100"
+                      (lambda (x) (yn 100 x))
+                      (lambda (x) (flsecond-bessel x 100))
+                      (minus-eight-to-eight)
+                      "y100-small.data")
 (write-absolute-error-to-file "erf" erf flerf (negative-infinity-to-infinity)
                               "erf.data")
 (write-absolute-error-to-file "erf" erf flerf (minus-eight-to-eight)
