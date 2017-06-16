@@ -43,11 +43,6 @@
 ;;; as specified at http://vrici.lojban.org/~cowan/temp/srfi-144.html
 ;;; as of 4 June 2017.
 ;;;
-;;; Spec of flnegative? refers to fl< instead of fl<?
-;;;
-;;; Spec of flinteger-exponent says it returns "the same as flexponent
-;;; as an exact integer", but flexponent usually returns a non-integer.
-;;;
 ;;; Why must the argument to make-fllog-base be an exact integer?
 ;;;
 ;;; FIXME: not as accurate as it should be
@@ -218,8 +213,8 @@
 (define (flexponent x)
   (fllog2 (flabs x)))
 
-(define (flinteger-exponent x)    ; spec doesn't make sense
-  FIXME)
+(define (flinteger-exponent x)
+  (exact (fltruncate (flexponent x))))
 
 (define (flnormalized-fraction-exponent x)
   (define (return result1 result2)
