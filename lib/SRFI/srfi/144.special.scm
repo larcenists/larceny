@@ -53,13 +53,20 @@
 ;;;
 ;;; Those equations reduce the computation of Gamma(x) to the range
 ;;;     1.0 <= x <= 2.0
+;;;
+;;; The following definition is more accurate than C99 tgamma
+;;; with gcc, Linux, and double precision.  The alarmingly large
+;;; absolute errors near 16.0 and -2.0e-16 are small relative
+;;; errors.  At x=16.0, tgamma returns a non-integer result,
+;;; but flgamma returns the correct integer result.
 
 (define (flgamma x)
   (check-flonum! 'flgamma x)
   (cond ((fl>=? x flgamma:upper-cutoff)
          +inf.0)
         ((fl<=? x flgamma:lower-cutoff)
-         (cond ((flinteger? x) +nan.0)    ; pole error
+         (cond ((flinteger? x)    ; pole error
+                +nan.0)
                ((flodd? (fltruncate x)) 0.0)
                (else -0.0)))
         (else (Gamma x))))
@@ -68,16 +75,19 @@
   (cond ((fl>? x 2.0)
          (let ((x (fl- x 2.0)))
            (fl* x (fl+ x 1.0) (Gamma x))))
+        ((fl=? x 2.0)
+         1.0)
         ((fl>? x 1.0)
          (let ((x (fl- x 1.0)))
            (fl* x (Gamma x))))
         ((fl=? x 1.0)
          1.0)
-        ((and (fl<=? x 0.0)
-              (flinteger? x))    ; pole error
-         +nan.0)
+        ((fl=? x 0.0)
+         +inf.0)
         ((fl<? x 0.0)
-         (fl/ (Gamma (fl+ x 2.0)) x (fl+ x 1.0)))
+         (if (flinteger? x)    ; pole error
+             +nan.0
+             (fl/ (Gamma (fl+ x 2.0)) x (fl+ x 1.0))))
         (else
          (fl/ (polynomial-at x gamma-coefs)))))
 

@@ -397,8 +397,10 @@
      (test/approx (flexponent (flexpt two (flonum -4.5)))
                   (flonum -4.5))
 
-     ;; FIXME
-     ;;     flinteger-exponent
+     (test (flinteger-exponent (flexpt two (flonum 12)))   12)
+     (test (flinteger-exponent (flexpt two (flonum 12.5))) 12)
+     (test (flinteger-exponent (flexpt two (flonum -5)))   -5)
+     (test (flinteger-exponent (flexpt two (flonum -4.5))) -4)
 
      (let* ((correct?
              (lambda (x y n)

@@ -23,13 +23,12 @@
 
 ;;; This is a Larceny-specific program that tests the accuracy and
 ;;; speed of SRFI 144 procedures, producing gnuplot-compatible
-;;; data files that can be used to graph absolute and relative
-;;; accuracy of selected procedures.
+;;; data files that can be used to graph the accuracy of selected
+;;; procedures.
 ;;;
-;;; This program is Larceny-specific because it uses Larceny's FFI
-;;; to access C library routines.  Larceny's FFI is not implemented
-;;; on all platforms, so platform-independent scripts should not
-;;; run this test program.
+;;; This program uses Larceny's FFI to access C library routines.
+;;; Larceny's FFI is not implemented on all platforms, so
+;;; platform-independent scripts should not run this test program.
 ;;;
 ;;; It should be possible to modify the FFI-dependent part of this
 ;;; test program so it will run on other systems that provide an FFI
@@ -38,11 +37,14 @@
 (import (scheme base)
         (scheme inexact)
         (srfi 144)
+        (scheme file)
         (scheme write)
         (scheme time)
         (rename (primitives r5rs:require)
                 (r5rs:require require))
         (primitives foreign-procedure))
+
+(define output-directory "/tmp")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -136,9 +138,15 @@
     (lambda ()
       (if (> i 1024)
           #f
-          (let ((result (+ (- i 512) 512.0)))
+          (let ((result (/ (- i 512) 512.0)))
             (set! i (+ i 1))
             result)))))
+
+(define (minus-eight-to-eight)
+  (let ((next (minus-one-to-one)))
+    (lambda ()
+      (let ((result (next)))
+        (if result (* 8.0 result) result)))))
 
 (define (minus-2pi-to-2pi)
   (let ((i 0))
@@ -210,8 +218,10 @@
                0.0)
               ((or (flinfinite? y0) (flinfinite? y1))
                +inf.0)
+              ((and (flnan? y0) (flnan? y1))
+               0.0)
               (else
-               (flsquare (fl- (f1 x) (f0 x)))))))
+               (flsquare (fl- y1 y0))))))
     (display "# " p)
     (display name p)
     (newline p)
@@ -232,33 +242,53 @@
                 (square-error x+2)
                 (square-error x+3))))))
 
-;(write-absolute-error "log" c:log fllog (zero-to-infinity))
-;(write-absolute-error "sin" c:sin flsin (minus-2pi-to-2pi))
-(write-absolute-error "Gamma" tgamma flgamma
-  (let ((next (negative-infinity-to-infinity)))
-    (next)
-    next))
-(write-absolute-error "Gamma" tgamma flgamma (minus-2pi-to-2pi))
-(write-absolute-error "J_0"
+(define (write-absolute-error-to-file name f0 f1 next filename)
+  (let ((filename (string-append output-directory "/" filename)))
+    (delete-file filename)
+    (call-with-output-file
+     filename
+     (lambda (p)
+       (write-absolute-error name f0 f1 next p)))))
+
+(write-absolute-error-to-file "log" c:log fllog (zero-to-infinity)
+                              "log.data")
+(write-absolute-error-to-file "sin" c:sin flsin (minus-2pi-to-2pi)
+                              "sin.data")
+(write-absolute-error-to-file "Gamma" tgamma flgamma
+                              (let ((next (negative-infinity-to-infinity)))
+                                (next)
+                                next)
+                              "gamma.data")
+(write-absolute-error-to-file "Gamma" tgamma flgamma (minus-eight-to-eight)
+                              "gamma-small.data")
+(write-absolute-error-to-file "J_0"
                       (lambda (x) (jn 0 x))
                       (lambda (x) (flfirst-bessel x 0))
-                      (negative-infinity-to-infinity))
-(write-absolute-error "J_0"
+                      (negative-infinity-to-infinity)
+                      "j0.data")
+(write-absolute-error-to-file "J_0"
                       (lambda (x) (jn 0 x))
                       (lambda (x) (flfirst-bessel x 0))
-                      (minus-2pi-to-2pi))
-(write-absolute-error "Y_0"
+                      (minus-eight-to-eight)
+                      "j0-small.data")
+(write-absolute-error-to-file "Y_0"
                       (lambda (x) (yn 0 x))
                       (lambda (x) (flsecond-bessel x 0))
-                      (negative-infinity-to-infinity))
-(write-absolute-error "Y_0"
+                      (negative-infinity-to-infinity)
+                      "y0.data")
+(write-absolute-error-to-file "Y_0"
                       (lambda (x) (yn 0 x))
                       (lambda (x) (flsecond-bessel x 0))
-                      (minus-2pi-to-2pi))
-(write-absolute-error "erf" erf flerf (negative-infinity-to-infinity))
-(write-absolute-error "erf" erf flerf (minus-2pi-to-2pi))
-(write-absolute-error "erfc" erfc flerfc (negative-infinity-to-infinity))
-(write-absolute-error "erfc" erfc flerfc (minus-2pi-to-2pi))
+                      (minus-eight-to-eight)
+                      "y0-small.data")
+(write-absolute-error-to-file "erf" erf flerf (negative-infinity-to-infinity)
+                              "erf.data")
+(write-absolute-error-to-file "erf" erf flerf (minus-eight-to-eight)
+                              "erf-small.data")
+(write-absolute-error-to-file "erfc" erfc flerfc (negative-infinity-to-infinity)
+                              "erfc.data")
+(write-absolute-error-to-file "erfc" erfc flerfc (minus-eight-to-eight)
+                              "erfc-small.data")
 
 
 
