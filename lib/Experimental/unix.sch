@@ -16,7 +16,10 @@
  (macosx
   (foreign-file "/usr/lib/libresolv.dylib"))
  (linux
-  (foreign-file "/usr/lib/libresolv.so"))
+  (find-foreign-file '("/usr/lib/" "/lib32/")
+                     '("libresolv.")
+                     '("so")
+                     '("" ".5" ".4" ".3" ".2")))
  (solaris
   (foreign-file "/lib/libsocket.so")
   (foreign-file "/lib/libxnet.so")))
