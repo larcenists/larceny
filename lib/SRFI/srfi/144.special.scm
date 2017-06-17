@@ -167,15 +167,12 @@
 ;;;
 ;;; 6.1.48 states a continued fraction.
 
-;;; FIXME: I don't know how to compute log (|Gamma(x)|) accurately
-;;; for negative x of large magnitude.
-
 (define (flloggamma x)
   (check-flonum! 'flloggamma x)
   (cond ((flinfinite? x)
          (if (flpositive? x)
              (values x 1.0)
-             (values +nan.0 +nan.0)))
+             (values +inf.0 +nan.0)))
         ((fl>=? x 20.0)
          (values (eqn6.1.48 x) 1.0))
         ((fl>? x 0.0)
@@ -239,10 +236,15 @@
 ;;; because it combines so many different algorithms and intervals,
 ;;; and it underflows to zero too soon.
 ;;;
-;;; FIXME: to reduce discontinuities at the boundaries, results
+;;; FIXME: To reduce discontinuities at the boundaries, results
 ;;; near boundaries should be computed as weighted averages of
 ;;; the results returned by algorithms used on the two sides of
 ;;; the boundary.
+;;;
+;;; FIXME: Several numerical constants, flagged by FIXME comments,
+;;; seem to work for Larceny's double precision but might need to
+;;; be changed for other precisions.  They are unlikely to be
+;;; optimal even for double precision.
 
 (define (flfirst-bessel x n)
   (define (nan-protected y)
@@ -454,22 +456,6 @@
                   (inexact (if (even? k) (- c) c))))))
        (iota 25))) ; FIXME
 
-;;; Returns an approximation to J_{m+n}(x).
-;;;
-;;; FIXME: this doesn't seem to work at all, so I may have introduced a bug.
-
-(define (eqn9.1.14 x m n kmax)
-  (fl* (inexact (expt (* 0.5 x) (+ m n)))
-       (polynomial-at (flsquare x)
-                      (map (lambda (k)
-                             (fl/ (fl* (inexact (expt -0.25 k))
-                                       (flgamma (inexact (+ m n k k 1))))
-                                  (fl* (factorial (inexact k))
-                                       (flgamma (inexact (+ m k 1)))
-                                       (flgamma (inexact (+ n k 1)))
-                                       (flgamma (inexact (+ m n k 1))))))
-                           (iota (+ kmax 1))))))
-
 ;;; Equation 9.1.16 :
 ;;;
 ;;;     J_{n+1}(x) Y_n(x) - J_n(x) Y_{n+1}(x) = 2 / (pi x)
@@ -591,7 +577,10 @@
 ;;;
 ;;; To reduce roundoff error, the infinite sum is computed
 ;;; non-tail-recursively.
+;;;
+;;; FIXME: not used at present, so I've commented it out.
 
+#;
 (define (eqn9.1.89 x n)
   (define (sum k)
     (let* ((k2 (+ k k))
@@ -617,7 +606,10 @@
        (flcos (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
 
 ;;; Equation 9.2.2 states an asymptotic approximation for Y_n.
+;;;
+;;; FIXME: not used at present, so I've commented it out.
 
+#;
 (define (eqn9.2.2 x n)
   (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
        (flsin (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
@@ -722,7 +714,10 @@
 
 ;;; If the step size is small enough for good accuracy,
 ;;; the integration is pretty slow.
+;;;
+;;; FIXME: not used at present, so I've commented it out.
 
+#;
 (define (eqn7.1.1 x)
   (fl* fl-2/sqrt-pi
        (definite-integral 0.0 x (lambda (t) (flexp (fl- (flsquare t)))))))

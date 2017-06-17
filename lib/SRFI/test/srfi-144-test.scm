@@ -133,7 +133,7 @@
             (set! i (+ i 1))
             result)))))
 
-(define (minus-one-to-one)
+(define (negative-one-to-one)
   (let ((i 0))
     (lambda ()
       (if (> i 1024)
@@ -142,13 +142,13 @@
             (set! i (+ i 1))
             result)))))
 
-(define (minus-eight-to-eight)
-  (let ((next (minus-one-to-one)))
+(define (negative-eight-to-eight)
+  (let ((next (negative-one-to-one)))
     (lambda ()
       (let ((result (next)))
         (if result (* 8.0 result) result)))))
 
-(define (minus-2pi-to-2pi)
+(define (negative-2pi-to-2pi)
   (let ((i 0))
     (lambda ()
       (if (> i 1024)
@@ -313,14 +313,15 @@
      (lambda (p)
        (write-relative-error name f0 f1 next p)))))
 
+
 (write-relative-error-to-file "log" c:log fllog (zero-to-infinity)
                               "log.data")
-(write-relative-error-to-file "sin" c:sin flsin (minus-2pi-to-2pi)
+(write-relative-error-to-file "sin" c:sin flsin (negative-2pi-to-2pi)
                               "sin.data")
 (write-relative-error-to-file "Gamma" tgamma flgamma
                               (negative-infinity-to-infinity)
                               "gamma.data")
-(write-relative-error-to-file "Gamma" tgamma flgamma (minus-eight-to-eight)
+(write-relative-error-to-file "Gamma" tgamma flgamma (negative-eight-to-eight)
                               "gamma-small.data")
 (write-relative-error-to-file "J_0"
                       (lambda (x) (jn 0 x))
@@ -330,7 +331,7 @@
 (write-relative-error-to-file "J_0"
                       (lambda (x) (jn 0 x))
                       (lambda (x) (flfirst-bessel x 0))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "j0-small.data")
 (write-relative-error-to-file "Y_0"
                       (lambda (x) (yn 0 x))
@@ -340,7 +341,7 @@
 (write-relative-error-to-file "Y_0"
                       (lambda (x) (yn 0 x))
                       (lambda (x) (flsecond-bessel x 0))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "y0-small.data")
 (write-relative-error-to-file "J_1"
                       (lambda (x) (jn 1 x))
@@ -350,7 +351,7 @@
 (write-relative-error-to-file "J_1"
                       (lambda (x) (jn 1 x))
                       (lambda (x) (flfirst-bessel x 1))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "j1-small.data")
 (write-relative-error-to-file "Y_1"
                       (lambda (x) (yn 1 x))
@@ -360,7 +361,7 @@
 (write-relative-error-to-file "Y_1"
                       (lambda (x) (yn 1 x))
                       (lambda (x) (flsecond-bessel x 1))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "y1-small.data")
 (write-relative-error-to-file "J_2"
                       (lambda (x) (jn 2 x))
@@ -370,7 +371,7 @@
 (write-relative-error-to-file "J_2"
                       (lambda (x) (jn 2 x))
                       (lambda (x) (flfirst-bessel x 2))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "j2-small.data")
 (write-relative-error-to-file "Y_2"
                       (lambda (x) (yn 2 x))
@@ -380,7 +381,7 @@
 (write-relative-error-to-file "Y_2"
                       (lambda (x) (yn 2 x))
                       (lambda (x) (flsecond-bessel x 2))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "y2-small.data")
 (write-relative-error-to-file "J_3"
                       (lambda (x) (jn 3 x))
@@ -390,7 +391,7 @@
 (write-relative-error-to-file "J_3"
                       (lambda (x) (jn 3 x))
                       (lambda (x) (flfirst-bessel x 3))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "j3-small.data")
 (write-relative-error-to-file "Y_3"
                       (lambda (x) (yn 3 x))
@@ -400,7 +401,7 @@
 (write-relative-error-to-file "Y_3"
                       (lambda (x) (yn 3 x))
                       (lambda (x) (flsecond-bessel x 3))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "y3-small.data")
 (write-relative-error-to-file "J_4"
                       (lambda (x) (jn 4 x))
@@ -410,7 +411,7 @@
 (write-relative-error-to-file "J_4"
                       (lambda (x) (jn 4 x))
                       (lambda (x) (flfirst-bessel x 4))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "j4-small.data")
 (write-relative-error-to-file "Y_4"
                       (lambda (x) (yn 4 x))
@@ -420,7 +421,7 @@
 (write-relative-error-to-file "Y_4"
                       (lambda (x) (yn 4 x))
                       (lambda (x) (flsecond-bessel x 4))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "y4-small.data")
 (write-relative-error-to-file "J_100"
                       (lambda (x) (jn 100 x))
@@ -430,7 +431,7 @@
 (write-relative-error-to-file "J_100"
                       (lambda (x) (jn 100 x))
                       (lambda (x) (flfirst-bessel x 100))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "j100-small.data")
 (write-relative-error-to-file "Y_100"
                       (lambda (x) (yn 100 x))
@@ -440,17 +441,16 @@
 (write-relative-error-to-file "Y_100"
                       (lambda (x) (yn 100 x))
                       (lambda (x) (flsecond-bessel x 100))
-                      (minus-eight-to-eight)
+                      (negative-eight-to-eight)
                       "y100-small.data")
 (write-relative-error-to-file "erf" erf flerf (negative-infinity-to-infinity)
                               "erf.data")
-(write-relative-error-to-file "erf" erf flerf (minus-eight-to-eight)
+(write-relative-error-to-file "erf" erf flerf (negative-eight-to-eight)
                               "erf-small.data")
 (write-relative-error-to-file "erfc" erfc flerfc (negative-infinity-to-infinity)
                               "erfc.data")
-(write-relative-error-to-file "erfc" erfc flerfc (minus-eight-to-eight)
+(write-relative-error-to-file "erfc" erfc flerfc (negative-eight-to-eight)
                               "erfc-small.data")
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -459,20 +459,36 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define c-functions-are-available #t) ; FIXME
-
 (define-syntax cmp
   (syntax-rules ()
-   ((cmp (f1 x1 ...) (f2 x2 ...))
-    (if (not c-functions-are-available)
-        (compare 'f1 'f2 (lambda () (f1 x1 ...)) (lambda () (f2 x2 ...)))))))
+   ((cmp f1 f2 g)
+    (compare 'f1 'f2 f1 f2 g))))
 
-(define (compare name1 name2 thunk1 thunk2)
-  (define iterations 100000)
-  (define (call-thunk thunk iters)
-    (if (> iters 1)
-        (begin (thunk) (call-thunk thunk (- iters 1)))
-        (thunk)))
+;;; Given the names of two functions, the two unary functions themselves,
+;;; and a thunk that returns a generator of test inputs, compares the
+;;; speed of the functions and writes a summary to the current output port.
+
+(define (compare name1 name2 f1 f2 thunk)
+  (define xs0
+    (let loop ((xs '())
+               (g (thunk)))
+      (let ((x (g)))
+        (if x
+            (loop (cons x xs) g)
+            (reverse xs)))))
+  (define test-time-in-jiffies
+    (max 20 (quotient (jiffies-per-second) 2)))
+  (define (iterations-per-test-time f)
+    (let ((completion-time (+ (current-jiffy) test-time-in-jiffies)))
+      (define (loop count xs)
+        (cond ((not (null? xs))
+               (f (car xs))
+               (loop count (cdr xs)))
+              ((< (current-jiffy) completion-time)
+               (loop (+ 1 count) xs0))
+              (else
+               count)))
+      (loop 0 xs0)))
   (define (round1/ p q)
     (/ (round (/ (* 10.0 p) (max 1.0 q))) 10.0))
   (display "Comparing ")
@@ -480,32 +496,38 @@
   (display " and ")
   (write name2)
   (newline)
-  (let* ((t0 (current-jiffy))
-         (r1 (call-thunk thunk1 iterations))
-         (t1 (current-jiffy))
-         (d1 (- t1 t0))
-         (t0 (current-jiffy))
-         (r2 (call-thunk thunk2 iterations))
-         (t1 (current-jiffy))
-         (d2 (- t1 t0)))
-    (write r1) (newline)
-    (write r2) (newline)
-    (display (if (< d1 d2) "        " "******* "))
-    (write (max (round1/ d2 d1) (round1/ d1 d2)))
+  (let* ((count1 (iterations-per-test-time f1))
+         (count2 (iterations-per-test-time f2)))
+;   (write (list count1 count2)) (newline)
+    (display "        ")
+    (write (max (round1/ count2 count1) (round1/ count1 count2)))
     (display " times as ")
-    (display (if (< d1 d2) "fast" "slow ********************************"))
+    (display (if (< count1 count2)
+                 "slow ********************************"
+                 "fast"))
     (newline) (newline)))
 
-(cmp (fladjacent 3.4 5.6) (nextafter 3.4 5.6))
-(cmp (flcopysign 3.4 5.6) (copysign 3.4 5.6))
-(cmp (make-flonum 3.4 5) (ldexp 3.4 5))
+(cmp (lambda (x) (fladjacent x 1.0))
+     (lambda (x) (nextafter x 1.0))
+     negative-infinity-to-infinity)
+
+(cmp (lambda (x) (flcopysign x 5.6))
+     (lambda (x) (copysign 3.4 5.6))
+     negative-infinity-to-infinity)
+
+(cmp (lambda (x) (make-flonum x 5))
+     (lambda (x) (ldexp x 5))
+     negative-infinity-to-infinity)
+
 #;
 (let ((flinteger-fraction
        (lambda (x)
          (call-with-values (lambda () (flinteger-fraction x))
                            (lambda (x y) x)))))
   (cmp (flinteger-fraction 3.4) (modf 3.4 FIXME)))
-(cmp (flexponent 3.4) (logb 3.4))
+
+(cmp flexponent logb zero-to-infinity)
+
 ;(cmp (flinteger-exponent 3.4) (ilogb 3.4))
 #;
 (let ((flnormalized-fraction-exponent
@@ -514,48 +536,89 @@
                            (lambda (x y) x)))))
   (cmp (flnormalized-fraction-exponent 3.4) (frexp 3.4 FIXME)))
 
-(cmp (fl+* 3.4 5.6 7.8) (fma 3.4 5.6 7.8))
-(cmp (flabs 3.4) (fabs 3.4))
-(cmp (flposdiff 3.4 5.6) (fdim 3.4 5.6))
-(cmp (flfloor 3.4) (c:floor 3.4))
-(cmp (flceiling 3.4) (ceil 3.4))
-(cmp (flround 3.4) (c:round 3.4))
-(cmp (fltruncate 3.4) (trunc 3.4))
 
-(cmp (flexp 3.4) (c:exp 3.4))
-(cmp (flexp2 3.4) (exp2 3.4))
-(cmp (flexp-1 3.4) (expm1 3.4))
-(cmp (flsqrt 3.4) (c:sqrt 3.4))
-(cmp (flcbrt 3.4) (cbrt 3.4))
-(cmp (flhypot 3.4 5.6) (hypot 3.4 5.6))
-(cmp (flexpt 3.4 5.6) (pow 3.4 5.6))
-(cmp (fllog 3.4) (c:log 3.4))
-(cmp (fllog1+ 3.4) (log1p 3.4))
-(cmp (fllog2 3.4) (log2 3.4))
-(cmp (fllog10 3.4) (log10 3.4))
+(cmp (lambda (x) (fl+* x x x))
+     (lambda (x) (fma x x x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (fl+* x x x))
+     (lambda (x) (+ (* x x) x))
+     negative-infinity-to-infinity)
+(cmp flabs fabs negative-infinity-to-infinity)
+(cmp (lambda (x) (flposdiff x 5.6))
+     (lambda (x) (fdim x 5.6))
+     negative-infinity-to-infinity)
+(cmp flfloor c:floor negative-infinity-to-infinity)
+(cmp flceiling ceil negative-infinity-to-infinity)
+(cmp flround c:round negative-infinity-to-infinity)
+(cmp fltruncate trunc negative-infinity-to-infinity)
 
-(cmp (flsin .4) (c:sin .4))
-(cmp (flcos .4) (c:cos .4))
-(cmp (fltan 3.4) (c:tan 3.4))
-(cmp (flasin 0.4) (c:asin 0.4))
-(cmp (flacos 0.4) (c:acos 0.4))
-(cmp (flatan 3.4) (c:atan 3.4))
-(cmp (flatan 3.4 5.6) (atan2 3.4 5.6))
+(cmp flexp c:exp negative-infinity-to-infinity)
+(cmp flexp2 exp2 negative-infinity-to-infinity)
+(cmp flexp-1 expm1 negative-infinity-to-infinity)
+(cmp flsqrt c:sqrt zero-to-infinity)
+(cmp flcbrt cbrt negative-infinity-to-infinity)
+(cmp (lambda (x) (flhypot x x))
+     (lambda (x) (hypot x x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flexpt x x))
+     (lambda (x) (pow x x))
+     zero-to-infinity)
+(cmp fllog c:log zero-to-infinity)
+(cmp fllog1+ log1p zero-to-infinity)
+(cmp fllog2 log2 zero-to-infinity)
+(cmp fllog10 log10 zero-to-infinity)
 
-(cmp (flsinh 3.4) (sinh 3.4))
-(cmp (flcosh 3.4) (cosh 3.4))
-(cmp (fltanh 3.4) (tanh 3.4))
-(cmp (flasinh 3.4) (asinh 3.4))
-(cmp (flacosh 3.4) (acosh 3.4))
-(cmp (flatanh 0.4) (atanh .4))
+(cmp flsin c:sin negative-infinity-to-infinity)
+(cmp flcos c:cos negative-infinity-to-infinity)
+(cmp fltan c:tan negative-infinity-to-infinity)
+(cmp flasin c:asin negative-one-to-one)
+(cmp flacos c:acos negative-one-to-one)
+(cmp flatan c:atan negative-infinity-to-infinity)
+(cmp (lambda (y) (flatan y 5.6))
+     (lambda (y) (atan2 y 5.6))
+     negative-infinity-to-infinity)
 
-(cmp (flgamma 3.4) (tgamma 3.4))
-(cmp (flloggamma 3.4) (lgamma 3.4))
-(cmp (flfirst-bessel 3.4 0) (jn 0 3.4))
-(cmp (flsecond-bessel 3.4 0) (yn 0 3.4))
-(cmp (flfirst-bessel 6.8 0) (jn 0 6.8))
-(cmp (flsecond-bessel 6.8 0) (yn 0 6.8))
-(cmp (flerf 0.4) (erf 0.4))
-(cmp (flerfc 0.4) (erfc 0.4))
-(cmp (flerf 3.4) (erf 3.4))
-(cmp (flerfc 3.4) (erfc 3.4))
+(cmp flsinh sinh negative-eight-to-eight)
+(cmp flcosh cosh negative-eight-to-eight)
+(cmp fltanh tanh negative-2pi-to-2pi)
+(cmp flasinh asinh zero-to-one)
+(cmp flacosh acosh zero-to-infinity)
+(cmp flatanh atanh negative-one-to-one)
+
+(cmp flgamma tgamma negative-infinity-to-infinity)
+(cmp flloggamma lgamma negative-infinity-to-infinity)
+
+(cmp (lambda (x) (flfirst-bessel x 0))
+     (lambda (x) (jn 0 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flfirst-bessel x 1))
+     (lambda (x) (jn 1 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flfirst-bessel x 2))
+     (lambda (x) (jn 2 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flfirst-bessel x 5))
+     (lambda (x) (jn 5 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flfirst-bessel x 100))
+     (lambda (x) (jn 100 x))
+     negative-infinity-to-infinity)
+
+(cmp (lambda (x) (flsecond-bessel x 0))
+     (lambda (x) (yn 0 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flsecond-bessel x 1))
+     (lambda (x) (yn 1 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flsecond-bessel x 2))
+     (lambda (x) (yn 2 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flsecond-bessel x 5))
+     (lambda (x) (yn 5 x))
+     negative-infinity-to-infinity)
+(cmp (lambda (x) (flsecond-bessel x 100))
+     (lambda (x) (yn 100 x))
+     negative-infinity-to-infinity)
+
+(cmp flerf erf negative-eight-to-eight)
+(cmp flerfc erfc negative-eight-to-eight)

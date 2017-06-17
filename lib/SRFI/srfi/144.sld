@@ -188,14 +188,6 @@
   (import (scheme base)
           (scheme inexact))
 
-  ;; FIXME: this is just for visualization, and should go away eventually
-
-  (cond-expand
-   (larceny
-    (import (rnrs arithmetic bitwise)
-            (primitives bytevector-like-ref)))
-   (else))
-
   ;; Use (rnrs arithmetic flonums) if that library is available.
 
   (cond-expand
@@ -212,9 +204,7 @@
 
   (cond-expand
    ((and larceny i386 unix (or gnu-linux darwin))
-    (import (scheme time)    ; FIXME: for benchmarking
-            (scheme write)   ; FIXME: for benchmarking
-            (rename (primitives r5rs:require)
+    (import (rename (primitives r5rs:require)
                     (r5rs:require require))
             (primitives foreign-procedure)))
    (else))
