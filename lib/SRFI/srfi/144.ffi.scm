@@ -2,18 +2,12 @@
 ;;; and just as accurate to use the portable definition instead
 ;;; of going through Larceny's FFI.
 ;;;
-;;; Of the SRFI 144 procedures implemented so far, only two are
-;;; substantially faster when implemented using Larceny's FFI:
+;;; Only three of the SRFI 144 procedures are substantially more
+;;; accurate or faster when implemented using Larceny's FFI:
 ;;;
 ;;;     fl+*
 ;;;     flfirst-bessel
-;;;
-;;; When the following procedures have been implemented, I expect
-;;; they too will be faster when implemented using an FFI:
-;;;
 ;;;     flsecond-bessel
-;;;     flerf
-;;;     flerfc
 
 (define ignored-result-of-loading-ffi (require 'std-ffi))
 

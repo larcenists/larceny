@@ -26,8 +26,8 @@
     (let ((result (op x)))
       (if (not (flonum? result))
           (error (string-append "non-flonum result from "
-                              (symbol->string name))
-                              result))
+                                (symbol->string name))
+                 result))
       result)))
 
 (define (flop2 name op)
@@ -38,7 +38,7 @@
       (if (not (flonum? result))
           (error (string-append "non-flonum result from "
                                 (symbol->string name))
-                                result))
+                 result))
       result)))
 
 (define (flop3 name op)
@@ -50,7 +50,7 @@
       (if (not (flonum? result))
           (error (string-append "non-flonum result from "
                                 (symbol->string name))
-                                result))
+                 result))
       result)))
 
 ;;; Given a flonum x and a list of flonum coefficients for a polynomial,

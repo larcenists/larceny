@@ -539,10 +539,10 @@
 
 (cmp (lambda (x) (fl+* x x x))
      (lambda (x) (fma x x x))
-     negative-infinity-to-infinity)
+     negative-eight-to-eight)
 (cmp (lambda (x) (fl+* x x x))
      (lambda (x) (+ (* x x) x))
-     negative-infinity-to-infinity)
+     negative-eight-to-eight)
 (cmp flabs fabs negative-infinity-to-infinity)
 (cmp (lambda (x) (flposdiff x 5.6))
      (lambda (x) (fdim x 5.6))
