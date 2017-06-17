@@ -311,13 +311,16 @@
          (yn n x))
 
         ((< n 0)
-         (let ((result (flfirst-bessel x (- n))))
+         (let ((result (flsecond-bessel x (- n))))
            (if (even? n) result (- result))))
 
-        ((= x 0.0)
+        ((fl<? x 0.0)
+         +nan.0)
+
+        ((fl=? x 0.0)
          -inf.0)
 
-        ((= x +inf.0)
+        ((fl=? x +inf.0)
          0.0)
 
         (else
