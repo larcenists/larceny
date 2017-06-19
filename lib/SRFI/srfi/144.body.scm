@@ -52,6 +52,7 @@
 ;;; FIXME: assumes (scheme inexact)
 ;;; FIXME: assumes (rnrs arithmetic flonums)
 
+#|
 ;;; Mathematical Constants
 
 ;;; For portability and ease of implementation, most are calculated.
@@ -83,11 +84,10 @@
 (define fl-2pi (* 2.0 fl-pi))
 (define fl-pi/2 (/ fl-pi 2.0))
 (define fl-pi/4 (/ fl-pi 4.0))
-(define fl-2/sqrt-pi (/ 2.0 (sqrt fl-pi)))
 (define fl-pi-squared (* fl-pi fl-pi))
 (define fl-degree (/ fl-pi 180.0))
 (define fl-2/pi (/ 2.0 fl-pi))
-;(define fl-2/sqrt-pi fl-2/sqrt-pi)   ; specified twice in draft of SRFI 144
+(define fl-2/sqrt-pi (/ 2.0 (sqrt fl-pi)))
 (define fl-sqrt-2 (sqrt 2.0))
 (define fl-sqrt-3 (sqrt 3.0))
 (define fl-sqrt-5 (sqrt 5.0))
@@ -115,6 +115,7 @@
 
 (define fl-gamma-1/3 2.6789385347077476336556929409746776441287)
 (define fl-gamma-2/3 1.3541179394264004169452880281545137855193)
+|#
 
 ;; Implementation Constants
 
@@ -467,12 +468,12 @@
 
 (define fllog10 (flop1 'fllog10 (lambda (x) (log x 10.0))))
 
-(define (make-fllog-base k)
-  (if (and (exact-integer? k) (> k 1))
+(define (make-fllog-base base)
+  (check-flonum! 'make-fllog-base base)
+  (if (fl>? base 1.0)
       (flop1 'procedure-created-by-make-fllog-base
-             (let ((base (inexact k)))
-               (lambda (x) (log x base))))
-      (error "bad argument passed to make-fllog-base" k)))
+             (lambda (x) (log x base)))
+      (error "argument to make-fllog-base must be positive" base)))
 
 ;;; Trigonometric functions
 

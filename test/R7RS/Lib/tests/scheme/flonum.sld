@@ -898,15 +898,15 @@
                  (test/approx (flexp (fllog1+ (fl- x one))) x))
                (filter flpositive? somereals))
 
-     (test/approx ((make-fllog-base 2) fl-e) fl-log2-e)
-     (test/approx ((make-fllog-base 10) fl-e) fl-log10-e)
-;    (test/approx ((make-fllog-base fl-e) two) fl-log-2)
+     (test/approx ((make-fllog-base two) fl-e) fl-log2-e)
+     (test/approx ((make-fllog-base (flonum 10)) fl-e) fl-log10-e)
+     (test/approx ((make-fllog-base fl-e) two) fl-log-2)
      (for-each (lambda (base)
                  (let ((f (make-fllog-base base)))
                    (for-each (lambda (x)
                                (test/approx (flexpt (flonum base) (f x)) x))
                              (filter positive? somereals))))
-               '(3 7 19))
+               (map flonum '(3 7 19)))
 
      ;; Trigonometric functions
 

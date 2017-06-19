@@ -97,7 +97,7 @@
 
 (define flexp      (flop1 'flexp  exp))
 (define flsqrt     (flop1 'flsqrt sqrt))
-(define flexpt     (flop1 'flexpt expt))
+(define flexpt     (flop2 'flexpt expt))
 (define fllog      (flop1 'fllog  log))
 (define flsin      (flop1 'flsin  sin))
 (define flcos      (flop1 'flcos  cos))

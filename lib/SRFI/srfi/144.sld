@@ -209,6 +209,7 @@
             (primitives foreign-procedure)))
    (else))
 
+  (include "144.constants.scm")
   (include "144.body0.scm")
 
   ;; If (rnrs arithmetic flonums) is not available, fake it.
