@@ -491,6 +491,8 @@
   (flop1 'flsinh
          (lambda (x)
            (cond ((not (flfinite? x)) x)
+                 ((fl<? (flabs x) 0.75)
+                  (fl/ (fl- (flexp-1 x) (flexp-1 (fl- x))) 2.0))
                  (else
                   (fl/ (fl- (flexp x) (flexp (fl- x))) 2.0))))))
 
@@ -498,6 +500,8 @@
   (flop1 'flcosh
          (lambda (x)
            (cond ((not (flfinite? x)) (flabs x))
+                 ((fl<? (flabs x) 0.75)
+                  (fl+ 1.0 (fl/ (fl+ (flexp-1 x) (flexp-1 (fl- x))) 2.0)))
                  (else
                   (fl/ (fl+ (flexp x) (flexp (fl- x))) 2.0))))))
 
@@ -507,27 +511,76 @@
            (cond ((flinfinite? x) (flcopysign 1.0 x))
                  ((flnan? x) x)
                  (else
-                  (fl/ (flsinh x) (flcosh x)))))))
+                  (let ((a (flsinh x))
+                        (b (flcosh x)))
+                    (cond ((fl=? a b)
+                           1.0)
+                          ((fl=? a (fl- b))
+                           -1.0)
+                          (else
+                           (fl/ (flsinh x) (flcosh x))))))))))
 
 ;;; inverse hyperbolic functions
 
 (define flasinh
   (flop1 'flasinh
          (lambda (x)
+           (define (eqn4.6.31 x^2 c k k0)
+             (if (> k 45) ; FIXME
+                 c
+                 (fl+ c
+                      (fl* x^2
+                           (eqn4.6.31 x^2
+                                      (fl- (fl/ (fl* c k0 k0)
+                                                (fl* (fl+ k0 1.0)
+                                                     (fl+ k0 2.0))))
+                                      (+ k 2)
+                                      (fl+ k0 2.0))))))
            (cond ((flzero? x) x)
                  ((not (flfinite? x)) x)
+                 ((fl<? x 0.0)
+                  (fl- (flasinh (fl- x))))
+                 ((fl<? x 0.5)
+                  (fl* x (eqn4.6.31 (fl* x x) 1.0 1 1.0)))
                  (else
-                  (fllog (fl+ x (flsqrt (fl+ (fl* x x) 1.0)))))))))
+                  (let* ((x^2+1 (fl+ (fl* x x) 1.0))
+                         (root (if (flfinite? x^2+1)
+                                   (flsqrt x^2+1)
+                                   x))
+                         (a (fl+ x root)))
+                    (if (flfinite? a)
+                        (fllog a)
+                        (fl+ fl-log-2 (fllog x)))))))))
 
 (define flacosh
   (flop1 'flacosh
          (lambda (x)
-           (fllog (fl+ x (flsqrt (fl- (fl* x x) 1.0)))))))
+           (if (fl<=? x 0.5)
+               +nan.0
+               (let* ((x^2-1 (fl- (fl* x x) 1.0))
+                      (root (if (flfinite? x^2-1)
+                                (flsqrt x^2-1)
+                                x))
+                      (a (fl+ x root)))
+                 (if (flfinite? a)
+                     (fllog a)
+                     (fl+ fl-log-2 (fllog x))))))))
 
 (define flatanh
   (flop1 'flatanh
          (lambda (x)
+           (define (eqn4.6.33 x^2 k k0)
+             (if (> k 50) ; FIXME
+                 (fl/ k0)
+                 (fl+ (fl/ k0)
+                      (fl* x^2
+                           (eqn4.6.33 x^2 (+ k 2) (+ k0 2.0))))))
            (cond ((flzero? x) x)
+                 ((not (flfinite? x)) x)
+                 ((fl<? x 0.0)
+                  (fl- (flatanh (fl- x))))
+                 ((fl<? x 0.5)
+                  (fl* x (eqn4.6.33 (fl* x x) 1 1.0)))
                  (else
                   (fl* 0.5 (fllog (fl/ (fl+ 1.0 x) (fl- 1.0 x)))))))))
 

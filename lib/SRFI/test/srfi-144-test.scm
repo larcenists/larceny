@@ -318,6 +318,36 @@
                               "log.data")
 (write-relative-error-to-file "sin" c:sin flsin (negative-2pi-to-2pi)
                               "sin.data")
+(write-relative-error-to-file "sinh"
+                              sinh
+                              flsinh
+                              (negative-infinity-to-infinity)
+                              "sinh.data")
+(write-relative-error-to-file "cosh"
+                              cosh
+                              flcosh
+                              (negative-infinity-to-infinity)
+                              "cosh.data")
+(write-relative-error-to-file "tanh"
+                              tanh
+                              fltanh
+                              (negative-infinity-to-infinity)
+                              "tanh.data")
+(write-relative-error-to-file "asinh"
+                              asinh
+                              flasinh
+                              (negative-infinity-to-infinity)
+                              "asinh.data")
+(write-relative-error-to-file "acosh"
+                              acosh
+                              flacosh
+                              (zero-to-infinity)
+                              "acosh.data")
+(write-relative-error-to-file "atanh"
+                              atanh
+                              flatanh
+                              (negative-one-to-one)
+                              "atanh.data")
 (write-relative-error-to-file "Gamma" tgamma flgamma
                               (negative-infinity-to-infinity)
                               "gamma.data")
