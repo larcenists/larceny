@@ -165,7 +165,7 @@
           (srfi 144)
           (tests scheme test)
           (scheme inexact))
-  (import (scheme write)) ; FIXME
+
   (cond-expand
    ((library (scheme list))
     (import (only (scheme list) filter iota)))
