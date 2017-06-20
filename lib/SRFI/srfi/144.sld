@@ -226,7 +226,7 @@
 
   (cond-expand
    ((and larceny i386 unix (or gnu-linux darwin))
-    (begin (define c-functions-are-available #t)
+    (begin (define c-functions-are-available #f)
            (define fl-fast-fl+* #f))
     (include "144.ffi.scm"))
    (else

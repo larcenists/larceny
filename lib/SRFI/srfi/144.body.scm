@@ -211,11 +211,14 @@
          (result2 (fl- x result1)))
     (values result1 result2)))
 
+;;; The 8th draft of SRFI 144 will say flexponent returns the inexact
+;;; integer obtained by truncating toward zero.
+
 (define (flexponent x)
-  (fllog2 (flabs x)))
+  (fltruncate (fllog2 (flabs x))))
 
 (define (flinteger-exponent x)
-  (exact (fltruncate (flexponent x))))
+  (exact (flexponent x)))
 
 (define (flnormalized-fraction-exponent x)
   (define (return result1 result2)
@@ -236,9 +239,9 @@
         ((fl=? x 0.0)    ; unspecified for 0.0
          (values 0.0 0))
         ((flinfinite? x)
-         (values 0.5 (+ 3 (exact (round (flexponent fl-greatest))))))
+         (values 0.5 (+ 3 (exact (round (fllog2 fl-greatest))))))
         ((flnormalized? x)
-         (let* ((result2 (exact (flround (flexponent x))))
+         (let* ((result2 (exact (flround (fllog2 x))))
                 (two^result2 (inexact (expt 2.0 result2))))
            (if (flinfinite? two^result2)
                (call-with-values

@@ -5,42 +5,17 @@
 (define (flop0-or-more name op)
   (lambda args
     (for-each (lambda (x) (check-flonum! name x)) args)
-    (let ((result (apply op args)))
-      (if (not (flonum? result))
-          (error (string-append "non-flonum result from "
-                              (symbol->string name))
-                              result))
-      result)))
+    (flonum (apply op args))))
 
 (define (flop1-or-more name op)
   (lambda (x . args)
     (for-each (lambda (x) (check-flonum! name x)) (cons x args))
-    (let ((result (apply op x args)))
-      (if (not (flonum? result))
-          (error (string-append "non-flonum result from "
-                              (symbol->string name))
-                              result))
-      result)))
+    (flonum (apply op x args))))
 
 (define (flop2-or-more name op)
   (lambda (x y . args)
     (for-each (lambda (x) (check-flonum! name x)) (cons x (cons y args)))
-    (let ((result (apply op x y args)))
-      (if (not (flonum? result))
-          (error (string-append "non-flonum result from "
-                              (symbol->string name))
-                              result))
-      result)))
-
-(define (flop2-or-more name op)
-  (lambda (x y . args)
-    (for-each (lambda (x) (check-flonum! name x)) (cons x (cons y args)))
-    (let ((result (apply op x y args)))
-      (if (not (flonum? result))
-          (error (string-append "non-flonum result from "
-                              (symbol->string name))
-                              result))
-      result)))
+    (flonum (apply op x y args))))
 
 (define (flpred1 name op)
   (lambda (x)
@@ -58,14 +33,30 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; R6RS 11.7.4.1 says
+;;;
+;;;     If z is a complex number object, then (real? z) is true if
+;;;     and only if (zero? (imag-part z)) and (exact? (imag-part z))
+;;;     are both true.
+;;;
+;;; As explained in R6RS Rationale 11.6.6, some such rule is needed
+;;; so the flonum and compnum representation types will be closed
+;;; under operations that would be expected to return a flonum or
+;;; compnum, respectively.  See especially the last two paragraphs
+;;; of 11.6.6.2.
+;;;
+;;; FIXME: Unfortunately, some implementations of the R7RS have
+;;; defined (imag-part x) to be inexact whenever x is an inexact
+;;; real.
+
 (define (flonum? x)
   (and (number? x)
-       (real? x)
+       (real? x)        ; implies (exact? (imag-part x))
        (inexact? x)
-       (exact? (imag-part x))))
+#;     (exact? (imag-part x))))
 
 (define fl=?  (flpred2-or-more 'fl=? =))
-(define fl<?  (flpred2-or-more 'fl<? <=))
+(define fl<?  (flpred2-or-more 'fl<? <))
 (define fl>?  (flpred2-or-more 'fl>? >))
 (define fl<=? (flpred2-or-more 'fl<=? <=))
 (define fl>=? (flpred2-or-more 'fl>=? >=))

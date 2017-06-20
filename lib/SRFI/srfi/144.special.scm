@@ -34,6 +34,9 @@
 ;;;
 ;;; Donald E Knuth.  The Art of Computer Programming, Volume 2,
 ;;; Seminumerical Algorithms, Second Edition.  Addison-Wesley, 1981.
+;;;
+;;; J N Newman.  Approximations for the Bessel and Struve Functions.
+;;; Mathematics of Computation, 43(168), October 1984, pages 551-556.
 
 ;;; I have deliberately avoided recent references, and have also
 ;;; avoided looking at any code or pseudocode for these or similar
@@ -173,7 +176,7 @@
          (if (flpositive? x)
              (values x 1.0)
              (values +inf.0 +nan.0)))
-        ((fl>=? x 20.0)
+        ((fl>=? x flloggamma:upper-threshold)
          (values (eqn6.1.48 x) 1.0))
         ((fl>? x 0.0)
          (let ((g (flgamma x)))
@@ -266,42 +269,40 @@
 
         (else
          (case n
-          ((0)    (cond ((fl<? x 4.5)
+          ((0)    (cond ((fl<? x 4.5)     ; FIXME
                          (eqn9.1.10 x n))
-                        ((fl<? x 155.0)
+                        ((fl<? x 93.0)    ; FIXME
                          (eqn9.1.18 x n))
-                        ((fl<? x 1e12)
-                         (eqn9.2.5 x n))
                         (else
-                         (eqn9.2.1 x n))))
-          ((1)    (cond ((fl<? x 11.0)
+                         (eqn9.2.5 x n))))
+          ((1)    (cond ((fl<? x 11.0)    ; FIXME
                          (eqn9.1.10-fast x n))
-                        ((fl<? x 300.0)
+                        ((fl<? x 300.0)   ; FIXME
                          (eqn9.1.75 x n))
-                        ((fl<? x 1e12)
+                        ((fl<? x 1e12)    ; FIXME
                          (eqn9.2.5 x n))
                         (else
                          (eqn9.2.1 x n))))
-          ((2)    (cond ((fl<? x 10.0)
+          ((2)    (cond ((fl<? x 10.0)    ; FIXME
                          (eqn9.1.10-fast x n))
-                        ((fl<? x 1e19)
+                        ((fl<? x 1e19)    ; FIXME
                          (eqn9.1.27-first-bessel x n))
                         (else
                          ;; FIXME
                          0.0)))
-          ((3)    (cond ((fl<? x 10.0)
+          ((3)    (cond ((fl<? x 10.0)    ; FIXME
                          (eqn9.1.10-fast x n))
-                        ((fl<? x 1e6)
+                        ((fl<? x 1e6)     ; FIXME
                          (eqn9.1.27-first-bessel x n))
                         (else
                          (nan-protected (eqn9.2.5 x n)))))
-          (else   (cond ((fl<? x 12.0)
+          (else   (cond ((fl<? x 12.0)    ; FIXME
                          (nan-protected (eqn9.1.10-fast x n)))
-                        ((fl<? x 150.0)
+                        ((fl<? x 150.0)   ; FIXME
                          (nan-protected (if (fl>? (inexact n) x)
                                             (method9.12ex1 x n)
                                             (eqn9.1.75 x n))))
-                        ((fl<? x 1e18)
+                        ((fl<? x 1e18)    ; FIXME
                          (nan-protected (eqn9.1.27-first-bessel x n)))
                         (else
                          ;; FIXME
@@ -327,11 +328,11 @@
 
         (else
          (case n
-          ((0)    (cond ((fl<? x 14.5)
+          ((0)    (cond ((fl<? x 14.5)        ; FIXME
                          (eqn9.1.13 x 0))
                         (else
                          (eqn9.2.6 x 0))))
-          ((1)    (cond ((fl<? x 1e12)
+          ((1)    (cond ((fl<? x 1e12)        ; FIXME
                          (eqn9.1.16 x n))
                         (else
                          (eqn9.2.6 x n))))
@@ -678,6 +679,62 @@
   (fl* (fl/ (fl* 8.0 x))
        (polynomial-at (fl- (fl/ (flsquare (fl* 8.0 x))))
                       (coefficients 1.0 (fl- mu 1.0) 1.0))))
+
+;;; Equation 9.4.3 is a polynomial approximation attributed to
+;;; E E Allen, Analytical approximations, Math. Tables Aids Comp. 8,
+;;; 240-241 (1954), and Polynomial approximations to some modified
+;;; Bessel functions, Math. Tables Aids Comp. 10, 162-164 (156)
+;;; (with permission).
+;;;
+;;; This is commented out because Newman's similar polynomial
+;;; approximation is simpler and has better error bounds.
+
+#;
+(define (eqn9.4.3 x n)
+  (if (> n 0)
+      (flfirst-bessel x n)
+      (fl* (fl/ (flsqrt x))                              ; modulus
+           (polynomial-at (fl/ 3.0 x)
+                          '(+0.79788456
+                            -0.00000077
+                            -0.00552740
+                            -0.00009512
+                            +0.00137237
+                            -0.00072805
+                            +0.00014476))
+           (flcos (fl+ x                                 ; phase
+                       (polynomial-at (fl/ 3.0 x)
+                                      '(-0.78539816
+                                        -0.04166397
+                                        -0.00003954
+                                        +0.00262573
+                                        -0.00054125
+                                        -0.00029333
+                                        +0.00013558)))))))
+
+;;; J N Newman's polynomial approximation for x >= 3, from Table 4.
+
+#;
+(define (newman-table4 x n)
+  (if (> n 0)
+      (flfirst-bessel x n)
+      (fl* (fl/ (flsqrt x))
+           (polynomial-at (flsquare (fl/ 3.0 x))
+                          '(+0.79788454
+                            -0.00553897
+                            +0.00099336
+                            -0.00044346
+                            +0.00020445
+                            -0.00004959))
+           (flcos (fl+ x
+                       (fl- fl-pi/4)
+                       (fl* (fl/ 3.0 x)
+                            (polynomial-at (flsquare (fl/ 3.0 x))
+                                           '(-0.04166592
+                                             +0.00239399
+                                             +0.00073984
+                                             -0.00031099
+                                             -0.00007605))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

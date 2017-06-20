@@ -165,7 +165,7 @@
           (srfi 144)
           (tests scheme test)
           (scheme inexact))
-
+  (import (scheme write)) ; FIXME
   (cond-expand
    ((library (scheme list))
     (import (only (scheme list) filter iota)))
@@ -391,11 +391,13 @@
      (test/= (flonum 12.0)
              (flexponent (flexpt two (flonum 12))))
      (test/approx (flexponent (flexpt two (flonum 12.5)))
-                  (flonum 12.5))
+                  (flonum 12))
      (test/= (flonum -5.0)
              (flexponent (flexpt two (flonum -5))))
+     (test/approx (flexponent (flexpt two (flonum +4.5)))
+                  (flonum +4))
      (test/approx (flexponent (flexpt two (flonum -4.5)))
-                  (flonum -4.5))
+                  (flonum -4))
 
      (test (flinteger-exponent (flexpt two (flonum 12)))   12)
      (test (flinteger-exponent (flexpt two (flonum 12.5))) 12)
