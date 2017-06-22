@@ -702,7 +702,11 @@
    (test "Ticket #797"                  ; Bug in v0.99 and previous
          (max -34.0 -0.0)
          -0.0)
-   ))
+
+   (test "Ticket #800"                  ; Bug in v0.99 (ARM only)
+         (fl<? +nan.0 1.0)
+         #f)
+))
 
 
 (define (bug-105-test1)
