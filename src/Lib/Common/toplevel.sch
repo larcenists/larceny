@@ -664,6 +664,9 @@
   (environment-set! larc 'flsqrt flsqrt)
   (environment-set! larc 'flexpt flexpt)
   (environment-set! larc 'fixnum->flonum fixnum->flonum)
+  (environment-set! larc 'fl+* fl+*)
+  (environment-set! larc 'flfirst-bessel flfirst-bessel)
+  (environment-set! larc 'flsecond-bessel flsecond-bessel)
 
   (environment-set! larc '&no-infinities &no-infinities)
   (environment-set! larc 'make-no-infinities-violation

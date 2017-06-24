@@ -241,6 +241,15 @@
 (define (flonum:cosh x)
   (syscall syscall:flonum-cosh x (make-flonum-datum)))
 
+(define (flonum:fma x y z)
+  (syscall syscall:flonum-fma x y z (make-flonum-datum)))
+
+(define (flonum:jn n x)
+  (syscall syscall:flonum-jn n x (make-flonum-datum)))
+
+(define (flonum:yn n x)
+  (syscall syscall:flonum-yn n x (make-flonum-datum)))
+
 ; FIXME:  This seems out of place.
 
 (define (flonum:time)

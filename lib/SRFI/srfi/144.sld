@@ -53,7 +53,6 @@
    fl-pi-squared
    fl-degree
    fl-2/pi
-;  fl-2/sqrt-pi    ; FIXME: duplicate
    fl-sqrt-2
    fl-sqrt-3
    fl-sqrt-5
@@ -203,7 +202,12 @@
   ;; Use an FFI if one is available.
 
   (cond-expand
-   ((and larceny i386 unix (or gnu-linux darwin))
+   (larceny
+    (import (rename (primitives fl+* flfirst-bessel flsecond-bessel)
+                    (fl+* fma)
+		    (flfirst-bessel jn)
+		    (flsecond-bessel yn))))
+   ((and larceny i386 unix (or gnu-linux darwin))    ; FIXME: no longer used
     (import (rename (primitives r5rs:require)
                     (r5rs:require require))
             (primitives foreign-procedure)))
@@ -225,7 +229,10 @@
   ;; If the C library is available, use it.
 
   (cond-expand
-   ((and larceny i386 unix (or gnu-linux darwin))
+   (larceny
+    (begin (define c-functions-are-available #t)
+           (define fl-fast-fl+* #f)))
+   ((and larceny i386 unix (or gnu-linux darwin))   ; FIXME: no longer used
     (begin (define c-functions-are-available #t)
            (define fl-fast-fl+* #f))
     (include "144.ffi.scm"))
