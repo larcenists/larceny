@@ -205,8 +205,8 @@
    (larceny
     (import (rename (primitives fl+* flfirst-bessel flsecond-bessel)
                     (fl+* fma)
-		    (flfirst-bessel jn)
-		    (flsecond-bessel yn))))
+                    (flfirst-bessel r5rs:flfirst-bessel)
+                    (flsecond-bessel r5rs:flsecond-bessel))))
    ((and larceny i386 unix (or gnu-linux darwin))    ; FIXME: no longer used
     (import (rename (primitives r5rs:require)
                     (r5rs:require require))
@@ -231,7 +231,10 @@
   (cond-expand
    (larceny
     (begin (define c-functions-are-available #t)
-           (define fl-fast-fl+* #f)))
+           (define fl-fast-fl+* #f)
+           (define (jn n x) (r5rs:flfirst-bessel x n))    ; arguments in reverse order
+           (define (yn n x) (r5rs:flsecond-bessel x n))))
+
    ((and larceny i386 unix (or gnu-linux darwin))   ; FIXME: no longer used
     (begin (define c-functions-are-available #t)
            (define fl-fast-fl+* #f))
