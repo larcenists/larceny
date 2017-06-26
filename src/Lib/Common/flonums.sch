@@ -206,53 +206,53 @@
 ; No type checking, as these are not public.
 
 (define (flonum:log x)
-  (syscall syscall:flonum-log x (make-flonum-datum)))
+  (%syscall syscall:flonum-log x (make-flonum-datum)))
 
 (define (flonum:exp x)
-  (syscall syscall:flonum-exp x (make-flonum-datum)))
+  (%syscall syscall:flonum-exp x (make-flonum-datum)))
 
 (define (flonum:sin x)
-  (syscall syscall:flonum-sin x (make-flonum-datum)))
+  (%syscall syscall:flonum-sin x (make-flonum-datum)))
 
 (define (flonum:cos x)
-  (syscall syscall:flonum-cos x (make-flonum-datum)))
+  (%syscall syscall:flonum-cos x (make-flonum-datum)))
 
 (define (flonum:tan x)
-  (syscall syscall:flonum-tan x (make-flonum-datum)))
+  (%syscall syscall:flonum-tan x (make-flonum-datum)))
 
 (define (flonum:asin x)
-  (syscall syscall:flonum-asin x (make-flonum-datum)))
+  (%syscall syscall:flonum-asin x (make-flonum-datum)))
 
 (define (flonum:acos x)
-  (syscall syscall:flonum-acos x (make-flonum-datum)))
+  (%syscall syscall:flonum-acos x (make-flonum-datum)))
 
 (define (flonum:atan x)
-  (syscall syscall:flonum-atan x (make-flonum-datum)))
+  (%syscall syscall:flonum-atan x (make-flonum-datum)))
 
 (define (flonum:atan2 x y)
-  (syscall syscall:flonum-atan2 x y (make-flonum-datum)))
+  (%syscall syscall:flonum-atan2 x y (make-flonum-datum)))
 
 (define (flonum:sqrt x)
-  (syscall syscall:flonum-sqrt x (make-flonum-datum)))
+  (%syscall syscall:flonum-sqrt x (make-flonum-datum)))
 
 (define (flonum:sinh x)
-  (syscall syscall:flonum-sinh x (make-flonum-datum)))
+  (%syscall syscall:flonum-sinh x (make-flonum-datum)))
 
 (define (flonum:cosh x)
-  (syscall syscall:flonum-cosh x (make-flonum-datum)))
+  (%syscall syscall:flonum-cosh x (make-flonum-datum)))
 
 (define (flonum:fma x y z)
-  (syscall syscall:flonum-fma x y z (make-flonum-datum)))
+  (%syscall syscall:flonum-fma x y z (make-flonum-datum)))
 
 (define (flonum:jn n x)
-  (syscall syscall:flonum-jn n x (make-flonum-datum)))
+  (%syscall syscall:flonum-jn n x (make-flonum-datum)))
 
 (define (flonum:yn n x)
-  (syscall syscall:flonum-yn n x (make-flonum-datum)))
+  (%syscall syscall:flonum-yn n x (make-flonum-datum)))
 
 ; FIXME:  This seems out of place.
 
 (define (flonum:time)
-  (syscall syscall:time (make-flonum-datum)))
+  (%syscall syscall:time (make-flonum-datum)))
 
 ; eof
