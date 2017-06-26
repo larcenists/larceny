@@ -614,6 +614,16 @@
   (environment-set! larc 'fxarithmetic-shift fxarithmetic-shift)
   (environment-set! larc 'fxarithmetic-shift-left fxarithmetic-shift-left)
   (environment-set! larc 'fxarithmetic-shift-right fxarithmetic-shift-right)
+  ;; added for SRFI 143
+  (environment-set! larc 'fxneg fxneg)
+  (environment-set! larc 'fxquotient fxquotient)
+  (environment-set! larc 'fxremainder fxremainder)
+  (environment-set! larc 'fxabs fxabs)
+  (environment-set! larc 'fxsquare fxsquare)
+  (environment-set! larc 'fxsqrt fxsqrt)
+  (environment-set! larc 'fxfirst-set-bit fxfirst-set-bit)
+  (environment-set! larc 'fxbit-field-rotate fxbit-field-rotate)
+  (environment-set! larc 'fxbit-field-reverse fxbit-field-reverse)
 
   ; FIXME: Needed by src/Compiler/common.imp.sch
 
