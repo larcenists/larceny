@@ -25,7 +25,25 @@ TESTS="                            \
     repl.sps                       \
     time.sps                       \
     write.sps                      \
-    process-context.sps"
+    process-context.sps            \
+    box.sps                        \
+    charset.sps                    \
+    comparator.sps                 \
+    ephemeron.sps                  \
+    generator.sps                  \
+    hash-table.sps                 \
+    ideque.sps                     \
+    ilist.sps                      \
+    list-queue.sps                 \
+    list.sps                       \
+    lseq.sps                       \
+    rlist.sps                      \
+    set.sps                        \
+    sort.sps                       \
+    stream.sps                     \
+    vector.sps                     \
+    text.sps                       \
+    "
 
 # missing from the list above:
 #

@@ -64,5 +64,8 @@
 (define syscall:listdir-open 53)
 (define syscall:listdir 54)
 (define syscall:listdir-close 55)
+(define syscall:flonum-fma 56)
+(define syscall:flonum-jn 57)
+(define syscall:flonum-yn 58)
 
 ; eof

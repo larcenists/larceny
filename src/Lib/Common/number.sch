@@ -33,9 +33,9 @@
                          (cond ((< y1 x)
                                 (if exact
                                     (loop (cdr y) y1 (exact? y1))
-                                    (loop (cdr y) (+ y1 0.0) exact)))
+                                    (loop (cdr y) (inexact y1) exact)))
                                ((and exact (not (exact? y1)))
-                                (loop (cdr y) (+ x 0.0) #f))
+                                (loop (cdr y) (inexact x) #f))
                                (else (loop (cdr y) x exact))))))))
     min))
  
@@ -51,9 +51,9 @@
                          (cond ((> y1 x)
                                 (if exact
                                     (loop (cdr y) y1 (exact? y1))
-                                    (loop (cdr y) (+ y1 0.0) exact)))
+                                    (loop (cdr y) (inexact y1) exact)))
                                ((and exact (not (exact? y1)))
-                                (loop (cdr y) (+ x 0.0) #f))
+                                (loop (cdr y) (inexact x) #f))
                                (else (loop (cdr y) x exact))))))))
     max))
  
@@ -125,30 +125,39 @@
   (if (or (inexact? x) (inexact? y))
       (exact->inexact (modulo (inexact->exact x) (inexact->exact y)))
       (let* ((q (quotient x y))
-	     (r (- x (* q y))))
-	(cond ((zero? r)
-	       r)
-	      ((negative? r)
-	       (if (negative? y)
-		   r
-		   (+ r y)))
-	      ((negative? y)
-	       (+ r y))
-	      (else
-	       r)))))
+             (r (- x (* q y))))
+        (cond ((zero? r)
+               r)
+              ((negative? r)
+               (if (negative? y)
+                   r
+                   (+ r y)))
+              ((negative? y)
+               (+ r y))
+              (else
+               r)))))
 
 (define (expt x y)
 
   ; x is nonzero, and y is an exact natural number.
 
-  (define (e x y)
+  (define (e x y)    ; y is exact and non-negative
     (cond ((= y 0)
-	   1)
-	  ((odd? y)
-	   (* x (e x (- y 1))))
-	  (else 
-	   (let ((v (e x (quotient y 2))))
-	     (* v v)))))
+           1)
+          ((odd? y)
+           (* x (e x (- y 1))))
+          (else 
+           (let ((v (e x (quotient y 2))))
+             (* v v)))))
+
+  (define (e2 x y)    ; y is exact and negative or zero
+    (cond ((= y 0)
+           1)
+          ((odd? y)
+           (/ (e2 x (+ y 1)) x))
+          (else 
+           (let ((v (e2 x (quotient y 2))))
+             (* v v)))))
 
   (cond ((zero? x)
          (let ((result (cond ((= y 0) 1)
@@ -157,12 +166,12 @@
            (if (and (exact? x) (exact? y))
                result
                (exact->inexact result))))
-	((and (exact? y) (integer? y))
-	 (if (negative? y)
-	     (/ (expt x (abs y)))
-	     (e x y)))
-	(else
-	 (exp (* y (log x))))))
+        ((and (exact? y) (integer? y))
+         (if (negative? y)
+             (e2 x y)
+             (e x y)))
+        (else
+         (exp (* y (log x))))))
 
 ; From MacScheme.
 ;
@@ -183,7 +192,7 @@
                ;; [Y] = [X] < X < Y so expand the next term in the continued
                ;; fraction:
                (+ fx (/ (simplest-rational-internal
-			 (/ (- y fy)) (/ (- x fx))))))
+                         (/ (- y fy)) (/ (- x fx))))))
               (else
                ;; [X] < X < [X]+1 <= [Y] <= Y so [X]+1 is the answer:
                (+ 1 fx)))))
@@ -217,23 +226,23 @@
 
 (define (floor x)
   (cond ((flonum? x)
-	 (if (< x 0.0)
-	     (let ((g (truncate x)))
-	       (if (not (= g x))
-		   (- g 1.0)
-		   g))
-	     (truncate x)))
+         (if (< x 0.0)
+             (let ((g (truncate x)))
+               (if (not (= g x))
+                   (- g 1.0)
+                   g))
+             (truncate x)))
         ((not (real? x))
          (error "floor: " x " is not a real number."))
         ((compnum? x)
          (floor (real-part x)))
-	((< x 0)
-	 (let ((g (truncate x)))
-	   (if (not (= g x))
-	       (- g 1)
-	       g)))
-	(else
-	 (truncate x))))
+        ((< x 0)
+         (let ((g (truncate x)))
+           (if (not (= g x))
+               (- g 1)
+               g)))
+        (else
+         (truncate x))))
 
 
 ; Ceiling of x.
@@ -241,23 +250,23 @@
   
 (define (ceiling x)
   (cond ((flonum? x)
-	 (if (< x 0.0)
-	     (truncate x)
-	     (let ((g (truncate x)))
-	       (if (not (= g x))
-		   (+ g 1.0)
-		   g))))
+         (if (< x 0.0)
+             (truncate x)
+             (let ((g (truncate x)))
+               (if (not (= g x))
+                   (+ g 1.0)
+                   g))))
         ((not (real? x))
          (error "ceiling: " x " is not a real number."))
         ((compnum? x)
          (ceiling (real-part x)))
-	((< x 0)
-	 (truncate x))
-	(else
-	 (let ((g (truncate x)))
-	   (if (not (= g x))
-	       (+ g 1)
-	       g)))))
+        ((< x 0)
+         (truncate x))
+        (else
+         (let ((g (truncate x)))
+           (if (not (= g x))
+               (+ g 1)
+               g)))))
 
 
 ; Odd and even, optimized for the fixnum and bignum cases.
@@ -265,19 +274,19 @@
 
 (define (even? x)
   (cond ((fixnum? x)
-	 (= (fxlogand x 1) 0))
-	((bignum? x)
-	 (= (fxlogand (bignum-ref x 0) 1) 0))
-	(else
-	 (zero? (remainder x 2)))))
+         (= (fxlogand x 1) 0))
+        ((bignum? x)
+         (= (fxlogand (bignum-ref x 0) 1) 0))
+        (else
+         (zero? (remainder x 2)))))
 
 (define (odd? x)
   (cond ((fixnum? x) 
-	 (= (fxlogand x 1) 1))
-	((bignum? x)
-	 (= (fxlogand (bignum-ref x 0) 1) 1))
-	(else
-	 (not (zero? (remainder x 2))))))
+         (= (fxlogand x 1) 1))
+        ((bignum? x)
+         (= (fxlogand (bignum-ref x 0) 1) 1))
+        (else
+         (not (zero? (remainder x 2))))))
 
 
 ; Polar numbers
@@ -285,19 +294,21 @@
 (define (make-polar a b)
   (if (not (and (real? a) (real? b)))
       (begin (error "make-polar: invalid arguments: " a " " b)
-	     #t)
+             #t)
       (make-rectangular (* a (cos b)) (* a (sin b)))))
 
 (define (angle c)
   (atan (imag-part c) (real-part c)))
 
-; NOTE: CLtL2 notes that this implementation may not be ideal for very
-;       large or very small numbers.
-
 (define (magnitude c)
-  (let ((r (real-part c))
-	(i (imag-part c)))
-    (sqrt (+ (* r r) (* i i)))))
+  (let* ((r (abs (real-part c)))
+         (i (abs (imag-part c)))
+         (x (max r i))
+         (y (min r i)))
+    (if (zero? x)
+        0.0
+        (let ((y/x (/ y x)))
+          (* x (sqrt (+ 1 (* y/x y/x))))))))
 
 
 ; The procedures flonum:{sin,cos,tan,asin,acos,atan,exp,log,sqrt} have
@@ -310,8 +321,8 @@
 
 (define (sqrt z)
   (cond ((and (flonum? z) (>= z 0.0))
-	 (flonum:sqrt z))
-	((not (real? z))
+         (flonum:sqrt z))
+        ((not (real? z))
          (let* ((a (real-part z))
                 (b (imag-part z))
                 (modulus (sqrt (+ (square a) (square b))))
@@ -319,8 +330,8 @@
                 (delta (sqrt (/ (- modulus a) 2)))
                 (delta (if (>= b 0) delta (- delta))))
            (make-rectangular gamma delta)))
-	((< z 0)
-	 (make-rectangular 0 (sqrt (- z))))
+        ((< z 0)
+         (make-rectangular 0 (sqrt (- z))))
         ((or (fixnum? z) (bignum? z))
          (call-with-values
           (lambda () (exact-integer-sqrt z))
@@ -335,8 +346,8 @@
                     (exact-integer? q))
                (/ p q)
                (sqrt (inexact z)))))
-	(else
-	 (flonum:sqrt (exact->inexact z)))))
+        (else
+         (flonum:sqrt (exact->inexact z)))))
 
 ; Trancendentals.
 ; Complex algorithms for SIN, COS, TAN from Abramowitz & Stegun (1972), p74.
@@ -347,44 +358,44 @@
 
 (define (sin z)
   (cond ((flonum? z)
-	 (flonum:sin z))
-	((not (real? z))
-	 (let ((x (exact->inexact (real-part z)))
-	       (y (exact->inexact (imag-part z))))
-	   (+ (* (flonum:sin x) (flonum:cosh y))
-	      (* +1.0i (flonum:cos x) (flonum:sinh y)))))
-	(else
-	 (flonum:sin (exact->inexact z)))))
+         (flonum:sin z))
+        ((not (real? z))
+         (let ((x (exact->inexact (real-part z)))
+               (y (exact->inexact (imag-part z))))
+           (+ (* (flonum:sin x) (flonum:cosh y))
+              (* +1.0i (flonum:cos x) (flonum:sinh y)))))
+        (else
+         (flonum:sin (exact->inexact z)))))
 
 (define (cos z)
   (cond ((flonum? z)
-	 (flonum:cos z))
-	((not (real? z))
-	 (let ((x (exact->inexact (real-part z)))
-	       (y (exact->inexact (imag-part z))))
-	   (+ (* (flonum:cos x) (flonum:cosh y))
-	      (* +1.0i (flonum:sin x) (flonum:sinh y)))))
-	(else
-	 (flonum:cos (exact->inexact z)))))
+         (flonum:cos z))
+        ((not (real? z))
+         (let ((x (exact->inexact (real-part z)))
+               (y (exact->inexact (imag-part z))))
+           (+ (* (flonum:cos x) (flonum:cosh y))
+              (* +1.0i (flonum:sin x) (flonum:sinh y)))))
+        (else
+         (flonum:cos (exact->inexact z)))))
 
 (define (tan z)
   (cond ((flonum? z)
-	 (flonum:tan z))
-	((not (real? z))
-	 (let ((x (* 2.0 (exact->inexact (real-part z))))
-	       (y (* 2.0 (exact->inexact (imag-part z)))))
-	   (/ (+ (flonum:sin x) (* +1.0i (flonum:sinh y)))
-	      (+ (flonum:cos x) (flonum:cosh y)))))
-	(else
-	 (flonum:tan (exact->inexact z)))))
+         (flonum:tan z))
+        ((not (real? z))
+         (let ((x (* 2.0 (exact->inexact (real-part z))))
+               (y (* 2.0 (exact->inexact (imag-part z)))))
+           (/ (+ (flonum:sin x) (* +1.0i (flonum:sinh y)))
+              (+ (flonum:cos x) (flonum:cosh y)))))
+        (else
+         (flonum:tan (exact->inexact z)))))
 
 (define (asin z)
   (cond ((and (flonum? z)
-	      (<= -1.0 z 1.0))
-	 (flonum:asin z))
-	((and (real? z)
-	      (<= -1.0 z 1.0))
-	 (flonum:asin (exact->inexact z)))
+              (<= -1.0 z 1.0))
+         (flonum:asin z))
+        ((and (real? z)
+              (<= -1.0 z 1.0))
+         (flonum:asin (exact->inexact z)))
         ((or (and (real? z)
                   (< z -1.0))
              (let ((y (imag-part z)))
@@ -392,37 +403,37 @@
                    (and (= y 0)
                         (< (real-part z) 0)))))
          (- (asin (- z))))
-	(else
-	 (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))))
+        (else
+         (* -1.0i (log (+ (* +1.0i z) (sqrt (- 1 (* z z)))))))))
 
 (define (acos z)
   (cond ((and (flonum? z)
-	      (<= -1.0 z 1.0))
-	 (flonum:acos z))
-	((and (real? z)
-	      (<= -1.0 z 1.0))
-	 (flonum:acos (exact->inexact z)))
-	(else
+              (<= -1.0 z 1.0))
+         (flonum:acos z))
+        ((and (real? z)
+              (<= -1.0 z 1.0))
+         (flonum:acos (exact->inexact z)))
+        (else
          (- (/ (acos -1.0) 2.0) (asin z)))))
 
 (define (atan z . rest)
   (if (null? rest)
       (cond ((flonum? z)
-	     (flonum:atan z))
-	    ((not (real? z))
-	     (/ (- (log (+ 1.0 (* +1.0i z))) (log (- 1.0 (* +1.0i z))))
-		+2.0i))
-	    (else
-	     (flonum:atan (exact->inexact z))))
+             (flonum:atan z))
+            ((not (real? z))
+             (/ (- (log (+ 1.0 (* +1.0i z))) (log (- 1.0 (* +1.0i z))))
+                +2.0i))
+            (else
+             (flonum:atan (exact->inexact z))))
       (let ((x z)
-	    (y (car rest)))
-	(cond ((and (flonum? x) (flonum? y))
-	       (flonum:atan2 x y))
-	      ((not (and (real? x) (real? y)))
-	       (error "atan: domain error:" (list x y))
-	       #t)
-	      (else
-	       (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
+            (y (car rest)))
+        (cond ((and (flonum? x) (flonum? y))
+               (flonum:atan2 x y))
+              ((not (and (real? x) (real? y)))
+               (error "atan: domain error:" (list x y))
+               #t)
+              (else
+               (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
 
 ; Complex/negative case from the R^4.95RS, p25.
 
@@ -434,68 +445,68 @@
                (/ (log z) (log z2))
                (error "log: domain error" (list x y)))))
         ((and (flonum? z) (> z 0.0))
-	 (flonum:log z))
-	((or (not (real? z))
+         (flonum:log z))
+        ((or (not (real? z))
              (< z 0)
              (eqv? z -0.0))
-	 (+ (log (magnitude z)) (* +1.0i (angle z))))
-	((zero? z)
+         (+ (log (magnitude z)) (* +1.0i (angle z))))
+        ((zero? z)
          (if (exact? z)
              (error "log: domain error:" z)
              -1e500))
-	(else
-	 (flonum:log (exact->inexact z)))))
+        (else
+         (flonum:log (exact->inexact z)))))
 
 ; Complex case from Abramowitz&Stegun (1972), p74.
 
 (define (exp z)
   (cond ((flonum? z)
-	 (flonum:exp z))
-	((not (real? z))
-	 (let ((i (imag-part z)))
-	   (* (exp (real-part z))
-	      (+ (cos i) (* +1.0i (sin i))))))
-	(else
-	 (flonum:exp (exact->inexact z)))))
+         (flonum:exp z))
+        ((not (real? z))
+         (let ((i (imag-part z)))
+           (* (exp (real-part z))
+              (+ (cos i) (* +1.0i (sin i))))))
+        (else
+         (flonum:exp (exact->inexact z)))))
 
 (define (make-rectangular a b) 
 
   (define (construct-compnum a b)
     (if (and (exact? b) (= b 0))
-	a
-	(make-compnum a b)))
+        a
+        (make-compnum a b)))
 
   (define (construct-rectnum a b)
     (if (and (exact? b) (= b 0))
-	a
-	(make-rectnum a b)))
+        a
+        (make-rectnum a b)))
 
   (define (fail x)
     (error "make-rectangular: " x " is not a real number."))
 
   (cond ((flonum? a)
-	 (cond ((flonum? b)
-		(construct-compnum a b))
-	       ((compnum? b)
-		(if (= 0.0 (imag-part b))
-		    (construct-compnum a (real-part b))
-		    (fail b)))
+         (cond ((flonum? b)
+                (construct-compnum a b))
+               ((compnum? b)
+                (if (= 0.0 (imag-part b))
+                    (construct-compnum a (real-part b))
+                    (fail b)))
                ((and (exact? b) (= b 0))
                 a)
-	       (else
-		(make-rectangular a (exact->inexact b)))))
-	((compnum? a) 
-	 (if (= 0.0 (imag-part a))
-	     (make-rectangular (real-part a) b)
-	     (fail a)))
-	((inexact? b)
-	 (make-rectangular (exact->inexact a) b))
-	((rectnum? a)
-	 (fail a))
-	((rectnum? b)
-	 (fail b))
-	(else
-	 (construct-rectnum a b))))
+               (else
+                (make-rectangular a (exact->inexact b)))))
+        ((compnum? a) 
+         (if (= 0.0 (imag-part a))
+             (make-rectangular (real-part a) b)
+             (fail a)))
+        ((inexact? b)
+         (make-rectangular (exact->inexact a) b))
+        ((rectnum? a)
+         (fail a))
+        ((rectnum? b)
+         (fail b))
+        (else
+         (construct-rectnum a b))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

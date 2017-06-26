@@ -510,6 +510,7 @@
               flmin flmax flabs
               flfloor flceiling fltruncate flround
               fl+ fl- fl* fl/
+              inexact
               eqv? memv assv memq
               map for-each
               char=? char<? char>? char<=? char>=?
@@ -981,12 +982,11 @@
 `  ((_ larceny min (min ?x ?y))
     (let ((x ?x) (y ?y))
       (let ((r (if (<= x y) x y)))
-        (if (or (inexact? x) (inexact? y))
-            (+ r 
-               (if (or (not (= x x)) (not (= y y)))
-                   +nan.0
-                   0.0))
-            r))))
+        (cond ((or (not (= x x)) (not (= y y)))
+               +nan.0)
+              ((or (inexact? x) (inexact? y))
+               (inexact r))
+              (else r)))))
 `  ((_ larceny min (min ?x ?y ?z ...))
     (let ((x ?x) (y (min ?y ?z ...)))
       (min x y)))
@@ -994,12 +994,11 @@
 `  ((_ larceny max (max ?x ?y))
     (let ((x ?x) (y ?y))
       (let ((r (if (>= x y) x y)))
-        (if (or (inexact? x) (inexact? y))
-            (+ r 
-               (if (or (not (= x x)) (not (= y y)))
-                   +nan.0
-                   0.0))
-            r))))
+        (cond ((or (not (= x x)) (not (= y y)))
+               +nan.0)
+              ((or (inexact? x) (inexact? y))
+               (inexact r))
+              (else r)))))
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
@@ -1368,7 +1367,7 @@
     (let ((x ?x))
       (if (fl<? x 0.0)
           (fl- x)
-          x)))
+          (fl+ x 0.0))))    ; so (flabs -0.0) returns 0.0 (ticket #791)
 
 `  ((_ larceny flfloor (flfloor ?x))
     (let ((x ?x))
@@ -1405,7 +1404,10 @@
 `  ((_ larceny fl+ (fl+))
     0.0)
 `  ((_ larceny fl+ (fl+ ?x))
-    (fl+ ?x 0.0))
+    (let ((x ?x)
+          (y 0.0))
+      (.check! (flonum? x) ,$ex.fl+ x y)
+      x))
 `  ((_ larceny fl+ (fl+ ?x ?y))
     (let ((x ?x)
           (y ?y))
@@ -1447,8 +1449,8 @@
       (.check! (flonum? y) ,$ex.fl- x y)
       (.-:flo:flo x y)))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
-    (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
-      (fl- x (fl+ y z))))
+    (let* ((x ?x) (y ?y))
+      (fl- (fl- x y) ?z ...)))
 
 `  ((_ larceny fl/ (fl/ ?x))
     (let ((x ?x))
@@ -1466,8 +1468,12 @@
       (.check! (flonum? y) ,$ex.fl/ x y)
       (./:flo:flo x y)))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
-    (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
-      (fl/ x (fl* y z))))
+    (let* ((x ?x) (y ?y))
+      (fl/ (fl/ x y) ?z ...)))
+
+`  ((_ larceny inexact (inexact ?x))
+    (let* ((x ?x))
+      (if (inexact? x) x (+ x 0.0))))
 
    ; These three compiler macros cannot be expressed using SYNTAX-RULES.
 

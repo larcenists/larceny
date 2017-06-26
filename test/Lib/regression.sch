@@ -674,7 +674,39 @@
            (bytevector-ieee-single-native-set! bv 0 x)
            (bytevector-ieee-single-native-ref bv 0))
          2.9802322387695312e-8)
-   ))
+
+   (test "Ticket #790"                  ; Bug in v0.99 and previous
+         (eqv? (fl+ -0.0) -0.0)
+         #t)
+
+   (test "Ticket #792"                  ; Bug in v0.99 and previous
+         (expt 2.0 -1024)
+         5.562684646268003e-309)
+
+   (test "Ticket #793"                  ; Bug in v0.99 and previous
+         (inexact (expt 2 -1024))
+         5.562684646268003e-309)
+
+   (test "Ticket #794"                  ; Bug in v0.99 and previous
+         (fl- 1e308 1e308 1e308)
+         -1e308)
+
+   (test "Ticket #794"                  ; Bug in v0.99 and previous
+         (fl/ 1e308 1e308 2.0)
+         0.5)
+
+   (test "Ticket #795"                  ; Bug in v0.99 and previous
+         (magnitude -1e308)
+         1e308)
+
+   (test "Ticket #797"                  ; Bug in v0.99 and previous
+         (max -34.0 -0.0)
+         -0.0)
+
+   (test "Ticket #800"                  ; Bug in v0.99 (ARM only)
+         (fl<? +nan.0 1.0)
+         #f)
+))
 
 
 (define (bug-105-test1)

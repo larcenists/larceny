@@ -54,7 +54,7 @@
 ; data written on standard output in the subprocess are available on
 ; input-port.
 ;
-; Compatible with Chez Scheme.  A modern version migh return multiple values.
+; Compatible with Chez Scheme.  A modern version might return multiple values.
 
 (define (process command)
   (let-values (((r1 stdin-in stdin-out) (unix/pipe))

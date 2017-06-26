@@ -7,7 +7,9 @@ Matthew Flatt wrote most of Racket's R6RS test suite, and Will
 Clinger rewrote that test suite as necessary for R7RS.  There
 have been other contributors as well.
 
-The tests/scheme directory contains tests of R7RS standard libraries.
+The tests/scheme directory contains tests of R7RS standard libraries,
+including those of R7RS Red Edition.
+
 The tests/r6rs directory contains tests of (r6rs *) libraries that
 emulate the R6RS standard libraries in R7RS systems; those tests are
 almost exactly the same as Racket's R6RS tests, but have been changed
@@ -20,11 +22,14 @@ an exact copy of the corresponding file in Racket's R6RS tests.
 Requirements
 ======================================================================
 
-It should be possible to run the test suite in any implementation of
-R7RS (small) that provides the standard libraries (scheme base) and
+It should be possible to run the basic R7RS tests in any implementation
+of R7RS (small) that provides the standard libraries (scheme base) and
 (scheme write) and implements R7RS include and cond-expand correctly.
 Tests of unavailable libraries and unsupported number syntax will be
 bypassed using cond-expand and include.
+
+The R7RS Red Edition tests assume all R7RS (small) libraries are
+available.
 
 ======================================================================
 Files and libraries
@@ -44,8 +49,8 @@ is a set of tests for `(scheme base)'. Many R7RS implementations
 will auto-load these ".sld" files if you tell them to search the
 "tests" subdirectory (or its parent directory "tests/..").
 
-For each `(scheme <id>)' library described by the R7RS (small)
-standard:
+For each `(scheme <id>)' library described by the R7RS (small) or
+R7RS Red Edition standards:
 
  * There's a library of tests named "tests/scheme/<id>.sld". It
    defines and exports a procedure named `run-<id>-tests'.
@@ -66,8 +71,8 @@ And then there's
 Limitations and feedback
 ======================================================================
 
-The test suite tries to cover all of the bindings of R7RS, and tries
-to check a variety of uses.
+The test suite tries to cover all of the bindings of R7RS and the R7RS
+Red Edition, and tries to check a variety of uses.
 
 One goal of this test suite is to avoid using `eval' (except when
 specifically testing `eval'). Avoiding `eval' makes the test suite as
@@ -102,7 +107,7 @@ The testall shell script runs all of the tests in Larceny.  See also
     testall-kawa
     testall-sagittarius
 
-Chicken version 4.9.0 does not complete the following tests:
+Chicken version 4.12.0 does not complete the following tests:
 
     base            apparently does not implement datum labels
     complex         runs out of heap memory
@@ -119,21 +124,15 @@ Foment 0.4 (debug) does not complete the following tests:
 
     base            could not open included file base-test1.scm
 
-Gauche version 0.9.4 does not complete the following tests:
+Gauche version 0.9.5 does not complete the following tests:
 
-    base            restricts define-record-type to top level
-    inexact         internal assertion fails ("libnum.scm", line 347)
+    base            does not allow ellipses as literals in syntax-rules
     process-context apparently interprets --test-getenv as a file
 
-Kawa 2.0 does not complete the following tests:
-
-    base            appears to enter an infinite loop, probably in equal?
-    eval            ArrayIndexOutOfBoundsException in PrettyWriter
-    file            ArrayIndexOutOfBoundsException in PrettyWriter
-    load            ArrayIndexOutOfBoundsException in PrettyWriter
-    read            StackOverflowError in IsEqual.apply
-    repl            ArrayIndexOutOfBoundsException in PrettyWriter
-    write           StackOverflowError in IsEqual.apply
+Kawa 2.4, Larceny 1.3, and Sagittarius 0.8.4 complete all of the
+R7RS (small) tests, but may fail a few of them.  Larceny 1.3 and
+Sagittarius 0.8.4 can also run the R7RS Red Edition tests, except
+Sagittarius has some kind of problem with the (scheme list) tests.
 
 
 R6RS tests

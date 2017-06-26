@@ -21,8 +21,11 @@
    list->char-set  string->char-set 
    list->char-set! string->char-set! 
 
-   ucs-range->char-set  ->char-set
+   char-set-filter
+   char-set-filter!
+   ucs-range->char-set
    ucs-range->char-set!
+   ->char-set
 
    char-set->list char-set->string
 

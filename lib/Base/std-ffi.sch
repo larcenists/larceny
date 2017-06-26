@@ -210,8 +210,7 @@
 		 " is not a character.")))
 
     (define (flonum-check x name)
-      (if (and (rational? x)
-	       (inexact? x))
+      (if (flonum? x)
 	  x
 	  (error "Foreign-procedure " name ": " x
 		 " is not a floating-point number.")))

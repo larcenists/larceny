@@ -425,6 +425,8 @@
 (define (cant.fdiv as frs1 frs2 frd)
   (arm.VDIV as (arm.freg frd) (arm.freg frs1) (arm.freg frs2)))
 
+;; ARM condition codes for floating point comparisons are unintuitive.
+
 (define (cant.fsetcc as condition frs1 frs2 rd)
   (arm.VCMP      as (arm.freg frs1) (arm.freg frs2))
   (arm.VMRS.APSR as)
@@ -432,10 +434,10 @@
     (arm.MOVWI as rd $imm.false)
     ((case condition
        ((equal) arm.ADDI.EQ)
-       ((not-equal) arm.ADDI.NE)
-       ((less) arm.ADDI.LT)
+       ((not-equal) arm.ADDI.NE)           ; NE true for NaN
+       ((less) arm.ADDI.MI)                ; LT true for NaN
        ((greater) arm.ADDI.GT)
-       ((less-or-equal) arm.ADDI.LE)
+       ((less-or-equal) arm.ADDI.LS)       ; LE true for NaN
        ((greater-or-equal) arm.ADDI.GE)
        (else (error fsetcc  "Bad condition: " condition)))
      as rd rd 0 (- $imm.true $imm.false))))
@@ -846,6 +848,8 @@
 (define arm.ADDI.GT (arm.addicc "ADDI.GT" arm-cond.GT))
 (define arm.ADDI.LE (arm.addicc "ADDI.LE" arm-cond.LE))
 (define arm.ADDI.GE (arm.addicc "ADDI.GE" arm-cond.GE))
+(define arm.ADDI.MI (arm.addicc "ADDI.LT" arm-cond.MI))
+(define arm.ADDI.LS (arm.addicc "ADDI.LT" arm-cond.LS))
 
 (define (arm.ADDIS as rd rs rotation imm)
   (arm.emit-other as (+ arm-cond.AL #b00000010) (+ #b10010000 rs) (+ (* rd 16) rotation) imm))

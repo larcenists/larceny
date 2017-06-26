@@ -25,7 +25,29 @@ TESTS="                            \
     repl.sps                       \
     time.sps                       \
     write.sps                      \
-    process-context.sps"
+    process-context.sps            \
+    box.sps                        \
+    charset.sps                    \
+    comparator.sps                 \
+    ephemeron.sps                  \
+    generator.sps                  \
+    hash-table.sps                 \
+    ideque.sps                     \
+    ilist.sps                      \
+    list-queue.sps                 \
+    list.sps                       \
+    lseq.sps                       \
+    rlist.sps                      \
+    set.sps                        \
+    sort.sps                       \
+    stream.sps                     \
+    vector.sps                     \
+    text.sps                       \
+    flonum.sps                     \
+    "
+
+# flonum.sps tests (srfi 144), whose spec is not yet final,
+# but it won't hurt for Larceny to run those tests nightly.
 
 # missing from the list above:
 #
