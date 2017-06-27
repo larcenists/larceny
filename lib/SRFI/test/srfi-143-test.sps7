@@ -38,7 +38,7 @@
        (let ((res expr))
          ;; (write 'expr) (newline)
          (cond
-          ((not (equal? expr expected))
+          ((not (equal? res expected))
            (display "FAIL: ")
            (display name)
            (display ": expected ")
@@ -144,8 +144,11 @@
   (test "test-161" #f (fxbit-set? 1 1))
   (test "test-162" #f (fxbit-set? 1 8))
 
-; (test "test-163" #t (fxbit-set? 10000 -1))    ; FIXME: outside fixnum range
-; (test "test-167" #t (fxbit-set? 1000 -1))     ; FIXME: outside fixnum range
+  ;; SRFI 143 does not allow the first argument to be "larger than
+  ;; or equal to fx-width."
+
+; (test "test-163" #t (fxbit-set? 10000 -1))    ; ERROR: index too large
+; (test "test-167" #t (fxbit-set? 1000 -1))     ; ERROR: index too large
 
   ;; corrected tests
 

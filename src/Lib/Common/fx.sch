@@ -390,8 +390,8 @@
 
   ;; FIXME: The R6RS Libraries document idiotically insists the third argument
   ;; of fxbit-field be less than (fixnum-width).  SRFI 143 does not (although
-  ;; its author may have intended to add that restriction, one one possible
-  ;; interpretation of https://srfi-email.schemers.org/srfi-143/msg/5766955)
+  ;; its author may have intended to add that restriction, which is a possible
+  ;; interpretation of https://srfi-email.schemers.org/srfi-143/msg/5766955),
   ;; so the run-time check is enforced only in R6RS mode.
 
   (if (and (fx=? fx3 (fixnum-width))
