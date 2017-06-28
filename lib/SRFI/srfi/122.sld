@@ -85,7 +85,8 @@
 
    )
 
-  (import (scheme base)
+  (import (rename (scheme base)
+                  (error r7rs:error))
           (scheme cxr)
           (scheme complex)
           (scheme case-lambda)
@@ -102,5 +103,7 @@
           (except (rnrs bytevectors)
                   bytevector-copy!)
           )
+
+  (import (scheme write)) ; FIXME
 
   (include "122.body.scm"))
