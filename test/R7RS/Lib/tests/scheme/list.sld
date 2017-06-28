@@ -176,6 +176,7 @@
 (define-library (tests scheme list)
   (export run-list-tests)
   (import (scheme base)
+          (scheme cxr)
           (scheme list)
           (tests scheme test))
 
