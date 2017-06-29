@@ -19,18 +19,18 @@
 (define-library (scheme list)
 
   (export
-;         cons                ; part of R7RS small
-;         list                ; part of R7RS small
+          cons                ; part of R7RS small
+          list                ; part of R7RS small
           xcons
           cons*
-;         make-list           ; part of R7RS small
+          make-list           ; part of R7RS small
           list-tabulate
-;         list-copy           ; part of R7RS small
+          list-copy           ; part of R7RS small
           circular-list
           iota
 
-;         pair?               ; part of R7RS small
-;         null?               ; part of R7RS small
+          pair?               ; part of R7RS small
+          null?               ; part of R7RS small
           proper-list?
           circular-list?
           dotted-list? 
@@ -38,37 +38,37 @@
           null-list?
           list=
 
-;         car                 ; part of R7RS small
-;         cdr                 ; part of R7RS small
-;         caar                ; part of R7RS small
-;         cadr                ; part of R7RS small
-;         cdar                ; part of R7RS small
-;         cddr                ; part of R7RS small
-;         caaar               ; part of R7RS small
-;         caadr               ; part of R7RS small
-;         cadar               ; part of R7RS small
-;         caddr               ; part of R7RS small
-;         cdaar               ; part of R7RS small
-;         cdadr               ; part of R7RS small
-;         cddar               ; part of R7RS small
-;         cdddr               ; part of R7RS small
-;         caaaar              ; part of R7RS small
-;         caaadr              ; part of R7RS small
-;         caadar              ; part of R7RS small
-;         caaddr              ; part of R7RS small
-;         cadaar              ; part of R7RS small
-;         cadadr              ; part of R7RS small
-;         caddar              ; part of R7RS small
-;         cadddr              ; part of R7RS small
-;         cdaaar              ; part of R7RS small
-;         cdaadr              ; part of R7RS small
-;         cdadar              ; part of R7RS small
-;         cdaddr              ; part of R7RS small
-;         cddaar              ; part of R7RS small
-;         cddadr              ; part of R7RS small
-;         cdddar              ; part of R7RS small
-;         cddddr              ; part of R7RS small
-;         list-ref            ; part of R7RS small
+          car                 ; part of R7RS small
+          cdr                 ; part of R7RS small
+          caar                ; part of R7RS small
+          cadr                ; part of R7RS small
+          cdar                ; part of R7RS small
+          cddr                ; part of R7RS small
+          caaar               ; part of R7RS small
+          caadr               ; part of R7RS small
+          cadar               ; part of R7RS small
+          caddr               ; part of R7RS small
+          cdaar               ; part of R7RS small
+          cdadr               ; part of R7RS small
+          cddar               ; part of R7RS small
+          cdddr               ; part of R7RS small
+          caaaar              ; part of R7RS small
+          caaadr              ; part of R7RS small
+          caadar              ; part of R7RS small
+          caaddr              ; part of R7RS small
+          cadaar              ; part of R7RS small
+          cadadr              ; part of R7RS small
+          caddar              ; part of R7RS small
+          cadddr              ; part of R7RS small
+          cdaaar              ; part of R7RS small
+          cdaadr              ; part of R7RS small
+          cdadar              ; part of R7RS small
+          cdaddr              ; part of R7RS small
+          cddaar              ; part of R7RS small
+          cddadr              ; part of R7RS small
+          cdddar              ; part of R7RS small
+          cddddr              ; part of R7RS small
+          list-ref            ; part of R7RS small
           first
           second
           third
@@ -91,11 +91,11 @@
           last
           last-pair
 
-;         length              ; part of R7RS small
+          length              ; part of R7RS small
           length+
-;         append              ; part of R7RS small
+          append              ; part of R7RS small
           concatenate
-;         reverse             ; part of R7RS small
+          reverse             ; part of R7RS small
           append!
           concatenate!
           reverse!
@@ -109,8 +109,8 @@
           unzip5
           count
 
-;         map                 ; part of R7RS small
-;         for-each            ; part of R7RS small
+          map                 ; part of R7RS small
+          for-each            ; part of R7RS small
           fold
           unfold
           pair-fold
@@ -133,9 +133,9 @@
           partition!
           remove!
 
-;         member              ; part of R7RS small
-;         memq                ; part of R7RS small
-;         memv                ; part of R7RS small
+          member              ; part of R7RS small
+          memq                ; part of R7RS small
+          memv                ; part of R7RS small
           find
           find-tail 
           any
@@ -154,9 +154,9 @@
           delete!
           delete-duplicates!
 
-;         assoc               ; part of R7RS small
-;         assq                ; part of R7RS small
-;         assv                ; part of R7RS small
+          assoc               ; part of R7RS small
+          assq                ; part of R7RS small
+          assv                ; part of R7RS small
           alist-cons
           alist-copy
           alist-delete
@@ -176,8 +176,8 @@
           lset-diff+intersection
           lset-diff+intersection!
 
-;         set-car!            ; part of R7RS small
-;         set-cdr!            ; part of R7RS small
+          set-car!            ; part of R7RS small
+          set-cdr!            ; part of R7RS small
           )
 
   (import (srfi 1 lists)))
