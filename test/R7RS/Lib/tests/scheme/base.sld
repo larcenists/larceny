@@ -2693,6 +2693,20 @@
            "No, but I can write.")
 
      (test (call-with-port
+            (open-output-string)
+            (lambda (p)
+              (write-string "No, but I can write." p 4)
+              (get-output-string p)))
+           "but I can write.")
+
+     (test (call-with-port
+            (open-output-string)
+            (lambda (p)
+              (write-string "No, but I can write." p 4 13)
+              (get-output-string p)))
+           "but I can")
+
+     (test (call-with-port
             (open-input-bytevector '#u8(115 111 109 101 32 98 121 116 101 115))
             (lambda (p) (read-bytevector 9 p)))
            '#u8(115 111 109 101 32 98 121 116 101))
@@ -2704,6 +2718,14 @@
               (write-bytevector '#u8(98 121 116 101 115) p)
               (get-output-bytevector p)))
            '#u8(115 111 109 101 98 121 116 101 115))
+
+     (test (call-with-port
+            (open-output-bytevector)
+            (lambda (p)
+              (write-bytevector '#u8(115 111 109 101) p 2)
+              (write-bytevector '#u8(98 121 116 101 115) p 1 4)
+              (get-output-bytevector p)))
+           '#u8(109 101 121 116 101))
 
      (let* ((catholic-predicates (list input-port?
                                        output-port?
