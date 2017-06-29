@@ -18,7 +18,8 @@
           (scheme char)
           (scheme inexact)
           (scheme complex)
-          (only (srfi 126) equal-hash)
+          (only (srfi 126)
+                equal-hash symbol-hash string-hash string-ci-hash)
           (srfi 128 kernel))
 
   (include "128.body1.scm")

@@ -110,6 +110,13 @@
 ;;; saying the first and third bullet items stating "must" requirements
 ;;; for default-hash may be ignored.  That allows a better hash function
 ;;; to be used for lists and vectors.
+;;;
+;;; Indeed, it allows use of equal-hash from (rnrs hashtables) for
+;;; almost everything.
+;;; Other hash functions don't seem to be required to be consistent
+;;; with default-hash, but the tests for SRFI 128 assume they are,
+;;; and the tests also assume a custom hash function can be registered
+;;; for procedure values.
 
 (define (default-hash obj)
   (case (object-type obj)
@@ -121,7 +128,8 @@
     ((5) (symbol-hash obj))
     ((6) (number-hash obj))
     ((8) ((make-vector-hash (make-default-comparator)
-                             bytevector? bytevector-length bytevector-u8-ref) obj))
+                            bytevector?
+                            bytevector-length bytevector-u8-ref) obj))
     ; Add more here
     (else (comparator-hash (registered-comparator (object-type obj)) obj))))
   

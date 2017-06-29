@@ -20,26 +20,18 @@
 ;;;     textual-port?       (resolved by using R7RS extended semantics)
 ;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;
-;;;     string-hash
-;;;     string-ci-hash
-;;;     find
-;;;     filter
-;;;     partition
-;;;     fold-right
-;;;     remove
-;;;     cons*
-;;;     list-sort
-;;;     vector-sort
-;;;     vector-sort!
-;;;     string-hash
-;;;     string-ci-hash
-;;;     symbol-hash
+;;;     remove              (unresolvable; requires renaming)
+;;;     string-hash         (deprecated version takes optional argument)
+;;;     string-ci-hash      (deprecated version takes optional argument)
+;;;
+;;;     vector-sort         (resolved by using R7RS extended semantics)
+;;;     vector-sort!        (resolved by using R7RS extended semantics)
 ;;;
 ;;; Possible conflicts:
 ;;;
 ;;;     
 
-(import (except (rnrs) bytevector-copy!)
+(import (except (rnrs) bytevector-copy! remove)
         (rnrs eval)
         (rnrs mutable-pairs)
         (rnrs mutable-strings)
@@ -64,27 +56,25 @@
 
         ;; R7RS Red Edition
 
-        (except (scheme list)
-                find filter partition fold-right remove cons*)
+        (scheme list)
         (scheme vector)
-        (except (scheme sort)
-                list-sort vector-sort vector-sort!)
+        (scheme sort)
         (scheme set)
         (scheme charset)
         (except (scheme hash-table)
-                string-hash string-ci-hash)
+                string-hash      ; incompatible because they must accept
+                string-ci-hash)  ; an optional second argument
         (scheme ilist)
         (scheme rlist)
         (scheme ideque)
-;       (scheme text)
+        (scheme text)
         (scheme generator)
         (scheme lseq)
         (scheme stream)
         (scheme box)
         (scheme list-queue)
         (scheme ephemeron)
-        (except (scheme comparator)
-                string-hash string-ci-hash symbol-hash)
+        (scheme comparator)
         )
 
 (display "All libraries loaded with these name conflicts:\n")
@@ -93,18 +83,7 @@
 
             ;; new conflicts in R7RS Red Edition
 
-            string-hash
-            string-ci-hash
-            find
-            filter
-            partition
-            fold-right
             remove
-            cons*
-            list-sort
-            vector-sort
-            vector-sort!
             string-hash
-            string-ci-hash
-            symbol-hash))
+            string-ci-hash))
 (newline)

@@ -1,7 +1,6 @@
 ;;; To use (a corrected version of) the SRFI 132 reference implementation,
 ;;; comment out the following library definition.
 
-#;
 (define-library (srfi 132 use-r6rs-sorting))
 
 (define-library (srfi 132 sorting)
@@ -31,10 +30,9 @@
 
    ((and (library (srfi 132 use-r6rs-sorting))
          (library (rnrs sorting)))
-    (import (rename (rnrs sorting)
-                    (list-sort    r6rs-list-sort)
-                    (vector-sort  r6rs-vector-sort)
-                    (vector-sort! r6rs-vector-sort!)))))
+    (import (rnrs sorting)))
+
+   (else))
 
   (cond-expand
    ((library (rnrs base))
