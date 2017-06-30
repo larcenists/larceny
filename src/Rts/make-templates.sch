@@ -150,7 +150,7 @@
 (define (template-common uncommon)
   (string-append
 "INC_ROOT = ../../include
-CFLAGS    = -ISys -I$(INC_ROOT) -I$(INC_ROOT)/Sys -I$(INC_ROOT)/Shared $(DEBUGINFO) $(OPTIMIZE)
+CFLAGS    = -fPIC -ISys -I$(INC_ROOT) -I$(INC_ROOT)/Sys -I$(INC_ROOT)/Shared $(DEBUGINFO) $(OPTIMIZE)
 ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
 " uncommon))
 
