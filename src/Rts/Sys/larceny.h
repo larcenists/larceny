@@ -79,6 +79,8 @@ struct opt {
   bool       r6less_pedantic;   /* but not so pedantic; requires pedantic */
   char       *r6program;        /* file containing R6RS top-level program */
   char       *r6path;           /* directories containing R6RS libraries */
+  char       *r6path2;          /* to be appended rather than prepended */
+  char       *r7features;       /* features declared for cond-expand */
   int        transcoder;        /* default transcoder */
   int        restc;                     /* number of extra arguments */
   char       **restv;                   /* vector of extra arguments */

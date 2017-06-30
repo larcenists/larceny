@@ -137,27 +137,24 @@
                       (else
                        (list path)))))
 
-            (define (add-absolute-path! path)
-              (current-require-path (cons path (current-require-path))))
-
-            (define (add-path! path)
-              (cond ((string=? path "") #t)
-                    ((absolute-path-string? path)
-                     (add-absolute-path! path))
+            (define (make-absolute path)
+              (cond ((absolute-path-string? path)
+                     path)
                     (else
-                     (add-absolute-path!
-                      (string-append (current-directory) "/" path)))))
+                     (string-append (current-directory) "/" path))))
 
-            (let* ((path (get-feature 'library-path))
+            (let* ((path  (get-feature 'library-path))
+                   (path2 (get-feature 'library-path2))
                    (path (if (string=? path "")
                              (getenv "LARCENY_LIBPATH")  ; FIXME
                              path))
-                   (path (if (string? path) path #f))
+                   (path (if (string? path) path ""))
                    (os (get-feature 'os-name))
                    (separator (if (string=? os "Win32") #\; #\:)))
-              (if path
-                  (for-each add-path!
-                            (reverse (list-of-paths path separator)))))))
+              (current-require-path
+               (append (map make-absolute (list-of-paths path separator))
+                       (current-require-path)
+                       (map make-absolute (list-of-paths path2 separator)))))))
 
          (aeryn-mode!
           (lambda ()
@@ -214,11 +211,15 @@
                           (lambda the-error
                             (parameterize ((error-handler original-handler))
                              (decode-and-raise-r6rs-exception the-error)))))))
-         (if (and (memq emode '(r7rs r7r6))
-                  (not (string=? pgm "")))
-             (eval (list 'run-r6rs-program pgm)
-                   (interaction-environment))
-             (r5rs-entry-point argv)))))
+         (cond ((and (memq emode '(r7rs r7r6))
+                     (not (string=? pgm "")))
+                (eval (list 'run-r6rs-program pgm)
+                      (interaction-environment)))
+               ((and (not (string=? pgm ""))
+                     (file-exists? pgm))
+                (failsafe-load-file pgm))
+               (else
+                (r5rs-entry-point argv))))))
 
      ; R6RS mode is a batch mode, so we want to exit rather
      ; than enter the debugger.
@@ -320,7 +321,9 @@
   (map failsafe-load-file (osdep/find-init-files)))
 
 ;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
-;;; It now parses past -- only in R5RS mode.
+;;; It now parses past -- only in R5RS mode.  Even then it parses past
+;;; only if no top-level program has been specified.
+;;; FIXME: Common Larceny is an exception, which makes this complicated.
 
 (define (failsafe-process-arguments)
   (let ((argv (command-line-arguments))
@@ -338,6 +341,9 @@
              (list->vector
               (cdr (member "--" (vector->list argv))))))
            ((not (eq? emode 'r5rs))
+            #t)
+           ((< 0 (string-length
+                  (cdr (assq 'top-level-program (system-features)))))
             #t)
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))

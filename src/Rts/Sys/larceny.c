@@ -49,6 +49,12 @@ static bool supremely_annoying = 0;
   /* 'supremely_annoying' controls supremely_annoyingmsg()
      */
 
+#if WIN32
+static char *directory_separator = ";";
+#else
+static char *directory_separator = ":";
+#endif /* WIN32 */
+
 static void print_banner(void) {
 #ifndef PETIT_LARCENY
   consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
@@ -156,6 +162,8 @@ int main( int argc, char **os_argv )
   command_line_options.r6less_pedantic = 0;
   command_line_options.r6program = "";
   command_line_options.r6path = "";
+  command_line_options.r6path2 = "";
+  command_line_options.r7features = "";
   command_line_options.transcoder = 0;
 
   if (larceny_version_qualifier[0] == '.') {
@@ -531,7 +539,8 @@ parse_options( int argc, char **argv, opt_t *o )
   double growth_divisor = 1.0;
   int dynamic_max = 0;
   int dynamic_min = 0;
-  int val;
+  int val;                                    /* general purpose temporary */
+  char* temp_string = NULL;                   /* general purpose temporary */
 
   while (--argc) {
     ++argv;
@@ -730,17 +739,20 @@ parse_options( int argc, char **argv, opt_t *o )
       o->foldcase = 1;
     else if (hstrcmp( *argv, "-nofoldcase" ) == 0)
       o->nofoldcase = 1;
-    else if (hstrcmp( *argv, "-r5rs" ) == 0) {
+    else if ((hstrcmp( *argv, "-r5rs" ) == 0) ||
+             (hstrcmp( *argv, "-r5" ) == 0)) {
       o->r5rs = 1;
       o->foldcase = 1;
     }
     else if (hstrcmp( *argv, "-err5rs" ) == 0)
       o->err5rs = 1;
-    else if (hstrcmp( *argv, "-r7rs" ) == 0)
+    else if ((hstrcmp( *argv, "-r7rs" ) == 0) ||
+             (hstrcmp( *argv, "-r7" ) == 0))
       o->r7rs = 1;
     else if (hstrcmp( *argv, "-r7r6" ) == 0)
       o->r7r6 = 1;
-    else if (hstrcmp( *argv, "-r6rs" ) == 0) {
+    else if ((hstrcmp( *argv, "-r6rs" ) == 0) ||
+             (hstrcmp( *argv, "-r6" ) == 0)) {
       o->r6rs = 1;
       o->nobanner = 1;
     }
@@ -758,21 +770,65 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (hstrcmp( *argv, "-but-not-that-pedantic" ) == 0)
       o->r6less_pedantic = 1;
     else if (hstrcmp( *argv, "-program" ) == 0) {
-      ++argv;
-      --argc;
-      o->r6program = *argv;
-      o->nobanner = 1;
-    }
-    else if (hstrcmp( *argv, "-path" ) == 0) {
-      ++argv;
-      --argc;
-      /* FIXME */
-      if (hstrcmp ( o->r6path, "" ) == 0) {
-        o->r6path = *argv;
+      if (strcmp( o->r6program, "" ) == 0) {
+        ++argv;
+        --argc;
+        o->r6program = *argv;
+        o->nobanner = 1;
       }
       else {
-        param_error ( "Currently, only one path can be specified. " );
+        consolemsg( "Error: More than one program named on command line." );
+        usage();
       }
+    }
+    else if (strcmp( *argv, "-D" ) == 0) {
+      ++argv;
+      --argc;
+      val = 2; /* for space and NUL */
+      val += strlen( o->r7features );
+      val += strlen( *argv );
+      temp_string = (char*)malloc( val );
+      strcpy( temp_string, o->r7features );
+      if (strcmp ( o->r7features, "" ) != 0) {
+        free( o->r7features );
+        strcat( temp_string, " " );
+      }
+      strcat( temp_string, *argv );
+      o->r7features = temp_string;
+      temp_string = NULL;
+    }
+    else if ((strcmp( *argv, "-I" ) == 0) ||
+             (hstrcmp( *argv, "-path" ) == 0)) {
+      ++argv;
+      --argc;
+      val = 2; /* for colon and NUL */
+      val += strlen( o->r6path );
+      val += strlen( *argv );
+      temp_string = (char*)malloc( val );
+      strcpy( temp_string, o->r6path );
+      if (strcmp ( o->r6path, "" ) != 0) {
+        free( o->r6path );
+        strcat( temp_string, directory_separator );
+      }
+      strcat( temp_string, *argv );
+      o->r6path = temp_string;
+      temp_string = NULL;
+    }
+    else if (strcmp( *argv, "-A" ) == 0) {
+      ++argv;
+      --argc;
+      val = 2; /* for colon and NUL */
+      val += strlen( o->r6path2 );
+      val += strlen( *argv );
+      temp_string = (char*)malloc( val );
+      strcpy( temp_string, o->r6path2 );
+      if (strcmp ( o->r6path2, "" ) != 0) {
+        free( o->r6path2 );
+        strcat( temp_string, directory_separator );
+      }
+      strcat( temp_string, *argv );
+      o->r6path2 = temp_string;
+      temp_string = NULL;
     }
     else if (numbarg( "-transcoder", &argc, &argv, &(o->transcoder) )) {
       if ((o->transcoder < 32) || (o->transcoder >= 128))
@@ -814,8 +870,12 @@ parse_options( int argc, char **argv, opt_t *o )
       consolemsg( "Error: Invalid option '%s'", *argv );
       usage();
     }
+    else if (strcmp( o->r6program, "" ) == 0) {
+      o->r6program = *argv;
+      o->nobanner = 1;
+    }
     else {
-      consolemsg( "Error: Deprecated heap file syntax." );
+      consolemsg( "Error: More than one program named on command line." );
       usage();
     }
   }
@@ -843,9 +903,15 @@ parse_options( int argc, char **argv, opt_t *o )
   if (o->r6slow && (strcmp (o->r6path, "") != 0))
     param_error( "The -slow and -path options are incompatible." );
 
+  /* If a program is specified with no mode, default to R7RS mode. */
+
   if ((strcmp (o->r6program, "") != 0) &&
-      (! (o->r6rs)) && (! (o->r7rs)) && (! (o->r7r6)))
-    param_error( "Missing -r6rs or -r7rs or -r7r6 option." );
+      (! (o->r5rs)) &&
+      (! (o->err5rs)) &&
+      (! (o->r6rs)) &&
+      (! (o->r7rs)) &&
+      (! (o->r7r6)))
+    o->r7rs = 1;
 
   if (o->ignore1 && (! (o->r6program)))
     param_error( "Missing -program option." );
@@ -1254,7 +1320,7 @@ static void invalid( char *s )
 static void usage( void )
 {
   consolemsg( "" );
-  consolemsg( "Usage: larceny [ OPTIONS ][-- ARGUMENTS]" );
+  consolemsg( "Usage: larceny [ OPTIONS ][ PROGRAM ][-- ARGUMENTS]" );
   consolemsg( "Type \"larceny -help\" for help." );
   exit( 1 );
 }
@@ -1265,21 +1331,22 @@ static void usage( void )
 
 static char *helptext[] = {
   "  -r7r6",
-  "     Execute in Larceny's R7RS mode (a superset of both R7RS and R6RS)",
-  "     after importing all of the standard R7RS/R6RS libraries.",
-  "     Enters a read/eval/print loop (REPL) unless -program is specified.",
-  "  -r7rs",
+  "     Imports all of the standard R7RS/R6RS libraries.",
+  "     If no program is specified, enters a read/eval/print loop (REPL).",
+  "  -r7rs, -r7",
   "     Same as -r7r6 but imports only the (scheme base) library.",
-  "  -r6rs",
-  "     Execute the R6RS program specified by the -program option.",
+  "  -r6rs, r6",
+  "     Execute the specified R6RS program.",
   "     (An \"absolute requirement\" of the R6RS forbids REPLs.)",
-  "  -r5rs",
-  "     Enter an R5RS-style read/eval/print loop (the default, for now).",
-  "  -path <directories>",
-  "     Search the directories when importing libraries.",
+  "  -r5rs, r5",
+  "     Execute the program in R5RS mode, or enter R5RS-style REPL.",
+  "  -D <identifier>",
+  "     Declares the identifier as a supported feature for R7RS cond-expand.",
+  "  -I <directories>",
+  "     Search these directories first when importing libraries.",
+  "  -A <directories>",
+  "     Search these directories last when importing libraries.",
   "     Use colon (Unix) or semicolon (Windows) to separate directories.",
-  "  -program <filename>",
-  "     Execute the R7RS or R6RS program found in the file; then exit.",
   "  -nofoldcase",
   "     Symbols are case-sensitive (the default; #!fold-case overrides).",
   "  -foldcase",
@@ -1314,6 +1381,9 @@ static char *helptext[] = {
 
 static char *wizardhelptext[] = {
   "  (Wizard options below this point.)",
+  "  -program <filename>",
+  "     Execute the program found in the file; then exit.",
+  "     Unless <filename> starts with a hyphen, -program may be omitted.",
   "  -err5rs",
   "     Similar to -r7rs but doesn't import any libraries at startup.",
   "  -heap <filename>",
@@ -1337,6 +1407,8 @@ static char *wizardhelptext[] = {
   "       -but-not-that-pedantic",
   "          Modifies -pedantic, which must also be specified.",
 #endif
+  "  -path <directories>",
+  "     Same as -I <directories>.",
 #if !defined(BDW_GC)
   "  -annoy-user",
   "     Print a bunch of annoying debug messages, usually about GC.",
@@ -1515,7 +1587,7 @@ static void help(int wizardp)
 {
   int i;
 
-  consolemsg("Usage: larceny [options][-- arg-to-scheme ...]");
+  consolemsg("Usage: larceny [ OPTIONS ][ PROGRAM ][-- ARGUMENTS]");
   consolemsg("" );
   consolemsg("Options:" );
   for (i=0 ; helptext[i] != 0 ; i++ )
