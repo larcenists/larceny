@@ -249,10 +249,10 @@
     ((execmode)
      (case (get-feature feature$execmode)
       ((0)   'r5rs)
-      ((5)   'r7rs)
+      ((3 5) 'r7rs)    ; 3 is scheme-script mode, which is now R7RS
       ((6)   'r7r6)
       ((1)   'err5rs)
-      ((2 3) 'r6rs)
+      ((2)   'r6rs)
       ((4)   'spanky)
       (else  'unknown)))
     ((ignore1)

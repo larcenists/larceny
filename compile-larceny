@@ -1,0 +1,189 @@
+#!/usr/bin/env scheme-script
+
+#!r7rs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Usage:
+;;;
+;;;     compile-larceny [options...] [pathname]
+;;;
+;;; Compiles the R7RS top-level program contained within the
+;;; file named by pathname.  If no pathname is given, but one
+;;; or more directories are specified by -I or -A options,
+;;; attempts to compile any R7RS or R6RS libraries found in
+;;; those directories.
+;;;
+;;; Options:
+;;;
+;;;     -o outfile
+;;;         Specifies the name of the executable file to be
+;;;         generated.  If this option is omitted, and the
+;;;         pathname is of the form pgm.scm or pgm.sps, then
+;;;         the executable file will be named pgm.  If the
+;;;         pathname is of some other form, and no outfile
+;;;         is specified via this option, then the executable
+;;;         file will be named a.out.
+;;;
+;;;     -I directory
+;;;     -A directory
+;;;         These options specify a directory to be searched
+;;;         when locating libraries imported by the program.
+;;;         The -I option specifies a directory to be searched
+;;;         before searching directories that contain standard
+;;;         libraries, while the -A option specifies a directory
+;;;         to be searched after.
+;;;
+;;;     -D feature
+;;;         Declares a feature to be recognized by cond-expand
+;;;         when the program is compiled.
+;;;
+;;; The -I, -A, and -D options may be used more than once.
+;;;
+;;; When compiling a program, all libraries imported by the
+;;; program, whether directly or indirectly, are assumed to
+;;; have already been compiled, or don't need to be compiled,
+;;; or are contained within the program file itself.
+;;;
+;;; If no program or output file is specified, then an attempt
+;;; will be made to compile all libraries found within directories
+;;; specified by -I or -A options, proceeding from left to right.
+;;; That compilation process will respect import dependencies
+;;; between libraries located within one of those directories
+;;; and any of its subdirectories, but will not respect import
+;;; dependencies between libraries located within two different
+;;; directories specified by the -I or -A options.  If a library
+;;; found within the first directory specified imports a library
+;;; located within the second directory specified, the compiled
+;;; forms of those libraries will not be consistent, and any
+;;; programs that import both of them will not run.
+;;;
+;;; See SRFI 138:  http://srfi.schemers.org/srfi-138
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(import (scheme base)
+        (scheme process-context)
+        (scheme write)
+        (srfi 138)
+        (larceny compiler))
+
+(define (usage-message)
+  (let ((q (current-error-port)))
+    (for-each
+     (lambda (s) (display s q) (newline q))
+     '("Usage: compile-larceny [ OPTION ... ] [ PGM ]"
+       "  compiles PGM as specified by SRFI 138"
+       "Options:"
+       "    -o outfile"
+       "    -I directory"
+       "    -A directory"
+       "    -D feature")))
+  (exit 1))
+    
+;;; cmds will resemble
+;;; ("larceny" "compile-larceny" "-I" "dir1" ... "pgm.scm")
+
+(define cmds (command-line))
+
+;;; Returns 6 values:
+;;;     the name of the program to be compiled, or #f
+;;;     the name of the executable file to be generated, or #f
+;;;     the list of -D features, from left to right
+;;;     the list of -I directories, from left to right
+;;;     the list of -A directories, from left to right
+;;;     the list of all -I and -A directories, from left to right
+
+(define (parse-commands)
+  (define (loop cmds pgm outfile features dirs1 dirs2 alldirs)
+    (if (null? cmds)
+        (values pgm
+                outfile
+                (reverse features)
+                (reverse dirs1)
+                (reverse dirs2)
+                (reverse alldirs))
+       (let ((opt (car cmds))
+             (more? (not (null? (cdr cmds)))))
+         (cond ((and more? (string=? opt "-D"))
+                (loop (cddr cmds)
+                      pgm
+                      outfile
+                      (cons (cadr cmds) features)
+                      dirs1
+                      dirs2
+                      alldirs))
+               ((and more? (string=? opt "-I"))
+                (loop (cddr cmds)
+                      pgm
+                      outfile
+                      features
+                      (cons (cadr cmds) dirs1)
+                      dirs2
+                      (cons (cadr cmds) alldirs)))
+               ((and more? (string=? opt "-A"))
+                (loop (cddr cmds)
+                      pgm
+                      outfile
+                      features
+                      dirs1
+                      (cons (cadr cmds) dirs2)
+                      (cons (cadr cmds) alldirs)))
+               ((and more? (string=? opt "-o") (not outfile))
+                (loop (cddr cmds)
+                      pgm
+                      (cadr cmds)
+                      features
+                      dirs1
+                      dirs2
+                      alldirs))
+               ((and (not more?) (not pgm))
+                (loop (cdr cmds)
+                      (car cmds)
+                      outfile
+                      features
+                      dirs1
+                      dirs2
+                      alldirs))
+               (else
+                (usage-message)
+                (values #f #f '() '() '() '()))))))
+  (loop (cddr cmds) #f #f '() '() '() '()))
+
+(define (process-commands)
+  (call-with-values
+   parse-commands
+   (lambda (pgm outfile features dirs1 dirs2 alldirs)
+     (cond (pgm
+            (compile-r7rs pgm outfile dirs1 dirs2 features))
+           (outfile
+            (usage-message))
+           ((null? alldirs)
+            (usage-message))
+           (else
+            (display "Compiling libraries...\n"
+                     (current-error-port))
+            (guard (exn (#t (report-error-and-exit exn)))
+             (for-each (lambda (dir)
+                         (parameterize ((current-directory dir))
+                          (compile-stale-libraries)))
+                       alldirs)))))))
+
+(define (report-error-and-exit exn)
+  (report-error exn)
+  (exit 1))
+
+(define (report-error exn)
+  (display "ERROR: " (current-error-port))
+  (if (error-object? exn)
+      (begin (display (error-object-message exn)
+                      (current-error-port))
+             (newline (current-error-port))
+             (for-each (lambda (x)
+                         (write x (current-error-port))
+                         (newline (current-error-port)))
+                       (error-object-irritants exn)))
+      (display "abandoning compilation\n"
+               (current-error-port))))
+
+(process-commands)

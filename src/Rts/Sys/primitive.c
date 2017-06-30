@@ -347,14 +347,14 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       mode = 1;
     if (command_line_options.r6rs)
       mode = 2;
-    if (command_line_options.ignore1)  // scheme-script is now an R7RS mode
-      mode = 3;
     if (command_line_options.r6slow)
       mode = 4;
     if (command_line_options.r7rs)
       mode = 5;
     if (command_line_options.r7r6)
       mode = 6;
+    if (command_line_options.ignore1)  // scheme-script is now an R7RS mode
+      mode = 3;
     vector_set( v, 0, fixnum( mode ) );
     break;
   }

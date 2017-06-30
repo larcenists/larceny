@@ -1,5 +1,6 @@
 (library (larceny compiler)
-  (export load require r5rs:require current-require-path
+  (export load require r5rs:require
+          current-require-path larceny:current-declared-features
           compile-file compile-library compile-stale-libraries
           compiler-switches
           compile-despite-errors
@@ -24,7 +25,8 @@
           optimize-c-code)
   (import (rnrs base)
           (err5rs load)
-          (primitives require r5rs:require current-require-path
+          (primitives require r5rs:require
+                      current-require-path larceny:current-declared-features
                       compile-r6rs-file compile-stale-libraries
                       compiler-switches
                       compile-despite-errors

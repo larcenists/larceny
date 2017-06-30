@@ -153,6 +153,7 @@ int main( int argc, char **os_argv )
   command_line_options.nofoldcase = 0;
   command_line_options.r5rs = 0;
   command_line_options.err5rs = 0;
+  command_line_options.r7r6 = 0;
   command_line_options.r7rs = 0;
   command_line_options.r6rs = 0;
   command_line_options.ignore1 = 0;
@@ -1222,6 +1223,17 @@ static void dump_options( opt_t *o )
   consolemsg( "" );
   consolemsg( "Command line parameter dump" );
   consolemsg( "---------------------------" );
+  consolemsg( "R5RS: %d", o->r5rs );
+  consolemsg( "R6RS: %d", o->r6rs );
+  consolemsg( "R7RS: %d", o->r7rs );
+  consolemsg( "R7R6: %d", o->r7r6 );
+  consolemsg( "ERR5RS: %d", o->err5rs );
+  consolemsg( "Ignore1: %d", o->ignore1 );
+  consolemsg( "Program: %s", o->r6program );
+  consolemsg( "-I path: %s", o->r6path );
+  consolemsg( "-A path: %s", o->r6path2 );
+  consolemsg( "Features: %s", o->r7features );
+  consolemsg( "Transcoder: %d", o->transcoder );
   consolemsg( "Stepping: %d", o->enable_singlestep );
   consolemsg( "Breakpoints: %d", o->enable_breakpoints );
   consolemsg( "Timer: %d (val=%d)", o->enable_timer, o->timerval );

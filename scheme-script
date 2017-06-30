@@ -4,7 +4,7 @@
 #
 # $Id$
 #
-# Script for running R6RS Scheme scripts.
+# Script for running R7RS/R6RS Scheme scripts.
 #
 # Please note that, as defined by R6RS non-normative appendix D,
 # a Scheme script is unlikely to be a legal R6RS program because
@@ -55,9 +55,9 @@ heap="$LARCENY_ROOT/$heap"
 
 case "`head -n +1 $1 | sed -e 's/^[#][!][/ ].*/ignore/'`" in
     ignore)
-    exec "$cmd" -heap "$heap" -r6rs -program "$1" -ignore1 -- "$@"
+    exec "$cmd" -heap "$heap" -r7rs -program "$1" -ignore1 -- "$@"
     ;;
     *)
-    exec "$cmd" -heap "$heap" -r6rs -program "$1" -- "$@"
+    exec "$cmd" -heap "$heap" -r7rs -program "$1" -- "$@"
     ;;
 esac

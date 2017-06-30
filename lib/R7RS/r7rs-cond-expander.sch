@@ -84,6 +84,11 @@
 
 (define *larceny:declared-features* #f)
 
+(define larceny:current-declared-features
+  (make-parameter "larceny:current-declared-features"
+                  (larceny:declared-features)
+                  list?))
+
 ;;; FIXME: keep this in sync with src/Lib/Common/system-interface.sch
 
 (define (larceny:evaluate-feature feature)
@@ -156,7 +161,7 @@
           (else
            (or (eq? feature (larceny:name-of-this-implementation))
                (eq? feature (larceny:name-of-this-implementation-version))
-               (memq feature (larceny:declared-features))
+               (memq feature (larceny:current-declared-features))
                (let ((s (symbol->string feature)))
                  (and (< 5 (string-length s))
                       (string-ci=? "srfi-" (substring s 0 5))
@@ -252,7 +257,7 @@
                   (caddr standard-features)  ; larceny
                   larceny-version)
             (cdddr standard-features)
-            (larceny:declared-features)
+            (larceny:current-declared-features)
             (map car (larceny:available-source-libraries)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
