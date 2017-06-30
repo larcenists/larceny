@@ -79,9 +79,11 @@
 
   (import (scheme base)
           (rename (srfi 151)
-                  (bitwise-if srfi151:bitwise-if)))
+                  (bitwise-if srfi151:bitwise-if))
+          (larceny deprecated))
 
   (begin
 
    (define (bitwise-if mask i j)
+     (issue-warning-deprecated 'srfi-142:bitwise-if)
      (srfi151:bitwise-if mask j i))))
