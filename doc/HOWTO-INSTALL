@@ -6,13 +6,14 @@ Short version:
 Put Larceny's main directory wherever you like, and give it
 whatever name you like.
 
-Copy the startup scripts (larceny and scheme-script) wherever
+Copy the executable scripts (larceny and scheme-script) wherever
 you like, and edit them to set LARCENY_ROOT to the absolute
 path of Larceny's main directory.  (On Linux systems, you can
-just create links to those startup scripts instead of copying
-them, and you don't need to edit them.)
+just create links to those scripts instead of copying them, and
+you don't need to edit them.)  You may also want to copy or
+create links to the compile-larceny and compile-stale scripts.
 
-If the directory that contains the startup scripts is not
+If the directory that contains the executable scripts is not
 already part of your path, then add it to your path.
 
 If that doesn't work, keep reading.
@@ -22,8 +23,8 @@ System requirements:
 
 To build Larceny from source code, see HOWTO-BUILD.  Prebuilt
 binary distributions of Larceny are available for machines with
-Intel IA32 and compatible (i386 or x86-32) processors running
-the following operating systems:
+ARMv7 or Intel IA32 and compatible (i386 or x86-32) processors
+running the following operating systems:
 
     Linux
     MacOS X
@@ -34,6 +35,7 @@ Although Larceny still uses 32-bit pointers, it will run on
 libraries have been installed.
 
 On Linux machines, the 32-bit libraries can be installed by
+incanting something like
 
     sudo apt-get install lib32z1
     sudo apt-get install libc6-i386
@@ -74,7 +76,7 @@ Which scripts you have depends on what platform you are using:
 
  - Windows: Batch files "larceny.bat" and "twobit.bat"
  - Linux, Mac OS X: Shell scripts "larceny", "scheme-script",
-    and "compile-stale"
+    compile-larceny, and "compile-stale"
 
 Note that "twobit" and "twobit.heap" are no longer distributed
 as part of Larceny's binary distributions.
@@ -96,7 +98,11 @@ provides the scheme-script feature proposed by the R6RS editors,
 but other implementations may define their own scheme-script.  If
 you want Larceny to execute your Scheme scripts, then you should
 use the which command to make sure Larceny's scheme-script comes
-before any others in your execution path.
+before any others in your execution path.  (By the way, Larceny's
+scheme-script feature now executes programs in R7RS mode rather
+than R6RS.  Because Larceny's implementation of the R7RS acts as
+a superset of the R6RS standard, all programs that run in R7RS
+mode should also run in R6RS mode, but the reverse is not true.)
 
 Windows and DEP:
 

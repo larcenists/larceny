@@ -15,8 +15,8 @@ of disk when unpacked.  A source distribution of Larceny will
 expand to almost 200 megabytes as it is built.
 
 "Petit Larceny" is used throughout Larceny's documentation to
-refer to all varieties other than Common Larceny and the SPARC
-and IA32 native backends [1].  (If you intend to use Common
+refer to all varieties other than Common Larceny and the native
+backends for IA32 and ARMv7 [1].  (If you intend to use Common
 Larceny, see the Common Larceny user's manual [2].)
 
 
@@ -39,7 +39,7 @@ doc/HOWTO-BUILD.)
 
 QUICK START
 
-Solaris, Linux, and Mac OS X:
+Linux and MacOS X:
  - Run
    % ./larceny
 
@@ -83,8 +83,9 @@ To precompile files that contain R5RS Scheme code:
      loads the compiled code in "target.fasl"
 
 To precompile R7RS/R6RS libraries, programs, and Scheme scripts,
-use the compile-stale Scheme script that is in Larceny's root
-directory.  Please see the Larceny User Manual [3] for details.
+use the compile-larceny and compile-stale scripts that are in
+Larceny's root directory.
+Please see the Larceny User Manual [3] for details.
 
 
 FURTHER READING
@@ -96,7 +97,7 @@ documentation in doc/CommonLarceny/user-manual.txt.
 
 Most importantly, see the Larceny user manual in doc/UserManual.
 The most recent version of the user manual is autobuilt daily
-and is online at http://larceny.ccs.neu.edu/doc/
+and is online at http://www.cesura17.net/~larcenists/Nightly/doc/
 
 
 NOTES
