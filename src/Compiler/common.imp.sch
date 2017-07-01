@@ -354,6 +354,31 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; The common-compiler-macros defined below are responsible for
+;;; rewriting many calls to integrable procedures that take a
+;;; variable number of arguments into a composition of calls
+;;; that take the standard number of arguments.  This is done
+;;; at a syntactic level, so it fails to rewrite things like
+;;; ((if #t + -) 1 2 3 4).  A later phase of the compiler turns
+;;; that into (+ 1 2 3 4), which looks like a call to a primop
+;;; with the wrong number of arguments.  To tell pass4 it should
+;;; generate a closed call instead of flagging that as an error,
+;;; the following table names all of the primops for which pass4
+;;; should generate a closed call if the number of arguments
+;;; looks wrong.
+;;;
+;;; FIXME: This is a tedious and error-prone way to fix the
+;;; problem reported by ticket #743.
+;;;
+;;; NOTE: fx+, fx-, and fx* are specified to accept exactly
+;;; two arguments.
+
+(define variable-arity-primops-that-allow-closed-calls
+  '(make-vector make-bytevector make-string make-ustring
+    = < > <= >=
+    + * - /
+    char=? char<? char>? char<=? char>=?))
+
 ; The list of compiler macros has been rewritten to avoid the
 ; use of quasiquote on large structures.  Larceny's quasiquote
 ; apparently takes quadratic time, so this rewrite improved

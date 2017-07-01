@@ -221,14 +221,18 @@
                           (gen! output $return)
                           'result)
                    (cg-move output frame regs 'result target)))
-        (if (negative? (entry.arity entry))
-            (cg-special output exp target regs frame env tail?)
-            (begin
-             (twobit-error "Wrong number of arguments to integrable procedure"
-                           (make-readable exp))
-             (cg-special output
-                         (make-call-to-TRAP p2error:wna)
-                         target regs frame env tail?))))))
+        (cond ((negative? (entry.arity entry))
+               (cg-special output exp target regs frame env tail?))
+              ((memq (variable.name (call.proc exp))
+                     variable-arity-primops-that-allow-closed-calls)
+               (cg-unknown-call output exp target regs frame env tail? #f))
+              (else
+               (twobit-error
+                "Wrong number of arguments to integrable procedure"
+                (make-readable exp))
+               (cg-special output
+                           (make-call-to-TRAP p2error:wna)
+                           target regs frame env tail?))))))
 
 (define (cg-integrable-call2 output entry args regs frame env)
   (let ((op (entry.op entry)))

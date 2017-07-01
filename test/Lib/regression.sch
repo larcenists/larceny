@@ -706,7 +706,29 @@
    (test "Ticket #800"                  ; Bug in v0.99 (ARM only)
          (fl<? +nan.0 1.0)
          #f)
-))
+
+   (test "Ticket #743"                  ; Bug in v0.99 and previous
+         (list
+          (vector-length     ((if #t make-vector) 4))
+          (bytevector-length ((if #t make-bytevector) 4))
+          (string-length     ((if #t make-string) 4))
+          (ustring-length    ((if #t make-ustring) 4))    ; FIXME
+          ((if #t =) 1 2 3 4)
+          ((if #t <) 1 2 3 4)
+          ((if #t >) 1 2 3 4)
+          ((if #t <=) 1 2 3 4)
+          ((if #t >=) 1 2 3 4)
+          ((if #t +) 1 2 3 4)
+          ((if #t -) 1 2 3 4)
+          ((if #t *) 1 2 3 4)
+          ((if #t /) 1 2 3 4)
+          ((if #t char=?) #\a #\b #\c #\d)
+          ((if #t char<?) #\a #\b #\c #\d)
+          ((if #t char>?) #\a #\b #\c #\d)
+          ((if #t char<=?) #\a #\b #\c #\d)
+          ((if #t char>=?) #\a #\b #\c #\d))
+         '(4 4 4 4 #f #t #f #t #f 10 -8 24 1/24 #f #t #f #t #f))
+   ))
 
 
 (define (bug-105-test1)
