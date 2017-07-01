@@ -31,6 +31,7 @@
  *  Goldie                      0.99        25 May 2016     4671a1f
  *  Grain Alcohol and Rainwater
  *  Group Commander Mandrake
+ *  Hair Mussed
  *  Hi There!
  *  Horsing Around
  *  Ignorant Peons

@@ -181,8 +181,9 @@
 
     (case emode
      ((r5rs err5rs r7rs r7r6)
-      (failsafe-load-init-files)
-      (failsafe-process-arguments)
+      (if clr?                                      ; FIXME (ticket #547)
+          (begin (failsafe-load-init-files)
+                 (failsafe-process-arguments)))
       (let ((pgm (get-feature 'top-level-program)))
         (if (and (herald)
                  (or (not (string? pgm))
@@ -191,6 +192,9 @@
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
+      (if (not clr?)                                ; FIXME (ticket #547)
+          (begin (failsafe-load-init-files)
+                 (failsafe-process-arguments)))
       (case emode
        ((err5rs r7rs r7r6)
         (aeryn-mode!)))
