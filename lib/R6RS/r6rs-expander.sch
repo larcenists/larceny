@@ -2320,6 +2320,7 @@
                         names))
 
             (match import-set
+              ;; FIXME: (primitives foo bar) should be a legal library name
               (((syntax primitives) (? identifier? xs) ___)
                (values #f
                        levels
@@ -2364,11 +2365,12 @@
                                                      (else (car mapping)))
                                                (cdr mapping)))
                                        mappings))))))
-              (((syntax primitives) . -) (invalid-form import-set))
-              (((syntax only)       . -) (invalid-form import-set))
-              (((syntax except)     . -) (invalid-form import-set))
-              (((syntax prefix)     . -) (invalid-form import-set))
-              (((syntax rename)     . -) (invalid-form import-set))
+              ;; Library names could begin with these (ticket #773).
+;             (((syntax primitives) . -) (invalid-form import-set))
+;             (((syntax only)       . -) (invalid-form import-set))
+;             (((syntax except)     . -) (invalid-form import-set))
+;             (((syntax prefix)     . -) (invalid-form import-set))
+;             (((syntax rename)     . -) (invalid-form import-set))
               (-
                (let ((library-ref (library-ref import-set)))
                  (if library-ref
