@@ -44,14 +44,19 @@
      (map make-ephemeron keys vals))
 
    (define N 5)
-   (define gcs 50) ;; assumes allocating 50 million pairs will force a full gc
+
+   ;; Allocating 10 million pairs ten times should force a full gc.
+
+   (define pairs-to-overflow-nursery 10000000)
+   (define overflows-to-force-full-gc 10)
 
    (define (force-gc)
-     (define (loop n)
+     (define (loop n x)
        (if (> n 0)
-           (cons n (loop (- n 1)))
-           '()))
-     (loop 1000000))
+           (loop (- n 1)
+                 (car (iota pairs-to-overflow-nursery)))
+           x))
+     (loop overflows-to-force-full-gc 0))
 
    (define (run-ephemeron-tests)
 
@@ -66,9 +71,7 @@
 
      (set! keys (reverse (reverse (list-tail keys N))))
 
-     (do ((i 0 (+ i 1)))
-         ((= i gcs))
-       (force-gc))
+     (force-gc)
 
      (test (map ephemeron-key (list-tail ephemera N))
            keys)
