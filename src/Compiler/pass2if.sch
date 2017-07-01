@@ -770,13 +770,10 @@
 
   (define (string-hash-step code byte)
     (fxlogxor code
-            ;; Avoid consing fixnums
-            (let ((l (fxlsh (fxlogand code #x01FF) 5))
-                  ;; R must be less than (+ (fxrshl #x01FF 2) 256)
-                  (r (+ (fxrshl code 2) byte)))
-              (if (> (- 16383 l) (- r 1))
-                  (+ l r)
-                  (+ (- l (- 16384 128)) (- r 128))))))
+              ;; Avoid consing fixnums
+              (let* ((code (fxlogand code #x3FFFFF)) ; 22 bits
+                     (l (fxlsh code 5)))             ; 27 bits
+                (fxlogxor l byte))))
 
   (define (string-hash-loop string limit i code)
     (if (= i limit)
@@ -784,9 +781,8 @@
         (string-hash-loop
          string limit (+ i 1)
          (string-hash-step code
-                           (fxlogand #x00FF
-                                     (compat:char->integer
-                                      (string-ref string i)))))))
+                           (fxlogand #xFFFF
+                                     (char->integer (string-ref string i)))))))
 
   (let ((n (string-length string)))
     (string-hash-loop string n 0 (fxlogxor n #x1aa5))))
