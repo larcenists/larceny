@@ -1665,6 +1665,7 @@
                  (newline)))
       (and (not (eq? body-type 'toplevel))
            (duplicate? id common-env)
+           (eq? (larceny:execution-mode) 'r6rs)
            (syntax-violation type "Redefinition of identifier in body" form id))
       (check-used id body-type form)
       (and (not (memq body-type `(toplevel program define-library)))    ; FIXME
