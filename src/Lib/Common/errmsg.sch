@@ -228,4 +228,6 @@
 
 (msg:keyboardinterrupt          "keyboard interrupt")
 
+(msg:alloctoobig                "requested allocation exceeds max object size")
+
 ))

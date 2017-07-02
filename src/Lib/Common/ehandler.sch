@@ -570,6 +570,18 @@
        ((= code $ex.put-char)
         (not-a-port "put-char" arg1))
 
+       ;; Allocation
+
+       ;; The allocation size is given in words, and it may be negative
+       ;; due to overflow when adding a vector header and/or aligning.
+       ;; We report the unsigned value in bytes.
+
+       ((= code $ex.alloc)
+        (let ((uwords (if (< arg1 0)
+                        (+ arg1 (expt 2 30))
+                        arg1)))
+          (error #f (errmsg 'msg:alloctoobig) (list (* uwords 4)))))
+
        ;; Others
 
        ;; For assertions, the first argument is the expression that
