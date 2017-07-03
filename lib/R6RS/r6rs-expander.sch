@@ -2876,16 +2876,32 @@
     ;; For importing and evaluating stuff in the persistent 
     ;; interactive environment, see REPL above.
 
-    ;; FIXME:  Since expand-toplevel-sequence calls eval on every
-    ;; library in the sequence, the following procedure calls eval
-    ;; on every library twice.  That can double the compile time.
-    
+    ;; NOTE: expand-toplevel-sequence calls eval on every library
+    ;; in the sequence.  (It calls scan-sequence, which calls
+    ;; expand-library, which calls expand-library-or-program,
+    ;; which calls eval on the expanded library.)  That's why
+    ;; run-r6rs-sequence calls eval only on the expressions
+    ;; obtained by expanding the program, if present.
+    ;; See ticket #655.
+
     (define (run-r6rs-sequence forms)
       (with-toplevel-parameters
        (lambda ()
-         (for-each (lambda (exp) (eval exp (interaction-environment)))
-                   (expand-toplevel-sequence (normalize forms))))))
-    
+         (let* ((forms (normalize forms)))
+           (call-with-values
+            (lambda ()
+              (partition (lambda (form)
+                           (and (pair? form)
+                                (eq? 'program (car form))))
+                         forms))
+            (lambda (pgms libs)
+              (expand-toplevel-sequence libs)
+              (if (not (null? pgms))
+                  (let* ((exps (expand-toplevel-sequence pgms)))
+                    (for-each (lambda (exp)
+                                (eval exp (interaction-environment)))
+                              exps)))))))))
+
     (define (run-r6rs-program filename)
       (run-r6rs-sequence (read-file filename)))
 
