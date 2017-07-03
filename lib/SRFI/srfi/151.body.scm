@@ -148,20 +148,10 @@
 (define (bits . bools)
   (list->bits bools))
 
-;;; FIXME
-;;; I assume "For each bit b of i from bit #0 to bit (integer-length i)"
-;;; is exclusive of (integer-length i).  Otherwise the example is wrong.
-
 (define (bitwise-fold proc seed i)
   (fold-left (lambda (x y) (proc y x))
              seed
              (bits->list i)))
-
-;;; FIXME
-;;; The example is wrong because bitwise-for-each returns an unspecified
-;;; value.
-;;; I assume "starting with bit #0 and ending with bit (integer-length i)"
-;;; is exclusive of (integer-length i).
 
 (define (bitwise-for-each proc i)
   (for-each proc (bits->list i)))
@@ -177,17 +167,8 @@
                   result))))
   (loop seed 1 0))
 
-;;; FIXME
-;;; Although SRFI 151 specifies an optional second argument,
-;;; it says nothing about the semantics of that second argument.
-;;; I'm going to assume that second argument specifies the number
-;;; of low-order bits to ignore.
-
-(define (make-bitwise-generator i . rest)
-  (let ((i (if (null? rest)
-               i
-               (bitwise-arithmetic-shift-right i (car rest)))))
-    (lambda ()
-      (let ((result (odd? i)))
-        (set! i (quotient i 2))
-        result))))
+(define (make-bitwise-generator i)
+  (lambda ()
+    (let ((result (odd? i)))
+      (set! i (quotient i 2))
+      result)))

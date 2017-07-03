@@ -66,18 +66,21 @@
   (test "test-293" #b110 (bitwise-and -2 #b111))
   (test "test-294" 3769478 (bitwise-and -4290775858 1694076839))
   (test "test-11" -4294967295 (bitwise-ior 1 (- -1 #xffffffff)))
-  (test "test-12" -18446744073709551615 (bitwise-ior 1 (- -1 #xffffffffffffffff)))
+  (test "test-12" -18446744073709551615
+                  (bitwise-ior 1 (- -1 #xffffffffffffffff)))
   (test "test-117" 14 (bitwise-ior 10 12))
   (test "test-250" 11 (bitwise-ior 3  10))
   (test "test-13" -4294967126 (bitwise-xor #b10101010 (- -1 #xffffffff)))
-  (test "test-15" -18446744073709551446 (bitwise-xor #b10101010 (- -1 #xffffffffffffffff)))
+  (test "test-15" -18446744073709551446
+                  (bitwise-xor #b10101010 (- -1 #xffffffffffffffff)))
   (test "test-16" -2600468497 (bitwise-ior 1694076839 -4290775858))
   (test "test-17" -184549633 (bitwise-ior -193073517 1689392892))
   (test "test-18" -2604237975 (bitwise-xor 1694076839 -4290775858))
   (test "test-19" -1865418641 (bitwise-xor -193073517 1689392892))
   (test "test-119" 6 (bitwise-xor 10 12))
   (test "test-252" 9 (bitwise-xor 3 10))
-  (test "test-14" (bitwise-not -4294967126) (bitwise-eqv #b10101010 (- -1 #xffffffff)))
+  (test "test-14" (bitwise-not -4294967126)
+                  (bitwise-eqv #b10101010 (- -1 #xffffffff)))
   (test "test-253" -42 (bitwise-eqv 37 12))
   (test "test-27" -1 (bitwise-nand 0 0))
   (test "test-28" -1 (bitwise-nand 0 -1))
@@ -105,9 +108,11 @@
   (test "test-325" -124 (bitwise-orc2 0 123))
 
   (test "test-78" #x1000000000000000100000000000000000000000000000000 
-      (arithmetic-shift #x100000000000000010000000000000000 64))
-  (test "test-79" #x8e73b0f7da0e6452c810f32b809079e5 
-      (arithmetic-shift #x8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b -64))
+                  (arithmetic-shift #x100000000000000010000000000000000 64))
+  (test "test-79"
+        #x8e73b0f7da0e6452c810f32b809079e5 
+        (arithmetic-shift #x8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b
+                          -64))
   (test "test-196" 2 (arithmetic-shift 1 1))
   (test "test-197" 0 (arithmetic-shift 1 -1))
   (test "test-331" 1 (arithmetic-shift 1 0))
@@ -144,7 +149,8 @@
   (test "test-255" 32 (arithmetic-shift 8 2))
   (test "test-256" 4 (arithmetic-shift 4 0))
   (test "test-257" 4 (arithmetic-shift 8 -1))
-  (test "test-258" -79 (arithmetic-shift -100000000000000000000000000000000 -100))
+  (test "test-258" -79
+                   (arithmetic-shift -100000000000000000000000000000000 -100))
   (test "test-135" 2 (bit-count 12))
   (test "test-263" 0 (integer-length  0))
   (test "test-264" 1 (integer-length  1))
@@ -186,13 +192,13 @@
   (test "test-183" -2 (copy-bit 0 -1 #f))
   (test "test-184" 0 (copy-bit 128 #x100000000000000000000000000000000 #f))
   (test "test-185" #x100000000000000000000000000000000 
-		 (copy-bit 128 #x100000000000000000000000000000000 #t))
+                   (copy-bit 128 #x100000000000000000000000000000000 #t))
   (test "test-186" #x100000000000000000000000000000000 
-		 (copy-bit 64 #x100000000000000000000000000000000 #f))
+                   (copy-bit 64 #x100000000000000000000000000000000 #f))
   (test "test-187" #x-100000000000000000000000000000000 
-		 (copy-bit 64 #x-100000000000000000000000000000000 #f))
+                   (copy-bit 64 #x-100000000000000000000000000000000 #f))
   (test "test-188" #x-100000000000000000000000000000000 
-		 (copy-bit 256 #x-100000000000000000000000000000000 #t))
+                   (copy-bit 256 #x-100000000000000000000000000000000 #t))
   (test "test-276" #b100 (copy-bit 2 0 #t))
   (test "test-277" #b1011 (copy-bit 2 #b1111 #f))
   (test "test-379" #b1 (copy-bit 0 0 #t))
@@ -247,138 +253,148 @@
   (test "test-202" #b1011 (bit-field-rotate #b0111 -1 1 4))
   (test "test-203" #b0  (bit-field-rotate #b0 128 0 256))
   (test "test-204" #b1  (bit-field-rotate #b1 128 1 256))
-      (test "test-205" #x100000000000000000000000000000000 
-	    (bit-field-rotate #x100000000000000000000000000000000 128 0 64))
-      (test "test-206" #x100000000000000000000000000000008 
-	    (bit-field-rotate #x100000000000000000000000000000001 3 0 64))
-      (test "test-207" #x100000000000000002000000000000000 
-	    (bit-field-rotate #x100000000000000000000000000000001 -3 0 64))
+  (test "test-205"
+        #x100000000000000000000000000000000 
+        (bit-field-rotate #x100000000000000000000000000000000 128 0 64))
+  (test "test-206"
+        #x100000000000000000000000000000008 
+        (bit-field-rotate #x100000000000000000000000000000001 3 0 64))
+  (test "test-207"
+        #x100000000000000002000000000000000 
+        (bit-field-rotate #x100000000000000000000000000000001 -3 0 64))
   (test "test-208" #b110 (bit-field-rotate #b110 0 0 10))
   (test "test-209" #b110 (bit-field-rotate #b110 0 0 256))
-  (test "test-475" 1 (bit-field-rotate #x100000000000000000000000000000000 1 0 129))
+  (test "test-475"
+        1
+        (bit-field-rotate #x100000000000000000000000000000000 1 0 129))
   (test "test-211" 6 (bit-field-reverse 6 1 3))
   (test "test-212" 12 (bit-field-reverse 6 1 4))
   (test "test-213" #x80000000 (bit-field-reverse 1 0 32))
   (test "test-214" #x40000000 (bit-field-reverse 1 0 31))
   (test "test-215" #x20000000 (bit-field-reverse 1 0 30))
   (test "test-216" (bitwise-ior (arithmetic-shift -1 32) #xFBFFFFFF) 
-		 (bit-field-reverse -2 0 27))
+                   (bit-field-reverse -2 0 27))
   (test "test-217" (bitwise-ior (arithmetic-shift -1 32) #xF7FFFFFF) 
-		 (bit-field-reverse -2 0 28))
+                   (bit-field-reverse -2 0 28))
   (test "test-218" (bitwise-ior (arithmetic-shift -1 32) #xEFFFFFFF) 
-		 (bit-field-reverse -2 0 29))
+                   (bit-field-reverse -2 0 29))
   (test "test-219" (bitwise-ior (arithmetic-shift -1 32) #xDFFFFFFF) 
-		 (bit-field-reverse -2 0 30))
+                   (bit-field-reverse -2 0 30))
   (test "test-220" (bitwise-ior (arithmetic-shift -1 32) #xBFFFFFFF) 
-		 (bit-field-reverse -2 0 31))
+                   (bit-field-reverse -2 0 31))
   (test "test-221" (bitwise-ior (arithmetic-shift -1 32) #x7FFFFFFF) 
-		 (bit-field-reverse -2 0 32))
-  (test "test-222" 5 (bit-field-reverse #x140000000000000000000000000000000 0 129))
+                   (bit-field-reverse -2 0 32))
+  (test "test-222"
+        5
+        (bit-field-reverse #x140000000000000000000000000000000 0 129))
 
-  ;; FIXME
-  ;; According to SRFI 151, bits->list accepts only one argument.
-  ;; Some of the examples accept a second argument, however, so I
-  ;; assume the examples are correct and the prototype is wrong.
+  ;; bits->list takes only one argument, but an earlier draft of SRFI 151
+  ;; contains examples that passed a second argument.  Those examples have
+  ;; been removed from the SRFI, and are commented out below.
 
   (test "test-103" '(#t #f #t #f #t #t #t) (bits->list #b1110101))
-  (test "test-104" '(#f #t #f #t) (bits->list #b111010 4))
+; (test "test-104" '(#f #t #f #t) (bits->list #b111010 4))
   (test "test-106" #b1110101 (list->bits '(#t #f #t #f #t #t #t)))
   (test "test-107" #b111010100 (list->bits '(#f #f #t #f #t #f #t #t #t)))
   (test "test-223" '(#t #t) (bits->list 3))
-  (test "test-224" '(#f #t #t #f) (bits->list 6 4))
-  (test "test-225" '(#f #t) (bits->list 6 2))
-    (test "test-226" '(#t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f) 
-	    (bits->list 1 128))
+; (test "test-224" '(#f #t #t #f) (bits->list 6 4))
+; (test "test-225" '(#f #t) (bits->list 6 2))
+  (test "test-226" '(#t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                 #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f) 
+            (bits->list 1 128))
 
-    ;; FIXME
-    ;; According to SRFI 151, the first argument to bits->list
-    ;; must be non-negative.
+  ;; FIXME
+  ;; According to SRFI 151, the first argument to bits->list
+  ;; must be non-negative.
 
 #;
-    (test "test-227" '(#t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
-		 #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
-	    (bits->list -1 128))
+  (test "test-227"
+        '(#t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t 
+          #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t #t) 
+         (bits->list -1 128))
 
   (test "test-228" '(#f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t) 
-		   (bits->list #x100000000000000000000000000000000))
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+                     #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t) 
+                   (bits->list #x100000000000000000000000000000000))
   (test "test-229" 6 (list->bits '(#f #t #t)))
   (test "test-230" 12 (list->bits '(#f #f #t #t)))
   (test "test-231" 6 (list->bits '(#f #t #t #f)))
   (test "test-232" 2 (list->bits '(#f #t)))
-  (test "test-233" 1 (list->bits 
-	     '(#t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f)))
-  (test "test-234" #x100000000000000000000000000000000 
-		 (list->bits 
-		  '(#f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
-		    #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t)))
+  (test "test-233"
+        1
+        (list->bits 
+         '(#t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f)))
+  (test "test-234"
+        #x100000000000000000000000000000000 
+        (list->bits 
+         '(#f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
+           #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #t)))
   (test "test-235" #x03FFFFFF (list->bits '(#t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-236" #x07FFFFFF (list->bits '(#t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-237" #x0FFFFFFF (list->bits '(#t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-238" #x1FFFFFFF (list->bits '(#t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-239" #x3FFFFFFF (list->bits '(#t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-240" #x7FFFFFFF (list->bits '(#t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-241" #xFFFFFFFF (list->bits '(#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t 
-						#t #t #t #t #t #t #t #t)))
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t 
+                                            #t #t #t #t #t #t #t #t)))
   (test "test-242" #x1FFFFFFFF (list->bits '(#t 
-					      #t #t #t #t #t #t #t #t 
-					      #t #t #t #t #t #t #t #t 
-					      #t #t #t #t #t #t #t #t 
-					      #t #t #t #t #t #t #t #t)))
+                                             #t #t #t #t #t #t #t #t 
+                                             #t #t #t #t #t #t #t #t 
+                                             #t #t #t #t #t #t #t #t 
+                                             #t #t #t #t #t #t #t #t)))
   (test "test-490" 1 (list->bits '(#t #f)))
   (test "test-108" #b1110101 (vector->bits '#(#t #f #t #f #t #t #t)))
   (test "test-109" #b00011010100 (vector->bits '#(#f #f #t #f #t #f #t #t)))
@@ -389,13 +405,15 @@
   (test "test-111" #b111010100 (bits #f #f #t #f #t #f #t #t #t))
 
   (test "test-112" '(#t #f #t #f #t #t #t) (bitwise-fold cons '() #b1010111))
-  (test "test-113" 5 
-      (let ((count 0)) 
-        (bitwise-for-each (lambda (b) (if b (set! count (+ count 1)))) 
-                          #b1010111) 
-        count))
-  (test "test-114" #b101010101 
-      (bitwise-unfold (lambda (i) (= i 10)) even? (lambda (i) (+ i 1)) 0))
+  (test "test-113"
+        5 
+        (let ((count 0)) 
+          (bitwise-for-each (lambda (b) (if b (set! count (+ count 1)))) 
+                            #b1010111) 
+          count))
+  (test "test-114"
+        #b101010101 
+        (bitwise-unfold (lambda (i) (= i 10)) even? (lambda (i) (+ i 1)) 0))
   (let ((g (make-bitwise-generator #b110)))
     (test "test-244a" #f (g))
     (test "test-244b" #t (g))
