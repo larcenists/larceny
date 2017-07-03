@@ -31,6 +31,9 @@ Alex Shinn, John Cowan, and Arthur A Gleckler [editors].
 http://www.scheme-reports.org/[Revised^7 Report
 on the Algorithmic Language Scheme], 2013.
 
+John Cowan [editor].
+http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition], 2016.
+
 
 Other relevant standards
 ~~~~~~~~~~~~~~~~~~~~~~~~
