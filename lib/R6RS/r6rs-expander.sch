@@ -2289,6 +2289,7 @@
               (lambda (library-ref levels more-imports)
                 (loop (cdr specs)
                       ;; library-ref = #f if primitives spec
+                      ;; FIXME: that's not true; see below
                       (if library-ref
                           (cons (cons library-ref levels)
                                 imported-libraries)
@@ -2299,7 +2300,7 @@
     ;;                 (<level> ...)
     ;;                 ((<local name> . <binding>) ...)
     ;; where <level> ::= <integer>
-    ;; #f is returned for library name in case of primitives.
+    ;; FIXME: For primitives, (larceny PRIMITIVES) is the library name.
 
     (define (scan-import-spec spec)
 
@@ -2325,7 +2326,12 @@
                (values #f
                        levels
                        (map (lambda (mapping)
-                              (cons (car mapping) (make-binding 'variable (cdr mapping) levels #f '())))
+                              (cons (car mapping)
+                                    (make-binding 'variable
+                                                  (cdr mapping)
+                                                  levels
+                                                  #f
+                                                  '(larceny PRIMITIVES))))
                             (adjuster (map (lambda (name) (cons name name))
                                            (syntax->datum xs))))))
               (((syntax only) set (? identifier? xs) ___)
