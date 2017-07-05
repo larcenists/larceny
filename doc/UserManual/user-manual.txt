@@ -19,7 +19,10 @@ Larceny
 implements the Scheme programming language
 as defined by
 the
-<<Standards, Revised^7^ Report>>,
+<<Standards, Red Edition>> of
+the
+<<Standards, Revised^7^ Report>>.
+while continuing to support
 the
 <<Standards, Revised^6^ Report>>,
 the
@@ -28,10 +31,11 @@ and
 <<Standards, IEEE Standard 1178-1990>>.
 Those language standards serve as Larceny's primary documentation.
 
-This manual describes aspects of Larceny that are not described
-by the Revised Reports or IEEE-1178.
+This manual describes aspects of Larceny that are not specified
+by those standards.
 For the most current version of this manual, please see
-http://larceny.ccs.neu.edu/doc[Larceny's online documentation page].
+http://www.cesura17.net/~larcenists/Nightly/doc/[Larceny's
+online documentation page].
 For links to the Common Larceny User Manual and the Larceny
 mailing list, please visit
 http://www.larcenists.org/[Larceny's main web page].

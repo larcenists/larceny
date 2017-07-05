@@ -4,9 +4,22 @@
 #
 # It would be nice if it works on other targets, but Felix found it
 # hard to get things running on his Mac.
+#
+# FIXME: user-manual-alt.html is being built okay, but the others fail,
+# apparently because a2x (which is now written in Python, not Java)
+# uses asciidoc to produce an XML document, which a2x rejects unless
+# xmllint says it's valid, and it isn't valid because
+#
+#     asciidoc produces unrecognized <emphasis> tags
+#     the linkend attribute of the link tag doesn't allow
+#         funny characters such as ?, !, *, and so on
+#
+# We could work around the second problem, but Will doesn't see any
+# obvious way to work around the first.
 
 ASCIIDOC=asciidoc
-A2X=JAVACMD=$(shell which java) a2x
+#A2X=JAVACMD=$(shell which java) a2x
+A2X=a2x
 
 STD_ASCIIDOC_OPTS=--conf-file=larcenydoc.conf --section-numbers
 STD_XSLTPROC_OPTS=--stringparam section.autolabel 1
@@ -19,7 +32,8 @@ LOGFILE=buildlog.html
 
 all: log-start docs notes sourceindex.html builddate.html log-finis
 
-docs:  user-manual.pdf user-manual.html user-manual.chunked/index.html user-manual-alt.html sourceindex.html
+#docs:  user-manual.pdf user-manual.html user-manual.chunked/index.html user-manual-alt.html sourceindex.html
+docs:  user-manual-alt.html sourceindex.html
 
 notes: larceny-notes.html larceny-notes-alt.html
 

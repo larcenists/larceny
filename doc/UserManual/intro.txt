@@ -13,7 +13,7 @@ There are two main varieties of Larceny.
 Native Larceny is the fastest and most convenient variety
 of Larceny.  It compiles directly to native machine code
 for Intel x86 or ARMv7 microprocessors running Linux and
-for x86 machines running Apple's MacOS X or Microsoft Windows.
+for x86 machines running Apple's macOS or Microsoft Windows.
 
 Petit Larceny compiles to C instead of machine code.  It
 can be made to run on most Unix machines.
@@ -32,7 +32,7 @@ System requirements
 
 Binary distributions of native Larceny are available for
 just about any Intel x86-compatible microprocessor
-running a Linux, Apple OS X, or Windows operating system,
+running a Linux, macOS, or Windows operating system,
 and for ARMv7 microprocessors running Linux.
 Although Larceny still uses 32-bit pointers, it will run
 on 64-bit machines provided the appropriate 32-bit
@@ -91,7 +91,7 @@ Installing the programs
 
 Unpack the distribution files with an appropriate command such
 as one of the following, substituting the version number (such
-as 0.98) for "X.Y":
+as 1.3) for "X.Y":
 
 
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
