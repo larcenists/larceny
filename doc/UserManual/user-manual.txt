@@ -11,8 +11,9 @@ Larceny User Manual
 ===================
 
 ////////////////////////////////////////////////////////////////
-FIXME: should be able to generate a table of contents automatically
-////////////////////////////////////////////////////////////////
+FIXME: This isn't needed when the backend is html5, but the
+xhtml11 backend ignores the "-a toclevels=1" option on the
+asciidoc command line.
 
 1. <<LarcenyChapter, Larceny>>
 2. <<InstallationChapter, Installing Larceny>>
@@ -29,6 +30,7 @@ FIXME: should be able to generate a table of contents automatically
 13. <<FfiChapter, Foreign-Function Interface to C>>
 14. <<DebuggingChapter, Debugging>>
 15. <<Standards, Standards>>
+////////////////////////////////////////////////////////////////
 
 
 

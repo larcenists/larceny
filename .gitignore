@@ -44,6 +44,7 @@ test/Benchmarking/R6RS/outputs
 test/Benchmarking/R7RS/results.*
 test/Benchmarking/R7RS/Results
 test/Benchmarking/R7RS/outputs
+test/Jaffer/tmp*
 test/R7RS/Lib/temp.scm
-test/R7RS/Lib/testresults
+test/R7RS/Lib/testresults*
 lib/SRFI/test/*.log

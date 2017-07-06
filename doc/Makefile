@@ -22,6 +22,7 @@ ASCIIDOC=asciidoc
 A2X=a2x
 
 STD_ASCIIDOC_OPTS=--conf-file=larcenydoc.conf --section-numbers
+TOC_OPTS=-a toc -a toclevels=1
 STD_XSLTPROC_OPTS=--stringparam section.autolabel 1
 STD_A2X_OPTS=--asciidoc-opts="${STD_ASCIIDOC_OPTS}" --xsltproc-opts="${STD_XSLTPROC_OPTS}" --doctype=article --destination-dir=. 
 
@@ -43,8 +44,11 @@ user-manual.pdf: UserManual/user-manual.txt ${OTHERFILES}
 user-manual.html: UserManual/user-manual.txt ${OTHERFILES}
 	-${A2X} ${STD_A2X_OPTS}  --format=xhtml UserManual/user-manual.txt >> ${LOGFILE} 2>&1
 
+user-manual-alt-old-style.html: UserManual/user-manual.txt ${OTHERFILES}
+	-${ASCIIDOC} ${STD_ASCIIDOC_OPTS} ${TOC_OPTS} --backend=xhtml11 --out-file=$@ UserManual/user-manual.txt >> ${LOGFILE} 2>&1
+
 user-manual-alt.html: UserManual/user-manual.txt ${OTHERFILES}
-	-${ASCIIDOC} ${STD_ASCIIDOC_OPTS}  --backend=xhtml11 --out-file=$@ UserManual/user-manual.txt >> ${LOGFILE} 2>&1
+	-${ASCIIDOC} ${STD_ASCIIDOC_OPTS} ${TOC_OPTS} --backend=html5 --out-file=$@ UserManual/user-manual.txt >> ${LOGFILE} 2>&1
 
 user-manual.chunked/index.html: UserManual/user-manual.txt ${OTHERFILES}
 	-${A2X} ${STD_A2X_OPTS}  --format=chunked UserManual/user-manual.txt >> ${LOGFILE} 2>&1

@@ -45,10 +45,6 @@ including libraries you've written yourself, you can:
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
 
-////////////////////////////////////////////////////////////////
-FIXME: the link to R7rsLibraryPathSection doesn't work.
-////////////////////////////////////////////////////////////////
-
 
 [[R7rsDynamicLoadingSection]]
 
