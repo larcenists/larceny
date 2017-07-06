@@ -1,6 +1,12 @@
 Records
 ~~~~~~~
 
+The `(scheme base)`, `(srfi 9)`, `(srfi 99)`, `(srfi 131)`,
+`(rnrs records procedural)`, and `(rnrs records inspection)`
+libraries now
+provide facilities that supersede all
+of the procedures described below.
+
 [NOTE]
 ======================================================================
 Larceny's records have been extended to implement all SRFI 99
@@ -8,14 +14,16 @@ and
 http://www.r6rs.org/[R6RS]
 procedures from
 
-    (srfi :99 records procedural)
-    (srfi :99 records inspection)
+    (srfi 99 records procedural)
+    (srfi 99 records inspection)
+    (srfi 131)
     (rnrs records procedural)
     (rnrs records inspection)
 
-We recommend that Larceny programmers use the SRFI 99 APIs instead
+We recommend that Larceny programmers use the SRFI 99 or 131 APIs instead
 of the R6RS APIs.  This should entail no loss of portability, since
-the standard reference implementation of SRFI 99 records should run
+the standard reference implementations of SRFI 99 and SRFI 131 records
+should run
 efficiently in any implementation of the R7RS/R6RS that permits new
 libraries to defined at all.
 

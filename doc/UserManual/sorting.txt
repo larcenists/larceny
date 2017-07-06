@@ -1,9 +1,8 @@
 Sorting
 ~~~~~~~
 
-The `(rnrs sorting)` library now
-provides a small set of procedures that supersede most
-of the procedures described below.
+The `(scheme sort)` and `(rnrs sorting)` libraries now
+provide procedures that supersede those described below.
 All of the procedures described below are therefore
 deprecated.
 

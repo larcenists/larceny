@@ -46,6 +46,10 @@ including libraries you've written yourself, you can:
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
 
+////////////////////////////////////////////////////////////////
+FIXME: the link to R7rsLibraryPathSection doesn't work.
+////////////////////////////////////////////////////////////////
+
 
 [[Err5rsDynamicLoadingSection]]
 [[R7rsDynamicLoadingSection]]
@@ -131,7 +135,7 @@ Composite library:
 
     (larceny r7r6)                         ; all R7RS/R6RS standard libraries
 
-R7RS standard libraries:
+link:../r7rs.pdf[R7RS (small)] standard libraries:
 
     (scheme base)
     (scheme case-lambda)
@@ -150,7 +154,7 @@ R7RS standard libraries:
     (scheme time)
     (scheme write)
 
-R7RS Red Edition libraries:
+http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition] libraries:
 
     (scheme box)                           ; SRFI 111
     (scheme charset)                       ; SRFI 14
@@ -170,7 +174,7 @@ R7RS Red Edition libraries:
     (scheme text)                          ; SRFI 135
     (scheme vector)                        ; SRFI 133
 
-R6RS standard libraries:
+http://www.r6rs.org/[R6RS] standard libraries:
 
     (rnrs base (6))                        ; R6RS chapter 9
     (rnrs unicode (6))                     ; R6RS library chapter 1
@@ -204,7 +208,7 @@ facilities:
     (rnrs records inspection (6))          ; R6RS library section 6.4
     (rnrs records syntactic (6))           ; R6RS library section 6.2
 
-SRFI libraries:
+http://srfi.schemers.org/[SRFI] libraries:
 
     (srfi 1 lists)                         ; list library
     (srfi 2 and-let*)                      ; extended `and` and `let*`
@@ -295,22 +299,22 @@ R7RS or R6RS or other SRFI libraries or syntax (shown in parentheses):
     (srfi 34)                              ; exception handling (scheme base)
     (srfi 43 vectors)                      ; vector library (scheme vector)
     (srfi 55)                              ; require-extension (import)
-    (srfi 60 integer-bits)                 ; see (rnrs arithmetic bitwise)
+    (srfi 60 integer-bits)                 ; (rnrs arithmetic bitwise)
     (srfi 62)                              ; S-expression comments ( #; )
-    (srfi 66 octet-vectors)                ; octet vectors (scheme base)
+    (srfi 66 octet-vectors)                ; (scheme base)
     (srfi 69 basic-hash-tables)            ; (scheme hash-table), (srfi 126)
     (srfi 71 let)                          ; extensions of let, let*, letrec
-    (srfi 74 blobs)                        ; see (rnrs bytevectors)
-    (srfi 95 sorting-and-merging)          ; sorting/merging (scheme sorting)
-    (srfi 114 comparators)                 ; see (scheme comparator)
-    (srfi 125)                             ; hash tables (scheme hash-table)
-    (srfi 130)                             ; see (scheme text)
-    (srfi 132)                             ; sort libraries (scheme sorting)
-    (srfi 133)                             ; vector library (scheme vector)
-    (srfi 135)                             ; immutable texts (scheme text)
-    (srfi 136)                             ; see (srfi 99), (srfi 131)
-    (srfi 137)                             ; see (srfi 99), (srfi 131)
-    (srfi 142)                             ; see (srfi 151)
+    (srfi 74 blobs)                        ; (rnrs bytevectors)
+    (srfi 95 sorting-and-merging)          ; (scheme sorting)
+    (srfi 114 comparators)                 ; (scheme comparator)
+    (srfi 125)                             ; (scheme hash-table)
+    (srfi 130)                             ; (scheme text)
+    (srfi 132)                             ; (scheme sorting)
+    (srfi 133)                             ; (scheme vector)
+    (srfi 135)                             ; (scheme text)
+    (srfi 136)                             ; record types (srfi 99), (srfi 131)
+    (srfi 137)                             ; unique types (srfi 99), (srfi 131)
+    (srfi 142)                             ; bitwise operations (srfi 151)
     (srfi 147)                             ; macro transformers (scheme base)
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
@@ -335,9 +339,6 @@ Other autoloadable libraries:
     (explicit-renaming)                    ; macros with explicit renaming
 
 
-[[ERR5RSLibraryPathSection]]
-[[R6rsLibraryPathSection]]
-[[R6rsLibraryVariableSection]]
 [[R7rsLibraryPathSection]]
 [[R7rsLibraryVariableSection]]
 
@@ -358,7 +359,7 @@ The
 is initialized by the `startup.sch` file in Larceny's root
 directory.
 
-<<R6rsLibraryPathSection, Larceny's `-I` and `-A` command-line options>>
+<<R7rsLibraryPathSection, Larceny's `-I` and `-A` command-line options>>
 adds one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
 The `-I` option specifies directories to be searched before the
@@ -371,7 +372,7 @@ by separating them with a colon; under Windows, use a
 semicolon as separator instead.  The first directory
 listed will be searched first.
 
-The <<R6rsLibraryVariableSection, `LARCENY_LIBPATH`>>
+The `LARCENY_LIBPATH`
 environment variable can also be used to add one or more directories
 to the directories in the
 <<current-require-path,`current-require-path`>>,

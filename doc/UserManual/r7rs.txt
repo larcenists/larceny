@@ -1,10 +1,12 @@
 [[R7rsChapter]]
 
-R7RS standard libraries
+R7RS Standard Libraries
 -----------------------
 
-The R7RS standard libraries are described by
-<<Standards,the R7RS (small) standard>> approved in 2013.
+The R7RS standard libraries are described by the
+<<Standards, R7RS (small)>> standard approved in 2013
+and by the
+<<Standards, R7RS Red Edition>> standard approved in 2016.
 The
 <<R7rsPreDefinedSection,Predefined libraries>> section
 of this manual lists the names of those libraries.
@@ -19,30 +21,15 @@ use Latin-1 strings instead of Unicode.)
 
 When Larceny is invoked with the `-r7r6` option on its
 command line, all of the standard R7RS and R6RS libraries
-are imported at startup.  When invoked with the `-r7rs`
+are imported at startup.  When invoked with the `-r7`
 option, only `(scheme base)` is imported at startup.
 
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Larceny v0.99 does not implement these features of
-the R7RS standard:
-
-- `include` and `include-ci` at expression level
-
-`include` and `include-ci` are fully supported
-at the top-level declaration and definition levels of R7RS
-libraries.
-
-Larceny v0.99 does not allow libraries to define the names
-`primitives` or `program`.
-(Larceny reserves <<R7rsPrimitivesSection,primitives>> as a
-keyword for importing identifiers from the R5RS global
-environment, and reserves `program` for no good reason.)
-Larceny does allow top-level programs to define those names.
-
 To simplify interoperability with R6RS libraries and
-programs, the `integer?`, `rational?`, and `real?`
+programs, and to improve the performance of flonum and
+complex arithemetic, the `integer?`, `rational?`, and `real?`
 procedures exported by `(scheme base)` have R6RS semantics.
 It is not clear whether that is fully compatible with the
 R7RS (small) standard, because the R7RS specification of
@@ -50,3 +37,26 @@ those procedures appears to contradict itself.
 
 If any other R7RS feature is missing or incompatible with
 the R7RS (small) standard, it's a bug.
+
+As of Larceny v1.3, the known bugs include:
+
+- `include` and `include-ci` at expression level
+
+`include` and `include-ci` are fully supported
+at the top-level declaration and definition levels of R7RS
+libraries, but do not work at expression level.
+
+- libraries named `(primitives x ...)` cannot be imported
+
+Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
+as a keyword for importing identifiers from the R5RS global
+environment, so libraries whose names are of the form
+`(primitives x ...)` cannot be imported.
+
+- ellipses not shadowed properly
+
+Larceny v1.3 continues to give ellipses their usual meaning
+in macro definitions whose context should have given ellipses
+a different meaning
+(https://github.com/larcenists/larceny/issues/780[ticket #780]).
+

@@ -11,8 +11,8 @@ generic bytevector-like structures are particularly fast but
 useful largely in code that manipulates Larceny's data
 representations.
 
-The <<BytevectorsLibrary, `(rnrs bytevectors)` library>> now
-provides a large set of procedures that, in Larceny, are
+The `(scheme base)` and `(rnrs bytevectors)` libraries now
+provide a large set of procedures that, in Larceny, are
 defined using the procedures described below.
 
 proc:make-bytevector[kind="Integrable procedure",args="length",result="bytevector"]

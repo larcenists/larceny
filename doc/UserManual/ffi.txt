@@ -1,18 +1,166 @@
+[[FfiChapter]]
+
 Foreign-Function Interface to C
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------
 
 Larceny provides a general foreign-function interface (FFI) substrate
 on which other FFIs can be built; see 
 link:LarcenyNotes/note7-ffi.html[Larceny Note #7]. 
-The FFI described in this manual section is a simple example of
-a derived FFI. It is not yet fully evolved, but it is useful.
+The FFI described in this chapter is a simple example of
+a derived FFI.
+It is not yet fully evolved, but it is useful.
 
 [WARNING]
 ================================================================
-This section has undergone signficant revision, but 
+This chapter has undergone signficant revision, but 
 not all of the material has been properly vetted.
-Some of the information in this section may be out of date.
+Some of the information in this chapter may be out of date.
 ================================================================
+
+[[FfiExamplesR7]]
+
+Using the FFI in R7RS Libraries and Programs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Larceny's FFI is implemented at the R5RS level, but can often be
+used in R7RS libraries and programs by importing from Larceny's
+underlying R5RS environment.
+
+An R7RS program that needs Bessel functions of the first kind
+can call the C function `jn` as shown:
+
+----------------------------------------------------------------
+(import (scheme base)
+        (scheme write)
+        (rename (primitives r5rs:require)
+                (r5rs:require require))
+        (primitives foreign-procedure))
+
+(require 'std-ffi)    ; defines foreign-procedure at R5RS level
+
+;;; double jn (int n, double x);
+
+(define jn (foreign-procedure "jn" '(int double) 'double))
+
+(write (jn 0 1.0))
+(newline)
+----------------------------------------------------------------
+
+An R7RS program can call the C function gettimeofday as shown:
+
+----------------------------------------------------------------
+(import (scheme base)
+        (scheme write)
+        (except (rnrs bytevectors) bytevector-copy!)
+        (rename (primitives r5rs:require)
+                (r5rs:require require))
+        (primitives foreign-procedure))
+
+(require 'std-ffi)    ; defines foreign-function
+
+;;; From <sys/time.h>:
+;;;
+;;; int gettimeofday(struct timeval *tv, struct timezone *tz);
+;;;
+;;; struct timeval {
+;;;     time_t      tv_sec;     /* seconds */
+;;;     suseconds_t tv_usec;    /* microseconds */
+;;; };
+;;;
+;;; The second argument passed to gettimeofday should normally
+;;; be NULL; passing a non-NULL argument is obsolete.
+;;; The results are returned in tv->tv_sec and tv->tv_usec,
+;;; as 32-bit unsigned integers.
+
+(define timeval-size 8)      ; sizeof(struct timeval)
+(define tv_sec-offset 0)     ; offset of tv_sec
+(define tv_usec-offset 4)    ; offset of tv_usec
+
+(define current-utc-time
+  (let ((gettimeofday 
+         (foreign-procedure "gettimeofday" '(boxed boxed) 'int)))
+    (lambda ()
+      (let ((tv (make-bytevector timeval-size 0)))
+        ;; the #f will be passed to C as NULL
+        (gettimeofday tv #f)
+        (values (bytevector-u32-native-ref tv tv_sec-offset)
+                (bytevector-u32-native-ref tv tv_usec-offset))))))
+
+(call-with-values
+ current-utc-time
+ (lambda (seconds microseconds)
+   (write (list seconds microseconds))
+   (newline)))
+----------------------------------------------------------------
+
+Larceny's FFI can calculate the size of a C structure and the
+offsets of its fields, but that calculation uses a macro that's
+available only in R5RS mode.  For example:
+
+----------------------------------------------------------------
+#!r5rs
+
+(require 'srfi-0)
+(require 'std-ffi)    ; defines foreign-function
+(require 'foreign-ctools)
+(require 'foreign-cstructs)
+
+;;; From <sys/time.h>:
+;;;
+;;; int gettimeofday(struct timeval *tv, struct timezone *tz);
+;;;
+;;; struct timeval {
+;;;     time_t      tv_sec;     /* seconds */
+;;;     suseconds_t tv_usec;    /* microseconds */
+;;; };
+;;;
+;;; The second argument passed to gettimeofday should normally
+;;; be NULL; passing a non-NULL argument is obsolete.
+
+(define-c-info (include<> "sys/time.h")
+  ;; defines timeval-size
+  (sizeof timeval-size "struct timeval")
+  (fields "struct timeval"
+          ;; defines tv_sec-offset, tv_sec-size
+          (tv_sec-offset "tv_sec" tv_sec-size)
+          ;; defines tv_usec-offset, tv_usec-size
+          (tv_usec-offset "tv_usec" tv_usec-size)))
+
+(define current-utc-time
+  (let ((gettimeofday 
+         (foreign-procedure "gettimeofday" '(boxed boxed) 'int)))
+    (lambda ()
+      (let ((tv (make-bytevector timeval-size 0)))
+        (gettimeofday tv #f)
+        (values (bytevector-u32-native-ref tv tv_sec-offset)
+                (bytevector-u32-native-ref tv tv_usec-offset))))))
+----------------------------------------------------------------
+
+If the R5RS code above is in a file named `utc-time.scm`
+that's within one of the directories in Larceny's library search
+path, then an R7RS program can import the `current-utc-time`
+procedure like this:
+
+----------------------------------------------------------------
+(import (scheme base)
+        (scheme write)
+        (rename (primitives r5rs:require)
+                (r5rs:require require)))
+
+(require 'utc-time) ; defines current-utc-time at R5RS level
+
+(import (primitives current-utc-time)) ; imports it from R5RS level
+
+(call-with-values
+ current-utc-time
+ (lambda (seconds microseconds)
+   (write (list seconds microseconds))
+   (newline)))
+----------------------------------------------------------------
+
+
+
+
 
 [NOTE]
 ================================================================
@@ -23,7 +171,9 @@ for those searching for implementation details and motivations.
 ================================================================
 
 [[FfiOverview, Introducing the FFI]]
-==== Introducing the FFI
+
+Introducing the FFI
+~~~~~~~~~~~~~~~~~~~
 
 There are a number of different potential ways to use the FFI. 
 One client may want to develop code in C and load it into Larceny. 
@@ -51,7 +201,9 @@ Step 1 is conceptual, while steps 2 through 4
 yield artifacts in Scheme source code. 
 
 [[FfiForeignValues, The space of foreign values]]
-==== The space of foreign values
+
+The space of foreign values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 At the machine code level, foreign values are uninterpreted 
 sequences of bits.  Often foreign object code is oriented 
@@ -60,7 +212,7 @@ or arrays and tuples of words.
 
 Many libraries are written with a particular 
 interpretation of such values.  In C code, explicit types are 
-often used hints to guide such interpretation; for example, 
+often used as hints to guide such interpretation; for example, 
 a +0+ of type +bool+ is usually interpreted as 'false', 
 while a +1+ (or other non-zero value) of type +bool+ is 
 usually interpreted as 'true'. 
@@ -177,7 +329,9 @@ you then describe how the values will be marshaled
 back and forth between the two domains.
 
 [[FfiMarshalling, Marshalling via ffi-attributes]]
-==== Marshalling via ffi-attributes
+
+Marshalling via ffi-attributes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This section describes the marshalling protocol defined in
 +lib/Base/std-ffi.sch+.
@@ -241,7 +395,7 @@ representation and back again, while the symbol
 between Scheme characters and unsigned bytes.
 ////////////////////////////////////////////////////////////////////
 
-===== Primitive Attribute Types
+==== Primitive Attribute Types
 
 The following is a list of the accepted types and their conversions 
 at the boundary between Scheme and foreign code:
@@ -314,7 +468,7 @@ at the boundary between Scheme and foreign code:
    functions are not expected to return direct references 
    to heap-allocated values.)
 
-===== Extending the Core Attribute Registry
+==== Extending the Core Attribute Registry
 
 The public interface to many foreign libraries is written
 in terms of types defined within that foreign library.
@@ -323,7 +477,7 @@ by extending the core attribute entry table.
 
 proc:ffi-add-attribute-core-entry![args="entry-name rep-sym marshal unmarshal",result="unspecified"]
 
-<<ffi-add-attribute-core-entry!>> extends the 
+`ffi-add-attribute-core-entry!` extends the 
 internal registry with the new entry specified by its arguments.
 
 - _entry-name_ is a symbol (the symbolic type name being
@@ -346,7 +500,7 @@ and produces a corresponding Scheme object.
 Perhaps document ffi-attribute-core-entry ?
 ////////////////////////////////////////////////////////////////////
 
-===== Attribute Type Constructors
+==== Attribute Type Constructors
 
 Core attributes suffice for linking to simple
 functions.
@@ -412,7 +566,7 @@ unmarshaling of _t_.
  are not as fully-developed as the two above, and are intended
  for use only for internal development for now.)
 
-===== void* Type Hierarchies
+==== void* Type Hierarchies
 
 Using the +void*+ attribute 
 wraps foreign addresses up in a Larceny record, 
@@ -467,14 +621,17 @@ Procedures for establishing type hierarchies are provided by the
 +lib/Standard/foreign-stdlib.sch+ library; see
 <<ffi-install-void*-subtype>> and <<establish-void*-subhierarchy!>>.
 
+
 [[FfiCompiliing, Creating loadable modules]]
-==== Creating loadable modules
+
+Creating loadable modules
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You must first compile your C code and create one or more loadable object modules. These object modules may then be loaded into Larceny, and Scheme foreign functions may link to specific functions in the loaded module. Defining foreign functions in Scheme is covered in a later section. 
 
 The method for creating a loadable object module varies from platform to platform. In the following, assume you have to C source files file1.c and file2.c that define functions that you want to make available as foreign functions in Larceny. 
 
-===== SunOS 4
+==== SunOS 4
 
 Compile your source files and create a shared library. Using GCC, the command line might look like this: 
     
@@ -486,7 +643,7 @@ The command creates my-library.so in the current directory. This library can now
 
 By default, /lib/libc.so is made available to the dynamic linker and to the foreign function interface, so there is no need for you to load that library explicitly. 
 
-===== SunOS 5
+==== SunOS 5
 
 Compile your source files and create a shared library, linking with all the necessary libraries. Using GCC, the command line might look like this: 
     
@@ -499,15 +656,20 @@ Now you can use foreign-file to load my-library.so into Larceny.
 By default, /lib/libc.so is made available to the foreign function interface, so there is no need for you to load that library explicitly. 
 
 [[FfiInterface, Loading and linking foreign functions]]
-==== The Interface
 
-===== Procedures
+The Interface
+~~~~~~~~~~~~~
+
+==== Procedures
 
 proc:foreign-file[args="filename",result="unspecified"]
 
-<<foreign-file>> loads the named object file into Larceny and makes it available for dynamic linking. 
+`foreign-file` loads the named object file into Larceny and
+makes it available for dynamic linking. 
 
-Larceny uses the operating system provided dynamic linker to do dynamic linking. The operation of the dynamic linker varies from platform to platform: 
+Larceny uses the operating system provided dynamic linker to
+do dynamic linking. The operation of the dynamic linker varies
+from platform to platform: 
 
   * On some versions of SunOS 4, if the linker is given a file that does not exist, it will terminate the process. (Most likely this is a bug.) This means you should never call foreign-file with the name of a file that does not exist. 
   * On SunOS 5, if a foreign file is given to foreign-file without a directory specification, then the dynamic linker will search its load path (the `LD_LIBRARY_PATH` environment variable) for the file. Hence, a foreign file in the current directory should be "./file.so", not "file.so". 
@@ -539,9 +701,11 @@ proc:foreign-null-pointer?[args="integer",result="boolean"]
 Tests whether its argument is a foreign null pointer. 
 
 [[FfiAccess, Foreign data access]]
-==== Foreign Data Access
 
-===== Raw memory access
+Foreign Data Access
+~~~~~~~~~~~~~~~~~~~
+
+==== Raw memory access
 
 The two primitives _peek-bytes_ and _poke-bytes_ are provided for reading and writing memory at specific addresses. These procedures are typically used for copying data from foreign data structures into Scheme bytevectors for subsequent decoding. 
 
@@ -561,7 +725,7 @@ If any address in the range is not an address accessible to the process, unpredi
 
 Also, it's possible to corrupt memory with _poke-bytes_. Don't do that. 
 
-===== Foreign data sizes
+==== Foreign data sizes
 
 The following variables constants define the sizes of basic C data types: 
 
@@ -570,7 +734,7 @@ The following variables constants define the sizes of basic C data types:
   * **sizeof:long** The size of a "long int". 
   * **sizeof:pointer** The size of any pointer type. 
 
-===== Decoding foreign data
+==== Decoding foreign data
 
 Foreign data is visible to a Scheme program either as an object pointed to by a memory address (which is itself represented as an integer), or as a bytevector that contains the bytes of the foreign datum. 
 
@@ -651,7 +815,9 @@ proctempl:%poke-pointer[args="addr val",result="unspecified"]
 These procedures update raw memory. In each case, _addr_ is an address, and _val_ is a value to be stored at that address. 
 
 [[FfiDumping, Heap dumping and the FFI]]
-==== Heap dumping and the FFI
+
+Heap dumping and the FFI
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 If foreign functions are linked into Larceny using the FFI, and a
 Larceny heap image is subsequently dumped (with
@@ -666,9 +832,11 @@ During the relinking phase, foreign files will again be loaded into Larceny, and
 An error during relinking will result in Larceny aborting with an error message and returning to the operating system. This is considered a feature. 
 
 [[FfiExamples, Examples]]
-==== Examples
 
-===== Change directory
+Examples
+~~~~~~~~
+
+==== Change directory
 
 This procedure uses the chdir() system call to set the process's current working directory. The string parameter type is used to pass a Scheme string to the C procedure. 
     
@@ -681,7 +849,7 @@ This procedure uses the chdir() system call to set the process's current working
           (unspecified))))
     
 
-===== Print Working Directory
+==== Print Working Directory
 
 This procedure uses the getcwd() (get current working directory) system call to retrieve the name of the process's current working directory. A bytevector is created and passed in as a buffer in which to store the return value -- a 0-terminated ASCII string. Then the FFI utility function ffi/asciiz->string is called to convert the bytevector to a string. 
     
@@ -693,7 +861,7 @@ This procedure uses the getcwd() (get current working directory) system call to 
     	(getcwd s 1024)
     	(ffi/asciiz->string s)))))
     
-===== Quicksort
+==== Quicksort
 
 WARNING: this example is bogus.  It is not safe to pass a collectable
 object into a C procedure when the callback invocation might cause a
@@ -724,11 +892,12 @@ It is specified in the type signature using -> as a type constructor.
                   (- x y)))) 
       bv)
 
-===== Other examples
+==== Other examples
 
 The Experimental directory contains several examples of use of the FFI. See in particular the files unix.sch (Unix system calls) and socket.sch (procedures for communicating over sockets). 
 
-==== Higher level layers
+Higher level layers
+~~~~~~~~~~~~~~~~~~~
 
 The general foreign-function interface functionality described above
 is powerful but awkward to use in practice.  A user might be tempted
@@ -742,7 +911,7 @@ information to the FFI.
 This section documents a collection of libraries to mitigate these and
 other problems.
 
-===== foreign-ctools
+==== foreign-ctools
 
 Foreign data access is performed by peeking at manually calculated
 addresses, but in practice one often needs to inspect fields of C
@@ -847,7 +1016,7 @@ The remaining clauses provide similar functionality:
  binds _x_ to the value of +_cn_+ if +_cn_+ is defined; 
  _x_ is otherwise bound to Larceny's unspecified value.
 
-===== foreign-sugar
+==== foreign-sugar
 
 The <<foreign-procedure>> function is sufficient to link in
 dynamically loaded C procedures, but it can be annoying to 
@@ -875,7 +1044,7 @@ introduce new rules for inferring C function names, but they are
 undocumented because they will probably have to change when we switch
 to an R6RS macro expander.
 
-===== foreign-stdlib
+==== foreign-stdlib
 
 proc:stdlib/malloc[args="rtd",optarg="ctor",result="procedure"]
 
@@ -935,7 +1104,7 @@ proc:CallWithDoubleStar[var="call-with-double*",args="num-vector function",resul
 FIXME: (There are other functions, but I want to test and document the
 ones above first...)
 
-===== foreign-cstructs
+==== foreign-cstructs
 
 The +foreign-cstructs+ library provides a 
 more direct interface to C structures.
@@ -968,7 +1137,7 @@ The grammar for the +define-c-struct+ form is presented below.
 <struct-type> ::= <string-literal>
 .....................................................................
 
-===== foreign-cenums
+==== foreign-cenums
 
 This library provides the special forms
  ++define-c-enum++ and ++define-c-enum-set++,

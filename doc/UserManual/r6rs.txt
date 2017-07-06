@@ -1,6 +1,6 @@
 [[R6rsChapter]]
 
-R6RS standard libraries
+R6RS Standard Libraries
 -----------------------
 
 This chapter explains which features of the R6RS standard
@@ -87,7 +87,7 @@ Unicode
 All of Larceny's modes support all features of the `(rnrs unicode)`
 library.
 
-Larceny v0.99 conforms to
+Larceny v1.3 conforms to
 <<Standards, The Unicode Standard>>, Version 7.0.
 
 

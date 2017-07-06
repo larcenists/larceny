@@ -6,7 +6,7 @@ Running Larceny
 For a summary of Larceny's command-line options, ask for help:
 
 ----------------------------------------------------------------
-    % larceny -help
+    % larceny --help
 ----------------------------------------------------------------
 
 
@@ -18,12 +18,13 @@ Larceny can run in any of these distinct modes:
     Scheme script     batch execution of R7RS/R6RS Scheme scripts
 
 <<R7rsSection,R7RS mode>>
-will accept any combination of R7RS and R6RS libraries
-and programs.
+will run R7RS and R6RS programs,
+and allows any combination of R7RS and R6RS libraries
+to be imported.
 
 <<R6rsSection,R6RS mode>>
 is largely redundant with Larceny's R7RS mode, because
-every reasonable R6RS library and program could just as well be
+every reasonable R6RS program could just as well be
 executed in R7RS mode.  There is only one difference between
 those two modes: R6RS mode enforces many R6RS mandates that,
 among other things, forbid read/eval/print loops and most
@@ -119,7 +120,7 @@ option and then importing the `(larceny r7r6)` library.
 Two name conflicts could not be resolved by adding R7RS extensions
 to the conflicting R6RS procedure or syntax.  When the `-r7r6`
 option is used, the `bytevector-copy!` and `remove` procedures are
-imported with R7RS semantics, and the older R6RS versions of those
+imported with R7RS semantics, and the R6RS versions of those
 procedures are renamed to `r6rs:bytevector-copy!` and
 `r6rs:remove`.
 ================================================================

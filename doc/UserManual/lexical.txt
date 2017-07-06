@@ -48,13 +48,13 @@ the port using the +read+ or +get-datum+ procedures:
     #!no-fold-case
 ----------------------------------------------------------------
 
-The +\#!fold-case+ flag enables case-folding on data read from
-the port by the +read+ and +get-datum+ procedures, while the
-+\#!no-fold-case+ flag disables case-folding.  The behavior
+The +#!fold-case+ flag enables case-folding on data read from
+the port by the +read+ and +get-datum+ procedures, while
+the +#!no-fold-case+ flag disables case-folding.  The behavior
 established by one of these flags extends to the next such flag
 read from the port by +read+ or +get-datum+.
 
-Both +\#!fold-case+ and +\#!no-fold-case+ are treated as comments
+Both +#!fold-case+ and +#!no-fold-case+ are treated as comments
 by Larceny's `read` and `get-datum` procedures.  (This is a change
 from Larceny v0.97.)
 
@@ -106,9 +106,9 @@ When given an argument, these procedures change the default
 as specified by the argument.
 
 The initial values of these parameters are determined by the
-`-r7r6`, `-r7rs`, `-r6rs`, or `-r5rs` options on Larceny's
-command line.  The `-r6rs` option disables non-R6RS lexical
-syntax; the `-r7r6`, `-r7rs`, and `-r5rs` options allow both
+`-r7r6`, `-r7`, `-r6`, or `-r5` options on Larceny's
+command line.  The `-r6` option disables non-R6RS lexical
+syntax; the `-r7`, `-r7`, and `-r5` options allow both
 R7RS and R6RS syntax.
 
 proc:case-sensitive?[args="",result="boolean"]

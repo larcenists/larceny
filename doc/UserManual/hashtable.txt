@@ -7,9 +7,30 @@ with a key may be looked up in constant time (on the average).
 
 [NOTE]
 ================================================================
-R6RS hashtables are a big improvement
-over Larceny's traditional hash tables, and should be used
-instead of the API described below.
+Although R7RS Red Edition now includes a `(scheme hash-table)`
+library, that library deprecates several of the procedures it
+exports, and the efficiency of its `eq?` and `eqv?` hash tables
+depends upon a fragile, implementation-dependent hack.
+
+We recommend programmers use `(srfi 126)` instead of
+`(scheme hash-table)`.
+
+Larceny supports the following hash table libraries, which are
+listed in decreasing order of quality:
+
+- `(srfi 126)`
+- `(rnrs hashtables)`
+- `(scheme hash-table)`
+- `(srfi 125)`
+- Larceny's old-style hashtables, described below.
+- `(srfi 69)`
+
+In Larceny, hash tables created by those libraries are largely
+interchangeable, but that is unlikely to be true in other
+implementations of Scheme.  Even in Larceny, hash tables created
+using the `(srfi 126)` and `(rnrs hashtables)` libraries may be
+substantially more efficient than some of the hash tables created
+by seemingly analogous mechanisms in the other libraries.
 ================================================================
 
 [NOTE]
@@ -19,6 +40,14 @@ R6RS `make-hashtable` procedure, Larceny's traditional
 `make-hashtable` procedure has been renamed to
 `make-oldstyle-hashtable`.
 ================================================================
+
+[WARNING]
+================================================================
+The API described below is deprecated.  R6RS-style hashtables
+are available even in Larceny's R5RS mode, and should be used
+instead of the procedures described below.
+================================================================
+
 
 ==== Hash tables
 

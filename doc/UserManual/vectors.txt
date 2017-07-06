@@ -1,6 +1,13 @@
 Vectors
 ~~~~~~~
 
+The `(scheme vector)` library now
+provides a set of procedures that may supersede some
+of the procedures described below.
+If one of Larceny's procedures duplicates the semantics of
+an R7RS procedure whose name is different, then Larceny's
+name is deprecated.
+
 proc:vector-copy[args="vector",result="vector"]
 
 Returns a shallow copy of its argument. 

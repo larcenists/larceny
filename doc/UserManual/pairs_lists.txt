@@ -1,11 +1,11 @@
 Pairs and Lists
 ~~~~~~~~~~~~~~~
 
-The `(rnrs lists)` library now
-provides a set of procedures that may supersede some
+The `(scheme list)` and `(rnrs lists)` libraries now
+provide a set of procedures that may supersede some
 of the procedures described below.
 If one of Larceny's procedures duplicates the semantics of
-an R6RS procedure whose name is different, then Larceny's
+an R7RS or R6RS procedure whose name is different, then Larceny's
 name is deprecated.
 
 proc:append![args="list1 list2 ... obj",result="object"]

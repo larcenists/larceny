@@ -1,6 +1,6 @@
 [[Err5rsChapter]]
 
-ERR5RS standard libraries
+ERR5RS Standard Libraries
 -------------------------
 
 <<Standards,ERR5RS>> has been superseded by the R7RS, so the

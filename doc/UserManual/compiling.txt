@@ -1,6 +1,6 @@
 [[CompilingChapter]]
 
-Compiling files and libraries
+Compiling Files and Libraries
 -----------------------------
 
 This chapter explains how you can use Larceny to compile
@@ -36,7 +36,36 @@ for staleness and refuses to execute a stale library
 or program.
 
 
-[[CompilingErr5rsSection]]
+[[CompilingToExecutable]]
+
+Compiling an R7RS/R6RS programs into directly executable form
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On Unix machines, the `compile-larceny` script can be used to
+compile an R7RS/R6RS program named `pgm.sps` or `pgm.scm` into
+an executable file named `pgm`:
+----------------------------------------------------------------
+    % compile-larceny pgm.sps
+----------------------------------------------------------------
+The `compile-larceny` script satisfies the
+http://srfi.schemers.org/srfi-138[SRFI 138] specification
+of `compile-r7rs` scripts, so it accepts Larceny's `-I`, `-A`,
+and `-D` options, and also recognizes an option of the form
+`-o pgm`, which can be used to specify a name other than `pgm`
+for the executable file.
+
+The executable `pgm` file will be a shell script that calls `larceny`
+on a `pgm.slfasl` file produced by `compile-larceny`, passing the
+same `-I`, `-A`, and `-D` options that had been passed to
+`compile-larceny`.
+
+[WARNING]
+================================================================
+If any libraries used by the program are changed, touched, or
+moved, the program will need to be re-compiled.
+================================================================
+
+
 [[CompilingR7rsSection]]
 
 Compiling R7RS/R6RS libraries
@@ -97,7 +126,7 @@ by replacing the "`.sch`" or "`.scm`" suffix with
 "`.fasl`".
 
 For R7RS/R6RS libraries and top-level programs,
-<<CompilingErr5rsSection,see above>>.
+<<CompilingR7rsSection,see above>>.
 
 
 [[LoadingR5intoR7Section]]

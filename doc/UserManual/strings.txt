@@ -2,6 +2,8 @@ Strings
 ~~~~~~~
 
 Larceny provides Unicode strings with
+http://www.scheme-reports.org/[R7RS]
+and
 http://www.r6rs.org/[R6RS]
 semantics.
 
