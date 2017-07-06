@@ -222,7 +222,7 @@ conventions as described in
 <<LibraryTranslationSection,the next section>>.
 
 4.  R7RS/R6RS top-level programs may use
-<<R7rsLibraryVariableSection,Larceny's `LARCENY_LIBPATH` environment variable>>
+<<R7rsLibraryPathSection,Larceny's `LARCENY_LIBPATH` environment variable>>
 to specify directories that contain other libraries
 the program may import, provided those libraries are
 located in files that follow Larceny's standard naming

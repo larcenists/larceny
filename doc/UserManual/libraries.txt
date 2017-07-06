@@ -21,7 +21,6 @@ all of the R7RS Red Edition and R6RS standard libraries, including
 those deprecated by Larceny.
 
 
-[[Err5rsAutomaticLoadingSection]]
 [[R7rsAutomaticLoadingSection]]
 
 Automatic loading
@@ -41,7 +40,7 @@ To enable autoloading of other R7RS/R6RS libraries,
 including libraries you've written yourself, you can:
 
 - use the <<R7rsLibraryPathSection,`-I` or `-A` command-line options>>
-- use the <<R7rsLibraryVariableSection,`LARCENY_LIBPATH`>> environment variable
+- use the <<R7rsLibraryPathSection,`LARCENY_LIBPATH`>> environment variable
 - use <<current-require-path,`current-require-path`>>
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
@@ -51,7 +50,6 @@ FIXME: the link to R7rsLibraryPathSection doesn't work.
 ////////////////////////////////////////////////////////////////
 
 
-[[Err5rsDynamicLoadingSection]]
 [[R7rsDynamicLoadingSection]]
 
 Explicit loading
@@ -340,7 +338,6 @@ Other autoloadable libraries:
 
 
 [[R7rsLibraryPathSection]]
-[[R7rsLibraryVariableSection]]
 
 Library path
 ~~~~~~~~~~~~
