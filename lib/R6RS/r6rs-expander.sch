@@ -904,6 +904,7 @@
 
     ;; Only expands while t is a user macro invocation.
     ;; Used by expand-lambda to detect internal definitions.
+    ;; Also used by scan-sequence.
 
     (define (head-expand t)
       (fluid-let ((*trace* (cons t *trace*)))
@@ -1650,6 +1651,8 @@
                  (write (list body-type type))
                  (newline)))
       (and (not (eq? body-type 'toplevel))
+           (not (and (eq? body-type 'program)                          ; [R7RS]
+                     (eq? (larceny:execution-mode) 'r6rs)))            ; [R7RS]
            (not (eq? body-type 'define-library))                       ; [R7RS]
            (memq type '(import program library
                         define-library))                               ; [R7RS]
@@ -2094,15 +2097,18 @@
                              (*current-library*  name)
                              (*syntax-reflected* #f))       ; +++ space
 
+                   (if (or (eq? library-type 'define-library)          ; [R7RS]
+                           (and (not (eq? (larceny:execution-mode)     ; [R7RS]
+                                          'r6rs))                      ; [R7RS]
+                                (eq? library-type 'program)))          ; [R7RS]
+                       (env-import! keyword                            ; [R7RS]
+                                    (make-r7rs-library-language)       ; [R7RS]
+                                    *usage-env*))                      ; [R7RS]
+                   (env-import! keyword imports *usage-env*)
                    (import-libraries-for-expand
                     imported-libraries
                     (map not imported-libraries)
                     0)
-                   (if (eq? library-type 'define-library)              ; [R7RS]
-                       (env-import! keyword
-                                    (make-r7rs-library-language)
-                                    *usage-env*))
-                   (env-import! keyword imports *usage-env*)
 
                    (let ((initial-env-table *env-table*))   ; +++ space
                      (scan-sequence
