@@ -1645,15 +1645,12 @@
                              form)))             ; end of new code for ; [R7RS]
 
     (define (check-toplevel body-type type form)
-#;
-      (if (memq 'define-library (list body-type type))                  ; FIXME
-          (begin (display "check-toplevel: ")
-                 (write (list body-type type))
-                 (newline)))
       (and (not (eq? body-type 'toplevel))
-           (not (and (eq? body-type 'program)                          ; [R7RS]
-                     (eq? (larceny:execution-mode) 'r6rs)))            ; [R7RS]
-           (not (eq? body-type 'define-library))                       ; [R7RS]
+           (not (and (eq? type 'import)                                ; [R7RS]
+                     (or (and (eq? body-type 'program)                 ; [R7RS]
+                              (not (eq? (larceny:execution-mode)       ; [R7RS]
+                                        'r6rs)))                       ; [R7RS]
+                         (eq? body-type 'define-library))))            ; [R7RS]
            (memq type '(import program library
                         define-library))                               ; [R7RS]
            (syntax-violation type
