@@ -38,25 +38,21 @@ those procedures appears to contradict itself.
 If any other R7RS feature is missing or incompatible with
 the R7RS (small) standard, it's a bug.
 
-As of Larceny v1.3, the known bugs include:
+As of Larceny v1.3, the known deviations are:
 
-- `include` and `include-ci` at expression level
+- `include` and `include-ci` do not work at expression level.
+(`include` and `include-ci` are fully supported at the
+top-level declaration and definition levels of R7RS libraries,
+but not at expression level.)
 
-`include` and `include-ci` are fully supported
-at the top-level declaration and definition levels of R7RS
-libraries, but do not work at expression level.
-
-- libraries named `(primitives x ...)` cannot be imported
-
-Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
+- Libraries with names of the form `(primitives x ...)` cannot be imported.
+(Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
 as a keyword for importing identifiers from the R5RS global
-environment, so libraries whose names are of the form
-`(primitives x ...)` cannot be imported.
+environment.)
 
-- ellipses not shadowed properly
-
-Larceny v1.3 continues to give ellipses their usual meaning
+- Ellipses are not shadowed properly.
+(Larceny v1.3 continues to give ellipses their usual meaning
 in macro definitions whose context should have given ellipses
-a different meaning
-(https://github.com/larcenists/larceny/issues/780[ticket #780]).
+a different meaning:
+https://github.com/larcenists/larceny/issues/780[ticket #780].)
 
