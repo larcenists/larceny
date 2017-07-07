@@ -109,7 +109,7 @@ to something shorter, such as `larceny`; the rest of this
 section will refer to it by that name.
 
 Assuming you have unpacked a binary distribution for Linux or
-OS X, the `larceny` directory will contain the following files:
+macOS, the `larceny` directory will contain the following files:
     
     
         larceny.bin         Run-time system

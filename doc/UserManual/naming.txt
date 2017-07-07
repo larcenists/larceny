@@ -254,29 +254,29 @@ Mapping library names to files (R7RS/R6RS)
 Suppose Larceny's `-I` option is used to specify
 a certain _directory_, and the program imports a
 nonstandard library whose name is of the form
-`(_name1_ _name2_ ... _lastname_)`.
++(_name1_ _name2_ ... _lastname_)+.
 Larceny will search for that library in the following
 files:
 
-- `_directory_/_name1_/_name2_/.../_lastname_.larceny.slfasl`
-- `_directory_/_name1_/_name2_/.../_lastname_.larceny.sld`
-- `_directory_/_name1_/_name2_/.../_lastname_.larceny.sls`
-- `_directory_/_name1_/_name2_/.../_lastname_.slfasl`
-- `_directory_/_name1_/_name2_/.../_lastname_.sld`
-- `_directory_/_name1_/_name2_/.../_lastname_.sls`
+- +_directory_/_name1_/_name2_/.../_lastname_.larceny.slfasl+
+- +_directory_/_name1_/_name2_/.../_lastname_.larceny.sld+
+- +_directory_/_name1_/_name2_/.../_lastname_.larceny.sls+
+- +_directory_/_name1_/_name2_/.../_lastname_.slfasl+
+- +_directory_/_name1_/_name2_/.../_lastname_.sld+
+- +_directory_/_name1_/_name2_/.../_lastname_.sls+
 - ...
-- `_directory_/_name1_/_name2_.larceny.slfasl`
-- `_directory_/_name1_/_name2_.larceny.sld`
-- `_directory_/_name1_/_name2_.larceny.sls`
-- `_directory_/_name1_/_name2_.slfasl`
-- `_directory_/_name1_/_name2_.sld`
-- `_directory_/_name1_/_name2_.sls`
-- `_directory_/_name1_.larceny.slfasl`
-- `_directory_/_name1_.larceny.sld`
-- `_directory_/_name1_.larceny.sls`
-- `_directory_/_name1_.slfasl`
-- `_directory_/_name1_.sld`
-- `_directory_/_name1_.sls`
+- +_directory_/_name1_/_name2_.larceny.slfasl+
+- +_directory_/_name1_/_name2_.larceny.sld+
+- +_directory_/_name1_/_name2_.larceny.sls+
+- +_directory_/_name1_/_name2_.slfasl+
+- +_directory_/_name1_/_name2_.sld+
+- +_directory_/_name1_/_name2_.sls+
+- +_directory_/_name1_.larceny.slfasl+
+- +_directory_/_name1_.larceny.sld+
+- +_directory_/_name1_.larceny.sls+
+- +_directory_/_name1_.slfasl+
+- +_directory_/_name1_.sld+
+- +_directory_/_name1_.sls+
 
 The search starts with the first of those file names,
 continues with the following file names in order,
@@ -332,9 +332,9 @@ files in every directory that is part of the current
 require path, starting with the directories specified
 by LARCENY_LIBPATH and the `-I` and `-A` options:
 
-- `_libname_.fasl`
-- `_libname_.sch`
-- `_libname_.scm`
+- +_libname_.fasl+
+- +_libname_.sch+
+- +_libname_.scm+
 
 These files are expected to contain R5RS code, not
 library definitions.  Otherwise the search proceeds

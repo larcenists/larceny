@@ -46,7 +46,7 @@ can call the C function `jn` as shown:
 (newline)
 ----------------------------------------------------------------
 
-An R7RS program can call the C function gettimeofday as shown:
+An R7RS program can call the C function `gettimeofday` as shown:
 
 ----------------------------------------------------------------
 (import (scheme base)
@@ -510,10 +510,10 @@ marshaling protocols
 .Arrow Type Constructors
 
 A structured FFI attribute
-of the form +(-> (_s_1_ ... _s_n_) _s_r_)+ 
+of the form +(-> (_s~1~_ ... _s~n~_) _s~r~_)+ 
 (called an _arrow type_)
 allows passing functions from Scheme to C
-and back again.  Each of the _s_1_, ..., _s_n_, _s_r_ 
+and back again.  Each of the _s~1~_, ..., _s~n~_, _s~r~_ 
 is an FFI attribute.
 When an arrow type describes an input to a foreign
 function, it marshals a Scheme procedure to a 

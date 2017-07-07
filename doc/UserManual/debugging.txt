@@ -45,7 +45,7 @@ activation record, and the result, if not unspecified, is printed.
 **I _n_**      Inspect the procedure in slot _n_ of the current
 activation record.
 
-**I @_**      Inspect the active procedure.
+**I @**      Inspect the active procedure.
 
 **Q**      Quit the debugger and abort the computation.
 
@@ -76,7 +76,9 @@ proc:unbreak[args="procedure ..."]
 
 proctempl:unbreak[args=""]
 
-In the first form, remove any breakpoint set by break-entry at the start of the _procedure_s. In the second form, remove all breakpoints set by _break-entry_.
+In the first form, remove any breakpoint set by break-entry
+at the start of the procedures.
+In the second form, remove all breakpoints set by _break-entry_.
 
 === Tracing
 

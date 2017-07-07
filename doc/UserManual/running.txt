@@ -125,6 +125,27 @@ procedures are renamed to `r6rs:bytevector-copy!` and
 `r6rs:remove`.
 ================================================================
 
+[NOTE]
+================================================================
+R7RS programs must import all libraries explicitly.  The `-r7` and
+`-r7r6` options are therefore equivalent when a program is named
+on the command line.  As stated in R7RS section 5.7, the implicit
+import of `(scheme base)` is for convenience and ease of use in a
+REPL, but R7RS programs do not have exactly the same semantics as
+an R7RS REPL.
+================================================================
+
+[WARNING]
+================================================================
+R7RS programs may contain multiple `import` declarations, but all
+of a program's `import` declarations must precede all of the
+program's commands and definitions.  Larceny no longer enforces
+that syntactic restriction, but Larceny does scan the entire
+program for `import` declarations and invokes the executable code
+of all imported libraries before the program itself executes its
+first command or definition.
+================================================================
+
 The `features` procedure will return a list of all `cond-expand`
 features, including the names of
 <<R7rsPreDefinedSection,libraries currently available>>

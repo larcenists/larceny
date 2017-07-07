@@ -40,11 +40,6 @@ the R7RS (small) standard, it's a bug.
 
 As of Larceny v1.3, the known deviations are:
 
-- `include` and `include-ci` do not work at expression level.
-(`include` and `include-ci` are fully supported at the
-top-level declaration and definition levels of R7RS libraries,
-but not at expression level.)
-
 - Libraries with names of the form `(primitives x ...)` cannot be imported.
 (Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
 as a keyword for importing identifiers from the R5RS global

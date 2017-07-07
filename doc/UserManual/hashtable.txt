@@ -61,16 +61,16 @@ non-negative exact integer.
 
 proctempl:make-oldstyle-hashtable[args="hash-function bucket-searcher",result="hashtable"]
 
-Equivalent to `(make-oldstyle-hashtable _hash-function bucket-searcher n_)` for
+Equivalent to +(make-oldstyle-hashtable _hash-function bucket-searcher n_)+ for
 some value of _n_ chosen by the implementation.
 
 proctempl:make-oldstyle-hashtable[args="hash-function",result="hashtable"]
 
-Equivalent to `(make-oldstyle-hashtable _hash-function_ assv)`.
+Equivalent to +(make-oldstyle-hashtable _hash-function_ assv)+.
 
 proctempl:make-oldstyle-hashtable[args="",result="hashtable"]
 
-Equivalent to `(make-oldstyle-hashtable object-hash assv)`.
+Equivalent to +(make-oldstyle-hashtable object-hash assv)+.
 
 proc:hashtable-contains?[args="hashtable key",result="bool"]
 
@@ -83,7 +83,7 @@ _hashtable_ contains _key_; otherwise returns _flag_.
 
 proc:hashtable-get[args="hashtable key",result="object"]
 
-Equivalent to `(hashtable-fetch  #f)`.
+Equivalent to +(hashtable-fetch  #f)+.
 
 proc:hashtable-put![args="hashtable key value",result="unspecified"]
 
