@@ -176,14 +176,14 @@
         (else
          (fl:check-args! 'fl+* (list x y z)))))
 
-(define (flfirst-bessel x n)
+(define (flfirst-bessel n x)
   (cond ((and (fixnum? n) (flonum? x))
          (flonum:jn n x))
         (else
 	 (fx:check! 'flfirst-bessel n)
 	 (fl:check! 'flfirst-bessel x))))
 
-(define (flsecond-bessel x n)
+(define (flsecond-bessel n x)
   (cond ((and (fixnum? n) (flonum? x))
          (flonum:yn n x))
         (else

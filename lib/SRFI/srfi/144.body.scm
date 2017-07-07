@@ -94,13 +94,24 @@
   (flop2 'fladjacent
          (lambda (x y)
            (define (loop y)
-             (let ((y2 (fl/ (fl+ x y) 2.0)))
+             (let* ((y3 (fl+ (fl* 0.999755859375 x) (fl* 0.000244140625 y))))
+               (cond ((fl<? x y3 y)
+                      (loop y3))
+                     ((fl<? y y3 x)
+                      (loop y3))
+                     (else
+                      (loop2 y)))))
+           (define (loop2 y)
+             (let* ((y2 (fl/ (fl+ x y) 2.0))
+                    (y2 (if (flinfinite? y2)
+                            (fl+ (fl* 0.5 x) (fl* 0.5 y))
+                            y2)))
                (cond ((fl=? x y2)
                       y)
                      ((fl=? y y2)
                       y)
                      (else
-                      (loop y2)))))
+                      (loop2 y2)))))
            (cond ((flinfinite? x)
                   (cond ((fl<? x y) (fl- fl-greatest))
                         ((fl>? x y) fl-greatest)
@@ -416,7 +427,7 @@
   (if (fl>? base 1.0)
       (flop1 'procedure-created-by-make-fllog-base
              (lambda (x) (log x base)))
-      (error "argument to make-fllog-base must be positive" base)))
+      (error "argument to make-fllog-base must be greater than 1.0" base)))
 
 ;;; Trigonometric functions
 

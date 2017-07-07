@@ -229,16 +229,21 @@
   ;; If the C library is available, use it.
 
   (cond-expand
+
+   ;; Larceny now defines fl+*, flfirst-bessel, and flsecond-bessel
+   ;; at the R5RS level.  See renaming import above.
+
    (larceny
     (begin (define c-functions-are-available #t)
            (define fl-fast-fl+* #f)
-           (define (jn n x) (r5rs:flfirst-bessel x n))    ; arguments in reverse order
-           (define (yn n x) (r5rs:flsecond-bessel x n))))
+           (define (jn n x) (r5rs:flfirst-bessel n x))
+           (define (yn n x) (r5rs:flsecond-bessel n x))))
 
    ((and larceny i386 unix (or gnu-linux darwin))   ; FIXME: no longer used
     (begin (define c-functions-are-available #t)
            (define fl-fast-fl+* #f))
     (include "144.ffi.scm"))
+
    (else
     (begin (define c-functions-are-available #f)
            (define fl-fast-fl+* #f)

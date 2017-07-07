@@ -249,7 +249,7 @@
 ;;; be changed for other precisions.  They are unlikely to be
 ;;; optimal even for double precision.
 
-(define (flfirst-bessel x n)
+(define (flfirst-bessel n x)
   (define (nan-protected y)
     (if (flfinite? y) y 0.0))
   (check-flonum! 'flfirst-bessel x)
@@ -257,11 +257,11 @@
          (jn n x))
 
         ((< n 0)
-         (let ((result (flfirst-bessel x (- n))))
+         (let ((result (flfirst-bessel (- n) x)))
            (if (even? n) result (- result))))
 
         ((< x 0)
-         (let ((result (flfirst-bessel (- x) n)))
+         (let ((result (flfirst-bessel n (- x))))
            (if (even? n) result (- result))))
 
         ((= x +inf.0)
@@ -270,51 +270,51 @@
         (else
          (case n
           ((0)    (cond ((fl<? x 4.5)     ; FIXME
-                         (eqn9.1.10 x n))
+                         (eqn9.1.10 n x))
                         ((fl<? x 93.0)    ; FIXME
-                         (eqn9.1.18 x n))
+                         (eqn9.1.18 n x))
                         (else
-                         (eqn9.2.5 x n))))
+                         (eqn9.2.5 n x))))
           ((1)    (cond ((fl<? x 11.0)    ; FIXME
-                         (eqn9.1.10-fast x n))
+                         (eqn9.1.10-fast n x))
                         ((fl<? x 300.0)   ; FIXME
-                         (eqn9.1.75 x n))
+                         (eqn9.1.75 n x))
                         ((fl<? x 1e12)    ; FIXME
-                         (eqn9.2.5 x n))
+                         (eqn9.2.5 n x))
                         (else
-                         (eqn9.2.1 x n))))
+                         (eqn9.2.1 n x))))
           ((2)    (cond ((fl<? x 10.0)    ; FIXME
-                         (eqn9.1.10-fast x n))
+                         (eqn9.1.10-fast n x))
                         ((fl<? x 1e19)    ; FIXME
-                         (eqn9.1.27-first-bessel x n))
+                         (eqn9.1.27-first-bessel n x))
                         (else
                          ;; FIXME
                          0.0)))
           ((3)    (cond ((fl<? x 10.0)    ; FIXME
-                         (eqn9.1.10-fast x n))
+                         (eqn9.1.10-fast n x))
                         ((fl<? x 1e6)     ; FIXME
-                         (eqn9.1.27-first-bessel x n))
+                         (eqn9.1.27-first-bessel n x))
                         (else
-                         (nan-protected (eqn9.2.5 x n)))))
+                         (nan-protected (eqn9.2.5 n x)))))
           (else   (cond ((fl<? x 12.0)    ; FIXME
-                         (nan-protected (eqn9.1.10-fast x n)))
+                         (nan-protected (eqn9.1.10-fast n x)))
                         ((fl<? x 150.0)   ; FIXME
                          (nan-protected (if (fl>? (inexact n) x)
-                                            (method9.12ex1 x n)
-                                            (eqn9.1.75 x n))))
+                                            (method9.12ex1 n x)
+                                            (eqn9.1.75 n x))))
                         ((fl<? x 1e18)    ; FIXME
-                         (nan-protected (eqn9.1.27-first-bessel x n)))
+                         (nan-protected (eqn9.1.27-first-bessel n x)))
                         (else
                          ;; FIXME
                          0.0)))))))
 
-(define (flsecond-bessel x n)
+(define (flsecond-bessel n x)
   (check-flonum! 'flsecond-bessel x)
   (cond (c-functions-are-available
          (yn n x))
 
         ((< n 0)
-         (let ((result (flsecond-bessel x (- n))))
+         (let ((result (flsecond-bessel (- n) x)))
            (if (even? n) result (- result))))
 
         ((fl<? x 0.0)
@@ -329,16 +329,16 @@
         (else
          (case n
           ((0)    (cond ((fl<? x 14.5)        ; FIXME
-                         (eqn9.1.13 x 0))
+                         (eqn9.1.13 0 x))
                         (else
-                         (eqn9.2.6 x 0))))
+                         (eqn9.2.6 0 x))))
           ((1)    (cond ((fl<? x 1e12)        ; FIXME
-                         (eqn9.1.16 x n))
+                         (eqn9.1.16 n x))
                         (else
-                         (eqn9.2.6 x n))))
+                         (eqn9.2.6 n x))))
           ((2 3)  (cond (else
-                         (eqn9.1.27-second-bessel x n))))
-          (else   (let ((ynx (eqn9.1.27-second-bessel x n)))
+                         (eqn9.1.27-second-bessel n x))))
+          (else   (let ((ynx (eqn9.1.27-second-bessel n x)))
                     (if (flnan? ynx)
                         -inf.0
                         ynx)))))))
@@ -373,7 +373,7 @@
 ;;; It should become more accurate for larger n but less accurate for
 ;;; larger x.  Should be okay if n > x.
 
-(define (eqn9.1.10 x n)
+(define (eqn9.1.10 n x)
   (fl* (inexact (expt (* 0.5 x) n))
        (polynomial-at (flsquare x)
                       (cond ((= n 0)
@@ -401,7 +401,7 @@
 ;;; This is faster than using exact arithmetic to compute coefficients
 ;;; at call time, and it seems to be about as accurate.
 
-(define (eqn9.1.10-fast x n)
+(define (eqn9.1.10-fast n x)
   (let* ((y (fl* 0.5 x))
          (y2 (fl- (fl* y y)))
          (bound (+ 25.0 (inexact n))))
@@ -436,12 +436,12 @@
 ;;;                          + (1 + 1/2 + 1/3) (x^2/4)^3 / (3!)^2
 ;;;                          - ...)
 
-(define (eqn9.1.13 x n)
+(define (eqn9.1.13 n x)
   (if (not (= n 0)) (error "eqn9.1.13 requires n=0"))
   (fl* 2.0
        fl-1/pi
        (fl+ (fl* (fl+ (fllog (fl/ x 2.0)) fl-euler)
-                 (flfirst-bessel x 0))
+                 (flfirst-bessel 0 x))
             (polynomial-at (fl* 0.25 x x)
                            eqn9.1.13-coefficients))))
 
@@ -463,22 +463,22 @@
 ;;; so
 ;;;     Y_{n+1}(x) = (J_{n+1}(x) Y_n(x) - (2 / (pi x))) / J_n(x)
 
-(define (eqn9.1.16 x n+1)
+(define (eqn9.1.16 n+1 x)
   (if (= 0 n+1)
-      (flsecond-bessel x 0)
+      (flsecond-bessel 0 x)
       (let ((n (- n+1 1)))
-        (fl/ (fl- (fl* (flfirst-bessel x n+1) (flsecond-bessel x n))
+        (fl/ (fl- (fl* (flfirst-bessel n+1 x) (flsecond-bessel n x))
                   (fl/ 2.0 (fl* fl-pi x)))
-             (flfirst-bessel x n)))))
+             (flfirst-bessel n x)))))
 
 ;;; Equation 9.1.18 :
 ;;;
 ;;;     J_0(x) = (1 / \pi) \int_0^\pi cos (x sin \theta) d\theta
 ;;;            = (1 / \pi) \int_0^\pi cos (x cos \theta) d\theta
 
-(define (eqn9.1.18 x n)
+(define (eqn9.1.18 n x)
   (if (> n 0)
-      (flfirst-bessel x n)
+      (flfirst-bessel n x)
       (fl* fl-1/pi
            (definite-integral 0.0
                               fl-pi
@@ -503,13 +503,13 @@
 ;;; This has too much roundoff error if n > x or if x and n have
 ;;; the same magnitude.
 
-(define (eqn9.1.27-first-bessel x n)
-  (eqn9.1.27 flfirst-bessel x n))
+(define (eqn9.1.27-first-bessel n x)
+  (eqn9.1.27 flfirst-bessel n x))
 
-(define (eqn9.1.27-second-bessel x n)
-  (eqn9.1.27 flsecond-bessel x n))
+(define (eqn9.1.27-second-bessel n x)
+  (eqn9.1.27 flsecond-bessel n x))
 
-(define (eqn9.1.27 f x n0)
+(define (eqn9.1.27 f n0 x)
   (define (loop n jn jn-1)
     (cond ((= n n0)
            jn)
@@ -519,8 +519,8 @@
                       jn-1)
                  jn))))
   (if (<= n0 1)
-      (f x n0)
-      (loop 1 (f x 1) (f x 0))))
+      (f n0 x)
+      (loop 1 (f 1 x) (f 0 x))))
 
 ;;; For x < n, Abramowitz and Stegun 9.12 Example 1 suggests this method:
 ;;;
@@ -532,7 +532,7 @@
 ;;;
 ;;;             1 = J_0(x) + 2 J_2(x) + 2 J_4(x) + 2 J_6(x) + ...
 
-(define (method9.12ex1 x n0)
+(define (method9.12ex1 n0 x)
   (define (loop n jn jn+1 jn0 sumEvens)
     (if (= n 0)
         (fl/ jn0 (+ jn sumEvens sumEvens))
@@ -555,7 +555,7 @@
 ;;; This works very well provided (flfirst-bessel x 0) is accurate
 ;;; and x is small enough for it to run in reasonable time.
 
-(define (eqn9.1.75 x n)
+(define (eqn9.1.75 n x)
   (define k (max 10 (* 2 (exact (flceiling x)))))
   (define (loop x2 m i)
     (if (> i k)
@@ -567,9 +567,9 @@
            (flpositive? x)
            (fl<? x 1e3))
 ; (if (and (> n 3) (flpositive? x))
-      (fl* (eqn9.1.75 x (- n 1))
+      (fl* (eqn9.1.75 (- n 1) x)
            (loop (fl/ 2.0 x) (inexact n) 0))
-      (flfirst-bessel x n)))
+      (flfirst-bessel n x)))
 
 ;;; Equation 9.1.89 :
 ;;;
@@ -582,10 +582,10 @@
 ;;; FIXME: not used at present, so I've commented it out.
 
 #;
-(define (eqn9.1.89 x n)
+(define (eqn9.1.89 n x)
   (define (sum k)
     (let* ((k2 (+ k k))
-           (j2k (flfirst-bessel x k2))
+           (j2k (flfirst-bessel k2 x))
            (y (if (even? k) j2k (fl- j2k))))
       (if (flzero? y)
           y
@@ -594,7 +594,7 @@
   (fl- (fl* 2.0
             fl-1/pi
             (fl+ (fllog (fl/ x 2.0)) fl-euler)
-            (flfirst-bessel x 0))
+            (flfirst-bessel 0 x))
        (fl* 4.0 fl-1/pi (sum 1))))
             
             
@@ -602,7 +602,7 @@
 ;;; Equation 9.2.1 states an asymptotic approximation that agrees
 ;;; with C99 jn to 6 decimal places for n = 0 and x = 1e6.
 
-(define (eqn9.2.1 x n)
+(define (eqn9.2.1 n x)
   (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
        (flcos (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
 
@@ -611,7 +611,7 @@
 ;;; FIXME: not used at present, so I've commented it out.
 
 #;
-(define (eqn9.2.2 x n)
+(define (eqn9.2.2 n x)
   (fl* (flsqrt (/ 2.0 (fl* fl-pi x)))
        (flsin (fl- x (fl* fl-pi (fl+ (fl* 0.5 (inexact n)) 0.25))))))
 
@@ -625,7 +625,7 @@
 ;;;
 ;;; and P(n, x) and Q(n, x) are defined by equations 9.2.9 and 9.2.10.
 
-(define (eqn9.2.5 x n)
+(define (eqn9.2.5 n x)
   (let ((theta (fl- x (fl* (fl+ (/ n 2.0) 0.25) fl-pi))))
     (fl* (flsqrt (fl/ 2.0 (fl* fl-pi x)))
          (fl- (fl* (eqn9.2.9 n x) (flcos theta))
@@ -641,7 +641,7 @@
 ;;;
 ;;; and P(n, x) and Q(n, x) are defined by equations 9.2.9 and 9.2.10.
 
-(define (eqn9.2.6 x n)
+(define (eqn9.2.6 n x)
   (let ((theta (fl- x (fl* (fl+ (/ n 2.0) 0.25) fl-pi))))
     (fl* (flsqrt (fl/ 2.0 (fl* fl-pi x)))
          (fl+ (fl* (eqn9.2.9 n x) (flsin theta))
@@ -690,9 +690,9 @@
 ;;; approximation is simpler and has better error bounds.
 
 #;
-(define (eqn9.4.3 x n)
+(define (eqn9.4.3 n x)
   (if (> n 0)
-      (flfirst-bessel x n)
+      (flfirst-bessel n x)
       (fl* (fl/ (flsqrt x))                              ; modulus
            (polynomial-at (fl/ 3.0 x)
                           '(+0.79788456
@@ -715,9 +715,9 @@
 ;;; J N Newman's polynomial approximation for x >= 3, from Table 4.
 
 #;
-(define (newman-table4 x n)
+(define (newman-table4 n x)
   (if (> n 0)
-      (flfirst-bessel x n)
+      (flfirst-bessel n x)
       (fl* (fl/ (flsqrt x))
            (polynomial-at (flsquare (fl/ 3.0 x))
                           '(+0.79788454
