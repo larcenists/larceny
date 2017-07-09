@@ -48,13 +48,13 @@ the port using the +read+ or +get-datum+ procedures:
     #!no-fold-case
 ----------------------------------------------------------------
 
-The +#!fold-case+ flag enables case-folding on data read from
+The `#!fold-case` flag enables case-folding on data read from
 the port by the +read+ and +get-datum+ procedures, while
-the +#!no-fold-case+ flag disables case-folding.  The behavior
+the `#!no-fold-case` flag disables case-folding.  The behavior
 established by one of these flags extends to the next such flag
 read from the port by +read+ or +get-datum+.
 
-Both +#!fold-case+ and +#!no-fold-case+ are treated as comments
+Both `#!fold-case` and `#!no-fold-case` are treated as comments
 by Larceny's `read` and `get-datum` procedures.  (This is a change
 from Larceny v0.97.)
 
@@ -157,7 +157,7 @@ proctempl:read-larceny-weirdness?[args="boolean"]
 Determines whether newly created textual ports allow
 Larceny's usual extensions to R5RS lexical syntax.
 In addition, this parameter determines whether newly created
-ports allow +\#+ as an insignificant digit, which is
+ports allow +#+ as an insignificant digit, which is
 required by the R5RS but disallowed by the R6RS and not
 required by the R7RS.
 

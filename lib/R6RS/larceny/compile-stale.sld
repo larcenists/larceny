@@ -7,7 +7,8 @@
           (scheme read)
           (scheme write)
           (scheme file)
-          (rnrs hashtables)
+          (scheme list)
+          (srfi 126)  ; hashtables
           (primitives larceny:available-source-libraries
                       larceny:absolute-path
                       larceny:libname-without-version
@@ -24,6 +25,6 @@
                       require r5rs:require current-require-path
                       compile-r6rs-file compile-stale-libraries))
 
-  (begin (define (debugging?) #t))
+  (begin (define (debugging?) #f))
 
   (include "compile-stale.body.scm"))

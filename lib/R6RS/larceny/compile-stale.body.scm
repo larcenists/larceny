@@ -1,27 +1,39 @@
 ;;; FIXME: unfinished; computes library dependencies, but doesn't compile
 
+;;; Given no arguments, re-compiles all libraries and programs
+;;; found within the current directory, provided their names end
+;;; with .sld, .sls, or .sps
+;;;
+;;; Given strings naming files within the current directory that
+;;; contain libraries or programs to be compiled, compiles those
+;;; files if it is safe to do or generates a warning message that
+;;; explains the compilation might be unsafe.
+;;; Returns true iff all of the given files are compiled.
+;;;
+;;; It is safe to compile the given files iff, for them and for
+;;; each of the libraries on which they depend, the library
+;;;
+;;;     has already been compiled and is not stale
+;;;  or resides within the current directory
+;;;         and no library or program outside of the current directory
+;;;             depends on it
+;;;
+;;; Dependency is transitive, so the second of those conditions
+;;; implies that no library or program outside of the current
+;;; directory depends on any files within the current directory
+;;; that will be compiled by compile-stale.
+;;;
+;;; FIXME: the dependency graph is not perfectly reliable because
+;;;     it is unsafe to expand macros during calculation of dependencies
+;;;     the graph is calculated using cond-expand features recognized
+;;;         when compile-stale is called, which may be different from
+;;;         cond-expand features recognized at run time
+;;;     the graph is calculated by looking only at import declarations
+;;;         at the head of a library or program (FIXME)
+;;;     the graph is calculated without expanding cond-expand (FIXME)
+
 (define (compile-stale . files)
   (%compile-stale-libraries files))
-
-;;; A source file is stale if and only if its associated .slfasl file
-;;; is stale.
-;;;
-;;; A .slfasl file is stale if and only if its source file has
-;;; been modified since the .slfasl file was last modified.
-;;;
-;;; A .slfasl file whose source file cannot be located is not
-;;; considered stale.  (Rationale:  This allows libraries to
-;;; be supplied in compiled form without their source code.
-;;; That's risky, however, because there is no way to recompile
-;;; the missing source code if any of the files they depend upon
-;;; are recompiled.)
-
-(define (stale? srcfile)
-  (let ((faslfile (generate-fasl-name srcfile)))
-    (and faslfile
-         (file-exists? srcfile)
-         (file-exists? faslfile)
-         (file-newer? srcfile faslfile))))
 
 ;;; Given a list of file names containing R7RS/R6RS libraries or
 ;;; programs, attempts to compile those files.
@@ -44,7 +56,7 @@
 ;;;     one of the named files depends upon X, and the compiled
 ;;;     form of X is stale
 ;;;
-;;;     X depends upon any of files that will be compiled as
+;;;     X depends upon any files that will be compiled as
 ;;;     a consequence of these rules
 ;;;
 ;;; If the list of named files is empty, no files will be compiled.
@@ -62,8 +74,10 @@
 ;;;     The files to be compiled consist of
 ;;;         the named files
 ;;;         the stale files upon which a named file depends
+;;;         the files upon which a named file depends that depend
+;;;             upon a named or stale file
 ;;;         the files within the current directory that depend upon
-;;;             one of the named or stale files
+;;;             a named or stale files
 ;;;     Sort the files to be compiled so every file will be compiled
 ;;;         before all files that depend upon it.
 ;;;     Compile the files in that order.
@@ -71,7 +85,7 @@
 ;;;         to their previous state.
 
 (define (%compile-stale-libraries filenames)
-  (%compile-stale-libraries1 filenames))
+  (%compile-stale-libraries-FIXME filenames))
 
 (define (%compile-stale-libraries-FIXME filenames)
   (let* ((dir (current-directory))
@@ -172,6 +186,23 @@
          (comp-table (make-hashtable equal-hash equal?))
          (dependency-table (make-hashtable equal-hash equal?))
          (counter 0))
+
+    ;; Compute comp-table.
+
+    (for-each (lambda (lib/pgm)
+                (let* ((name (car lib/pgm))
+                       (name (if (null? name)
+                                 (begin (set! counter (+ 1 counter))
+                                        (list '#(program) counter))
+                                 name))
+                       (lib/pgm (cons name (cdr lib/pgm))))
+                  (hashtable-set! comp-table
+                                  (larceny:library-entry-name lib/pgm)
+                                  lib/pgm)))
+              to-compile)
+
+    ;; Compute lib-table.
+
     (for-each (lambda (lib)
                 (let* ((name (car lib))
                        (probe (hashtable-ref lib-table name #f)))
@@ -185,24 +216,14 @@
                                        (larceny:library-entry-imports lib)
                                        (larceny:library-entry-filename lib)
                                        #t)))))
-              libs)
-    (for-each (lambda (lib/pgm)
-                (let* ((name (car lib/pgm))
-                       (name (if (null? name)
-                                 (begin (set! counter (+ 1 counter))
-                                        (list '#(program) counter))
-                                 name))
-                       (lib/pgm (cons name (cdr lib/pgm))))
-                  (hashtable-set! comp-table
-                                  (larceny:library-entry-name lib/pgm)
-                                  lib/pgm)))
-              to-compile)
+              (union (vector->list (hashtable-values comp-table))
+                     libs))
 
-    ;; These two libraries are defined within r6rs-standard-libraries.sch
-    ;; FIXME: shouldn't need so many special cases
+    ;; FIXME: Is this necessary?
 
-    (hashtable-set! dependency-table '(rnrs base) '())
-    (hashtable-set! dependency-table '(rnrs io simple) '())
+    (for-each (lambda (lib)
+                (hashtable-set! dependency-table lib '()))
+              (base-libraries))
 
     (%compile-stale-libraries2 lib-table
                                comp-table
@@ -212,9 +233,10 @@
 ;;;
 ;;; The lib-table maps names of available libraries to library entries.
 ;;; The comp-table maps names of files to be compiled to library entries.
-;;; The dependency table maps names of libraries and programs to lists
-;;; of the libraries upon which they depend.  For each of those lists,
-;;; every library depends only upon libraries that follow it in the list.
+;;; The dependency table is filled in by phase 2: it maps names of
+;;; libraries and programs to lists of the libraries upon which they depend.
+;;; For each of those lists, every library depends only upon libraries
+;;; that follow it in the list.
 
 (define (%compile-stale-libraries2 lib-table comp-table dependency-table)
 
@@ -254,7 +276,7 @@
                                    (union (cons import1 depends)
                                           depends-upon))))))))))))
 
-  (vector-for-each dependencies (hashtable-keys comp-table))
+  (vector-for-each dependencies (hashtable-keys lib-table))
 
   (if (debugging?)
       (vector-for-each (lambda (name)
@@ -263,10 +285,13 @@
                          (let* ((entry (hashtable-ref lib-table name #f))
                                 (entry (or entry
                                            (hashtable-ref comp-table name #f)))
-                                (filename (if entry
-                                              (cadddr entry)
-                                              "")))
-                           (display "    ")
+                                (filename
+                                 (if entry
+                                     (larceny:library-entry-filename entry)
+                                     "")))
+                           (if (stale? filename)
+                               (display " S  ")
+                               (display "    "))
                            (write filename)
                            (newline))
                          (for-each (lambda (libname)
@@ -274,13 +299,129 @@
                                      (write libname)
                                      (newline))
                                    (hashtable-ref dependency-table name '())))
-                       (hashtable-keys dependency-table))))
+                       (hashtable-keys dependency-table)))
+
+  (%compile-stale-libraries3 lib-table comp-table dependency-table))
+
+;;; Phase 3: identifies the files that need to be compiled, and proceeds
+;;; to phase 4.  The files that need to be compiled are
+;;;
+;;;         the named files
+;;;         the stale files upon which a named file depends
+;;;         the as-yet-uncompiled files upon which a named file depends
+;;;         FIXME
+;;;
+;;; Phase 4 will then check whether any available libraries that are not
+;;; in the list of files to be compiled depend upon a file to be compiled.
+;;;
+;;; The lib-table maps names of available libraries to library entries.
+;;; The comp-table maps names of files to be compiled to library entries.
+;;; The dependency table maps names of libraries and programs to lists
+;;; of the libraries upon which they depend.  For each of those lists,
+;;; every library depends only upon libraries that follow it in the list.
+
+
+(define (%compile-stale-libraries3 lib-table comp-table dependency-table)
+
+  ;; Returns the set of libraries that need to be compiled.
+
+  (define (libraries-to-compile)
+
+    ;; Given a list of entries for files to be compiled,
+    ;; returns a list of the stale or as-yet-uncompiled libraries
+    ;; on which they depend.
+
+    (define (stale-libraries entries)
+;(write (list 'FIXME 'stale-libraries entries)) (newline)
+      (if (null? entries)
+          '()
+          (union (filter (lambda (lib)
+                           (let* ((entry (hashtable-ref lib-table lib #f))
+                                  (file
+                                   (and
+                                    entry
+                                    (larceny:library-entry-filename entry))))
+                             (and file
+                                  (or (stale? file)
+                                      (not (compiled? file))))))
+                         (let* ((entry (car entries))
+                                (lib (larceny:library-entry-name entry)))
+                           (hashtable-ref dependency-table lib)))
+                 (stale-libraries (cdr entries)))))
+
+    ;; Given a list of libraries to be compiled,
+    ;; Returns a list of all available libraries that depend upon
+    ;; one of the libraries to be compiled.
+
+    (define (libs-to-compile libs0)
+      (let loop ((libs (vector->list (hashtable-keys lib-table)))
+                 (to-compile libs0))
+;(write (list 'FIXME 'libs-to-compile libs to-compile)) (newline)
+        (cond ((null? libs)
+               to-compile)
+              ((let* ((lib (car libs))
+                      (prior-libs (hashtable-ref dependency-table lib)))
+                 (any (lambda (lib) (member lib libs0))
+                      prior-libs))
+               (loop (cdr libs)
+                     (union (list (car libs)) to-compile)))
+              (else
+               (loop (cdr libs) to-compile)))))
+
+    (libs-to-compile
+     (stale-libraries
+      (vector->list
+       (hashtable-values comp-table)))))
+
+  ;; Given two sets of libraries to compile and a list of libraries
+  ;; that can be compiled in reverse order of the list, returns a
+  ;; list containing all libraries in those three arguments, in an
+  ;; order that compiles each library only after all libraries on
+  ;; which it depends have been compiled.
+  ;;
+  ;; FIXME: goes into an infinite loop if there are circular dependencies.
+
+  (define (compilation-order to-compile not-ready ready)
+;(write (list 'FIXME 'compilation-order to-compile not-ready ready)) (newline)
+    (cond ((and (null? to-compile)
+                (null? not-ready))
+           (reverse ready))
+          ((null? to-compile)
+           (compilation-order not-ready '() ready))
+          ((every (lambda (lib)
+                    (and (not (member lib to-compile))
+                         (not (member lib not-ready))))
+                  (hashtable-ref dependency-table (car to-compile)))
+           (compilation-order (cdr to-compile)
+                              not-ready
+                              (cons (car to-compile) ready)))
+          (else
+           (compilation-order (cdr to-compile)
+                              (cons (car to-compile) not-ready)
+                              ready))))
+
+  (let* ((libs (libraries-to-compile))
+         (libs (compilation-order libs '() '())))
+
+    (if (debugging?)
+        (begin (display "\n\nLibraries to be compiled:\n\n")
+               (for-each (lambda (lib)
+                           (display "    ")
+                           (display lib)
+                           (newline))
+                         libs)))
+
+    'FIXME
+
+    libs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 ;;; Given lists x and y with no repetitions (in the sense of equal?),
 ;;; returns a list that's equal to (make-set (append x y)).
+;;;
+;;; FIXME: unnecessarily inefficient
 
 (define (union x y)
   (make-set (append x y)))
@@ -314,3 +455,35 @@
         (else
          (larceny:libname-without-version spec))))
 
+;;; A source file is stale if and only if its associated .slfasl file
+;;; is stale.
+;;;
+;;; A .slfasl file is stale if and only if its source file has
+;;; been modified since the .slfasl file was last modified.
+;;;
+;;; A .slfasl file whose source file cannot be located is not
+;;; considered stale.  (Rationale:  This allows libraries to
+;;; be supplied in compiled form without their source code.
+;;; That's risky, however, because there is no way to recompile
+;;; the missing source code if any of the files they depend upon
+;;; are recompiled.)
+
+(define (stale? srcfile)
+  (let ((faslfile (generate-fasl-name srcfile)))
+    (and faslfile
+         (file-exists? srcfile)
+         (file-exists? faslfile)
+         (file-newer? srcfile faslfile))))
+
+(define (compiled? srcfile)
+  (let ((faslfile (generate-fasl-name srcfile)))
+    (and faslfile
+         (file-exists? srcfile)
+         (file-exists? faslfile))))
+
+;; These two libraries are defined within r6rs-standard-libraries.sch
+;; FIXME: shouldn't need so many special cases
+
+(define (base-libraries)
+  '((rnrs base)
+    (rnrs io simple)))
