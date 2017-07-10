@@ -396,40 +396,28 @@
           (process-library! x fname))))
 
     (define (process-library! library fname)
-      (and (list? library)
-           (<= 4 (length library))
-           (memq (car library) *library-keywords*)
-           (let ((name (cadr library))
-                 (exports (caddr library))
-                 (imports (cadddr library)))
-             (define (okay? keyword form)
-               (and (list? name)
-                    (pair? name)
-                    (eq? keyword (car form))))
-             (and (pair? name)
-                  (okay? (car name) name)
-                  (okay? 'export exports)
-                  (okay? 'import imports)
-                  (let* ((filename (larceny:absolute-path fname))
-                         (entry (larceny:make-library-entry name
-                                                            exports
-                                                            imports
-                                                            filename
-                                                            #f))
-                         (probe (assoc name libraries-found)))
-                    (cond ((and probe (equal? probe entry))
-                           #t)
-                          (else
-                           (set! libraries-found
-                                 (cons entry libraries-found))
-                           (if probe
-                               (for-each
-                                mark-as-multiple!
-                                (filter
-                                 (lambda (entry)
-                                   (equal? name
-                                           (larceny:library-entry-name entry)))
-                                 libraries-found))))))))))
+      (let* ((filename (larceny:absolute-path fname))
+             (entry (larceny:library->entry library filename))
+             (name (if entry
+                       (larceny:library-entry-name entry)
+                       '()))
+             (probe (assoc name libraries-found)))
+        (cond ((not entry)
+;              (display "Library could not be parsed:\n")
+;              (pretty-print library)
+               #f)
+              ((and probe (equal? probe entry))
+               #t)
+              (else
+               (set! libraries-found
+                     (cons entry libraries-found))
+               (if probe
+                   (for-each
+                    mark-as-multiple!
+                    (filter (lambda (entry)
+                              (equal? name
+                                      (larceny:library-entry-name entry)))
+                            libraries-found)))))))
 
     (define (mark-as-multiple! entry)
       (larceny:library-entry-multiple! entry))
@@ -447,6 +435,32 @@
          (set! libraries-found
                (list-sort by-name libraries-found))
          (larceny:cache-available-source-libraries! libraries-found)
-         libraries-found))))         
+         libraries-found))))
+
+;;; Given the list representation of a library and its absolute path,
+;;; returns a library entry for the library if it can be parsed,
+;;; or returns #f if it doesn't look like a library.
+
+(define (larceny:library->entry library filename)
+  (and (list? library)
+       (<= 4 (length library))
+       (memq (car library) *library-keywords*)
+       (let ((name (cadr library))
+             (exports (caddr library))
+             (imports (cadddr library)))
+         (define (okay? keyword form)
+           (and (list? name)
+                (pair? name)
+                (eq? keyword (car form))))
+         (and (pair? name)
+              (okay? (car name) name)
+              (okay? 'export exports)
+              (okay? 'import imports)
+              (let ((entry (larceny:make-library-entry name
+                                                       exports
+                                                       imports
+                                                       filename
+                                                       #f)))
+                entry)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
