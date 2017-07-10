@@ -7,6 +7,19 @@ Larceny's debugging functionality is implemented in Scheme, using some
 of Larceny's extensions for catching exceptions and inspecting the
 continuation structure.
 
+[NOTE]
+================================================================
+Larceny's debugger is most useful in R5RS mode because Larceny's
+R7RS/R6RS macro expander discards the file name and line number
+information it is given by the `read` procedure.  The R7RS/R6RS
+macro expander also mangles identifiers, and the debugger does
+not currently un-mangle mangled identifiers.  To add to the
+difficulty, R7RS/R6RS semantics allows compiler optimizations
+that obscure the correspondence between source code and run-time
+representations displayed by the debugger.
+================================================================
+
+
 === Entering the debugger
 
 When Larceny detects an error or a keyboard interrupt, or when it hits

@@ -164,33 +164,38 @@ initiate a minor collection before calling this procedure.
 proc:system-features[args="",result="alist"]
 
 System-features returns an association lists of system features. Most
-entries are self-explanatory. The following are a more subtle:
+entries are self-explanatory. The following are more subtle:
 
   * The value of architecture-name is Larceny's notion of the architecture for which it was compiled, not the architecture the program is currently running on. For example, the value of this feature is "Standard-C" if you're running Petit Larceny. 
   * The value of heap-area-info is a vector of vectors, one subvector for each heap area in the running system. The subvector has four entries: the generation number, the area type, the current size, and additional information. 
 
 proc:display-memstats[args="vector",result="unspecified"]
 proctempl:display-memstats[args="vector minimal",result="unspecified"]
-proctempl:display-memstats[args="vector minimal full",result="unspecified"]
+proctempl:display-memstats[args="vector full",result="unspecified"]
 
 Display-memstats takes as its argument a vector as returned by
 <<memstats>> and displays the contents of the vector in
 human-readable form on the current output port. By default, not all of
 the values in the vector are displayed.
 
-If the symbol minimal is passed as the second argument, then only a
+If the symbol `minimal` is passed as the second argument, then only a
 small number of statistics generally relevant to running benchmarks
 are displayed.
 
-If the symbol full is passed as the second argument, then all
+If the symbol `full` is passed as the second argument, then all
 statistics are displayed.
 
 proc:memstats[args="",result="vector"]
 
 Memstats returns a freshly allocated vector containing run-time-system
 resource usage statistics. Many of these will make no sense whatsoever
-to you unless you also study the RTS sources. A listing of the
+to you unless you also study the RTS sources.
+
+////////////////////////////////////////////////////////////////
+FIXME: broken link
+A listing of the
 contents of the vector is available <<SectionMemstats,here>>.
+////////////////////////////////////////////////////////////////
 
 proc:run-with-stats[args="thunk",result="obj"]
 
@@ -209,6 +214,6 @@ tests the value returned from the last call to _thunk_ by applying the
 predicate _ok?_ to it. If the predicate returns true, then
 run-benchmark prints summary statistics, as with
     
-       ([display-memstats][5] ... 'minimal).
+       (display-memstats ... 'minimal).
     
 If the predicate returns false, an error is signalled.

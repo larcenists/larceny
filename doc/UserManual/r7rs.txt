@@ -20,9 +20,16 @@ Binary releases of Larceny also support Unicode strings.
 use Latin-1 strings instead of Unicode.)
 
 When Larceny is invoked with the `-r7r6` option on its
-command line, all of the standard R7RS and R6RS libraries
+command line, and no program is given on the command line,
+all of the standard R7RS and R6RS libraries
 are imported at startup.  When invoked with the `-r7`
-option, only `(scheme base)` is imported at startup.
+option and no program, only `(scheme base)` is imported at startup.
+When a program is given, the `-r7r6` and `-r7` options
+are equivalent: both imply the R7RS mode of execution,
+but the program is responsible for importing all libraries
+it uses, which makes it possible to write R7RS programs
+that do not import `(scheme base)`.
+
 
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

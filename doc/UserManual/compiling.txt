@@ -38,8 +38,8 @@ or program.
 
 [[CompilingToExecutable]]
 
-Compiling an R7RS/R6RS programs into directly executable form
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiling an R7RS/R6RS program into directly executable form
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 On Unix machines, the `compile-larceny` script can be used to
 compile an R7RS/R6RS program named `pgm.sps` or `pgm.scm` into

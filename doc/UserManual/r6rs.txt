@@ -8,7 +8,8 @@ libraries are available in each of Larceny's major modes
 of execution.
 
 Larceny was the first substantially complete implementation
-of the R6RS.  Any features that are missing from R6RS modes
+of the R6RS.  Any R6RS features that are missing from
+Larceny's R6RS mode
 are missing because of bugs or because the features are
 deprecated in Larceny.
 ////////////////////////////////////////////////////////////////
