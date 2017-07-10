@@ -1,4 +1,7 @@
 ;;; FIXME: unfinished; computes library dependencies, but doesn't compile
+;;; FIXME: the file names passed to compile-stale aren't showing up in
+;;; the minimal list of files to compile.
+;;; FIXME: several calls to member should be replaced by hashtables.
 
 ;;; Given no arguments, re-compiles all libraries and programs
 ;;; found within the current directory, provided their names end
@@ -401,15 +404,63 @@
                               ready))))
 
   (let* ((libs (libraries-to-compile))
-         (libs (compilation-order libs '() '())))
+         (libs (compilation-order libs '() '()))
+         (minimal-dependencies
+          (let ((ht (make-hashtable equal-hash equal?)))
+            (vector-for-each (lambda (lib-or-program)
+                               (let ((dependencies
+                                      (hashtable-ref dependency-table
+                                                     lib-or-program)))
+                                 (for-each (lambda (lib)
+                                             (hashtable-set! ht lib #t))
+                                           dependencies)))
+                             (hashtable-keys comp-table))
+            ht))
+         (minimal-libs
+          (filter (lambda (lib)
+                    (hashtable-ref minimal-dependencies lib #f))
+                  libs))
+         (files
+          (make-set-taking-first
+           (map (lambda (lib)
+                  (larceny:library-entry-filename
+                   (hashtable-ref lib-table lib)))
+                libs)))
+         (minimal-files
+          (make-set-taking-first
+           (map (lambda (lib)
+                  (larceny:library-entry-filename
+                   (hashtable-ref lib-table lib)))
+                minimal-libs)))
+         (files (filter (lambda (filename)
+                          (> (string-length filename) 0))
+                        files))
+         (minimal-files (filter (lambda (filename)
+                                  (> (string-length filename) 0))
+                                minimal-files))
+         (other-files (filter (lambda (filename)
+                                (not (member filename minimal-files)))
+                              files)))
 
     (if (debugging?)
-        (begin (display "\n\nLibraries to be compiled:\n\n")
+        (begin (display "\n\nLibraries and programs to be compiled:\n\n")
                (for-each (lambda (lib)
                            (display "    ")
-                           (display lib)
+                           (write lib)
                            (newline))
-                         libs)))
+                         libs)
+               (display "\n\nMinimal files to be compiled:\n\n")
+               (for-each (lambda (file)
+                           (display "    ")
+                           (write file)
+                           (newline))
+                         minimal-files)
+               (display "\n\nOther files that should also be compiled:\n\n")
+               (for-each (lambda (file)
+                           (display "    ")
+                           (write file)
+                           (newline))
+                         other-files)))
 
     'FIXME
 
@@ -421,23 +472,43 @@
 ;;; Given lists x and y with no repetitions (in the sense of equal?),
 ;;; returns a list that's equal to (make-set (append x y)).
 ;;;
-;;; FIXME: unnecessarily inefficient
+;;; FIXME: average time is O(n) but could be made faster
 
 (define (union x y)
   (make-set (append x y)))
 
 ;;; Given a list of objects,
 ;;; returns that list from which repetitions (in the sense of equal?)
-;;; have been eliminated by removing objects earlier in the list
-;;; if they are repeated later in the list.
+;;; have been eliminated by removing all but the first occurrence of
+;;; each object in the list.
 
 (define (make-set bag)
-  (if (null? bag)
-      bag
-      (let ((set (make-set (cdr bag))))
-        (if (member (car bag) set)
-            set
-            (cons (car bag) set)))))
+  (let ((ht (make-hashtable equal-hash equal?)))
+    (let loop ((bag bag)
+               (set '()))
+      (cond ((null? bag)
+             (reverse set))
+            ((hashtable-ref ht (car bag) #f)
+             (loop (cdr bag) set))
+            (else
+             (hashtable-set! ht (car bag) #t)
+             (loop (cdr bag) (cons (car bag) set)))))))
+
+;;; Given a list of strings, returns the set of strings obtained
+;;; by keeping the first occurrence of each string and otherwise
+;;; preserving the order of the list.
+
+(define (make-set-taking-first bag)
+  (let ((ht (make-hashtable string-hash string=?)))
+    (let loop ((bag bag)
+               (set '()))
+      (cond ((null? bag)
+             (reverse set))
+            ((hashtable-ref ht (car bag) #f)
+             (loop (cdr bag) set))
+            (else
+             (hashtable-set! ht (car bag) #t)
+             (loop (cdr bag) (cons (car bag) set)))))))
 
 ;; FIXME: hard-wired special treatment for core and primitives isn't right
 
