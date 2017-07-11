@@ -411,6 +411,7 @@
               (else
                (set! libraries-found
                      (cons entry libraries-found))
+               ;; FIXME: this is slow
                (if probe
                    (for-each
                     mark-as-multiple!
@@ -421,6 +422,47 @@
 
     (define (mark-as-multiple! entry)
       (larceny:library-entry-multiple! entry))
+
+    ;; Given a library entry, returns that entry unless the library
+    ;; is defined by multiple files, in which case it tries to return
+    ;; an entry for the file that would be found by Larceny's standard
+    ;; library search algorithm instead of the given entry.
+
+    (define (disambiguate-multiply-defined entry)
+      (define (fasl? fname)
+        (and fname
+             (let ((n (string-length fname)))
+               (and (< 4 n)
+                    (string=? "fasl" (substring fname (- n 4) n))))))
+      (if (not (larceny:library-entry-multiple? entry))
+          entry
+          (let* ((lib (larceny:library-entry-name entry))
+                 (fname (larceny:find-r6rs-library lib))
+                 (fname (if (fasl? fname)
+                            (let* ((fnames (generate-source-names fname))
+                                   (fnames (filter file-exists? fnames)))
+                              (if (null? fnames)
+                                  #f
+                                  (car fnames)))
+                            fname)))
+            (define (entry-for-lib in)
+              (let loop ()
+                (let ((x (read in)))
+                  (cond ((eof-object? x) entry)
+                        ((larceny:library->entry x fname)
+                         =>
+                         (lambda (entry)
+                           (if (equal? lib
+                                       (larceny:library-entry-name entry))
+                               (begin (mark-as-multiple! entry)
+                                      entry)
+                               (loop))))
+                        (else (loop))))))
+            (if fname
+                (call-without-errors
+                 (lambda ()
+                   (call-with-input-file fname entry-for-lib)))
+                entry))))
 
     (or (larceny:cache-of-available-source-libraries)
         (let* ((make-absolute
@@ -433,7 +475,8 @@
          (for-each find-available-libraries!
                    (map larceny:absolute-path require-paths))
          (set! libraries-found
-               (list-sort by-name libraries-found))
+               (map disambiguate-multiply-defined
+                    (list-sort by-name libraries-found)))
          (larceny:cache-available-source-libraries! libraries-found)
          libraries-found))))
 

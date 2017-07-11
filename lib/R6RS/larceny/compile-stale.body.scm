@@ -33,21 +33,9 @@
 ;;;
 ;;; FIXME: several calls to member should be replaced by hashtables.
 ;;;
-;;; FIXME: libraries defined in multiple files are not yet handled
-;;; properly.
-;;;
 ;;; FIXME: named files are not ordered properly, so a named top-level
 ;;; program can be compiled before one of the named libraries it
 ;;; imports.
-;;;
-;;; FIXME: no matching of builds, so compilation can fail with
-;;; "Client was expanded against a different build of this library"
-;;; This is hard to fix, because the build information is buried
-;;; within a procedure whose representation is platform-dependent.
-;;; What we can check, however, is whether the modification time
-;;; for every compiled file is later than the modification times
-;;; for all compiled files it depends upon.  That should be good
-;;; enough.
 
 (define (compile-stale . files)
   (if (null? files)
@@ -128,11 +116,7 @@
 ;;;     if any compilation fails.
 
 (define (%compile-stale-libraries filenames finish)
-  (let* ((dir (current-directory))
-         (dirs (current-require-path))
-         (dirs (if (member dir dirs) dirs (cons dir dirs))))
-    (parameterize ((current-require-path dirs))
-     (%compile-stale-libraries1 filenames finish))))
+  (%compile-stale-libraries1 filenames finish))
 
 ;;; larceny:available-source-libraries returns an association list
 ;;; in which each entry is of the form
@@ -333,7 +317,7 @@
                                  (if entry
                                      (larceny:library-entry-filename entry)
                                      "")))
-                           (if (stale? filename)
+                           (if (obviously-stale? filename)
                                (display " S  ")
                                (display "    "))
                            (write filename)
@@ -352,8 +336,9 @@
 ;;;
 ;;;         the named files
 ;;;         the stale files upon which a named file depends
-;;;         the as-yet-uncompiled files upon which a named file depends
-;;;         FIXME
+;;;         the files imported (directly or indirectly) by a named file
+;;;             that import (directly or indirectly) a library defined
+;;;             in a stale file or in one of the named files
 ;;;
 ;;; Phase 4 will then check whether any available libraries that are not
 ;;; in the list of files to be compiled depend upon a file to be compiled.
@@ -374,26 +359,35 @@
 
   (define (libraries-to-compile)
 
+    ;; Memoization for the stale? procedure.
+
+    (define stale-cache (make-hashtable equal-hash equal?))
+
     ;; Given a list of entries for files to be compiled,
     ;; returns a list of the stale or as-yet-uncompiled libraries
-    ;; on which they depend.
+    ;; on which they depend.  That list includes the libraries
+    ;; defined in the files to compiled.
 
     (define (stale-libraries entries)
 ;(write (list 'FIXME 'stale-libraries entries)) (newline)
       (if (null? entries)
           '()
-          (union (filter (lambda (lib)
-                           (let* ((entry (hashtable-ref lib-table lib #f))
-                                  (file
-                                   (and
-                                    entry
-                                    (larceny:library-entry-filename entry))))
-                             (and file
-                                  (or (stale? file)
-                                      (not (compiled? file))))))
-                         (let* ((entry (car entries))
-                                (lib (larceny:library-entry-name entry)))
-                           (hashtable-ref dependency-table lib)))
+          (union (let* ((entry (car entries))
+                        (lib (larceny:library-entry-name entry)))
+                   (cons lib
+                         (filter
+                          (lambda (lib)
+                            (let* ((entry (hashtable-ref lib-table lib #f))
+                                   (file
+                                    (and
+                                     entry
+                                     (larceny:library-entry-filename entry))))
+                              (and file
+                                   (stale? file
+                                           lib-table
+                                           dependency-table
+                                           stale-cache))))
+                          (hashtable-ref dependency-table lib))))
                  (stale-libraries (cdr entries)))))
 
     ;; Given a list of libraries to be compiled,
@@ -426,7 +420,8 @@
   ;; order that compiles each library only after all libraries on
   ;; which it depends have been compiled.
   ;;
-  ;; FIXME: goes into an infinite loop if there are circular dependencies.
+  ;; Note: circular dependencies would have been detected by now,
+  ;; so compilation-order will terminate.
 
   (define (compilation-order to-compile not-ready ready)
 ;(write (list 'FIXME 'compilation-order to-compile not-ready ready)) (newline)
@@ -619,20 +614,18 @@
         (else
          (larceny:libname-without-version spec))))
 
-;;; A source file is stale if and only if its associated .slfasl file
-;;; is stale.
+;;; A source file is obviously stale if and only if its associated
+;;; .slfasl file is stale.
 ;;;
-;;; A .slfasl file is stale if and only if its source file has
-;;; been modified since the .slfasl file was last modified.
-;;;
-;;; A .slfasl file whose source file cannot be located is not
-;;; considered stale.  (Rationale:  This allows libraries to
-;;; be supplied in compiled form without their source code.
-;;; That's risky, however, because there is no way to recompile
+;;; A source file that cannot be located is not considered stale.
+;;; (Rationale:  This allows libraries to be supplied in compiled
+;;; form without their source code, and allows for libraries that
+;;; aren't written in Scheme.  Supplying libraries only in compiled
+;;; form is risky, however, because there is no way to recompile
 ;;; the missing source code if any of the files they depend upon
 ;;; are recompiled.)
 
-(define (stale? srcfile)
+(define (obviously-stale? srcfile)
   (let ((faslfile (generate-fasl-name srcfile)))
     (and faslfile
          (file-exists? srcfile)
@@ -651,3 +644,44 @@
 (define (base-libraries)
   '((rnrs base)
     (rnrs io simple)))
+
+;;; A source file is stale if and only if it is
+;;;
+;;;     obviously stale
+;;;  or not compiled
+;;;  or its .slfasl file is older than the .slfasl of a library it imports
+;;;  or it depends upon a stale file
+;;;
+;;; The optional argument is a hashtable that maps library names
+;;; to booleans indicating whether the library is defined by a
+;;; stale file.
+
+(define (stale? srcfile lib-table dependency-table . rest)
+  (let ((cache (if (null? rest)
+                   (make-hashtable equal-hash equal?)
+                   (car rest))))
+    (or (obviously-stale? srcfile)
+        (not (compiled? srcfile))
+        (any (lambda (lib)
+               (cond ((hashtable-ref cache lib #f)
+                      #t)
+                     ((not (hashtable-ref cache lib #t))
+                      #f)
+                     (else
+                      (let* ((entry (hashtable-ref lib-table lib #f))
+                             (file
+                              (and lib
+                                   (larceny:library-entry-filename entry)))
+                             (file (if (< 0 (string-length file))
+                                       file
+                                       #f))
+                             (result
+                              (and file
+                                   (or (obviously-stale? file)
+                                       (not (compiled? file))
+                                       (file-newer?
+                                        (generate-fasl-name file)
+                                        (generate-fasl-name srcfile))))))
+                        (hashtable-set! cache lib result)
+                        result))))
+             (hashtable-ref dependency-table srcfile '())))))
