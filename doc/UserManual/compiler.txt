@@ -6,11 +6,15 @@ Compiler
 The `(larceny compiler)` library exports the
 `load` and `r5rs:require` procedures of `(larceny load)`,
 the
-<<current-require-path,`current-require-path`>>
-procedure, the
+<<current-require-path,`current-require-path`>> and
+<<current-directory,`current-directory`>>
+parameters, the
 <<compile-file,`compile-file`>>,
-<<compile-library,`compile-library`>>, and
-<<compile-stale-libraries,`compile-stale-libraries`>>
+<<compile-library,`compile-library`>>,
+<<compile-stale-libraries,`compile-stale-libraries`>>,
+<<compile-stale-cautiously,`compile-stale-cautiously`>>,
+<<compile-stale-regardless,`compile-stale-regardless`>>, and
+<<compile-stale-recklessly,`compile-stale-recklessly`>>
 procedures described below,
 and the
 <<compiler-switches,`compiler-switches`>> procedure.
@@ -33,8 +37,12 @@ depend is changed or recompiled.  Stale libraries and
 programs can be dangerously inconsistent with libraries
 on which they depend, so Larceny checks for staleness
 and refuses to execute a stale library or program.
-The <<compile-stale-libraries,`compile-stale-libraries`>>
-procedure provides a convenient way to recompile stale
+The
+<<compile-stale-libraries,`compile-stale-libraries`>>,
+<<compile-stale-cautiously,`compile-stale-cautiously`>>,
+<<compile-stale-regardless,`compile-stale-regardless`>>, and
+<<compile-stale-recklessly,`compile-stale-recklessly`>>,
+procedures make it easier to recompile stale
 libraries and programs.
 
 proctempl:compile-file[args="sourcefile",optarg="slfaslfile"]
@@ -80,6 +88,151 @@ In future versions of Larceny, `compile-stale-libraries`
 might compile only the source files that depend upon
 _changedfile_.
 ================================================================
+
+
+proc:compile-stale-recklessly[args="sourcefile ..."]
+proc:compile-stale-regardless[args="sourcefile ..."]
+proc:compile-stale-cautiously[args="sourcefile ..."]
+
+All three of these procedures attempt to compile the given
+source files together with all of the files they depend upon
+that have not yet been compiled or have been compiled but
+gone stale.  They differ in how they behave when one of the
+files to be compiled lies outside the current directory or
+when one of the files to be compiled is imported, directly
+or indirectly, by a file that is neither passed as an argument
+nor relied upon by one of the files passed as an argument.
+
+The `compile-recklessly` procedure compiles the given files
+along with all of the files on which they depend that have
+not yet been compiled or have gone stale or import a library
+from one of the files that will be compiled.
+If there are available libraries that depend upon one of the
+files to be compiled but are not imported (directly or
+indirectly) by one of the given files, then they too will
+need to be re-compiled; the `compile-recklessly` procedure
+does not re-compile those libraries, but it does print a
+message listing them.
+
+The `compile-regardless` procedure behaves the same as the
+`compile-recklessly` procedure when all of the files to be
+compiled and all of the other files that would need to be
+re-compiled are located within the current directory.  If
+not, `compile-regardless` does not compile any files but
+does print a message telling how to compile all of the
+files using `compile-file`.
+
+The `compile-cautiously` procedure behaves the same as the
+`compile-regardless` procedure when all of the files can be
+compiled without affecting any available libraries that will
+not be compiled.  If compiling the files would make it
+necessary to re-compile some other library, `compile-cautiously`
+does not compile any files but does print a message telling
+how to compile all of the files using `compile-file`.
+
+Suppose, for example, that `/tmp/Foo` and `/tmp/Bar` contain
+these four files:
+
+----------------------------------------------------------------
+% cat /tmp/Foo/foo.sps
+(import (scheme base)
+        (scheme write)
+        (foo)
+        (bar))
+(write (list y x)) (newline)
+% cat /tmp/Foo/foo.sld
+(define-library (foo)
+  (export x)
+  (import (scheme base)
+          (bar))
+  (begin (define x 97)))
+% cat /tmp/Bar/bar.sps
+(import (scheme base)
+        (scheme write)
+        (foo)
+        (bar))
+(write (list x y)) (newline)
+% cat /tmp/Bar/bar.sld
+(define-library (bar)
+  (export y)
+  (import (scheme base))
+  (begin (define y 98)))
+----------------------------------------------------------------
+
+The two programs can be run without compiling any of those files:
+
+----------------------------------------------------------------
+% larceny -I /tmp/Foo -I /tmp/Bar /tmp/Foo/foo.sps
+(98 97)
+% larceny -I /tmp/Foo -I /tmp/Bar /tmp/Bar/bar.sps
+(97 98)
+----------------------------------------------------------------
+
+The `compile-stale-cautiously` and `compile-stale-regardless`
+procedures refuse to compile the `bar.sps` program because it
+imports a library located in another directory that has not been
+compiled.  The `compile-stale-recklessly` procedure goes ahead
+and compiles that library even though it is located in a different
+directory:
+
+----------------------------------------------------------------
+% larceny -I /tmp/Foo -I /tmp/Bar -r7
+Larceny v1.3
+
+> (import (larceny compiler))
+
+> (parameterize ((current-directory "/tmp/Bar"))
+    (compile-stale-cautiously "bar.sps"))
+
+Libraries and programs to be compiled:
+
+    (bar)
+    (foo)
+    (#(program) 1)
+
+Minimal files to be compiled:
+
+    "/tmp/Bar/bar.sld"
+    "/tmp/Foo/foo.sld"
+    "/tmp/Bar/bar.sps"
+
+NO FILES WERE COMPILED
+
+    because some files to be compiled are outside current directory
+
+To force compilation, import (larceny compiler) and evaluate
+
+(for-each
+  compile-file
+  '("/tmp/Bar/bar.sld"
+    "/tmp/Foo/foo.sld"
+    "/tmp/Bar/bar.sps"))
+
+NO FILES WERE COMPILED
+
+> (parameterize ((current-directory "/tmp/Bar"))
+    (compile-stale-recklessly "bar.sps"))
+
+Libraries and programs to be compiled:
+
+    (bar)
+    (foo)
+    (#(program) 1)
+
+Minimal files to be compiled:
+
+    "/tmp/Bar/bar.sld"
+    "/tmp/Foo/foo.sld"
+    "/tmp/Bar/bar.sps"
+
+Compiling /tmp/Bar/bar.sld
+Compiling /tmp/Foo/foo.sld
+Compiling /tmp/Bar/bar.sps
+
+% larceny -I /tmp/Foo -I /tmp/Bar /tmp/Bar/bar.sps.slfasl
+(97 98)
+----------------------------------------------------------------
+
 
 proc:compiler-switches[args=""]
 proctempl:compiler-switches[args="mode"]

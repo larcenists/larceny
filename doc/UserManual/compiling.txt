@@ -62,17 +62,55 @@ same `-I`, `-A`, and `-D` options that had been passed to
 [WARNING]
 ================================================================
 If any libraries used by the program are changed, touched, or
-moved, the program will need to be re-compiled.
+moved, the program will need to be re-compiled.  That means you
+should compile all of the libraries the program uses before you
+compile the program.
 ================================================================
 
 
 [[CompilingR7rsSection]]
 
 Compiling R7RS/R6RS libraries
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On Unix machines, the most convenient way to compile
+To compile individual files, use the `compile-file` or
+`compile-library` procedures that are exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+
+To compile specific files while also compiling any stale
+or as-yet-un-compiled libraries on which they may depend,
+use the
+`compile-stale-cautiously`,
+`compile-stale-regardless`, or
+`compile-stale-recklessly` procedures exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+
+On Unix machines, the `compile-larceny` script can sometimes
+be used to compile all of the R7RS/R6RS libraries within
+one or more directories.  The following example compiles
+all libraries found within `mydir1` and its subdirectories,
+and then compiles all libraries found within `/tmp/mydir2`
+and its subdirectories:
+----------------------------------------------------------------
+    % compile-larceny -I mydir1 -I /tmp/mydir2
+----------------------------------------------------------------
+
+[WARNING]
+================================================================
+When `compile-larceny` is used to compile all libraries within
+one or more directories as in the above example, it respects
+import dependencies within each directory given on its command
+line, but it does not respect import dependences between libraries
+located in two different directories on its command line.
+For the general case, in which some of the libraries in each
+directory import libraries located in one of the other
+directories, use procedures exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+================================================================
+
+On Unix machines, a convenient way to compile
 a group of R7RS/R6RS libraries and top-level programs
+that are all located within a single directory
 is to use the +compile-stale+ script in Larceny's root
 directory.
 If Larceny's root directory is in your execution path,
@@ -103,10 +141,6 @@ library:
 
     > (compile-stale-libraries)
 ----------------------------------------------------------------
-
-To compile individual files, use the `compile-file` or
-`compile-library` procedures that are exported by
-<<LarcenyCompilerSection,`(larceny compiler)`>>.
 
 
 [[CompilingR5rsSection]]

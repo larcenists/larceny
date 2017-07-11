@@ -33,6 +33,21 @@
 ;;;
 ;;; FIXME: several calls to member should be replaced by hashtables.
 ;;;
+;;; FIXME: libraries defined in multiple files are not yet handled
+;;; properly.
+;;;
+;;; FIXME: named files are not ordered properly, so a named top-level
+;;; program can be compiled before one of the named libraries it
+;;; imports.
+;;;
+;;; FIXME: no matching of builds, so compilation can fail with
+;;; "Client was expanded against a different build of this library"
+;;; This is hard to fix, because the build information is buried
+;;; within a procedure whose representation is platform-dependent.
+;;; What we can check, however, is whether the modification time
+;;; for every compiled file is later than the modification times
+;;; for all compiled files it depends upon.  That should be good
+;;; enough.
 
 (define (compile-stale . files)
   (if (null? files)

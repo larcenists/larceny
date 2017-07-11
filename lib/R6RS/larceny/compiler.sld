@@ -1,7 +1,17 @@
-(library (larceny compiler)
-  (export load require r5rs:require
-          current-require-path larceny:current-declared-features
-          compile-file compile-library compile-stale-libraries
+(define-library (larceny compiler)
+  (export load
+          require
+          r5rs:require
+          current-require-path
+          current-directory
+          larceny:current-declared-features
+          compile-file
+          compile-library
+          compile-stale-libraries
+          compile-stale
+          compile-stale-cautiously
+          compile-stale-regardless
+          compile-stale-recklessly
           compiler-switches
           compile-despite-errors
           issue-warnings
@@ -25,9 +35,12 @@
           optimize-c-code)
   (import (rnrs base)
           (err5rs load)
+          (larceny compile-stale)
           (primitives require r5rs:require
-                      current-require-path larceny:current-declared-features
-                      compile-r6rs-file compile-stale-libraries
+                      current-require-path
+                      current-directory
+                      larceny:current-declared-features
+                      compile-stale-libraries
                       compiler-switches
                       compile-despite-errors
                       issue-warnings
@@ -52,22 +65,4 @@
                       peephole-optimization
                       inline-allocation
                       inline-assignment
-                      optimize-c-code))
-
-  (define (compile-file src . rest)
-    (compile-file-shared src rest #f))
-
-  (define (compile-library src . rest)
-    (compile-file-shared src rest #t))
-
-  (define (compile-file-shared src rest libraries-only?)
-    (cond ((null? rest)
-           (compile-r6rs-file src #f libraries-only?))
-          ((and (string? (car rest)) (null? (cdr rest)))
-           (compile-r6rs-file src (car rest) libraries-only?))
-          (else
-           (assertion-violation
-            (if libraries-only? 'compile-library 'compile-file)
-            "too many arguments"
-            (cons src rest)))))
-  )
+                      optimize-c-code)))

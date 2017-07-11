@@ -1,7 +1,9 @@
-;;; Larceny's compilation manager, such as it is.
+;;; Larceny's compilation manager.
 
 (define-library (larceny compile-stale)
-  (export compile-stale
+  (export compile-file
+          compile-library
+          compile-stale
           compile-stale-cautiously
           compile-stale-regardless
           compile-stale-recklessly)
@@ -12,10 +14,8 @@
           (scheme file)
           (scheme list)
           (only (scheme text) textual-prefix?)
+          (only (rnrs base) assertion-violation)
           (srfi 126)  ; hashtables
-          (only (larceny compiler)
-                compile-file
-                compile-stale-libraries)
 
           (primitives ;; defined in lib/R7RS/r7rs-cond-expander.sch
 
@@ -46,6 +46,25 @@
                       file-newer?
                       pretty-print))
 
-  (begin (define (debugging?) #f))
+  (begin
+
+   (define (debugging?) #f)
+
+   (define (compile-file src . rest)
+     (compile-file-shared src rest #f))
+
+   (define (compile-library src . rest)
+     (compile-file-shared src rest #t))
+
+   (define (compile-file-shared src rest libraries-only?)
+     (cond ((null? rest)
+            (compile-r6rs-file src #f libraries-only?))
+           ((and (string? (car rest)) (null? (cdr rest)))
+            (compile-r6rs-file src (car rest) libraries-only?))
+           (else
+            (assertion-violation
+             (if libraries-only? 'compile-library 'compile-file)
+             "too many arguments"
+             (cons src rest))))))
 
   (include "compile-stale.body.scm"))
