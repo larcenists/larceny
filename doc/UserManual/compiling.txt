@@ -123,24 +123,33 @@ be compiled also.)
 
 2.  Run the +compile-stale+ script.
 
-For example:
+The `compile-stale` script accepts Larceny's `-I`, `-A`,
+and `-D` options, which will be necessary if any of the
+files to be compiled import from libraries located outside
+of Larceny's usual library search path.  For example:
 ----------------------------------------------------------------
-    % cd lib/R7RS
-    % compile-stale
+    % cd /tmp/mydir2
+    % compile-stale -I mydir1 -I /tmp/mydir2
 ----------------------------------------------------------------
 
 On non-Unix machines, you can accomplish the same thing
 using Larceny's R7RS mode and the +(larceny compiler)+
 library:
 ----------------------------------------------------------------
-    % pushd lib\R7RS
-    % ..\..\larceny -r7rs
-    Larceny v0.98 "General Ripper"
+    % pushd /tmp/mydir2
+    % ..\..\larceny -r7 -I mydir1 -I /tmp/mydir2
+    Larceny v1.3
 
     > (import (larceny compiler))
 
     > (compile-stale-libraries)
 ----------------------------------------------------------------
+
+The `compile-stale` script also accepts file names,
+in which case it behaves like the
+<<compile-stale-cautiously,`compile-stale-cautiously`>> procedure
+exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
 
 
 [[CompilingR5rsSection]]

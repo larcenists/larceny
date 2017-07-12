@@ -60,13 +60,21 @@
 ;;;
 ;;; See SRFI 138:  http://srfi.schemers.org/srfi-138
 ;;;
+;;; KNOWN BUGS:
+;;;
+;;;     doesn't yet look at the COMPILE_R7RS environment variable.
+;;;     doesn't handle colon-separated directory lists
+;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (import (scheme base)
+        (scheme cxr)
         (scheme process-context)
         (scheme write)
+        (scheme list)
         (srfi 138)
-        (larceny compiler))
+        (larceny compiler)
+        (larceny parse-options))
 
 (define (usage-message)
   (let ((q (current-error-port)))
@@ -95,60 +103,28 @@
 ;;;     the list of all -I and -A directories, from left to right
 
 (define (parse-commands)
-  (define (loop cmds pgm outfile features dirs1 dirs2 alldirs)
-    (if (null? cmds)
-        (values pgm
-                outfile
-                (reverse features)
-                (reverse dirs1)
-                (reverse dirs2)
-                (reverse alldirs))
-       (let ((opt (car cmds))
-             (more? (not (null? (cdr cmds)))))
-         (cond ((and more? (string=? opt "-D"))
-                (loop (cddr cmds)
-                      pgm
-                      outfile
-                      (cons (cadr cmds) features)
-                      dirs1
-                      dirs2
-                      alldirs))
-               ((and more? (string=? opt "-I"))
-                (loop (cddr cmds)
-                      pgm
-                      outfile
-                      features
-                      (cons (cadr cmds) dirs1)
-                      dirs2
-                      (cons (cadr cmds) alldirs)))
-               ((and more? (string=? opt "-A"))
-                (loop (cddr cmds)
-                      pgm
-                      outfile
-                      features
-                      dirs1
-                      (cons (cadr cmds) dirs2)
-                      (cons (cadr cmds) alldirs)))
-               ((and more? (string=? opt "-o") (not outfile))
-                (loop (cddr cmds)
-                      pgm
-                      (cadr cmds)
-                      features
-                      dirs1
-                      dirs2
-                      alldirs))
-               ((and (not more?) (not pgm))
-                (loop (cdr cmds)
-                      (car cmds)
-                      outfile
-                      features
-                      dirs1
-                      dirs2
-                      alldirs))
-               (else
-                (usage-message)
-                (values #f #f '() '() '() '()))))))
-  (loop (cddr cmds) #f #f '() '() '() '()))
+  (call-with-values
+   (lambda ()
+     (larceny:parse-options (cddr cmds)
+                            '((seq "-o" _)
+                              (seq "-D" _)
+                              (seq (or "-I" "-A") _))))
+   (lambda (pgms opts-o opts-D opts-IA)
+     (cond ((or (> (length pgms) 1)
+                (> (length opts-o) 1))
+            (usage-message)
+            (values #f #f '() '() '() '()))
+           (else
+            (values (if (null? pgms) #f (car pgms))
+                    (if (null? opts-o) #f (cadr (car opts-o)))
+                    (map cadr opts-D)
+                    (map cadr
+                         (filter (lambda (x) (string=? (car x) "-I"))
+                                 opts-IA))
+                    (map cadr
+                         (filter (lambda (x) (string=? (car x) "-A"))
+                                 opts-IA))
+                    (map cadr opts-IA)))))))
 
 (define (process-commands)
   (call-with-values
@@ -165,7 +141,15 @@
                      (current-error-port))
             (guard (exn (#t (report-error-and-exit exn)))
              (for-each (lambda (dir)
-                         (parameterize ((current-directory dir))
+                         (parameterize
+                          ((current-require-path
+                            (append dirs1
+                                    (current-require-path)
+                                    dirs2))
+                           (larceny:current-declared-features
+                            (append (larceny:current-declared-features)
+                                    features))
+                           (current-directory dir))
                           (compile-stale-libraries)))
                        alldirs)))))))
 

@@ -48,18 +48,16 @@
 (define recognized-program-suffixes
   '(".scm" ".sps"))
 
+;;; Here we are free to do as we like.
+;;; Compiling foo.scm or foo.sps to foo.slfasl doesn't work
+;;; because there might be a foo.sld or foo.sls file in the
+;;; same directory that had been compiled to foo.slfasl.
+
 (define (name-of-pgmfile pathname)
-  (let* ((suffixes (filter (lambda (suffix)
-                             (textual-suffix? suffix pathname))
-                           recognized-program-suffixes))
-         (suffix (if (null? suffixes) #f (car suffixes))))
-    (string-append (if suffix
-                       (substring pathname
-                                  0
-                                  (- (string-length pathname)
-                                     (string-length suffix)))
-                       pathname)
-                   ".slfasl")))
+  (string-append pathname ".slfasl"))
+
+;;; Here we have to follow the SRFI 138 spec, but can do as we like
+;;; with the .sps suffix.
 
 (define (name-of-outfile pgm outfile)
   (let* ((suffixes (filter (lambda (suffix)

@@ -6,7 +6,8 @@
           compile-stale
           compile-stale-cautiously
           compile-stale-regardless
-          compile-stale-recklessly)
+          compile-stale-recklessly
+          compile-stale-libraries)
   (import (scheme base)
           (scheme cxr)
           (scheme read)
