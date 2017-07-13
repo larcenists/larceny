@@ -1048,6 +1048,22 @@
      (test (underscore-as-literal 5) 'other)
      (test (ellipses-as-literal ...) 'under)
      (test (ellipses-as-literal 6)   'other)
+
+     (test (let ((... 19))
+             (define-syntax bar
+               (syntax-rules ()
+                ((bar x y ...)
+                 (list y x ...))))
+             (bar 1 2 3))
+           '(2 1 3))
+    
+     (test (let ((... 19))
+             (define-syntax bar
+               (syntax-rules ()
+                ((bar x y)
+                 (list y x ...))))
+             (bar 1 2))
+           '(2 1 19))
     
      ;;     syntax-error                            ; R7RS 4.3.3
 

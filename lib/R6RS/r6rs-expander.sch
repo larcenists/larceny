@@ -401,8 +401,6 @@
     (define id-displacement     (record-accessor :identifier 3))
     (define id-maybe-library    (record-accessor :identifier 4))
 
-    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [R7RS]
-
     (define (id-library id)
       (or (id-maybe-library id)
           *current-library*))
@@ -1692,10 +1690,29 @@
     ;;
     ;;=========================================================================
 
+    (define no-ellipsis #f)                                            ; [R7RS]
+
+    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [R7RS]
+
+    (define standard-ellipsis-binding                                  ; [R7RS]
+      (make-binding 'macro '... '(0) #f '()))                          ; [R7RS]
+
+    (define (current-ellipsis)                                         ; [R7RS]
+      (let ((b (binding standard-ellipsis)))                           ; [R7RS]
+        (if (and b                                                     ; [R7RS]
+                 (eq? (binding-type b)                                 ; [R7RS]
+                      (binding-type standard-ellipsis-binding))        ; [R7RS]
+                 (eq? (binding-name b)                                 ; [R7RS]
+                      (binding-name standard-ellipsis-binding))        ; [R7RS]
+                 (eq? (binding-library b)                              ; [R7RS]
+                      (binding-library standard-ellipsis-binding)))    ; [R7RS]
+            standard-ellipsis                                          ; [R7RS]
+            no-ellipsis)))                                             ; [R7RS]
+
     (define (expand-syntax-case exp)
       (match exp
         ((- e ((? identifier? literals) ___) clauses ___)
-         (expand-syntax-case2 e standard-ellipsis literals clauses))   ; [R7RS]
+         (expand-syntax-case2 e (current-ellipsis) literals clauses))  ; [R7RS]
         ((- e (? identifier? ellipsis) ((? identifier? literals) ___)  ; [R7RS]
             clauses ___)                                               ; [R7RS]
          (expand-syntax-case2 e ellipsis literals clauses))))          ; [R7RS]
@@ -1710,6 +1727,7 @@
 
     (define (ellipsis? x)                                              ; [R7RS]
       (and (identifier? x)                                             ; [R7RS]
+           *ellipsis*                                                  ; [R7RS]
            (free-identifier=? x *ellipsis*)))                          ; [R7RS]
 
     (define (process-clauses clauses input literals)
