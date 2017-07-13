@@ -483,27 +483,88 @@
 ;;; Given the list representation of a library and its absolute path,
 ;;; returns a library entry for the library if it can be parsed,
 ;;; or returns #f if it doesn't look like a library.
+;;;
+;;; R6RS library forms are easier to parse than R7RS define-library.
+;;; A define-library form will not be fully parsed by this code if it
+;;;     has fewer than two library declarations
+;;;     uses include-library-declarations
+;;;     places some export or import declarations after an include or begin
+;;;     places some export or import declarations after a cond-expand
+;;;         that expands into an include or begin
+;;;     expects some macro to expand into a library declaration
+;;;
+;;; Weird feature:  If a (cond-expand (else)) form is encountered
+;;; before any export or import forms, then that is taken to mean
+;;; the library is a local help library and should not be regarded
+;;; as an available source library.
 
 (define (larceny:library->entry library filename)
+
+  (define (possibly-okay? keyword form)
+    (and (list? form)
+         (pair? form)
+         (eq? keyword (car form))))
+
+  (define (parse-define-library name decls export-decls import-decls)
+    (if (null? decls)
+        (make-r7rs-entry name export-decls import-decls)
+        (let ((decl (car decls))
+              (decls (cdr decls)))
+          (cond ((possibly-okay? 'export decl)
+                 (parse-define-library name
+                                       decls
+                                       (cons decl export-decls)
+                                       import-decls))
+                ((possibly-okay? 'import decl)
+                 (parse-define-library name
+                                       decls
+                                       export-decls
+                                       (cons decl import-decls)))
+                ((possibly-okay? 'cond-expand decl)
+                 (if (and (null? export-decls)
+                          (null? import-decls)
+                          (equal? decl '(cond-expand (else))))
+                     #f
+                     (parse-define-library name
+                                           (append (larceny:cond-expand decl)
+                                                   decls)
+                                           export-decls
+                                           import-decls)))
+                (else
+                 (make-r7rs-entry name export-decls import-decls))))))
+
+  (define (make-r7rs-entry name export-decls import-decls)
+    (larceny:make-library-entry name
+                                (cons 'export
+                                      (apply append
+                                             (map cdr
+                                                  (reverse export-decls))))
+                                (cons 'import
+                                      (apply append
+                                             (map cdr
+                                                  (reverse import-decls))))
+                                filename
+                                #f))
+
   (and (list? library)
        (<= 4 (length library))
        (memq (car library) *library-keywords*)
        (let ((name (cadr library))
              (exports (caddr library))
              (imports (cadddr library)))
-         (define (okay? keyword form)
-           (and (list? name)
-                (pair? name)
-                (eq? keyword (car form))))
          (and (pair? name)
-              (okay? (car name) name)
-              (okay? 'export exports)
-              (okay? 'import imports)
-              (let ((entry (larceny:make-library-entry name
-                                                       exports
-                                                       imports
-                                                       filename
-                                                       #f)))
-                entry)))))
+              (list? name)
+              (symbol? (car name))
+              (cond ((eq? (car library) 'define-library)
+                     (parse-define-library name (cddr library) '() '()))
+                    ((and (eq? (car library) 'library)
+                          (possibly-okay? 'export exports)
+                          (possibly-okay? 'import imports))
+                     (larceny:make-library-entry name
+                                                 exports
+                                                 imports
+                                                 filename
+                                                 #f))
+                    (else #f))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

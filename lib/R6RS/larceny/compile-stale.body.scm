@@ -23,13 +23,13 @@
 ;;; by compile-stale.
 ;;;
 ;;; FIXME: the dependency graph is not perfectly reliable because
-;;;     it is unsafe to expand macros during calculation of dependencies
 ;;;     the graph is calculated using cond-expand features recognized
 ;;;         when compile-stale is called, which may be different from
 ;;;         cond-expand features recognized at run time
-;;;     the graph is calculated by looking only at import declarations
-;;;         at the head of a library or program (FIXME)
-;;;     the graph is calculated without expanding cond-expand (FIXME)
+;;;     libraries that are intended for use only by another library
+;;;         or program found within the same file often have names
+;;;         that prevent them from being found by Larceny's mapping
+;;;         from library names to files
 ;;;
 ;;; FIXME: several calls to member should be replaced by hashtables.
 ;;;
@@ -369,7 +369,6 @@
     ;; defined in the files to compiled.
 
     (define (stale-libraries entries)
-;(write (list 'FIXME 'stale-libraries entries)) (newline)
       (if (null? entries)
           '()
           (union (let* ((entry (car entries))
@@ -397,7 +396,6 @@
     (define (libs-to-compile libs0)
       (let loop ((libs (vector->list (hashtable-keys lib-table)))
                  (to-compile libs0))
-;(write (list 'FIXME 'libs-to-compile libs to-compile)) (newline)
         (cond ((null? libs)
                to-compile)
               ((let* ((lib (car libs))
@@ -424,7 +422,6 @@
   ;; so compilation-order will terminate.
 
   (define (compilation-order to-compile not-ready ready)
-;(write (list 'FIXME 'compilation-order to-compile not-ready ready)) (newline)
     (cond ((and (null? to-compile)
                 (null? not-ready))
            (reverse ready))
