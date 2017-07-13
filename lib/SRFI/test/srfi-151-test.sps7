@@ -288,17 +288,13 @@
         5
         (bit-field-reverse #x140000000000000000000000000000000 0 129))
 
-  ;; bits->list takes only one argument, but an earlier draft of SRFI 151
-  ;; contains examples that passed a second argument.  Those examples have
-  ;; been removed from the SRFI, and are commented out below.
-
   (test "test-103" '(#t #f #t #f #t #t #t) (bits->list #b1110101))
-; (test "test-104" '(#f #t #f #t) (bits->list #b111010 4))
+  (test "test-104" '(#f #t #f #t) (bits->list #b111010 4))
   (test "test-106" #b1110101 (list->bits '(#t #f #t #f #t #t #t)))
   (test "test-107" #b111010100 (list->bits '(#f #f #t #f #t #f #t #t #t)))
   (test "test-223" '(#t #t) (bits->list 3))
-; (test "test-224" '(#f #t #t #f) (bits->list 6 4))
-; (test "test-225" '(#f #t) (bits->list 6 2))
+  (test "test-224" '(#f #t #t #f) (bits->list 6 4))
+  (test "test-225" '(#f #t) (bits->list 6 2))
   (test "test-226" '(#t #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
                  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
                  #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f #f 
