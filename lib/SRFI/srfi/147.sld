@@ -28,6 +28,19 @@
   (import (rename (scheme base)
 		  (syntax-rules scheme-syntax-rules)
 		  (define-syntax scheme-define-syntax)
-		  (let-syntax scheme-let-syntax)
-		  (letrec-syntax scheme-letrec-syntax)))
+		  (let-syntax larceny:let-syntax)
+		  (letrec-syntax larceny:letrec-syntax)))
+
+  (begin
+
+   (scheme-define-syntax scheme-let-syntax
+     (scheme-syntax-rules ()
+      ((_ bindings . body)
+       (let () (larceny:let-syntax bindings . body)))))
+
+   (scheme-define-syntax scheme-letrec-syntax
+     (scheme-syntax-rules ()
+      ((_ bindings . body)
+       (let () (larceny:letrec-syntax bindings . body))))))
+
   (include "147.body.scm"))
