@@ -434,7 +434,8 @@
                           (and (not by)
                                (eq? (id-name x)
                                     (id-name y))))))
-          (and result
+          (and #f ; [Larceny] no phase checking
+               result
                bx
                (begin (check-binding-level x bx)
                       (check-binding-level y by)))
@@ -443,6 +444,22 @@
           (and result
                (register-use! x bx)
                (register-use! y by))
+          result)))
+
+    ;; Like free-identifier=? but doesn't register the uses.
+
+    (define (free-ident=? x y)
+      (check x identifier? 'free-identifier=?)
+      (check y identifier? 'free-identifier=?)
+      (let  ((bx (binding x))
+             (by (binding y)))
+        (let ((result (if bx
+                          (and by
+                               (eq? (binding-name bx)
+                                    (binding-name by)))
+                          (and (not by)
+                               (eq? (id-name x)
+                                    (id-name y))))))
           result)))
 
     ;; For internal use
@@ -1728,14 +1745,14 @@
     (define (ellipsis? x)                                              ; [R7RS]
       (and (identifier? x)                                             ; [R7RS]
            *ellipsis*                                                  ; [R7RS]
-           (free-identifier=? x *ellipsis*)))                          ; [R7RS]
+           (free-ident=? x *ellipsis*)))                               ; [R7RS]
 
     (define (process-clauses clauses input literals)
 
       (define (literal? pattern)
         (and (identifier? pattern)
              (memp (lambda (x)
-                     (bound-identifier=? x pattern))
+                     (free-ident=? x pattern))
                    literals)))
 
       (define (process-match input pattern sk fk)
