@@ -89,6 +89,10 @@
      . ,(lambda ()
 	  (values make-template-petit-unix-gcc-v4
 		  make-template-target-petit-unix-shared)))
+    (petit-unix-shared-gcc-v5
+     . ,(lambda ()
+	  (values make-template-petit-unix-gcc-v5
+		  make-template-target-petit-unix-shared)))
     (petit-macosx-shared-gcc
      . ,(lambda ()
 	  (values make-template-petit-macosx-gcc-shared 
@@ -100,6 +104,10 @@
     (petit-unix-static-gcc-v4
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc-v4
+		  make-template-target-petit-unix-static)))
+    (petit-unix-static-gcc-v5
+     . ,(lambda () 
+	  (values make-template-petit-unix-gcc-v5
 		  make-template-target-petit-unix-static)))
     (petit-win32-static-mingw-v3
      . ,(lambda () 
@@ -163,7 +171,7 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
    "CFLAGS+=-c "
    (case version
      ((gcc-v3) " ")
-     ((gcc-v4) " -fno-stack-protector "))
+     ((gcc-v4 gcc-v5) " -fno-stack-protector "))
    " -falign-functions=4 -m32 -I$(INC_ROOT)/Standard-C"))
 (define (makefile-variable-definitions version)
   (let ((lines (lambda strings
@@ -183,6 +191,8 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
   (template-common (makefile-variable-definitions 'gcc-v3)))
 (define make-template-petit-unix-gcc-v4
   (template-common (makefile-variable-definitions 'gcc-v4)))
+(define make-template-petit-unix-gcc-v5
+  (template-common (makefile-variable-definitions 'gcc-v5)))
 
 ; Native Larceny with Sassy back-end: Unix: NASM macro assembler for Rts
 (define make-template-sassy-unix-gcc
