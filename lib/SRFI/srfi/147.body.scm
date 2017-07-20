@@ -20,8 +20,17 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; No longer used.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+#;
 (scheme-define-syntax :continuation
   (scheme-syntax-rules ()))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (scheme-define-syntax expand-transformer
   (scheme-syntax-rules (scheme-syntax-rules syntax-error begin)
@@ -34,7 +43,7 @@
 	    ...
 	    (expand-transformer (k ...) transformer-spec)))   
     ((expand-transformer (k ...) (keyword . args))
-     (keyword (:continuation expand-transformer (k ...)) . args))
+     (keyword (":continuation" expand-transformer (k ...)) . args))
     ((expand-transformer (k ...) keyword)
      (k ... (scheme-syntax-rules ()
 	      ((_ . args) (keyword . args)))))))
@@ -109,8 +118,8 @@
 			body*))))
 
 (scheme-define-syntax syntax-rules
-  (scheme-syntax-rules (:continuation)
-    ((syntax-rules (:continuation k ...) . args)
+  (scheme-syntax-rules ()
+    ((syntax-rules (":continuation" k ...) . args)
      (syntax-rules-aux "state0" (k ...) . args))
     ((syntax-rules . _)
      (syntax-error "invalid syntax-rules syntax"))))
@@ -118,10 +127,10 @@
 (scheme-define-syntax syntax-rules-aux
   (scheme-syntax-rules ()
     ((syntax-rules-aux "state0" k* (literal* ...) . rule*)
-     (syntax-rules-aux "state1" k* (... ...) ((literal* ... :continuation)) rule* () rule*))
+     (syntax-rules-aux "state1" k* (... ...) ((literal* ...)) rule* () rule*))
 
     ((syntax-rules-aux "state0" k* ellipsis (literal* ...) . rule*)
-     (syntax-rules-aux "state1" k* ellipsis (ellipsis (literal* ... :continuation))
+     (syntax-rules-aux "state1" k* ellipsis (ellipsis (literal* ...))
        rule* () rule*))
    
     ((syntax-rules-aux "state1" (k ...) e (l ...) () (rule1* ...) rule2*)
@@ -132,18 +141,8 @@
      (syntax-rules-aux "state1" k* ::: l* rule1*
        (rule2
 	...
-	((_ (:continuation c :::) . pattern)
+	((_ (":continuation" c :::) . pattern)
 	 (c ::: template)))
        rule3*))
     ((syntax-rules-aux . _)
      (syntax-error "invalid syntax-rules syntax"))))
-
-
-;; Local Variables:
-;; eval: (put 'scheme-define-syntax 'scheme-indent-function 'defun)
-;; eval: (put 'scheme-syntax-rules 'scheme-indent-function 'defun)
-;; eval: (put 'syntax-rules-aux 'scheme-indent-function 'defun)
-;; eval: (font-lock-add-keywords 'scheme-mode
-;;                               '(("(\\(scheme-define-syntax\\)\\>" 1 font-lock-keyword-face)
-;;                                 ("(\\(scheme-syntax-rules\\)\\>" 1 font-lock-keyword-face)))
-;; End:
