@@ -115,26 +115,53 @@
     (map (lambda (x) (list (caddr x) (cadr x))) classes)))
 
 ; Garbage Collect Truly Worthless Atoms.
+;
+; Dead symbols are symbols that are on the oblist, are only referenced
+; once, and have no property list.
 
 (define (gctwa)
 
   (define (symbol.proplist s)
     (vector-like-ref s 2))
 
-  (define (symbol<? a b)
-    (string<? (symbol->string a) (symbol->string b)))
+  (define (symbol.proplist! s v)
+    (vector-like-set! s 2 v))
 
-  (let ((symbols (sro 3 (typetag 'gctwa) 1)))
-    (do ((i 0 (+ i 1))
-	 (dead '()
-	       (let ((s (vector-ref symbols i)))
-		 (if (null? (symbol.proplist s))
-		     (cons s dead)
-		     dead))))
-	((= i (vector-length symbols))
-	 (oblist-set! (filter (lambda (x)
-				(not (memq x dead)))
-			      (oblist)))))))
+  (let* ((symbols-once (sro 3 (typetag 'gctwa) 1))
+	 (cookie (list (cons 'gctwa #x1337))))
+
+    ;; Mark symbols referenced once without a proplist as deletable.
+
+    (let loop ((i (vector-length symbols-once)))
+      (if (> i 0)
+	  (let ((s (vector-ref symbols-once (- i 1))))
+	    (if (null? (symbol.proplist s))
+		(symbol.proplist! s cookie))
+	    (loop (- i 1)))))
+
+    ;; Scan the oblist to compute the live symbols, skipping the marked ones.
+
+    (let ((live (let loop ((ss (oblist)) (live '()))
+		  (if (null? ss)
+		      live
+		      (let ((s (car ss)))
+			(if (eq? (symbol.proplist s) cookie)
+			    (loop (cdr ss) live)
+			    (loop (cdr ss) (cons s live))))))))
+
+      ;; Unmark the symbols that were marked.
+
+      (let loop ((i (vector-length symbols-once)))
+	(if (> i 0)
+	    (let ((s (vector-ref symbols-once (- i 1))))
+	      (if (eq? (symbol.proplist s) cookie)
+		  (symbol.proplist! s '()))
+	      (loop (- i 1)))))
+
+      ;; And install the live ones.
+
+      (oblist-set! live)
+      #t)))
 
 ; Display amount of space available.
 
