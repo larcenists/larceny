@@ -521,6 +521,17 @@
     (define (generate-color)
       (generate-guid 'c))
 
+    ;; FIXME: Colors don't need to be globally unique symbols,
+    ;; because the keys used for lookups always include a name
+    ;; that's globally unique.  We could just as well represent
+    ;; colors as fixnums.
+#;
+    (define generate-color
+      (let ((ticks 0))
+        (lambda ()
+          (set! ticks (+ ticks 1))
+          ticks)))
+
     ;;=========================================================================
     ;;
     ;; Bindings:

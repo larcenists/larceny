@@ -121,22 +121,27 @@
 
 (define (gctwa)
 
+  (define (symbol.hashname s)
+    (vector-like-ref s 1))
+
   (define (symbol.proplist s)
     (vector-like-ref s 2))
 
-  (define (symbol.proplist! s v)
-    (vector-like-set! s 2 v))
-
   (let* ((symbols-once (sro 3 (typetag 'gctwa) 1))
-	 (cookie (list (cons 'gctwa #x1337))))
+         (n (vector-length symbols-once))
+         (dead (make-vector n '())))
 
-    ;; Mark symbols referenced once without a proplist as deletable.
+    ;; Mark symbols referenced once without a proplist as deletable
+    ;; by entering them into a hashtable of dead symbols.
 
     (let loop ((i (vector-length symbols-once)))
       (if (> i 0)
 	  (let ((s (vector-ref symbols-once (- i 1))))
 	    (if (null? (symbol.proplist s))
-		(symbol.proplist! s cookie))
+                (let ((j (modulo (symbol.hashname s) n)))
+                  (vector-set! dead
+                               j
+                               (cons s (vector-ref dead j)))))
 	    (loop (- i 1)))))
 
     ;; Scan the oblist to compute the live symbols, skipping the marked ones.
@@ -145,20 +150,12 @@
 		  (if (null? ss)
 		      live
 		      (let ((s (car ss)))
-			(if (eq? (symbol.proplist s) cookie)
+			(if (let ((j (modulo (symbol.hashname s) n)))
+                              (memq s (vector-ref dead j)))
 			    (loop (cdr ss) live)
 			    (loop (cdr ss) (cons s live))))))))
 
-      ;; Unmark the symbols that were marked.
-
-      (let loop ((i (vector-length symbols-once)))
-	(if (> i 0)
-	    (let ((s (vector-ref symbols-once (- i 1))))
-	      (if (eq? (symbol.proplist s) cookie)
-		  (symbol.proplist! s '()))
-	      (loop (- i 1)))))
-
-      ;; And install the live ones.
+      ;; Install the live ones.
 
       (oblist-set! live)
       #t)))
