@@ -45,7 +45,7 @@ The
 procedures make it easier to recompile stale
 libraries and programs.
 
-proctempl:compile-file[args="sourcefile",optarg="slfaslfile"]
+proc:compile-file[args="sourcefile",optarg="slfaslfile"]
 
 Compiles _sourcefile_, which must be a string naming
 a file that contains source code for one or more

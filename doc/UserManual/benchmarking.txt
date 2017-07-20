@@ -25,7 +25,7 @@ _expression_.
     832040
 ----------------------------------------------------------------
 
-proctempl:run-benchmark[args="name iterations thunk predicate"]
+proc:run-benchmark[args="name iterations thunk predicate"]
 
 Given the _name_ of a benchmark, the number of
 _iterations_ to be performed, a zero-argument

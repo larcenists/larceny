@@ -1752,7 +1752,7 @@
       (define (literal? pattern)
         (and (identifier? pattern)
              (memp (lambda (x)
-                     (free-ident=? x pattern))
+                     (bound-identifier=? x pattern))
                    literals)))
 
       (define (process-match input pattern sk fk)
