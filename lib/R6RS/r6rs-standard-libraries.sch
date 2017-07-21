@@ -734,7 +734,10 @@
    call/cc)
   
   (import
-   (except (core primitives) _ ...)     
+   (except (core primitives) _ ... let-syntax letrec-syntax)
+   (rename (core primitives)
+           (let-syntax r6rs:let-syntax)
+           (letrec-syntax r6rs:letrec-syntax))
    (core let)                          
    (core derived)             
    (core quasiquote)        
@@ -779,7 +782,11 @@
     exact-integer-sqrt boolean=?
     symbol=? string-for-each vector-map vector-for-each
     error assertion-violation
-    call/cc))
+    call/cc
+
+    ;; Larceny-specific help procedures:
+
+    larceny:r7strict))
 
     ;; These are redefined by SRFI 1, which leaks into
     ;; the IAssassin R5RS top level.
@@ -793,6 +800,28 @@
          (or expression
              (assertion-violation #f "assertion failed" 'expression)))))
   
+    (define r7strict? (larceny:r7strict))
+
+    (define-syntax let-syntax
+      (lambda (x)
+        (if r7strict?
+            (syntax-case x ()
+             ((_ bindings . body)
+              (syntax (let () (r6rs:let-syntax bindings . body)))))
+            (syntax-case x ()
+             ((_ bindings . body)
+              (syntax (r6rs:let-syntax bindings . body)))))))
+
+    (define-syntax letrec-syntax
+      (lambda (x)
+        (if r7strict?
+            (syntax-case x ()
+             ((_ bindings . body)
+              (syntax (let () (r6rs:letrec-syntax bindings . body)))))
+            (syntax-case x ()
+             ((_ bindings . body)
+              (syntax (r6rs:letrec-syntax bindings . body)))))))
+
   ) ;; rnrs base
 
 (library (rnrs io simple (6))

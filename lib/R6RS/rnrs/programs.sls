@@ -2,7 +2,9 @@
   (export command-line exit)
   (import
    (core primitives)
-   (rnrs base)
+   (except (rnrs base)
+           let-syntax
+           letrec-syntax)
    (primitives
     command-line-arguments               ; [Larceny]
     exit))

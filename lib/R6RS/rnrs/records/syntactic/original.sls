@@ -22,7 +22,10 @@
           (for (primitives make-r6rs-hashtable hashtable-ref hashtable-set!
                            symbol-hash record-type-name)
                run expand)
-          (for (rnrs base) run expand)
+          (for (except (rnrs base)
+                       let-syntax
+                       letrec-syntax)
+               run expand)
           (rnrs records procedural)
           (err5rs records procedural))
 
@@ -61,7 +64,10 @@
           record-type-descriptor record-constructor-descriptor)
 
   (import (for (core primitives) run expand)
-          (for (rnrs base) run expand)
+          (for (except (rnrs base)
+                       let-syntax
+                       letrec-syntax)
+               run expand)
           (for (rnrs lists) run expand)
           (for (only (rnrs syntax-case) quasisyntax unsyntax) run expand)
           (rnrs records procedural)

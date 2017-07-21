@@ -197,7 +197,12 @@
                  (failsafe-process-arguments)))
       (case emode
        ((err5rs r7rs r7r6)
-        (aeryn-mode!)))
+        (aeryn-mode!)
+        (if (larceny:r7strict)
+            (begin (read-square-bracket-as-paren #f)
+                   (read-r6rs-weirdness? #f)
+                   (read-larceny-weirdness? #f)
+                   (read-traditional-weirdness? #f)))))
       (case emode
        ((err5rs)
         (writeln "ERR5RS mode (no libraries have been imported)"))

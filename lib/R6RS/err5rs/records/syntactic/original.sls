@@ -3,7 +3,10 @@
   (export define-record-type)
 
   (import (for (core primitives) run expand)
-          (for (rnrs base) run expand)
+          (for (except (rnrs base)
+                       let-syntax
+                       letrec-syntax)
+               run expand)
           (for (rnrs lists) run expand)
           (for (only (rnrs syntax-case) quasisyntax unsyntax) run expand)
           (err5rs records procedural))

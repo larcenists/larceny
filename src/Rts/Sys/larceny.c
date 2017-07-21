@@ -159,8 +159,8 @@ int main( int argc, char **os_argv )
   command_line_options.ignore1 = 0;
   command_line_options.r6fast = 0;
   command_line_options.r6slow = 0;
-  command_line_options.r6pedantic = 0;
-  command_line_options.r6less_pedantic = 0;
+  command_line_options.r6pedantic = 0;       /* true iff -r7strict */
+  command_line_options.r6less_pedantic = 0;  /* true iff -r7strict */
   command_line_options.r6program = "";
   command_line_options.r6path = "";
   command_line_options.r6path2 = "";
@@ -747,6 +747,11 @@ parse_options( int argc, char **argv, opt_t *o )
     }
     else if (hstrcmp( *argv, "-err5rs" ) == 0)
       o->err5rs = 1;
+    else if (hstrcmp( *argv, "-r7strict" ) == 0) {
+      o->r7rs = 1;
+      o->r6pedantic = 1;
+      o->r6less_pedantic = 1;
+    }
     else if ((hstrcmp( *argv, "-r7rs" ) == 0) ||
              (hstrcmp( *argv, "-r7" ) == 0))
       o->r7rs = 1;
@@ -766,10 +771,12 @@ parse_options( int argc, char **argv, opt_t *o )
       o->r6fast = 1;
     else if (hstrcmp( *argv, "-slow" ) == 0)
       o->r6slow = 1;
+#if 0
     else if (hstrcmp( *argv, "-pedantic" ) == 0)
       o->r6pedantic = 1;
     else if (hstrcmp( *argv, "-but-not-that-pedantic" ) == 0)
       o->r6less_pedantic = 1;
+#endif
     else if (hstrcmp( *argv, "-program" ) == 0) {
       if (strcmp( o->r6program, "" ) == 0) {
         ++argv;
@@ -892,14 +899,6 @@ parse_options( int argc, char **argv, opt_t *o )
       (o->r7rs && (o->r5rs || o->err5rs || o->r6rs || o->r7r6)) ||
       (o->r7r6 && (o->r5rs || o->err5rs || o->r6rs || o->r7rs)))
     param_error( "More than one of -r5rs -r6rs -r7rs -r7r6 selected." );
-
-  if ((o->r6slow || o->r6pedantic) &&
-      ((! (o->r6rs)) || (! (o->r6slow)) ||
-       (! (o->r6pedantic)) || (o->r6program == 0)))
-    param_error( "Missing one of -r6rs -slow -pedantic -program options." );
-
-  if (o->r6less_pedantic && (! (o->r6pedantic)))
-    param_error( "Missing -pedantic option." );
 
   if (o->r6slow && (strcmp (o->r6path, "") != 0))
     param_error( "The -slow and -path options are incompatible." );
@@ -1396,6 +1395,8 @@ static char *wizardhelptext[] = {
   "  -program <filename>",
   "     Execute the program found in the file; then exit.",
   "     Unless <filename> starts with a hyphen, -program may be omitted.",
+  "  -r7strict",
+  "     Similar to -r7rs but disables some extensions to R7RS.",
   "  -err5rs",
   "     Similar to -r7rs but doesn't import any libraries at startup.",
   "  -heap <filename>",
@@ -1413,11 +1414,7 @@ static char *wizardhelptext[] = {
   "       -fast",
   "          Execute the R6RS-style program as compiled code (the default).",
   "       -slow",
-  "          Execute in Spanky mode; must be accompanied by -pedantic.",
-  "       -pedantic",
-  "          Execute in Spanky mode; must be accompanied by -slow.",
-  "       -but-not-that-pedantic",
-  "          Modifies -pedantic, which must also be specified.",
+  "          Execute in Spanky mode.",
 #endif
   "  -path <directories>",
   "     Same as -I <directories>.",

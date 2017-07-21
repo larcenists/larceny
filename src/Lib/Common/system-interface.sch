@@ -304,6 +304,16 @@
    ((r7rs r7r6 err5rs) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
    (else               'r6rs)))
 
+; For disabling extensions to R7RS that might be incompatible with some code.
+; Must keep in sync with src/Rts/Sys/primitive.c (which explains encodings).
+;
+; FIXME: this should be faster
+;
+; Returns #f, #t, or the symbol extremely.
+
+(define (larceny:r7strict)
+  (sys$system-feature 'pedantic))
+
 ; Get the value of an environment variable.
 
 (define (sys$check-env-var fn name)

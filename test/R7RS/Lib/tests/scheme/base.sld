@@ -970,6 +970,29 @@
                  (m))))
            'outer)
 
+     ;; The following test was copied from the Racket R6RS tests.
+     ;; The R7RS (small) document does not specify whether let-syntax
+     ;; and letrec-syntax splice definitions (as in R6RS) or introduce
+     ;; a new contour (as in R5RS), and the "Language Changes" section
+     ;; does not mention this issue, so I assumed the R7RS preserved
+     ;; the R6RS behavior, which had not been controversial when the
+     ;; R6RS was ratified.  Unfortunately, seven members of Working
+     ;; Group 1 took a vote on this, and voted 5 to 1 in favor of
+     ;; reverting to the R5RS semantics:
+     ;;
+     ;; http://trac.sacrideo.us/wg/wiki/WG1Ballot2Results#a48let-syntax
+     ;; http://trac.sacrideo.us/wg/wiki/FiveToSixToSeven
+     ;;
+     ;; (The second of those links claim this change was made "for
+     ;; backward compatibility with existing Schemes", but the change
+     ;; obviously breaks backward compatibility with all existing
+     ;; implementations of R6RS Scheme.)
+     ;;
+     ;; The following test has therefore been commented out,
+     ;; and two new tests for the backward-compatibility-breaking
+     ;; semantics approved by WG1, but not explicitly required by
+     ;; R7RS (small), have been added.
+#;
      (test (let ()
              (let-syntax ((def (syntax-rules ()
                                  ((def stuff ...) (define stuff ...)))))
@@ -977,10 +1000,45 @@
              foo)
            42)
 
+     (test (let ((x 13))
+             (define y 14)
+             (let-syntax ((def
+                           (syntax-rules ()
+                            ((_ var val)
+                             (define var val)))))
+               (def x 56)
+               (set! y (+ x y)))
+             (list x y))
+           '(13 70))
+
+     (test (let ((x 13))
+             (define y 14)
+             (letrec-syntax ((def
+                              (syntax-rules ()
+                               ((_ var val)
+                                (define var val)))))
+               (def x 56)
+               (set! y (+ x y)))
+             (list x y))
+           '(13 70))
+
+     ;; Since the two new tests above enforce a semantics not explicitly
+     ;; required by the R7RS, it seemed only fair to add a third test,
+     ;; suggested by Al Petrofsky, that enforces a desirable semantics
+     ;; not explicitly required by the R7RS.
+     ;;
+     ;; FIXME:  One could argue that all three of these tests should be
+     ;; removed because the language of the R7RS (small) document itself
+     ;; does not specify their behavior.
+
      ;; This test was suggested by Al Petrofsky.
+     ;;
      ;; Its outcome is not specified by the R7RS, but the more hygienic
      ;; behavior that uses bound-identifier=? to determine whether x and
-     ;; y match the literal k is favored by R5RS and R6RS precedent.
+     ;; y match the literal k is established practice for both R6RS and
+     ;; R5RS systems, and the R7RS does not say anything to suggest WG1
+     ;; intended to mandate a less hygienic behavior in R7RS systems.
+     ;; 
      ;; Some implementations of R7RS effectively use free-identifier=?,
      ;; but that is believed to be a misfeature of Chibi that was copied
      ;; by other implementations and should not be hard for them to fix.
