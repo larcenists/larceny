@@ -1760,11 +1760,38 @@
 
     (define (process-clauses clauses input literals)
 
+      ;; The Scheme standards do not explicitly prescribe full         ; [R7RS]
+      ;; hygiene when determining whether an identifier y seen in      ; [R7RS]
+      ;; a pattern matches a literal x.  All implementations of        ; [R7RS]
+      ;; the R6RS seem to be fully hygienic, but several R7RS          ; [R7RS]
+      ;; systems are not because they use free-identifier=? (or        ; [R7RS]
+      ;; some near-equivalent) instead of bound-identifier=? here.     ; [R7RS]
+      ;;                                                               ; [R7RS]
+      ;; Some R7RS macros may therefore depend on this partial         ; [R7RS]
+      ;; failure of hygiene.  To accomodate those macros, Larceny      ; [R7RS]
+      ;; now includes a compiler switch that can reduce hygiene        ; [R7RS]
+      ;; here.                                                         ; [R7RS]
+      ;;                                                               ; [R7RS]
+      ;; In decreasing order of hygiene:                               ; [R7RS]
+      ;;                                                               ; [R7RS]
+      ;;     (bound-identifier=? x y)                                  ; [R7RS]
+      ;;     (free-identifier=? x y)                                   ; [R7RS]
+      ;;     (free=? y (id-name x))                                    ; [R7RS]
+      ;;     (or (and (binding y)                                      ; [R7RS]
+      ;;              (eq? (id-name x) (binding-name (binding y))))    ; [R7RS]
+      ;;         (and (not (binding y))                                ; [R7RS]
+      ;;              (eq? (id-name x) (id-name y))))                  ; [R7RS]
+      ;;     (eq? (id-name x) (id-name y))                             ; [R7RS]
+
       (define (literal? pattern)
         (and (identifier? pattern)
-             (memp (lambda (x)
-                     (bound-identifier=? x pattern))
-                   literals)))
+             (if (hygienic-literals)                                   ; [R7RS]
+                 (memp (lambda (x)
+                         (bound-identifier=? x pattern))
+                       literals)
+                 (memp (lambda (x)                                     ; [R7RS]
+                         (free-ident=? x pattern))                     ; [R7RS]
+                       literals))))                                    ; [R7RS]
 
       (define (process-match input pattern sk fk)
         (if (not (symbol? input))

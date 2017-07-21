@@ -16,6 +16,7 @@
           compile-despite-errors
           issue-warnings
           include-procedure-names include-variable-names include-source-code
+          hygienic-literals
           avoid-space-leaks runtime-safety-checking catch-undefined-globals
           integrate-procedures
           faster-arithmetic
@@ -47,6 +48,7 @@
                       include-procedure-names
                       include-variable-names
                       include-source-code
+                      hygienic-literals
                       avoid-space-leaks
                       runtime-safety-checking
                       catch-undefined-globals

@@ -977,6 +977,28 @@
              foo)
            42)
 
+     ;; This test was suggested by Al Petrofsky.
+     ;; Its outcome is not specified by the R7RS, but the more hygienic
+     ;; behavior that uses bound-identifier=? to determine whether x and
+     ;; y match the literal k is favored by R5RS and R6RS precedent.
+     ;; Some implementations of R7RS effectively use free-identifier=?,
+     ;; but that is believed to be a misfeature of Chibi that was copied
+     ;; by other implementations and should not be hard for them to fix.
+     ;; See
+     ;;     https://srfi-email.schemers.org/srfi-148/msg/6092367
+     ;;     https://srfi-email.schemers.org/srfi-148/msg/6096733
+     ;;     https://srfi-email.schemers.org/srfi-148/msg/6097827
+
+     (test (let-syntax
+             ((m (syntax-rules ()
+                  ((m x) (let-syntax
+                           ((n (syntax-rules (k)
+                                ((n x) 'bound-identifier=?)
+                                ((n y) 'free-identifier=?))))
+                           (n z))))))
+             (m k))
+           'bound-identifier=?)
+
      ;; FIXME: The following test is commented out.
      ;; It's legal in R6RS, but probably isn't in R7RS.
      ;;

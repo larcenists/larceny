@@ -97,6 +97,7 @@
                             include-source-code
                             include-variable-names
                             single-stepping
+                            hygienic-literals
                             avoid-space-leaks
                             runtime-safety-checking
                             catch-undefined-globals

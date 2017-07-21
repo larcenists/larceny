@@ -33,7 +33,8 @@
   (let ((pgmfile (name-of-pgmfile pgm))
         (outfile (name-of-outfile pgm outfile)))
     (assert (not (string=? pgmfile "")))
-    (assert (not (string=? pgmfile outfile)))
+    (assert (or (not outfile)
+                (not (string=? pgmfile outfile))))
     (parameterize ((current-require-path
                     (append dirs (current-require-path) dirs2))
                    (larceny:current-declared-features
@@ -48,30 +49,64 @@
 (define recognized-program-suffixes
   '(".scm" ".sps"))
 
+;;; Somewhat accidentally, compile-r7rs can be used to compile
+;;; libraries as well as programs.  It's almost as easy to support
+;;; that properly as to disable it.
+
+(define recognized-library-suffixes
+  '(".sld" ".sls"))
+
+(define (file-suffix filename)
+  (let* ((suffixes (filter (lambda (suffix)
+                             (textual-suffix? suffix filename))
+                           (append
+                            recognized-program-suffixes
+                            recognized-library-suffixes)))
+         (suffix (if (null? suffixes) #f (car suffixes))))
+    suffix))
+
+(define (file-basename filename)
+  (let* ((suffix (file-suffix filename))
+         (basename (if suffix
+                       (substring filename
+                                  0
+                                  (- (string-length filename)
+                                     (string-length suffix)))
+                       filename)))
+    basename))
+
 ;;; Here we are free to do as we like.
 ;;; Compiling foo.scm or foo.sps to foo.slfasl doesn't work
 ;;; because there might be a foo.sld or foo.sls file in the
 ;;; same directory that had been compiled to foo.slfasl.
 
 (define (name-of-pgmfile pathname)
-  (string-append pathname ".slfasl"))
+  (let* ((suffix (file-suffix pathname))
+         (basename (if (and suffix
+                            (member suffix
+                                    recognized-library-suffixes))
+                       (file-basename pathname)
+                       pathname)))
+    (string-append basename ".slfasl")))
 
 ;;; Here we have to follow the SRFI 138 spec, but can do as we like
-;;; with the .sps suffix.
+;;; with the .sps and library suffixes.  For library suffixes, we
+;;; effectively use /dev/null as the outfile.
 
 (define (name-of-outfile pgm outfile)
-  (let* ((suffixes (filter (lambda (suffix)
-                             (textual-suffix? suffix pgm))
-                           recognized-program-suffixes))
-         (suffix (if (null? suffixes) #f (car suffixes))))
+  (let ((suffix (file-suffix pgm)))
     (cond (outfile outfile)
-          (suffix (substring pgm
-                             0
-                             (- (string-length pgm)
-                                (string-length suffix))))
+          ((and suffix
+                (member suffix recognized-library-suffixes))
+           #f)
+          (suffix (file-basename pgm))
           (else "a.out"))))
 
 (define (write-outfile outfile pgmfile dirs dirs2 features)
+  (if outfile
+      (write-outfile-really outfile pgmfile dirs dirs2 features)))
+
+(define (write-outfile-really outfile pgmfile dirs dirs2 features)
   (delete-file outfile)
   (call-with-output-file
    outfile

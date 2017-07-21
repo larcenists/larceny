@@ -54,6 +54,9 @@
 (define include-procedure-names
   (make-twobit-flag 'include-procedure-names))
 
+(define hygienic-literals
+  (make-twobit-flag 'hygienic-literals))
+
 ; Space efficiency.
 ; This switch isn't fully implemented yet.  If it is true, then
 ; Twobit will generate flat closures and will go to some trouble
@@ -162,11 +165,12 @@
         (i.s.c (include-source-code))
         (i.v.n (include-variable-names))
         (i.p.n (include-procedure-names))
+        (h.l   (hygienic-literals))
         (a.s.l (avoid-space-leaks))
         (i.p   (integrate-procedures))
         (c.o   (control-optimization))
         (p.a.o (parallel-assignment-optimization))
-        (la.o   (lambda-optimization))
+        (la.o  (lambda-optimization))
         (b.m   (benchmark-mode))
         (b.b.m (benchmark-block-mode))
         (g.o   (global-optimization))
@@ -174,13 +178,14 @@
         (i.c.p (interprocedural-constant-propagation))
         (c.s.e (common-subexpression-elimination))
         (r.i   (representation-inference))
-        (lo.o   (local-optimization)))
+        (lo.o  (local-optimization)))
     (lambda ()
       (compile-despite-errors c.d.e)
       (issue-warnings i.w)
       (include-source-code i.s.c)
       (include-variable-names i.v.n)
       (include-procedure-names i.p.n)
+      (hygienic-literals h.l)
       (avoid-space-leaks a.s.l)
       (integrate-procedures i.p)
       (control-optimization c.o)
@@ -222,6 +227,7 @@
      (include-source-code #f)
      (include-procedure-names #t)
      (include-variable-names #t)
+     (hygienic-literals #t)
      (avoid-space-leaks #f)
      (runtime-safety-checking #t)
      (integrate-procedures 'none)
@@ -260,6 +266,7 @@
      (display-twobit-flag include-variable-names)
      (display-twobit-flag include-source-code))
     ((safety)
+     (display-twobit-flag hygienic-literals)
      (display-twobit-flag avoid-space-leaks))
     ((optimization)
      (display-twobit-flag integrate-procedures)
