@@ -64,7 +64,7 @@ runtest ()
     sleep 1
     {
         echo "${SRC}/$1"
-        time ${LARCENY} --path "${R7PATH}" --r7rs --program "${SRC}/$1"
+        time ${LARCENY} --path "${R7PATH}" --r7strict --program "${SRC}/$1"
     } 2>&1 | tee -a testresults
 }
 
@@ -80,7 +80,7 @@ runtest_with_options ()
     sleep 1
     {
         echo "${SRC}/$1 $2"
-        time ${LARCENY} --path "${R7PATH}" --r7rs --program "${SRC}/$1" $2
+        time ${LARCENY} --path "${R7PATH}" --r7strict --program "${SRC}/$1" $2
         if [ $? = $3 ]; then
             echo "1 tests passed"
         else
