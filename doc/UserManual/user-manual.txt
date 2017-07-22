@@ -48,7 +48,7 @@ as defined by
 the
 <<Standards, Red Edition>> of
 the
-<<Standards, Revised^7^ Report>>.
+<<Standards, Revised^7^ Report>>,
 while continuing to support
 the
 <<Standards, Revised^6^ Report>>,

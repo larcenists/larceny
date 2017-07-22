@@ -137,7 +137,7 @@ using Larceny's R7RS mode and the +(larceny compiler)+
 library:
 ----------------------------------------------------------------
     % pushd /tmp/mydir2
-    % ..\..\larceny -r7 -I mydir1 -I /tmp/mydir2
+    % larceny -r7 -I mydir1 -I /tmp/mydir2
     Larceny v1.3
 
     > (import (larceny compiler))

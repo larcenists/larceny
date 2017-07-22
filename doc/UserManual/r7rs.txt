@@ -70,3 +70,6 @@ standard are:
 (Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
 as a keyword for importing identifiers from the R5RS global
 environment.)
+
+- `include` and `include-ci` are allowed only as library declarations,
+and are not allowed in expression contexts.
