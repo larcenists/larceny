@@ -994,9 +994,12 @@
 
 `  ((_ larceny abs (abs ?z))
     (let ((temp ?z))
-      (if (< temp 0)
-          (.-- temp)
-          temp)))
+      (cond ((< temp 0)
+             (.-- temp))
+            ((flonum? temp)
+             (+ temp 0.0))
+            (else
+             temp))))
 
 `  ((_ larceny negative? (negative? ?x))
     (< ?x 0))

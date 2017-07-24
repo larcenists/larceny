@@ -17,9 +17,12 @@
  
 (define abs
  (lambda (n)
-   (if (< n 0)
-       (-- n)
-       n)))
+   (cond ((< n 0)
+          (-- n))
+         ((flonum? n)
+          (+ n 0.0))
+         (else
+          n))))
 
 (define min
   (letrec ((min (lambda (x . y)
