@@ -148,8 +148,8 @@ See the section describing
 ================================================================
 R7RS programs may contain multiple `import` declarations, but all
 of a program's `import` declarations must precede all of the
-program's commands and definitions.  Larceny no longer enforces
-that syntactic restriction unless `-r7strict` is requested, but
+program's commands and definitions.  As of v1.3, Larceny does not
+enforce that restriction unless `-r7strict` is requested, but
 Larceny does scan the entire program for `import` declarations
 and invokes the executable code of all imported libraries before
 the program itself executes its first command or definition.

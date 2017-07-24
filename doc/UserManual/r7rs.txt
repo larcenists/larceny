@@ -65,7 +65,7 @@ and enhancements Larceny has made to the R7RS.
 [TIP]
 ================================================================
 If some library or program depends upon `-r7strict`, it can be
-<<compile-file,compiled separately>> with `-r7strict` in effect,
+<<CompilingR7rsSection,compiled separately>> with `-r7strict` in effect,
 allowing its compiled form to interoperate with libraries and
 programs that use extensions disabled by `-r7strict`.
 ================================================================
