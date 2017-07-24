@@ -31,6 +31,8 @@ it uses, which makes it possible to write R7RS programs
 that do not import `(scheme base)`.
 
 
+[[R7rsDeviationsSection]]
+
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -44,21 +46,29 @@ those procedures appears to contradict itself.
 
 To simplify interoperability with R6RS libraries and programs,
 `let-syntax` and `letrec-syntax` have R6RS semantics, which
-extend the semantics specified by R7RS (small).  The R6RS
-standard explicitly requires `let-syntax` and `letrec-syntax`
-to splice their macro-expanded bodies into their context instead
-of introducing a new contour, as was typical in implementations
-of the R5RS.  That R6RS behavior is not forbidden by the R7RS,
-but archives of the working group that developed the R7RS standard
-reveal a deliberate decision to break backward compatibility with
-R6RS by requiring `let-syntax` and `letrec-syntax` to introduce
-a new contour.  Although the R7RS (small) standard fails to
-mention this significant change in semantics, that must
-have been an oversight.  Programs that depend upon having
-`let-syntax` and `letrec-syntax` introduce new contours can
-be run in Larceny's `-r7strict` mode, which will also disable
-several other generally desirable extensions and enhancements
-Larceny has made to the R7RS.
+extends the R5RS semantics by allowing their bodies to expand into
+definitions instead of or in addition to expressions.  The R6RS
+standard requires `let-syntax` and `letrec-syntax` to splice
+their macro-expanded bodies into their context instead of
+introducing a new contour.  That R6RS behavior is not explicitly
+forbidden by the R7RS, but archives of the working group that
+developed the R7RS standard record a deliberate decision to break
+backward compatibility with R6RS by requiring `let-syntax` and
+`letrec-syntax` to introduce a new contour.  Although the R7RS
+(small) standard fails to mention this significant change in
+semantics, that must have been an oversight.  Programs that
+depend upon having `let-syntax` and `letrec-syntax` introduce
+new contours can be run in Larceny's `-r7strict` mode, which
+will also disable several other generally desirable extensions
+and enhancements Larceny has made to the R7RS.
+
+[TIP]
+================================================================
+If some library or program depends upon `-r7strict`, it can be
+<<compile-file,compiled separately>> with `-r7strict` in effect,
+allowing its compiled form to interoperate with libraries and
+programs that use extensions disabled by `-r7strict`.
+================================================================
 
 If any other R7RS feature is missing or incompatible with
 the R7RS (small) standard, it's a bug.

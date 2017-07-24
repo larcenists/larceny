@@ -135,15 +135,24 @@ REPL, but R7RS programs do not have exactly the same semantics as
 an R7RS REPL.
 ================================================================
 
+[NOTE]
+================================================================
+Larceny's `-r7strict` option is similar to the `-r7` option, but
+disables several of Larceny's extensions to the R7RS that improve
+interoperability between R7RS and R6RS libraries and programs.
+See the section describing
+<<R7rsDeviationsSection,known deviations from the R7RS standard>>.
+================================================================
+
 [WARNING]
 ================================================================
 R7RS programs may contain multiple `import` declarations, but all
 of a program's `import` declarations must precede all of the
 program's commands and definitions.  Larceny no longer enforces
-that syntactic restriction, but Larceny does scan the entire
-program for `import` declarations and invokes the executable code
-of all imported libraries before the program itself executes its
-first command or definition.
+that syntactic restriction unless `-r7strict` is requested, but
+Larceny does scan the entire program for `import` declarations
+and invokes the executable code of all imported libraries before
+the program itself executes its first command or definition.
 ================================================================
 
 The `features` procedure will return a list of all `cond-expand`
@@ -160,7 +169,6 @@ surprised if it takes a few seconds.
     (r7rs r6rs larceny larceny-1.3
      exact-closed ratios exact-complex complex ieee-float
      full-unicode full-unicode-strings unicode-7
-     posix unix gnu-linux i386 ilp32 little-endian
      ...
      (rnrs arithmetic bitwise (6))
      (rnrs arithmetic fixnums (6))
@@ -175,6 +183,7 @@ surprised if it takes a few seconds.
      ...
      (srfi 1)
      (srfi 1 lists)
+     (srfi 2)
      ...)
 ----------------------------------------------------------------
 

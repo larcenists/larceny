@@ -1415,6 +1415,7 @@
                       ;; for R7RS.
 
                       ((import)
+                       (check-import body-type type form forms)        ; [R7RS]
                        (match form
                          ((- specs ___)
                           (call-with-values
@@ -1428,6 +1429,7 @@
                              (loop (cdr ws)
                                    (if (memq body-type                 ; [R7RS]
                                              '(program toplevel))
+                                       ;; see import-form?             ; [R7RS]
                                        (cons (list
                                               #f
                                               #f
@@ -1446,6 +1448,7 @@
                                    defs-okay?))))))                    ; [R7RS]
                       ((program)
                        (loop (cdr ws)
+                             ;; see check-import                       ; [R7RS]
                              (cons (list #f #f (expand-program form)) forms)
                              syntax-defs
                              bound-variables
@@ -1454,6 +1457,7 @@
                              defs-okay?))                              ; [R7RS]
                       ((library)
                        (loop (cdr ws)
+                             ;; see check-import                       ; [R7RS]
                              (cons (list #f #f (expand-library form)) forms)
                              syntax-defs
                              bound-variables
@@ -1462,6 +1466,7 @@
                              defs-okay?))
                       ((define-library)                                ; [R7RS]
                        (loop (cdr ws)
+                             ;; see check-import                       ; [R7RS]
                              (cons (list #f #f (expand-define-library form))
                                    forms)
                              syntax-defs
@@ -1659,7 +1664,7 @@
 
     (define (check-r7rs-library body-type type form defs-okay?)        ; [R7RS]
 #;
-      (if (memq 'define-library (list body-type type))                  ; FIXME
+      (if (memq 'define-library (list body-type type))                 ; FIXME
           (begin (display "check-r7rs-library: ")
                  (write (list body-type type))
                  (newline)))
@@ -1669,6 +1674,27 @@
            (syntax-violation type
                              "Invalid define-library declaration"
                              form)))             ; end of new code for ; [R7RS]
+
+    ;; Both R6RS and R7RS allow import declarations only at the        ; [R7RS]
+    ;; beginning of a program.  In R6RS mode, that is enforced         ; [R7RS]
+    ;; by other means.  In strict R7RS mode, that is enforced          ; [R7RS]
+    ;; by examining the previous form to make sure it is an import,    ; [R7RS]
+    ;; library, or program.                                            ; [R7RS]
+
+    (define (check-import body-type type form forms)                   ; [R7RS]
+      (and (eq? body-type 'program)                                    ; [R7RS]
+           (eq? type 'import)                                          ; [R7RS]
+           (larceny:r7strict)                                          ; [R7RS]
+           (not (null? forms))                                         ; [R7RS]
+           (let ((previous-form (car forms)))                          ; [R7RS]
+             ;; see scan-sequence loop                                 ; [R7RS]
+             (and (> (length previous-form) 2)                         ; [R7RS]
+                  (or (not (eq? (car previous-form) #f))               ; [R7RS]
+                      (not (eq? (cadr previous-form) #f)))             ; [R7RS]
+                  (syntax-violation                                    ; [R7RS]
+                   type                                                ; [R7RS]
+                   "Imports allowed only at beginning of program"      ; [R7RS]
+                   form)))))                                           ; [R7RS]
 
     (define (check-toplevel body-type type form)
       (and (not (eq? body-type 'toplevel))
