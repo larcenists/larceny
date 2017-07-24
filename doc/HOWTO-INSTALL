@@ -86,9 +86,10 @@ directory but not rename it, it is sufficient to hard-code the
 location of Larceny's root directory into the script.  For
 example, to install Petit Larceny into /usr/local on Linux,
 untar the Larceny tree as /usr/local/lib/larceny.  Then copy
-the scripts "larceny", "scheme-script", and "compile-stale" to
-/usr/local/bin, editing the first two by uncommenting the line
-that sets LARCENY_ROOT, and setting it to /usr/local/lib/larceny.
+the scripts "larceny", "scheme-script", "compile-stale", and
+"compile-larceny" to /usr/local/bin, editing the first two by
+uncommenting the line that sets LARCENY_ROOT, and setting it to
+/usr/local/lib/larceny.
 
 If you would like to change something else, such as the name of
 a script, editing the script should not be too difficult.

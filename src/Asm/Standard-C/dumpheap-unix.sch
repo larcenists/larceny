@@ -71,11 +71,13 @@
   
 ; Compiler definitions
 
+;;; The -fno-stack-protector option requires gcc 4 or later.
+
 (define (c-compiler:gcc-unix c-name o-name)
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    "gcc -m32 -fPIC -fno-stack-protector -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")
