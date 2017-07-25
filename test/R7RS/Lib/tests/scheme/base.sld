@@ -1057,6 +1057,29 @@
              (m k))
            'bound-identifier=?)
 
+     ;; The following test was also suggested by Al Petrofsky.
+
+     (test (let-syntax
+             ((m (syntax-rules ::: ()
+                  ((m dots)
+                   (let-syntax ((n (syntax-rules ... (dots)
+                                    ((n dots ...) 1))))
+                     (n dots))))))
+             (m ...))
+           1)
+
+     ;; Petrofsky suggests the following test should be an error.
+     ;; It's commented out because it would be a compile-time error,
+     ;; not a run-time error.
+
+#;   (test/unspec-or-exn
+      (let-syntax
+        ((m (syntax-rules ... (...)
+             ((m x y ...) 'ellipsis)
+             ((m x ...) 'literal))))
+        (m x ...))
+      &error)
+
      ;; FIXME: The following test is commented out.
      ;; It's legal in R6RS, but probably isn't in R7RS.
      ;;

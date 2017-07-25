@@ -1769,7 +1769,19 @@
          (expand-syntax-case2 e (current-ellipsis) literals clauses))  ; [R7RS]
         ((- e (? identifier? ellipsis) ((? identifier? literals) ___)  ; [R7RS]
             clauses ___)                                               ; [R7RS]
-         (expand-syntax-case2 e ellipsis literals clauses))))          ; [R7RS]
+                                                                       ; [R7RS]
+         ;; Al Petrofsky suggested it should be an error if the        ; [R7RS]
+         ;; explicit ellipsis is also one of the literals.             ; [R7RS]
+                                                                       ; [R7RS]
+         (begin                                                        ; [R7RS]
+          (if (exists (lambda (lit)                                    ; [R7RS]
+                        (bound-identifier=? ellipsis lit))             ; [R7RS]
+                      literals)                                        ; [R7RS]
+              (syntax-violation                                        ; [R7RS]
+               'syntax-case                                            ; [R7RS]
+               "Explicit ellipsis cannot also be a literal"            ; [R7RS]
+               exp))                                                   ; [R7RS]
+          (expand-syntax-case2 e ellipsis literals clauses)))))        ; [R7RS]
 
     ;; [R7RS]  Some rewriting was needed to support the R7RS ellipsis feature.
 

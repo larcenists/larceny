@@ -78,7 +78,7 @@ GC_BENCHMARKS="nboyer sboyer gcbench mperm"
 SYNTH_BENCHMARKS="equal bv2string"
 
 RED_EDITION_PART1="dderiv bibfreq bibfreq2 hashtable0 listsort vecsort"
-RED_EDITION_PART2="list ilist rlist charset stream lseq generator"
+RED_EDITION_PART2="list ilist rlist vector charset stream lseq generator"
 RED_EDITION="$RED_EDITION_PART1 $RED_EDITION_PART2"
 
 ALL_BENCHMARKS="$GABRIEL_BENCHMARKS $NUM_BENCHMARKS $KVW_BENCHMARKS $IO_BENCHMARKS $OTHER_BENCHMARKS $GC_BENCHMARKS $SYNTH_BENCHMARKS $RED_EDITION"

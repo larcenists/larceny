@@ -45,9 +45,7 @@ R7RS (small) standard, because the R7RS specification of
 those procedures appears to contradict itself.
 
 To simplify interoperability with R6RS libraries and programs,
-`let-syntax` and `letrec-syntax` have R6RS semantics, which
-extends the R5RS semantics by allowing their bodies to expand into
-definitions instead of or in addition to expressions.  The R6RS
+`let-syntax` and `letrec-syntax` have R6RS semantics.  The R6RS
 standard requires `let-syntax` and `letrec-syntax` to splice
 their macro-expanded bodies into their context instead of
 introducing a new contour.  That R6RS behavior is not explicitly

@@ -290,8 +290,9 @@
 ;; each entry is ( utc seconds since epoch . # seconds to add for tai )
 ;; note they go higher to lower, and end in 1972.
 (define tm:leap-second-table
-  '((1435708800 . 36) ; June 30, 2015
-    (1341100800 . 35) ; June 30, 2012
+  '((1483228800 . 37) ; January 1, 2017
+    (1435708800 . 36) ; July 1, 2015
+    (1341100800 . 35) ; July 1, 2012
     (1230768000 . 34) ; January 1, 2009
     (1136073600 . 33)
     (915148800 . 32)
