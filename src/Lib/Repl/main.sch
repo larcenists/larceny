@@ -177,6 +177,14 @@
             (io/port-allows-traditional-weirdness! p #f)
             (io/port-allows-mzscheme-weirdness! p #f)))
 
+         (disallow-non-r7rs-syntax!
+          (lambda (p)
+            (io/port-allows-r6rs-weirdness! p #f)
+            (io/port-allows-r7rs-weirdness! p #t)
+            (io/port-allows-larceny-weirdness! p #f)
+            (io/port-allows-traditional-weirdness! p #f)
+            (io/port-allows-mzscheme-weirdness! p #f)))
+
          (emode (get-feature 'execution-mode)))
 
     (case emode
@@ -199,10 +207,20 @@
        ((err5rs r7rs r7r6)
         (aeryn-mode!)
         (if (larceny:r7strict)
-            (begin (read-square-bracket-as-paren #f)
-                   (read-r6rs-weirdness? #f)
-                   (read-larceny-weirdness? #f)
-                   (read-traditional-weirdness? #f)))))
+            (begin
+             (read-square-bracket-as-paren #f)
+             (read-r6rs-weirdness? #f)
+             (read-larceny-weirdness? #f)
+             (read-traditional-weirdness? #f)
+             (read-mzscheme-weirdness? #f)
+             (io/port-recognizes-javadot-symbols! (console-input-port) #f)
+             (disallow-non-r7rs-syntax! (console-input-port))
+             (disallow-non-r7rs-syntax! (console-output-port))
+             (disallow-non-r7rs-syntax! (console-error-port))
+             (io/port-recognizes-javadot-symbols! (current-input-port) #f)
+             (disallow-non-r7rs-syntax! (current-input-port))
+             (disallow-non-r7rs-syntax! (current-output-port))
+             (disallow-non-r7rs-syntax! (current-error-port))))))
       (case emode
        ((err5rs)
         (writeln "ERR5RS mode (no libraries have been imported)"))
