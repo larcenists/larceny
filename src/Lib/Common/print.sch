@@ -375,6 +375,13 @@
                       (print-slashed-string x p)
                       (write-char #\" p))
                (printstr x p)))
+          ((text? x)
+           (let ((x (textual->string x)))
+             (if slashify
+                 (begin (write-char (integer->char #x00ab) p)
+                        (print-slashed-string x p)
+                        (write-char (integer->char #x00bb) p))
+                 (printstr x p))))
 
           ;; FIXME: The environment?, code-object?, and hashtable? clauses
           ;; look silly and probably are.  The code-object? part appears

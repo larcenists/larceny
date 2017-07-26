@@ -134,6 +134,8 @@
            (if (bytevector=? x y) bound #f))
           ((and (string? x) (string? y))
            (if (string=? x y) bound #f))
+          ((and (text? x) (text? y))
+           (if (textual=? x y) bound #f))
           ((eqv? x y)
            bound)
           (else #f)))
@@ -203,6 +205,8 @@
                (bytevector=? x y))
               ((and (string? x) (string? y))
                (string=? x y))
+              ((and (text? x) (text? y))
+               (textual=? x y))
               (else #f)))
 
       ; Like equiv? above, except x and y are known to be vectors,
@@ -244,9 +248,13 @@
            (not (bytevector? y)))
           ((bytevector? y)
            #t)
-          ((not (string? x))
+          ((string? x)
+           (not (string? y)))
+          ((string? y)
            #t)
-          ((not (string? y))
+          ((text? x)
+           (not (text? y)))
+          ((text? y)
            #t)
           (else #f)))
 
