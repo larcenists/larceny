@@ -99,6 +99,8 @@
     (let ((sv (char->integer c)))
       (or (<= 32 sv 126)
           (and (<= 128 sv)
+               (not (= sv #x00ab))    ; left double angle quote
+               (not (= sv #x00bb))    ; right double angle quote
                (not (memq (char-general-category c)
                           '(Zs Zl Zp Cc Cf Cs Co Cn)))))))
 

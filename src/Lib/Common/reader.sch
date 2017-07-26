@@ -272,7 +272,7 @@
          (errIncompleteToken 2)      ; any lexical error, really
          (errIllegalHexEscape 3)                 ; illegal \x...
          (errIllegalNamedChar 4)                 ; illegal #\...
-         (errIllegalString 5)                   ; illegal string
+         (errIllegalString 5)           ; illegal string or text
          (errIllegalSymbol 6)                   ; illegal symbol
          (errIllegalBoolean 7)     ; disallowed #true or #!false
          (errIllegalSharing 8)     ; disallowed shared structure
@@ -281,6 +281,7 @@
          (errSquareBracket 11)    ; square bracket when disabled
          (errBug 12)           ; bug in reader, shouldn't happen
          (errLexGenBug 13)                        ; can't happen
+         (errIllegalText 14)         ; disallowed immutable text
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -361,6 +362,7 @@
        id
        xstring
        string
+       text
        character
        xfaslf
        xfaslc
@@ -391,6 +393,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -417,6 +420,7 @@
        xfaslc
        xfaslf
        character
+       text
        string
        xstring
        id
@@ -459,6 +463,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -506,6 +511,7 @@
     ((xstring)
      (begin (consume-token!) (makeXString)))
     ((string) (begin (consume-token!) (makeString)))
+    ((text) (begin (consume-token!) (makeText)))
     ((character) (begin (consume-token!) (makeChar)))
     ((xfaslf) (begin (consume-token!) (makeFlonum)))
     ((xfaslc) (begin (consume-token!) (makeCompnum)))
@@ -529,6 +535,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -576,13 +583,6 @@
           vecstart
           xbox
           xfaslb)))))
-
-(define (parse-string)
-  (case (next-token)
-    ((xstring)
-     (begin (consume-token!) (makeXString)))
-    ((string) (begin (consume-token!) (makeString)))
-    (else (parse-error '<string> '(string xstring)))))
 
 (define (parse-symbol)
   (case (next-token)
@@ -647,6 +647,7 @@
        id
        xstring
        string
+       text
        character
        xfaslf
        xfaslc
@@ -678,6 +679,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -701,6 +703,7 @@
        xfaslc
        xfaslf
        character
+       text
        string
        xstring
        id
@@ -747,6 +750,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -794,6 +798,7 @@
        id
        xstring
        string
+       text
        character
        xfaslf
        xfaslc
@@ -825,6 +830,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -848,6 +854,7 @@
        xfaslc
        xfaslf
        character
+       text
        string
        xstring
        id
@@ -894,6 +901,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -1020,6 +1028,7 @@
        id
        xstring
        string
+       text
        character
        xfaslf
        xfaslc
@@ -1053,6 +1062,7 @@
           splicing
           string
           syntax
+          text
           unsyntax
           unsyntaxsplicing
           vecstart
@@ -1164,7 +1174,9 @@
               ((= msg errIllegalNamedChar)
                "illegal character syntax")
               ((= msg errIllegalString)
-               "illegal string syntax")
+               "illegal string or text syntax")
+              ((= msg errIllegalText)
+               "illegal immutable text notation (strict R6RS mode)")
               ((= msg errIllegalSymbol)
                "illegal symbol syntax")
               ((= msg errIllegalBoolean)
@@ -1176,7 +1188,7 @@
               ((= msg errNoDelimiter)
                "missing delimiter")
               ((= msg errSquareBracket)
-               "square brackets are disabled")
+               "square brackets are disabled (as in strict R7RS mode)")
               ((= msg errLexGenBug)
                "bug in lexical analyzer (generated)")
               (else "bug in lexical analyzer")))
@@ -1255,7 +1267,7 @@
                    (set! nextTokenIsReady #t)
                    t)))
 
-       ((id boolean number character string miscflag period)
+       ((id boolean number character string text miscflag period)
 
         (set! tokenValue
               (substring string_accumulator
@@ -1277,7 +1289,8 @@
                (next-token))
 
               ((or (delimiter? (scanChar))
-                   (eq? t 'string))
+                   (eq? t 'string)
+                   (eq? t 'text))
                (set! kindOfNextToken t)
                (set! nextTokenIsReady #t)
                t)
@@ -1285,7 +1298,8 @@
               (else
                (scannerError errNoDelimiter))))
 
-       ; FIXME: Do we really need to disable square brackets?
+       ; Yes, we really need to disable square brackets because
+       ; they might come to mean something else in R7RS large.
 
        ((lbracket)
         (if (or (r6rs-weirdness?)
@@ -1478,7 +1492,9 @@
         (r6rs-weirdness?))
        (else
         (or (not (char? c))
-            (char-whitespace? c)))))         
+            (char-whitespace? c)
+            (= (char->integer c) #x00ab)
+            (= (char->integer c) #x00bb)))))
 
     ; Given the integer parsed from a hex escape,
     ; returns the corresponding Unicode character.
@@ -1742,6 +1758,13 @@
                    (parse-error '<octet> '(octet))))))
   
     (define (makeString)
+      (makeStringOrText-common 'string))
+
+    ;; Almost all of the processing for strings and texts is the same.
+    ;; The only difference is what's done with the processed contents.
+    ;; The argument is a symbol: string or text
+
+    (define (makeStringOrText-common which)
 
       ; Must strip off outer double quotes and deal with escapes,
       ; which differ between R7RS and R6RS.
@@ -1822,7 +1845,7 @@
                             (else
                              (ignore-escaped-line-ending (+ i 1)
                                                          n newstring j #f))))
-                     (scannerError errIllegalString)))
+                         (scannerError errIllegalString)))
                     (else
                      (string-set! newstring j c)
                      (loop (+ i 1) n newstring (+ j 1)))))))
@@ -1858,6 +1881,13 @@
                        ((larceny-weirdness?)
                         (string-set! newstring j c)
                         (loop (+ i 1) n newstring (+ j 1)))
+                       ((and (r7rs-weirdness?)
+                             (let ((sv (char->integer c)))
+                               ;; left and right double angle quotes
+                               (or (= sv #x00ab)
+                                   (= sv #x00bb))))
+                        (string-set! newstring j c)
+                        (loop (+ i 1) n newstring (+ j 1)))
                        (else
                         (scannerError errIllegalString)))))
               (after?
@@ -1866,8 +1896,11 @@
                (scannerError errIllegalString))))
 
       (let* ((n (string-length tokenValue))
-             (s (loop 1 (- n 1) (make-string (- n 2)) 0)))
-        (record-source-location s locationStart)))
+             (s (loop 1 (- n 1) (make-string (- n 2)) 0))
+             (x (case which
+                 ((string) s)
+                 ((text) (string->text s)))))
+        (record-source-location x locationStart)))
 
     (define (makeStructured loc0 x)
       (record-source-location x loc0))
@@ -2063,6 +2096,11 @@
                       (else (slow-loop (+ i 1) (cons c chars) fold-case?))))))
 
         (identifier-prefix)))
+
+    (define (makeText)
+      (if (r7rs-weirdness?)
+          (makeStringOrText-common 'text)
+          (scannerError errIllegalText)))
 
     ; #"..." Ascii string syntax of MzScheme
 
