@@ -53,4 +53,26 @@
 
   (import (scheme base))
 
-  (include "kernel8.body.scm"))
+  (cond-expand
+   (larceny
+    (import (rename (primitives larceny:text-complain
+                                larceny:text-rtd
+                                larceny:text.k
+                                larceny:text.chunks
+                                larceny:text-N
+                                larceny:the-empty-text)
+                    (larceny:text-complain  complain)
+                    (larceny:text-rtd       text-rtd)
+                    (larceny:text.k         text.k)
+                    (larceny:text.chunks    text.chunks)
+                    (larceny:text-N         N)
+                    (larceny:the-empty-text the-empty-text))
+            (primitives %new-text %text-length %text-ref %string->text
+                        text?
+                        text-tabulate
+                        text-length
+                        text-ref
+                        subtext
+                        textual-concatenate)))
+   (else
+    (include "kernel8.body.scm"))))

@@ -545,6 +545,11 @@
               record-ref:bummed                    ; FIXME
               record-set!:bummed                   ; FIXME
               native-endianness
+              text?
+              text-length
+              %text-length
+              text-ref
+              %text-ref
               )
 
    ; FIXME: Eliminating these next two should fix ticket #37.
@@ -1795,6 +1800,69 @@
                     (record-set!)
                     (complain))))
           (complain))))
+
+   ; The 128 is the value of larceny:text-N.
+   ; The slots of a text record are
+   ;     0   inheritance chain
+   ;             element 0 of that chain is the rtd for this record
+   ;     1   k, which encodes length and i0
+   ;             (i0 is the number of characters in first chunk
+   ;             that do not belong to the text)
+   ;     2   vector of chunks
+   ; FIXME: these could be bummed further.
+
+`  ((_ larceny text? (text? obj0))
+    (let ((x obj0))
+      (and (structure? x)
+           (eq? (.vector-ref:trusted (.vector-ref:trusted x 0) 0)
+                larceny:text-rtd))))
+
+`  ((_ larceny text-length (text-length txt0))
+    (let ((txt txt0))
+      (.check! (structure? txt) ,$ex.tlen txt)
+      (.check! (eq? (.vector-ref:trusted (.vector-ref:trusted txt 0) 0)
+                    larceny:text-rtd)
+               ,$ex.tlen
+               txt)
+      (.fxrshl (.vector-ref:trusted txt 1) 7)))
+
+`  ((_ larceny %text-length (%text-length txt0))
+    (let ((txt txt0))
+      (.fxrshl (.vector-ref:trusted txt 1) 7)))
+
+   ;; FIXME: limits length of text to fixnum range, but that's
+   ;; necessary anyway if texts are to be convertible to strings.
+
+`  ((_ larceny text-ref (text-ref txt0 index0))
+    (let ((txt txt0)
+          (i index0))
+      (.check! (structure? txt) ,$ex.tlen txt)
+      (.check! (eq? (.vector-ref:trusted (.vector-ref:trusted txt 0) 0)
+                    larceny:text-rtd)
+               ,$ex.tlen
+               txt)
+      (.check! (.fixnum? i) ,$ex.tref txt i)
+      (.check! (.>=:fix:fix i 0) ,$ex.tref txt i)
+      (%text-ref txt i)))
+
+`  ((_ larceny %text-ref (%text-ref txt0 index0))
+    (let ((txt txt0)
+          (i index0))
+      (let* ((k      (.vector-ref:trusted txt 1)) ; might not be a fixnum
+             (chunks (.vector-ref:trusted txt 2))
+             (len    (quotient k 128))
+             (i0     (remainder k 128))
+             (i+i0   (.+:idx:idx i i0))
+             (j      (.fxrshl i+i0 7))
+             (ii     (.fxlogand i+i0 127)))
+        (.check! (.<:fix:fix i len) ,$ex.tref txt i)
+        (let* ((sj (.vector-ref:trusted chunks j))
+               (sjn (.bytevector-like-length:bvl sj)))
+          (if (if (< j (- (.vector-length:vec chunks) 1))
+                  (= sjn 128) ; and not the last chunk
+                  (= sjn (.fxlogand (.+:idx:idx i0 len) 127)))
+              (.integer->char:trusted (.bytevector-like-ref:trusted sj ii))
+              (%utf8-ref sj ii))))))
 
    ; Default case: expand into the original expression.
 

@@ -8,17 +8,17 @@
 
 (define (init-toplevel-environment)
   (let* ((null    (initialize-null-environment-target-specific
-		   (initialize-null-environment
-		    (make-environment "null-environment"))))
+                   (initialize-null-environment
+                    (make-environment "null-environment"))))
          (r4rs    (initialize-r4rs-environment-target-specific
-		   (initialize-r4rs-environment
-		    (environment-copy null "report-environment-4"))))
+                   (initialize-r4rs-environment
+                    (environment-copy null "report-environment-4"))))
          (r5rs    (initialize-r5rs-environment-target-specific
-		   (initialize-r5rs-environment
-		    (environment-copy r4rs "report-environment-5"))))
+                   (initialize-r5rs-environment
+                    (environment-copy r4rs "report-environment-5"))))
          (larceny (initialize-larceny-environment-target-specific
-		   (initialize-larceny-environment
-		    (environment-copy r5rs "larceny-environment")))))
+                   (initialize-larceny-environment
+                    (environment-copy r5rs "larceny-environment")))))
     (install-environments! null r4rs r5rs larceny)
     (unspecified)))
 
@@ -865,6 +865,120 @@
   (environment-set! larc 'string-normalize-nfkd string-normalize-nfkd)
   (environment-set! larc 'string-normalize-nfc string-normalize-nfc)
   (environment-set! larc 'string-normalize-nfkc string-normalize-nfkc)
+
+  ;; immutable texts for (srfi 135 kernel8) and (scheme text)
+
+  ;;     defined in text.sch but not exported by (scheme text)
+
+  (environment-set! larc 'larceny:text-complain larceny:text-complain)
+  (environment-set! larc 'larceny:text-rtd larceny:text-rtd)
+  (environment-set! larc '%new-text %new-text)
+  (environment-set! larc 'larceny:text.k larceny:text.k)
+  (environment-set! larc 'larceny:text.chunks larceny:text.chunks)
+  (environment-set! larc '%text-length %text-length)
+  (environment-set! larc '%text-ref %text-ref)
+  (environment-set! larc '%utf8-ref %utf8-ref)
+  (environment-set! larc '%string->text %string->text)
+  (environment-set! larc 'larceny:text-N larceny:text-N)
+  (environment-set! larc 'larceny:the-empty-text larceny:the-empty-text)
+
+  ;;     defined in text.sch and exported by (scheme text)
+
+  (environment-set! larc 'text? text?)
+  (environment-set! larc 'text-tabulate text-tabulate)
+  (environment-set! larc 'text-length text-length)
+  (environment-set! larc 'text-ref text-ref)
+  (environment-set! larc 'subtext subtext)
+  (environment-set! larc 'textual-concatenate textual-concatenate)
+
+  ;;     defined in text2.sch and exported by (scheme text)
+
+  (environment-set! larc 'text? text?)
+  (environment-set! larc 'textual? textual?)
+  (environment-set! larc 'textual-null?  textual-null? )
+  (environment-set! larc 'textual-every textual-every)
+  (environment-set! larc 'textual-any textual-any)
+  (environment-set! larc 'make-text make-text)
+  (environment-set! larc 'text text)
+  (environment-set! larc 'text-tabulate text-tabulate)
+  (environment-set! larc 'text-unfold text-unfold)
+  (environment-set! larc 'text-unfold-right text-unfold-right)
+  (environment-set! larc 'textual->text textual->text)
+  (environment-set! larc 'textual->string textual->string)
+  (environment-set! larc 'textual->vector textual->vector)
+  (environment-set! larc 'textual->list textual->list)
+  (environment-set! larc 'string->text string->text)
+  (environment-set! larc 'vector->text vector->text)
+  (environment-set! larc 'list->text list->text)
+  (environment-set! larc 'reverse-list->text reverse-list->text)
+  (environment-set! larc 'textual->utf8 textual->utf8)
+  (environment-set! larc 'textual->utf16be textual->utf16be)
+  (environment-set! larc 'textual->utf16 textual->utf16)
+  (environment-set! larc 'textual->utf16le textual->utf16le)
+  (environment-set! larc 'utf8->text utf8->text)
+  (environment-set! larc 'utf16->text utf16->text)
+  (environment-set! larc 'utf16be->text utf16be->text)
+  (environment-set! larc 'utf16le->text utf16le->text)
+  (environment-set! larc 'text-length text-length)
+  (environment-set! larc 'textual-length textual-length)
+  (environment-set! larc 'text-ref text-ref)
+  (environment-set! larc 'textual-ref textual-ref)
+  (environment-set! larc 'subtext subtext)
+  (environment-set! larc 'subtextual subtextual)
+  (environment-set! larc 'textual-copy textual-copy)
+  (environment-set! larc 'textual-take textual-take)
+  (environment-set! larc 'textual-take-right textual-take-right)
+  (environment-set! larc 'textual-drop textual-drop)
+  (environment-set! larc 'textual-drop-right textual-drop-right)
+  (environment-set! larc 'textual-pad textual-pad)
+  (environment-set! larc 'textual-pad-right  textual-pad-right )
+  (environment-set! larc 'textual-trim textual-trim)
+  (environment-set! larc 'textual-trim-right textual-trim-right)
+  (environment-set! larc 'textual-trim-both textual-trim-both)
+  (environment-set! larc 'textual-replace textual-replace)
+  (environment-set! larc 'textual=? textual=?)
+  (environment-set! larc 'textual<? textual<?)
+  (environment-set! larc 'textual>? textual>?)
+  (environment-set! larc 'textual<=? textual<=?)
+  (environment-set! larc 'textual>=? textual>=?)
+  (environment-set! larc 'textual-ci=? textual-ci=?)
+  (environment-set! larc 'textual-ci<? textual-ci<?)
+  (environment-set! larc 'textual-ci>? textual-ci>?)
+  (environment-set! larc 'textual-ci<=? textual-ci<=?)
+  (environment-set! larc 'textual-ci>=? textual-ci>=?)
+  (environment-set! larc 'textual-prefix-length textual-prefix-length)
+  (environment-set! larc 'textual-suffix-length textual-suffix-length)
+  (environment-set! larc 'textual-prefix? textual-prefix?)
+  (environment-set! larc 'textual-suffix? textual-suffix?)
+  (environment-set! larc 'textual-index textual-index)
+  (environment-set! larc 'textual-index-right textual-index-right)
+  (environment-set! larc 'textual-skip textual-skip)
+  (environment-set! larc 'textual-skip-right textual-skip-right)
+  (environment-set! larc 'textual-contains textual-contains)
+  (environment-set! larc 'textual-contains-right textual-contains-right)
+  (environment-set! larc 'textual-upcase textual-upcase)
+  (environment-set! larc 'textual-downcase textual-downcase)
+  (environment-set! larc 'textual-foldcase textual-foldcase)
+  (environment-set! larc 'textual-titlecase textual-titlecase)
+  (environment-set! larc 'textual-append textual-append)
+  (environment-set! larc 'textual-concatenate textual-concatenate)
+  (environment-set! larc 'textual-concatenate-reverse
+                    textual-concatenate-reverse)
+  (environment-set! larc 'textual-join textual-join)
+  (environment-set! larc 'textual-fold textual-fold)
+  (environment-set! larc 'textual-fold-right textual-fold-right)
+  (environment-set! larc 'textual-map textual-map)
+  (environment-set! larc 'textual-for-each textual-for-each)
+  (environment-set! larc 'textual-map-index textual-map-index)
+  (environment-set! larc 'textual-for-each-index textual-for-each-index)
+  (environment-set! larc 'textual-count textual-count)
+  (environment-set! larc 'textual-filter textual-filter)
+  (environment-set! larc 'textual-remove textual-remove)
+  (environment-set! larc 'textual-replicate textual-replicate)
+  (environment-set! larc 'textual-split textual-split)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
   ;; vectors
 
@@ -1724,14 +1838,14 @@
   ;; Continuation marks
 
   (environment-set-macro! larc 'with-continuation-mark
-			  (usual-syntax 'with-continuation-mark))
+                          (usual-syntax 'with-continuation-mark))
   (environment-set! larc 'call-with-continuation-mark
-		    call-with-continuation-mark)
+                    call-with-continuation-mark)
   (environment-set! larc 'continuation-marks continuation-marks)
   (environment-set! larc 'current-continuation-marks
-		    current-continuation-marks)
+                    current-continuation-marks)
   (environment-set! larc 'continuation-mark-set->list
-		    continuation-mark-set->list)
+                    continuation-mark-set->list)
   (environment-set! larc 'continuation-mark-set? continuation-mark-set?)
   (environment-set! larc 'continuation-mark-set->list*
                     continuation-mark-set->list*)

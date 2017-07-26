@@ -188,6 +188,8 @@
     "unicode2"          ; the word-breaking algorithm defined by UAX #29
     "unicode3"          ; string-* procedures (casing, -ci comparisons)
     "unicode4"          ; four string-normalize-* procedures
+    "text"              ; immutable texts, kernel8
+    "text2"             ; immutable texts
     "require"           ; rudimentary library system
 
     ; New I/O subsystem

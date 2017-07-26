@@ -197,12 +197,15 @@
   ;;; accept that recommended syntax for input or as a literal in
   ;;; programs.
 
-  (cond-expand (larceny
+  ;;; FIXME: This has been moved into Larceny's R5RS layer, so both
+  ;;; of the following have been disabled for Larceny after v0.99.
+
+  (cond-expand ((and larceny larceny-0.99)
                 (import (scheme write)
                         (primitives rtd-printer-set!)))
                (else))
 
-  (cond-expand (larceny
+  (cond-expand ((and larceny larceny-0.99)
                 (begin
                  (define (text-write txt p)
                    (let* ((q (open-output-string))
@@ -218,6 +221,12 @@
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (include "135.body.scm"))
+  ;;; The definitions in 135.body.scm have been moved into Larceny's
+  ;;; R5RS layer.
+
+  (cond-expand ((and larceny (not larceny-0.99))
+                (import (larceny text)))
+               (else
+                (include "135.body.scm"))))
 
 ;;; eof
