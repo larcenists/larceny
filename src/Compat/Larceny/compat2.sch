@@ -22,8 +22,6 @@
 
 ; Temporary?
 
-(define (text? x) #f) ; used by src/Compiler/expand.sch
-
 (define (.check! flag exn . args)
   (if (not flag)
       (apply error "Runtime check exception: " exn args)))
