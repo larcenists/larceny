@@ -1,4 +1,4 @@
-;;; Immutable list benchmark for (scheme ilist).
+;;; Vector benchmark for (scheme vector).
 
 (import (scheme base)
         (scheme read)

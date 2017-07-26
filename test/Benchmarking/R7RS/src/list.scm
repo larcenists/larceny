@@ -1,4 +1,4 @@
-;;; Random-access list benchmark for (scheme rlist).
+;;; List benchmark for (scheme list).
 
 (import (scheme base)
         (scheme read)
