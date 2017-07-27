@@ -183,6 +183,8 @@
 			       'petit-unix-static-gcc-v4)
 			      ((match-gcc-version? " 5.")
 			       'petit-unix-static-gcc-v5)
+			      ((match-gcc-version? " 6.")
+			       'petit-unix-static-gcc-v6)
 			      (else
 			       (error 'dumpheap-unix.sch 
 				      "Unmatched GCC version."))
