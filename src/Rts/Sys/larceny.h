@@ -79,6 +79,8 @@ struct opt {
   bool       r6less_pedantic;   /* but not so pedantic; requires pedantic */
   char       *r6program;        /* file containing R6RS top-level program */
   char       *r6path;           /* directories containing R6RS libraries */
+  char       *r6path2;          /* to be appended rather than prepended */
+  char       *r7features;       /* features declared for cond-expand */
   int        transcoder;        /* default transcoder */
   int        restc;                     /* number of extra arguments */
   char       **restv;                   /* vector of extra arguments */
@@ -167,6 +169,9 @@ extern void primitive_flonum_sqrt( word, word );
 extern void primitive_flonum_sinh( word, word );
 extern void primitive_flonum_cosh( word, word );
 extern void primitive_flonum_atan2( word, word, word );
+extern void primitive_flonum_fma( word, word, word, word );
+extern void primitive_flonum_jn( word, word, word );
+extern void primitive_flonum_yn( word, word, word );
 extern void primitive_stats_dump_on( word );
 extern void primitive_stats_dump_off( void );
 extern void primitive_stats_dump_stdout( void );

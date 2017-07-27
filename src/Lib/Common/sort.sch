@@ -103,13 +103,25 @@
 (define (list-sort less? seq)
   (sort!! (list-copy seq) less?))
 
-(define (vector-sort less? seq)
-  (list->vector (sort!! (vector->list seq) less?)))
+; R7RS adds optional start and end arguments.
 
-(define (vector-sort! less? seq)
-  (let ((sorted (sort!! (vector->list seq) less?)))
+(define (vector-sort less? seq . rest)
+  (cond ((null? rest)
+         (list->vector (sort!! (vector->list seq) less?)))
+        ((null? (cdr rest))
+         (vector-sort less? (vector-copy seq (car rest))))
+        (else
+         (vector-sort less? (vector-copy seq (car rest) (cadr rest))))))
+
+(define (vector-sort! less? seq . rest)
+  (let* ((start (if (null? rest) 0 (car rest)))
+         (end   (if (or (null? rest) (null? (cdr rest)))
+                    (vector-length seq)
+                    (cadr rest)))
+         (v (if (null? rest) seq (vector-copy seq start end)))
+         (sorted (sort!! (vector->list v) less?)))
     (do ((sorted sorted (cdr sorted))
-         (i 0 (+ i 1)))
+         (i start (+ i 1)))
         ((null? sorted))
       (vector-set! seq i (car sorted)))))
 

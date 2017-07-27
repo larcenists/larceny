@@ -96,7 +96,9 @@
           set-car! set-cdr!)
 
   (import (rnrs base)
-          (only (rnrs lists) memq memv member assq assv assoc)
+          (only (rnrs lists)
+                memq memv member assq assv assoc
+                find filter partition fold-right cons*)
           (only (scheme base) make-list list-copy)
           (rnrs control)
           (rnrs mutable-pairs)
@@ -393,6 +395,8 @@
 ;;;
 ;;; (cons first (unfold not-pair? car cdr rest values))
 
+;;; Imported from (rnrs lists).
+#;
 (define (cons* first . rest)
   (let recur ((x first) (rest rest))
     (if (pair? rest)
@@ -968,6 +972,8 @@
 	    (lp (cdr lis) (kons (car lis) ans))))))
 
 
+;;; Imported from (rnrs lists).
+#;
 (define (fold-right kons knil lis1 . lists)
   (if (pair? lists)
       (let recur ((lists (cons lis1 lists)))		; N-ary case
@@ -1149,6 +1155,8 @@
 ;; This FILTER shares the longest tail of L that has no deleted elements.
 ;; If Scheme had multi-continuation calls, they could be made more efficient.
 
+;;; Imported from (rnrs lists).
+#;
 (define (filter pred lis)			; Sleazing with EQ? makes this
   (let recur ((lis lis))		
     (if (null-list? lis) lis			; Use NOT-PAIR? to handle dotted lists.
@@ -1236,6 +1244,8 @@
 ;;; Answers share common tail with LIS where possible; 
 ;;; the technique is slightly subtle.
 
+;;; Imported from (rnrs lists).
+#;
 (define (partition pred lis)
   (let recur ((lis lis))
     (if (null-list? lis) (values lis lis)	; Use NOT-PAIR? to handle dotted lists.
@@ -1415,6 +1425,8 @@
 ;;; find find-tail take-while drop-while span break any every list-index
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; Imported from (rnrs lists).
+#;
 (define (find pred list)
   (cond ((find-tail pred list) => car)
 	(else #f)))

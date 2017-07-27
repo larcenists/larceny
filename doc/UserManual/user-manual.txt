@@ -10,6 +10,33 @@ https://github.com/larcenists/larceny/wiki/AsciiDoc
 Larceny User Manual
 ===================
 
+////////////////////////////////////////////////////////////////
+FIXME: This isn't needed when the backend is html5, but the
+xhtml11 backend ignores the "-a toclevels=1" option on the
+asciidoc command line.
+
+1. <<LarcenyChapter, Larceny>>
+2. <<InstallationChapter, Installing Larceny>>
+3. <<RunningChapter, Running Larceny>>
+4. <<LexicalChapter, Lexical Syntax>>
+5. <<LibrariesChapter, R7RS/R6RS Libraries>>
+6. <<NamingChapter, File Naming Conventions>>
+7. <<CompilingChapter, Compiling Files and Libraries>>
+8. <<R7rsChapter, R7RS Standard Libraries>>
+9. <<R6rsChapter, R6RS Standard Libraries>>
+10. <<LarcenyERr5rsLibrariesChapter, Larceny's R7RS/R6RS Libraries>>
+11. <<Err5rsChapter, ERR5RS Standard Libraries>>
+12. <<LarcenyR5rsLibrariesChapter, Larceny's R5RS Libraries>>
+13. <<FfiChapter, Foreign-Function Interface to C>>
+14. <<DebuggingChapter, Debugging>>
+15. <<Standards, Standards>>
+////////////////////////////////////////////////////////////////
+
+
+
+
+
+
 [[LarcenyChapter]]
 
 Larceny
@@ -19,7 +46,10 @@ Larceny
 implements the Scheme programming language
 as defined by
 the
+<<Standards, Red Edition>> of
+the
 <<Standards, Revised^7^ Report>>,
+while continuing to support
 the
 <<Standards, Revised^6^ Report>>,
 the
@@ -28,10 +58,11 @@ and
 <<Standards, IEEE Standard 1178-1990>>.
 Those language standards serve as Larceny's primary documentation.
 
-This manual describes aspects of Larceny that are not described
-by the Revised Reports or IEEE-1178.
+This manual describes aspects of Larceny that are not specified
+by those standards.
 For the most current version of this manual, please see
-http://larceny.ccs.neu.edu/doc[Larceny's online documentation page].
+http://www.cesura17.net/~larcenists/Nightly/doc/[Larceny's
+online documentation page].
 For links to the Common Larceny User Manual and the Larceny
 mailing list, please visit
 http://www.larcenists.org/[Larceny's main web page].
@@ -46,9 +77,9 @@ include::intro.txt[]
 
 include::running.txt[]
 
-include::libraries.txt[]
-
 include::lexical.txt[]
+
+include::libraries.txt[]
 
 include::naming.txt[]
 
@@ -60,7 +91,7 @@ include::r6rs.txt[]
 
 [[LarcenyErr5rsLibrariesChapter]]
 
-Larceny's R7RS/R6RS libraries
+Larceny's R7RS/R6RS Libraries
 -------------------------------
 
 Larceny provides libraries for compiling
@@ -78,7 +109,7 @@ include::err5rs.txt[]
 
 [[LarcenyR5rsLibrariesChapter]]
 
-Larceny's R5RS libraries
+Larceny's R5RS Libraries
 ------------------------
 
 The procedures described in this chapter are nonstandard.

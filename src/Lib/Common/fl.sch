@@ -89,10 +89,18 @@
 ; until later.
 
 (define flnumerator
-  (flonum-restricted1 (lambda (x) (numerator x)) 'flnumerator))
+  (flonum-restricted1 (lambda (x)
+                        (if (flnan? x)
+                            x
+                            (numerator x)))
+                      'flnumerator))
 
 (define fldenominator
-  (flonum-restricted1 (lambda (x) (denominator x)) 'fldenominator))
+  (flonum-restricted1 (lambda (x)
+                        (if (flnan? x)
+                            x
+                            (denominator x)))
+                      'fldenominator))
 
 (define flfloor (flonum-restricted1 floor 'flfloor))
 (define flceiling (flonum-restricted1 ceiling 'flceiling))
@@ -155,3 +163,30 @@
 (define (fixnum->flonum n)
   (fx:check! 'fixnum->flonum n)
   (+ n 0.0))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; New for R7RS Orange Edition
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (fl+* x y z)
+  (cond ((and (flonum? x) (flonum? y) (flonum? z))
+         (flonum:fma x y z))
+        (else
+         (fl:check-args! 'fl+* (list x y z)))))
+
+(define (flfirst-bessel n x)
+  (cond ((and (fixnum? n) (flonum? x))
+         (flonum:jn n x))
+        (else
+	 (fx:check! 'flfirst-bessel n)
+	 (fl:check! 'flfirst-bessel x))))
+
+(define (flsecond-bessel n x)
+  (cond ((and (fixnum? n) (flonum? x))
+         (flonum:yn n x))
+        (else
+	 (fx:check! 'flsecond-bessel n)
+	 (fl:check! 'flsecond-bessel x))))
+

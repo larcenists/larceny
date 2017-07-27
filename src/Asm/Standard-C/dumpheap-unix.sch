@@ -71,11 +71,13 @@
   
 ; Compiler definitions
 
+;;; The -fno-stack-protector option requires gcc 4 or later.
+
 (define (c-compiler:gcc-unix c-name o-name)
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    "gcc -m32 -fPIC -fno-stack-protector -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     unix/petit-include-path
     (if (optimize-c-code) "-O3 -DNDEBUG" "")
@@ -97,7 +99,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 ~a -rdynamic -o ~a ~a ~a"
+    "gcc -m32 -fPIC ~a -rdynamic -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -107,7 +109,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 ~a -o ~a ~a ~a"
+    "gcc -m32 -fPIC ~a -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -117,7 +119,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 ~a -Wl,-export-dynamic -o ~a ~a ~a"
+    "gcc -m32 -fPIC ~a -Wl,-export-dynamic -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -127,7 +129,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 ~a -shared -o ~a ~a ~a"
+    "gcc -m32 -fPIC ~a -shared -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -137,7 +139,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 ~a -shared -o ~a ~a ~a"
+    "gcc -m32 -fPIC ~a -shared -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -149,7 +151,7 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
+    "gcc -m32 -fPIC ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
     (if (optimize-c-code) "" "-gstabs+")
     output-name
     (apply string-append (insert-space object-files))
@@ -179,6 +181,8 @@
 			       'petit-unix-static-gcc-v3)
 			      ((match-gcc-version? " 4.")
 			       'petit-unix-static-gcc-v4)
+			      ((match-gcc-version? " 5.")
+			       'petit-unix-static-gcc-v5)
 			      (else
 			       (error 'dumpheap-unix.sch 
 				      "Unmatched GCC version."))

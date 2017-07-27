@@ -56,8 +56,15 @@
         (set! *greatest-fixnum* (+ two^wm2 (- two^wm2 1)))
         (greatest-fixnum))))
 
-; These can be slow because two- and three-argument
-; cases are handled by Compiler/common.imp.sch
+;;; These can be slow because two- and three-argument
+;;; cases are handled by Compiler/common.imp.sch
+;;;
+;;; FIXME: SRFI 143 generalized comparisons to allow 0 or more arguments.
+;;; So far as I can tell, SRFI 143 fails to explain the semantics for
+;;; 0 or 1 argument, saying they are "Semantically equivalent to" the
+;;; generic comparison, which requires two or more arguments.  I'm
+;;; going to assume SRFI 143 intended for all comparisons to require
+;;; 2 or more arguments.
 
 (define (fx=? x y . rest)
   (fx:check! 'fx=? x)
@@ -130,6 +137,8 @@
   (fx:check! 'fx+ x)
   (fx:check! 'fx+ y)
   (fx:check-result 'fx+ (+ x y)))
+
+;;; FIXME: SRFI 143 restricted fx- to 2 arguments.  I'm ignoring that.
 
 (define (fx- x . rest)
   (cond ((null? rest)
@@ -325,7 +334,7 @@
           (loop (fxarithmetic-shift-right fx 5) (fx+ n i)))))
   (if (fx>=? fx 0)
       (loop fx 0)
-      ; FIXME: the 5.97 draft contains a typo, so this is just a guess.
+      ;; R6RS errata says the ei of R6RS Libraries should be fx
       (fxnot (loop (fxnot fx) 0))))
 
 (define (fxlength fx)
@@ -348,6 +357,25 @@
   (fx:range-check! 'fxbit-set? fx2)
   (not (fxzero? (fxand fx1 (fxarithmetic-shift-left 1 fx2)))))
 
+;;; FIXME: The SRFI 151 specification of fxcopy-bit makes the
+;;; following claim:
+;;;
+;;;     Compatibility note: The R6RS analogue bitwise-copy-bit
+;;;     as originally documented has a completely different
+;;;     interface. (bitwise-copy-bit dest index source) replaces
+;;;     the index'th bit of dest with the index'th bit of source.
+;;;     It is equivalent to (bit-field-replace-same dest source
+;;;     index (+ index 1)). However, an erratum made a silent
+;;;     breaking change to interpret the third argument as 0 for
+;;;     a false bit and 1 for a true bit. Some R6RS implementations
+;;;     applied this erratum but others did not.
+;;;
+;;; Will is unable to find any trace of said erratum.  The R6RS
+;;; errata do include a correction to the precondition, but do
+;;; not include the "silent breaking change" mentioned above.
+;;; Will also believes the above misstates the R6RS semantics
+;;; of fxcopy-bit.
+
 (define (fxcopy-bit fx1 fx2 fx3)
   (fx:range-check! 'fxcopy-bit fx2)
   (if (fx=? fx3 (fxand fx3 1))
@@ -357,12 +385,17 @@
               fx1))
       (assertion-violation 'fxcopy-bit (errmsg 'msg:illegalarg3) fx3)))
 
-; FIXME: The 5.97 draft idiotically insists that the third argument
-; of fxbit-field be less than (fixnum-width).
-
 (define (fxbit-field fx1 fx2 fx3)
   (fx:range-check! 'fxbit-field fx2)
-  (if (fx=? fx3 (fixnum-width))
+
+  ;; FIXME: The R6RS Libraries document idiotically insists the third argument
+  ;; of fxbit-field be less than (fixnum-width).  SRFI 143 does not (although
+  ;; its author may have intended to add that restriction, which is a possible
+  ;; interpretation of https://srfi-email.schemers.org/srfi-143/msg/5766955),
+  ;; so the run-time check is enforced only in R6RS mode.
+
+  (if (and (fx=? fx3 (fixnum-width))
+           (eq? 'r6rs (larceny:execution-mode)))
       (assertion-violation 'fxbit-field
                            (errmsg 'msg:fixnumrange:idiotic-error)
                            fx3))
@@ -444,3 +477,39 @@
   (fx:check! 'fxarithmetic-shift-right n)
   (fx:range-check! 'fxarithmetic-shift-right shift)
   (fxrsha n shift))
+
+;;; Added for SRFI 143.
+
+(define (fxneg x) (fx- 0 x))
+
+(define (fxquotient x y)
+  (fx:check! 'fxquotient x)
+  (fx:check! 'fxquotient y)
+  (fx:check-result 'fxquotient (quotient x y)))
+
+(define (fxremainder x y)
+  (fx:check! 'fxremainder x)
+  (fx:check! 'fxremainder y)
+  (fx:check-result 'fxremainder (remainder x y)))
+
+(define (fxabs x)
+  (fx:check! 'fxabs x)
+  (fx:check-result 'fxabs (abs x)))
+
+(define (fxsquare x)
+  (fx* x x))
+
+(define (fxsqrt x)
+  (fx:check! 'fxsqrt x)
+  (exact-integer-sqrt x))
+
+(define (fxfirst-set-bit x)
+  (fxfirst-bit-set x))
+
+(define (fxbit-field-rotate i count start end)    ; note permutation of args
+  (if (fxnegative? count)
+      (fxrotate-bit-field i start end (+ count (- end start)))
+      (fxrotate-bit-field i start end count)))
+
+(define (fxbit-field-reverse x y z)
+  (fxreverse-bit-field x y z))

@@ -15,6 +15,7 @@ echo srfi-13-test; ${LARCENY} --r7rs --program srfi-13-test.sps7; echo
 echo srfi-14-test; ${LARCENY} --r7rs --program srfi-14-test.sps7; echo
 echo srfi-16-test; ${LARCENY} --r7rs --program srfi-16-test.sps7; echo
 echo srfi-17-test; ${LARCENY} --r7rs --program srfi-17-test.sps7; echo
+echo srfi-19-test; ${LARCENY} --r7rs --program srfi-19-test.sps7; echo
 echo srfi-23-test; ${LARCENY} --r7rs --program srfi-23-test.sps7; echo
 echo srfi-25-test; ${LARCENY} --r7rs --program srfi-25-test.sps7; echo
 echo srfi-26-test; ${LARCENY} --r7rs --program srfi-26-test.sps7; echo
@@ -57,6 +58,7 @@ echo srfi-115-test; ${LARCENY} --r7rs --program srfi-115-test.sps7; echo
 echo srfi-116-test; ${LARCENY} --r7rs --program srfi-116-test.sps7; echo
 echo srfi-117-test; ${LARCENY} --r7rs --program srfi-117-test.sps7; echo
 echo srfi-121-test; ${LARCENY} --r7rs --program srfi-121-test.sps7; echo
+echo srfi-122-test; ${LARCENY} --r7rs --program srfi-122-test.sps7; echo
 echo srfi-123-test; ${LARCENY} --r7rs --program srfi-123-test.sps7; echo
 echo srfi-124-test; ${LARCENY} --r7rs --program srfi-124-test.sps7; echo
 echo srfi-125-test; ${LARCENY} --r7rs --program srfi-125-test.sps7; echo
@@ -67,6 +69,14 @@ echo srfi-129-test; ${LARCENY} --r7rs --program srfi-129-test.sps7; echo
 echo srfi-130-test; ${LARCENY} --r7rs --program srfi-130-test.sps7; echo
 echo srfi-132-test; ${LARCENY} --r7rs --program srfi-132-test.sps7; echo
 echo srfi-134-test; ${LARCENY} --r7rs --program srfi-134-test.sps7; echo
-echo srfi-78-test; ${LARCENY} --r7rs --program srfi-78-test.sps7; echo
+echo srfi-135-test; ${LARCENY} --r7rs --program srfi-135-test.sps7; echo
+echo srfi-136-test; ${LARCENY} --r7rs --program srfi-136-test.sps7; echo
+echo srfi-137-test; ${LARCENY} --r7rs --program srfi-137-test.sps7; echo
+echo srfi-141-test; ${LARCENY} --r7rs --program srfi-141-test.sps7; echo
+echo srfi-143-test; ${LARCENY} --r7rs --program srfi-143-test.sps7; echo
+echo srfi-145-test; ${LARCENY} --r7rs --program srfi-145-test.sps7; echo
+echo srfi-146-test; ${LARCENY} --r7rs --program srfi-146-test.sps7; echo
+echo srfi-147-test; ${LARCENY} --r7rs --program srfi-147-test.sps7; echo
+echo srfi-151-test; ${LARCENY} --r7rs --program srfi-151-test.sps7; echo
 
-echo srfi-19-test; ${LARCENY} --r7rs --program srfi-19-test.sps7; echo
+echo srfi-78-test; ${LARCENY} --r7rs --program srfi-78-test.sps7; echo

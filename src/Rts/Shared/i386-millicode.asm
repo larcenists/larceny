@@ -213,13 +213,15 @@ EXTNAME(%1):
 	;; On entry, esp is off by 4
 PUBLIC i386_alloc_bv
 	MCg	mc_alloc_bv
+
 PUBLIC i386_alloc
 %ifdef OPTIMIZE_MILLICODE
 	mov	TEMP, [GLOBALS+G_ETOP]
 	add	RESULT, 7
 	and	RESULT, 0xfffffff8
-	add	TEMP, RESULT
 	add	TEMP, SCE_BUFFER
+	add	TEMP, RESULT		; Might wrap around on a large request
+	jc	L1
 	cmp	TEMP, CONT
 	ja	L1
 	mov	RESULT, [GLOBALS+G_ETOP]
@@ -242,8 +244,9 @@ PUBLIC i386_alloci
 	mov	ecx, RESULT		; Byte count for initialization
 	shr	ecx, 2			;   really want words
 	mov	TEMP, [GLOBALS+G_ETOP]
-	add	TEMP, RESULT
 	add	TEMP, SCE_BUFFER
+	add	TEMP, RESULT		; Might wrap around on a large request
+	jc	L2
 	cmp	TEMP, CONT
 	ja	L2
 	mov	RESULT, [GLOBALS+G_ETOP]

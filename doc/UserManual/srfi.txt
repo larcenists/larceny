@@ -30,10 +30,13 @@ To test whether particular SRFIs are available, use the R7RS
  ((and (library (srfi 19))
        (library (srfi 27)))
   (import (srfi 19))
-  (import (srfi 27))))
+  (import (srfi 27)))
+ (else ...))
 ----------------------------------------------------------------
 
 `cond-expand` is not available to R6RS libraries or programs.
+
+==== Using SRFIs in R5RS mode
 
 R5RS programs can use `cond-expand` as implemented by SRFI 0,
 "Feature-based conditional expansion construct".  (SRFI 0 must
@@ -44,14 +47,14 @@ Larceny provides the following nonstandard key for use in SRFI 0:
     larceny
 ----------------------------------------------------------------
 
-Larceny currently supports many SRFIs, though not as many as it
-should.
 Some SRFIs are built into Larceny's R5RS mode, but most must be
 loaded dynamically using Larceny's `require` procedure:
 
 ----------------------------------------------------------------
     > (require 'srfi-0)
 ----------------------------------------------------------------
+
+In R5RS mode, Larceny does not support SRFIs numbered 99 and higher.
 
 The design documents for SRFI 0 and other SRFIs are available at
 http://srfi.schemers.org[].

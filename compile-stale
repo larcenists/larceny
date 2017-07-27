@@ -1,11 +1,11 @@
 #!/usr/bin/env scheme-script
 
-#!r6rs
+#!r7rs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
-;;; Compiles all .sls files that lie within the directory (and
-;;; its subdirectories) from which this Scheme script is invoked.
+;;; Compiles all .sld and .sls files that lie within the directory
+;;; (and its subdirectories) from which this Scheme script is invoked.
 ;;;
 ;;; Compiling a large number of interdependent source files by
 ;;; hand is inconvenient because files must be compiled in an
@@ -25,8 +25,38 @@
 ;;; dangerously inconsistent with the compiled code of
 ;;; libraries on which the stale file depends.
 ;;;
+;;; KNOWN BUGS:
+;;;
+;;;     doesn't handle colon-separated directory lists
+;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(import (larceny compiler))
+(import (scheme base)
+        (scheme cxr)
+        (scheme file)
+        (scheme process-context)
+        (scheme list)
+        (larceny compiler)
+        (larceny parse-options))
 
-(compile-stale-libraries)
+(define cmds (command-line))
+
+(call-with-values
+ (lambda ()
+   (larceny:parse-options (cddr cmds)
+                          '((seq "-I" _)
+                            (seq "-A" _)
+                            (seq "-D" _))))
+ (lambda (files opts-I opts-A opts-D)
+   (let ((dirs-I   (map cadr opts-I))
+         (dirs-A   (map cadr opts-A))
+         (features (map cadr opts-D)))
+     (parameterize ((current-require-path
+                     (append dirs-I (current-require-path) dirs-A))
+                    (larceny:current-declared-features
+                     (append (larceny:current-declared-features)
+                             features)))
+      (if (every file-exists? files)
+          (apply compile-stale files)
+          (error "compile-stale: can't find some of these files"
+                 files))))))

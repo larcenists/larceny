@@ -10,7 +10,9 @@
   (import (except (core primitives) syntax-violation)
           (core with-syntax)  
           (core quasisyntax)
-          (rnrs base)
+          (except (rnrs base)
+                  let-syntax
+                  letrec-syntax)
           (rnrs exceptions)
           (rnrs conditions))
 

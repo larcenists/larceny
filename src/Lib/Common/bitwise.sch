@@ -27,6 +27,7 @@
 (define (bitwise:low k) (mod k bitwise:modulus))
 
 ; Returns the (possibly negative) high-order bits of an exact integer.
+; FIXME: functions that call this repeatedly are slow.
 
 (define (bitwise:high k) (div k bitwise:modulus))
 
@@ -48,8 +49,6 @@
          (- (- x) 1))
         (else bitwise:complain x 'bitwise-not)))
 
-; FIXME: These procedures shouldn't be this slow.
-
 (define (bitwise-and . args)
   (define (bitwise-and2 x y)
     (cond ((and (fixnum? x) (fixnum? y))
@@ -59,9 +58,7 @@
           ((= x -1) y)
           ((= y -1) x)
           (else
-           (bitwise:combine
-            (bitwise-and2 (bitwise:high x) (bitwise:high y))
-            (fxand (bitwise:low x) (bitwise:low y))))))
+           (integer-logand x y))))
   (cond ((null? args) -1)
         ((null? (cdr args)) (car args))
         ((null? (cddr args))
@@ -80,9 +77,7 @@
           ((= x -1) -1)
           ((= y -1) -1)
           (else
-           (bitwise:combine
-            (bitwise-ior2 (bitwise:high x) (bitwise:high y))
-            (fxior (bitwise:low x) (bitwise:low y))))))
+           (integer-logior x y))))
   (cond ((null? args) 0)
         ((null? (cdr args)) (car args))
         ((null? (cddr args))
@@ -100,9 +95,7 @@
           ((= y 0) x)
           ((= x y) 0)
           (else
-           (bitwise:combine
-            (bitwise-xor2 (bitwise:high x) (bitwise:high y))
-            (fxxor (bitwise:low x) (bitwise:low y))))))
+           (integer-logxor x y))))
   (cond ((null? args) 0)
         ((null? (cdr args)) (car args))
         ((null? (cddr args))
@@ -230,7 +223,9 @@
            (bignum-shift-right! x result y)
            (let ((result (big-normalize! result)))
              (if (< x 0)
-                 (- result)
+                 (if (= x (- (* result (expt 2 y))))
+                     (- result)
+                     (- (+ result 1)))
                  result))))
         ;; FIXME: the following code should never be executed
         ((= x 0) x)
@@ -276,7 +271,8 @@
   (assert (<= 0 z))
   (assert (<= y z))
   (let* ((field (bitwise-bit-field x y z))
-         (rfield (if (fixnum? field)
+         (rfield (if (and (fixnum? field)
+                          (< (- z y) (fixnum-width)))
                      (fxreverse-bit-field field 0 (- z y))
                      (loop field (- z y) 0))))
     (bitwise-copy-bit-field x y z rfield)))

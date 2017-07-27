@@ -1,10 +1,12 @@
 [[R7rsChapter]]
 
-R7RS standard libraries
+R7RS Standard Libraries
 -----------------------
 
-The R7RS standard libraries are described by
-<<Standards,the R7RS (small) standard>> approved in 2013.
+The R7RS standard libraries are described by the
+<<Standards, R7RS (small)>> standard approved in 2013
+and by the
+<<Standards, R7RS Red Edition>> standard approved in 2016.
 The
 <<R7rsPreDefinedSection,Predefined libraries>> section
 of this manual lists the names of those libraries.
@@ -18,35 +20,64 @@ Binary releases of Larceny also support Unicode strings.
 use Latin-1 strings instead of Unicode.)
 
 When Larceny is invoked with the `-r7r6` option on its
-command line, all of the standard R7RS and R6RS libraries
-are imported at startup.  When invoked with the `-r7rs`
-option, only `(scheme base)` is imported at startup.
+command line, and no program is given on the command line,
+all of the standard R7RS and R6RS libraries
+are imported at startup.  When invoked with the `-r7`
+option and no program, only `(scheme base)` is imported at startup.
+When a program is given, the `-r7r6` and `-r7` options
+are equivalent: both imply the R7RS mode of execution,
+but the program is responsible for importing all libraries
+it uses, which makes it possible to write R7RS programs
+that do not import `(scheme base)`.
+
+
+[[R7rsDeviationsSection]]
 
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Larceny v0.99 does not implement these features of
-the R7RS standard:
-
-- `include` and `include-ci` at expression level
-
-`include` and `include-ci` are fully supported
-at the top-level declaration and definition levels of R7RS
-libraries.
-
-Larceny v0.99 does not allow libraries to define the names
-`primitives` or `program`.
-(Larceny reserves <<R7rsPrimitivesSection,primitives>> as a
-keyword for importing identifiers from the R5RS global
-environment, and reserves `program` for no good reason.)
-Larceny does allow top-level programs to define those names.
-
 To simplify interoperability with R6RS libraries and
-programs, the `integer?`, `rational?`, and `real?`
+programs, and to improve the performance of flonum and
+complex arithemetic, the `integer?`, `rational?`, and `real?`
 procedures exported by `(scheme base)` have R6RS semantics.
 It is not clear whether that is fully compatible with the
 R7RS (small) standard, because the R7RS specification of
 those procedures appears to contradict itself.
 
+To simplify interoperability with R6RS libraries and programs,
+`let-syntax` and `letrec-syntax` have R6RS semantics.  The R6RS
+standard requires `let-syntax` and `letrec-syntax` to splice
+their macro-expanded bodies into their context instead of
+introducing a new contour.  That R6RS behavior is not explicitly
+forbidden by the R7RS, but archives of the working group that
+developed the R7RS standard record a deliberate decision to break
+backward compatibility with R6RS by requiring `let-syntax` and
+`letrec-syntax` to introduce a new contour.  Although the R7RS
+(small) standard fails to mention this significant change in
+semantics, that must have been an oversight.  Programs that
+depend upon having `let-syntax` and `letrec-syntax` introduce
+new contours can be run in Larceny's `-r7strict` mode, which
+will also disable several other generally desirable extensions
+and enhancements Larceny has made to the R7RS.
+
+[TIP]
+================================================================
+If some library or program depends upon `-r7strict`, it can be
+<<CompilingR7rsSection,compiled separately>> with `-r7strict` in effect,
+allowing its compiled form to interoperate with libraries and
+programs that use extensions disabled by `-r7strict`.
+================================================================
+
 If any other R7RS feature is missing or incompatible with
 the R7RS (small) standard, it's a bug.
+
+As of Larceny v1.3, the known deviations from the R7RS (small)
+standard are:
+
+- Libraries with names of the form `(primitives x ...)` cannot be imported.
+(Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
+as a keyword for importing identifiers from the R5RS global
+environment.)
+
+- `include` and `include-ci` are allowed only as library declarations,
+and are not allowed in expression contexts.

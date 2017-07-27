@@ -110,8 +110,8 @@ void primitive_setenv( word w_name, word w_value )
 }
 
 void primitive_garbage_collect( w_gen, w_type )
-word w_gen;			/* fixnum: generation */
-word w_type;			/* fixnum: type requested */
+word w_gen;                        /* fixnum: generation */
+word w_type;                        /* fixnum: type requested */
 {
   gc_type_t type;
   assert(is_fixnum(w_type));
@@ -127,7 +127,7 @@ void primitive_iflush( w_bv )
 word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
-		    ptrof( w_bv )+1+roundup4(sizefield(*ptrof(w_bv)))/4 );
+                    ptrof( w_bv )+1+roundup4(sizefield(*ptrof(w_bv)))/4 );
 }
 
 /* Floating-point operations */
@@ -164,6 +164,29 @@ word w_flonum1, w_flonum2, w_result;
 
 numeric_onearg( primitive_flonum_sqrt, sqrt )
 
+void primitive_flonum_fma( w_flonum1, w_flonum2, w_flonum3, w_result )
+word w_flonum1, w_flonum2, w_flonum3, w_result;
+{
+  box_flonum( w_result, fma(flonum_val(w_flonum1),
+                            flonum_val(w_flonum2),
+                            flonum_val(w_flonum3)) );
+  globals[ G_RESULT ] = w_result;
+}
+
+void primitive_flonum_jn( w_fixnum1, w_flonum2, w_result )
+word w_fixnum1, w_flonum2, w_result;
+{
+  box_flonum( w_result, jn(nativeint(w_fixnum1), flonum_val(w_flonum2)) );
+  globals[ G_RESULT ] = w_result;
+}
+
+void primitive_flonum_yn( w_fixnum1, w_flonum2, w_result )
+word w_fixnum1, w_flonum2, w_result;
+{
+  box_flonum( w_result, yn(nativeint(w_fixnum1), flonum_val(w_flonum2)) );
+  globals[ G_RESULT ] = w_result;
+}
+
 /* Statistics dump interface */
 
 void primitive_stats_dump_on( w_fn )
@@ -187,9 +210,9 @@ void primitive_gcctl_np( word heap, word rator, word rand )
 {
   /* Heap# comes in as 1..n, but RTS uses 0..n-1 */
   gc_set_policy( the_gc( globals ),
-		 nativeint( heap )-1,
-		 nativeint( rator ), 
-		 (unsigned)nativeint( rand ) );
+                 nativeint( heap )-1,
+                 nativeint( rator ), 
+                 (unsigned)nativeint( rand ) );
 }
 
 void primitive_block_signals( word code )
@@ -241,8 +264,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     break;
   case 4  : /* gc-info */
     gc_parameters( the_gc( globals ), 0, ans );
-    vector_set( v, 0, fixnum(ans[0]) );	/* technology */
-    vector_set( v, 1, fixnum(ans[1]) );	/* generations */
+    vector_set( v, 0, fixnum(ans[0]) );        /* technology */
+    vector_set( v, 1, fixnum(ans[1]) );        /* generations */
     break;
   case 5  : /* gen-info, generations numbered 1..n */
     ans[0] = 0; ans[1] = 0; ans[2] = 0; ans[3] = 0;
@@ -324,14 +347,14 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       mode = 1;
     if (command_line_options.r6rs)
       mode = 2;
-    if (command_line_options.ignore1)  // scheme-script is now an R7RS mode
-      mode = 3;
     if (command_line_options.r6slow)
       mode = 4;
     if (command_line_options.r7rs)
       mode = 5;
     if (command_line_options.r7r6)
       mode = 6;
+    if (command_line_options.ignore1)  // scheme-script is now an R7RS mode
+      mode = 3;
     vector_set( v, 0, fixnum( mode ) );
     break;
   }
@@ -384,6 +407,40 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
   case 18 : /* transcoder */
     vector_set( v, 0, fixnum( command_line_options.transcoder ) );
     break;
+  case 19 : /* r6path2 */ {
+    char *p;
+    word *q;
+    int l;
+
+    p = command_line_options.r6path2;
+    if (p == 0) {
+      globals[ G_RESULT ] = FALSE_CONST;
+      return;
+    }
+    l = strlen( p );
+    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    *q = mkheader( l, BV_HDR );
+    memcpy( string_data( q ), p, l );
+    vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
+    break;
+  }
+  case 20 : /* r7features */ {
+    char *p;
+    word *q;
+    int l;
+
+    p = command_line_options.r7features;
+    if (p == 0) {
+      globals[ G_RESULT ] = FALSE_CONST;
+      return;
+    }
+    l = strlen( p );
+    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    *q = mkheader( l, BV_HDR );
+    memcpy( string_data( q ), p, l );
+    vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
+    break;
+  }
   default : 
     panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }

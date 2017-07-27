@@ -1,9 +1,24 @@
+[[DebuggingChapter]]
+
 Debugging
 ---------
 
 Larceny's debugging functionality is implemented in Scheme, using some
 of Larceny's extensions for catching exceptions and inspecting the
 continuation structure.
+
+[NOTE]
+================================================================
+Larceny's debugger is most useful in R5RS mode because Larceny's
+R7RS/R6RS macro expander discards the file name and line number
+information it is given by the `read` procedure.  The R7RS/R6RS
+macro expander also mangles identifiers, and the debugger does
+not currently un-mangle mangled identifiers.  To add to the
+difficulty, R7RS/R6RS semantics allows compiler optimizations
+that obscure the correspondence between source code and run-time
+representations displayed by the debugger.
+================================================================
+
 
 === Entering the debugger
 
@@ -43,7 +58,7 @@ activation record, and the result, if not unspecified, is printed.
 **I _n_**      Inspect the procedure in slot _n_ of the current
 activation record.
 
-**I @_**      Inspect the active procedure.
+**I @**      Inspect the active procedure.
 
 **Q**      Quit the debugger and abort the computation.
 
@@ -74,7 +89,9 @@ proc:unbreak[args="procedure ..."]
 
 proctempl:unbreak[args=""]
 
-In the first form, remove any breakpoint set by break-entry at the start of the _procedure_s. In the second form, remove all breakpoints set by _break-entry_.
+In the first form, remove any breakpoint set by break-entry
+at the start of the procedures.
+In the second form, remove all breakpoints set by _break-entry_.
 
 === Tracing
 
@@ -97,7 +114,7 @@ proc:untrace[args="procedure ..."]
 proctempl:untrace[args=""]
 
 The first form removes any trace points from the specified procedures.
-The second form removes all untrace points.
+The second form removes all trace points.
 
 === Other functionality
 

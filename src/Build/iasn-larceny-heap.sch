@@ -122,6 +122,7 @@
                             include-source-code
                             include-variable-names
                             single-stepping
+                            hygienic-literals
                             avoid-space-leaks
                             ;; FSK: not on IAssassin
                             ;; write-barrier

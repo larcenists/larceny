@@ -7,27 +7,32 @@
 ;
 ; 1  Evaluate (BUILD-LARCENY-FILES) in the development environment
 ; 2  From the command line run
-;        petit-larceny -stopcopy petit.heap
+;        "./larceny.bin" -stopcopy -heap petit.heap
 ; 3  Load this script.  It will create petit-larceny.heap.
-
-(load "setup.sch")
-(setup)
-(load-compiler 'release)
 
 (define ($$trace x) #f)                 ; Some code uses this
 
 (define toplevel-macro-expand #f)       ; A hack for the benefit of 
                                         ; init-toplevel-environment
 
-;;; Need compile-files to find Petit includes
-
-(require 'petit-compile-file)
+(define (displn x) (display x) (newline))
 
 ;;; First load the compiler and seal its namespace.
 
 (let ()
     
-  ; Install twobit's macro expander as the interpreter's ditto
+  (load "setup.sch")
+  (setup)
+  (load-compiler 'release)
+; (compat:load (param-filename 'common-asm "link-lop.fasl"))
+
+  ;; Need compile-files to find Petit includes
+
+  (require 'petit-compile-file))
+
+(let ()
+    
+  (displn "Install twobit's macro expander as the interpreter's ditto")
 
   (macro-expander (lambda (form environment)
 		    (let ((switches (compiler-switches 'get)))
@@ -47,12 +52,16 @@
 		    4
 		    (the-usual-syntactic-environment))
 
-  ; Replace and populate the top-level environment
-  
-  (parameterize ((case-sensitive? #t))
-    (compat:load (param-filename 'common-source "toplevel.sch"))
-    (compat:load
-     (param-filename 'source "Arch" "Standard-C" "toplevel-target.sch")))
+  (displn "Replace and populate the top-level environment")
+
+  (let ((load&disp (lambda (where . names)
+                     (let ((filename (apply param-filename where names)))
+                       (displn filename)
+                       (compat:load filename)))))
+    (load&disp 'common-source "toplevel.sch")
+    (load&disp 'source "Arch" "Standard-C" "toplevel-target.sch"))
+
+  (displn "done with load")
 
   (let ((e (interaction-environment)))
     (letrec ((install-procedures 
@@ -97,6 +106,7 @@
                             include-source-code
                             include-variable-names
                             single-stepping
+                            hygienic-literals
                             avoid-space-leaks
                             runtime-safety-checking
                             catch-undefined-globals
@@ -142,7 +152,42 @@
 
   (unspecified))
 
-;;; Redefine MACRO-EXPAND in the interaction environment.
+"Install a herald that identifies the generated heap."
+
+(let ()
+  (define (file->char-list port)
+    (do ((c (read-char port) (read-char port))
+         (l '() (cons c l)))
+        ((eof-object? c) (reverse l))))
+  (define (trim-leading-spaces char-list)
+    (let loop ((l char-list))
+      (if (char-whitespace? (car l))
+          (loop (cdr l))
+          l)))
+  (define (trim-trailing-spaces char-list)
+    (reverse (trim-leading-spaces (reverse char-list))))
+  (define (trim-spaces char-list)
+    (trim-trailing-spaces
+     (trim-leading-spaces char-list)))
+  (define date-cmd
+    (if (equal? (cdr (assq 'os-name (system-features)))
+                "Win32")
+        "date /t "
+        "date    "))
+  (let ((herald-string
+         (begin
+
+           ;; A "temporary" file (we know it is about to get overwritten).
+
+           (system (string-append date-cmd "> petit-larceny.heap"))
+           (call-with-input-file "petit-larceny.heap"
+             (lambda (port)
+               (string-append 
+                "petit-larceny.heap, built on " 
+                (list->string (trim-spaces (file->char-list port)))))))))
+    (herald herald-string)))
+
+"Redefine MACRO-EXPAND in the interaction environment."
 
 (define macro-expand
   (lambda (expr . rest)
@@ -173,7 +218,7 @@
             (car rest))))
     (compile-files (list infile) outfile)))
 
-;;; Helpful procedure for hiding irrelevant names
+"Helpful procedure for hiding irrelevant names"
 
 ;;; FIXME: this is unsafe because definitions within the loaded files
 ;;; will override any previous definitions made at Larceny's top level.
@@ -190,22 +235,32 @@
                           (car procs)
                           (environment-get e (car procs)))))))
 
-;;; Load a bunch of useful procedures
-;;;
+"Load a bunch of useful procedures"
+
 ;;; FIXME: the following is commented out, which is just fine.
 
-'(load-in-private-namespace
-  (list
-    (param-filename 'auxiliary "pp.fasl")
-   ;"Auxlib/misc.fasl"
-    (param-filename 'auxiliary "list.fasl") ; defines aremq!, aremv!, aremove!
-                                            ;   and redefines list-head (FIXME)
-   ;"Auxlib/string.fasl"
-   ;"Auxlib/vector.fasl"
-   ;"Auxlib/io.fasl"
-   ;"Auxlib/osdep-unix.fasl"
-   ;"Auxlib/load.fasl"
-   )
+'
+(load-in-private-namespace
+ (map (lambda (fasl) (param-filename 'auxiliary fasl))
+      `("pp.fasl"              ; defines pretty-print, pretty-line-length
+        ;; "misc.fasl"         ; defines nothing that matters here
+        "list.fasl"            ; defines aremq!, aremv!, aremove!
+                               ;     and redefines list-head (FIXME)
+                               ;     and defines some stuff needed by load.fasl
+        ;; "string.fasl"       ; defines nothing that matters here
+        ;; "vector.fasl"       ; defines nothing at all now
+        ;; "pp.fasl"           ; was a duplicate
+        ;; "io.fasl"           ; was redefining file-newer?
+
+        ;; These two define some stuff needed by load.fasl.
+
+        ,(if (string=? (cdr (assq 'os-name (system-features)))
+                       "Win32")
+           "osdep-win32.fasl"
+           "osdep-unix.fasl")
+
+        "load.fasl"            ; redefines load (deliberately), defines load-*
+        ))
  '(;; remq! remv! remove!      ; defined at toplevel (FIXME: but shouldn't be)
    aremq! aremv! aremove!      ; FIXME: what are these? and why?
    ;; filter find              ; defined at toplevel
@@ -214,15 +269,17 @@
    ;; make-list                ; defined at toplevel for R7RS
    ;; vector-copy              ; defined at toplevel for R7RS
    ;; read-line                ; defined at toplevel for R7RS
-   pretty-print pretty-line-length))
+   pretty-print pretty-line-length
+   load load-noisily load-quietly))
 
-;;; Load and install the debugger
+"Load and install the debugger"
 
-'(load-in-private-namespace
-  (param-filename 'debugger
-                  '("debug.fasl"
-                    "inspect-cont.fasl"
-                    "trace.fasl"))
+;;; FIXME: this stuff is commented out as well
+
+'
+(load-in-private-namespace
+ (map (lambda (fasl) (param-filename 'debugger fasl))
+      '("debug.fasl" "inspect-cont.fasl" "trace.fasl"))
  '(debug trace trace-entry trace-exit untrace break-entry unbreak 
    trace-entry-printer trace-exit-printer
    install-debugger))
@@ -237,10 +294,11 @@
    (if (not (eq? x (unspecified)))
        (pretty-print x port))))
 
-;;; Load a bunch of useful things.  
+"Load a bunch of useful things."
+
 ;;; FIXME: Some of these files could usefully be loaded in private namespaces.
 
-(load (param-filename 'auxiliary "macros.sch"))
+(compat:load (param-filename 'auxiliary "macros.sch"))
 
 ; The record system is now defined in Lib/Common/record.sch.
 
@@ -253,7 +311,7 @@
 ;(load "Experimental/applyhook0.fasl")
 ;(load "Experimental/applyhook.fasl")
 
-;;; Improve some definitions
+"Improve some definitions"
 
 (define (procedure-documentation-string p)
   (let ((e (procedure-expression p)))
@@ -289,32 +347,21 @@
 (set! param-filename (undefined))
 (set! compat:load (undefined))
 
-;;; Dump the heap
+"Dump the heap"
 
 ;(gctwa)
 
-; Dump a unified heap as petit-std.heap
-
 (dump-interactive-heap "petit-larceny.heap")
 
-; Reorganize and redump the heap and give it the name "petit-std.heap"
-
-(define mv-command)
-(define petit-command)
-
-(if (string=? "Win32" (cdr (assq 'os-name (system-features))))
-    (begin
-      (set! mv-command "rename")
-      (set! petit-command ".\\petit-larceny.bin.exe"))
-    (begin
-      (set! mv-command "mv")
-      (set! petit-command "./petit-larceny.bin")))
-
-(system
- (string-append petit-command
-                " -reorganize-and-dump -heap petit-larceny.heap"))
-(system
- (string-append mv-command
-                " petit-larceny.heap.split petit-larceny.heap"))
+(cond
+ ((equal? (cdr (assq 'os-name (system-features)))
+	  "Win32")
+  (system
+   ".\\petit-larceny.bin.exe -reorganize-and-dump -heap petit-larceny.heap")
+  (system "move petit-larceny.heap.split petit-larceny.heap"))
+ (else
+  (system
+   "./petit-larceny.bin -reorganize-and-dump -heap petit-larceny.heap")
+  (system "mv petit-larceny.heap.split petit-larceny.heap")))
 
 ; eof

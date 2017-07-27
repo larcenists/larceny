@@ -1,4 +1,4 @@
-]Building Larceny
+Building Larceny
 
 
 WHAT YOU NEED
@@ -27,7 +27,7 @@ Building Larceny has four major steps:
 
 1. Set up the Larceny development environment.
 
-Run your host Scheme (a prebuild version of Larceny [1]), and change
+Run your host Scheme (a prebuilt version of Larceny [1]), and change
 to the root directory of the Larceny tree.
 
     > (load "setup.sch")
@@ -197,13 +197,9 @@ may contain a file named scheme-script.
 
 NOTES
 
-[1] For the build process, we strongly recommend using a prebuilt
-version of Larceny itself.  MzScheme 37x once worked, and might
-work still.  In the past, several other implementations of Scheme
-could be used for the build process, but they haven't been tested
-lately and aren't likely to work any more.  MzScheme v4.x.x might
-work, but we regard Larceny's support for v4.x.x as experimental;
-see src/Compat/PLT-R5RS/README.
+[1] For the build process, you need a prebuilt version of Larceny
+itself.  In the past, several other implementations of Scheme
+could be used for the build process, but they don't work any more.
 
 [2] http://www.nasm.us/
 

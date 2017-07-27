@@ -65,6 +65,7 @@ Debugging:
   single-stepping            Insert singlestepping support code.
 
 Safety:
+  hygienic-literals          Syntax-rules literals are hygienic.
   avoid-space-leaks          Generate code to clear stale registers.
   write-barrier              Generate code for generational GC.
   runtime-safety-checking    Check for illegal arguments and other errors.

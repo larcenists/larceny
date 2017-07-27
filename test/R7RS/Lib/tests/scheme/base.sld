@@ -970,12 +970,115 @@
                  (m))))
            'outer)
 
+     ;; The following test was copied from the Racket R6RS tests.
+     ;; The R7RS (small) document does not specify whether let-syntax
+     ;; and letrec-syntax splice definitions (as in R6RS) or introduce
+     ;; a new contour (as in R5RS), and the "Language Changes" section
+     ;; does not mention this issue, so I assumed the R7RS preserved
+     ;; the R6RS behavior, which had not been controversial when the
+     ;; R6RS was ratified.  Unfortunately, seven members of Working
+     ;; Group 1 took a vote on this, and voted 5 to 1 in favor of
+     ;; reverting to the R5RS semantics:
+     ;;
+     ;; http://trac.sacrideo.us/wg/wiki/WG1Ballot2Results#a48let-syntax
+     ;; http://trac.sacrideo.us/wg/wiki/FiveToSixToSeven
+     ;;
+     ;; (The second of those links claim this change was made "for
+     ;; backward compatibility with existing Schemes", but the change
+     ;; obviously breaks backward compatibility with all existing
+     ;; implementations of R6RS Scheme.)
+     ;;
+     ;; The following test has therefore been commented out,
+     ;; and two new tests for the backward-compatibility-breaking
+     ;; semantics approved by WG1, but not explicitly required by
+     ;; R7RS (small), have been added.
+#;
      (test (let ()
              (let-syntax ((def (syntax-rules ()
                                  ((def stuff ...) (define stuff ...)))))
                (def foo 42))
              foo)
            42)
+
+     (test (let ((x 13))
+             (define y 14)
+             (let-syntax ((def
+                           (syntax-rules ()
+                            ((_ var val)
+                             (define var val)))))
+               (def x 56)
+               (set! y (+ x y)))
+             (list x y))
+           '(13 70))
+
+     (test (let ((x 13))
+             (define y 14)
+             (letrec-syntax ((def
+                              (syntax-rules ()
+                               ((_ var val)
+                                (define var val)))))
+               (def x 56)
+               (set! y (+ x y)))
+             (list x y))
+           '(13 70))
+
+     ;; Since the two new tests above enforce a semantics not explicitly
+     ;; required by the R7RS, it seemed only fair to add a third test,
+     ;; suggested by Al Petrofsky, that enforces a desirable semantics
+     ;; not explicitly required by the R7RS.
+     ;;
+     ;; FIXME:  One could argue that all three of these tests should be
+     ;; removed because the language of the R7RS (small) document itself
+     ;; does not specify their behavior.
+
+     ;; This test was suggested by Al Petrofsky.
+     ;;
+     ;; Its outcome is not specified by the R7RS, but the more hygienic
+     ;; behavior that uses bound-identifier=? to determine whether x and
+     ;; y match the literal k is established practice for both R6RS and
+     ;; R5RS systems, and the R7RS does not say anything to suggest WG1
+     ;; intended to mandate a less hygienic behavior in R7RS systems.
+     ;; 
+     ;; Some implementations of R7RS effectively use free-identifier=?,
+     ;; but that is believed to be a misfeature of Chibi that was copied
+     ;; by other implementations and should not be hard for them to fix.
+     ;; See
+     ;;     https://srfi-email.schemers.org/srfi-148/msg/6092367
+     ;;     https://srfi-email.schemers.org/srfi-148/msg/6096733
+     ;;     https://srfi-email.schemers.org/srfi-148/msg/6097827
+
+     (test (let-syntax
+             ((m (syntax-rules ()
+                  ((m x) (let-syntax
+                           ((n (syntax-rules (k)
+                                ((n x) 'bound-identifier=?)
+                                ((n y) 'free-identifier=?))))
+                           (n z))))))
+             (m k))
+           'bound-identifier=?)
+
+     ;; The following test was also suggested by Al Petrofsky.
+
+     (test (let-syntax
+             ((m (syntax-rules ::: ()
+                  ((m dots)
+                   (let-syntax ((n (syntax-rules ... (dots)
+                                    ((n dots ...) 1))))
+                     (n dots))))))
+             (m ...))
+           1)
+
+     ;; Petrofsky suggests the following test should be an error.
+     ;; It's commented out because it would be a compile-time error,
+     ;; not a run-time error.
+
+#;   (test/unspec-or-exn
+      (let-syntax
+        ((m (syntax-rules ... (...)
+             ((m x y ...) 'ellipsis)
+             ((m x ...) 'literal))))
+        (m x ...))
+      &error)
 
      ;; FIXME: The following test is commented out.
      ;; It's legal in R6RS, but probably isn't in R7RS.
@@ -1048,6 +1151,22 @@
      (test (underscore-as-literal 5) 'other)
      (test (ellipses-as-literal ...) 'under)
      (test (ellipses-as-literal 6)   'other)
+
+     (test (let ((... 19))
+             (define-syntax bar
+               (syntax-rules ()
+                ((bar x y ...)
+                 (list y x ...))))
+             (bar 1 2 3))
+           '(2 1 3))
+    
+     (test (let ((... 19))
+             (define-syntax bar
+               (syntax-rules ()
+                ((bar x y)
+                 (list y x ...))))
+             (bar 1 2))
+           '(2 1 19))
     
      ;;     syntax-error                            ; R7RS 4.3.3
 
@@ -2693,6 +2812,20 @@
            "No, but I can write.")
 
      (test (call-with-port
+            (open-output-string)
+            (lambda (p)
+              (write-string "No, but I can write." p 4)
+              (get-output-string p)))
+           "but I can write.")
+
+     (test (call-with-port
+            (open-output-string)
+            (lambda (p)
+              (write-string "No, but I can write." p 4 13)
+              (get-output-string p)))
+           "but I can")
+
+     (test (call-with-port
             (open-input-bytevector '#u8(115 111 109 101 32 98 121 116 101 115))
             (lambda (p) (read-bytevector 9 p)))
            '#u8(115 111 109 101 32 98 121 116 101))
@@ -2704,6 +2837,14 @@
               (write-bytevector '#u8(98 121 116 101 115) p)
               (get-output-bytevector p)))
            '#u8(115 111 109 101 98 121 116 101 115))
+
+     (test (call-with-port
+            (open-output-bytevector)
+            (lambda (p)
+              (write-bytevector '#u8(115 111 109 101) p 2)
+              (write-bytevector '#u8(98 121 116 101 115) p 1 4)
+              (get-output-bytevector p)))
+           '#u8(109 101 121 116 101))
 
      (let* ((catholic-predicates (list input-port?
                                        output-port?

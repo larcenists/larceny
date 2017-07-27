@@ -7,11 +7,16 @@
 ;;; This file is a plug-and-play alternative to sort.scm in the
 ;;; same directory.
 
-(define list-sort         r6rs-list-sort)
-(define list-sort!        r6rs-list-sort)
-(define list-stable-sort  r6rs-list-sort)
-(define list-stable-sort! r6rs-list-sort)
+;;; The R6RS procedures are now imported without renaming.
+;;; To make that work, the R6RS vector-sort and vector-sort!
+;;; procedures have been upgraded to accept optional arguments.
 
+;(define list-sort         r6rs-list-sort)
+(define list-sort!        list-sort)
+(define list-stable-sort  list-sort)
+(define list-stable-sort! list-sort)
+
+#;
 (define (vector-sort < v . rest)
   (cond ((null? rest)
          (r6rs-vector-sort < v))
@@ -26,6 +31,7 @@
 
 (define vector-stable-sort vector-sort)
 
+#;
 (define (vector-sort! < v . rest)
   (cond ((null? rest)
          (r6rs-vector-sort! < v))

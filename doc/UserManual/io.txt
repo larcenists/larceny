@@ -57,7 +57,7 @@ indexterm:[console-output-port-factory]
 _Parameter console-output-port-factory_     
 
 The value of this parameter is a procedure that returns a character
-output port such that no write the port has signalled an error.
+output port such that no write to the port has signalled an error.
 
 See console-input-port for a full explanation.
 

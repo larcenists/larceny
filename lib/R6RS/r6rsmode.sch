@@ -441,26 +441,11 @@
 ; loaded by load-r6rs-program.  The target-filename can be
 ; compiled before it is loaded.
 ;
-; FIXME:  This uses a hack to avoid compiling a library twice
-; in systems that compile on eval.  If the file contains only
-; one library, and nothing else, then we can compile to a file
-; and then load the file instead of calling eval on the result
-; of expansion.  That doesn't work if the file contains two
-; libraries and the second one imports from the first.
-;
 ; FIXME:  The io here should be protected against errors.
 
 (define (expand-r6rs-program filename target-filename)
   (larceny:load-r6rs-package)
-  (let ((nlibs (call-with-input-file
-                filename
-                (lambda (in)
-                  (do ((x (read in) (read in))
-                       (n 0 (if (pair? x) (+ n 1) n)))
-                      ((or (eof-object? x) (> n 1))
-                       n))))))
-    (parameterize ((larceny:r6rs-expand-only (= nlibs 1)))
-      (ex:expand-file filename target-filename))))
+  (ex:expand-file filename target-filename))
 
 ; This parameter determines whether expanded libraries
 ; and programs are evaluated immediately, as in van Tonder's

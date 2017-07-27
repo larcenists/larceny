@@ -74,6 +74,21 @@
              (number->string minor))))
     s))
 
+(define (larceny:declared-features)
+  (if (not *larceny:declared-features*)
+      (let* ((s (string-append "(" (larceny:get-feature 'r7features) ")"))
+             (p (open-input-string s)))
+        (set! *larceny:declared-features* (read p))
+        (close-input-port p)))
+  *larceny:declared-features*)
+
+(define *larceny:declared-features* #f)
+
+(define larceny:current-declared-features
+  (make-parameter "larceny:current-declared-features"
+                  (larceny:declared-features)
+                  list?))
+
 ;;; FIXME: keep this in sync with src/Lib/Common/system-interface.sch
 
 (define (larceny:evaluate-feature feature)
@@ -90,7 +105,7 @@
                           '(r7rs r7r6 r6rs err5rs))))
           ((larceny complex exact-closed exact-complex ieee-float ratios)
            #t)
-          ((larceny-0.98 larceny-0.99 larceny-2.0)
+          ((larceny-0.98 larceny-0.99 larceny-1.3 larceny-1.5 larceny-2.0)
            ;; FIXME: should strip off trailing beta version, etc
            (let* ((major (larceny:get-feature 'larceny-major-version))
                   (minor (larceny:get-feature 'larceny-minor-version))
@@ -146,6 +161,7 @@
           (else
            (or (eq? feature (larceny:name-of-this-implementation))
                (eq? feature (larceny:name-of-this-implementation-version))
+               (memq feature (larceny:current-declared-features))
                (let ((s (symbol->string feature)))
                  (and (< 5 (string-length s))
                       (string-ci=? "srfi-" (substring s 0 5))
@@ -241,6 +257,7 @@
                   (caddr standard-features)  ; larceny
                   larceny-version)
             (cdddr standard-features)
+            (larceny:current-declared-features)
             (map car (larceny:available-source-libraries)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -379,43 +396,73 @@
           (process-library! x fname))))
 
     (define (process-library! library fname)
-      (and (list? library)
-           (<= 4 (length library))
-           (memq (car library) *library-keywords*)
-           (let ((name (cadr library))
-                 (exports (caddr library))
-                 (imports (cadddr library)))
-             (define (okay? keyword form)
-               (and (list? name)
-                    (pair? name)
-                    (eq? keyword (car form))))
-             (and (pair? name)
-                  (okay? (car name) name)
-                  (okay? 'export exports)
-                  (okay? 'import imports)
-                  (let* ((filename (larceny:absolute-path fname))
-                         (entry (larceny:make-library-entry name
-                                                            exports
-                                                            imports
-                                                            filename
-                                                            #f))
-                         (probe (assoc name libraries-found)))
-                    (cond ((and probe (equal? probe entry))
-                           #t)
-                          (else
-                           (set! libraries-found
-                                 (cons entry libraries-found))
-                           (if probe
-                               (for-each
-                                mark-as-multiple!
-                                (filter
-                                 (lambda (entry)
-                                   (equal? name
-                                           (larceny:library-entry-name entry)))
-                                 libraries-found))))))))))
+      (let* ((filename (larceny:absolute-path fname))
+             (entry (larceny:library->entry library filename))
+             (name (if entry
+                       (larceny:library-entry-name entry)
+                       '()))
+             (probe (assoc name libraries-found)))
+        (cond ((not entry)
+;              (display "Library could not be parsed:\n")
+;              (pretty-print library)
+               #f)
+              ((and probe (equal? probe entry))
+               #t)
+              (else
+               (set! libraries-found
+                     (cons entry libraries-found))
+               ;; FIXME: this is slow
+               (if probe
+                   (for-each
+                    mark-as-multiple!
+                    (filter (lambda (entry)
+                              (equal? name
+                                      (larceny:library-entry-name entry)))
+                            libraries-found)))))))
 
     (define (mark-as-multiple! entry)
       (larceny:library-entry-multiple! entry))
+
+    ;; Given a library entry, returns that entry unless the library
+    ;; is defined by multiple files, in which case it tries to return
+    ;; an entry for the file that would be found by Larceny's standard
+    ;; library search algorithm instead of the given entry.
+
+    (define (disambiguate-multiply-defined entry)
+      (define (fasl? fname)
+        (and fname
+             (let ((n (string-length fname)))
+               (and (< 4 n)
+                    (string=? "fasl" (substring fname (- n 4) n))))))
+      (if (not (larceny:library-entry-multiple? entry))
+          entry
+          (let* ((lib (larceny:library-entry-name entry))
+                 (fname (larceny:find-r6rs-library lib))
+                 (fname (if (fasl? fname)
+                            (let* ((fnames (generate-source-names fname))
+                                   (fnames (filter file-exists? fnames)))
+                              (if (null? fnames)
+                                  #f
+                                  (car fnames)))
+                            fname)))
+            (define (entry-for-lib in)
+              (let loop ()
+                (let ((x (read in)))
+                  (cond ((eof-object? x) entry)
+                        ((larceny:library->entry x fname)
+                         =>
+                         (lambda (entry)
+                           (if (equal? lib
+                                       (larceny:library-entry-name entry))
+                               (begin (mark-as-multiple! entry)
+                                      entry)
+                               (loop))))
+                        (else (loop))))))
+            (if fname
+                (call-without-errors
+                 (lambda ()
+                   (call-with-input-file fname entry-for-lib)))
+                entry))))
 
     (or (larceny:cache-of-available-source-libraries)
         (let* ((make-absolute
@@ -428,8 +475,96 @@
          (for-each find-available-libraries!
                    (map larceny:absolute-path require-paths))
          (set! libraries-found
-               (list-sort by-name libraries-found))
+               (map disambiguate-multiply-defined
+                    (list-sort by-name libraries-found)))
          (larceny:cache-available-source-libraries! libraries-found)
-         libraries-found))))         
+         libraries-found))))
+
+;;; Given the list representation of a library and its absolute path,
+;;; returns a library entry for the library if it can be parsed,
+;;; or returns #f if it doesn't look like a library.
+;;;
+;;; R6RS library forms are easier to parse than R7RS define-library.
+;;; A define-library form will not be fully parsed by this code if it
+;;;     has fewer than two library declarations
+;;;     uses include-library-declarations
+;;;     places some export or import declarations after an include or begin
+;;;     places some export or import declarations after a cond-expand
+;;;         that expands into an include or begin
+;;;     expects some macro to expand into a library declaration
+;;;
+;;; Weird feature:  If a (cond-expand (else)) form is encountered
+;;; before any export or import forms, then that is taken to mean
+;;; the library is a local help library and should not be regarded
+;;; as an available source library.
+
+(define (larceny:library->entry library filename)
+
+  (define (possibly-okay? keyword form)
+    (and (list? form)
+         (pair? form)
+         (eq? keyword (car form))))
+
+  (define (parse-define-library name decls export-decls import-decls)
+    (if (null? decls)
+        (make-r7rs-entry name export-decls import-decls)
+        (let ((decl (car decls))
+              (decls (cdr decls)))
+          (cond ((possibly-okay? 'export decl)
+                 (parse-define-library name
+                                       decls
+                                       (cons decl export-decls)
+                                       import-decls))
+                ((possibly-okay? 'import decl)
+                 (parse-define-library name
+                                       decls
+                                       export-decls
+                                       (cons decl import-decls)))
+                ((possibly-okay? 'cond-expand decl)
+                 (if (and (null? export-decls)
+                          (null? import-decls)
+                          (equal? decl '(cond-expand (else))))
+                     #f
+                     (parse-define-library name
+                                           (append (larceny:cond-expand decl)
+                                                   decls)
+                                           export-decls
+                                           import-decls)))
+                (else
+                 (make-r7rs-entry name export-decls import-decls))))))
+
+  (define (make-r7rs-entry name export-decls import-decls)
+    (larceny:make-library-entry name
+                                (cons 'export
+                                      (apply append
+                                             (map cdr
+                                                  (reverse export-decls))))
+                                (cons 'import
+                                      (apply append
+                                             (map cdr
+                                                  (reverse import-decls))))
+                                filename
+                                #f))
+
+  (and (list? library)
+       (<= 4 (length library))
+       (memq (car library) *library-keywords*)
+       (let ((name (cadr library))
+             (exports (caddr library))
+             (imports (cadddr library)))
+         (and (pair? name)
+              (list? name)
+              (symbol? (car name))
+              (cond ((eq? (car library) 'define-library)
+                     (parse-define-library name (cddr library) '() '()))
+                    ((and (eq? (car library) 'library)
+                          (possibly-okay? 'export exports)
+                          (possibly-okay? 'import imports))
+                     (larceny:make-library-entry name
+                                                 exports
+                                                 imports
+                                                 filename
+                                                 #f))
+                    (else #f))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

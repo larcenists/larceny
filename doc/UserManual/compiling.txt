@@ -1,6 +1,6 @@
 [[CompilingChapter]]
 
-Compiling files and libraries
+Compiling Files and Libraries
 -----------------------------
 
 This chapter explains how you can use Larceny to compile
@@ -36,14 +36,81 @@ for staleness and refuses to execute a stale library
 or program.
 
 
-[[CompilingErr5rsSection]]
+[[CompilingToExecutable]]
+
+Compiling an R7RS/R6RS program into directly executable form
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On Unix machines, the `compile-larceny` script can be used to
+compile an R7RS/R6RS program named `pgm.sps` or `pgm.scm` into
+an executable file named `pgm`:
+----------------------------------------------------------------
+    % compile-larceny pgm.sps
+----------------------------------------------------------------
+The `compile-larceny` script satisfies the
+http://srfi.schemers.org/srfi-138[SRFI 138] specification
+of `compile-r7rs` scripts, so it accepts Larceny's `-I`, `-A`,
+and `-D` options, and also recognizes an option of the form
+`-o pgm`, which can be used to specify a name other than `pgm`
+for the executable file.
+
+The executable `pgm` file will be a shell script that calls `larceny`
+on a `pgm.slfasl` file produced by `compile-larceny`, passing the
+same `-I`, `-A`, and `-D` options that had been passed to
+`compile-larceny`.
+
+[WARNING]
+================================================================
+If any libraries used by the program are changed, touched, or
+moved, the program will need to be re-compiled.  That means you
+should compile all of the libraries the program uses before you
+compile the program.
+================================================================
+
+
 [[CompilingR7rsSection]]
 
 Compiling R7RS/R6RS libraries
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-On Unix machines, the most convenient way to compile
+To compile individual files, use the `compile-file` or
+`compile-library` procedures that are exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+
+To compile specific files while also compiling any stale
+or as-yet-un-compiled libraries on which they may depend,
+use the
+`compile-stale-cautiously`,
+`compile-stale-regardless`, or
+`compile-stale-recklessly` procedures exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+
+On Unix machines, the `compile-larceny` script can sometimes
+be used to compile all of the R7RS/R6RS libraries within
+one or more directories.  The following example compiles
+all libraries found within `mydir1` and its subdirectories,
+and then compiles all libraries found within `/tmp/mydir2`
+and its subdirectories:
+----------------------------------------------------------------
+    % compile-larceny -I mydir1 -I /tmp/mydir2
+----------------------------------------------------------------
+
+[WARNING]
+================================================================
+When `compile-larceny` is used to compile all libraries within
+one or more directories as in the above example, it respects
+import dependencies within each directory given on its command
+line, but it does not respect import dependences between libraries
+located in two different directories on its command line.
+For the general case, in which some of the libraries in each
+directory import libraries located in one of the other
+directories, use procedures exported by
+<<LarcenyCompilerSection,`(larceny compiler)`>>.
+================================================================
+
+On Unix machines, a convenient way to compile
 a group of R7RS/R6RS libraries and top-level programs
+that are all located within a single directory
 is to use the +compile-stale+ script in Larceny's root
 directory.
 If Larceny's root directory is in your execution path,
@@ -56,27 +123,32 @@ be compiled also.)
 
 2.  Run the +compile-stale+ script.
 
-For example:
+The `compile-stale` script accepts Larceny's `-I`, `-A`,
+and `-D` options, which will be necessary if any of the
+files to be compiled import from libraries located outside
+of Larceny's usual library search path.  For example:
 ----------------------------------------------------------------
-    % cd lib/R7RS
-    % compile-stale
+    % cd /tmp/mydir2
+    % compile-stale -I mydir1 -I /tmp/mydir2
 ----------------------------------------------------------------
 
 On non-Unix machines, you can accomplish the same thing
 using Larceny's R7RS mode and the +(larceny compiler)+
 library:
 ----------------------------------------------------------------
-    % pushd lib\R7RS
-    % ..\..\larceny -r7rs
-    Larceny v0.98 "General Ripper"
+    % pushd /tmp/mydir2
+    % larceny -r7 -I mydir1 -I /tmp/mydir2
+    Larceny v1.3
 
     > (import (larceny compiler))
 
     > (compile-stale-libraries)
 ----------------------------------------------------------------
 
-To compile individual files, use the `compile-file` or
-`compile-library` procedures that are exported by
+The `compile-stale` script also accepts file names,
+in which case it behaves like the
+<<compile-stale-cautiously,`compile-stale-cautiously`>> procedure
+exported by
 <<LarcenyCompilerSection,`(larceny compiler)`>>.
 
 
@@ -97,7 +169,7 @@ by replacing the "`.sch`" or "`.scm`" suffix with
 "`.fasl`".
 
 For R7RS/R6RS libraries and top-level programs,
-<<CompilingErr5rsSection,see above>>.
+<<CompilingR7rsSection,see above>>.
 
 
 [[LoadingR5intoR7Section]]

@@ -3,45 +3,68 @@
 Running Larceny
 ---------------
 
+For a summary of Larceny's command-line options, ask for help:
+
+----------------------------------------------------------------
+    % larceny --help
+----------------------------------------------------------------
+
+
 Larceny can run in any of these distinct modes:
 
-    R5RS              traditional read/eval/print loop (the default)
-    R6RS              batch execution of R6RS top-level programs
     R7RS              R7RS read/eval/print loop or batch execution
+    R6RS              batch execution of R7RS/R6RS top-level programs
+    R5RS              R5RS read/eval/print loop or batch execution
     Scheme script     batch execution of R7RS/R6RS Scheme scripts
+
+<<R7rsSection,R7RS mode>>
+will run R7RS and R6RS programs,
+and allows any combination of R7RS and R6RS libraries
+to be imported.
+
+<<R6rsSection,R6RS mode>>
+is largely redundant with Larceny's R7RS mode, because
+every reasonable R6RS program could just as well be
+executed in R7RS mode.  There is only one difference between
+those two modes: R6RS mode enforces many R6RS mandates that,
+among other things, forbid read/eval/print loops and most
+extensions to R6RS lexical syntax.
 
 <<R5rsSection,R5RS mode>>
 extends the Scheme language described by the R5RS and
 IEEE/ANSI Std 1178 by adding R7RS/R6RS lexical syntax and most
 of the procedures described by the newer R6RS and R7RS standards.
 
-<<R6rsSection,R6RS mode>>
-is largely redundant with Larceny's R7RS mode (because
-every reasonable R6RS library and program could just as well be
-executed in R7RS mode).  There is only one difference between
-those two modes: R6RS mode enforces the R6RS mandates that, among
-other things, forbid read/eval/print loops and most extensions
-to R6RS lexical syntax.
-
-<<R7rsSection,R7RS mode>>
-will accept any combination of R7RS and R6RS libraries
-and programs.  In Larceny, R6RS Scheme becomes a proper subset of
-R7RS Scheme.
-
 <<SchemeScriptsSection,Scheme scripts>>
 are directly executable R7RS/R6RS programs.
 
-[[R5rsSection]]
 
-R5RS mode
+[[Err5rsSection]]
+[[R7rsSection]]
+
+R7RS mode
 ~~~~~~~~~
 
-When you start Larceny in R5RS mode (the default), you
-will be presented with a banner message and the
+To execute a top-level R7RS/R6RS program that is contained
+within a file named `pgm`, type:
+
+----------------------------------------------------------------
+    larceny pgm
+----------------------------------------------------------------
+
+or
+
+----------------------------------------------------------------
+    larceny -r7 pgm
+----------------------------------------------------------------
+
+To interact with Larceny's R7RS read/eval/print loop,
+type the `-r7` and omit the program.
+You will be presented with a banner message and the
 read-eval-print loop's prompt:
 
-------------------------------------------------------------
-    % larceny
+----------------------------------------------------------------
+    % larceny -r7
     Larceny vX.Y "<version_name>" (MMM DD YYYY HH:MM:SS, ...)
     larceny.heap, built ...
         
@@ -64,15 +87,109 @@ so most of what this manual says about the compiler is also
 true of Petit Larceny's interpreter.
 ================================================================
 
-////////////////////////////////////////////////////////////////
-By default, Larceny's Twobit compiler makes several
-assumptions that allow it to generate faster code;
-for example, the compiler assumes Scheme's standard
-procedures will not be redefined.
-To obtain strict conformance to R5RS semantics, see
-the section of this user manual devoted to
-<<PerformanceSection, performance>>.
-////////////////////////////////////////////////////////////////
+The `(scheme base)` library has already been imported,
+but you may want to import other libraries as well.
+For example:
+
+----------------------------------------------------------------
+    > (import (scheme read)
+              (scheme write)
+              (scheme file)
+              (scheme cxr)
+              (scheme inexact)
+              (scheme complex)
+              (scheme char)
+              (scheme load))
+----------------------------------------------------------------
+
+If you'd rather have Larceny import all of the standard R7RS Red
+Edition and
+R6RS libraries at startup, along with a few Larceny-specific
+procedures, you can use the `-r7r6` option instead of `r7`:
+
+----------------------------------------------------------------
+    % larceny -r7r6
+    Larceny v1.3 "Grain Alcohol and Rainwater" (...)
+----------------------------------------------------------------
+
+Using the `-r7r6` option is equivalent to using the `-r7`
+option and then importing the `(larceny r7r6)` library.
+
+[NOTE]
+================================================================
+Several name conflicts could not be resolved by adding R7RS extensions
+to the conflicting R6RS procedure or syntax.  When the `-r7r6`
+option is used, the `bytevector-copy!` and `remove` procedures are
+imported with R7RS semantics, and the R6RS versions of those
+procedures are renamed to `r6rs:bytevector-copy!` and
+`r6rs:remove`; the `let-syntax` and `letrec-syntax` macros are
+imported with R6RS splicing semantics, as with the `-r7` option,
+but non-splicing versions of those macros are imported with the
+names `r7rs:let-syntax` and `r7rs:letrec-syntax`.
+================================================================
+
+[NOTE]
+================================================================
+R7RS programs must import all libraries explicitly.  The `-r7` and
+`-r7r6` options are therefore equivalent when a program is named
+on the command line.  As stated in R7RS section 5.7, the implicit
+import of `(scheme base)` is for convenience and ease of use in a
+REPL, but R7RS programs do not have exactly the same semantics as
+an R7RS REPL.
+================================================================
+
+[NOTE]
+================================================================
+Larceny's `-r7strict` option is similar to the `-r7` option, but
+disables several of Larceny's extensions to the R7RS that improve
+interoperability between R7RS and R6RS libraries and programs.
+See the section describing
+<<R7rsDeviationsSection,known deviations from the R7RS standard>>.
+================================================================
+
+[WARNING]
+================================================================
+R7RS programs may contain multiple `import` declarations, but all
+of a program's `import` declarations must precede all of the
+program's commands and definitions.  As of v1.3, Larceny does not
+enforce that restriction unless `-r7strict` is requested, but
+Larceny does scan the entire program for `import` declarations
+and invokes the executable code of all imported libraries before
+the program itself executes its first command or definition.
+================================================================
+
+The `features` procedure will return a list of all `cond-expand`
+features, including the names of
+<<R7rsPreDefinedSection,libraries currently available>>
+for import.
+That procedure reads
+the source code for all library files found in your current
+<<R7rsLibraryPathSection,Larceny library path>>, so don't be
+surprised if it takes a few seconds.
+
+----------------------------------------------------------------
+    > (features)
+    (r7rs r6rs larceny larceny-1.3
+     exact-closed ratios exact-complex complex ieee-float
+     full-unicode full-unicode-strings unicode-7
+     ...
+     (rnrs arithmetic bitwise (6))
+     (rnrs arithmetic fixnums (6))
+     (rnrs arithmetic flonums (6))
+     (rnrs bytevectors (6))
+     ...
+     (scheme base)
+     (scheme case-lambda)
+     (scheme char)
+     (scheme complex)
+     (scheme cxr)
+     ...
+     (srfi 1)
+     (srfi 1 lists)
+     (srfi 2)
+     ...)
+----------------------------------------------------------------
+
 
 
 [[R6rsSection]]
@@ -84,18 +201,18 @@ To execute a top-level R6RS program that is contained
 within a file named `pgm`, type:
 
 ----------------------------------------------------------------
-    larceny -r6rs -program pgm
+    larceny -r6 pgm
 ----------------------------------------------------------------
 
-The `-program` option can be omitted, in which case
+If the program is omitted,
 Larceny will read the top-level program from standard
 input:
 
 ----------------------------------------------------------------
-    larceny -r6rs < pgm
+    larceny -r6 < pgm
 ----------------------------------------------------------------
 
-If you omit the `-program` option and do not redirect
+If you omit the program and do not redirect
 standard input, then Larceny will wait patiently
 for you to type a complete top-level program into
 standard input, terminating it with an end-of-file.
@@ -118,106 +235,53 @@ library.
 ////////////////////////////////////////////////////////////////
 
 
-[[Err5rsSection]]
-[[R7rsSection]]
+[[R5rsSection]]
+[[R5rsScriptSection]]
 
-R7RS mode
+R5RS mode
 ~~~~~~~~~
 
-To execute a top-level R7RS/R6RS program that is contained
-within a file named `pgm`, type:
+To start Larceny in R5RS mode, use the `-r5` option:
+
+------------------------------------------------------------
+    % larceny -r5
+------------------------------------------------------------
+
+Suppose `hello.sch` contains the following R5RS code:
 
 ----------------------------------------------------------------
-    larceny -r7rs -program pgm
+    (display "Hello world!")
+    (newline)
+    (exit)
 ----------------------------------------------------------------
 
-To interact with Larceny's R7RS read/eval/print loop,
-omit the `-program` option:
+You can run `hello.sch` as a script by executing Larceny as
+follows:
 
 ----------------------------------------------------------------
-    % larceny -r7rs
-    Larceny v0.98 "General Ripper" (...)
+    % larceny -r5 hello.sch
 ----------------------------------------------------------------
 
-The `(scheme base)` library has already been imported,
-but you may want to import other libraries as well.
-For example:
+////////////////////////////////////////////////////////////////
+You can redirect Larceny's standard input, in which case
+you may want to eliminate the herald announcement and the
+read/eval/print loop's prompt:
 
 ----------------------------------------------------------------
-    > (import (scheme read)
-              (scheme write)
-              (scheme file)
-              (scheme cxr)
-              (scheme inexact)
-              (scheme complex)
-              (scheme char)
-              (scheme load))
+    % larceny -nobanner -- -e "(begin (herald #f) (repl-prompt values))" \
+              < hello.sch
 ----------------------------------------------------------------
+////////////////////////////////////////////////////////////////
 
-If you'd rather have Larceny import all of the standard R7RS and
-R6RS libraries at startup, along with a few Larceny-specific
-procedures, you can use the `-r7r6` option instead of `r7rs`:
-
-----------------------------------------------------------------
-    % larceny -r7r6
-    Larceny v0.98 "General Ripper" (...)
-----------------------------------------------------------------
-
-Using the `-r7r6` option is equivalent to using the `-r7rs`
-option and then importing the `(larceny r7r6)` library.
-
-[NOTE]
-================================================================
-One name conflict could not be resolved by adding R7RS extensions
-to the conflicting R6RS procedure or syntax.  When the `-r7r6`
-option is used, the `bytevector-copy!` procedure is imported with
-R7RS semantics, and the older R6RS version of that procedure is
-renamed to `r6rs:bytevector-copy!`.
-================================================================
-
-The `features` procedure will return a list of all `cond-expand`
-features, including the names of
-<<R7rsPreDefinedSection,libraries currently available>>
-for import.
-That procedure reads
-the source code for all library files found in your current
-<<R7rsLibraryPathSection,Larceny library path>>, so don't be
-surprised if it takes a few seconds.
-
-----------------------------------------------------------------
-    > (features)
-    (r7rs r6rs larceny larceny-0.98
-     exact-closed ratios exact-complex complex ieee-float
-     full-unicode full-unicode-strings unicode-7
-     posix unix gnu-linux i386 ilp32 little-endian
-     ...
-     (rnrs arithmetic bitwise (6))
-     (rnrs arithmetic fixnums (6))
-     (rnrs arithmetic flonums (6))
-     (rnrs bytevectors (6))
-     ...
-     (rnrs (6))
-     (scheme base)
-     (scheme case-lambda)
-     (scheme char)
-     (scheme complex)
-     (scheme cxr)
-     (scheme eval)
-     (scheme file)
-     (scheme inexact)
-     (scheme lazy)
-     (scheme load)
-     (scheme process-context)
-     (scheme r5rs)
-     (scheme read)
-     (scheme repl)
-     (scheme time)
-     (scheme write)
-     (srfi 1)
-     (srfi 1 lists)
-     ...)
-----------------------------------------------------------------
-
+////////////////////////////////////////////////////////////////
+By default, Larceny's Twobit compiler makes several
+assumptions that allow it to generate faster code;
+for example, the compiler assumes Scheme's standard
+procedures will not be redefined.
+To obtain strict conformance to R5RS semantics, see
+the section of this user manual devoted to
+<<PerformanceSection, performance>>.
+////////////////////////////////////////////////////////////////
 
 
 [[SchemeScriptsSection]]
@@ -225,7 +289,7 @@ surprised if it takes a few seconds.
 Scheme scripts
 ~~~~~~~~~~~~~~
 
-On most Unix systems (including Linux and Apple's OS X), Larceny's
+On most Unix systems (including Linux and macOS), Larceny's
 `scheme-script` will execute Scheme scripts as described in R6RS
 non-normative appendix D, with or without the optional script
 header.  To make Scheme scripts executable in their own
@@ -295,43 +359,6 @@ and `current-output-port`.
 ================================================================
 
 
-[[R5rsScriptSection]]
-
-R5RS scripting
-~~~~~~~~~~~~~~
-
-Suppose `hello.sch` contains the following R5RS code:
-
-----------------------------------------------------------------
-    (display "Hello world!")
-    (newline)
-    (exit)
-----------------------------------------------------------------
-
-You can run `hello.sch` as a script by executing Larceny as
-follows:
-
-----------------------------------------------------------------
-    % larceny -nobanner -- hello.sch
-----------------------------------------------------------------
-
-You can redirect Larceny's standard input, in which case
-you may want to eliminate the herald announcement and the
-read/eval/print loop's prompt:
-
-----------------------------------------------------------------
-    % larceny -nobanner -- -e "(begin (herald #f) (repl-prompt values))" \
-              < hello.sch
-----------------------------------------------------------------
-
-For an explanation of why that works, which may suggest other
-creative uses of Larceny, ask for help:
-
-----------------------------------------------------------------
-    % larceny -help
-----------------------------------------------------------------
-
-
 [[ErrorsSection]]
 
 Errors
@@ -371,7 +398,7 @@ Troubleshooting
 ==== Errors when starting Larceny
 
 Although Larceny runs on x86-64 machines, it requires 32-bit
-libraries that are not always installed on Linux and MacOS X
+libraries that are not always installed on Linux and macOS
 machines.  If those libraries are absent, the operating system
 will probably give you a mysterious or misleading error message
 when you try to run Larceny.  For example, the operating system's
@@ -407,7 +434,7 @@ expecting to see R5RS-compatible code.  That means
 the R7RS/R6RS runtime and standard libraries were not
 installed correctly, or their source files have been
 touched or modified since they were last compiled.
-To fix the problem,
+To fix the problem, restore or
 <<CompilingStdLibSection, recompile the R7RS standard
 libraries>>.
 
@@ -436,8 +463,8 @@ then one or more of the compiled files in
 +lib/R7RS+ or +lib/R6RS+ or +lib/SRFI+
 or its subdirectories has gone
 <<CompilingChapter,stale>>.
-Removing all `.slfasl` files from +lib/R6RS+ and +lib/SRFI+ and
-their subdirectories will eliminate the stale file(s).
+Removing all `.slfasl` files from +lib/R6RS+, +lib/R6RS+, 
++lib/SRFI+, and their subdirectories will eliminate the stale file(s).
 
 [WARNING]
 ================================================================
@@ -453,7 +480,7 @@ If Larceny attempts to autoload an imported R7RS/R6RS
 library but cannot find the library, then the library
 may be defined in a file that doesn't follow
 <<NamingChapter,Larceny's standard naming conventions>>.
-Another possibility is that the `-path` option was
+Another possibility is that one of the `-I` or `-A` options was
 omitted or incorrect.
 
 If an R7RS/R6RS library is recompiled, then all compiled

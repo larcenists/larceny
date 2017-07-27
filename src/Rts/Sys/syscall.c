@@ -72,6 +72,9 @@ static struct {
 		      { (fptr)osdep_listdir_open, 1, 0 },
 		      { (fptr)osdep_listdir, 1, 0 },
 		      { (fptr)osdep_listdir_close, 1, 0 },
+		      { (fptr)primitive_flonum_fma, 4, 0 },
+		      { (fptr)primitive_flonum_jn, 3, 0 },
+		      { (fptr)primitive_flonum_yn, 3, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

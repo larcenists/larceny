@@ -226,7 +226,7 @@
     (get-bytevector-n! p bv start (- end start))))
 
 (define (write-bytevector bv . rest)
-  (let* ((p (if (null? rest) (current-input-port) (car rest)))
+  (let* ((p (if (null? rest) (current-output-port) (car rest)))
          (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
          (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
                   (bytevector-length bv)
@@ -253,13 +253,18 @@
       (io/write-bytevector-like bvl (current-output-port))))
 
 ;; Simply emits the characters in string to the port.
+
 (define (write-string string . rest)
-  (if (pair? rest)
-      (if (null? (cdr rest))
-          (io/write-string string (car rest))
-          (begin (error "write-string: too many arguments.")
-                 #t))
-      (io/write-string string (current-output-port))))
+  (let* ((n (string-length string))
+         (p (if (null? rest) (current-output-port) (car rest)))
+         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
+         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
+                  n
+                  (caddr rest)))
+         (s (if (and (= start 0) (= end n))
+                string
+                (substring string start end))))
+    (io/write-string s p)))
 
 ;;; The R7RS says these next two procedures accept any argument.
 

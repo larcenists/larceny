@@ -641,7 +641,7 @@
    record-type-uid
    record?
    remainder
-   remove
+;  remove
    remp
    remq
    remv
@@ -772,10 +772,574 @@
    zero?
 
    r6rs:bytevector-copy!
+   r6rs:remove
+   r7rs:let-syntax
+   r7rs:letrec-syntax
+
+   ;; R7RS Red Edition
+
+   ;; (scheme list)
+
+;  cons                ; part of R7RS small
+;  list                ; part of R7RS small
+   xcons
+;  cons*               ; part of (rnrs lists)
+;  make-list           ; part of R7RS small
+   list-tabulate
+;  list-copy           ; part of R7RS small
+   circular-list
+   iota
+;  pair?               ; part of R7RS small
+;  null?               ; part of R7RS small
+   proper-list?
+   circular-list?
+   dotted-list? 
+   not-pair?
+   null-list?
+   list=
+;  car                 ; part of R7RS small
+;  cdr                 ; part of R7RS small
+;  caar                ; part of R7RS small
+;  cadr                ; part of R7RS small
+;  cdar                ; part of R7RS small
+;  cddr                ; part of R7RS small
+;  caaar               ; part of R7RS small
+;  caadr               ; part of R7RS small
+;  cadar               ; part of R7RS small
+;  caddr               ; part of R7RS small
+;  cdaar               ; part of R7RS small
+;  cdadr               ; part of R7RS small
+;  cddar               ; part of R7RS small
+;  cdddr               ; part of R7RS small
+;  caaaar              ; part of R7RS small
+;  caaadr              ; part of R7RS small
+;  caadar              ; part of R7RS small
+;  caaddr              ; part of R7RS small
+;  cadaar              ; part of R7RS small
+;  cadadr              ; part of R7RS small
+;  caddar              ; part of R7RS small
+;  cadddr              ; part of R7RS small
+;  cdaaar              ; part of R7RS small
+;  cdaadr              ; part of R7RS small
+;  cdadar              ; part of R7RS small
+;  cdaddr              ; part of R7RS small
+;  cddaar              ; part of R7RS small
+;  cddadr              ; part of R7RS small
+;  cdddar              ; part of R7RS small
+;  cddddr              ; part of R7RS small
+;  list-ref            ; part of R7RS small
+   first
+   second
+   third
+   fourth
+   fifth
+   sixth
+   seventh
+   eighth
+   ninth
+   tenth
+   car+cdr
+   take
+   drop
+   take-right
+   drop-right
+   take!
+   drop-right! 
+   split-at
+   split-at! 
+   last
+   last-pair
+;  length              ; part of R7RS small
+   length+
+;  append              ; part of R7RS small
+   concatenate
+;  reverse             ; part of R7RS small
+   append!
+   concatenate!
+   reverse!
+   append-reverse
+   append-reverse!
+   zip
+   unzip1
+   unzip2
+   unzip3
+   unzip4
+   unzip5
+   count
+;  map                 ; part of R7RS small
+;  for-each            ; part of R7RS small
+   fold
+   unfold
+   pair-fold
+   reduce 
+;  fold-right          ; part of (rnrs lists)
+   unfold-right
+   pair-fold-right
+   reduce-right 
+   append-map
+   append-map!
+   map!
+   pair-for-each
+   filter-map
+   map-in-order
+;  filter              ; part of (rnrs lists)
+;  partition           ; part of (rnrs lists)
+   remove              ; conflicts with (rnrs lists)
+   filter!
+   partition!
+   remove!
+;  member              ; part of R7RS small
+;  memq                ; part of R7RS small
+;  memv                ; part of R7RS small
+;  find                ; part of (rnrs lists)
+   find-tail 
+   any
+   every
+   list-index
+   take-while
+   drop-while
+   take-while!
+   span
+   break
+   span!
+   break!
+   delete
+   delete-duplicates 
+   delete!
+   delete-duplicates!
+;  assoc               ; part of R7RS small
+;  assq                ; part of R7RS small
+;  assv                ; part of R7RS small
+   alist-cons
+   alist-copy
+   alist-delete
+   alist-delete!
+   lset<=
+   lset=
+   lset-adjoin
+   lset-union
+   lset-union!
+   lset-intersection
+   lset-intersection!
+   lset-difference
+   lset-difference!
+   lset-xor
+   lset-xor!
+   lset-diff+intersection
+   lset-diff+intersection!
+;  set-car!            ; part of R7RS small
+;  set-cdr!            ; part of R7RS small
+
+   ;; (scheme vector)
+
+   vector-unfold vector-unfold-right vector-reverse-copy 
+   vector-concatenate vector-append-subvectors
+   vector-empty? vector=
+   vector-fold vector-fold-right vector-map!
+   vector-count vector-cumulate
+   vector-index vector-index-right vector-skip vector-skip-right 
+   vector-binary-search vector-any vector-every vector-partition
+   vector-swap! vector-reverse! 
+   vector-reverse-copy! vector-unfold! vector-unfold-right!
+   reverse-vector->list reverse-list->vector
+
+   ;; (scheme sort)
+
+   list-sorted?               vector-sorted?
+;  list-sort
+;  vector-sort
+   list-stable-sort           vector-stable-sort
+   list-sort!
+;  vector-sort!
+   list-stable-sort!          vector-stable-sort!
+   list-merge                 vector-merge
+   list-merge!                vector-merge!
+   list-delete-neighbor-dups  vector-delete-neighbor-dups
+   list-delete-neighbor-dups! vector-delete-neighbor-dups!
+   vector-find-median         vector-find-median!
+   vector-select!             vector-separate!
+
+   ;; (scheme set)
+
+   set set-unfold
+   set? set-contains? set-empty? set-disjoint?
+   set-member set-element-comparator
+   set-adjoin set-adjoin! set-replace set-replace!
+   set-delete set-delete! set-delete-all set-delete-all! set-search!
+   set-size set-find set-count set-any? set-every?
+   set-map set-for-each set-fold
+   set-filter set-remove set-partition
+   set-filter! set-remove! set-partition!
+   set-copy set->list list->set list->set!
+   set=? set<? set>? set<=? set>=?
+   set-union set-intersection set-difference set-xor
+   set-union! set-intersection! set-difference! set-xor!
+   set-comparator
+  
+   bag bag-unfold
+   bag? bag-contains? bag-empty? bag-disjoint?
+   bag-member bag-element-comparator
+   bag-adjoin bag-adjoin! bag-replace bag-replace!
+   bag-delete bag-delete! bag-delete-all bag-delete-all! bag-search!
+   bag-size bag-find bag-count bag-any? bag-every?
+   bag-map bag-for-each bag-fold
+   bag-filter bag-remove bag-partition
+   bag-filter! bag-remove! bag-partition!
+   bag-copy bag->list list->bag list->bag!
+   bag=? bag<? bag>? bag<=? bag>=?
+   bag-union bag-intersection bag-difference bag-xor
+   bag-union! bag-intersection! bag-difference! bag-xor!
+   bag-comparator
+  
+   bag-sum bag-sum! bag-product bag-product!
+   bag-unique-size bag-element-count bag-for-each-unique bag-fold-unique
+   bag-increment! bag-decrement! bag->set set->bag set->bag!
+   bag->alist alist->bag
+
+   ;; (scheme charset)
+
+   char-set? char-set= char-set<=
+   char-set-hash 
+   char-set-cursor char-set-ref char-set-cursor-next end-of-char-set?
+   char-set-fold char-set-unfold char-set-unfold!
+   char-set-for-each char-set-map
+   char-set-copy char-set
+
+   list->char-set  string->char-set 
+   list->char-set! string->char-set! 
+
+   char-set-filter
+   char-set-filter!
+   ucs-range->char-set
+   ucs-range->char-set!
+   ->char-set
+
+   char-set->list char-set->string
+
+   char-set-size char-set-count char-set-contains?
+   char-set-every char-set-any
+
+   char-set-adjoin  char-set-delete 
+   char-set-adjoin! char-set-delete!
+
+   char-set-complement  char-set-union  char-set-intersection  
+   char-set-complement! char-set-union! char-set-intersection! 
+
+   char-set-difference  char-set-xor  char-set-diff+intersection
+   char-set-difference! char-set-xor! char-set-diff+intersection!
+
+   char-set:lower-case          char-set:upper-case     char-set:title-case
+   char-set:letter              char-set:digit          char-set:letter+digit
+   char-set:graphic             char-set:printing       char-set:whitespace
+   char-set:iso-control         char-set:punctuation    char-set:symbol
+   char-set:hex-digit           char-set:blank          char-set:ascii
+   char-set:empty               char-set:full
+
+   ;; (scheme hash-table)
+
+   make-hash-table
+   hash-table
+   hash-table-unfold
+   alist->hash-table 
+
+   hash-table?
+   hash-table-contains?
+   hash-table-empty?
+   hash-table=?
+   hash-table-mutable? 
+
+   hash-table-ref
+   hash-table-ref/default 
+
+   hash-table-set!
+   hash-table-delete!
+   hash-table-intern!
+   hash-table-update!
+   hash-table-update!/default
+   hash-table-pop!
+   hash-table-clear! 
+
+   hash-table-size
+   hash-table-keys
+   hash-table-values
+   hash-table-entries
+   hash-table-find
+   hash-table-count
+
+   hash-table-map
+   hash-table-for-each
+   hash-table-map!
+   hash-table-map->list
+   hash-table-fold
+   hash-table-prune!
+
+   hash-table-copy
+   hash-table-empty-copy
+   hash-table->alist 
+
+   hash-table-union!
+   hash-table-intersection!
+   hash-table-difference!
+   hash-table-xor!
+
+   ;; The following procedures are deprecated by SRFI 125:
+
+   hash
+;  string-hash
+;  string-ci-hash
+   hash-by-identity
+
+   hash-table-equivalence-function
+   hash-table-hash-function
+   hash-table-exists?
+   hash-table-walk
+   hash-table-merge!
+
+   ;; (scheme ilist)
+
+   iq
+   ipair ilist xipair ipair* make-ilist ilist-tabulate iiota
+   ipair?
+   proper-ilist? ilist? dotted-ilist? not-ipair? null-ilist? ilist=
+   icar icdr ilist-ref
+   ifirst isecond ithird ifourth ififth isixth iseventh ieighth ininth itenth
+   icaar icadr icdar icddr
+   icaaar icaadr icadar icaddr icdaar icdadr icddar icdddr
+   icaaaar icaaadr icaadar icaaddr icadaar icadadr icaddar icadddr
+   icdaaar icdaadr icdadar icdaddr icddaar icddadr icdddar icddddr
+   icar+icdr itake idrop ilist-tail
+   itake-right idrop-right isplit-at ilast last-ipair
+   ilength iappend iconcatenate ireverse iappend-reverse
+   izip iunzip1 iunzip2 iunzip3 iunzip4 iunzip5
+   icount imap ifor-each ifold iunfold ipair-fold ireduce 
+   ifold-right iunfold-right ipair-fold-right ireduce-right 
+   iappend-map ipair-for-each ifilter-map imap-in-order
+   ifilter ipartition iremove imember imemq imemv
+   ifind ifind-tail iany ievery
+   ilist-index itake-while idrop-while ispan ibreak
+   idelete idelete-duplicates 
+   iassoc iassq iassv ialist-cons ialist-delete
+   replace-icar replace-icdr
+   pair->ipair ipair->pair list->ilist ilist->list
+   tree->itree itree->tree gtree->itree gtree->tree
+   iapply
+
+   ipair-comparator
+   ilist-comparator
+   make-ipair-comparator
+   make-ilist-comparator
+   make-improper-ilist-comparator
+   make-icar-comparator
+   make-icdr-comparator
+
+   ;; (scheme rlist)
+
+   rquote
+   rpair?
+   rcons
+   rcar
+   rcdr
+   rcaar
+   rcadr
+   rcddr
+   rcdar
+   rcaaar
+   rcaadr
+   rcaddr
+   rcadar
+   rcdaar
+   rcdadr
+   rcdddr
+   rcddar
+   rcaaaar
+   rcaaadr
+   rcaaddr
+   rcaadar
+   rcadaar
+   rcadadr
+   rcadddr
+   rcaddar
+   rcdaaar
+   rcdaadr
+   rcdaddr
+   rcdadar
+   rcddaar
+   rcddadr
+   rcddddr
+   rcdddar
+   rnull?
+   rlist?
+   rlist
+   make-rlist
+   rlength
+   rappend
+   rreverse
+   rlist-tail
+   rlist-ref
+   rlist-set
+   rlist-ref/update
+   rmap
+   rfor-each
+   rlist->list
+   list->rlist
+
+   ;; (scheme ideque)
+
+   ideque ideque-tabulate ideque-unfold ideque-unfold-right 
+   ideque? ideque-empty? ideque= ideque-any ideque-every
+
+   ideque-front ideque-add-front ideque-remove-front
+   ideque-back  ideque-add-back  ideque-remove-back
+
+   ideque-ref
+   ideque-take ideque-take-right ideque-drop ideque-drop-right
+   ideque-split-at
+
+   ideque-length ideque-append ideque-reverse
+   ideque-count ideque-zip
+
+   ideque-map ideque-filter-map
+   ideque-for-each ideque-for-each-right
+   ideque-fold ideque-fold-right
+   ideque-append-map
+          
+   ideque-filter ideque-remove ideque-partition
+
+   ideque-find ideque-find-right
+   ideque-take-while ideque-take-while-right
+   ideque-drop-while ideque-drop-while-right
+   ideque-span ideque-break
+          
+   list->ideque ideque->list
+   generator->ideque ideque->generator
+
+   ;; (scheme text)
+
+   text?                 textual?
+   textual-null? 
+   textual-every         textual-any
+   make-text             text
+   text-tabulate
+   text-unfold           text-unfold-right
+   textual->text
+   textual->string       textual->vector      textual->list
+   string->text          vector->text         list->text    reverse-list->text
+   textual->utf8         textual->utf16be
+   textual->utf16        textual->utf16le
+   utf8->text            utf16be->text
+   utf16->text           utf16le->text
+   text-length           textual-length
+   text-ref              textual-ref
+   subtext               subtextual
+   textual-copy
+   textual-take          textual-take-right
+   textual-drop          textual-drop-right
+   textual-pad           textual-pad-right 
+   textual-trim          textual-trim-right   textual-trim-both
+   textual-replace
+   textual=?             textual-ci=?
+   textual<?             textual-ci<?
+   textual>?             textual-ci>?
+   textual<=?            textual-ci<=?
+   textual>=?            textual-ci>=?
+   textual-prefix-length textual-suffix-length
+   textual-prefix?       textual-suffix?    
+   textual-index         textual-index-right
+   textual-skip          textual-skip-right
+   textual-contains      textual-contains-right
+   textual-upcase        textual-downcase
+   textual-foldcase      textual-titlecase
+   textual-append        textual-concatenate  textual-concatenate-reverse
+   textual-join
+   textual-fold          textual-fold-right
+   textual-map           textual-for-each
+   textual-map-index     textual-for-each-index
+   textual-count
+   textual-filter        textual-remove
+   textual-replicate     textual-split
+
+   ;; (scheme generator)
+
+   generator make-iota-generator make-range-generator 
+   make-coroutine-generator list->generator vector->generator
+   reverse-vector->generator string->generator
+   bytevector->generator
+   make-for-each-generator make-unfold-generator
+   gcons* gappend gcombine gfilter gremove 
+   gtake gdrop gtake-while gdrop-while
+   gdelete gdelete-neighbor-dups gindex gselect
+   generator->list generator->reverse-list
+   generator->vector generator->vector!  generator->string
+   generator-fold generator-for-each generator-find
+   generator-count generator-any generator-every generator-unfold
+
+   ;; (scheme lseq)
+
+   generator->lseq lseq? lseq=?
+   lseq-car lseq-first lseq-cdr lseq-rest lseq-ref lseq-take lseq-drop
+   lseq-realize lseq->generator lseq-length lseq-append lseq-zip
+   lseq-map lseq-for-each lseq-filter lseq-remove
+   lseq-find lseq-find-tail lseq-take-while lseq-drop-while
+   lseq-any lseq-every lseq-index lseq-member lseq-memq lseq-memv
+
+   ;; (scheme stream)
+
+   stream-null stream-cons stream? stream-null? stream-pair? stream-car
+   stream-cdr stream-lambda define-stream list->stream port->stream stream
+   stream->list stream-append stream-concat stream-constant stream-drop
+   stream-drop-while stream-filter stream-fold stream-for-each stream-from
+   stream-iterate stream-length stream-let stream-map stream-match
+   stream-of stream-range stream-ref stream-reverse stream-scan
+   stream-take
+   stream-take-while stream-unfold stream-unfolds stream-zip
+
+   ;; (scheme box)
+
+   box box? unbox set-box!
+
+   ;; (scheme list-queue)
+
+   make-list-queue list-queue list-queue-copy
+   list-queue-unfold list-queue-unfold-right
+   list-queue? list-queue-empty?
+   list-queue-front list-queue-back list-queue-list list-queue-first-last
+   list-queue-add-front! list-queue-add-back!
+   list-queue-remove-front! list-queue-remove-back!
+   list-queue-remove-all! list-queue-set-list!
+   list-queue-append list-queue-append! list-queue-concatenate
+   list-queue-map list-queue-map! list-queue-for-each
+
+   ;; (scheme ephemeron)
+
+   ephemeron?
+   make-ephemeron
+   ephemeron-broken?
+   ephemeron-key
+   ephemeron-datum
+   reference-barrier
+
+   ;; (scheme comparator)
+
+   comparator? comparator-ordered? comparator-hashable?
+   make-comparator
+   make-pair-comparator make-list-comparator make-vector-comparator
+   make-eq-comparator make-eqv-comparator make-equal-comparator
+   boolean-hash char-hash char-ci-hash
+;  string-hash string-ci-hash symbol-hash
+   number-hash
+   make-default-comparator default-hash comparator-register-default!
+   comparator-type-test-predicate comparator-equality-predicate
+   comparator-ordering-predicate comparator-hash-function
+   comparator-test-type comparator-check-type comparator-hash
+   hash-bound hash-salt
+   =? <? >? <=? >=?
+   comparator-if<=>
 
    )
 
-  (import (scheme base)
+  (import ;; R7RS (small) libraries
+
+          (scheme base)
           (scheme case-lambda)
           (scheme char)
           (scheme complex)
@@ -791,5 +1355,51 @@
           (scheme time)
           (scheme write)
           (scheme r5rs)
+
+          ;; R6RS
+
           (rename (rnrs)
-                  (bytevector-copy! r6rs:bytevector-copy!))))
+                  (bytevector-copy! r6rs:bytevector-copy!)
+                  (remove           r6rs:remove))
+
+          ;; R7RS Red Edition libraries
+
+          (scheme list)                    ; SRFI 1
+          (scheme vector)                  ; SRFI 133
+          (scheme sort)                    ; SRFI 132
+          (scheme set)                     ; SRFI 113
+          (scheme charset)                 ; SRFI 14
+          (except (scheme hash-table)      ; SRFI 125
+                  string-hash
+                  string-ci-hash)
+          (scheme ilist)                   ; SRFI 116
+          (scheme rlist)                   ; SRFI 101 with renamings
+          (scheme ideque)                  ; SRFI 134
+          (scheme text)                    ; SRFI 135
+          (scheme generator)               ; SRFI 121
+          (scheme lseq)                    ; SRFI 127
+          (scheme stream)                  ; SRFI 41
+          (scheme box)                     ; SRFI 111
+          (scheme list-queue)              ; SRFI 117
+          (scheme ephemeron)               ; SRFI 124
+          (scheme comparator)              ; SRFI 128
+          )
+
+  (begin
+
+   ;; WG1 voted to break backward compatibility with R6RS by
+   ;; requiring let-syntax and letrec-syntax to have non-splicing
+   ;; behavior.  The non-splicing semantics is provided by these
+   ;; alternatives to Larceny's splicing let-syntax and letrec-syntax.
+
+   (define-syntax r7rs:let-syntax
+     (syntax-rules ()
+      ((_ bindings . body)
+       (let () (let-syntax bindings . body)))))
+
+   (define-syntax r7rs:letrec-syntax
+     (syntax-rules ()
+      ((_ bindings . body)
+       (let () (letrec-syntax bindings . body))))))
+
+  )

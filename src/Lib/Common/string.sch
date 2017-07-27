@@ -256,6 +256,37 @@
                   (cadr rest))))
     (loop s start (- end 1) '())))
 
+;;; FIXME:  This code must be kept in sync with the definition of
+;;; twobit-symbol-hash in Compiler/pass2if.sch.
+;;; Any change to this code must be made there also, and vice versa.
+
+;;; Returns a value in the range 0 .. 2^27-1 (which should be a fixnum).
+;;;
+;;; FIXME: Common Larceny's fixnums are much smaller, but limiting the
+;;; result to Common Larceny's fixnum range produces a far less effective
+;;; hash function.
+
+(define (string-hash string)
+
+  (define (string-hash-step code byte)
+    (fxlogxor code
+              ;; Avoid consing fixnums
+              (let* ((code (fxlogand code #x3FFFFF)) ; 22 bits
+                     (l (fxlsh code 5)))             ; 27 bits
+                (fxlogxor l byte))))
+
+  (define (string-hash-loop string limit i code)
+    (if (= i limit)
+        code
+        (string-hash-loop
+         string limit (+ i 1)
+         (string-hash-step code
+                           (fxlogand #xFFFF
+                                     (char->integer (string-ref string i)))))))
+
+  (let ((n (string-length string)))
+    (string-hash-loop string n 0 (fxlogxor n #x1aa5))))
+
 ;;; String hash based on
 ;;;
 ;;; @inproceedings{ ramakrishna97performance,
@@ -277,12 +308,12 @@
 ;;; dictionary showed fewer empty buckets, more buckets with exactly
 ;;; one entry and fewer buckets with three or more entries.)
 
+;;; This version doesn't work as well, mainly because it stays within
+;;; the range of 16-bit fixnums, so it's commented out for now.
+
 ; Returns a value in the range 0 .. 2^16-1 (a fixnum in Larceny).
 
-; FIXME:  This code must be kept in sync with the definition of
-; twobit-symbol-hash in Compiler/pass2if.sch.
-; Any change to this code must be made there also, and vice versa.
-
+'
 (define (string-hash string)
 
   (define (string-hash-step code byte)
@@ -320,7 +351,9 @@
 ;;; To avoid a masking step, we limit the table entries to
 ;;; [0 (2^16 - 256)) so that adding in a byte from the string always
 ;;; leaves us with at most 16 bits.
-'(define string-hash
+
+'
+(define string-hash
   (let ((shift-table (make-vector 65536 0)))
 
     (define (string-hash-loop string limit i code)

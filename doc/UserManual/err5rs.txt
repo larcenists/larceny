@@ -1,6 +1,6 @@
 [[Err5rsChapter]]
 
-ERR5RS standard libraries
+ERR5RS Standard Libraries
 -------------------------
 
 <<Standards,ERR5RS>> has been superseded by the R7RS, so the
@@ -68,10 +68,10 @@ each field specifier is one of
 
  * a symbol naming the (mutable) field;
 
- * a list of the form `(mutable _name_)`,
+ * a list of the form +(mutable _name_)+,
 where _name_ is a symbol naming the mutable field;
 
- * a list of the form `(immutable _name_)`,
+ * a list of the form +(immutable _name_)+,
 where _name_ is a symbol naming the immutable field. 
 
 The optional parent is an rtd or `#f`. It is an error for

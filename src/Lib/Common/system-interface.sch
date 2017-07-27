@@ -138,6 +138,8 @@
 (define feature$r6program         16)
 (define feature$unsafe            17)
 (define feature$transcoder        18)
+(define feature$r6path2           19)
+(define feature$r7features        20)
 
 (define (sys$system-feature name)
 
@@ -247,10 +249,10 @@
     ((execmode)
      (case (get-feature feature$execmode)
       ((0)   'r5rs)
-      ((5)   'r7rs)
+      ((3 5) 'r7rs)    ; 3 is scheme-script mode, which is now R7RS
       ((6)   'r7r6)
       ((1)   'err5rs)
-      ((2 3) 'r6rs)
+      ((2)   'r6rs)
       ((4)   'spanky)
       (else  'unknown)))
     ((ignore1)
@@ -262,8 +264,18 @@
       ((0) #f)
       ((1) #t)
       (else 'extremely)))
+    ((r7features)
+     (let ((bv (get-feature feature$r7features)))
+       (if (bytevector? bv)
+           (sys$cstring->string bv)
+           "")))
     ((r6path)
      (let ((bv (get-feature feature$r6path)))
+       (if (bytevector? bv)
+           (sys$cstring->string bv)
+           "")))
+    ((r6path2)
+     (let ((bv (get-feature feature$r6path2)))
        (if (bytevector? bv)
            (sys$cstring->string bv)
            "")))
@@ -291,6 +303,16 @@
    ((r5rs)             'r5rs)
    ((r7rs r7r6 err5rs) 'r7rs)         ; Aeryn mode is now R7RS instead of R6RS.
    (else               'r6rs)))
+
+; For disabling extensions to R7RS that might be incompatible with some code.
+; Must keep in sync with src/Rts/Sys/primitive.c (which explains encodings).
+;
+; FIXME: this should be faster
+;
+; Returns #f, #t, or the symbol extremely.
+
+(define (larceny:r7strict)
+  (sys$system-feature 'pedantic))
 
 ; Get the value of an environment variable.
 

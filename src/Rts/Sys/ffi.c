@@ -59,6 +59,20 @@ typedef union {
   unsigned long long unsigned64;
 } ffi_arg;
 
+/* FIXME: Larceny's FFI has been unreliable when Larceny is built on a
+ * Macintosh running a 64-bit OS (tickets #700, #661, and possibly #325).
+ * MacOSX 10.8 seems to have been the first purely 64-bit version of MacOSX.
+ * As of MacOSX 10.8, the default C compiler changed: gcc became an alias
+ * for clang with the LLVM back end.  The FFI problem appears to have been
+ * caused by a bug in that C compiler: the stack-allocated array declared by
+ * 
+ *   ffi_arg args[ 32 ];
+ *
+ * was not always allocated on an 4-byte boundary.  Declaring that array
+ * as a global seems to work around the compiler bug.
+ */
+
+ffi_arg ffi_args[ 32 ];
 
 void
 larceny_C_ffi_apply( word trampoline_bytevector,
@@ -73,7 +87,10 @@ larceny_C_ffi_apply( word trampoline_bytevector,
   typedef void (*tramp_ll_t)( ffi_arg *, long long * );
   typedef void (*tramp_ull_t)( ffi_arg *, unsigned long long * );
 
-  ffi_arg args[ 32 ];
+#if 0
+  ffi_arg args[ 32 ];    /*  See FIXME comment above.  */
+#endif
+  ffi_arg *args = ffi_args;
   int i, limit, argc;
   word w_result;
   double d_result;
@@ -82,6 +99,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
   unsigned long long ull_result;
 
   assert( sizeof( ffi_arg ) == 8 );
+  assert( (((long) args) & 3) == 0 );  /* See FIXME comment above. */
 
   /* Phase 1: Check the trampoline pointer */
 

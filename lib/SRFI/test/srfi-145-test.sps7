@@ -1,0 +1,79 @@
+;;; Copyright (C) William D Clinger (2017).
+;;; 
+;;; Permission is hereby granted, free of charge, to any person
+;;; obtaining a copy of this software and associated documentation
+;;; files (the "Software"), to deal in the Software without
+;;; restriction, including without limitation the rights to use,
+;;; copy, modify, merge, publish, distribute, sublicense, and/or
+;;; sell copies of the Software, and to permit persons to whom the
+;;; Software is furnished to do so, subject to the following
+;;; conditions:
+;;; 
+;;; The above copyright notice and this permission notice shall be
+;;; included in all copies or substantial portions of the Software.
+;;; 
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+;;; OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+;;; HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+;;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+;;; FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+;;; OTHER DEALINGS IN THE SOFTWARE. 
+
+(import (scheme base)
+        (scheme write)
+        (srfi 145))
+
+(define (writeln . xs)
+  (for-each display xs)
+  (newline))
+
+(define (fail token . more)
+  (newline)
+  (writeln "Error: test failed: " token)
+  (display " ")
+  (write current-test)
+  (newline)
+  #f)
+
+;;; To display tests that fail, change "(or " to "(OR ".
+;;; To display tests before they are run, uncomment the write below.
+
+(define current-test #f)
+
+(define-syntax OR
+  (syntax-rules ()
+    ((_ expr1 expr ...)
+     (begin (set! current-test 'expr1)
+            ;; (write current-test)
+            ;; (newline)
+            (or expr1 expr ...)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(or (assume (odd? 3))
+    (fail 'test-1))
+
+(or (= 3 (assume (+ 1 2)))
+    (fail 'test-2))
+
+(or (assume (odd? 3) "and so on" (/ 3 0))
+    (fail 'test-3))
+
+(or (= 3 (assume (+ 1 2) (car 17) (cdr 18) (vector-ref "a" 23)))
+    (fail 'test-4))
+
+(or (= (guard (c (#t 19))
+        (assume (= 3 5) "because 3 isn't 5")
+        16)
+       19)
+    (fail 'test-5))
+
+(or (= (guard (c (#t 19))
+        (assume (= 3 5) (car 17) (cdr 18) (vector-ref "a" 23))
+        16)
+       19)
+    (fail 'test-6))
+
+(writeln "Done.")

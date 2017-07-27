@@ -528,7 +528,8 @@
             (bytevector-like-set! c
                                   (- (- i k8) 1)
                                   (fxlogior (fxlogand c1 mask)
-                                            (fxlsh b0 (- 8 k8bits))))
+                                            (fxlogand (fxlsh b0 (- 8 k8bits))
+                                                      #xff)))
             (slow-loop (+ i 1)))))
 
     (cond ((< k 0)

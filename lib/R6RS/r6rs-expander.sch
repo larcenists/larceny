@@ -401,8 +401,6 @@
     (define id-displacement     (record-accessor :identifier 3))
     (define id-maybe-library    (record-accessor :identifier 4))
 
-    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [R7RS]
-
     (define (id-library id)
       (or (id-maybe-library id)
           *current-library*))
@@ -436,7 +434,8 @@
                           (and (not by)
                                (eq? (id-name x)
                                     (id-name y))))))
-          (and result
+          (and #f ; [Larceny] no phase checking
+               result
                bx
                (begin (check-binding-level x bx)
                       (check-binding-level y by)))
@@ -445,6 +444,22 @@
           (and result
                (register-use! x bx)
                (register-use! y by))
+          result)))
+
+    ;; Like free-identifier=? but doesn't register the uses.
+
+    (define (free-ident=? x y)
+      (check x identifier? 'free-identifier=?)
+      (check y identifier? 'free-identifier=?)
+      (let  ((bx (binding x))
+             (by (binding y)))
+        (let ((result (if bx
+                          (and by
+                               (eq? (binding-name bx)
+                                    (binding-name by)))
+                          (and (not by)
+                               (eq? (id-name x)
+                                    (id-name y))))))
           result)))
 
     ;; For internal use
@@ -505,6 +520,17 @@
 
     (define (generate-color)
       (generate-guid 'c))
+
+    ;; FIXME: Colors don't need to be globally unique symbols,
+    ;; because the keys used for lookups always include a name
+    ;; that's globally unique.  We could just as well represent
+    ;; colors as fixnums.
+#;
+    (define generate-color
+      (let ((ticks 0))
+        (lambda ()
+          (set! ticks (+ ticks 1))
+          ticks)))
 
     ;;=========================================================================
     ;;
@@ -904,6 +930,7 @@
 
     ;; Only expands while t is a user macro invocation.
     ;; Used by expand-lambda to detect internal definitions.
+    ;; Also used by scan-sequence.
 
     (define (head-expand t)
       (fluid-let ((*trace* (cons t *trace*)))
@@ -1015,10 +1042,12 @@
                         #f
                         exps
                         '()                                            ; [R7RS]
+                        '()                                            ; [R7RS]
                         (lambda (forms
                                  no-syntax-definitions
                                  no-bound-variables
-                                 no-exports)                           ; [R7RS]
+                                 no-exports                            ; [R7RS]
+                                 no-imports)                           ; [R7RS]
                           `(begin ,@(map cdr forms)))))))
 
     ;; Expression let(rec)-syntax:
@@ -1088,10 +1117,12 @@
                               make-local-mapping
                               body
                               '()                                      ; [R7RS]
+                              '()                                      ; [R7RS]
                               (lambda (forms
                                        syntax-definitions
                                        bound-variables
-                                       no-exports)                     ; [R7RS]
+                                       no-exports                      ; [R7RS]
+                                       no-imports)                     ; [R7RS]
                                 `(lambda ,formals
                                    ,@(if (null? bound-variables)                ; +++
                                          (emit-body forms ex:undefined-set!)    ; +++
@@ -1147,8 +1178,18 @@
     ;; at top level anywhere within the define-library form, so
     ;; exports was added as a fourth argument to both scan-sequence
     ;; and to its continuation k.
+    ;;
+    ;; R7RS define-library also allows import declarations to appear   ; [R7RS]
+    ;; at top level anywhere within the define-library form, so
+    ;; imports was added as a fifth argument to both scan-sequence
+    ;; and to its continuation k.
 
-    (define (scan-sequence body-type make-map body-forms exports k)
+    (define (scan-sequence body-type
+                           make-map
+                           body-forms
+                           exports
+                           imported-libraries
+                           k)
 
       ;; Each <form> ::= (<symbol | #f> #t <wrap>)   (deferred rhs)
       ;;              |  (<symbol | #f> #f <s-expr>) (undeferred rhs)
@@ -1164,13 +1205,13 @@
                              (expand (wrap-exp exp)))
                            exp))))
              forms))
-
       (let ((common-env *usage-env*))
 
         ;; For the R7RS, this loop needs to be slightly recursive.     ; [R7RS]
         ;; It takes a list of wrapped body forms, and returns
-        ;; four values: the accumulated forms, syntax-defs,
-        ;; bound-variables, and exports, all in reverse order.
+        ;; five values: the accumulated forms, syntax-defs,
+        ;; bound-variables, exports, and imported libraries,
+        ;; all in reverse order.
 
         ;; The R7RS define-library syntax does not allow definitions   ; [R7RS]
         ;; or expressions (other than begin) outside of a begin.  To
@@ -1178,17 +1219,23 @@
         ;; indicating whether definitions/expressions are allowed.
 
         (define (loop ws                                               ; [R7RS]
-                      forms syntax-defs bound-variables exports
+                      forms syntax-defs bound-variables
+                      exports imported-libraries
                       defs-okay?)
           (cond
            ((null? ws)
-            (values forms syntax-defs bound-variables exports))        ; [R7RS]
+            (values forms                                              ; [R7RS]
+                    syntax-defs                                        ; [R7RS]
+                    bound-variables                                    ; [R7RS]
+                    exports                                            ; [R7RS]
+                    imported-libraries))                               ; [R7RS]
            (else
             (fluid-let ((*usage-env* (wrap-env (car ws))))
               (call-with-values
                   (lambda () (head-expand (wrap-exp (car ws))))
                 (lambda (form operator-binding)
-                  (let ((type (and operator-binding (binding-name operator-binding))))
+                  (let ((type (and operator-binding
+                                   (binding-name operator-binding))))
                     (check-expression-sequence body-type type form)
                     (check-toplevel            body-type type form)
                     (check-r7rs-library        body-type type form defs-okay?)
@@ -1213,14 +1260,19 @@
                                     syntax-defs
                                     bound-variables
                                     exports
+                                    imported-libraries
                                     defs-okay?))
                             (lambda (forms
-                                     syntax-defs bound-variables exports)
+                                     syntax-defs
+                                     bound-variables
+                                     exports
+                                     imported-libraries)
                               (loop (cdr ws)
                                     forms
                                     syntax-defs
                                     bound-variables
                                     exports
+                                    imported-libraries
                                     defs-okay?)))))))
                       ((include-library-declarations)
                        (match form
@@ -1240,14 +1292,19 @@
                                     syntax-defs
                                     bound-variables
                                     exports
+                                    imported-libraries
                                     defs-okay?))
                             (lambda (forms
-                                     syntax-defs bound-variables exports)
+                                     syntax-defs
+                                     bound-variables
+                                     exports
+                                     imported-libraries)
                               (loop (cdr ws)
                                     forms
                                     syntax-defs
                                     bound-variables
                                     exports
+                                    imported-libraries
                                     defs-okay?)))))))
                       ((cond-expand)
                        (let* ((decls (expand-cond-expand body-type type form))
@@ -1259,6 +1316,7 @@
                                syntax-defs
                                bound-variables
                                exports
+                               imported-libraries
                                defs-okay?)))
                       ((export)
                        (match form
@@ -1272,6 +1330,7 @@
                                  syntax-defs
                                  bound-variables
                                  exports
+                                 imported-libraries
                                  defs-okay?)))))
 
                       ;; The begin case was rewritten for R7RS.        ; [R7RS]
@@ -1282,7 +1341,7 @@
 
                        (let ()
 
-                         ;; Returns four values to which the continue
+                         ;; Returns five values to which the continue
                          ;; procedure can be applied.
 
                          (define (process-begin-body form defs-okay?)
@@ -1293,18 +1352,23 @@
                                  syntax-defs
                                  bound-variables
                                  exports
+                                 imported-libraries
                                  defs-okay?))
 
                          ;; Given the values returned by process-begin-body,
                          ;; continues the loop.
 
                          (define (continue forms
-                                           syntax-defs bound-variables exports)
+                                           syntax-defs
+                                           bound-variables
+                                           exports
+                                           imported-libraries)
                             (loop (cdr ws)
                                   forms
                                   syntax-defs
                                   bound-variables
                                   exports
+                                  imported-libraries
                                   defs-okay?))
 
                          ;; If it was an ordinary begin (not a begin
@@ -1351,106 +1415,149 @@
                       ;; for R7RS.
 
                       ((import)
+                       (check-import body-type type form forms)        ; [R7RS]
                        (match form
                          ((- specs ___)
                           (call-with-values
-                              (lambda () (scan-imports specs))
-                            (lambda (imported-libraries imports)
-                              (import-libraries-for-expand imported-libraries (map not imported-libraries) 0)
-                              (env-import! (car form) imports common-env)
-                              (loop (cdr ws)
-                                    (cons (list #f #f `(ex:import-libraries-for-run
-                                                        ',imported-libraries
-                                                        ',(current-builds imported-libraries)
-                                                        0))
-                                          forms)
-                                    syntax-defs
-                                    bound-variables
-                                    exports                            ; [R7RS]
-                                    defs-okay?))))))                   ; [R7RS]
+                           (lambda () (scan-imports specs))
+                           (lambda (new-imported-libraries imports)
+                             (import-libraries-for-expand
+                              new-imported-libraries
+                              (map not new-imported-libraries)
+                              0)
+                             (env-import! (car form) imports common-env)
+                             (loop (cdr ws)
+                                   (if (memq body-type                 ; [R7RS]
+                                             '(program toplevel))
+                                       ;; see import-form?             ; [R7RS]
+                                       (cons (list
+                                              #f
+                                              #f
+                                              `(ex:import-libraries-for-run
+                                                ',new-imported-libraries
+                                                ',(current-builds
+                                                   new-imported-libraries)
+                                                0))
+                                             forms)
+                                       forms)
+                                   syntax-defs
+                                   bound-variables
+                                   exports                             ; [R7RS]
+                                   (union2 new-imported-libraries      ; [R7RS]
+                                           imported-libraries)         ; [R7RS]
+                                   defs-okay?))))))                    ; [R7RS]
                       ((program)
                        (loop (cdr ws)
+                             ;; see check-import                       ; [R7RS]
                              (cons (list #f #f (expand-program form)) forms)
                              syntax-defs
                              bound-variables
                              exports                                   ; [R7RS]
+                             imported-libraries                        ; [R7RS]
                              defs-okay?))                              ; [R7RS]
                       ((library)
                        (loop (cdr ws)
+                             ;; see check-import                       ; [R7RS]
                              (cons (list #f #f (expand-library form)) forms)
                              syntax-defs
                              bound-variables
                              exports                                   ; [R7RS]
+                             imported-libraries                        ; [R7RS]
                              defs-okay?))
                       ((define-library)                                ; [R7RS]
                        (loop (cdr ws)
+                             ;; see check-import                       ; [R7RS]
                              (cons (list #f #f (expand-define-library form))
                                    forms)
                              syntax-defs
                              bound-variables
                              exports
+                             imported-libraries
                              defs-okay?))
                       ((define)
                        (call-with-values
-                           (lambda () (parse-definition form #f))
-                         (lambda (id rhs)
-                           (check-valid-definition id common-env body-type form forms type)
-                           (env-extend! (list (make-map 'variable id #f)) common-env)
-                           (loop (cdr ws)
-                                 (cons (list (binding-name (binding id))
-                                             #t
-                                             (make-wrap *usage-env* rhs))
-                                       forms)
-                                 syntax-defs
-                                 (cons (binding-name (binding id))
-                                       bound-variables)
-                                 exports                               ; [R7RS]
-                                 defs-okay?))))                        ; [R7RS]
+                        (lambda () (parse-definition form #f))
+                        (lambda (id rhs)
+                          (check-valid-definition id
+                                                  common-env
+                                                  body-type form forms type)
+                          (env-extend! (list (make-map 'variable id #f))
+                                       common-env)
+                          (loop (cdr ws)
+                                (cons (list (binding-name (binding id))
+                                            #t
+                                            (make-wrap *usage-env* rhs))
+                                      forms)
+                                syntax-defs
+                                (cons (binding-name (binding id))
+                                      bound-variables)
+                                exports                                ; [R7RS]
+                                imported-libraries                     ; [R7RS]
+                                defs-okay?))))                         ; [R7RS]
                       ((define-syntax)
                        (call-with-values
                            (lambda () (parse-definition form #t))
                          (lambda (id rhs)
-                           (check-valid-definition id common-env body-type form forms type)
+                           (check-valid-definition id
+                                                   common-env
+                                                   body-type form forms type)
                            (let ((mapping (make-map 'macro id #f)))
                              (env-extend! (list mapping) common-env)
                              (let ((rhs (fluid-let ((*phase* (+ 1 *phase*)))
                                           (expand rhs))))
-                               (register-macro! (binding-name (cdr mapping)) (make-user-macro (eval rhs (interaction-environment))))
+                               (register-macro!
+                                (binding-name (cdr mapping))
+                                (make-user-macro
+                                 (eval rhs (interaction-environment))))
                                (loop (cdr ws)
                                      forms
-                                     (cons (cons (binding-name (binding id)) rhs) syntax-defs)
+                                     (cons (cons (binding-name (binding id))
+                                                 rhs)
+                                           syntax-defs)
                                      bound-variables
                                      exports                           ; [R7RS]
+                                     imported-libraries                ; [R7RS]
                                      defs-okay?))))))                  ; [R7RS]
                       ((let-syntax letrec-syntax)
                        (call-with-values
-                           (lambda () (parse-local-syntax form))
-                         (lambda (formals rhs body)
-                           (let* ((original-env *usage-env*)
-                                  (usage-diff   (map (lambda (formal)
-                                                       (make-local-mapping 'macro formal #f))
-                                                     formals))
-                                  (extended-env (env-extend usage-diff original-env))
-                                  (rhs-expanded
-                                   (fluid-let ((*phase* (+ 1 *phase*))
-                                               (*usage-env*
-                                                (case type
-                                                  ((let-syntax)    original-env)
-                                                  ((letrec-syntax) extended-env))))
-                                     (map expand rhs)))
-                                  (macros (map (lambda (e) (eval e (interaction-environment))) rhs-expanded)))
-                             (for-each (lambda (mapping macro)
-                                         (register-macro! (binding-name (cdr mapping)) (make-user-macro macro)))
-                                       usage-diff
-                                       macros)
-                             (loop (append (map (lambda (form) (make-wrap extended-env form))
-                                                body)
-                                           (cdr ws))
-                                   forms
-                                   syntax-defs
-                                   bound-variables
-                                   exports                             ; [R7RS]
-                                   defs-okay?)))))                     ; [R7RS]
+                        (lambda () (parse-local-syntax form))
+                        (lambda (formals rhs body)
+                          (let* ((original-env *usage-env*)
+                                 (usage-diff
+                                  (map (lambda (formal)
+                                         (make-local-mapping 'macro formal #f))
+                                       formals))
+                                 (extended-env
+                                  (env-extend usage-diff original-env))
+                                 (rhs-expanded
+                                  (fluid-let ((*phase* (+ 1 *phase*))
+                                              (*usage-env*
+                                               (case type
+                                                 ((let-syntax)
+                                                  original-env)
+                                                 ((letrec-syntax)
+                                                  extended-env))))
+                                    (map expand rhs)))
+                                 (macros
+                                  (map (lambda (e)
+                                         (eval e (interaction-environment)))
+                                       rhs-expanded)))
+                            (for-each (lambda (mapping macro)
+                                        (register-macro!
+                                         (binding-name (cdr mapping))
+                                         (make-user-macro macro)))
+                                      usage-diff
+                                      macros)
+                            (loop (append (map (lambda (form)
+                                                 (make-wrap extended-env form))
+                                               body)
+                                          (cdr ws))
+                                  forms
+                                  syntax-defs
+                                  bound-variables
+                                  exports                             ; [R7RS]
+                                  imported-libraries                  ; [R7RS]
+                                  defs-okay?)))))                     ; [R7RS]
                       (else
                        (loop (cdr ws)
                              (cons (list #f #t (make-wrap *usage-env* form))
@@ -1458,6 +1565,7 @@
                              syntax-defs
                              bound-variables
                              exports                                   ; [R7RS]
+                             imported-libraries                        ; [R7RS]
                              defs-okay?))))))))))                      ; [R7RS]
 
         ;; Add new frame for keeping track of bindings used
@@ -1473,9 +1581,14 @@
                  '()                     ; nor syntax-defs
                  '()                     ; nor bound-variables
                  exports                 ; but maybe some exports      ; [R7RS]
+                 imported-libraries      ; and maybe some libraries    ; [R7RS]
                  (not (memq body-type                                  ; [R7RS]
                             '(expression-sequence define-library)))))  ; [R7RS]
-         (lambda (forms syntax-defs bound-variables exports)           ; [R7RS]
+         (lambda (forms                                                ; [R7RS]
+                  syntax-defs                                          ; [R7RS]
+                  bound-variables                                      ; [R7RS]
+                  exports                                              ; [R7RS]
+                  imported-libraries)                                  ; [R7RS]
            (check-expression-body body-type forms body-forms)
 
            ;; Add denotations used in this frame to those of parent.
@@ -1486,7 +1599,8 @@
            (k (reverse (expand-deferred forms))
               (reverse syntax-defs)
               bound-variables
-              exports)))))
+              exports
+              imported-libraries)))))
 
     (define (emit-body body-forms define-or-set)
       (map (lambda (body-form)
@@ -1550,7 +1664,7 @@
 
     (define (check-r7rs-library body-type type form defs-okay?)        ; [R7RS]
 #;
-      (if (memq 'define-library (list body-type type))                  ; FIXME
+      (if (memq 'define-library (list body-type type))                 ; FIXME
           (begin (display "check-r7rs-library: ")
                  (write (list body-type type))
                  (newline)))
@@ -1561,14 +1675,34 @@
                              "Invalid define-library declaration"
                              form)))             ; end of new code for ; [R7RS]
 
+    ;; Both R6RS and R7RS allow import declarations only at the        ; [R7RS]
+    ;; beginning of a program.  In R6RS mode, that is enforced         ; [R7RS]
+    ;; by other means.  In strict R7RS mode, that is enforced          ; [R7RS]
+    ;; by examining the previous form to make sure it is an import,    ; [R7RS]
+    ;; library, or program.                                            ; [R7RS]
+
+    (define (check-import body-type type form forms)                   ; [R7RS]
+      (and (eq? body-type 'program)                                    ; [R7RS]
+           (eq? type 'import)                                          ; [R7RS]
+           (larceny:r7strict)                                          ; [R7RS]
+           (not (null? forms))                                         ; [R7RS]
+           (let ((previous-form (car forms)))                          ; [R7RS]
+             ;; see scan-sequence loop                                 ; [R7RS]
+             (and (> (length previous-form) 2)                         ; [R7RS]
+                  (or (not (eq? (car previous-form) #f))               ; [R7RS]
+                      (not (eq? (cadr previous-form) #f)))             ; [R7RS]
+                  (syntax-violation                                    ; [R7RS]
+                   type                                                ; [R7RS]
+                   "Imports allowed only at beginning of program"      ; [R7RS]
+                   form)))))                                           ; [R7RS]
+
     (define (check-toplevel body-type type form)
-#;
-      (if (memq 'define-library (list body-type type))                  ; FIXME
-          (begin (display "check-toplevel: ")
-                 (write (list body-type type))
-                 (newline)))
       (and (not (eq? body-type 'toplevel))
-           (not (eq? body-type 'define-library))                       ; [R7RS]
+           (not (and (eq? type 'import)                                ; [R7RS]
+                     (or (and (eq? body-type 'program)                 ; [R7RS]
+                              (not (eq? (larceny:execution-mode)       ; [R7RS]
+                                        'r6rs)))                       ; [R7RS]
+                         (eq? body-type 'define-library))))            ; [R7RS]
            (memq type '(import program library
                         define-library))                               ; [R7RS]
            (syntax-violation type
@@ -1583,12 +1717,15 @@
                  (newline)))
       (and (not (eq? body-type 'toplevel))
            (duplicate? id common-env)
+           (eq? (larceny:execution-mode) 'r6rs)
            (syntax-violation type "Redefinition of identifier in body" form id))
       (check-used id body-type form)
       (and (not (memq body-type `(toplevel program define-library)))    ; FIXME
            (not (null? forms))
            (not (symbol? (car (car forms))))
-           (syntax-violation type "Definitions may not follow expressions in a body" form)))
+           (syntax-violation type
+                             "Definitions may not follow expressions in a body"
+                             form)))
 
     (define (check-expression-body body-type forms body-forms)
 #;
@@ -1607,13 +1744,48 @@
     ;;
     ;;=========================================================================
 
+    (define no-ellipsis #f)                                            ; [R7RS]
+
+    (define standard-ellipsis (make-identifier '... '() '() 0 #f))     ; [R7RS]
+
+    (define standard-ellipsis-binding                                  ; [R7RS]
+      (make-binding 'macro '... '(0) #f '()))                          ; [R7RS]
+
+    (define (current-ellipsis)                                         ; [R7RS]
+      (let ((b (binding standard-ellipsis)))                           ; [R7RS]
+        (if (and b                                                     ; [R7RS]
+                 (eq? (binding-type b)                                 ; [R7RS]
+                      (binding-type standard-ellipsis-binding))        ; [R7RS]
+                 (eq? (binding-name b)                                 ; [R7RS]
+                      (binding-name standard-ellipsis-binding))        ; [R7RS]
+                 (eq? (binding-library b)                              ; [R7RS]
+                      (binding-library standard-ellipsis-binding)))    ; [R7RS]
+            standard-ellipsis                                          ; [R7RS]
+            no-ellipsis)))                                             ; [R7RS]
+
     (define (expand-syntax-case exp)
       (match exp
         ((- e ((? identifier? literals) ___) clauses ___)
-         (expand-syntax-case2 e standard-ellipsis literals clauses))   ; [R7RS]
+         (expand-syntax-case2 e (current-ellipsis) literals clauses))  ; [R7RS]
         ((- e (? identifier? ellipsis) ((? identifier? literals) ___)  ; [R7RS]
             clauses ___)                                               ; [R7RS]
-         (expand-syntax-case2 e ellipsis literals clauses))))          ; [R7RS]
+                                                                       ; [R7RS]
+         ;; Al Petrofsky suggested it should be an error if the        ; [R7RS]
+         ;; explicit ellipsis is also one of the literals.             ; [R7RS]
+         ;; Marc Nieper-Wißkirchen then pointed out that R7RS 4.3.2    ; [R7RS]
+         ;; seems to allow it, so we won't perform this error check    ; [R7RS]
+         ;; in -r7strict mode.                                         ; [R7RS]
+                                                                       ; [R7RS]
+         (begin                                                        ; [R7RS]
+          (if (and (exists (lambda (lit)                               ; [R7RS]
+                        (bound-identifier=? ellipsis lit))             ; [R7RS]
+                      literals)                                        ; [R7RS]
+                   (not (larceny:r7strict)))                           ; [R7RS]
+              (syntax-violation                                        ; [R7RS]
+               'syntax-case                                            ; [R7RS]
+               "Explicit ellipsis cannot also be a literal"            ; [R7RS]
+               exp))                                                   ; [R7RS]
+          (expand-syntax-case2 e ellipsis literals clauses)))))        ; [R7RS]
 
     ;; [R7RS]  Some rewriting was needed to support the R7RS ellipsis feature.
 
@@ -1625,15 +1797,43 @@
 
     (define (ellipsis? x)                                              ; [R7RS]
       (and (identifier? x)                                             ; [R7RS]
-           (free-identifier=? x *ellipsis*)))                          ; [R7RS]
+           *ellipsis*                                                  ; [R7RS]
+           (free-ident=? x *ellipsis*)))                               ; [R7RS]
 
     (define (process-clauses clauses input literals)
 
+      ;; The Scheme standards do not explicitly prescribe full         ; [R7RS]
+      ;; hygiene when determining whether an identifier y seen in      ; [R7RS]
+      ;; a pattern matches a literal x.  All implementations of        ; [R7RS]
+      ;; the R6RS seem to be fully hygienic, but several R7RS          ; [R7RS]
+      ;; systems are not because they use free-identifier=? (or        ; [R7RS]
+      ;; some near-equivalent) instead of bound-identifier=? here.     ; [R7RS]
+      ;;                                                               ; [R7RS]
+      ;; Some R7RS macros may therefore depend on this partial         ; [R7RS]
+      ;; failure of hygiene.  To accomodate those macros, Larceny      ; [R7RS]
+      ;; now includes a compiler switch that can reduce hygiene        ; [R7RS]
+      ;; here.                                                         ; [R7RS]
+      ;;                                                               ; [R7RS]
+      ;; In decreasing order of hygiene:                               ; [R7RS]
+      ;;                                                               ; [R7RS]
+      ;;     (bound-identifier=? x y)                                  ; [R7RS]
+      ;;     (free-identifier=? x y)                                   ; [R7RS]
+      ;;     (free=? y (id-name x))                                    ; [R7RS]
+      ;;     (or (and (binding y)                                      ; [R7RS]
+      ;;              (eq? (id-name x) (binding-name (binding y))))    ; [R7RS]
+      ;;         (and (not (binding y))                                ; [R7RS]
+      ;;              (eq? (id-name x) (id-name y))))                  ; [R7RS]
+      ;;     (eq? (id-name x) (id-name y))                             ; [R7RS]
+
       (define (literal? pattern)
         (and (identifier? pattern)
-             (memp (lambda (x)
-                     (bound-identifier=? x pattern))
-                   literals)))
+             (if (hygienic-literals)                                   ; [R7RS]
+                 (memp (lambda (x)
+                         (bound-identifier=? x pattern))
+                       literals)
+                 (memp (lambda (x)                                     ; [R7RS]
+                         (free-ident=? x pattern))                     ; [R7RS]
+                       literals))))                                    ; [R7RS]
 
       (define (process-match input pattern sk fk)
         (if (not (symbol? input))
@@ -1972,7 +2172,8 @@
 
     (define (expand-define-library t)                                  ; [R7RS]
       (match t
-        ((keyword name ((syntax export) sets ___) ((syntax import) specs ___) body-forms ___)
+        ((keyword name ((syntax export) sets ___)
+                       ((syntax import) specs ___) body-forms ___)
          (expand-library-or-program t 'define-library))
         ((keyword name ((syntax export) sets ___) body-forms ___)
          (expand-define-library
@@ -1996,7 +2197,8 @@
 
     (define (expand-library-or-program t library-type)
       (match t
-        ((keyword name ((syntax export) sets ___) ((syntax import) specs ___) body-forms ___)
+        ((keyword name ((syntax export) sets ___)
+                       ((syntax import) specs ___) body-forms ___)
          (let ((name (syntax->datum
                       (scan-library-name name library-type))))         ; [R7RS]
            (let ((exports (scan-exports sets library-type)))           ; [R7RS]
@@ -2007,94 +2209,107 @@
                              (*current-library*  name)
                              (*syntax-reflected* #f))       ; +++ space
 
-                   (import-libraries-for-expand imported-libraries (map not imported-libraries) 0)
-                   (if (eq? library-type 'define-library)              ; [R7RS]
-                       (env-import! keyword
-                                    (make-r7rs-library-language)
-                                    *usage-env*))
+                   (if (or (eq? library-type 'define-library)          ; [R7RS]
+                           (and (not (eq? (larceny:execution-mode)     ; [R7RS]
+                                          'r6rs))                      ; [R7RS]
+                                (eq? library-type 'program)))          ; [R7RS]
+                       (env-import! keyword                            ; [R7RS]
+                                    (make-r7rs-library-language)       ; [R7RS]
+                                    *usage-env*))                      ; [R7RS]
                    (env-import! keyword imports *usage-env*)
+                   (import-libraries-for-expand
+                    imported-libraries
+                    (map not imported-libraries)
+                    0)
 
                    (let ((initial-env-table *env-table*))   ; +++ space
-                     (scan-sequence library-type
-                                    make-local-mapping
-                                    body-forms
-                                    exports                            ; [R7RS]
-                                    (lambda (forms
-                                             syntax-definitions
-                                             bound-variables
-                                             exports)                  ; [R7RS]
-                                      (let* ((exports
-                                              (map (lambda (mapping)
-                                                     (cons (id-name (car mapping))
-                                                           (let ((binding (binding (cadr mapping))))
-                                                             (or binding
-                                                                 (syntax-violation
-                                                                  'library "Unbound export" t (cadr mapping)))
-                                                             (if (binding-mutable? binding)
-                                                                 (syntax-violation
-                                                                  'library "Attempt to export mutable variable" t (cadr mapping)))
-                                                             binding)))
-                                                   exports))
-                                             (expanded-library
-                                              (case library-type
-                                                ((program)
-                                                 `(begin
-                                                    #\P ; [Larceny]
-                                                    (ex:import-libraries-for-run ',imported-libraries
-                                                                                 ',(current-builds imported-libraries)
-                                                                                 0)
-                                                    ,@(emit-body forms 'define)))
-                                                ((library
-                                                  define-library)      ; [R7RS]
-                                                 `(begin
-                                                    #\L ; [Larceny]
-                                                    ,@(map (lambda (var)
-                                                             `(define ,var ex:unspecified))
-                                                           bound-variables)
-                                                    (ex:register-library!
-                                                     (ex:make-library
-                                                      ',name
-                                                      ;; Store as thunk so that it is not unnecesarily
-                                                      ;; uncompressed at runtime
-                                                      (lambda ()
-                                                        ,(if *syntax-reflected*                     ; +++ space
-                                                             `(ex:uncompress                        ; +++ space
-                                                               ',(compress (drop-tail
-                                                                            *env-table*
-                                                                            initial-env-table)))
-                                                             `'()))                                 ; +++ space
-                                                      ',exports
-                                                      ',imported-libraries
-                                                      ',(current-builds imported-libraries)
-                                                      ;; visit
-                                                      (lambda ()
-                                                        ,@(map (lambda (def)
-                                                                 `(ex:register-macro! ',(car def) ,(cdr def)))
-                                                               syntax-definitions)
-                                                        (values))
-                                                      ;; invoke
-                                                      (lambda ()
-                                                        ,@(map (lambda (var)
-                                                                 `(set! ,var ex:undefined))
-                                                               bound-variables)
-                                                        ,@(emit-body forms ex:undefined-set!)
-                                                        (values))
-                                                      ;; build
-                                                      ',(generate-guid 'build)))
-                                                    (values))))))
-
-                                        ;; Register library for any further expansion.
-                                        ;; FIXME: expand-file shouldn't do this
-                                        ;; [Larceny]
-                                        (if (and (memq
-                                                  library-type
-                                                  '(library
-                                                    define-library))   ; [R7RS]
-                                                 (not
-                                                  (larceny:r6rs-expand-only)))
-                                            (eval expanded-library (interaction-environment)))
-
-                                        expanded-library))))))))))))
+                     (scan-sequence
+                      library-type
+                      make-local-mapping
+                      body-forms
+                      exports                                          ; [R7RS]
+                      imported-libraries                               ; [R7RS]
+                      (lambda (forms
+                               syntax-definitions
+                               bound-variables
+                               exports                                 ; [R7RS]
+                               imported-libraries)                     ; [R7RS]
+                        (let* ((exports
+                                (map (lambda (mapping)
+                                       (cons (id-name (car mapping))
+                                             (let ((binding
+                                                    (binding (cadr mapping))))
+                                               (or binding
+                                                   (syntax-violation
+                                                    'library
+                                                    "Unbound export"
+                                                    t
+                                                    (cadr mapping)))
+                                               (if (binding-mutable? binding)
+                                                   (syntax-violation
+                                                    'library
+                                                    "Attempt to export mutable variable"
+                                                    t
+                                                    (cadr mapping)))
+                                               binding)))
+                                     exports))
+                               (expanded-library
+                                (case library-type
+                                 ((program)
+                                  `(begin
+                                    #\P ; [Larceny]
+                                    (ex:import-libraries-for-run
+                                     ',imported-libraries
+                                     ',(current-builds imported-libraries)
+                                     0)
+                                    ,@(emit-body forms 'define)))
+                                 ((library define-library)             ; [R7RS]
+                                  `(begin
+                                    #\L ; [Larceny]
+                                    ,@(map (lambda (var)
+                                             `(define ,var ex:unspecified))
+                                           bound-variables)
+                                    (ex:register-library!
+                                     (ex:make-library
+                                      ',name
+                                      ;; Store as thunk so it is not
+                                      ;; unnecesarily uncompressed at runtime
+                                      (lambda ()
+                                        ,(if *syntax-reflected*     ; +++ space
+                                             `(ex:uncompress        ; +++ space
+                                               ',(compress (drop-tail
+                                                            *env-table*
+                                                            initial-env-table)))
+                                             `'()))                 ; +++ space
+                                      ',exports
+                                      ',imported-libraries
+                                      ',(current-builds imported-libraries)
+                                      ;; visit
+                                      (lambda ()
+                                        ,@(map (lambda (def)
+                                                 `(ex:register-macro!
+                                                   ',(car def)
+                                                   ,(cdr def)))
+                                               syntax-definitions)
+                                        (values))
+                                      ;; invoke
+                                      (lambda ()
+                                        ,@(map (lambda (var)
+                                                 `(set! ,var ex:undefined))
+                                               bound-variables)
+                                        ,@(emit-body forms ex:undefined-set!)
+                                        (values))
+                                      ;; build
+                                      ',(generate-guid 'build)))
+                                    (values))))))
+                          ;; Register library for any further expansion.
+                          ;; FIXME: expand-file shouldn't do this
+                          ;; [Larceny]
+                          (if (and (memq library-type
+                                         '(library  define-library))   ; [R7RS]
+                                   (not (larceny:r6rs-expand-only)))
+                              (eval expanded-library (interaction-environment)))
+                          expanded-library))))))))))))
 
     (define (env-import! keyword imports env)
       (env-extend! (map (lambda (import)
@@ -2118,7 +2333,8 @@
          (if (and (>= phase 0)
                   (not (ex:library-visited? library)))
              (begin
-               (set! *env-table* (append ((ex:library-envs library)) *env-table*))
+               (set! *env-table*
+                     (append ((ex:library-envs library)) *env-table*))
                ((ex:library-visiter library))
                (ex:library-visited?-set! library #t)))
          (if (and (>= phase 1)
@@ -2191,6 +2407,7 @@
               (lambda (library-ref levels more-imports)
                 (loop (cdr specs)
                       ;; library-ref = #f if primitives spec
+                      ;; FIXME: that's not true; see below
                       (if library-ref
                           (cons (cons library-ref levels)
                                 imported-libraries)
@@ -2201,7 +2418,7 @@
     ;;                 (<level> ...)
     ;;                 ((<local name> . <binding>) ...)
     ;; where <level> ::= <integer>
-    ;; #f is returned for library name in case of primitives.
+    ;; FIXME: For primitives, (larceny PRIMITIVES) is the library name.
 
     (define (scan-import-spec spec)
 
@@ -2222,11 +2439,17 @@
                         names))
 
             (match import-set
+              ;; FIXME: (primitives foo bar) should be a legal library name
               (((syntax primitives) (? identifier? xs) ___)
                (values #f
                        levels
                        (map (lambda (mapping)
-                              (cons (car mapping) (make-binding 'variable (cdr mapping) levels #f '())))
+                              (cons (car mapping)
+                                    (make-binding 'variable
+                                                  (cdr mapping)
+                                                  levels
+                                                  #f
+                                                  '(larceny PRIMITIVES))))
                             (adjuster (map (lambda (name) (cons name name))
                                            (syntax->datum xs))))))
               (((syntax only) set (? identifier? xs) ___)
@@ -2266,11 +2489,12 @@
                                                      (else (car mapping)))
                                                (cdr mapping)))
                                        mappings))))))
-              (((syntax primitives) . -) (invalid-form import-set))
-              (((syntax only)       . -) (invalid-form import-set))
-              (((syntax except)     . -) (invalid-form import-set))
-              (((syntax prefix)     . -) (invalid-form import-set))
-              (((syntax rename)     . -) (invalid-form import-set))
+              ;; Library names could begin with these (ticket #773).
+;             (((syntax primitives) . -) (invalid-form import-set))
+;             (((syntax only)       . -) (invalid-form import-set))
+;             (((syntax except)     . -) (invalid-form import-set))
+;             (((syntax prefix)     . -) (invalid-form import-set))
+;             (((syntax rename)     . -) (invalid-form import-set))
               (-
                (let ((library-ref (library-ref import-set)))
                  (if library-ref
@@ -2536,8 +2760,12 @@
       (fluid-let ((*usage-env* (r6rs-environment-env env)))
         (let ((exp (datum->syntax eval-template exp))
               (imported-libraries (r6rs-environment-imported-libraries env)))
-          (import-libraries-for-expand (r6rs-environment-imported-libraries env) (map not imported-libraries) 0)
-          (ex:import-libraries-for-run (r6rs-environment-imported-libraries env) (map not imported-libraries) 0)
+          (import-libraries-for-expand (r6rs-environment-imported-libraries env)
+                                       (map not imported-libraries)
+                                       0)
+          (ex:import-libraries-for-run (r6rs-environment-imported-libraries env)
+                                       (map not imported-libraries)
+                                       0)
           (if (r7rs-environment-is-mutable? env)                       ; [R7RS]
               (repl (list exp))                                        ; [R7RS]
               (eval (expand-begin
@@ -2660,9 +2888,17 @@
              (let ((rest (apply unionv
                                 (cdr (car sets))
                                 (cdr sets))))
-               (if (memv (car (car sets)) rest)
+               (if (memv (car (car sets)) rest) ; note use of memv
                    rest
                    (cons (car (car sets)) rest))))))
+    
+    (define (union2 set1 set2)                                         ; [R7RS]
+      (cond ((null? set1)
+             set2)
+            ((member (car set1) set2)    ; note use of member
+             (union2 (cdr set1) set2))
+            (else
+             (union2 (cdr set1) (cons (car set1) set2)))))
     
     (define (drop-tail list tail)
       (cond ((null? list)    '())
@@ -2764,16 +3000,32 @@
     ;; For importing and evaluating stuff in the persistent 
     ;; interactive environment, see REPL above.
 
-    ;; FIXME:  Since expand-toplevel-sequence calls eval on every
-    ;; library in the sequence, the following procedure calls eval
-    ;; on every library twice.  That can double the compile time.
-    
+    ;; NOTE: expand-toplevel-sequence calls eval on every library
+    ;; in the sequence.  (It calls scan-sequence, which calls
+    ;; expand-library, which calls expand-library-or-program,
+    ;; which calls eval on the expanded library.)  That's why
+    ;; run-r6rs-sequence calls eval only on the expressions
+    ;; obtained by expanding the program, if present.
+    ;; See ticket #655.
+
     (define (run-r6rs-sequence forms)
       (with-toplevel-parameters
        (lambda ()
-         (for-each (lambda (exp) (eval exp (interaction-environment)))
-                   (expand-toplevel-sequence (normalize forms))))))
-    
+         (let* ((forms (normalize forms)))
+           (call-with-values
+            (lambda ()
+              (partition (lambda (form)
+                           (and (pair? form)
+                                (eq? 'program (car form))))
+                         forms))
+            (lambda (pgms libs)
+              (expand-toplevel-sequence libs)
+              (if (not (null? pgms))
+                  (let* ((exps (expand-toplevel-sequence pgms)))
+                    (for-each (lambda (exp)
+                                (eval exp (interaction-environment)))
+                              exps)))))))))
+
     (define (run-r6rs-program filename)
       (run-r6rs-sequence (read-file filename)))
 
@@ -2797,10 +3049,12 @@
                      make-toplevel-mapping
                      (source->syntax forms)
                      '()                                               ; [R7RS]
+                     '()                                               ; [R7RS]
                      (lambda (forms
                               syntax-definitions
                               bound-variables
-                              no-exports)                              ; [R7RS]
+                              no-exports                               ; [R7RS]
+                              no-imports)                              ; [R7RS]
                        (emit-body forms 'define))))
 
     ;; R7RS load takes an optional second argument.                    ; [R7RS]

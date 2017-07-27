@@ -13,7 +13,7 @@ There are two main varieties of Larceny.
 Native Larceny is the fastest and most convenient variety
 of Larceny.  It compiles directly to native machine code
 for Intel x86 or ARMv7 microprocessors running Linux and
-for x86 machines running Apple's MacOS X or Microsoft Windows.
+for x86 machines running Apple's macOS or Microsoft Windows.
 
 Petit Larceny compiles to C instead of machine code.  It
 can be made to run on most Unix machines.
@@ -32,7 +32,7 @@ System requirements
 
 Binary distributions of native Larceny are available for
 just about any Intel x86-compatible microprocessor
-running a Linux, Apple OS X, or Windows operating system,
+running a Linux, macOS, or Windows operating system,
 and for ARMv7 microprocessors running Linux.
 Although Larceny still uses 32-bit pointers, it will run
 on 64-bit machines provided the appropriate 32-bit
@@ -91,12 +91,13 @@ Installing the programs
 
 Unpack the distribution files with an appropriate command such
 as one of the following, substituting the version number (such
-as 0.98) for "X.Y":
+as 1.3) for "X.Y":
 
 
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
         tar -xzf larceny-X.Y-bin-native-ia32-macosx.tar.gz
         tar -xzf larceny-X.Y-bin-native-ia32-win32.tar.gz
+        tar -xzf larceny-X.Y-bin-native-armv7l-linux.tar.gz
         tar -xzf larceny-X.Y-bin-petit-stdc-linux86.tar.gz
         tar -xzf larceny-X.Y-src.tar.gz
     
@@ -108,7 +109,7 @@ to something shorter, such as `larceny`; the rest of this
 section will refer to it by that name.
 
 Assuming you have unpacked a binary distribution for Linux or
-OS X, the `larceny` directory will contain the following files:
+macOS, the `larceny` directory will contain the following files:
     
     
         larceny.bin         Run-time system
@@ -116,6 +117,7 @@ OS X, the `larceny` directory will contain the following files:
         larceny             Shell script that runs the two files listed above
         scheme-script       Shell script that runs Scheme scripts
         compile-stale       Scheme script that compiles R7RS/R6RS libraries
+        compile-larceny     Scheme script that compiles a R7RS/R6RS program
         startup.sch         Pathnames for the autoload and require features
     
 
@@ -152,15 +154,18 @@ part of your standard path.
 
 Suppose, for example, that you want to install Larceny
 in `/usr/local/bin` and `/usr/local/lib/larceny`.
-Copy the `larceny` and `scheme-script` files to `/usr/local/bin`
-and edit the definition of `LARCENY_ROOT` at the head
-of each file to point to the correct directory:
+To do that, move the entire `larceny` directory to `/usr/local/lib/larceny`.
+Then copy the `larceny`, `scheme-script`, `compile-stale`,
+and `compile-larceny` files to `/usr/local/bin`.
+
+If you are using macOS or some other non-Linux operating system,
+you will need to edit the definition of `LARCENY_ROOT` at the head
+of the `larceny` and `scheme-script` files to point to the correct
+directory:
     
     
         LARCENY_ROOT=/usr/local/lib/larceny
     
-
-Then move the entire `larceny` directory to `/usr/local/lib/larceny`.
 
 You should now be able to run Larceny from any directory
 by typing "`larceny`" at a prompt.

@@ -137,27 +137,24 @@
                       (else
                        (list path)))))
 
-            (define (add-absolute-path! path)
-              (current-require-path (cons path (current-require-path))))
-
-            (define (add-path! path)
-              (cond ((string=? path "") #t)
-                    ((absolute-path-string? path)
-                     (add-absolute-path! path))
+            (define (make-absolute path)
+              (cond ((absolute-path-string? path)
+                     path)
                     (else
-                     (add-absolute-path!
-                      (string-append (current-directory) "/" path)))))
+                     (string-append (current-directory) "/" path))))
 
-            (let* ((path (get-feature 'library-path))
+            (let* ((path  (get-feature 'library-path))
+                   (path2 (get-feature 'library-path2))
                    (path (if (string=? path "")
                              (getenv "LARCENY_LIBPATH")  ; FIXME
                              path))
-                   (path (if (string? path) path #f))
+                   (path (if (string? path) path ""))
                    (os (get-feature 'os-name))
                    (separator (if (string=? os "Win32") #\; #\:)))
-              (if path
-                  (for-each add-path!
-                            (reverse (list-of-paths path separator)))))))
+              (current-require-path
+               (append (map make-absolute (list-of-paths path separator))
+                       (current-require-path)
+                       (map make-absolute (list-of-paths path2 separator)))))))
 
          (aeryn-mode!
           (lambda ()
@@ -180,12 +177,21 @@
             (io/port-allows-traditional-weirdness! p #f)
             (io/port-allows-mzscheme-weirdness! p #f)))
 
+         (disallow-non-r7rs-syntax!
+          (lambda (p)
+            (io/port-allows-r6rs-weirdness! p #f)
+            (io/port-allows-r7rs-weirdness! p #t)
+            (io/port-allows-larceny-weirdness! p #f)
+            (io/port-allows-traditional-weirdness! p #f)
+            (io/port-allows-mzscheme-weirdness! p #f)))
+
          (emode (get-feature 'execution-mode)))
 
     (case emode
      ((r5rs err5rs r7rs r7r6)
-      (failsafe-load-init-files)
-      (failsafe-process-arguments)
+      (if clr?                                      ; FIXME (ticket #547)
+          (begin (failsafe-load-init-files)
+                 (failsafe-process-arguments)))
       (let ((pgm (get-feature 'top-level-program)))
         (if (and (herald)
                  (or (not (string? pgm))
@@ -194,9 +200,27 @@
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
+      (if (not clr?)                                ; FIXME (ticket #547)
+          (begin (failsafe-load-init-files)
+                 (failsafe-process-arguments)))
       (case emode
        ((err5rs r7rs r7r6)
-        (aeryn-mode!)))
+        (aeryn-mode!)
+        (if (larceny:r7strict)
+            (begin
+             (read-square-bracket-as-paren #f)
+             (read-r6rs-weirdness? #f)
+             (read-larceny-weirdness? #f)
+             (read-traditional-weirdness? #f)
+             (read-mzscheme-weirdness? #f)
+             (io/port-recognizes-javadot-symbols! (console-input-port) #f)
+             (disallow-non-r7rs-syntax! (console-input-port))
+             (disallow-non-r7rs-syntax! (console-output-port))
+             (disallow-non-r7rs-syntax! (console-error-port))
+             (io/port-recognizes-javadot-symbols! (current-input-port) #f)
+             (disallow-non-r7rs-syntax! (current-input-port))
+             (disallow-non-r7rs-syntax! (current-output-port))
+             (disallow-non-r7rs-syntax! (current-error-port))))))
       (case emode
        ((err5rs)
         (writeln "ERR5RS mode (no libraries have been imported)"))
@@ -214,11 +238,15 @@
                           (lambda the-error
                             (parameterize ((error-handler original-handler))
                              (decode-and-raise-r6rs-exception the-error)))))))
-         (if (and (memq emode '(r7rs r7r6))
-                  (not (string=? pgm "")))
-             (eval (list 'run-r6rs-program pgm)
-                   (interaction-environment))
-             (r5rs-entry-point argv)))))
+         (cond ((and (memq emode '(r7rs r7r6))
+                     (not (string=? pgm "")))
+                (eval (list 'run-r6rs-program pgm)
+                      (interaction-environment)))
+               ((and (not (string=? pgm ""))
+                     (file-exists? pgm))
+                (failsafe-load-file pgm))
+               (else
+                (r5rs-entry-point argv))))))
 
      ; R6RS mode is a batch mode, so we want to exit rather
      ; than enter the debugger.
@@ -320,7 +348,9 @@
   (map failsafe-load-file (osdep/find-init-files)))
 
 ;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
-;;; It now parses past -- only in R5RS mode.
+;;; It now parses past -- only in R5RS mode.  Even then it parses past
+;;; only if no top-level program has been specified.
+;;; FIXME: Common Larceny is an exception, which makes this complicated.
 
 (define (failsafe-process-arguments)
   (let ((argv (command-line-arguments))
@@ -338,6 +368,9 @@
              (list->vector
               (cdr (member "--" (vector->list argv))))))
            ((not (eq? emode 'r5rs))
+            #t)
+           ((< 0 (string-length
+                  (cdr (assq 'top-level-program (system-features)))))
             #t)
            ((or (string=? arg "-e")
                 (string=? arg "--eval"))

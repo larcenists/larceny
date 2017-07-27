@@ -285,6 +285,7 @@
       (else (equal? got expected))))
     
    (define (run-test expr got expected)
+     ;; (write expr) (newline)
      (set! checked (+ 1 checked))
      (unless (same-result? got expected)
       (set! failures

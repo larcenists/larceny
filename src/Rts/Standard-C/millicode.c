@@ -353,6 +353,9 @@ void EXPORT mc_alloc( word *globals )
   assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
 
   nwords = roundup_walign( nwords );
+  if ( nwords*sizeof(word) > LARGEST_OBJECT )
+    signal_exception( globals, EX_ALLOC, 0, 0 );
+
   p = GC_malloc( nwords*sizeof(word) );
   assert (p != 0);
   globals[ G_RESULT ] = (word)p;
@@ -367,6 +370,9 @@ void EXPORT mc_alloc( word *globals )
   assert2(((word)elim & 7) == 0);
 
   nwords = roundup_walign( nwords );
+  if ( nwords*sizeof(word) > LARGEST_OBJECT )
+    signal_exception( globals, EX_ALLOC, 0, 0 );
+
   p = etop;
   etop += nwords;
   if (etop <= elim) {

@@ -93,13 +93,13 @@
 (define (reset)
   ((reset-handler)))
 
-; To be replaced by exception system.
+; Now uses R6RS exception system.
 
 (define (call-without-errors thunk . rest)
   (let ((fail (if (null? rest) #f (car rest))))
     (call-with-current-continuation
      (lambda (k)
-       (call-with-error-handler (lambda (who . args) (k fail)) thunk)))))
+       (with-exception-handler (lambda (exn) (k fail)) thunk)))))
 
 ; Old code: clients should use PARAMETERIZE instead.
 

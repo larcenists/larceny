@@ -15,13 +15,12 @@ Larceny's R5RS mode.
 Interactive computing
 ~~~~~~~~~~~~~~~~~~~~~
 
-Larceny's `-r7rs` command-line option automatically imports the
+Larceny's `-r7` command-line option automatically imports the
 `(scheme base)` library.  The `-r7r6` command-line option imports
-all of the R7RS and R6RS standard libraries, including those
-deprecated by Larceny.
+all of the R7RS Red Edition and R6RS standard libraries, including
+those deprecated by Larceny.
 
 
-[[Err5rsAutomaticLoadingSection]]
 [[R7rsAutomaticLoadingSection]]
 
 Automatic loading
@@ -40,14 +39,13 @@ can be autoloaded.
 To enable autoloading of other R7RS/R6RS libraries,
 including libraries you've written yourself, you can:
 
-- use the <<R7rsLibraryPathSection,`-path` command-line option>>
-- use the <<R7rsLibraryVariableSection,`LARCENY_LIBPATH`>> environment variable
+- use the <<R7rsLibraryPathSection,`-I` or `-A` command-line options>>
+- use the <<R7rsLibraryPathSection,`LARCENY_LIBPATH`>> environment variable
 - use <<current-require-path,`current-require-path`>>
 - edit `startup.sch` in Larceny's root directory
 - add the libraries to Larceny's `lib` directory
 
 
-[[Err5rsDynamicLoadingSection]]
 [[R7rsDynamicLoadingSection]]
 
 Explicit loading
@@ -131,7 +129,7 @@ Composite library:
 
     (larceny r7r6)                         ; all R7RS/R6RS standard libraries
 
-R7RS standard libraries:
+link:../r7rs.pdf[R7RS (small)] standard libraries:
 
     (scheme base)
     (scheme case-lambda)
@@ -150,7 +148,27 @@ R7RS standard libraries:
     (scheme time)
     (scheme write)
 
-R6RS standard libraries:
+http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition] libraries:
+
+    (scheme box)                           ; SRFI 111
+    (scheme charset)                       ; SRFI 14
+    (scheme comparator)                    ; SRFI 128
+    (scheme ephemeron)                     ; SRFI 124
+    (scheme generator)                     ; SRFI 121
+    (scheme hash-table)                    ; SRFI 125 (partially deprecated)
+    (scheme ideque)                        ; SRFI 134
+    (scheme ilist)                         ; SRFI 116
+    (scheme list)                          ; SRFI 1
+    (scheme list-queue)                    ; SRFI 117
+    (scheme lseq)                          ; SRFI 127
+    (scheme rlist)                         ; SRFI 101 (systematically renamed)
+    (scheme set)                           ; SRFI 113
+    (scheme sort)                          ; SRFI 132
+    (scheme stream)                        ; SRFI 41
+    (scheme text)                          ; SRFI 135
+    (scheme vector)                        ; SRFI 133
+
+http://www.r6rs.org/[R6RS] standard libraries:
 
     (rnrs base (6))                        ; R6RS chapter 9
     (rnrs unicode (6))                     ; R6RS library chapter 1
@@ -184,7 +202,7 @@ facilities:
     (rnrs records inspection (6))          ; R6RS library section 6.4
     (rnrs records syntactic (6))           ; R6RS library section 6.2
 
-SRFI libraries:
+http://srfi.schemers.org/[SRFI] libraries:
 
     (srfi 1 lists)                         ; list library
     (srfi 2 and-let*)                      ; extended `and` and `let*`
@@ -233,23 +251,25 @@ SRFI libraries:
     (srfi 111 boxes)                       ; boxes
     (srfi 112)                             ; environment inquiry
     (srfi 113 sets)                        ; sets and bags
-    (srfi 114 comparators)                 ; comparators
     (srfi 115 regexp)                      ; regular expressions
     (srfi 116 ilists)                      ; immutable lists
     (srfi 117)                             ; queues based on lists
     (srfi 121)                             ; generators
     (srfi 123)                             ; generic accessor/modifier operators
     (srfi 124)                             ; ephemerons
-    (srfi 125)                             ; hash tables
     (srfi 126)                             ; R6RS-based hashtables
     (srfi 127)                             ; lazy sequences
     (srfi 128)                             ; comparators (reduced)
     (srfi 129)                             ; titlecase procedures
-    (srfi 130)                             ; cursor-based string library
     (srfi 131)                             ; ERR5RS record syntax (reduced)
-    (srfi 132)                             ; sort libraries
-    (srfi 133)                             ; vector library
     (srfi 134)                             ; immutable deques
+    (srfi 138)                             ; compiling top-level programs
+    (srfi 141)                             ; integer division
+    (srfi 143)                             ; fixnums
+    (srfi 144)                             ; flonums
+    (srfi 145)                             ; assumptions
+    (srfi 146)                             ; mappings
+    (srfi 151)                             ; bitwise operations
 
 [NOTE]
 ================================================================
@@ -266,20 +286,30 @@ in the list above.
 
 SRFI libraries that are autoloadable but deprecated in Larceny,
 usually because they have been superseded in whole or in part by
-R7RS or R6RS libraries or syntax (shown in parentheses):
+R7RS or R6RS or other SRFI libraries or syntax (shown in parentheses):
 
     (srfi 0)                               ; cond-expand (scheme base)
     (srfi 30)                              ; nested multi-line comments (#| |#)
     (srfi 34)                              ; exception handling (scheme base)
-    (srfi 43 vectors)                      ; vector library (srfi 133)
+    (srfi 43 vectors)                      ; vector library (scheme vector)
     (srfi 55)                              ; require-extension (import)
-    (srfi 60 integer-bits)                 ; see (rnrs arithmetic bitwise)
+    (srfi 60 integer-bits)                 ; (rnrs arithmetic bitwise)
     (srfi 62)                              ; S-expression comments ( #; )
-    (srfi 66 octet-vectors)                ; octet vectors (scheme base)
-    (srfi 69 basic-hash-tables)            ; hash tables (srfi 125), (srfi 126)
+    (srfi 66 octet-vectors)                ; (scheme base)
+    (srfi 69 basic-hash-tables)            ; (scheme hash-table), (srfi 126)
     (srfi 71 let)                          ; extensions of let, let*, letrec
-    (srfi 74 blobs)                        ; see (rnrs bytevectors)
-    (srfi 95 sorting-and-merging)          ; sorting and merging (srfi 132)
+    (srfi 74 blobs)                        ; (rnrs bytevectors)
+    (srfi 95 sorting-and-merging)          ; (scheme sorting)
+    (srfi 114 comparators)                 ; (scheme comparator)
+    (srfi 125)                             ; (scheme hash-table)
+    (srfi 130)                             ; (scheme text)
+    (srfi 132)                             ; (scheme sorting)
+    (srfi 133)                             ; (scheme vector)
+    (srfi 135)                             ; (scheme text)
+    (srfi 136)                             ; record types (srfi 99), (srfi 131)
+    (srfi 137)                             ; unique types (srfi 99), (srfi 131)
+    (srfi 142)                             ; bitwise operations (srfi 151)
+    (srfi 147)                             ; macro transformers (scheme base)
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
 because they have been superseded by the R7RS, SRFI 99, and SRFI 131
@@ -303,11 +333,7 @@ Other autoloadable libraries:
     (explicit-renaming)                    ; macros with explicit renaming
 
 
-[[ERR5RSLibraryPathSection]]
-[[R6rsLibraryPathSection]]
-[[R6rsLibraryVariableSection]]
 [[R7rsLibraryPathSection]]
-[[R7rsLibraryVariableSection]]
 
 Library path
 ~~~~~~~~~~~~
@@ -326,19 +352,25 @@ The
 is initialized by the `startup.sch` file in Larceny's root
 directory.
 
-<<R6rsLibraryPathSection, Larceny's `-path` command-line option>>
+<<R7rsLibraryPathSection, Larceny's `-I` and `-A` command-line options>>
 adds one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
-On most systems, you can specify multiple directories
+The `-I` option specifies directories to be searched before the
+standard directories; the `-A` option specifies directories to
+be searched after the standard directories.
+
+You can specify those options more than once on the command line.
+On most systems, you can also specify multiple directories
 by separating them with a colon; under Windows, use a
 semicolon as separator instead.  The first directory
 listed will be searched first.
 
-The <<R6rsLibraryVariableSection, `LARCENY_LIBPATH`>>
+The `LARCENY_LIBPATH`
 environment variable can also be used to add one or more directories
 to the directories in the
-<<current-require-path,`current-require-path`>>.
-Multiple directories should be specified as with the `-path` option.
+<<current-require-path,`current-require-path`>>,
+to be searched before the standard directories.
+Multiple directories should be specified as with the `-I` option.
 
 [TIP]
 ================================================================
@@ -346,13 +378,13 @@ If you have a set of portable libraries that run under more than
 one implementation of the R7RS, and you want to have a special
 version of some of those libraries for Larceny, you can put all
 your portable versions in one directory and the Larceny-specific
-versions in another.  When you run Larceny, use the `-path`
+versions in another.  When you run Larceny, use the `-I`
 option and specify the Larceny-specific directory first.
 ================================================================
 
 [NOTE]
 ================================================================
-The `-path` option cannot be used by Scheme scripts,
+The `-I` and `-A` options cannot be used by Scheme scripts,
 because command-line options are passed along to the Scheme
 script without being interpreted by the `scheme-script` processor.
 ================================================================
@@ -361,7 +393,7 @@ script without being interpreted by the `scheme-script` processor.
 ================================================================
 We emphasize that these extensions are non-portable.
 Other implementations of the R7RS or R6RS may not provide
-anything comparable to Larceny's `-path` option or
+anything comparable to Larceny's command-line options or
 `LARCENY_LIBPATH` environment variable.
 Even if they do, their mappings from library names
 to file names may be incompatible with Larceny's.

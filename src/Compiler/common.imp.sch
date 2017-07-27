@@ -354,6 +354,31 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; The common-compiler-macros defined below are responsible for
+;;; rewriting many calls to integrable procedures that take a
+;;; variable number of arguments into a composition of calls
+;;; that take the standard number of arguments.  This is done
+;;; at a syntactic level, so it fails to rewrite things like
+;;; ((if #t + -) 1 2 3 4).  A later phase of the compiler turns
+;;; that into (+ 1 2 3 4), which looks like a call to a primop
+;;; with the wrong number of arguments.  To tell pass4 it should
+;;; generate a closed call instead of flagging that as an error,
+;;; the following table names all of the primops for which pass4
+;;; should generate a closed call if the number of arguments
+;;; looks wrong.
+;;;
+;;; FIXME: This is a tedious and error-prone way to fix the
+;;; problem reported by ticket #743.
+;;;
+;;; NOTE: fx+, fx-, and fx* are specified to accept exactly
+;;; two arguments.
+
+(define variable-arity-primops-that-allow-closed-calls
+  '(make-vector make-bytevector make-string make-ustring
+    = < > <= >=
+    + * - /
+    char=? char<? char>? char<=? char>=?))
+
 ; The list of compiler macros has been rewritten to avoid the
 ; use of quasiquote on large structures.  Larceny's quasiquote
 ; apparently takes quadratic time, so this rewrite improved
@@ -510,6 +535,7 @@
               flmin flmax flabs
               flfloor flceiling fltruncate flround
               fl+ fl- fl* fl/
+              inexact
               eqv? memv assv memq
               map for-each
               char=? char<? char>? char<=? char>=?
@@ -519,6 +545,11 @@
               record-ref:bummed                    ; FIXME
               record-set!:bummed                   ; FIXME
               native-endianness
+              text?
+              text-length
+              %text-length
+              text-ref
+              %text-ref
               )
 
    ; FIXME: Eliminating these next two should fix ticket #37.
@@ -968,9 +999,12 @@
 
 `  ((_ larceny abs (abs ?z))
     (let ((temp ?z))
-      (if (< temp 0)
-          (.-- temp)
-          temp)))
+      (cond ((< temp 0)
+             (.-- temp))
+            ((flonum? temp)
+             (+ temp 0.0))
+            (else
+             temp))))
 
 `  ((_ larceny negative? (negative? ?x))
     (< ?x 0))
@@ -981,12 +1015,11 @@
 `  ((_ larceny min (min ?x ?y))
     (let ((x ?x) (y ?y))
       (let ((r (if (<= x y) x y)))
-        (if (or (inexact? x) (inexact? y))
-            (+ r 
-               (if (or (not (= x x)) (not (= y y)))
-                   +nan.0
-                   0.0))
-            r))))
+        (cond ((or (not (= x x)) (not (= y y)))
+               +nan.0)
+              ((or (inexact? x) (inexact? y))
+               (inexact r))
+              (else r)))))
 `  ((_ larceny min (min ?x ?y ?z ...))
     (let ((x ?x) (y (min ?y ?z ...)))
       (min x y)))
@@ -994,12 +1027,11 @@
 `  ((_ larceny max (max ?x ?y))
     (let ((x ?x) (y ?y))
       (let ((r (if (>= x y) x y)))
-        (if (or (inexact? x) (inexact? y))
-            (+ r 
-               (if (or (not (= x x)) (not (= y y)))
-                   +nan.0
-                   0.0))
-            r))))
+        (cond ((or (not (= x x)) (not (= y y)))
+               +nan.0)
+              ((or (inexact? x) (inexact? y))
+               (inexact r))
+              (else r)))))
 `  ((_ larceny max (max ?x ?y ?z ...))
     (let ((x ?x) (y (max ?y ?z ...)))
       (max x y)))
@@ -1368,7 +1400,7 @@
     (let ((x ?x))
       (if (fl<? x 0.0)
           (fl- x)
-          x)))
+          (fl+ x 0.0))))    ; so (flabs -0.0) returns 0.0 (ticket #791)
 
 `  ((_ larceny flfloor (flfloor ?x))
     (let ((x ?x))
@@ -1405,7 +1437,10 @@
 `  ((_ larceny fl+ (fl+))
     0.0)
 `  ((_ larceny fl+ (fl+ ?x))
-    (fl+ ?x 0.0))
+    (let ((x ?x)
+          (y 0.0))
+      (.check! (flonum? x) ,$ex.fl+ x y)
+      x))
 `  ((_ larceny fl+ (fl+ ?x ?y))
     (let ((x ?x)
           (y ?y))
@@ -1447,8 +1482,8 @@
       (.check! (flonum? y) ,$ex.fl- x y)
       (.-:flo:flo x y)))
 `  ((_ larceny fl- (fl- ?x ?y ?z ...))
-    (let* ((x ?x) (y ?y) (z (fl+ ?z ...)))
-      (fl- x (fl+ y z))))
+    (let* ((x ?x) (y ?y))
+      (fl- (fl- x y) ?z ...)))
 
 `  ((_ larceny fl/ (fl/ ?x))
     (let ((x ?x))
@@ -1466,8 +1501,12 @@
       (.check! (flonum? y) ,$ex.fl/ x y)
       (./:flo:flo x y)))
 `  ((_ larceny fl/ (fl/ ?x ?y ?z ...))
-    (let* ((x ?x) (y ?y) (z (fl* ?z ...)))
-      (fl/ x (fl* y z))))
+    (let* ((x ?x) (y ?y))
+      (fl/ (fl/ x y) ?z ...)))
+
+`  ((_ larceny inexact (inexact ?x))
+    (let* ((x ?x))
+      (if (inexact? x) x (+ x 0.0))))
 
    ; These three compiler macros cannot be expressed using SYNTAX-RULES.
 
@@ -1761,6 +1800,69 @@
                     (record-set!)
                     (complain))))
           (complain))))
+
+   ; The 128 is the value of larceny:text-N.
+   ; The slots of a text record are
+   ;     0   inheritance chain
+   ;             element 0 of that chain is the rtd for this record
+   ;     1   k, which encodes length and i0
+   ;             (i0 is the number of characters in first chunk
+   ;             that do not belong to the text)
+   ;     2   vector of chunks
+   ; FIXME: these could be bummed further.
+
+`  ((_ larceny text? (text? obj0))
+    (let ((x obj0))
+      (and (structure? x)
+           (eq? (.vector-ref:trusted (.vector-ref:trusted x 0) 0)
+                larceny:text-rtd))))
+
+`  ((_ larceny text-length (text-length txt0))
+    (let ((txt txt0))
+      (.check! (structure? txt) ,$ex.tlen txt)
+      (.check! (eq? (.vector-ref:trusted (.vector-ref:trusted txt 0) 0)
+                    larceny:text-rtd)
+               ,$ex.tlen
+               txt)
+      (.fxrshl (.vector-ref:trusted txt 1) 7)))
+
+`  ((_ larceny %text-length (%text-length txt0))
+    (let ((txt txt0))
+      (.fxrshl (.vector-ref:trusted txt 1) 7)))
+
+   ;; FIXME: limits length of text to fixnum range, but that's
+   ;; necessary anyway if texts are to be convertible to strings.
+
+`  ((_ larceny text-ref (text-ref txt0 index0))
+    (let ((txt txt0)
+          (i index0))
+      (.check! (structure? txt) ,$ex.tlen txt)
+      (.check! (eq? (.vector-ref:trusted (.vector-ref:trusted txt 0) 0)
+                    larceny:text-rtd)
+               ,$ex.tlen
+               txt)
+      (.check! (.fixnum? i) ,$ex.tref txt i)
+      (.check! (.>=:fix:fix i 0) ,$ex.tref txt i)
+      (%text-ref txt i)))
+
+`  ((_ larceny %text-ref (%text-ref txt0 index0))
+    (let ((txt txt0)
+          (i index0))
+      (let* ((k      (.vector-ref:trusted txt 1)) ; might not be a fixnum
+             (chunks (.vector-ref:trusted txt 2))
+             (len    (quotient k 128))
+             (i0     (remainder k 128))
+             (i+i0   (.+:idx:idx i i0))
+             (j      (.fxrshl i+i0 7))
+             (ii     (.fxlogand i+i0 127)))
+        (.check! (.<:fix:fix i len) ,$ex.tref txt i)
+        (let* ((sj (.vector-ref:trusted chunks j))
+               (sjn (.bytevector-like-length:bvl sj)))
+          (if (if (< j (- (.vector-length:vec chunks) 1))
+                  (= sjn 128) ; and not the last chunk
+                  (= sjn (.fxlogand (.+:idx:idx i0 len) 127)))
+              (.integer->char:trusted (.bytevector-like-ref:trusted sj ii))
+              (%utf8-ref sj ii))))))
 
    ; Default case: expand into the original expression.
 

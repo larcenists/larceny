@@ -234,7 +234,26 @@
                  v)
                "#1=#((#2=(1 . #3=(2 #1# 4 . #3#)) #1#) #2# #(#1# #2#))")
 
+   (print-test "immutable texts"
+               write
+               (map string->text
+                    '("" "abc" "def\"\x00bb;\x00ab;g"))
+               (string-append
+                "(\x00ab;\x00bb; \x00ab;abc\x00bb; "
+                "\x00ab;def\\\"\\xbb;\\xab;g\xbb;)"))
 
+   (print-test "immutable texts (write/read/write)"
+               (lambda (x q2)
+                 (let ((q1 (open-output-string)))
+                   (write x q1)
+                   (write (read (open-input-string
+                                 (get-output-string q1)))
+                          q2)))
+               (map string->text
+                    '("" "abc" "def\"\x00bb;\x00ab;g"))
+               (string-append
+                "(\x00ab;\x00bb; \x00ab;abc\x00bb; "
+                "\x00ab;def\\\"\\xbb;\\xab;g\xbb;)"))
 
    ))
 

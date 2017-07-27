@@ -26,10 +26,15 @@ Michael Sperber, R Kent Dybvig, Matthew Flatt, and Anton van Straaten
 [editors].
 http://www.r6rs.org/[Revised^6 Report
 on the Algorithmic Language Scheme], 2007.
+(This standard was approved by 66% of 102 votes.)
 
 Alex Shinn, John Cowan, and Arthur A Gleckler [editors].
 http://www.scheme-reports.org/[Revised^7 Report
 on the Algorithmic Language Scheme], 2013.
+(This standard was approved by 86% of 63 votes.)
+
+John Cowan [editor].
+http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition], 2016.
 
 
 Other relevant standards

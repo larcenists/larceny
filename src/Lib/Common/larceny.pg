@@ -22,6 +22,7 @@ boolean
 number
 character
 string
+text
 lparen
 rparen
 lbracket
@@ -61,6 +62,7 @@ xstring
                   ::=  xfaslc                                   #makeCompnum
                   ::=  xfaslf                                   #makeFlonum
                   ::=  character                                #makeChar
+                  ::=  text                                     #makeText
                   ::=  string                                   #makeString
                   ::=  xstring                                  #makeXString
                   ::=  id                                       #makeSym
@@ -72,8 +74,6 @@ xstring
 <structured>      ::=  <list>                                   #identity
                   ::=  <vector>                                 #identity
                   ::=  <bytevector>                             #identity
-<string>          ::=  string                                   #makeString
-                  ::=  xstring                                  #makeXString
 <symbol>          ::=  id                                       #makeSym
 <list>            ::=  lparen <list2>                           #identity
                   ::=  lbracket <blst2>                         #identity

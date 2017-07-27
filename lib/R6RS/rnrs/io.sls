@@ -84,7 +84,9 @@
    (core primitives)
    (for (only (core primitives) ...) expand)
    (for (core syntax-rules) expand)
-   (rnrs base)
+   (except (rnrs base)
+           let-syntax
+           letrec-syntax)
    (rnrs lists)
    (larceny deprecated) ; [Larceny]
    (primitives

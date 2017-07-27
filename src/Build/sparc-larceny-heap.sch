@@ -119,6 +119,7 @@
                             include-source-code
                             include-variable-names
                             single-stepping
+                            hygienic-literals
                             avoid-space-leaks
                             write-barrier
                             runtime-safety-checking

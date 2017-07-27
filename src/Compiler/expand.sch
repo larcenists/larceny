@@ -242,6 +242,7 @@
                   (not (number? exp))
                   (not (char? exp))
                   (not (string? exp))
+                  (not (text? exp))       ; new in R7RS Red Edition
                   (not (bytevector? exp)) ; new in R6RS
                   (not (vector? exp))     ; R7RS allows unquoted vectors
 		  (not (procedure? exp))

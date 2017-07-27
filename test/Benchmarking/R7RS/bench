@@ -65,7 +65,7 @@ TEMP="/tmp/larcenous"
 
 GABRIEL_BENCHMARKS="browse deriv destruc diviter divrec puzzle triangl tak takl ntakl cpstak ctak"
 
-NUM_BENCHMARKS="fib fibc fibfp sum sumfp fft mbrot mbrotZ nucleic pi pnpoly ray simplex"
+NUM_BENCHMARKS="fib fibc fibfp sum sumfp fft mbrot mbrotZ nucleic pi chudnovsky pnpoly ray simplex"
 
 KVW_BENCHMARKS="ack array1 string sum1 cat tail wc"
 
@@ -77,7 +77,11 @@ GC_BENCHMARKS="nboyer sboyer gcbench mperm"
 
 SYNTH_BENCHMARKS="equal bv2string"
 
-ALL_BENCHMARKS="$GABRIEL_BENCHMARKS $NUM_BENCHMARKS $KVW_BENCHMARKS $IO_BENCHMARKS $OTHER_BENCHMARKS $GC_BENCHMARKS $SYNTH_BENCHMARKS"
+RED_EDITION_PART1="dderiv bibfreq bibfreq2 hashtable0 listsort vecsort"
+RED_EDITION_PART2="list ilist rlist vector set charset stream lseq generator text"
+RED_EDITION="$RED_EDITION_PART1 $RED_EDITION_PART2"
+
+ALL_BENCHMARKS="$GABRIEL_BENCHMARKS $NUM_BENCHMARKS $KVW_BENCHMARKS $IO_BENCHMARKS $OTHER_BENCHMARKS $GC_BENCHMARKS $SYNTH_BENCHMARKS $RED_EDITION"
 
 ################################################################
 

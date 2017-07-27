@@ -20,11 +20,18 @@
 ;;;     textual-port?       (resolved by using R7RS extended semantics)
 ;;;     binary-port?        (resolved by using R7RS extended semantics)
 ;;;
+;;;     remove              (unresolvable; requires renaming)
+;;;     string-hash         (deprecated version takes optional argument)
+;;;     string-ci-hash      (deprecated version takes optional argument)
+;;;
+;;;     vector-sort         (resolved by using R7RS extended semantics)
+;;;     vector-sort!        (resolved by using R7RS extended semantics)
+;;;
 ;;; Possible conflicts:
 ;;;
 ;;;     
 
-(import (except (rnrs) bytevector-copy!)
+(import (except (rnrs) bytevector-copy! remove)
         (rnrs eval)
         (rnrs mutable-pairs)
         (rnrs mutable-strings)
@@ -46,9 +53,37 @@
         (scheme time)
         (scheme write)
         (scheme r5rs)
+
+        ;; R7RS Red Edition
+
+        (scheme list)
+        (scheme vector)
+        (scheme sort)
+        (scheme set)
+        (scheme charset)
+        (except (scheme hash-table)
+                string-hash      ; incompatible because they must accept
+                string-ci-hash)  ; an optional second argument
+        (scheme ilist)
+        (scheme rlist)
+        (scheme ideque)
+        (scheme text)
+        (scheme generator)
+        (scheme lseq)
+        (scheme stream)
+        (scheme box)
+        (scheme list-queue)
+        (scheme ephemeron)
+        (scheme comparator)
         )
 
 (display "All libraries loaded with these name conflicts:\n")
 (for-each (lambda (name) (display "    ") (write name) (newline))
-          '(bytevector-copy!))
+          '(bytevector-copy!
+
+            ;; new conflicts in R7RS Red Edition
+
+            remove
+            string-hash
+            string-ci-hash))
 (newline)

@@ -48,7 +48,13 @@ to _val_.
 proc:system[args="command",result="status"]
 
 Send the _command_ to the operating system's command processor and
-return the command's exit status, if any. On Unix, _command_ is a
+return the `system` command's exit status. On Unix, _command_ is a
 string and _status_ is an exact integer.
 
+[NOTE]
+================================================================
+If the _command_ returns a nonzero exit status, then the exit
+status returned by `system` is 256 times the exit status returned
+by the _command_.
+================================================================
 

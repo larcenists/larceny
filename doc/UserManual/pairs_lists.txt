@@ -1,11 +1,11 @@
 Pairs and Lists
 ~~~~~~~~~~~~~~~
 
-The `(rnrs lists)` library now
-provides a set of procedures that may supersede some
+The `(scheme list)` and `(rnrs lists)` libraries now
+provide a set of procedures that may supersede some
 of the procedures described below.
 If one of Larceny's procedures duplicates the semantics of
-an R6RS procedure whose name is different, then Larceny's
+an R7RS or R6RS procedure whose name is different, then Larceny's
 name is deprecated.
 
 proc:append![args="list1 list2 ... obj",result="object"]
@@ -17,11 +17,14 @@ each argument except the last to point to the next argument.
 
 proc:every?[args="procedure list1 list2 ...",result="object"]
 
-`every?` applies _procedure_ to each element tuple of _list_s in
+If the lists have different lengths, they are in effect converted
+to the length of the shortest list.  Element tuples are formed as
+by applying `map` to the `list` procedure and the given lists.
+`every?` applies _procedure_ to each of those element tuples in
 first-to-last order, and returns `#f` as soon as _procedure_ returns
-`#f`. If _procedure_ does not return `#f` for any element tuple of
-_list_s, then the value returned by _procedure_ for the last element
-tuple of _list_s is returned.
+`#f`. If _procedure_ does not return `#f` for any element tuple,
+then the value returned by _procedure_ for the last element
+tuple is returned.
 
 proc:last-pair[args="list-structure",result="pair"]
 
@@ -58,7 +61,11 @@ list.
 
 proc:some?[args="procedure list1 list2 ...",result="object"]
 
-`some?` applies _procedure_ to each element tuple of _list_s in
+If the lists have different lengths, they are in effect converted
+to the length of the shortest list.  Element tuples are formed as
+by applying `map` to the `list` procedure and the given lists.
+`some?` applies _procedure_ to each of those element tuples in
 first-to-last order, and returns the first non-false value returned by
 _procedure._ If _procedure_ does not return a true value for any
-element tuple of _list_s, then some? returns `#f`.
+element tuple, then some? returns `#f`.
+

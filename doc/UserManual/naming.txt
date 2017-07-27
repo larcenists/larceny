@@ -1,6 +1,6 @@
 [[NamingChapter]]
 
-File naming conventions
+File Naming Conventions
 -----------------------
 
 
@@ -103,7 +103,7 @@ the `cond-expand` feature might be named `foo.body2.larceny.scm`.
 ================================================================
 Portable source code can be tailored to Larceny and other
 implementations of the R7RS by combining implementation-specific
-mechanisms such as Larceny's `-path` option with the `include`
+mechanisms such as Larceny's `-I` option with the `include`
 and `cond-expand` features of R7RS libraries.
 ================================================================
 
@@ -214,7 +214,7 @@ standard naming conventions as described in
 <<LibraryTranslationSection,the next section>>.
 
 3.  R7RS/R6RS top-level programs may use
-<<R7rsLibraryPathSection, Larceny's `-path` option>>
+<<R7rsLibraryPathSection, Larceny's `-I` and `-A` options>>
 to specify directories that contain other libraries
 the program may import, provided those libraries are
 located in files that follow Larceny's standard naming
@@ -222,7 +222,7 @@ conventions as described in
 <<LibraryTranslationSection,the next section>>.
 
 4.  R7RS/R6RS top-level programs may use
-<<R7rsLibraryVariableSection,Larceny's `LARCENY_LIBPATH` environment variable>>
+<<R7rsLibraryPathSection,Larceny's `LARCENY_LIBPATH` environment variable>>
 to specify directories that contain other libraries
 the program may import, provided those libraries are
 located in files that follow Larceny's standard naming
@@ -251,32 +251,32 @@ explicitly forbidden by one of the R6RS standard's
 Mapping library names to files (R7RS/R6RS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Suppose Larceny's `-path` option is used to specify
+Suppose Larceny's `-I` option is used to specify
 a certain _directory_, and the program imports a
 nonstandard library whose name is of the form
-`(_name1_ _name2_ ... _lastname_)`.
++(_name1_ _name2_ ... _lastname_)+.
 Larceny will search for that library in the following
 files:
 
-- `_directory_/_name1_/_name2_/.../_lastname_.larceny.slfasl`
-- `_directory_/_name1_/_name2_/.../_lastname_.larceny.sld`
-- `_directory_/_name1_/_name2_/.../_lastname_.larceny.sls`
-- `_directory_/_name1_/_name2_/.../_lastname_.slfasl`
-- `_directory_/_name1_/_name2_/.../_lastname_.sld`
-- `_directory_/_name1_/_name2_/.../_lastname_.sls`
+- +_directory_/_name1_/_name2_/.../_lastname_.larceny.slfasl+
+- +_directory_/_name1_/_name2_/.../_lastname_.larceny.sld+
+- +_directory_/_name1_/_name2_/.../_lastname_.larceny.sls+
+- +_directory_/_name1_/_name2_/.../_lastname_.slfasl+
+- +_directory_/_name1_/_name2_/.../_lastname_.sld+
+- +_directory_/_name1_/_name2_/.../_lastname_.sls+
 - ...
-- `_directory_/_name1_/_name2_.larceny.slfasl`
-- `_directory_/_name1_/_name2_.larceny.sld`
-- `_directory_/_name1_/_name2_.larceny.sls`
-- `_directory_/_name1_/_name2_.slfasl`
-- `_directory_/_name1_/_name2_.sld`
-- `_directory_/_name1_/_name2_.sls`
-- `_directory_/_name1_.larceny.slfasl`
-- `_directory_/_name1_.larceny.sld`
-- `_directory_/_name1_.larceny.sls`
-- `_directory_/_name1_.slfasl`
-- `_directory_/_name1_.sld`
-- `_directory_/_name1_.sls`
+- +_directory_/_name1_/_name2_.larceny.slfasl+
+- +_directory_/_name1_/_name2_.larceny.sld+
+- +_directory_/_name1_/_name2_.larceny.sls+
+- +_directory_/_name1_/_name2_.slfasl+
+- +_directory_/_name1_/_name2_.sld+
+- +_directory_/_name1_/_name2_.sls+
+- +_directory_/_name1_.larceny.slfasl+
+- +_directory_/_name1_.larceny.sld+
+- +_directory_/_name1_.larceny.sls+
+- +_directory_/_name1_.slfasl+
+- +_directory_/_name1_.sld+
+- +_directory_/_name1_.sls+
 
 The search starts with the first of those file names,
 continues with the following file names in order,
@@ -321,7 +321,7 @@ deprecated.
 Mapping library names to files (R5RS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In R5RS mode, Larceny's `-path` option
+In R5RS mode, Larceny's `-I` and `-A` options
 and `LARCENY_LIBPATH` environment variable
 may be used to
 specify directories to be searched by the `require`
@@ -330,11 +330,11 @@ its argument.
 The `require` procedure will search for the following
 files in every directory that is part of the current
 require path, starting with the directories specified
-by LARCENY_LIBPATH and the `-path` option:
+by LARCENY_LIBPATH and the `-I` and `-A` options:
 
-- `_libname_.fasl`
-- `_libname_.sch`
-- `_libname_.scm`
+- +_libname_.fasl+
+- +_libname_.sch+
+- +_libname_.scm+
 
 These files are expected to contain R5RS code, not
 library definitions.  Otherwise the search proceeds
@@ -370,7 +370,7 @@ proctempl:current-require-path[args="stringlist"]
 The optional argument is a list of directory names
 (without slashes at the end) that should be searched
 by <<require,`require`>> and (in R7RS/R6RS modes)
-by Larceny's <<ERR5RSLibraryPathSection,autoload>>
+by Larceny's <<R7rsLibraryPathSection,autoload>>
 feature.
 Returns the list of directory names that will be
 searched.

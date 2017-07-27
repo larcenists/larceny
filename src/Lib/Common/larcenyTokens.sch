@@ -47,16 +47,6 @@
      (lambda (c)
        (and (char? c)
             (char<=? c (integer->char 127)))))
-    (isAsciiNotVbar
-     (lambda (c)
-       (and (char? c)
-            (char<=? c (integer->char 127))
-            (not (char=? c #\|)))))
-    (isAsciiNotDoublequote
-     (lambda (c)
-       (and (char? c)
-            (char<=? c (integer->char 127))
-            (not (char=? c #\")))))
     (isNotNewline
      (lambda (c)
        (and (char? c)
@@ -70,6 +60,23 @@
        (and (char? c)
             (not (char=? c #\|))
             (not (char=? c #\\)))))
+    (isLeftDoubleAngleQuote
+     (lambda (c)
+       (and (char? c)
+            (char=? c (integer->char #x00ab)))))
+    (isRightDoubleAngleQuote
+     (lambda (c)
+       (and (char? c)
+            (char=? c (integer->char #x00bb)))))
+    (isNotRightDoubleAngleQuote
+     (lambda (c)
+       (and (char? c)
+            (not (char=? c (integer->char #x00bb))))))
+    (isNotDoublequote
+     (lambda (c)
+       (and (char? c)
+            (char<=? c (integer->char 127))
+            (not (char=? c #\")))))
     (isZsZlZp
      (lambda (c)
        (and (char? c) (char-whitespace? c))))
@@ -622,14 +629,31 @@
               (* (! (! #\linefeed #\return (#\return #\linefeed)
                        isNel (#\return isNel) isLS)
                     (#\\ (! #\a #\b #\t #\n #\v #\f #\r #\" #\\
+                            isLeftDoubleAngleQuote isRightDoubleAngleQuote
                             (! #\linefeed #\return (#\return #\linefeed)
                                isNel (#\return isNel) isLS)
                             #\space
                             (#\x (! %0..9 %a..f %A..F)
                                  (* (! %0..9 %a..f %A..F)))
                             isChar))                 ; anything can be escaped
-                    isChar))
+                    isNotDoubleQuote))
               #\"))
+
+     ; Same as string except for opening and closing quotes.
+
+     (text (isLeftDoubleAngleQuote
+            (* (! (! #\linefeed #\return (#\return #\linefeed)
+                     isNel (#\return isNel) isLS)
+                  (#\\ (! #\a #\b #\t #\n #\v #\f #\r #\" #\\
+                          isLeftDoubleAngleQuote isRightDoubleAngleQuote
+                          (! #\linefeed #\return (#\return #\linefeed)
+                             isNel (#\return isNel) isLS)
+                          #\space
+                          (#\x (! %0..9 %a..f %A..F)
+                               (* (! %0..9 %a..f %A..F)))
+                          isChar))                 ; anything can be escaped
+                  isNotRightDoubleAngleQuote))
+            isRightDoubleAngleQuote))
 
      ; #^B #^C #^F #^G #^P (used in .fasl files)
 
