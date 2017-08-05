@@ -871,7 +871,8 @@
   ;;     defined in text.sch but not exported by (scheme text)
 
   (environment-set! larc 'larceny:text-complain larceny:text-complain)
-  (environment-set! larc 'larceny:text-rtd larceny:text-rtd)
+  (environment-set! larc 'larceny:text-inheritance-vector
+                    larceny:text-inheritance-vector)
   (environment-set! larc '%new-text %new-text)
   (environment-set! larc 'larceny:text.k larceny:text.k)
   (environment-set! larc 'larceny:text.chunks larceny:text.chunks)

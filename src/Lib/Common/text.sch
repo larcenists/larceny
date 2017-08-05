@@ -97,6 +97,11 @@
 (define larceny:the-empty-text
   (%new-text 0 0 (vector (make-bytevector 0))))
 
+;;; used by src/Compiler/common.imp.sch
+
+(define larceny:text-inheritance-vector
+  (vector-like-ref larceny:the-empty-text 0))
+
 ;;; text? is defined by the record definition above.
 
 (define (text-length txt)

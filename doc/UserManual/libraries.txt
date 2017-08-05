@@ -270,6 +270,7 @@ http://srfi.schemers.org/[SRFI] libraries:
     (srfi 145)                             ; assumptions
     (srfi 146)                             ; mappings
     (srfi 151)                             ; bitwise operations
+    (srfi 152)                             ; string library (reduced)
 
 [NOTE]
 ================================================================
