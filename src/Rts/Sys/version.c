@@ -29,7 +29,7 @@
  *  General Ripper              0.98b1      21 Oct 2011     fcbaf3b
  *                              0.98         7 Mar 2015     60876f5
  *  Goldie                      0.99        25 May 2016     4671a1f
- *  Grain Alcohol and Rainwater 1.3
+ *  Grain Alcohol and Rainwater 1.3          6 Aug 2017     567b862
  *  Group Commander Mandrake
  *  Hair Mussed
  *  Hi There!

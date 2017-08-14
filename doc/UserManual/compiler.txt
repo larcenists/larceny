@@ -103,30 +103,30 @@ when one of the files to be compiled is imported, directly
 or indirectly, by a file that is neither passed as an argument
 nor relied upon by one of the files passed as an argument.
 
-The `compile-recklessly` procedure compiles the given files
+The `compile-stalerecklessly` procedure compiles the given files
 along with all of the files on which they depend that have
 not yet been compiled or have gone stale or import a library
 from one of the files that will be compiled.
 If there are available libraries that depend upon one of the
 files to be compiled but are not imported (directly or
 indirectly) by one of the given files, then they too will
-need to be re-compiled; the `compile-recklessly` procedure
+need to be re-compiled; the `compile-stalerecklessly` procedure
 does not re-compile those libraries, but it does print a
 message listing them.
 
-The `compile-regardless` procedure behaves the same as the
-`compile-recklessly` procedure when all of the files to be
+The `compile-staleregardless` procedure behaves the same as the
+`compile-stalerecklessly` procedure when all of the files to be
 compiled and all of the other files that would need to be
 re-compiled are located within the current directory.  If
-not, `compile-regardless` does not compile any files but
+not, `compile-staleregardless` does not compile any files but
 does print a message telling how to compile all of the
 files using `compile-file`.
 
-The `compile-cautiously` procedure behaves the same as the
-`compile-regardless` procedure when all of the files can be
+The `compile-stalecautiously` procedure behaves the same as the
+`compile-staleregardless` procedure when all of the files can be
 compiled without affecting any available libraries that will
 not be compiled.  If compiling the files would make it
-necessary to re-compile some other library, `compile-cautiously`
+necessary to re-compile some other library, `compile-stalecautiously`
 does not compile any files but does print a message telling
 how to compile all of the files using `compile-file`.
 
