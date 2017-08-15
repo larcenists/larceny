@@ -23,68 +23,68 @@
     (define (number2string x radix)
       (cond ((fixnum? x)
              (integer->string x radix))
-	    ((flonum? x)
-	     (flonum->string x radix))
-	    ((compnum? x)
-	     (compnum->string x radix))
+            ((flonum? x)
+             (flonum->string x radix))
+            ((compnum? x)
+             (compnum->string x radix))
             ((bignum? x)
              (bignum->string x radix))
-	    ((ratnum? x)
-	     (ratnum->string x radix))
-	    ((rectnum? x)
-	     (rectnum->string x radix))
-	    (else
-	     (error "number->string: not a number: " x)
-	     #t)))
+            ((ratnum? x)
+             (ratnum->string x radix))
+            ((rectnum? x)
+             (rectnum->string x radix))
+            (else
+             (error "number->string: not a number: " x)
+             #t)))
 
     (define (compnum->string x radix)
       (let ((r (real-part x))
-	    (i (imag-part x)))
-	(cond ((not (= radix 10))
+            (i (imag-part x)))
+        (cond ((not (= radix 10))
                ; FIXME: doesn't handle infinities, NaNs, 0.0+0.0i
-	       (string-append "#i"
+               (string-append "#i"
                               (number->string
                                (make-rectangular (inexact->exact r)
                                                  (inexact->exact i)))))
-	      (else
-	       ; A little mysterious, to deal with +/-inf.0, +nan.0
-	       (let ((rr (flonum->string r 10))
-		     (ii (flonum->string i 10)))
-		 (string-append rr
-				(let ((c (string-ref ii 0)))
-				  (if (and (not (char=? c #\+))
-					   (not (char=? c #\-)))
-				      "+"
-				      ""))
-				ii
-				"i"))))))
+              (else
+               ; A little mysterious, to deal with +/-inf.0, +nan.0
+               (let ((rr (flonum->string r 10))
+                     (ii (flonum->string i 10)))
+                 (string-append rr
+                                (let ((c (string-ref ii 0)))
+                                  (if (and (not (char=? c #\+))
+                                           (not (char=? c #\-)))
+                                      "+"
+                                      ""))
+                                ii
+                                "i"))))))
 
     (define (flonum->string x radix)
       (let ((exp (float-exponent x)))
-	(cond ((= exp flonum:maxexponent)
-	       (cond ((not (= x x))
-		      (string-copy "+nan.0"))
-		     ((positive? x)
-		      (string-copy "+inf.0"))
-		     (else (string-copy "-inf.0"))))
-	      ((= radix 10)
-	       (if (= x 0.0)
-		   (string-copy (if (= (float-sign x) 0) "0.0" "-0.0"))
-		   (string-append (if (negative? x) "-" "")
-				  (dragon (float-significand x)
-					  exp))))
-	      ((= x 0.0)
-	       (string-copy "#i0"))
-	      (else
-	       (let* ((p (abs (inexact->exact (numerator x))))
-		      (q (inexact->exact (denominator x))))
-		 (string-append "#i"
-				(if (negative? x) "-" "")
-				(number2string p radix)
-				(if (not (= q 1))
-				    (string-append "/"
-						   (number2string q radix))
-				    "")))))))
+        (cond ((= exp flonum:maxexponent)
+               (cond ((not (= x x))
+                      (string-copy "+nan.0"))
+                     ((positive? x)
+                      (string-copy "+inf.0"))
+                     (else (string-copy "-inf.0"))))
+              ((= radix 10)
+               (if (= x 0.0)
+                   (string-copy (if (= (float-sign x) 0) "0.0" "-0.0"))
+                   (string-append (if (negative? x) "-" "")
+                                  (dragon (float-significand x)
+                                          exp))))
+              ((= x 0.0)
+               (string-copy "#i0"))
+              (else
+               (let* ((p (abs (inexact->exact (numerator x))))
+                      (q (inexact->exact (denominator x))))
+                 (string-append "#i"
+                                (if (negative? x) "-" "")
+                                (number2string p radix)
+                                (if (not (= q 1))
+                                    (string-append "/"
+                                                   (number2string q radix))
+                                    "")))))))
     
     (define flonum:infinity 1e500)
     (define flonum:maxexponent 972)
@@ -105,11 +105,11 @@
       (cond ((zero? n) (list->string chars))
             (else (let ((q (quotient n radix)))
                     (integer->string-loop 
-		     q
-		     radix
-		     (cons (vector-ref **digit-characters**
-				       (- n (* radix q)))
-			   chars))))))
+                     q
+                     radix
+                     (cons (vector-ref **digit-characters**
+                                       (- n (* radix q)))
+                           chars))))))
     
     (define **digit-characters**
       '#(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9
