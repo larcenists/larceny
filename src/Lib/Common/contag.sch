@@ -166,23 +166,27 @@
 
   ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
   ; representable as exact integers, represent as bignums and compare. 
-  ; Otherwise represent as flonums and compare.  One of the arguments
-  ; is a bignum, the other is a flonum.  Compnums with non-zero
-  ; imaginary parts are illegal and flagged as such.
+  ; Otherwise represent as ratnums and compare.  One of the arguments
+  ; is a bignum, the other is a flonum.
 
   (define (algorithm*p a b retry)
-    (if (and (integer? a)
-             (integer? b))
-        (let ((a (->int a))
-              (b (->int b)))
-          (if (and a b)
-              (retry a b)
-              (contagion-error a b retry)))
-        (let ((a (->flo a))
-              (b (->flo b)))
-          (if (and a b)
-              (retry a b)
-              (contagion-error a b retry)))))
+    (cond ((and (integer? a)
+                (integer? b))
+           (let ((a (->int a))
+                 (b (->int b)))
+             (if (and a b)
+                 (retry a b)
+                 (contagion-error a b retry))))
+          ((flonum? a)
+           (let ((zero (- a a)))
+             (if (= zero zero)
+                 (retry (->rat a) (bignum->ratnum b))
+                 (retry a 0.0))))
+          (else
+           (let ((zero (- b b)))
+             (if (= zero zero)
+                 (retry (bignum->ratnum a) (->rat b))
+                 (retry 0.0 b))))))
 
   ; Algorithm* for ordering predicates (<, <=, >, >=): if both are
   ; representable as exact rationals, represent as such and compare. 
@@ -210,24 +214,31 @@
   ; One input is a bignum, the other a flonum or compnum.
 
   (define (algorithm*e a b retry)
-    (if (and (integer? a)
-             (integer? b)
-             (if (inexact? a)
-                 (let ((zero (- a a)))
-                   (= zero zero))
-                 (let ((zero (- b b)))
-                   (= zero zero))))
-        (let ((a (->int a))
-              (b (->int b)))
-          (retry a b))
-        (let ((a (->flo/comp a))
-              (b (->flo/comp b)))
-          (retry a b))))
+    (cond ((and (integer? a)
+                (integer? b)
+                (if (inexact? a)
+                    (let ((zero (- a a)))
+                      (= zero zero))
+                    (let ((zero (- b b)))
+                      (= zero zero))))
+           (let ((a (->int a))
+                 (b (->int b)))
+             (retry a b)))
+          ((flonum? a)
+           (let ((zero (- a a)))
+             (if (= zero zero)
+                 (retry (->rat a) (bignum->ratnum b))
+                 #f)))
+          ((compnum? a)
+           (if (zero? (imag-part a))
+               (algorithm*e (real-part a) b retry)
+               #f))
+          (else
+           (algorithm*e b a retry))))
 
   ; Algorithm* for equality.  If both are representable as exact
   ; rationals, represent as such and compare. 
-  ; Otherwise the other involves an infinity or NaN, so 0.0 can be
-  ; substituted for the ratnum.
+  ; Otherwise the other involves an infinity or NaN, so result is false.
   ; One of the arguments is a ratnum, the other is a flonum or compnum.
 
   (define (algorithm*eratnum a b retry)
@@ -235,25 +246,24 @@
            (let ((zero (- a a)))
              (if (= zero zero)
                  (retry (->rat a) b)
-                 (retry a 0.0))))
+                 #f)))
           ((flonum? b)
            (let ((zero (- b b)))
              (if (= zero zero)
                  (retry a (->rat b))
-                 (retry 0.0 b))))
+                 #f)))
           ((compnum? a)
-           (if (= 0.0 (imag-part a))
+           (if (zero? (imag-part a))
                (algorithm*eratnum (real-part a) b retry)
                #f))
           ((compnum? b)
-           (if (= 0.0 (imag-part b))
+           (if (zero? (imag-part b))
                (algorithm*eratnum a (real-part b) retry)
                #f))
           (else
            (contagion-error a b retry))))
           
-  ; Algorithm*c for at least one complex number.
-  ; FIXME: watch out for infinities and NaNs.
+  ; Algorithm*c for at least one compnum.
 
   (define (algorithm*cr a b retry)
     (if (and (integer? (real-part a))
@@ -268,19 +278,10 @@
           (retry a b))))
 
   ; Algorithm*e for at least one complex number.
-  ; FIXME: watch out for infinities and NaNs.
 
   (define (algorithm*cre a b retry)
-    (if (and (integer? (real-part a))
-             (integer? (imag-part a))
-             (integer? (real-part b))
-             (integer? (imag-part b)))
-        (let ((a (->rect a))
-              (b (->rect b)))
-          (retry a b))
-        (let ((a (->comp a))
-              (b (->comp b)))
-          (retry a b))))
+    (and (retry (real-part a) (real-part b))
+         (retry (imag-part a) (imag-part b))))
 
   ; Signal an error given an index or a procedure from the millicode vector.
   
@@ -381,7 +382,6 @@
 
   ; Predicate matrix: for <, <=, >, >=
   ; No loss of accuracy can be tolerated here.
-  ; Algorithm*p handles illegal complex numbers.
 
   (set! pmatrix
     (vector (vector oops
@@ -446,27 +446,26 @@
                     (fun id bignum->rectnum)
                     (fun id ratnum->rectnum)
                     oops
-                    algorithm*cre ; (fun rectnum->compnum flonum->compnum)
-                    algorithm*cre ; (fun rectnum->compnum id)
-                    )
+                    algorithm*cre
+                    algorithm*cre)
             (vector (fun id fixnum->flonum)
                     algorithm*e
                     algorithm*eratnum
-                    algorithm*cre ; (fun flonum->compnum rectnum->compnum)
+                    algorithm*cre
                     oops
-                    (fun flonum->compnum id))
+                    algorithm*cre)
             (vector (fun id fixnum->compnum)
                     algorithm*e
                     algorithm*eratnum
-                    algorithm*cre ; (fun id rectnum->compnum)
-                    (fun id flonum->compnum)
+                    algorithm*cre
+                    algorithm*cre
                     oops)))
 
   (set! contagion (lambda (a b retry)
                     (do-contagion cmatrix a b retry)))
 
   (set! econtagion (lambda (a b retry)
-                      (do-contagion ematrix a b retry)))
+                     (do-contagion ematrix a b retry)))
 
   (set! pcontagion (lambda (a b retry)
                      (do-contagion pmatrix a b retry)))
