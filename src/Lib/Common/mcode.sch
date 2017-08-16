@@ -170,6 +170,12 @@
 		(truncate (/ (real-part a) (real-part b)))) ; Could be (/ a b)
 	       (else
 		(contagion a b quotient))))
+        ((and (eq? 'extremely (larceny:r7strict))
+              (real? a)
+              (real? b)
+              (= a (round a))
+              (= b (round b)))
+         (truncate (/ a b)))
 	(else
 	 (error "quotient: arguments must be integers: " a " " b)
 	 #t)))
@@ -179,6 +185,12 @@
 	 (bignum-remainder a b))
 	((and (integer? a) (integer? b))
 	 (- a (* (quotient a b) b)))
+        ((and (eq? 'extremely (larceny:r7strict))
+              (real? a)
+              (real? b)
+              (= a (round a))
+              (= b (round b)))
+         (- a (* (quotient a b) b)))
 	(else
 	 (error "remainder: arguments must be integers: " a " " b)
 	 #t)))

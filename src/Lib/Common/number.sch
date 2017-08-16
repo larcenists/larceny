@@ -83,8 +83,8 @@
  
 (define gcd
   (letrec ((loop (lambda (x y)
-                   (cond ((zero? x) (finish y x))
-                         ((zero? y) (finish x y))
+                   (cond ((< x 1) (finish y x))
+                         ((< y 1) (finish x y))
                          ((< x y)
                           (if (= x 1)
                               (finish x y)
@@ -173,6 +173,9 @@
          (if (negative? y)
              (e2 x y)
              (e x y)))
+        ((and (eq? 'extremely (larceny:r7strict))
+              (= x (- x x)))
+         (expt 0 (exact->inexact y)))
         (else
          (exp (* y (log x))))))
 
@@ -250,6 +253,8 @@
 
 ; Ceiling of x.
 ; A little contorted to avoid generic arithmetic in flonum case.
+; If (larceny:r7strict) is 'extremely, the IEEE representation of 0.0
+; represents a small positive number that has to be handled specially.
   
 (define (ceiling x)
   (cond ((flonum? x)
@@ -258,7 +263,12 @@
              (let ((g (truncate x)))
                (if (not (= g x))
                    (+ g 1.0)
-                   g))))
+                   (cond ((not (eq? 'extremely (larceny:r7strict)))
+                          g)
+                         ((= g 0.0)
+                          1.0)
+                         (else
+                          g))))))
         ((not (real? x))
          (error "ceiling: " x " is not a real number."))
         ((compnum? x)
@@ -280,6 +290,9 @@
          (= (fxlogand x 1) 0))
         ((bignum? x)
          (= (fxlogand (bignum-ref x 0) 1) 0))
+        ((and (eq? 'extremely (larceny:r7strict))
+              (flonum? x))
+         (= 0.0 (remainder x 2.0)))
         (else
          (zero? (remainder x 2)))))
 
@@ -288,6 +301,9 @@
          (= (fxlogand x 1) 1))
         ((bignum? x)
          (= (fxlogand (bignum-ref x 0) 1) 1))
+        ((and (eq? 'extremely (larceny:r7strict))
+              (flonum? x))
+         (not (= 0.0 (remainder x 2.0))))
         (else
          (not (zero? (remainder x 2))))))
 
@@ -308,10 +324,11 @@
          (i (abs (imag-part c)))
          (x (max r i))
          (y (min r i)))
-    (if (zero? x)
-        0.0
-        (let ((y/x (/ y x)))
-          (* x (sqrt (+ 1 (* y/x y/x))))))))
+    (cond ((= x 0) 0)
+          ((= x 0.0) 0.0)
+          (else
+           (let ((y/x (/ y x)))
+             (* x (sqrt (+ 1 (* y/x y/x)))))))))
 
 
 ; The procedures flonum:{sin,cos,tan,asin,acos,atan,exp,log,sqrt} have
@@ -700,6 +717,7 @@
                (<= x 4503599627370496)))           ; 2^52
 
       (let* ((s (exact (truncate (sqrt (inexact x)))))
+             (s (if (integer? s) s (round s)))
              (r (- x (* s s))))
         (values s r))
 

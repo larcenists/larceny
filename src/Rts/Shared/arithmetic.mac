@@ -490,8 +490,16 @@ void EXPORT mc_rem( word *globals, cont_t k )
 (unary-decision-tree
  "mc_zerop" "EX_ZEROP"
  "setcc( x == fixnum(0) );"
- "setcc( flonum_val( x ) == 0.0 );"
- "setcc( compnum_real(x) == 0.0 && compnum_imag(x) == 0.0 );"
+ "setcc( flonum_val( x ) == 0.0 );
+      if (command_line_options.r6pedantic &&
+          (! command_line_options.r6less_pedantic))
+        setcc( 0 );
+"
+ "setcc( (compnum_real( x ) == 0.0) && (compnum_imag( x ) == 0.0) );
+      if (command_line_options.r6pedantic &&
+          (! command_line_options.r6less_pedantic))
+        setcc( 0 );
+"
  "word hdr = *ptrof( x );
   setcc( (hdr & 0xFFFF) == 0 );  /* 0 digits */  /* big-endian specific?? */
  "
@@ -577,7 +585,11 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
    "mc_integerp" "0/* none */"
    true 
    "double v = flonum_val( x );
-setcc( is_integer( v ) && is_rational( v ) );
+      setcc( is_integer( v ) && is_rational( v ) );
+      if (command_line_options.r6pedantic &&
+          (! command_line_options.r6less_pedantic) &&
+          (v == 0.0))
+        setcc( 0 );
 "
    false
    true false false #f false))

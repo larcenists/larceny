@@ -171,7 +171,8 @@
 (define (mrg32k3a-random-range)
   (most-positive-fixnum))
 
-;;; Larceny: commented out in favor of patch at end.
+;;; Larceny: in -r7strict mode, (exact 0.0) isn't an integer,
+;;; which explains the call to round.
 
 (define (mrg32k3a-random-integer state range) ; from Brad Lucier
   (let* ((n (exact->inexact range))
@@ -179,7 +180,8 @@
          (qn (* q n)))
     (do ((x (mrg32k3a-random-m1 state) (mrg32k3a-random-m1 state)))
         ((< x qn) 
-         (inexact->exact (floor (/ x q)))))))
+         (round
+          (inexact->exact (floor (/ x q))))))))
 
 (define (mrg32k3a-random-real state)
   (* 0.0000000002328306549295728 (+ 1.0 (mrg32k3a-random-m1 state))))

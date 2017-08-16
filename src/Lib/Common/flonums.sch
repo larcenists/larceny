@@ -179,7 +179,14 @@
         (error "Can't convert " f " to an exact number."))
     (let ((q (let* ((m (float-significand f))
                     (e (float-unbiased-exponent f)))
-               (cond ((>= e 52)
+               (cond ((and (zero? m) (= e -1022))
+                      (if (not (eq? 'extremely (larceny:r7strict)))
+                          0
+                          (let ((r (exact-value-of-inexact-zero)))
+                            (if (zero? (float-sign f))
+                                r
+                                (- r)))))
+                     ((>= e 52)
                       (* m (expt 2 (- e 52))))
                      (else
                       (/ m (expt 2 (abs (- e 52)))))))))
@@ -202,6 +209,16 @@
   (set! flonum->ratnum %flonum->ratnum)
 
   'flonums)
+
+; If (larceny:r7strict) is 'extremely, the IEEE-754 representations
+; of 0.0 and -0.0 represent a small positive number.
+
+(define (exact-value-of-inexact-zero)
+  (if (not exact-ratnum-value-of-inexact-zero)
+      (set! exact-ratnum-value-of-inexact-zero (/ 1 (expt 10 999))))
+  exact-ratnum-value-of-inexact-zero)
+
+(define exact-ratnum-value-of-inexact-zero #f) ; #f or #e1e-999
 
 ; No type checking, as these are not public.
 

@@ -205,10 +205,16 @@
        (test expr2 expr1))))
 
    ;; convenient values for test cases
+   ;;
+   ;; Note: although the nats defined below are likely to be integers,
+   ;; the R7RS does not require any inexact reals to be integers,
+   ;; hence the call to filter.
 
    (define posints (map flonum '(1 2 3 4 5 10 65536 1e23)))
    (define nats (cons (flonum 0) posints))
-   (define ints (append (map flonum '(-20 -8 -2 -1)) nats))
+   (define ints
+     (filter integer?
+             (append (map flonum '(-20 -8 -2 -1)) nats)))
    (define posfracs (map flonum '(1/1000 1/10 1/3 1/2)))
    (define extremes
      (list (fl- fl-greatest) (fl- fl-least) fl-least fl-greatest))
@@ -307,7 +313,7 @@
                      posinf))
      (test-assert (= (* 2 fl-greatest) posinf))
      (test-assert (= 1 (/ (+ 1 (+ 1.0 fl-epsilon)) 2)))
-     (test-assert (= 0 (/ fl-least 2)))
+     (test-assert (= 0.0 (/ fl-least 2)))
 
      (test-assert (boolean? fl-fast-fl+*))
      (test-assert (exact-integer? fl-integer-exponent-zero))
@@ -551,10 +557,19 @@
      (test (flmin one zero) zero)
      (test (apply flmin somereals) (car somereals))
 
+     ;; With IEEE-754 arithmetic, a floating point number is an integer
+     ;; if and only if it rounds to itself, but that is not necessarily
+     ;; true for inexact reals in R7RS Scheme.
+#;
      (test (map flinteger? somereals)
            (map fl=?
                 somereals
                 (map flround somereals)))
+
+     (test (map flinteger? somereals)
+           (map =
+                somereals
+                (map round (map exact somereals))))
 
      (test-deny   (flzero? neginf))
      (test-deny   (flzero? (fl- fl-least)))

@@ -147,8 +147,13 @@
         (test (> +nan.0 x)                #f))
       '())
 
-     (test (zero? +0.0)                   #t)
-     (test (zero? -0.0)                   #t)
+     ;; R7RS allows +0.0 and -0.0 to be non-zero,
+     ;; so some tests required modification.
+
+     (test (or (not (= 0 +0.0))
+               (zero? +0.0))              #t)
+     (test (or (not (= 0 -0.0))
+               (zero? -0.0))              #t)
      (test (zero? 2.0)                    #f)
      (test (zero? -2.0)                   #f)
      (test (zero? +nan.0)                 #f)
@@ -195,7 +200,12 @@
      (test (* +inf.0 -inf.0)                       -inf.0)
      (test (zero-or-nan? (* 0 +inf.0)) #t)
      (test (zero-or-nan? (* 0 +nan.0)) #t)
-     (test (zero? (* 1.0 0)) #t)
+
+     ;; (* 1.0 0) is probably equivalent to (* 1.0 0.0),
+     ;; and R7RS allows +0.0 and -0.0 to be non-zero.
+
+     (test (or (not (= 0 0.0))
+               (zero? (* 1.0 0))) #t)
     
      (try-reals 
       (lambda (x)
@@ -350,16 +360,28 @@
      (test (sqrt +inf.0)                +inf.0)
      (test (sqrt -inf.0)                +inf.0i)
 
-     (test (expt 0 0.0) 1.0)
+     ;; R7RS allows +0.0 and -0.0 to be non-zero,
+     ;; so some tests required modification.
 
-     (test/approx (expt 0.0 0.0) 1.0)
+     (test (if (= 0 0.0)
+               (expt 0 0.0)
+               (inexact (expt 0 0)))
+           1.0)
+
+     (test/approx (if (= 0 0.0)
+                      (expt 0.0 0.0)
+                      (inexact (expt 0.0 0)))
+                  1.0)
      (test (inexact? (expt 0.0 0.0)) #t)
 
      ;; (test/unspec-or-exn (expt 0 -5) &implementation-restriction)
      ;; (test/unspec-or-exn (expt 0 -5+.0000312i) &implementation-restriction)
 
      (test (expt 0 0)                   1)
-     (test (expt 0.0 0.0)               1.0)
+     (test (if (= 0 0.0)
+               (expt 0.0 0.0)
+               (inexact (expt 0.0 0)))
+           1.0)
     
      (for-each 
       (lambda (n)

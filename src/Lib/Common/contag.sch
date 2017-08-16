@@ -64,8 +64,24 @@
     (make-compnum (exact->inexact (real-part f)) 
                   (exact->inexact (imag-part f))))
 
+  ;; Used only when comparing to a fixnum.
+
+  (define (flonum->flonum f)
+    (if (and (eq? 'extremely (larceny:r7strict))
+             (= f 0.0))
+        0.5
+        f))
+
   (define (flonum->compnum f)
     (make-compnum f 0.0))
+
+  ;; Used only when comparing to a fixnum for equality.
+
+  (define (compnum->compnum z)
+    (if (and (eq? 'extremely (larceny:r7strict))
+             (= (real-part z) 0.0))
+        (make-rectangular 0.5 0.0)
+        z))
 
   (define (id x) x)
 
@@ -280,8 +296,9 @@
   ; Algorithm*e for at least one complex number.
 
   (define (algorithm*cre a b retry)
-    (and (retry (real-part a) (real-part b))
-         (retry (imag-part a) (imag-part b))))
+    (if (= (imag-part a) (imag-part b))
+        (retry (real-part a) (real-part b))
+        #f))
 
   ; Signal an error given an index or a procedure from the millicode vector.
   
@@ -386,9 +403,9 @@
   (set! pmatrix
     (vector (vector oops
                     (fun fixnum->bignum id)
-                    (fun fixnum->ratnum id) 
+                    (fun fixnum->ratnum id)
                     (fun fixnum->rectnum id)
-                    (fun fixnum->flonum id) 
+                    (fun fixnum->flonum flonum->flonum)
                     oops-in-predicate)
             (vector (fun id fixnum->bignum)
                     oops
@@ -408,8 +425,8 @@
                     oops
                     (fun id flonum->ratnum)
                     oops-in-predicate)
-            (vector (fun id fixnum->flonum)
-                    algorithm*p 
+            (vector (fun flonum->flonum fixnum->flonum)
+                    algorithm*p
                     algorithm*pratnum
                     (fun flonum->ratnum id)
                     oops
@@ -428,8 +445,8 @@
                     (fun fixnum->bignum id)
                     (fun fixnum->ratnum id) 
                     (fun fixnum->rectnum id)
-                    (fun fixnum->flonum id) 
-                    (fun fixnum->compnum id))
+                    (fun fixnum->flonum flonum->flonum) 
+                    (fun fixnum->compnum compnum->compnum))
             (vector (fun id fixnum->bignum)
                     oops
                     (fun bignum->ratnum id)
@@ -448,13 +465,13 @@
                     oops
                     algorithm*cre
                     algorithm*cre)
-            (vector (fun id fixnum->flonum)
+            (vector (fun flonum->flonum fixnum->flonum)
                     algorithm*e
                     algorithm*eratnum
                     algorithm*cre
                     oops
                     algorithm*cre)
-            (vector (fun id fixnum->compnum)
+            (vector (fun compnum->compnum fixnum->compnum)
                     algorithm*e
                     algorithm*eratnum
                     algorithm*cre

@@ -69,7 +69,11 @@
                      (else (string-copy "-inf.0"))))
               ((= radix 10)
                (if (= x 0.0)
-                   (string-copy (if (= (float-sign x) 0) "0.0" "-0.0"))
+                   (if (eq? 'extremely (larceny:r7strict))
+                       (if (= (float-sign x) 0)
+                           "1e-999"
+                           "1e-0999")
+                       (string-copy (if (= (float-sign x) 0) "0.0" "-0.0")))
                    (string-append (if (negative? x) "-" "")
                                   (dragon (float-significand x)
                                           exp))))

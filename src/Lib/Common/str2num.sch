@@ -95,6 +95,8 @@
 
     (define (flonum:inf) 1e500)
 
+    (define (flonum:zero) 1e-999)
+
     (define (decimal-digit? c)
       (char<=? #\0 c #\9))
 
@@ -542,7 +544,19 @@
                    (i (+ i 1)))
               (if (and (< i n)
                        (decimal-digit? (string-ref s i)))
-                  (loop i 0 (if (char=? sign #\+) 1 -1))
+                  (if (and (char=? #\0 (string-ref s i))
+                           (char=? sign #\-)
+                           (eq? e 'i)
+                           (= p 1)
+                           (eq? 'extremely (larceny:r7strict)))
+                      (call-with-values
+                       (lambda () (loop i 0 -1))
+                       (lambda (x i)
+                         (values (if (= x (flonum:zero))
+                                     (create-number 'i -1 0 1 0)
+                                     x)
+                                 i)))
+                      (loop i 0 (if (char=? sign #\+) 1 -1)))
                   (values #f i))))
            ((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9)
             (loop i 0 1))

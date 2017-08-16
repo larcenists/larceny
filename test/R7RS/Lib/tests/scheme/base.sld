@@ -1479,22 +1479,25 @@
        (test (>= w x)                              #f)
        (test (>= y x)                              #t))
 
+     ;; R7RS allows (inexact 0) to be non-zero,
+     ;; so three tests are commented out below.
+
      (test (zero? 0) #t)
-     (test (zero? (inexact 0)) #t)
+;    (test (zero? (inexact 0)) #t)
      (test (zero? 2) #f)
      (test (zero? (inexact 2)) #f)
      (test (zero? -3) #f)
      (test (zero? (inexact -3)) #f)
 
      (test (positive? 0) #f)
-     (test (positive? (inexact 0)) #f)
+;    (test (positive? (inexact 0)) #f)
      (test (positive? 2) #t)
      (test (positive? (inexact 2)) #t)
      (test (positive? -3) #f)
      (test (positive? (inexact -3)) #f)
 
      (test (negative? 0) #f)
-     (test (negative? (inexact 0)) #f)
+;    (test (negative? (inexact 0)) #f)
      (test (negative? 2) #f)
      (test (negative? (inexact 2)) #f)
      (test (negative? -3) #t)

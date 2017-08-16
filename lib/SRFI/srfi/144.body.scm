@@ -193,6 +193,9 @@
          (values 0.5 (+ 3 (exact (round (fllog2 fl-greatest))))))
         ((flnormalized? x)
          (let* ((result2 (exact (flround (fllog2 x))))
+                (result2 (if (integer? result2)
+                             result2
+                             (round result2)))
                 (two^result2 (inexact (expt 2.0 result2))))
            (if (flinfinite? two^result2)
                (call-with-values

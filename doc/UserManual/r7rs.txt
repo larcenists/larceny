@@ -11,7 +11,8 @@ The
 <<R7rsPreDefinedSection,Predefined libraries>> section
 of this manual lists the names of those libraries.
 
-Larceny provides all of the R7RS standard libraries,
+Larceny provides all of the R7RS standard libraries
+(including the Red Edition libraries),
 supports the full numeric tower, and can represent all
 Unicode characters.
 
@@ -36,17 +37,34 @@ that do not import `(scheme base)`.
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To simplify interoperability with R6RS libraries and
-programs, and to improve the performance of flonum and
-complex arithemetic, the `integer?`, `rational?`, and `real?`
-procedures exported by `(scheme base)` have R6RS semantics.
-It is not clear whether that is fully compatible with the
-R7RS (small) standard, because the R7RS specification of
-those procedures appears to contradict itself.
+As of Larceny v1.3, the known deviations from the R7RS (small)
+standard are:
+
+- Libraries with names of the form `(primitives x ...)` cannot be imported.
+(Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
+as a keyword for importing identifiers from the R5RS global
+environment.)
+
+- `include` and `include-ci` are allowed only as library declarations,
+and are not allowed in expression contexts.
+
+As discussed in the next section, some parts of the R7RS (small)
+standard are unclear and/or controversial.  Larceny provides
+an `-r7strict` command-line option that accomodates those who
+interpret the R7RS (small) standard to mean Larceny's usual
+R7RS mode is incompatible with the R7RS standard in ways that
+go beyond the deviations listed above.
+
+[[R7rsStrictSection]]
+
+Alternative interpretations of the R7RS standard
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+==== Splicing versus non-splicing semantics
 
 To simplify interoperability with R6RS libraries and programs,
-`let-syntax` and `letrec-syntax` have R6RS semantics.  The R6RS
-standard requires `let-syntax` and `letrec-syntax` to splice
+Larceny's usual R7RS mode uses R6RS semantics for
+`let-syntax` and `letrec-syntax`, so they splice
 their macro-expanded bodies into their context instead of
 introducing a new contour.  That R6RS behavior is not explicitly
 forbidden by the R7RS, but archives of the working group that
@@ -62,22 +80,98 @@ and enhancements Larceny has made to the R7RS.
 
 [TIP]
 ================================================================
-If some library or program depends upon `-r7strict`, it can be
-<<CompilingR7rsSection,compiled separately>> with `-r7strict` in effect,
+A library or program that depends upon the non-splicing semantics
+can be 
+<<CompilingR7rsSection,compiled separately>> with `-r7strict` in
+effect,
 allowing its compiled form to interoperate with libraries and
 programs that use extensions disabled by `-r7strict`.
 ================================================================
 
-If any other R7RS feature is missing or incompatible with
-the R7RS (small) standard, it's a bug.
+==== Closure properties for representation types
 
-As of Larceny v1.3, the known deviations from the R7RS (small)
-standard are:
+To simplify interoperability with R6RS libraries and
+programs, and to improve the performance of flonum and
+complex arithemetic, the `integer?`, `rational?`, and `real?`
+procedures exported by `(scheme base)` have R6RS semantics.
+As a result of that semantics, Larceny's flonum and compnum
+representation types are closed under the usual arithmetic
+operations.
 
-- Libraries with names of the form `(primitives x ...)` cannot be imported.
-(Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
-as a keyword for importing identifiers from the R5RS global
-environment.)
+It is not clear whether that is fully compatible with the
+R7RS (small) standard, because the R7RS specification of
+the `real?` procedure contradicts itself by saying `(real? z)`
+is true if and only if `(zero? (imag-part z))` is true
+while giving an example copied from the R6RS that was designed
+to illustrate the fact that `(real? z)` is true if and only if
+`(zero? (imag-part z))` and `(exact? (imag-part z))` are both
+true.
 
-- `include` and `include-ci` are allowed only as library declarations,
-and are not allowed in expression contexts.
+The R7RS contains a list of incompatibilities with the R6RS
+that says three related procedures are not part of the R7RS,
+but that list does not say anything that would suggest the R7RS
+semantics of `integer?`, `rational?`, and `real?`
+are incompatible with the R6RS.
+
+Unfortunately, it is possible to argue that both the list of
+incompatibilities and the example are less authoritative than
+the prose that omits the condition illustrated by the example.
+At least one editor of the R7RS (small) standard has been
+making that argument.
+
+No one has yet come up with a real-world example of portable
+R7RS code that fails to work with the R6RS semantics.  The
+closure properties provided by the R6RS semantics are desirable
+and improve the performance of flonum and compnum arithmetic in
+Larceny.  In short, there is a real-world argument for the R6RS
+semantics and no real-world argument against.
+
+To accomodate those who choose to disregard the R7RS example and
+list of incompatibilities in favor of a pedantic interpretation
+of the R7RS specification of the `real?` predicate, Larceny's
+`-r7strict` mode implements a peculiar semantics for inexact
+numbers that satisfies both the pedantic interpretation of the
+R7RS specification and an equally pedantic interpretation of the
+R6RS specification.
+
+That semantics is peculiar because it has no inexact real whose
+value is exactly zero.  The inexact real closest to zero has a
+small positive value that is smaller than the smallest positive
+value that can be represented by an IEEE-754 double precision
+number.
+
+[WARNING]
+================================================================
+Although that peculiar semantics conforms to the R7RS (small)
+standard, even when that standard is interpreted pedantically,
+the peculiar semantics is far more likely to break existing code
+than a straightforward implementation of the R6RS semantics.
+================================================================
+
+[WARNING]
+================================================================
+The SRFIs supported by Larceny are tested in Larceny's usual
+R7RS mode.  They are not tested in `-r7strict` mode, and we are
+likely to ignore bug reports and other complaints about SRFIs
+and other libraries that don't work in `-r7strict` mode.
+================================================================
+
+[TIP]
+================================================================
+The `-ieee` command-line option tells Larceny to implement the
+ordinary backward-compatible R6RS semantics even in `-r7strict`
+mode.
+================================================================
+
+[NOTE]
+================================================================
+The IEEE-754 standard, for which the `-ieee` option is named, is
+a hardware standard that explicitly disclaims its own relevance
+to programming languages.  Despite that disclaimer, many people
+would regard the peculiar semantics implemented by Larceny's
+`-r7strict` mode without the `-ieee` option as inconsistent with
+the IEEE-754 standard, so Larceny's `-r7strict` mode does not
+count the `ieee-float` feature identifier as true unless the
+`-ieee` command-line option is in effect.
+================================================================
+

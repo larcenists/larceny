@@ -103,8 +103,10 @@
           ((r7rs r6rs)
            (boolean (memq (larceny:get-feature 'execution-mode)
                           '(r7rs r7r6 r6rs err5rs))))
-          ((larceny complex exact-closed exact-complex ieee-float ratios)
+          ((larceny complex exact-closed exact-complex ratios)
            #t)
+          ((ieee-float)
+           (not (eq? 'extremely (larceny:r7strict))))
           ((larceny-0.98 larceny-0.99 larceny-1.3 larceny-1.5 larceny-2.0)
            ;; FIXME: should strip off trailing beta version, etc
            (let* ((major (larceny:get-feature 'larceny-major-version))
@@ -240,6 +242,9 @@
     unicode-5              ; nonstandard
     unicode-6              ; nonstandard
     unicode-7              ; nonstandard
+    unicode-8              ; nonstandard
+    unicode-9              ; nonstandard
+    unicode-10             ; nonstandard
     posix
     windows
     unix darwin gnu-linux bsd freebsd solaris

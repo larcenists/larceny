@@ -160,7 +160,7 @@ int main( int argc, char **os_argv )
   command_line_options.r6fast = 0;
   command_line_options.r6slow = 0;
   command_line_options.r6pedantic = 0;       /* true iff -r7strict */
-  command_line_options.r6less_pedantic = 0;  /* true iff -r7strict */
+  command_line_options.r6less_pedantic = 0;  /* true iff -ieee */
   command_line_options.r6program = "";
   command_line_options.r6path = "";
   command_line_options.r6path2 = "";
@@ -750,7 +750,6 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (hstrcmp( *argv, "-r7strict" ) == 0) {
       o->r7rs = 1;
       o->r6pedantic = 1;
-      o->r6less_pedantic = 1;
     }
     else if ((hstrcmp( *argv, "-r7rs" ) == 0) ||
              (hstrcmp( *argv, "-r7" ) == 0))
@@ -777,6 +776,9 @@ parse_options( int argc, char **argv, opt_t *o )
     else if (hstrcmp( *argv, "-but-not-that-pedantic" ) == 0)
       o->r6less_pedantic = 1;
 #endif
+    else if (hstrcmp( *argv, "-ieee" ) == 0) {
+      o->r6less_pedantic = 1;
+    }
     else if (hstrcmp( *argv, "-program" ) == 0) {
       if (strcmp( o->r6program, "" ) == 0) {
         ++argv;
@@ -1399,6 +1401,8 @@ static char *wizardhelptext[] = {
   "     Similar to -r7 but disables some extensions to R7RS.",
   "  -err5rs",
   "     Similar to -r7 but doesn't import any libraries at startup.",
+  "  -ieee",
+  "     Use IEEE-754 arithmetic even if -r7strict mode is requested.",
   "  -heap <filename>",
   "     Select an initial heap image other than the default.",
   "  -transcoder nn",

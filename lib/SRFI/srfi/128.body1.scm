@@ -165,6 +165,9 @@
 (define (char-ci-hash obj)
   (modulo (* (%salt%) (char->integer (char-foldcase obj))) (hash-bound)))
 
+;; This does a lousy job of hashing, and isn't even portable R7RS,
+;; so it's commented out.
+#;
 (define (number-hash obj)
   (cond
     ((nan? obj) (%salt%))
@@ -172,6 +175,8 @@
     ((infinite? obj) (* (%salt%) 3))
     ((real? obj) (abs (exact (round obj))))
     (else (+ (number-hash (real-part obj)) (number-hash (imag-part obj))))))
+
+(define (number-hash obj) (equal-hash obj))
 
 ;; Lexicographic ordering of complex numbers
 (define (complex<? a b)
