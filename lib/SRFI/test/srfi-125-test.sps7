@@ -91,7 +91,7 @@
   (make-comparator real? = < (lambda (x) (exact (abs x)))))
 
 (define number-comparator
-  (make-comparator real? = < (lambda (x) (exact (abs (round x))))))
+  (make-comparator real? = < number-hash))
 
 (define string-comparator
   (make-comparator string? string=? string<? string-hash))

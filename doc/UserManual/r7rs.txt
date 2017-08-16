@@ -48,22 +48,53 @@ environment.)
 - `include` and `include-ci` are allowed only as library declarations,
 and are not allowed in expression contexts.
 
-As discussed in the next section, some parts of the R7RS (small)
-standard are unclear and/or controversial.  Larceny provides
-an `-r7strict` command-line option that accomodates those who
-interpret the R7RS (small) standard to mean Larceny's usual
-R7RS mode is incompatible with the R7RS standard in ways that
-go beyond the deviations listed above.
 
 [[R7rsStrictSection]]
 
 Alternative interpretations of the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Some parts of the R7RS (small)
+standard are unclear and/or controversial.  Larceny provides
+an `-r7strict` command-line option that accomodates those who
+interpret the R7RS (small) standard to mean Larceny's usual
+R7RS mode is incompatible with the R7RS standard in ways that
+go beyond the deviations listed above.
+
+==== Lexical extensions
+
+R7RS section 1.3.1 requires all implementations of Scheme to
+offer a mode of operation "in which the lexical syntax does
+not conflict with the lexical syntax described in this report."
+R7RS section 7.1.1 says the square bracket characters, which
+Larceny normally allows because the R6RS standard treats them
+as a stylistic alternative to parentheses, "are reserved for
+future extensions to the language."
+
+The `-r7strict` option therefore disables square brackets and
+most of Larceny's other extensions to R7RS lexical syntax.
+
+==== Program imports must precede definitions and expressions
+
+The R7RS (small) standard requires all of a program's import
+declarations to precede all of its definitions and expressions.
+Larceny enforces this restriction only in `-r7strict` mode.
+
+==== Explicit ellipsis and literals in `syntax-rules`
+
+With R7RS `syntax-rules`, programmers can declare an identifier
+to be used instead of the usual ellipsis.  If that explicit
+ellipsis is also declared as a literal by the same `syntax-rules`
+form, then one of the two declarations must be ignored.
+Larceny normally raises an exception when it detects this
+situation, but does not do so in `-r7strict` mode because
+R7RS section 4.3.2 can be interpreted as permitting this
+obvious error.
+
 ==== Splicing versus non-splicing semantics
 
 To simplify interoperability with R6RS libraries and programs,
-Larceny's usual R7RS mode uses R6RS semantics for
+Larceny's usual R7RS mode implements R6RS semantics for
 `let-syntax` and `letrec-syntax`, so they splice
 their macro-expanded bodies into their context instead of
 introducing a new contour.  That R6RS behavior is not explicitly
@@ -74,9 +105,7 @@ backward compatibility with R6RS by requiring `let-syntax` and
 (small) standard fails to mention this significant change in
 semantics, that must have been an oversight.  Programs that
 depend upon having `let-syntax` and `letrec-syntax` introduce
-new contours can be run in Larceny's `-r7strict` mode, which
-will also disable several other generally desirable extensions
-and enhancements Larceny has made to the R7RS.
+new contours can be run in Larceny's `-r7strict` mode.
 
 [TIP]
 ================================================================
@@ -88,11 +117,11 @@ allowing its compiled form to interoperate with libraries and
 programs that use extensions disabled by `-r7strict`.
 ================================================================
 
-==== Closure properties for representation types
+==== Closure properties for arithmetic representation types
 
 To simplify interoperability with R6RS libraries and
 programs, and to improve the performance of flonum and
-complex arithemetic, the `integer?`, `rational?`, and `real?`
+complex arithmetic, the `integer?`, `rational?`, and `real?`
 procedures exported by `(scheme base)` have R6RS semantics.
 As a result of that semantics, Larceny's flonum and compnum
 representation types are closed under the usual arithmetic
@@ -101,14 +130,14 @@ operations.
 It is not clear whether that is fully compatible with the
 R7RS (small) standard, because the R7RS specification of
 the `real?` procedure contradicts itself by saying `(real? z)`
-is true if and only if `(zero? (imag-part z))` is true
+is true if and only if `(zero? (imag-part z))` is true,
 while giving an example copied from the R6RS that was designed
 to illustrate the fact that `(real? z)` is true if and only if
 `(zero? (imag-part z))` and `(exact? (imag-part z))` are both
 true.
 
-The R7RS contains a list of incompatibilities with the R6RS
-that says three related procedures are not part of the R7RS,
+The R7RS includes a list of known incompatibilities with the
+R6RS that says three related procedures are not part of the R7RS,
 but that list does not say anything that would suggest the R7RS
 semantics of `integer?`, `rational?`, and `real?`
 are incompatible with the R6RS.
@@ -123,7 +152,7 @@ No one has yet come up with a real-world example of portable
 R7RS code that fails to work with the R6RS semantics.  The
 closure properties provided by the R6RS semantics are desirable
 and improve the performance of flonum and compnum arithmetic in
-Larceny.  In short, there is a real-world argument for the R6RS
+Larceny, so there is a real-world argument for the R6RS
 semantics and no real-world argument against.
 
 To accomodate those who choose to disregard the R7RS example and
@@ -137,23 +166,53 @@ R6RS specification.
 That semantics is peculiar because it has no inexact real whose
 value is exactly zero.  The inexact real closest to zero has a
 small positive value that is smaller than the smallest positive
-value that can be represented by an IEEE-754 double precision
-number.
+value that can be represented in IEEE-754 double precision.
+The value of that inexact real must therefore be (implicitly)
+converted to IEEE-754 zero before it can participate in floating
+point operations implemented by IEEE-754 hardware, but its
+non-zero, non-integer positive value is respected by procedures
+such as `zero?`, `integer?`, `positive?`, `ceiling`, `exact`,
+`number->string`, and by arithmetic comparisons such as `<` and
+`=`.
 
 [WARNING]
 ================================================================
 Although that peculiar semantics conforms to the R7RS (small)
 standard, even when that standard is interpreted pedantically,
-the peculiar semantics is far more likely to break existing code
-than a straightforward implementation of the R6RS semantics.
+existing code is far more likely to break with the peculiar
+semantics than with a more straightforward implementation of
+the R6RS semantics.
 ================================================================
 
-[WARNING]
+[NOTE]
 ================================================================
-The SRFIs supported by Larceny are tested in Larceny's usual
-R7RS mode.  They are not tested in `-r7strict` mode, and we are
-likely to ignore bug reports and other complaints about SRFIs
-and other libraries that don't work in `-r7strict` mode.
+All of the R7RS Red Edition libraries are tested nightly using
+`-r7strict` mode.  That testing discovered several non-portable
+tests, which had made assumptions about inexact arithmetic that
+cannot be supported by citing the R7RS standard unless numerical
+examples in that standard are interpreted as authoritative.
+Those tests have been corrected.
+================================================================
+
+[CAUTION]
+================================================================
+The SRFIs supported by Larceny are designed to run in Larceny's
+usual R7RS mode, and are compiled in that mode when the entire
+R7RS runtime is compiled.  With the exception of SRFI 38, which
+uses R6RS lexical syntax, all of the SRFIs currently supported
+by Larceny seem to work when their compiled forms are imported
+by programs running in `-r7strict` mode.  Even if they work,
+they might not behave as some programmers expect.
+================================================================
+
+[NOTE]
+================================================================
+To achieve that degree of interoperability, we had to correct
+non-portable code discovered in sample implementations of SRFI
+27, SRFI 128, and SRFI 144.
+(The sample implementation of SRFI 144 explicitly assumes IEEE
+arithmetic, so we were surprised to find that only one repair
+was necessary.)
 ================================================================
 
 [TIP]
@@ -167,11 +226,11 @@ mode.
 ================================================================
 The IEEE-754 standard, for which the `-ieee` option is named, is
 a hardware standard that explicitly disclaims its own relevance
-to programming languages.  Despite that disclaimer, many people
-would regard the peculiar semantics implemented by Larceny's
-`-r7strict` mode without the `-ieee` option as inconsistent with
-the IEEE-754 standard, so Larceny's `-r7strict` mode does not
-count the `ieee-float` feature identifier as true unless the
-`-ieee` command-line option is in effect.
+to high-level programming languages.  Despite that disclaimer,
+many people would regard the peculiar semantics implemented by
+Larceny's `-r7strict` mode without the `-ieee` option as
+inconsistent with the IEEE-754 standard, so Larceny's `-r7strict`
+mode does not count the `ieee-float` feature identifier as true
+unless the `-ieee` command-line option is in effect.
 ================================================================
 
