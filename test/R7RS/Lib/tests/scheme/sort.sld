@@ -61,7 +61,7 @@
           (scheme sort)
           (tests scheme test)
           (only (srfi 27) random-integer))                ; FIXME
-(import (scheme write)) ; FIXME
+
   ;; Adapted from srfi-132-test.sps7
 
   (begin
