@@ -57,9 +57,46 @@
 (define fl<=? (flonum-restricted <= 'fl<=?))
 (define fl>=? (flonum-restricted >= 'fl>=?))
 
-(define flinteger? (flonum-restricted1 integer? 'flinteger?))
-(define flzero? (flonum-restricted1 zero? 'flzero?))
-(define flpositive? (flonum-restricted1 positive? 'flpositive?))
+;;; For the next three procedures, there is a question concerning
+;;; their behavior in -r7strict mode, where 0.0 and -0.0 are not
+;;; exactly zero and are positive.
+;;; These procedures are not (yet) part of R7RS, and the R6RS is
+;;; not relevant to -r7strict mode, so SRFI 144 is the only
+;;; relevant standard at this time.
+;;;
+;;; SRFI 144 says fl=?, fl<?, fl>?, fl<=?, and fl>=? should behave
+;;; like C99 =, <, >, <=, and >=, which doesn't decide the question
+;;; but may provide a hint concerning flzero? and flpositive?.
+;;; SRFI 144 says flzero? tests whether its argument is zero, but
+;;; doesn't say the test is against exact 0 or (flonum 0); we can
+;;; interpret it to mean the latter.  Similarly for flpositive?.
+;;; SRFI 144 says flinteger? tests whether its argument is an
+;;; "integral flonum", which doesn't decide the question but we can
+;;; interpret it to mean it tests to see whether its argument is
+;;; equal to the round of its argument, as in IEEE-754 arithmetic.
+;;;
+;;; We rely on the Principle of Least Astonishment:
+;;; Those interpretations are likely to be more consistent with
+;;; programmers' expectations for flonum arithmetic than the
+;;; interpretation that makes the three procedures behave like
+;;; their generic counterparts.
+;;; Those interpretations are also consistent with the compiler
+;;; tables that generate inline code for calls to these procedures.
+
+;(define flinteger? (flonum-restricted1 integer? 'flinteger?))
+;(define flzero? (flonum-restricted1 zero? 'flzero?))
+;(define flpositive? (flonum-restricted1 positive? 'flpositive?))
+
+(define flinteger?
+  (flonum-restricted1 (lambda (x) (= x (flround x)))
+                      'flinteger?))
+(define flzero?
+  (flonum-restricted1 (lambda (x) (fl=? x 0.0))
+                      'flzero?))
+(define flpositive?
+  (flonum-restricted1 (lambda (x) (fl>? x 0.0))
+                      'flpositive?))
+
 (define flnegative? (flonum-restricted1 negative? 'flnegative?))
 (define flodd? (flonum-restricted1 odd? 'flodd?))
 (define fleven? (flonum-restricted1 even? 'fleven?))

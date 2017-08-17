@@ -557,19 +557,10 @@
      (test (flmin one zero) zero)
      (test (apply flmin somereals) (car somereals))
 
-     ;; With IEEE-754 arithmetic, a floating point number is an integer
-     ;; if and only if it rounds to itself, but that is not necessarily
-     ;; true for inexact reals in R7RS Scheme.
-#;
      (test (map flinteger? somereals)
            (map fl=?
                 somereals
                 (map flround somereals)))
-
-     (test (map flinteger? somereals)
-           (map =
-                somereals
-                (map round (map exact somereals))))
 
      (test-deny   (flzero? neginf))
      (test-deny   (flzero? (fl- fl-least)))
