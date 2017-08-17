@@ -210,9 +210,6 @@ they might not behave as some programmers expect.
 To achieve that degree of interoperability, we had to correct
 non-portable code discovered in sample implementations of SRFI
 27, SRFI 128, and SRFI 144.
-(The sample implementation of SRFI 144 explicitly assumes IEEE
-arithmetic, so we were surprised to find that only one repair
-was necessary.)
 ================================================================
 
 [TIP]

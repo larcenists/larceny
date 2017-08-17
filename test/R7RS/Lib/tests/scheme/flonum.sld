@@ -913,7 +913,7 @@
                  (let ((f (make-fllog-base base)))
                    (for-each (lambda (x)
                                (test/approx (flexpt (flonum base) (f x)) x))
-                             (filter positive? somereals))))
+                             (filter flpositive? somereals))))
                (map flonum '(3 7 19)))
 
      ;; Trigonometric functions
