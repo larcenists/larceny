@@ -82,6 +82,8 @@
 ;;; their generic counterparts.
 ;;; Those interpretations are also consistent with the compiler
 ;;; tables that generate inline code for calls to these procedures.
+;;;
+;;; See also the definition of flceiling.
 
 ;(define flinteger? (flonum-restricted1 integer? 'flinteger?))
 ;(define flzero? (flonum-restricted1 zero? 'flzero?))
@@ -124,23 +126,45 @@
 ; FIXME: The numerator and denominator procedures are
 ; defined in Lib/Common/ratnums.sch, which isn't loaded
 ; until later.
+;
+; The special casing of 0.0 is for SRFI 144 in -r7strict mode.
 
 (define flnumerator
   (flonum-restricted1 (lambda (x)
-                        (if (flnan? x)
-                            x
-                            (numerator x)))
+                        (cond ((flnan? x)
+                               x)
+                              ((= x 0.0)
+                               x)
+                              (else
+                               (numerator x))))
                       'flnumerator))
 
 (define fldenominator
   (flonum-restricted1 (lambda (x)
-                        (if (flnan? x)
-                            x
-                            (denominator x)))
+                        (cond ((flnan? x)
+                               x)
+                              ((= x 0.0)
+                               1.0)
+                              (else
+                               (denominator x))))
                       'fldenominator))
 
 (define flfloor (flonum-restricted1 floor 'flfloor))
-(define flceiling (flonum-restricted1 ceiling 'flceiling))
+
+;;; See earlier discussion of -r7strict mode.
+
+;(define flceiling (flonum-restricted1 ceiling 'flceiling))
+
+(define flceiling
+  (flonum-restricted1 (lambda (x)
+                        (if (< x 0.0)
+                            (truncate x)
+                            (let ((g (truncate x)))
+                              (if (not (= g x))
+                                  (+ g 1.0)
+                                  g))))
+                      'flceiling))
+
 (define fltruncate (flonum-restricted1 truncate 'fltruncate))
 (define flround (flonum-restricted1 round 'flround))
 

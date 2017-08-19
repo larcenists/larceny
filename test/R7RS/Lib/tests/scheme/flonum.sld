@@ -205,16 +205,10 @@
        (test expr2 expr1))))
 
    ;; convenient values for test cases
-   ;;
-   ;; Note: although the nats defined below are likely to be integers,
-   ;; the R7RS does not require any inexact reals to be integers,
-   ;; hence the call to filter.
 
    (define posints (map flonum '(1 2 3 4 5 10 65536 1e23)))
    (define nats (cons (flonum 0) posints))
-   (define ints
-     (filter integer?
-             (append (map flonum '(-20 -8 -2 -1)) nats)))
+   (define ints (append (map flonum '(-20 -8 -2 -1)) nats))
    (define posfracs (map flonum '(1/1000 1/10 1/3 1/2)))
    (define extremes
      (list (fl- fl-greatest) (fl- fl-least) fl-least fl-greatest))
@@ -403,12 +397,12 @@
      (test/approx (flexponent (flexpt two (flonum +4.5)))
                   (flonum +4))
      (test/approx (flexponent (flexpt two (flonum -4.5)))
-                  (flonum -4))
+                  (flonum -5))
 
      (test (flinteger-exponent (flexpt two (flonum 12)))   12)
      (test (flinteger-exponent (flexpt two (flonum 12.5))) 12)
      (test (flinteger-exponent (flexpt two (flonum -5)))   -5)
-     (test (flinteger-exponent (flexpt two (flonum -4.5))) -4)
+     (test (flinteger-exponent (flexpt two (flonum -4.5))) -5)
 
      (let* ((correct?
              (lambda (x y n)
