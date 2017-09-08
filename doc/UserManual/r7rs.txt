@@ -199,7 +199,8 @@ Those tests have been corrected.
 The SRFIs supported by Larceny are designed to run in Larceny's
 usual R7RS mode, and are compiled in that mode when the entire
 R7RS runtime is compiled.  With the exception of SRFI 38, which
-uses R6RS lexical syntax, all of the SRFIs currently supported
+uses R6RS lexical syntax, and SRFI 48, which imports SRFI 38,
+all of the SRFIs currently supported
 by Larceny seem to work when their compiled forms are imported
 by programs running in `-r7strict` mode.  Even if they work,
 they might not behave as some programmers expect.

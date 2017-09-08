@@ -324,7 +324,9 @@
          (i (abs (imag-part c)))
          (x (max r i))
          (y (min r i)))
-    (cond ((= x 0) 0)
+    (cond ((and (fixnum? x)
+                (= x 0))
+           0)
           ((= x 0.0) 0.0)
           (else
            (let ((y/x (/ y x)))
