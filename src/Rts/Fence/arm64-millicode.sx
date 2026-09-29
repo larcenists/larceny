@@ -200,7 +200,7 @@ MILLIPROC1(fmc_alloc_bv,mc_alloc_bv)
 MILLIPROC1(fmc_capture_continuation,mc_capture_continuation)
 MILLIPROC1(fmc_restore_continuation,mc_restore_continuation)
 MILLIPROC1(fmc_full_barrier,mc_full_barrier)
-MILLIPROC1(fmc_partial_barrier,mc_partial_barrier)
+MILLIPROC1(fmc_compact_ssbs,mc_compact_ssbs)
 MILLIPROC1(fmc_satb_barrier,mc_satb_barrier)
 MILLIPROC1(fmc_break,mc_break)
 MILLIPROC2(fmc_global_exception,mc_exception,EX_UNDEF_GLOBAL)
@@ -241,6 +241,59 @@ MILLIPROC1(fmc_integerp,mc_integerp)
 MILLIPROC1(fmc_exactp,mc_exactp)
 MILLIPROC1(fmc_inexactp,mc_inexactp)
 MILLIPROC1(fmc_singlestep,mc_singlestep)
+
+/* The generational write barrier, called after a pointer (SECOND) has
+ * been stored into an object (RESULT) at the address in globals[G_THIRD].
+ * This is mc_partial_barrier (fence-millicode.c) without the context
+ * switch: if the store creates a pointer that the remembered sets must
+ * know about, record the object and the slot's offset in the SSB of
+ * the pointer's generation.  Only when the SSB fills does it save the
+ * context and call C to compact the SSBs.
+ *
+ * May destroy RESULT, SECOND, and the TMPs.  The page map has 32-bit
+ * entries (GCLIB_LARGE_TABLE is not supported).
+ */
+
+        .globl  EXTNAME(fmc_partial_barrier)
+        .p2align 2
+EXTNAME(fmc_partial_barrier):
+        ldr     TMP1, [GLOBALS, #G_GENV]
+        cbz     TMP1, 1f                        /* Barrier disabled */
+        ldr     TMP2, [GLOBALS, #G_PGBASE]
+        sub     TMP0, RESULT, TMP2
+        lsr     TMP0, TMP0, #12
+        ldr     w21, [TMP1, TMP0, lsl #2]       /* TMP0 = gen(lhs) */
+        sub     TMP2, SECOND, TMP2
+        lsr     TMP2, TMP2, #12
+        ldr     w17, [TMP1, TMP2, lsl #2]       /* TMP2 = gen(rhs) */
+        cmp     TMP0, TMP2
+        b.eq    1f
+        ldr     TMP1, [GLOBALS, #G_FILTER_REMSET_GEN_ORDER]
+        cbz     TMP1, 2f
+        cmp     TMP0, TMP2
+        b.ls    1f                              /* gen(lhs) <= gen(rhs) */
+2:      ldr     TMP1, [GLOBALS, #G_FILTER_REMSET_RHS_NUM]
+        cmp     TMP1, TMP2
+        b.eq    1f
+        ldr     TMP1, [GLOBALS, #G_FILTER_REMSET_LHS_NUM]
+        cmp     TMP1, TMP0
+        b.eq    1f
+        ldr     TMP1, [GLOBALS, #G_SSBTOPV]
+        add     TMP1, TMP1, TMP2, lsl #3        /* &ssbtopv[gen(rhs)] */
+        ldr     TMP0, [TMP1]                    /* SSB top */
+        str     RESULT, [TMP0]                  /* the object */
+        and     RESULT, RESULT, #~7             /* ptrof(object) */
+        ldr     SECOND, [GLOBALS, #G_THIRD]
+        sub     SECOND, SECOND, RESULT
+        str     SECOND, [TMP0, #8]              /* the slot's offset, a fixnum */
+        add     TMP0, TMP0, #16
+        str     TMP0, [TMP1]
+        ldr     TMP1, [GLOBALS, #G_SSBLIMV]
+        ldr     TMP1, [TMP1, TMP2, lsl #3]      /* ssblimv[gen(rhs)] */
+        add     TMP0, TMP0, #8
+        cmp     TMP0, TMP1
+        b.hs    EXTNAME(fmc_compact_ssbs)       /* SSB full */
+1:      ret
 
 /* Special case: the exception code is transmitted in TMP0 */
 
