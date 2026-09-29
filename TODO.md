@@ -24,18 +24,8 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
-- Different configurations (Petit vs native, Racket-hosted vs
-  Larceny-hosted) write build products to the same paths in the source
-  tree, and `make` decides staleness by timestamps only.  Have `setup`
-  record a fingerprint of the configuration (host Scheme, target, word
-  size, features) and clean everything generated when it changes, or
-  refuse without an explicit `'clean`.
-- A single `clean-all` that knows every generated artifact (`.lop`,
-  `.lap`, `.fasl`, `.slfasl`, `.o`, `.so`, heaps, generated headers and
-  tables) and keeps `src/Rts/Shared/arithmetic.c` regenerable.
-- Racket-hosted builds write bytevectors in `.lop` files as Racket byte
-  strings (`#"..."`), which Larceny's reader cannot read; write them in
-  Larceny syntax instead so `.lop` files are host-independent.
+- `setup`'s `'clean` needs git to find the build products; it could fall
+  back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).
 - A `setup.sch` command for the second stage (building `larceny.heap`
   with the new binary), and have the first stage print what to run next;

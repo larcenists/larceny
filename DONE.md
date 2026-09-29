@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- `setup` records the build configuration in `build-configuration` and
+  refuses to mix configurations; `'clean` removes the build products
+  (via git), `'keep-build-products` keeps them (d14b9927).
+- Racket-hosted builds write `.lop` and `.fasl` files in Larceny syntax,
+  so Larceny can read them (46333896).
 - REPL/debugger no longer loop forever ("Read error on port") when the
   console must be reopened but there is no controlling terminal; the
   console falls back to /dev/null (27a26528).
