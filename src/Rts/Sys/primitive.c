@@ -145,7 +145,13 @@ word w_bv;
     panic_exit( "This collector does not support compiled code." );
   if (cs_wants_collection( gc->code_space )) {
     globals[ G_RESULT ] = w_bv;          /* A root; the collection moves it */
-    gc_collect( gc, gc->code_space->gen_no, 0, GCTYPE_COLLECT );
+    if (!gc->code_space->by_scanning)
+      gc_collect( gc, gc->code_space->gen_no, 0, GCTYPE_COLLECT );
+    else if (gc->smircy == NULL) {
+      /* Collect the nursery, then scan for code; see memmgr.c */
+      gc->code_space->scan_requested = 1;
+      gc_collect( gc, 0, 0, GCTYPE_EVACUATE );
+    }
     cs_collected( gc->code_space );
     w_bv = globals[ G_RESULT ];
   }

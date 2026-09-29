@@ -2387,6 +2387,58 @@ void gc_check_infamy_drop_to_hasbeen( gc_t *gc,
   }
 }
 
+#if CODE_SPACE
+/* Collecting code by scanning (for the regional collector; see
+   code-space.h).  Called after a collection, when the stack has been
+   flushed into the heap and the nursery has been evacuated, so that
+   every pointer to code is in a root, in an area enumerated by
+   enumerate_hdr_address_ranges(), or in a large object.  Every pointer
+   to a code object is updated, and every code object referenced (even
+   from garbage) is copied.  */
+
+static void cs_scan_root( word *loc, void *data )
+{
+  *loc = cs_update_pointer( (code_space_t*)data, *loc );
+}
+
+static void cs_scan_range( word *p, word *lim, void *data )
+{
+  code_space_t *cs = (code_space_t*)data;
+
+  while (p < lim) {
+    word w = *p;
+    if (ishdr( w )) {
+      word words = 1 + roundup_word( sizefield( w ) )/sizeof(word);
+      if (header( w ) != BV_HDR) {
+        word i;
+        for ( i=1 ; i < words ; i++ )
+          p[i] = cs_update_pointer( cs, p[i] );
+      }
+      p += roundup_walign( words );
+    }
+    else {
+      p[0] = cs_update_pointer( cs, p[0] );
+      p[1] = cs_update_pointer( cs, p[1] );
+      p += 2;
+    }
+  }
+}
+
+static void collect_code_by_scanning( gc_t *gc )
+{
+  code_space_t *cs = gc->code_space;
+  int gno;
+
+  cs->scan_requested = 0;
+  gc_enumerate_roots( gc, cs_scan_root, (void*)cs );
+  for ( gno=1 ; gno < gc->gno_count ; gno++ )
+    gc_enumerate_hdr_address_ranges( gc, gno, cs_scan_range, (void*)cs );
+  cs_after_collection( cs );
+  /* Code objects moved: address-based hash tables must be rehashed. */
+  DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
+}
+#endif
+
 static void before_collection( gc_t *gc )
 {
   int e;
@@ -2454,6 +2506,12 @@ static void after_collection( gc_t *gc )
   }
   assert(! DATA(gc)->use_summary_instead_of_remsets );
   SUMMMTX_VERIFICATION_POINT(gc);
+
+#if CODE_SPACE
+  /* Here the stack has been flushed and the nursery evacuated. */
+  if (gc->code_space && gc->code_space->scan_requested && gc->smircy == NULL)
+    collect_code_by_scanning( gc );
+#endif
 
   yh_after_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
@@ -3211,6 +3269,10 @@ static void expand_static_area_gnos( gc_t *gc, int fresh_gno )
       ss_set_gen_no( gc->static_area->text_area, new_static_gno );
     DATA(gc)->static_generation = new_static_gno;
     DATA(gc)->globals[ G_FILTER_REMSET_RHS_NUM ] = new_static_gno;
+#if CODE_SPACE
+    if (gc->code_space)
+      cs_set_gen_no( gc->code_space, new_static_gno );
+#endif
   }
 }
 
@@ -3532,7 +3594,7 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
   gc->young_area = create_sc_heap( 0, gc, &info->sc_info, info->globals );
   strcat( buf, gc->young_area->id );
 #if CODE_SPACE
-  gc->code_space = create_code_space( 0 );
+  gc->code_space = create_code_space( 0, 0 );
 #endif
 
   if (info->use_static_area) {
@@ -3845,7 +3907,7 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
     DATA(gc)->dynamic_area = 
       create_sc_area( gen_no, gc, &info->dynamic_sc_info, OHTYPE_DYNAMIC );
 #if CODE_SPACE
-    gc->code_space = create_code_space( gen_no );
+    gc->code_space = create_code_space( gen_no, 0 );
 #endif
     gen_no += 1;
   }
@@ -4040,6 +4102,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     gc->static_area = create_static_area( gen_no, gc );
     data->globals[ G_FILTER_REMSET_RHS_NUM ] = gen_no;
     data->static_generation = gen_no;
+#if CODE_SPACE
+    gc->code_space = create_code_space( gen_no, 1 );
+#endif
     gen_no += 1;
     strcat( buf, "+" );
     strcat( buf, gc->static_area->id );

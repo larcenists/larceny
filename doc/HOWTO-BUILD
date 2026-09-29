@@ -105,10 +105,11 @@ MacOS X on Apple Silicon does not allow memory that is both writable
 and executable, so compiled code lives in a separate code space: a
 semispace of MAP_JIT memory that belongs to the oldest non-static
 generation and is garbage collected, by copying, together with that
-generation.  Heap images keep code in their text segment.  The code
-space is supported by the stop-and-copy (-stopcopy) and generational
-(default) collectors, but not yet by the regional collector (-rrof).
-Its address space can be set with LARCENY_CODE_GB (default 1 GB).
+generation.  (The regional collector, -rrof, has no such generation:
+there the code space belongs to the static generation, and code is
+collected by a separate pass over the heap when much code has been
+created.)  Heap images keep code in their text segment.  The code
+space's address space can be set with LARCENY_CODE_GB (default 1 GB).
 
 
 BUILD CONFIGURATIONS

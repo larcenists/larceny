@@ -42,8 +42,8 @@ one.  Add new ideas to `TODO.md` as they come up.
   the directory.
 - Compiler: `test/Compiler`, `(load "run-tests.sch") (run-compiler-tests sanity-switches)`.
 - R7RS/R6RS suites: `test/R7RS/Lib/testall` and `testr6rs-larceny`.
-- Test both the default collector and `-stopcopy`; for Petit also
-  `-rrof` (not yet supported natively).
+- Test the default collector, `-stopcopy`, and `-rrof` (the regional
+  collector; its concurrent marking relies on the SATB pre-barrier).
 - When piping input into `./larceny` from an interactive shell, note that
   after end of input the console is reopened on `/dev/tty` (the REPL
   waits for the keyboard); without a terminal it falls back to

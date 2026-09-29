@@ -20,6 +20,13 @@
  * collection the old code semispace is freed.  The collector calls
  * cs_forward() for any object on a page with the MB_CODE attribute.
  *
+ * The regional collector has no oldest generation that it collects,
+ * so there the code space belongs to the static generation (which is
+ * never collected, and pointers into which are not remembered), and
+ * code is collected by a separate pass over all the heap memory that
+ * forwards code objects and updates every pointer to them (see
+ * collect_code_by_scanning() in memmgr.c).
+ *
  * New code is installed by copying a code vector from the data heap
  * into the code space (cs_install()).  Heap images put code vectors in
  * their text segment, which is loaded into the code space.
@@ -41,10 +48,18 @@ struct code_space {
   word        *load_top;
   int         installed;        /* Bytes installed since code was collected */
   int         live;             /* Bytes live after code was collected */
+  int         by_scanning;      /* Collected by a separate scanning pass? */
+  int         scan_requested;   /* Scanning pass requested after next GC? */
 };
 
-code_space_t *create_code_space( int gen_no );
-  /* Create a code space owned by the given generation.
+code_space_t *create_code_space( int gen_no, int by_scanning );
+  /* Create a code space owned by the given generation.  If by_scanning
+     is nonzero, the generation is never collected and code is
+     collected by a separate scanning pass.
+     */
+
+void cs_set_gen_no( code_space_t *cs, int gen_no );
+  /* The owning generation has been renumbered.
      */
 
 word *cs_load_area( code_space_t *cs, int nbytes );
@@ -71,6 +86,11 @@ int cs_wants_collection( code_space_t *cs );
 
 void cs_collected( code_space_t *cs );
   /* Called after an explicit collection of the code space's generation.
+     */
+
+word cs_update_pointer( code_space_t *cs, word w );
+  /* For the scanning pass: if w points to a code object that has not
+     yet been copied, copy it; return the (possibly new) value of w.
      */
 
 word cs_forward( code_space_t *cs, word obj );

@@ -399,6 +399,7 @@
       ;; the write barrier invocation.  See notes at emit-write-barrier.
       (cant.mov as $r.result $r.second)
       (let ((base (emit-follow-lexical-chain as rib $r.result)))
+        (emit-pre-barrier   as base base (fence.procedure-slot slot))
         (cant.sti           as $r.second base (fence.procedure-slot slot))
         (emit-write-barrier as base $r.second base (fence.procedure-slot slot))))))
 
@@ -735,6 +736,7 @@
   (if (not (= rs $r.second))
       (cant.mov          as rs $r.second))
   (emit-global->register as name $r.result)
+  (emit-pre-barrier      as $r.result $r.result (- $tag.pair-tag))
   (cant.sti              as $r.second $r.result (- $tag.pair-tag))
   (emit-write-barrier    as $r.result $r.second $r.result (- $tag.pair-tag)))
 
@@ -945,6 +947,25 @@
         (begin
           (cant.ldi as base $p.linkoffset target)
           (loop (- q 1) target)))))
+
+; A value is about to be stored in obj at address base+offset.  During
+; the concurrent marking phase of the regional collector, the
+; snapshot-at-the-beginning barrier must record the old value of the
+; slot.  This may destroy RESULT and TMP; the slot address is computed
+; into TMP by compute-address, or from base and offset.
+
+(define (emit-pre-barrier as r_obj r_base offset . compute-address)
+  (let ((L (fence.make-label as)))
+    (cant.ldi  as $r.globals $g.concurrent-mark $r.tmp)
+    (cant.bcci as 'equal $r.tmp 0 L)
+    (if (null? compute-address)
+        (cant.addi as r_base offset $r.tmp)
+        ((car compute-address)))
+    (cant.sti  as $r.tmp $r.globals $g.third)
+    (if (not (= r_obj $r.result))
+        (cant.mov as r_obj $r.result))
+    (cant.trap as $m.satb-barrier '*satb-barrier)
+    (fence.label as L)))
 
 ; val has been stored in obj at address base+offset, now record that
 ; store.  This may destroy RESULT, SECOND, and TMP.
@@ -1432,16 +1453,20 @@
   (assert (not (= rs2 $r.result)))
   (case name
     ((cell-set!)
+     (emit-pre-barrier as rs1 rs1 (- $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $tag.pair-tag))
      (emit-write-barrier as rs1 rs2 rs1 (- $tag.pair-tag)))
     ((cell-set!:nwb)
+     (emit-pre-barrier as rs1 rs1 (- $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $tag.pair-tag)))
     ((set-car!)
      (emit-check-tag as rs1 $tag.pair-tag $ex.setcar)
+     (emit-pre-barrier as rs1 rs1 (- $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $tag.pair-tag))
      (emit-write-barrier as rs1 rs2 rs1 (- $tag.pair-tag)))
     ((set-cdr!)
      (emit-check-tag as rs1 $tag.pair-tag $ex.setcdr)
+     (emit-pre-barrier as rs1 rs1 (- $bytewidth.wordsize $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $bytewidth.wordsize $tag.pair-tag))
      (emit-write-barrier as rs1 rs2 rs1 (- $bytewidth.wordsize $tag.pair-tag)))
     ((cons)
@@ -2226,6 +2251,10 @@
         (cant.ldi as rd (- $bytewidth.wordsize tag) rd))))
 
 (define (emit-unchecked-structure-set as rs1 rs2 rs3 tag barrier?)
+  (emit-pre-barrier as rs1 #f #f
+                    (lambda ()
+                      (fence.index->word-offset as rs1 rs2 $r.tmp)
+                      (cant.addi as $r.tmp (- $bytewidth.wordsize tag) $r.tmp)))
   (fence.index->word-offset as rs1 rs2 $r.tmp)
   (cant.sti           as rs3 $r.tmp (- $bytewidth.wordsize tag))
   (if barrier?

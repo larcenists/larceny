@@ -52,7 +52,7 @@ static void flush_semispace( semispace_t *ss )
       osdep_code_flush( ss->chunks[i].bot, ss->chunks[i].top );
 }
 
-code_space_t *create_code_space( int gen_no )
+code_space_t *create_code_space( int gen_no, int by_scanning )
 {
   code_space_t *cs = (code_space_t*)must_malloc( sizeof( code_space_t ) );
 
@@ -63,7 +63,17 @@ code_space_t *create_code_space( int gen_no )
   cs->load_bot = cs->load_top = 0;
   cs->installed = 0;
   cs->live = 0;
+  cs->by_scanning = by_scanning;
+  cs->scan_requested = 0;
   return cs;
+}
+
+void cs_set_gen_no( code_space_t *cs, int gen_no )
+{
+  cs->gen_no = gen_no;
+  ss_set_gen_no( cs->current, gen_no );
+  if (cs->tospace)
+    ss_set_gen_no( cs->tospace, gen_no );
 }
 
 word *cs_load_area( code_space_t *cs, int nbytes )
@@ -141,6 +151,20 @@ word cs_forward( code_space_t *cs, word obj )
   src[0] = FORWARD_HDR;
   src[1] = tagptr( dest, BVEC_TAG );
   return src[1];
+}
+
+word cs_update_pointer( code_space_t *cs, word w )
+{
+  word *p;
+
+  if (tagof( w ) != BVEC_TAG || !is_code_page( w ))
+    return w;
+  p = ptrof( w );
+  if (cs->tospace && ss_is_address_mapped( cs->tospace, p, FALSE ))
+    return w;                   /* Already copied */
+  if (*p == FORWARD_HDR)
+    return p[1];
+  return cs_forward( cs, w );
 }
 
 void cs_after_collection( code_space_t *cs )

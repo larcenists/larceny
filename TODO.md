@@ -5,10 +5,10 @@ DONE.md (with the date and the commit, if any).
 
 ## Native AArch64 Larceny
 
-- Support the regional collector (`-rrof`) natively.  Needs the SATB
-  pre-write barrier in the Fence code generator (`emit-write-barrier` in
-  `src/Asm/Fence/pass5p2.sch`), and a way to collect the code space when
-  there is no single oldest generation to own it.
+- Under `-rrof`, the code-scanning pass is skipped while concurrent
+  marking is in progress (the mark stack may hold code pointers); it could
+  instead update the mark state.  It also copies code referenced only
+  from garbage.
 - Cheaper allocation: every allocation is a millicode call that saves
   and restores the whole register context (an allocation-heavy loop takes
   85 ms native vs 54 ms Petit).  Inline allocation, or lighter-weight
