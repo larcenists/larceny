@@ -263,7 +263,8 @@
 	(emit-text as "twobit_op2_~a( ~a ); /* ~a */"
 		   (op2-primcode (operand1 instruction))
 		   (operand2 instruction)
-		   (operand1 instruction)))))
+		   (operand1 instruction)))
+    (emit-mutator-result as (operand1 instruction))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
@@ -303,7 +304,8 @@
 		   (op3-primcode (operand1 instruction))
 		   (operand2 instruction)
 		   (operand3 instruction)
-		   (operand1 instruction)))))
+		   (operand1 instruction)))
+    (emit-mutator-result as (operand1 instruction))))
 
 (define-instruction $const
   (lambda (instruction as)
@@ -327,7 +329,22 @@
     (list-instruction "setglbl" instruction)
     (emit-text as "twobit_setglbl( ~a ); /* ~a */"
 	       (emit-global as (operand1 instruction))
-	       (safe-symbol (operand1 instruction)))))
+	       (safe-symbol (operand1 instruction)))
+    ; RESULT holds the global's cell, which must not escape.
+    (emit-text as "twobit_op1_3(); /* unspecified */")))
+
+; The value of a primitive that mutates an object is #!unspecified.
+
+(define petit.mutators
+  '(set-car! set-cdr! cell-set! cell-set!:nwb
+    vector-set! vector-set!:trusted vector-set!:trusted:nwb vector-like-set!
+    procedure-set! bytevector-set! bytevector-like-set!
+    bytevector-like-set!:trusted bytevector-fill! string-set!
+    ustring-set! ustring-set!:trusted typetag-set!))
+
+(define (emit-mutator-result as name)
+  (if (memq name petit.mutators)
+      (emit-text as "twobit_op1_3(); /* unspecified */")))
 
 (define-instruction $lambda
   (lambda (instruction as)

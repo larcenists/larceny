@@ -15,11 +15,6 @@ DONE.md (with the date and the commit, if any).
 - More peephole optimization for the AArch64 back end (the ARM-32 back
   end has a framework in `src/Asm/Fence/arm-optimizer.sch`), e.g. the
   stack overflow check and timer tick sequences.
-- Native mutation primitives (`set-car!`, `bytevector-u8-set!`, ...)
-  leave whatever was in RESULT as their value, so the REPL prints e.g.
-  `(set-car! p 2)` as a large fixnum (a heap address); Petit returns
-  nothing interesting.  Harmless to the collector (addresses look like
-  fixnums), but untidy.
 - Twobit's memory use explodes on enormous single procedures (a
   procedure of 8000 statements needs over 2 GB); the AArch64 long-branch
   mode for code vectors over 1 MB could only be tested with its

@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- The value of `set!` and of mutation primitives is `#!unspecified` in
+  native and Petit code; before, it could be a global's value cell or a
+  code vector (COMMIT).
 - `-nocontract` works again: the heap-size policy compared bytes with the
   peak heap size in words, so it kept only 1/8 of the peak (4f4cb540).
 - Feature markers on compiled code: `#lap(...)`/`#lop(...)` with

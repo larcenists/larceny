@@ -126,10 +126,9 @@
          (let ((doc (procedure-documentation proc)))
            (if (and (vector? doc)
                     (< doc.procedure-name (vector-length doc)))
-               (procedure-documentation-set! proc
-                                             (vector-set! (vector-copy doc)
-                                                          doc.procedure-name
-                                                          newval))
+               (let ((doc (vector-copy doc)))
+                 (vector-set! doc doc.procedure-name newval)
+                 (procedure-documentation-set! proc doc))
                #f)))
         (else
          (assertion-violation 'procedure-name-set!

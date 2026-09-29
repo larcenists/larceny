@@ -220,12 +220,14 @@
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
-    (emit-op2 as (operand1 instruction) $r.result (operand2 instruction) $r.result)))
+    (emit-op2 as (operand1 instruction) $r.result (operand2 instruction) $r.result)
+    (emit-mutator-result as (operand1 instruction) $r.result)))
 
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
-    (emit-op3 as (operand1 instruction) $r.result (operand2 instruction) (operand3 instruction))))
+    (emit-op3 as (operand1 instruction) $r.result (operand2 instruction) (operand3 instruction))
+    (emit-mutator-result as (operand1 instruction) $r.result)))
 
 (define-instruction $op2imm
   (lambda (instruction as)
@@ -520,7 +522,8 @@
 (define-instruction $reg/op2/setreg     ; op rs1 rs2 rd
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
-    (emit-op2 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))))
+    (emit-op2 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))
+    (emit-mutator-result as (operand1 instruction) (operand4 instruction))))
 
 (define-instruction $reg/op2imm/setreg  ; op rs imm rd
   (lambda (instruction as)
@@ -530,7 +533,8 @@
 (define-instruction $reg/op3            ; op rs1 rs2 rs3
   (lambda (instruction as)
     (list-instruction "reg/op3" instruction)
-    (emit-op3 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))))
+    (emit-op3 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))
+    (emit-mutator-result as (operand1 instruction) $r.result)))
 
 (define-instruction $reg/branchf        ; rs label
   (lambda (instruction as)
@@ -725,8 +729,8 @@
         (cant.trap      as $m.global-ex '*global-ex)
         (fence.label    as L))))
 
-; emit-setglbl destroys RESULT (because of the write barrier).  Note
-; that rs may be RESULT or SECOND.
+; emit-setglbl leaves #!unspecified in RESULT (which held the global's
+; cell, which must not escape).  Note that rs may be RESULT or SECOND.
 
 (define (emit-setglbl as rs name)
   (if (not (= rs $r.second))
@@ -734,7 +738,24 @@
   (emit-global->register as name $r.result)
   (emit-pre-barrier      as $r.result $r.result (- $tag.pair-tag))
   (cant.sti              as $r.second $r.result (- $tag.pair-tag))
-  (emit-write-barrier    as $r.result $r.second $r.result (- $tag.pair-tag)))
+  (emit-write-barrier    as $r.result $r.second $r.result (- $tag.pair-tag))
+  (cant.movi             as $imm.unspecified $r.result))
+
+; The value of a primitive that mutates an object is #!unspecified.
+; The code for it leaves whatever it likes in the destination register,
+; which may be an object that must not escape (the write barrier's
+; millicode can leave a code vector in RESULT).
+
+(define fence.mutators
+  '(set-car! set-cdr! cell-set! cell-set!:nwb
+    vector-set! vector-set!:trusted vector-set!:trusted:nwb vector-like-set!
+    procedure-set! bytevector-set! bytevector-like-set!
+    bytevector-like-set!:trusted bytevector-fill! string-set!
+    ustring-set! ustring-set!:trusted typetag-set! creg-set!))
+
+(define (emit-mutator-result as name rd)
+  (if (memq name fence.mutators)
+      (cant.movi as $imm.unspecified rd)))
 
     
 ;;; Helpers
