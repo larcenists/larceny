@@ -1,0 +1,328 @@
+; Test for the AArch64 instruction encoder in src/Asm/Fence/pass5p2-arm64.sch.
+;
+; Loading this file (from the Larceny root directory) writes two files
+; into the current directory:
+;
+;   encoder-test.s     assembler source for each test case
+;   encoder-test.hex   the instruction words our encoder produced
+;
+; run-encoder-test.sh assembles the .s file with the system assembler
+; and compares the result to the .hex file.
+;
+; This file supplies a minimal stand-in for the assembler structure
+; of src/Asm/Shared/pass5p1.sch, so the encoder can be exercised on
+; its own.
+
+(define $r.result -1)
+(define $r.second -2)
+(define $r.stkp -3)
+(define $r.globals -4)
+(define $r.tmp -5)
+(define $r.reg0 0)
+(define *nregs* 16)
+(define *lastreg* 15)
+(define $bytewidth.wordsize 8)
+(define $tag.bytevector-tag 5)
+(define $p.codevector 1)
+(define $imm.true 6)
+(define $imm.false 2)
+
+(define arm64.RESULT 0)
+(define arm64.SECOND 1)
+(define arm64.REG0 2)
+(define arm64.REG1 3)
+(define arm64.REG2 4)
+(define arm64.REG3 5)
+(define arm64.REG4 6)
+(define arm64.REG5 7)
+(define arm64.REG6 8)
+(define arm64.REG7 9)
+(define arm64.REG8 10)
+(define arm64.REG9 11)
+(define arm64.REG10 12)
+(define arm64.REG11 13)
+(define arm64.REG12 14)
+(define arm64.REG13 15)
+(define arm64.TMP1 16)
+(define arm64.TMP2 17)
+(define arm64.REG14 19)
+(define arm64.REG15 20)
+(define arm64.TMP0 21)
+(define arm64.STKP 22)
+(define arm64.GLOBALS 23)
+
+; The stand-in assembler: a list of emitted bytevectors (in reverse),
+; the location counter, and a list of fixup procedures.
+
+(define (make-test-as) (vector '() 0 '()))
+
+(define (emit! as bv)
+  (vector-set! as 0 (cons bv (vector-ref as 0)))
+  (vector-set! as 1 (+ (vector-ref as 1) (bytevector-length bv))))
+
+(define (here as) (vector-ref as 1))
+
+(define (label-value as L) (cdr L))
+
+(define (emit-label! as L) (set-cdr! L (here as)))
+
+(define (emit-fixup-proc! as proc)
+  (vector-set! as 2 (cons (cons (here as) proc) (vector-ref as 2))))
+
+(define (test-as-code as)
+  (let* ((n  (here as))
+         (cv (make-bytevector n 0)))
+    (let loop ((bvs (reverse (vector-ref as 0))) (i 0))
+      (if (pair? bvs)
+          (let ((bv (car bvs)))
+            (do ((j 0 (+ j 1)))
+                ((= j (bytevector-length bv)))
+              (bytevector-set! cv (+ i j) (bytevector-ref bv j)))
+            (loop (cdr bvs) (+ i (bytevector-length bv))))))
+    (for-each (lambda (f) ((cdr f) cv (car f)))
+              (vector-ref as 2))
+    cv))
+
+(load "src/Asm/Fence/pass5p2-arm64.sch")
+
+; Each test is a procedure of one argument (the assembler) and the
+; expected assembly text; multiple instructions are separated by ";".
+; Branch targets are written as .+n or .-n, relative to the branch.
+
+(define (L as offset)                   ; a label at here+offset
+  (cons 'label (+ (here as) offset)))
+
+(define tests
+  `(
+    ;; Register-register operations
+    (,(lambda (as) (arm64.ADD as 3 4 5)) "add x3, x4, x5")
+    (,(lambda (as) (arm64.ADDS as 16 0 1)) "adds x16, x0, x1")
+    (,(lambda (as) (arm64.SUB as 3 4 5)) "sub x3, x4, x5")
+    (,(lambda (as) (arm64.SUBS as 16 21 20)) "subs x16, x21, x20")
+    (,(lambda (as) (arm64.AND as 3 4 5)) "and x3, x4, x5")
+    (,(lambda (as) (arm64.BIC as 3 4 16)) "bic x3, x4, x16")
+    (,(lambda (as) (arm64.ORR as 21 19 20)) "orr x21, x19, x20")
+    (,(lambda (as) (arm64.EOR as 3 4 5)) "eor x3, x4, x5")
+    (,(lambda (as) (arm64.LSLV as 3 4 21)) "lsl x3, x4, x21")
+    (,(lambda (as) (arm64.LSRV as 3 4 21)) "lsr x3, x4, x21")
+    (,(lambda (as) (arm64.ASRV as 3 4 21)) "asr x3, x4, x21")
+    (,(lambda (as) (arm64.MUL as 16 0 21)) "mul x16, x0, x21")
+    (,(lambda (as) (arm64.SMULH as 17 0 21)) "smulh x17, x0, x21")
+    (,(lambda (as) (arm64.CMP as 4 5)) "cmp x4, x5")
+    (,(lambda (as) (arm64.CMP/ASR as 17 16 63)) "cmp x17, x16, asr #63")
+    (,(lambda (as) (arm64.MOV as 3 4)) "mov x3, x4")
+    (,(lambda (as) (arm64.MOV as 3 3) (arm64.NOP as)) "nop")
+    (,(lambda (as) (arm64.MVN as 3 4)) "mvn x3, x4")
+
+    ;; Arithmetic immediates
+    (,(lambda (as) (arm64.ADDI as 3 4 4095)) "add x3, x4, #4095")
+    (,(lambda (as) (arm64.ADDSI as 16 4 1)) "adds x16, x4, #1")
+    (,(lambda (as) (arm64.SUBI as 3 4 7)) "sub x3, x4, #7")
+    (,(lambda (as) (arm64.SUBSI as 16 4 12)) "subs x16, x4, #12")
+    (,(lambda (as) (arm64.ADDI12 as 3 4 1)) "add x3, x4, #1, lsl #12")
+    (,(lambda (as) (arm64.CMPI as 4 255)) "cmp x4, #255")
+    (,(lambda (as) (arm64.CMNI as 4 3)) "cmn x4, #3")
+    (,(lambda (as) (arm64.addi as 3 4 0)) "mov x3, x4")
+    (,(lambda (as) (arm64.addi as 3 4 -8)) "sub x3, x4, #8")
+    (,(lambda (as) (arm64.addi as 3 4 8192)) "add x3, x4, #2, lsl #12")
+    (,(lambda (as) (arm64.addi as 3 4 100000))
+     "movz x17, #0x86a0 ; movk x17, #1, lsl #16 ; add x3, x4, x17")
+    (,(lambda (as) (arm64.addi/flags as 16 4 -4))
+     "subs x16, x4, #4")
+    (,(lambda (as) (arm64.subi/flags as 16 4 4))
+     "subs x16, x4, #4")
+
+    ;; Logical immediates
+    (,(lambda (as) (arm64.ANDI as 16 4 (arm64.logical-immediate 1))) "and x16, x4, #1")
+    (,(lambda (as) (arm64.ANDI as 16 4 (arm64.logical-immediate 3))) "and x16, x4, #3")
+    (,(lambda (as) (arm64.ANDI as 16 4 (arm64.logical-immediate 7))) "and x16, x4, #7")
+    (,(lambda (as) (arm64.TSTI as 4 (arm64.logical-immediate 255))) "tst x4, #255")
+    (,(lambda (as) (cant.andni as 0 3 1)) "and x3, x2, #0xfffffffffffffffc")
+    (,(lambda (as) (cant.andni as 0 15 1)) "and x3, x2, #0xfffffffffffffff0")
+    (,(lambda (as) (arm64.ORRI as 3 31 (arm64.logical-immediate #xFFFF0000FFFF0000)))
+     "orr x3, xzr, #0xffff0000ffff0000")
+    (,(lambda (as) (arm64.ORRI as 3 31 (arm64.logical-immediate #x5555555555555555)))
+     "orr x3, xzr, #0x5555555555555555")
+    (,(lambda (as) (arm64.EORI as 3 4 (arm64.logical-immediate #x00000000FF000000)))
+     "eor x3, x4, #0xff000000")
+    (,(lambda (as) (arm64.ANDI as 3 4 (arm64.logical-immediate #x8000000000000001)))
+     "and x3, x4, #0x8000000000000001")
+    (,(lambda (as) (if (arm64.logical-immediate 0) (arm64.NOP as))
+                   (if (arm64.logical-immediate #xFFFFFFFFFFFFFFFF) (arm64.NOP as))
+                   (if (arm64.logical-immediate 5) (arm64.NOP as))
+                   (arm64.BR as 3))
+     "br x3")
+
+    ;; Moves of immediates
+    (,(lambda (as) (arm64.MOVZ as 3 #x1234 0)) "movz x3, #0x1234")
+    (,(lambda (as) (arm64.MOVZ as 3 #x1234 3)) "movz x3, #0x1234, lsl #48")
+    (,(lambda (as) (arm64.MOVN as 3 #x1234 1)) "movn x3, #0x1234, lsl #16")
+    (,(lambda (as) (arm64.MOVK as 3 #xffff 2)) "movk x3, #0xffff, lsl #32")
+    (,(lambda (as) (arm64.setval as 3 0)) "movz x3, #0")
+    (,(lambda (as) (arm64.setval as 3 -1)) "movn x3, #0")
+    (,(lambda (as) (arm64.setval as 3 2)) "movz x3, #2")
+    (,(lambda (as) (arm64.setval as 3 -2)) "movn x3, #1")
+    (,(lambda (as) (arm64.setval as 3 #x12345678))
+     "movz x3, #0x5678 ; movk x3, #0x1234, lsl #16")
+    (,(lambda (as) (arm64.setval as 3 #x123456789abcdef0))
+     "movz x3, #0xdef0 ; movk x3, #0x9abc, lsl #16 ; movk x3, #0x5678, lsl #32 ; movk x3, #0x1234, lsl #48")
+    (,(lambda (as) (arm64.setval as 3 (- (expt 2 61))))
+     "movz x3, #0xe000, lsl #48")
+    (,(lambda (as) (arm64.setval as 3 (- (expt 2 63) 4)))
+     "orr x3, xzr, #0x7ffffffffffffffc")
+    (,(lambda (as) (arm64.setval as 3 (- (* 4 (expt 2 61)))))
+     "movz x3, #0x8000, lsl #48")
+    (,(lambda (as) (arm64.setval as 3 -65536))
+     "movn x3, #0xffff")
+    (,(lambda (as) (arm64.setval as 3 -100000))
+     "movn x3, #0x869f ; movk x3, #0xfffe, lsl #16")
+    (,(lambda (as) (arm64.setval as 3 #xFFFF0000FFFF0000))
+     "orr x3, xzr, #0xffff0000ffff0000")
+
+    ;; Shifts by immediate
+    (,(lambda (as) (arm64.LSLI as 3 4 2)) "lsl x3, x4, #2")
+    (,(lambda (as) (arm64.LSLI as 3 4 63)) "lsl x3, x4, #63")
+    (,(lambda (as) (arm64.LSRI as 3 4 6)) "lsr x3, x4, #6")
+    (,(lambda (as) (arm64.ASRI as 3 4 8)) "asr x3, x4, #8")
+    (,(lambda (as) (arm64.ASRI as 3 4 63)) "asr x3, x4, #63")
+
+    ;; Conditional select and set
+    (,(lambda (as) (arm64.CSEL as 3 16 3 arm64-cond.VC)) "csel x3, x16, x3, vc")
+    (,(lambda (as) (arm64.CSEL as 3 16 3 arm64-cond.EQ)) "csel x3, x16, x3, eq")
+    (,(lambda (as) (arm64.CSET as 16 arm64-cond.EQ)) "cset x16, eq")
+    (,(lambda (as) (arm64.CSET as 16 arm64-cond.LO)) "cset x16, lo")
+    (,(lambda (as) (arm64.CSET as 16 arm64-cond.GT)) "cset x16, gt")
+    (,(lambda (as) (arm64.set-boolean as 0 arm64-cond.LE))
+     "cset x16, le ; lsl x16, x16, #2 ; add x0, x16, #2")
+
+    ;; PC-relative addresses and branches
+    (,(lambda (as) (arm64.ADR* as 17 12)) "adr x17, .+12")
+    (,(lambda (as) (arm64.ADR* as 17 -1048576)) "adr x17, .-1048576")
+    (,(lambda (as) (arm64.ADR as 16 (L as 64) 0)) "adr x16, .+64")
+    (,(lambda (as) (arm64.B as (L as 8))) "b .+8")
+    (,(lambda (as) (arm64.B as (L as -134217728))) "b .-134217728")
+    (,(lambda (as) (arm64.Bcond as arm64-cond.EQ (L as -8))) "b.eq .-8")
+    (,(lambda (as) (arm64.Bcond as arm64-cond.VC (L as 1048572))) "b.vc .+1048572")
+    (,(lambda (as) (arm64.Bcond as arm64-cond.LO (L as 400))) "b.lo .+400")
+    (,(lambda (as) (arm64.CBZ as 3 (L as 16))) "cbz x3, .+16")
+    (,(lambda (as) (arm64.CBNZ as 3 (L as -16))) "cbnz x3, .-16")
+    (,(lambda (as) (arm64.BR as 16)) "br x16")
+    (,(lambda (as) (arm64.BLR as 17)) "blr x17")
+    (,(lambda (as) (arm64.NOP as)) "nop")
+
+    ;; Forward branches, patched by fixups
+    (,(lambda (as)
+        (let ((lbl (cons 'label #f)))
+          (arm64.B as lbl)
+          (arm64.Bcond as arm64-cond.NE lbl)
+          (arm64.CBZ as 5 lbl)
+          (arm64.ADR as 16 lbl 4)
+          (arm64.label->reg as lbl 17 3)
+          (arm64.NOP as)
+          (emit-label! as lbl)
+          (arm64.NOP as)))
+     "b .+28 ; b.ne .+24 ; cbz x5, .+20 ; adr x16, .+20 ; movz x17, #31 ; movk x17, #0, lsl #16 ; nop ; nop")
+
+    ;; Loads and stores
+    (,(lambda (as) (arm64.load as 8 3 4 16)) "ldr x3, [x4, #16]")
+    (,(lambda (as) (arm64.load as 8 3 4 32760)) "ldr x3, [x4, #32760]")
+    (,(lambda (as) (arm64.load as 8 3 4 1)) "ldur x3, [x4, #1]")
+    (,(lambda (as) (arm64.load as 8 3 4 -5)) "ldur x3, [x4, #-5]")
+    (,(lambda (as) (arm64.load as 8 3 4 -256)) "ldur x3, [x4, #-256]")
+    (,(lambda (as) (arm64.load as 8 3 4 40000)) "movz x17, #40000 ; ldr x3, [x4, x17]")
+    (,(lambda (as) (arm64.load as 8 3 4 -3000)) "movn x17, #2999 ; ldr x3, [x4, x17]")
+    (,(lambda (as) (arm64.load as 4 3 4 12)) "ldr w3, [x4, #12]")
+    (,(lambda (as) (arm64.load as 4 3 4 3)) "ldur w3, [x4, #3]")
+    (,(lambda (as) (arm64.load as 4 3 4 20000)) "movz x17, #20000 ; ldr w3, [x4, x17]")
+    (,(lambda (as) (arm64.load as 1 3 4 3)) "ldrb w3, [x4, #3]")
+    (,(lambda (as) (arm64.load as 1 3 4 -3)) "ldurb w3, [x4, #-3]")
+    (,(lambda (as) (arm64.load as 1 3 4 5000)) "movz x17, #5000 ; ldrb w3, [x4, x17]")
+    (,(lambda (as) (arm64.load as 'd 8 4 3)) "ldur d8, [x4, #3]")
+    (,(lambda (as) (arm64.load as 'd 9 4 16)) "ldr d9, [x4, #16]")
+    (,(lambda (as) (arm64.store as 8 3 22 24)) "str x3, [x22, #24]")
+    (,(lambda (as) (arm64.store as 8 3 4 -7)) "stur x3, [x4, #-7]")
+    (,(lambda (as) (arm64.store as 8 3 4 99999)) "movz x17, #0x869f ; movk x17, #1, lsl #16 ; str x3, [x4, x17]")
+    (,(lambda (as) (arm64.store as 4 3 4 4)) "str w3, [x4, #4]")
+    (,(lambda (as) (arm64.store as 4 3 4 -1)) "stur w3, [x4, #-1]")
+    (,(lambda (as) (arm64.store as 1 3 4 7)) "strb w3, [x4, #7]")
+    (,(lambda (as) (arm64.store as 1 3 4 -1)) "sturb w3, [x4, #-1]")
+    (,(lambda (as) (arm64.store as 'd 8 0 8)) "str d8, [x0, #8]")
+    (,(lambda (as) (arm64.store as 'd 8 0 3)) "stur d8, [x0, #3]")
+    (,(lambda (as) (arm64.store as 'd 8 0 70000)) "movz x17, #0x1170 ; movk x17, #1, lsl #16 ; str d8, [x0, x17]")
+
+    ;; Floating point
+    (,(lambda (as) (arm64.FADD as 8 8 9)) "fadd d8, d8, d9")
+    (,(lambda (as) (arm64.FSUB as 8 9 10)) "fsub d8, d9, d10")
+    (,(lambda (as) (arm64.FMUL as 11 8 9)) "fmul d11, d8, d9")
+    (,(lambda (as) (arm64.FDIV as 8 8 9)) "fdiv d8, d8, d9")
+    (,(lambda (as) (arm64.FCMP as 8 9)) "fcmp d8, d9")
+
+    ;; A few Cant operations
+    (,(lambda (as) (cant.trap as 1296 'foo)) "ldr x17, [x23, #1296] ; blr x17")
+    (,(lambda (as) (cant.trap as 1296 'foo 17)) "movz x21, #17 ; ldr x17, [x23, #1296] ; blr x17")
+    (,(lambda (as) (cant.ldrtn/return as 0)) "ldr x16, [x22] ; br x16")
+    (,(lambda (as) (cant.jump as #f)) "ldur x16, [x2, #1] ; add x16, x16, #3 ; br x16")
+    (,(lambda (as) (cant.bcci as 'equal $r.result 0 (L as 8))) "cbz x0, .+8")
+    (,(lambda (as) (cant.bcci as 'low2-not-equal $r.result 0 (L as 8)))
+     "tst x0, #3 ; b.ne .+4")
+    (,(lambda (as) (cant.bcci as 'low8-equal $r.result 38 (L as 12)))
+     "and x16, x0, #255 ; cmp x16, #38 ; b.eq .+4")
+    (,(lambda (as) (cant.bcci as 'less $r.result -4 (L as 8)))
+     "cmn x0, #4 ; b.lt .+4")
+    (,(lambda (as) (cant.bcci as 'not-equal $r.result 100000 (L as 12)))
+     "movz x16, #0x86a0 ; movk x16, #1, lsl #16 ; cmp x0, x16 ; b.ne .+0")
+    (,(lambda (as) (cant.bcc as 'unsigned-less $r.tmp $r.stkp (L as 8)))
+     "cmp x21, x22 ; b.lo .+4")
+    (,(lambda (as) (cant.addi/bnv as $r.result 4 $r.result (L as 12)))
+     "adds x16, x0, #4 ; csel x0, x16, x0, vc ; b.vc .+4")
+    (,(lambda (as) (cant.sub/bnv as $r.result $r.second 3 (L as 12)))
+     "subs x16, x0, x1 ; csel x5, x16, x5, vc ; b.vc .+4")
+    (,(lambda (as) (cant.mul/bnv as $r.result $r.tmp $r.result (L as 20)))
+     "mul x16, x0, x21 ; smulh x17, x0, x21 ; cmp x17, x16, asr #63 ; csel x0, x16, x0, eq ; b.eq .+4")
+    (,(lambda (as) (cant.setrtn/strtn/branch as (L as 100) 4 0))
+     "adr x17, .+12 ; str x17, [x22] ; b .+92")
+    (,(lambda (as) (cant.setrtn/strtn/branch as (L as 100) 8 0))
+     "nop ; adr x17, .+12 ; str x17, [x22] ; b .+88")
+    (,(lambda (as) (cant.fsetcc as 'less 0 1 $r.result))
+     "fcmp d8, d9 ; cset x16, mi ; lsl x16, x16, #2 ; add x0, x16, #2")
+    (,(lambda (as) (cant.fldi as $r.second 3 1)) "ldur d9, [x1, #3]")
+    ))
+
+(define (hex8 n)
+  (let ((s (number->string n 16)))
+    (string-append (make-string (- 8 (string-length s)) #\0) s)))
+
+(define (write-line x port)
+  (display x port)
+  (newline port))
+
+(define (replace-semicolons s)
+  (list->string (map (lambda (c) (if (char=? c #\;) #\newline c))
+                     (string->list s))))
+
+(define (run-encoder-test)
+  (let ((s-port (open-output-file "encoder-test.s"))
+        (h-port (open-output-file "encoder-test.hex")))
+    (write-line "        .text" s-port)
+    (write-line "        .p2align 2" s-port)
+    (for-each
+     (lambda (test)
+       (let ((as (make-test-as)))
+         ((car test) as)
+         (let ((cv (test-as-code as)))
+           (write-line (replace-semicolons (cadr test)) s-port)
+           (do ((i 0 (+ i 4)))
+               ((= i (bytevector-length cv)))
+             (write-line
+              (string-append
+               (hex8 (+ (bytevector-ref cv i)
+                        (* 256 (bytevector-ref cv (+ i 1)))
+                        (* 65536 (bytevector-ref cv (+ i 2)))
+                        (* 16777216 (bytevector-ref cv (+ i 3)))))
+               "    " (cadr test))
+              h-port)))))
+     tests)
+    (close-output-port s-port)
+    (close-output-port h-port)))
+
+(run-encoder-test)
