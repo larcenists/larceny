@@ -73,7 +73,13 @@ BUILDING NATIVE LARCENY ON APPLE SILICON (macOS/arm64)
 
 Native Larceny for AArch64 uses the Fence/Cant code generator (see
 src/Asm/Fence/pass5p2-arm64.sch) and, like the 64-bit Petit Larceny,
-uses 64-bit words and 62-bit fixnums.  It is bootstrapped with Racket:
+uses 64-bit words and 62-bit fixnums.  It is bootstrapped with Racket,
+in a tree that has not been used for a Petit Larceny build (the build
+products of the two would clash).  The script
+
+        % src/Build/bootstrap-arm64-native.sh
+
+performs steps 1 and 2 below; or, by hand:
 
  1. From the Larceny root directory:
 
