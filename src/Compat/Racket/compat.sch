@@ -317,6 +317,34 @@
   (lambda (x . rest)
     (larceny-syntax-write x (if (null? rest) (current-output-port) (car rest)))))
 
+; The code-features procedures of Lib/Common/code-features.sch, on the
+; lcf structure that reader.rkt reads the #lap(...) and #lop(...)
+; markers into.
+
+(define (list->code-features kind clauses)
+  (if (not (memq kind '(lap lop)))
+      (error "list->code-features: bad kind " kind))
+  (lcf kind clauses))
+
+(define (make-code-features kind assumes guarantees)
+  (list->code-features kind
+                       (list (cons 'assumes assumes)
+                             (cons 'guarantees guarantees))))
+
+(define code-features? lcf?)
+(define code-features-kind lcf-kind)
+(define code-features-clauses lcf-clauses)
+
+(define (code-features-clause cf name)
+  (let ((probe (assq name (code-features-clauses cf))))
+    (if probe (cdr probe) '())))
+
+(define (code-features-assumes cf) (code-features-clause cf 'assumes))
+(define (code-features-guarantees cf) (code-features-clause cf 'guarantees))
+
+(define (write-code-features cf port)
+  (larceny-syntax-write cf port))
+
 (define (larceny-syntax-write x port)
 
   (define (put s) (write-string s port))
@@ -391,6 +419,14 @@
                ((= i (bytes-length x)))
              (if (> i 0) (put " "))
              (put (number->string (bytes-ref x i))))
+           (put ")"))
+          ((lcf? x)
+           (put (if (eq? (lcf-kind x) 'lap) "#lap(" "#lop("))
+           (let loop ((clauses (lcf-clauses x)) (first? #t))
+             (if (pair? clauses)
+                 (begin (if (not first?) (put " "))
+                        (w (car clauses))
+                        (loop (cdr clauses) #f))))
            (put ")"))
           ((eq? x *unspecified-expression*) (put "#!unspecified"))
           ((eq? x *undefined-expression*) (put "#!undefined"))

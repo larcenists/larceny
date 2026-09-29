@@ -341,7 +341,9 @@
   
 (define (parse-outermost-datum)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -382,7 +384,9 @@
           comma
           eofobj
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -441,7 +445,9 @@
        xbox
        xfaslg
        xfaslp
-       xsharpdot)
+       xsharpdot
+       lapstart
+       lopstart)
      (let ((ast1 (parse-udatum))) (identity ast1)))
     (else
      (parse-error
@@ -452,7 +458,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -478,6 +486,20 @@
 
 (define (parse-udatum)
   (case (next-token)
+    ((lopstart)
+     (begin
+       (consume-token!)
+       (let ((ast1 (parse-data)))
+         (if (eq? (next-token) 'rparen)
+             (begin (consume-token!) (makeLopFeatures ast1))
+             (parse-error '<udatum> '(rparen))))))
+    ((lapstart)
+     (begin
+       (consume-token!)
+       (let ((ast1 (parse-data)))
+         (if (eq? (next-token) 'rparen)
+             (begin (consume-token!) (makeLapFeatures ast1))
+             (parse-error '<udatum> '(rparen))))))
     ((xsharpdot)
      (begin
        (consume-token!)
@@ -526,7 +548,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -626,7 +650,9 @@
 
 (define (parse-list2)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -667,7 +693,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -724,7 +752,9 @@
        xbox
        xfaslg
        xfaslp
-       xsharpdot)
+       xsharpdot
+       lapstart
+       lopstart)
      (let ((ast1 (parse-data)))
        (let ((ast2 (parse-list4)))
          (pseudoAppend ast1 ast2))))
@@ -737,7 +767,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -777,7 +809,9 @@
 
 (define (parse-blst2)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -818,7 +852,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -875,7 +911,9 @@
        xbox
        xfaslg
        xfaslp
-       xsharpdot)
+       xsharpdot
+       lapstart
+       lopstart)
      (let ((ast1 (parse-data)))
        (let ((ast2 (parse-blst4)))
          (pseudoAppend ast1 ast2))))
@@ -888,7 +926,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -1007,7 +1047,9 @@
 
 (define (parse-data)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -1048,7 +1090,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -1555,6 +1599,19 @@
           (parse-error '<datum> datum-starters)))
 
     (define (list2vector vals) (list->vector vals))
+
+    ; #lap(...) and #lop(...) are the feature markers that begin
+    ; compiled files; see Lib/Common/code-features.sch.
+
+    (define (makeLapFeatures vals)
+      (if (larceny-weirdness?)
+          (list->code-features 'lap vals)
+          (parse-error '<datum> datum-starters)))
+
+    (define (makeLopFeatures vals)
+      (if (larceny-weirdness?)
+          (list->code-features 'lop vals)
+          (parse-error '<datum> datum-starters)))
   
     (define (makeBool)
       (let ((x (case (string-ref tokenValue 1)

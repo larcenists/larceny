@@ -448,6 +448,8 @@
      (vecstart (#\# #\())
      (bvecstart (! (#\# #\v #\u #\8 #\()                      ; R6RS only
                    (#\# #\u #\8 #\()))                        ; R7RS only
+     (lapstart (#\# #\l #\a #\p #\())                          ; Larceny only
+     (lopstart (#\# #\l #\o #\p #\())                          ; Larceny only
      (quote #\')
      (backquote #\`)
      (comma #\,)

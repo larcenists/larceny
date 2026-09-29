@@ -169,6 +169,7 @@
     "mcode"             ; millicode support
     "memstats"          ; runtime stats
     "record"            ; records
+    "code-features"     ; feature markers of compiled code
     "condition"         ; conditions
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler

@@ -13,7 +13,14 @@
 (require racket/undefined)
 
 (provide larceny-read
-         larceny-read-fold-case)
+         larceny-read-fold-case
+         (struct-out lcf))
+
+;; The feature markers #lap(...) and #lop(...) that begin compiled
+;; files read as an lcf; compat.sch defines the code-features procedures
+;; of Lib/Common/code-features.sch on top of it.  Clauses is an mlist.
+
+(struct lcf (kind clauses))
 
 ;; Per-port fold-case state, set by #!fold-case and #!no-fold-case.
 
@@ -307,7 +314,12 @@
           ((char=? c #\%) (string->symbol (read-token port "#")))
           (else
            (let ((tok (read-token port "#")))
-             (cond ((member tok '("#u8" "#vu8"))
+             (cond ((member tok '("#lap" "#lop"))
+                    (unless (eqv? (read-char port) #\()
+                      (read-error port "bad ~a syntax" tok))
+                    (lcf (if (string=? tok "#lap") 'lap 'lop)
+                         (reverse->mlist (reverse (read-sequence port)) '())))
+                   ((member tok '("#u8" "#vu8"))
                     (unless (eqv? (read-char port) #\()
                       (read-error port "bad bytevector syntax"))
                     (apply bytes (read-sequence port)))

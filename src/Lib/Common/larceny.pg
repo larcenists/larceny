@@ -29,6 +29,8 @@ lbracket
 rbracket
 vecstart
 bvecstart
+lapstart
+lopstart
 quote
 backquote
 comma
@@ -71,6 +73,8 @@ xstring
                   ::=  xfaslg <symbol>                          #sym2global
                   ::=  xfaslp <datum>                           #list2proc
                   ::=  xsharpdot <datum>                        #sharpDot
+                  ::=  lapstart <data> rparen                   #makeLapFeatures
+                  ::=  lopstart <data> rparen                   #makeLopFeatures
 <structured>      ::=  <list>                                   #identity
                   ::=  <vector>                                 #identity
                   ::=  <bytevector>                             #identity

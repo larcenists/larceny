@@ -1094,6 +1094,18 @@
   (environment-set! larc 'rtd-printer rtd-printer)
   (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
 
+  ;; feature markers of compiled code (#lap, #lop)
+
+  (environment-set! larc 'list->code-features list->code-features)
+  (environment-set! larc 'make-code-features make-code-features)
+  (environment-set! larc 'code-features? code-features?)
+  (environment-set! larc 'code-features-kind code-features-kind)
+  (environment-set! larc 'code-features-clauses code-features-clauses)
+  (environment-set! larc 'code-features-clause code-features-clause)
+  (environment-set! larc 'code-features-assumes code-features-assumes)
+  (environment-set! larc 'code-features-guarantees code-features-guarantees)
+  (environment-set! larc 'write-code-features write-code-features)
+
   ;; R7RS exception mechanism
 
   (environment-set! larc 'error-object? error-object?)

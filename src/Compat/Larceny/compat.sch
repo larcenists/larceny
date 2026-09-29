@@ -37,6 +37,12 @@
 	(compat:load (string-append dir "compat2.sch"))
 	(compat:load (string-append auxlib "list.sch"))
 	(compat:load (string-append auxlib "pp.sch"))
+        ; Hosts older than the feature markers of compiled code (#lap,
+        ; #lop) need the procedures that handle them.
+        (if (not (environment-variable? (interaction-environment)
+                                        'code-features?))
+            (load (string-append (nbuild-parameter 'common-source)
+                                 "code-features.sch")))
         )))
 
 (define (larc-new-extension fn ext)
