@@ -4,6 +4,8 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Code space memory is included in the owning generation's statistics
+  (90a7fb9e).
 - Native: long branch sequences for code vectors that may exceed the
   +/-1 MB reach of conditional branches (5c083edb).
 - Native: zero stores from xzr, no redundant frame-header stores,
