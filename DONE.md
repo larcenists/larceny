@@ -4,6 +4,8 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Native: long branch sequences for code vectors that may exceed the
+  +/-1 MB reach of conditional branches (5c083edb).
 - Native: zero stores from xzr, no redundant frame-header stores,
   LDP/STP pairing of adjacent loads and stores (e917577c).
 - Native: calls and returns use BL/BLR and RET, so the return-address
