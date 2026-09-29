@@ -45,14 +45,22 @@
     (lambda (expr . rest)
       (r5rs-eval expr (if (null? rest) (interaction-environment) (car rest))))))
 
+; As with Racket's own load, relative module paths in the file (such as
+; the #%require of reader.rkt in this file, when it is loaded again) are
+; relative to the file's directory.
+
 (define (load filename . rest)
-  (call-with-input-file filename
-    (lambda (p)
-      (let loop ()
-        (let ((x (larceny-read p)))
-          (if (not (eof-object? x))
-              (begin (eval x)
-                     (loop))))))))
+  (let-values (((dir name must-be-dir?)
+                (rkt:split-path (rkt:path->complete-path filename))))
+    (rkt:parameterize ((rkt:current-load-relative-directory
+                        (if (rkt:path? dir) dir #f)))
+      (call-with-input-file filename
+        (lambda (p)
+          (let loop ()
+            (let ((x (larceny-read p)))
+              (if (not (eof-object? x))
+                  (begin (eval x)
+                         (loop))))))))))
 
 ;; Larceny's make-parameter takes a name as its first argument.
 

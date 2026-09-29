@@ -301,6 +301,10 @@
                               (read-abbrev port 'unsyntax)))
           ((char=? c #\!) (read-char port) (read-hash-bang port))
           ((char=? c #\") (read-char port) (read-byte-string port))
+          ;; Racket identifiers such as #%require (in the compatibility
+          ;; package itself, which is loaded again if setup is called
+          ;; twice).
+          ((char=? c #\%) (string->symbol (read-token port "#")))
           (else
            (let ((tok (read-token port "#")))
              (cond ((member tok '("#u8" "#vu8"))
