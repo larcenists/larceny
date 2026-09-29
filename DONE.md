@@ -4,6 +4,8 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Native: calls and returns use BL/BLR and RET, so the return-address
+  predictor works; call-heavy code 13-20% faster (cf9a21c5).
 - Native: allocation in line (fixed-size and make-vector-style) when the
   nursery has room; allocation-heavy loops 1.4x-4.5x faster, now faster
   than Petit (e997e334).
