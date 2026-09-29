@@ -278,7 +278,7 @@ int smircy_stack_count( smircy_context_t *context )
   return objcount;
 }
 
-static void *my_gclib_alloc_rts( int bytes, unsigned attribute, char *where )
+static void *my_gclib_alloc_rts( s_word bytes, unsigned attribute, char *where )
 {
 #if 0
   consolemsg( "gclib_alloc_rts from: %22s bytes=%8d {frag: %4d approx 0.%02d}",

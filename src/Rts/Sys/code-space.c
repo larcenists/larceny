@@ -27,7 +27,7 @@ static void writing( code_space_t *cs, int on )
 
 /* Allocate nbytes (a multiple of the object alignment) in ss. */
 
-static word *ss_alloc( semispace_t *ss, int nbytes )
+static word *ss_alloc( semispace_t *ss, s_word nbytes )
 {
   ss_chunk_t *c = &ss->chunks[ss->current];
   word *p;
@@ -77,7 +77,7 @@ void cs_set_gen_no( code_space_t *cs, int gen_no )
     ss_set_gen_no( cs->tospace, gen_no );
 }
 
-word *cs_load_area( code_space_t *cs, int nbytes )
+word *cs_load_area( code_space_t *cs, s_word nbytes )
 {
   assert( nbytes % BYTE_ALIGNMENT == 0 );
   assert( cs->load_bot == 0 );
@@ -100,7 +100,7 @@ void cs_load_complete( code_space_t *cs )
 word cs_install( code_space_t *cs, word bv )
 {
   word *src = ptrof( bv );
-  int nbytes = (int)object_size_bytes( *src );
+  s_word nbytes = (s_word)object_size_bytes( *src );
   word *dest;
 
   assert( tagof( bv ) == BVEC_TAG );
@@ -135,7 +135,7 @@ void cs_collected( code_space_t *cs )
 word cs_forward( code_space_t *cs, word obj )
 {
   word *src = ptrof( obj );
-  int nbytes = (int)object_size_bytes( *src );
+  s_word nbytes = (s_word)object_size_bytes( *src );
   word *dest;
 
   assert( tagof( obj ) == BVEC_TAG );

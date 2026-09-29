@@ -30,12 +30,12 @@ struct young_heap {
      /* A numeric code identifying the heap, used by the heap dumper/loader.
         */
 
-  int maximum;
+  s_word maximum;
      /* The maximum storage that can be allocated in this generation.
 	This field is valid following a call to before_collection().
 	*/
 
-  int allocated;
+  s_word allocated;
      /* The amount of storage currently allocated in this generation.
 	This field is valid following a call to before_collection().
 	*/
@@ -56,7 +56,7 @@ struct young_heap {
 	creation.
 	*/
   
-  word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc );
+  word *(*allocate)( young_heap_t *heap, s_word nbytes, int no_gc );
      /* A method that allocates `nbytes' bytes from the heap and returns
 	a pointer to the first words.  If `no_gc' == 1, then it is
 	guaranteed that allocation will not cause a garbage collection;
@@ -70,7 +70,7 @@ struct young_heap {
 	allocation pointer.
         */
 
-  void (*collect)( young_heap_t *heap, int nbytes, int request );
+  void (*collect)( young_heap_t *heap, s_word nbytes, int request );
      /* A method that requests a garbage collection in the heap, without
 	guaranteeing that one is performed, but in any event guaranteeing
 	that at least `nbytes' bytes are free for allocation following
@@ -95,7 +95,7 @@ struct young_heap {
 	operand: depends on the operator
         */
 
-  int (*free_space)( young_heap_t *heap );
+  s_word (*free_space)( young_heap_t *heap );
      /* A method that returns the number of bytes free for allocation
 	in the heap.  The return value may be negative.
 	*/
@@ -110,7 +110,7 @@ struct young_heap {
 	first.
 	*/
 
-  word *(*data_load_area)( young_heap_t *heap, int nbytes );
+  word *(*data_load_area)( young_heap_t *heap, s_word nbytes );
      /* A method that allocates a block of at least `nbytes'
 	consecutive bytes, suitable for loading data into.
 	Returns NULL or a pointer to the first word of the 
@@ -162,15 +162,15 @@ young_heap_t *create_young_heap_t(
    word code,
    int  (*initialize)( young_heap_t *heap ),
    void (*create_initial_stack)( young_heap_t *heap ),
-   word *(*allocate)( young_heap_t *heap, int nbytes, int no_gc ),
+   word *(*allocate)( young_heap_t *heap, s_word nbytes, int no_gc ),
    void (*make_room)( young_heap_t *heap ),
-   void (*collect)( young_heap_t *heap, int nbytes, int request ),
+   void (*collect)( young_heap_t *heap, s_word nbytes, int request ),
    void (*before_collection)( young_heap_t *heap ),
    void (*after_collection)( young_heap_t *heap ),
    void (*set_policy)( young_heap_t *heap, int rator, int rand ),
-   int (*free_space)( young_heap_t *heap ),
+   s_word (*free_space)( young_heap_t *heap ),
    void (*stats)( young_heap_t *heap ),
-   word *(*data_load_area)( young_heap_t *heap, int nbytes ),
+   word *(*data_load_area)( young_heap_t *heap, s_word nbytes ),
    int  (*load_prepare)( young_heap_t *heap, metadata_block_t *m, 
 			 heapio_t *h, word **lo, word **hi ),
    int  (*load_data)( young_heap_t *heap, metadata_block_t *m, heapio_t *h),

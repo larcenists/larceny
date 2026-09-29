@@ -50,7 +50,7 @@ extern const char *larceny_gc_technology;
 typedef struct opt opt_t;
 struct opt {
   int        maxheaps;                  /* length of size[] member */
-  int        size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
+  s_word     size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
   gc_param_t gc_info;                   /* detailed info about areas */
   unsigned   timerval;                  /* timer value */
   bool       enable_singlestep;         /* enable/disable single stepping */
@@ -117,7 +117,7 @@ extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 
 #if !defined( GC_INTERNAL )
 extern int  create_memory_manager( gc_param_t *params, int *generations );
-extern word *alloc_from_heap( int nbytes );
+extern word *alloc_from_heap( s_word nbytes );
 extern word allocate_nonmoving( int length, int tag );
 extern int  load_heap_image_from_file( const char *filename );
 extern int  dump_heap_image_to_file( const char *filename );
@@ -227,8 +227,8 @@ extern word allocate_argument_vector( gc_t *gc, int argc, char **argv );
 
 /* In "Rts/Sys/malloc.c" */
 
-extern void *must_malloc( unsigned bytes );
-extern void *must_realloc( void *ptr, unsigned size );
+extern void *must_malloc( size_t bytes );
+extern void *must_realloc( void *ptr, size_t size );
 
 /* In "Rts/Sys/signals.c" */
 
@@ -284,8 +284,8 @@ char *strdup( const char * );
 #if !defined(HAVE_HRTIME_T)
 hrtime_t gethrtime( void );
 #endif
-int umin( int x, int y );
-int umax( int x, int y );
+word umin( word x, word y );
+word umax( word x, word y );
 
 
 /* Target-specific */

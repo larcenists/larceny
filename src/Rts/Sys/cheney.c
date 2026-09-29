@@ -1069,7 +1069,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #endif
 
 #if FORW_BY_DUFF
-  { unsigned bytes;
+  { s_word bytes;
 
   bytes = object_size_bytes( hdr );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los) 
@@ -1102,7 +1102,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #endif
 
 #if FORW_BY_MEMCPY
-  { unsigned bytes;
+  { s_word bytes;
   /* This appears to be slowest */
   bytes = object_size_bytes( hdr );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los)
@@ -1182,7 +1182,7 @@ void enqueue_tospace( cheney_env_t *e, semispace_t *ss )
 }
 
 void
-expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
+expand_space( cheney_env_t *e, word **lim, word **dest, s_word bytes )
 {
   semispace_t *ss;
   int i;
@@ -1244,7 +1244,7 @@ static word forward_large_object( cheney_env_t * const e,
   los_t *los = e->los;
   los_list_t *mark_list;
   word hdr, ret;
-  int bytes, was_marked, sub1 = 0, sub2 = 0;
+  s_word bytes, was_marked, sub1 = 0, sub2 = 0;
 
   hdr = *ptr;
   bytes = object_size_bytes( hdr );

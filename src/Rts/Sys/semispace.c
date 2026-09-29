@@ -30,16 +30,16 @@ static word NOWHERE[1];
 
 static void extend_chunk_array( semispace_t *ss );
 static void extend_chunk_array_to( semispace_t *ss, int n );
-static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes );
+static void allocate_chunk_memory( semispace_t *ss, int slot, s_word bytes );
 static void free_chunk_memory( semispace_t *ss, int slot );
 static void clear( semispace_t *ss, int i );
-static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk );
+static int find_empty_slot_and_chunk( semispace_t *ss, s_word bytes, int *chunk );
 
 #define ATTEMPT_TO_REUSE_SEMISPACES 0
 
 static semispace_t *last_freed = NULL;
 
-semispace_t *create_semispace( int bytes, int gen_no )
+semispace_t *create_semispace( s_word bytes, int gen_no )
 {
   assert( bytes > 0 );
   assert( gen_no >= 0 );
@@ -70,11 +70,11 @@ semispace_t *create_semispace( int bytes, int gen_no )
 }
 
 
-static semispace_t *make_semispace( int bytes, int nchunks, int gen_no, 
+static semispace_t *make_semispace( s_word bytes, int nchunks, int gen_no, 
                                     int code );
 
 #if CODE_SPACE
-semispace_t *create_code_semispace( int bytes, int gen_no )
+semispace_t *create_code_semispace( s_word bytes, int gen_no )
 {
   assert( bytes > 0 );
   assert( gen_no >= 0 );
@@ -82,12 +82,12 @@ semispace_t *create_code_semispace( int bytes, int gen_no )
 }
 #endif
 
-semispace_t *create_semispace_n( int bytes, int nchunks, int gen_no )
+semispace_t *create_semispace_n( s_word bytes, int nchunks, int gen_no )
 {
   return make_semispace( bytes, nchunks, gen_no, 0 );
 }
 
-static semispace_t *make_semispace( int bytes, int nchunks, int gen_no, 
+static semispace_t *make_semispace( s_word bytes, int nchunks, int gen_no, 
                                     int code )
 {
   semispace_t *ss;
@@ -125,7 +125,7 @@ static semispace_t *make_semispace( int bytes, int nchunks, int gen_no,
 }
 
 
-void ss_expand( semispace_t *ss, int bytes_needed )
+void ss_expand( semispace_t *ss, s_word bytes_needed )
 {
   int empty, chunk;
 
@@ -214,7 +214,7 @@ void ss_free_unused_chunks( semispace_t *ss )
 void ss_shrinkwrap( semispace_t *ss )
 {
   int i;
-  int newbytes;
+  s_word newbytes;
   ss_chunk_t *c;
 
   ss_invariants( ss );
@@ -288,7 +288,7 @@ void ss_free( semispace_t *ss )
 #endif
 }
 
-int ss_allocate_and_insert_block( semispace_t *ss, int nbytes )
+int ss_allocate_and_insert_block( semispace_t *ss, s_word nbytes )
 {
   int curr = ss->current;
   ss_chunk_t tmp;
@@ -311,7 +311,7 @@ int ss_allocate_and_insert_block( semispace_t *ss, int nbytes )
 }
 
 
-int ss_allocate_block_unconditionally( semispace_t *ss, int nbytes )
+int ss_allocate_block_unconditionally( semispace_t *ss, s_word nbytes )
 {
   int empty;
 
@@ -602,7 +602,7 @@ bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy )
    index in *chunk, if chunk is non-null.  If no chunk was found, returns -1
    in *chunk.
    */
-static int find_empty_slot_and_chunk( semispace_t *ss, int bytes, int *chunk )
+static int find_empty_slot_and_chunk( semispace_t *ss, s_word bytes, int *chunk )
 {
   int i, empty, found;
 
@@ -659,7 +659,7 @@ static void extend_chunk_array_to( semispace_t *ss, int n )
 }
 
 
-static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes )
+static void allocate_chunk_memory( semispace_t *ss, int slot, s_word bytes )
 {
   word *p;
 
@@ -675,7 +675,7 @@ static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes )
 #endif
   p = (word*)gclib_alloc_heap( bytes, ss->gen_no );
   if (p == 0) {
-    memfail( MF_HEAP, "Could not expand semispace, request=%u bytes.\n", 
+    memfail( MF_HEAP, "Could not expand semispace, request=%ld bytes.\n", 
              bytes );
     goto again;
   }
@@ -704,13 +704,13 @@ static void free_chunk_memory( semispace_t *ss, int slot )
 static void ss_chunk_check_rep( ss_chunk_t *c, int i ) 
 {
   word *p;
-  int delta;
+  s_word delta;
   word see_value;
   assert( c->bot <= c->top );
   assert( c->top <= c->lim );
   delta = c->lim - c->bot;
   if( c->bytes != delta*sizeof(word))
-    consolemsg( "i: %d lim: 0x%08x top: 0x%08x bot: 0x%08x delta: %d bytes: %d", 
+    consolemsg( "i: %d lim: 0x%08x top: 0x%08x bot: 0x%08x delta: %ld bytes: %ld", 
                 i, c->lim, c->top, c->bot, delta, c->bytes );
   assert( c->bytes == delta*sizeof(word));
   for ( p = c->bot; p < c->lim; p++) {

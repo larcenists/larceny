@@ -43,23 +43,23 @@
 #define PARAMETERS4231 0
 
 struct nursery_info {           /* Generational gc nursery */
-  int size_bytes;               /* size of area in bytes, > 0 */
+  s_word size_bytes;               /* size of area in bytes, > 0 */
 };
 
 struct sc_info {                /* Any two-space copying area */
-  int    size_bytes;		/* Size of area in bytes, > 0 */
+  s_word    size_bytes;		/* Size of area in bytes, > 0 */
   double load_factor;           /* Inverse load factor (dynamic generation) */
   double load_factor_hard;      /* Strict load bound (above target is soft) */
-  int    dynamic_min;		/* 0 or lower bound on expandable area */
-  int    dynamic_max;		/* 0 or upper bound on expandable area */
+  s_word    dynamic_min;		/* 0 or lower bound on expandable area */
+  s_word    dynamic_max;		/* 0 or upper bound on expandable area */
 };
 
 struct np_info {                /* Non-predictive dynamic area */
   int    steps;                 /* Number of steps, > 0 */
-  int    stepsize;              /* Size of a step in bytes, > 0 */
-  int    size_bytes;            /* Total size */
-  int    dynamic_min;           /* 0 or lower bound on expandable area */
-  int    dynamic_max;           /* 0 or upper bound on expandable area */
+  s_word    stepsize;              /* Size of a step in bytes, > 0 */
+  s_word    size_bytes;            /* Total size */
+  s_word    dynamic_min;           /* 0 or lower bound on expandable area */
+  s_word    dynamic_max;           /* 0 or upper bound on expandable area */
   int    extra_remset_limit;    /* 0 .. INT_MAX */
   double load_factor;           /* Inverse load factor */
   double luck;                  /* 0.0 .. 1.0 (ought to have been 0 .. 6) */
@@ -70,8 +70,8 @@ struct bdw_info {
   int    divisor;               /* Allocation divisor */
   double load_factor;           /* Inverse load factor */
   double expansion_factor;      /* Inverse expansion factor */
-  int    dynamic_min;           /* 0 or lower bound on collected area */
-  int    dynamic_max;           /* 0 or upper bound on collected area */
+  s_word    dynamic_min;           /* 0 or lower bound on collected area */
+  s_word    dynamic_max;           /* 0 or upper bound on collected area */
 };
 
 struct gc_param {               /* Parameter structure passed to create_gc() */

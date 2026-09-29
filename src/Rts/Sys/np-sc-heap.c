@@ -74,17 +74,17 @@ struct npsc_data {
   /* Parameters. */
   int         k;                /* Current number of steps; k > 0 */
   int         j;                /* Number of young steps; 0 <= j < k */
-  int         stepsize;         /* Step size in bytes */
+  s_word         stepsize;         /* Step size in bytes */
 
   /* Policy */
-  int         target_size;      /* Current max allocation */
+  s_word         target_size;      /* Current max allocation */
   int         j_percent;        /* -1 or percentage for calculating j */
   int         j_pin;            /* -1 or value at which to pin j */
   double      load_factor;      /* Really L, the inverse load */
   double      luck;             /* 0.0..1.0 */
   int         remset_limit;     /* 0..INT_MAX, the NP remset limit (entries) */
-  int         lower_limit;      /* 0 or lower limit on the area (bytes) */
-  int         upper_limit;      /* 0 or upper limit on the area (bytes) */
+  s_word         lower_limit;      /* 0 or lower limit on the area (bytes) */
+  s_word         upper_limit;      /* 0 or upper limit on the area (bytes) */
   double      phase_detection;  /* -1.0 or 0.0..1.0, remset growth factor */
   int         phase_idx;        /* Next index in phase_buf */
   phase_t     phase_buf[ PHASE_BUFSIZ ];  /* Phase detection data */
@@ -105,10 +105,10 @@ static void perform_promote_to_old( old_heap_t *heap );
 static void perform_promote_to_both( old_heap_t *heap );
 static void perform_collect( old_heap_t *heap );
 static enum action decision( old_heap_t *heap );
-static int  used_young( old_heap_t *heap );
-static int  used_old( old_heap_t *heap );
-static int  compute_dynamic_size( old_heap_t *heap, int D, int Q );
-static int  used_in_space( semispace_t *ss );
+static s_word  used_young( old_heap_t *heap );
+static s_word  used_old( old_heap_t *heap );
+static s_word  compute_dynamic_size( old_heap_t *heap, s_word D, s_word Q );
+static s_word  used_in_space( semispace_t *ss );
 #if FLOAT_REDUCTION
 static void full_collection( old_heap_t *heap );
 #endif
@@ -121,7 +121,7 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
 {
   old_heap_t *heap;
   npsc_data_t *data;
-  int size_bytes;
+  s_word size_bytes;
 
   *gen_allocd           = 2;
 
@@ -256,7 +256,7 @@ static enum action decision( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
-  int X, No, Ny, i, max_fragmentation, large_live;
+  s_word X, No, Ny, max_fragmentation, large_live; int i;
   
   X = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
 
@@ -459,7 +459,7 @@ static void adjust_j( old_heap_t *heap )
 static void perform_promote_to_old( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int old_before_gc, old_los_before_gc;
+  s_word old_before_gc, old_los_before_gc;
   gc_t *gc = heap->collector;
   los_t *los = gc->los;
   
@@ -492,8 +492,8 @@ static void perform_promote_to_old( old_heap_t *heap )
 static void perform_promote_to_both( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int young_available, old_available;
-  int old_before_gc, old_los_before_gc, young_before_gc, young_los_before_gc;
+  s_word young_available, old_available;
+  s_word old_before_gc, old_los_before_gc, young_before_gc, young_los_before_gc;
   gc_t *gc = heap->collector;
   los_t *los = gc->los;
 
@@ -575,7 +575,7 @@ static void perform_collect( old_heap_t *heap )
   los_t *los = heap->collector->los;
   gc_t *gc = heap->collector;
   int free_steps, luck_steps;
-  int young_before_gc, young_los_before_gc;
+  s_word young_before_gc, young_los_before_gc;
 
   annoyingmsg( "  Full garbage collection." );
 
@@ -706,7 +706,7 @@ static void perform_collect( old_heap_t *heap )
 static void stats( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
-  int live_los;
+  s_word live_los;
 
   ss_sync( data->old );
   ss_sync( data->young );
@@ -786,7 +786,7 @@ static void set_policy( old_heap_t *heap, int op, int value )
   }
 }
 
-static word *data_load_area( old_heap_t *heap, int nbytes )
+static word *data_load_area( old_heap_t *heap, s_word nbytes )
 {
   npsc_data_t *data = DATA(heap);
   int n;
@@ -798,7 +798,7 @@ static word *data_load_area( old_heap_t *heap, int nbytes )
   return data->old->chunks[ n ].bot;
 }
 
-static int used_young( old_heap_t *heap )
+static s_word used_young( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
 
@@ -807,7 +807,7 @@ static int used_young( old_heap_t *heap )
    data->young->used + los_bytes_used( heap->collector->los, data->gen_no+1 );
 }
 
-static int used_old( old_heap_t *heap )
+static s_word used_old( old_heap_t *heap )
 {
   npsc_data_t *data = DATA(heap);
 
@@ -820,9 +820,9 @@ static int used_old( old_heap_t *heap )
    value takes into account that space at the end of non-current chunks
    is not available, hence is 'used' as far as policy is concerned.
    */
-static int used_in_space( semispace_t *ss )
+static s_word used_in_space( semispace_t *ss )
 {
-  int n = 0, i;
+  s_word n = 0; int i;
 
   for ( i=0 ; i < ss->current ; i++ )
     n += ss->chunks[i].bytes;
@@ -834,13 +834,13 @@ static int used_in_space( semispace_t *ss )
    return the total amount of memory that may be allocated (including
    that which is currently allocated) before the next collection.
    */
-static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
+static s_word compute_dynamic_size( old_heap_t *heap, s_word D, s_word Q )
 {
   static_heap_t *s = heap->collector->static_area;
-  int S = (s ? s->allocated : 0);
+  s_word S = (s ? s->allocated : 0);
   double L = DATA(heap)->load_factor;
-  int upper_limit = DATA(heap)->upper_limit;
-  int lower_limit = DATA(heap)->lower_limit;
+  s_word upper_limit = DATA(heap)->upper_limit;
+  s_word lower_limit = DATA(heap)->lower_limit;
 
   return gc_compute_dynamic_size( heap->collector,
                                   D, S, Q, L, lower_limit, upper_limit );

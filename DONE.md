@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- GC byte counts are 64-bit on 64-bit systems (`s_word`): semispaces,
+  the low-level allocator, heap sizes and policies, statistics, heap
+  images, and command-line sizes (which now accept a G suffix).  Before,
+  a heap over 2 GB overflowed them: the statistics went negative and the
+  stop-and-copy collector looped (COMMIT).
 - Code space memory is included in the owning generation's statistics
   (90a7fb9e).
 - Native: long branch sequences for code vectors that may exceed the

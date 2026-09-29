@@ -41,7 +41,7 @@ int create_memory_manager( gc_param_t *params, int *gens )
   return 1;
 }
 
-word *alloc_from_heap( int bytes )
+word *alloc_from_heap( s_word bytes )
 {
   return gc_allocate( gc, bytes, 0, 0 );
 }
@@ -97,7 +97,7 @@ static char *heapio_msg[] =
 int load_heap_image_from_file( const char *filename )
 {
   heapio_t *heap;
-  int text_size, data_size, r, i;
+  s_word text_size, data_size; int r, i;
   word *sbase, *tbase, tmp1, tmp2;
 
   heap = create_heapio();

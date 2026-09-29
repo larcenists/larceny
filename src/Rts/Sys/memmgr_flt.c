@@ -131,14 +131,14 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                                        struct visit_measuring_float_data data )
 {
   int rgn;
-  int newmax;
+  s_word newmax;
   int data_count, easy_float, hard_float;
   { 
     char bars[BAR_LENGTH+2];
     bars[BAR_LENGTH] = '\0';
     bars[BAR_LENGTH+1] = '\0';
     {
-      int allocated;
+      s_word allocated;
       data_count = data.words.total*sizeof(word);
       easy_float = data.words.zzflt*sizeof(word)+data.words.rsflt*sizeof(word);
       hard_float = data.words.rsflt*sizeof(word);

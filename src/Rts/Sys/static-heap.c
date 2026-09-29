@@ -28,10 +28,10 @@ struct static_data {
 #define DATA(heap)   ((static_data_t*)(heap->data))
 
 
-static word *allocate( static_heap_t *heap, int nbytes )
+static word *allocate( static_heap_t *heap, s_word nbytes )
 {
   word *p;
-  int nwords;
+  s_word nwords;
   static_data_t *data = DATA(heap);
   semispace_t *ss;
 
@@ -51,7 +51,7 @@ static void reorganize( static_heap_t *heap )
 {
   static_data_t *s_data = DATA(heap);
   semispace_t *text, *data;
-  unsigned textsize, datasize;
+  s_word textsize, datasize;
 
   /* HACK!  We create both semispaces large enough to receive all of
      the data from the current static area.  When just doing a static
@@ -113,7 +113,7 @@ static void stats( static_heap_t *heap )
     urs_checkpoint_stats( heap->collector->the_remset, DATA(heap)->gen_no );
 }
 
-static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
+static word *allocate_chunk( semispace_t **space, s_word nbytes, int gen_no )
 {
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
@@ -126,13 +126,13 @@ static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
   return (*space)->chunks[ (*space)->current ].bot;
 }
 
-static word *data_load_area( static_heap_t *heap, int nbytes )
+static word *data_load_area( static_heap_t *heap, s_word nbytes )
 {
   heap->allocated += nbytes;
   return allocate_chunk( &heap->data_area, nbytes, DATA(heap)->gen_no );
 }
 
-static word *text_load_area( static_heap_t *heap, int nbytes )
+static word *text_load_area( static_heap_t *heap, s_word nbytes )
 {
   heap->allocated += nbytes;
   return allocate_chunk( &heap->text_area, nbytes, DATA(heap)->gen_no );

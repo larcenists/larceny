@@ -46,8 +46,8 @@ struct code_space {
   int         writing;          /* Code memory writable? */
   word        *load_bot;        /* Range being loaded, or NULL */
   word        *load_top;
-  int         installed;        /* Bytes installed since code was collected */
-  int         live;             /* Bytes live after code was collected */
+  s_word         installed;        /* Bytes installed since code was collected */
+  s_word         live;             /* Bytes live after code was collected */
   int         by_scanning;      /* Collected by a separate scanning pass? */
   int         scan_requested;   /* Scanning pass requested after next GC? */
 };
@@ -62,7 +62,7 @@ void cs_set_gen_no( code_space_t *cs, int gen_no );
   /* The owning generation has been renumbered.
      */
 
-word *cs_load_area( code_space_t *cs, int nbytes );
+word *cs_load_area( code_space_t *cs, s_word nbytes );
   /* Return a contiguous, writable area of nbytes bytes in the code
      space, to be filled with code objects by the heap loader.  The
      caller must call cs_load_complete() when the area has been filled.

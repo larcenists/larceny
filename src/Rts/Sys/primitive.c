@@ -279,7 +279,7 @@ void primitive_object_to_address( word w_obj )
 
 void primitive_sysfeature( word v /* a vector of sufficient length */ )
 {
-  int major, minor, ans[4];
+  int major, minor; s_word ans[4];
 
   switch (nativeint(vector_ref( v, 0 ))) {
   case 0  : /* larceny-major */

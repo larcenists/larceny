@@ -29,20 +29,20 @@ struct old_heap {
     /* A numeric code identifying the heap, used by the heap dumper/loader.
        */
 
-  int maximum;
+  s_word maximum;
      /* The maximum storage that can be allocated in this generation.
 	This field is valid following a call to before_collection()
 	and synchronize().
 	*/
 
-  int allocated;
+  s_word allocated;
      /* The amount of storage currently allocated in this generation.
 	This field is valid following a call to before_collection()
 	and synchronize().
 	*/
 
   bool has_popular_objects;
-  int bytes_live_last_major_gc;
+  s_word bytes_live_last_major_gc;
   int words_from_nursery_last_major_gc;
   bool was_target_during_gc;
 
@@ -95,7 +95,7 @@ struct old_heap {
 	first.
 	*/
 
-  word *(*data_load_area)( old_heap_t *heap, int nbytes );
+  word *(*data_load_area)( old_heap_t *heap, s_word nbytes );
      /* A method that allocates a block of at least `nbytes'
 	consecutive bytes, suitable for loading data into.  A pointer
 	to the first word of the block is returned.  No garbage 
@@ -173,7 +173,7 @@ old_heap_t *create_old_heap_t(
   void (*before_collection)( old_heap_t *heap ),
   void (*after_collection)( old_heap_t *heap ),
   void (*stats)( old_heap_t *heap ),
-  word *(*data_load_area)( old_heap_t *heap, int nbytes ),
+  word *(*data_load_area)( old_heap_t *heap, s_word nbytes ),
   int  (*load_prepare)( old_heap_t *heap, metadata_block_t *m, 
 		        heapio_t *h, word **lo, word **hi ),
   int  (*load_data)( old_heap_t *heap, metadata_block_t *m, heapio_t *h ),

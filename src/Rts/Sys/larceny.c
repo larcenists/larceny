@@ -34,7 +34,7 @@ static void invalid( char *s );
 static void usage( void );
 static void help(int wizardp);
 static void parse_options( int argc, char **argv, opt_t *opt );
-static int  getsize( char *s, int *p );
+static int  getsize( char *s, s_word *p );
 static void dump_options( opt_t *o );
 
 static bool quiet = 0;
@@ -444,7 +444,7 @@ static int hstrcmp( const char *s1, const char* s2 );
 
 /* A SizeSpec is either a Number n, or a Number n followed by the character 'M', 
  * or a Number n followed by the character 'K'
- * interpretation: [[ n ]] = n; [[ nM ]] = n*1024*1024; [[ nK ]] = n*1024
+ * interpretation: [[ n ]] = n; [[ nG ]] = n*1024*1024*1024; [[ nM ]] = n*1024*1024; [[ nK ]] = n*1024
  */
 
 /* requires: (to be determined)
@@ -454,7 +454,7 @@ static int hstrcmp( const char *s1, const char* s2 );
  * example: sizearg( "-option", 2, { "-option", "3K" }, receiver )
  *          returns 1, with *receiver == 3072
  */
-static int sizearg( char *str, int *argc, char ***argv, int *var );
+static int sizearg( char *str, int *argc, char ***argv, s_word *var );
 
 /* requires: (to be determined)
  * effects: if exists integer N such that *argv[0] matches strN as an option,
@@ -464,7 +464,7 @@ static int sizearg( char *str, int *argc, char ***argv, int *var );
  * example: hsizearg( "-optnum", 2, { "-optnum3" "2K" }, recv1, recv2 )
  *          returns 1, with *recv1 == 2048 and *recv2 == 3
  */
-static int hsizearg( char *str, int *argc, char ***argv, int *var, int *loc );
+static int hsizearg( char *str, int *argc, char ***argv, s_word *var, int *loc );
 static int doublearg( char *str, int *argc, char ***argv, double *var );
 
 /* requires: (to be determined)
@@ -476,7 +476,7 @@ static int doublearg( char *str, int *argc, char ***argv, double *var );
  */
 static int numbarg( char *str, int *argc, char ***argv, int *var );
 static int hnumbarg( char *str, int *argc, char ***argv, int *var, int *loc );
-static void compute_np_parameters( opt_t *o, int suggested_size );
+static void compute_np_parameters( opt_t *o, s_word suggested_size );
 
 static void init_generational( opt_t *o, int areas, char *name )
 {
@@ -515,7 +515,8 @@ static void init_regional( opt_t *o, int areas, char *name )
 static void
 parse_options( int argc, char **argv, opt_t *o )
 {
-  int i, loc, prev_size, areas = DEFAULT_AREAS;
+  int i, loc, areas = DEFAULT_AREAS;
+  s_word prev_size;
   int mmu_size;
   int mark_period;
   int oracle_countdown;
@@ -538,9 +539,9 @@ parse_options( int argc, char **argv, opt_t *o )
   int np_remset_limit = INT_MAX;              /* Infinity, or close enough. */
   int full_frequency = 0;
   double growth_divisor = 1.0;
-  int dynamic_max = 0;
-  int dynamic_min = 0;
-  int val;                                    /* general purpose temporary */
+  s_word dynamic_max = 0;
+  s_word dynamic_min = 0;
+  s_word val;                                    /* general purpose temporary */
   char* temp_string = NULL;                   /* general purpose temporary */
 
   while (--argc) {
@@ -652,10 +653,10 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.print_float_stats_minor = TRUE;
     else if (hstrcmp( *argv, "-print_float_stats_refine" ) == 0)
       o->gc_info.print_float_stats_refine = TRUE;
-    else if (sizearg( "-rhash", &argc, &argv, (int*)&o->gc_info.rhash ))
-      ;
-    else if (sizearg( "-ssb", &argc, &argv, (int*)&o->gc_info.ssb ))
-      ;
+    else if (sizearg( "-rhash", &argc, &argv, &val ))
+      o->gc_info.rhash = (unsigned)val;
+    else if (sizearg( "-ssb", &argc, &argv, &val ))
+      o->gc_info.ssb = (unsigned)val;
     else if   (hstrcmp( *argv, "-rhashrep" ) == 0) {
       o->gc_info.chose_rhashrep = TRUE;
       o->gc_info.chose_rbitsrep = FALSE;
@@ -978,7 +979,7 @@ parse_options( int argc, char **argv, opt_t *o )
     /* Dynamic generation */
 #if ROF_COLLECTOR
     if (o->gc_info.use_non_predictive_collector) {
-      int size;
+      s_word size;
 
       o->gc_info.dynamic_np_info.load_factor = load_factor;
       o->gc_info.dynamic_np_info.dynamic_max = dynamic_max;
@@ -1009,7 +1010,7 @@ parse_options( int argc, char **argv, opt_t *o )
       o->gc_info.dynamic_sc_info.dynamic_max = dynamic_max;
       o->gc_info.dynamic_sc_info.dynamic_min = dynamic_min;
       if (o->size[n] == 0) {
-        int size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
+        s_word size = prev_size + DEFAULT_DYNAMIC_INCREMENT;
         if (dynamic_min) size = max( dynamic_min, size );
         if (dynamic_max) size = min( dynamic_max, size );
         o->gc_info.dynamic_sc_info.size_bytes = size;
@@ -1020,7 +1021,7 @@ parse_options( int argc, char **argv, opt_t *o )
   }
   else if (o->gc_info.is_stopcopy_system) {
     if (o->size[0] == 0) {
-      int size = DEFAULT_STOPCOPY_SIZE;
+      s_word size = DEFAULT_STOPCOPY_SIZE;
 
       if (dynamic_min) size = max( dynamic_min, size );
       if (dynamic_max) size = min( dynamic_max, size );
@@ -1071,11 +1072,11 @@ parse_options( int argc, char **argv, opt_t *o )
 
 #if ROF_COLLECTOR
 /* Note that by design, we do not take the load factor into account. */
-static void compute_np_parameters( opt_t *o, int suggested_size )
+static void compute_np_parameters( opt_t *o, s_word suggested_size )
 {
   int steps = o->gc_info.dynamic_np_info.steps;
-  int stepsize = o->gc_info.dynamic_np_info.stepsize;
-  int size = o->gc_info.dynamic_np_info.size_bytes;
+  s_word stepsize = o->gc_info.dynamic_np_info.stepsize;
+  s_word size = o->gc_info.dynamic_np_info.size_bytes;
 
   if (steps == 0 && stepsize == 0) {
     if (size == 0)
@@ -1108,8 +1109,8 @@ static void compute_np_parameters( opt_t *o, int suggested_size )
 }
 #endif /* ROF_COLLECTOR */
 
-/* Takes a positive integer only, suffixes K and M are accepted. */
-static int sizearg( char *str, int *argc, char ***argv, int *loc ) 
+/* Takes a positive integer only, suffixes K, M, and G are accepted. */
+static int sizearg( char *str, int *argc, char ***argv, s_word *loc ) 
 {
   if (hstrcmp( **argv, str ) == 0) {
     if (*argc == 1 || !getsize( *(*argv+1), loc ) || *loc <= 0) {
@@ -1127,7 +1128,7 @@ static int sizearg( char *str, int *argc, char ***argv, int *loc )
 /* FIXME: doesn't allow --size0 1M etc */
 
 static int 
-hsizearg( char *str, int *argc, char ***argv, int *var, int *loc ) 
+hsizearg( char *str, int *argc, char ***argv, s_word *var, int *loc ) 
 {
   int l = strlen(str);
 
@@ -1188,15 +1189,21 @@ hnumbarg( char *str, int *argc, char ***argv, int *var, int *loc )
     return 0;
 }
 
-static int getsize( char *s, int *p )
+static int getsize( char *s, s_word *p )
 {
   int r;
+  long long v;
   char c, d;
 
-  r = sscanf( s, "%i%c%c", p, &c, &d );
+  r = sscanf( s, "%lli%c%c", &v, &c, &d );
   if (r == 0) return 0;
+  *p = (s_word)v;
   if (r == 1) return 1;
   if (r == 3) return 0;
+  if (c == 'G' || c == 'g') {
+    *p *= 1024*1024*1024;
+    return 1;
+  }
   if (c == 'M' || c == 'm') {
     *p *= 1024*1024;
     return 1;
@@ -1592,7 +1599,7 @@ static char *wizardhelptext[] = {
 #endif
   "" ,
   "Values can be decimal, octal (0nnn), hex (0xnnn), or suffixed",
-  "with K (for KB) or M (for MB) when that makes sense." ,
+  "with K (for KB), M (for MB), or G (for GB) when that makes sense." ,
   "",
   0 };
 

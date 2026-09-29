@@ -494,7 +494,7 @@ static struct {
   FILE *dump_file;
 } stats_state;
 
-static void add( word *hi, word *lo, int x );
+static void add( word *hi, word *lo, s_word x );
 
 void stats_init( gc_t *gc )
 {
@@ -1307,13 +1307,12 @@ static void fill_remset_vector( word *rv, remset_memstat_t *rs )
  * the doubleword are independently represented as fixnums.  'x' is
  * a native integer.
  */
-static void add( word *hi, word *lo, int x )
+static void add( word *hi, word *lo, s_word x )
 {
-  *lo += fixnum(x);
-  if (*lo > LARGEST_FIXNUM) {
-    *lo -= LARGEST_FIXNUM;
-    *hi += 4;
-  }
+  /* The value is hi*(2^29-1) + lo; x may be larger than 2^29-1. */
+  word v = nativeuint( *lo ) + (word)x;
+  *hi += fixnum( v / nativeuint( LARGEST_FIXNUM ) );
+  *lo = fixnum( v % nativeuint( LARGEST_FIXNUM ) );
 }
 
 /* Dumping */

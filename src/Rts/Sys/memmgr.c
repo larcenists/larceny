@@ -48,7 +48,7 @@ const char *larceny_gc_technology = "precise";
 #include "code-space.h"
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
-static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
+static word *load_text_or_data( gc_t *gc, s_word size_bytes, int load_text );
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
 static int allocate_regional_system( gc_t *gc, gc_param_t *info );
@@ -181,16 +181,16 @@ void gc_dump_mmu_data( gc_t *gc, FILE *f )
    can be estimated with some certainty.  Other programs should use the
    load factor for control.
    */
-int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L, 
-                             int lower_limit, int upper_limit )
+s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L, 
+                             s_word lower_limit, s_word upper_limit )
 {
-  int live = D+S+Q;
-  int M = (int)(L*live);
-  int est_live_next_gc = live;        /* == M/L */
+  s_word live = D+S+Q;
+  s_word M = (s_word)(L*live);
+  s_word est_live_next_gc = live;        /* == M/L */
 
   if (lower_limit && upper_limit == lower_limit) {
     /* Fixed heap size */
-    return roundup_page( upper_limit - (int)(upper_limit/L) );
+    return roundup_page( upper_limit - (s_word)(upper_limit/L) );
   }
 
   if (lower_limit) {
@@ -210,20 +210,20 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
   }
 
   if (upper_limit > 0) {
-    int newM = min( M, upper_limit );
-    int avail = (newM - live - est_live_next_gc);
+    s_word newM = min( M, upper_limit );
+    s_word avail = (newM - live - est_live_next_gc);
     if (avail < 0)
-      M = newM + roundup_page( abs( avail ) );        /* _Minimal_ amount */
+      M = newM + roundup_page( -avail );        /* _Minimal_ amount */
     else
       M = newM;
   }
 
-  annoyingmsg( "New heap size by policy should be %d bytes", M );
+  annoyingmsg( "New heap size by policy should be %ld bytes", M );
 
   return roundup_page( M - est_live_next_gc );
 }
 
-void gc_parameters( gc_t *gc, int op, int *ans )
+void gc_parameters( gc_t *gc, int op, s_word *ans )
 {
   gc_data_t *data = DATA(gc);
 
@@ -348,7 +348,7 @@ static int initialize( gc_t *gc )
   return 1;
 }
   
-static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
+static word *allocate( gc_t *gc, s_word nbytes, bool no_gc, bool atomic )
 {
   assert( nbytes > 0 );
 
@@ -366,7 +366,7 @@ static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
   return yh_allocate( gc->young_area, nbytes, no_gc );
 }
 
-static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
+static word *allocate_nonmoving( gc_t *gc, s_word nbytes, bool atomic )
 {
   assert( nbytes > 0 );
 
@@ -388,7 +388,7 @@ static void make_room( gc_t *gc )
 
 static void collect_generational( gc_t *gc, 
                                   int gen, 
-                                  int bytes_needed, 
+                                  s_word bytes_needed, 
                                   gc_type_t request )
 {
   gclib_stats_t stats;
@@ -704,7 +704,7 @@ static void reset_countdown_to_next_refine( gc_t *gc )
   
 }
 
-static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
+static s_word add_region_to_expand_heap( gc_t *gc, s_word maximum_allotted )
 {
   semispace_t *ss = gc_fresh_space(gc);
   int eidx = ss->gen_no - 1;
@@ -762,7 +762,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     print_float_stats( "cycle ", gc );
 
   if (DATA(gc)->region_count < 2) {
-    int live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
+    s_word live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
     if (gc->static_area != NULL) {
       live_words += (gc->static_area->data_area->allocated / sizeof(word));
     }
@@ -1584,7 +1584,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       assert( other_idx == 0 || other_idx == 1 );
       assert( (other_idx + to_idx) == 1 );
       if (DATA(gc)->ephemeral_area[other_idx]->allocated == 0) {
-        int live_words = 
+        s_word live_words = 
           DATA(gc)->ephemeral_area[to_idx]->allocated / sizeof(word);
         if (gc->static_area != NULL) {
           live_words += (gc->static_area->data_area->allocated / sizeof(word));
@@ -1662,12 +1662,12 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
    */
 
   int other_idx = (-to_idx)+1;
-  int nursery_allocated = (gc->young_area->allocated +
+  s_word nursery_allocated = (gc->young_area->allocated +
                            los_bytes_used( gc->los, 0 ));
-  int nursery_alloc_roundup;
-  int fragmentation_allowance;
-  int rgn_allocated;
-  int rgn_avail;
+  s_word nursery_alloc_roundup;
+  s_word fragmentation_allowance;
+  s_word rgn_allocated;
+  s_word rgn_avail;
   bool data_may_stay_in_one_region, data_stays_in_one_region;
 
   assert2( other_idx == 0 || other_idx == 1 );
@@ -1683,7 +1683,7 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
          DATA(gc)->ephemeral_area[ to_idx ]->allocated)
         > nursery_allocated));
   if (data_may_stay_in_one_region) {
-    int max_num_gc_chunks;
+    s_word max_num_gc_chunks;
     oh_synchronize( DATA(gc)->ephemeral_area[ other_idx ] );
     oh_synchronize( DATA(gc)->ephemeral_area[ to_idx ] );
 
@@ -1912,7 +1912,7 @@ static int find_appropriate_next( gc_t *gc )
 }
 
 static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn, 
-                                          int bytes_needed, gc_type_t request )
+                                          s_word bytes_needed, gc_type_t request )
 {
   char *type_str;
   switch (request) {
@@ -1944,7 +1944,7 @@ static void rrof_calc_target_allocation( gc_t *gc,
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
   int F_3    = DATA(gc)->rrof_sumz_params.max_retries;
-  int N = /* FIXME should be incrementally calculated via collection delta */
+  s_word N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc,
                            gset_range( 1, DATA(gc)->ephemeral_area_count ))
     / sizeof(word);
@@ -2109,7 +2109,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   }
 }
 
-static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
+static void collect_rgnl( gc_t *gc, int rgn, s_word bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
   gc_data_t *data = DATA(gc);
@@ -2812,17 +2812,17 @@ static void enumerate_hdr_address_ranges( gc_t *gc,
   }
 }
 
-word *data_load_area( gc_t *gc, int size_bytes )
+word *data_load_area( gc_t *gc, s_word size_bytes )
 {
   return load_text_or_data( gc, size_bytes, 0 );
 }
 
-static word *text_load_area( gc_t *gc, int size_bytes )
+static word *text_load_area( gc_t *gc, s_word size_bytes )
 {
   return load_text_or_data( gc, size_bytes, 1 );
 }
 
-static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
+static word *load_text_or_data( gc_t *gc, s_word nbytes, int load_text )
 {
   word *rtn;
 
@@ -2968,7 +2968,7 @@ static void force_collector_to_make_progress( gc_t *gc )
 {
   word *globals = DATA(gc)->globals;
   word *p;
-  int nbytes;
+  s_word nbytes;
   word *lim;
   p = (word*)globals[ G_ETOP ];
   lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
@@ -3141,8 +3141,8 @@ static void compact_all_areas( gc_t *gc )
 static void effect_heap_limits( gc_t *gc )
 {
   if (DATA(gc)->dynamic_max) {
-    int lim = DATA(gc)->dynamic_max+DATA(gc)->nonexpandable_size;
-    annoyingmsg( "*** Changing heap limit to %d", lim );
+    s_word lim = DATA(gc)->dynamic_max+DATA(gc)->nonexpandable_size;
+    annoyingmsg( "*** Changing heap limit to %ld", lim );
     gclib_set_heap_limit( lim );
   }
 }
@@ -3348,21 +3348,21 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   return heap;
 }
 
-static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed, 
+static semispace_t *find_space_expanding( gc_t *gc, s_word bytes_needed, 
                                           semispace_t *current_space )
 {
   ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ) );
   return current_space;
 }
 
-static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
+static semispace_t *find_space_rgnl( gc_t *gc, s_word bytes_needed,
                                      semispace_t *current_space )
 {
-  int los_allocated;
-  int cur_allocated;
-  int max_allocated = 
+  s_word los_allocated;
+  s_word cur_allocated;
+  s_word max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
-  int expansion_amount = max( roundup_page(bytes_needed), GC_CHUNK_SIZE );
+  s_word expansion_amount = max( roundup_page(bytes_needed), GC_CHUNK_SIZE );
   int to_rgn_old = DATA(gc)->rrof_to_region;
   int to_rgn_new;
 
@@ -3435,7 +3435,7 @@ static semispace_t *fresh_space( gc_t *gc )
   return ss;
 }
 
-static int allocated_to_area( gc_t *gc, int gno ) 
+static s_word allocated_to_area( gc_t *gc, int gno ) 
 {
   int eph_idx = gno-1;
   if (gno == 0) 
@@ -3444,14 +3444,14 @@ static int allocated_to_area( gc_t *gc, int gno )
 #ifdef NDEBUG2
     return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
 #else
-    int area_thinks_allocated = 
+    s_word area_thinks_allocated = 
       DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
-    int retval;
+    s_word retval;
     semispace_t *space = oh_current_space( DATA(gc)->ephemeral_area[ eph_idx ] );
     ss_sync( space );
     retval = space->used + los_bytes_used( gc->los, gno );
     if (area_thinks_allocated != retval) {
-      consolemsg("gno: %d area thinks: %d but actually: %d", 
+      consolemsg("gno: %d area thinks: %ld but actually: %ld", 
                   gno, area_thinks_allocated, retval);
     }
     assert( area_thinks_allocated == retval ); /* XXX was this ever right? */
@@ -3463,7 +3463,7 @@ static int allocated_to_area( gc_t *gc, int gno )
   }
 }
 
-static int maximum_allotted_to_area( gc_t *gc, int gno ) 
+static s_word maximum_allotted_to_area( gc_t *gc, int gno ) 
 {
   int eph_idx = gno-1;
   if (gno == 0)
@@ -3476,9 +3476,9 @@ static int maximum_allotted_to_area( gc_t *gc, int gno )
   }
 }
 
-static int allocated_to_areas( gc_t *gc, gset_t gs ) 
+static s_word allocated_to_areas( gc_t *gc, gset_t gs ) 
 {
-  int i, sum;
+  int i; s_word sum;
   switch (gs.tag) {
   case gs_singleton:
     return allocated_to_area( gc, gs.g1 );
@@ -3493,9 +3493,9 @@ static int allocated_to_areas( gc_t *gc, gset_t gs )
   assert(0);
 }
 
-static int maximum_allotted( gc_t *gc, gset_t gs ) 
+static s_word maximum_allotted( gc_t *gc, gset_t gs ) 
 {
-  int i, sum;
+  int i; s_word sum;
   switch (gs.tag) {
   case gs_singleton:
     return maximum_allotted_to_area( gc, gs.g1 );
@@ -3622,7 +3622,7 @@ static int calc_cN( gc_t *gc )
   double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
 
   double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
-  int N = /* FIXME should be incrementally calculated via collection delta */
+  s_word N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
     / sizeof(word);
   int retval;
@@ -3836,7 +3836,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 256 ], buf2[ 100 ];
-  int gen_no, i, size;
+  int gen_no, i; s_word size;
   gc_data_t *data = DATA(gc);
 
   data->globals[ G_FILTER_REMSET_GEN_ORDER ] =  TRUE;
@@ -3973,7 +3973,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 256 ], buf2[100]; /* are these numbers large enough in general? */
   gc_data_t *data = DATA(gc);
-  int gen_no, size;
+  int gen_no; s_word size;
   
   data->globals[ G_FILTER_REMSET_GEN_ORDER ] = FALSE;
   gen_no = 0;
@@ -4003,7 +4003,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
-    int words;
+    s_word words;
     double popular_factor;
     double infamy_factor;
     assert( e > 0 );
@@ -4243,9 +4243,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
   gc_t *ret;
-  semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
+  semispace_t *(*my_find_space)( gc_t *gc, s_word bytes_needed, 
                                  semispace_t *current_space );
-  void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
+  void (*my_collect)( gc_t *gc, int rgn, s_word bytes_needed, gc_type_t request );
   void (*my_incremental)( gc_t *gc );
   void (*my_check_remset_invs)( gc_t *gc, word src, word tgt );
   

@@ -31,7 +31,7 @@
 
 struct los_list {
   word *header;		/* Points to the word following the header node */
-  int  bytes;		/* Total number of allocated bytes */
+  s_word  bytes;		/* Total number of allocated bytes */
 };
 
 static los_list_t *make_los_list( void );
@@ -41,7 +41,7 @@ static void set_generation_number( los_list_t *list, int gen_no, bool clear );
 static void incr_generation_number_for( los_list_t *list, int fresh_gno );
 static void swap_generation_number_for( los_list_t *list, int gno1, int gno2 );
 static void append_and_clear( los_list_t *left, los_list_t *right );
-static void dump_list( los_list_t *l, char *tag, int nbytes );
+static void dump_list( los_list_t *l, char *tag, s_word nbytes );
 static void clear_list( los_list_t *l );
 
 los_t *create_los( int generations )
@@ -100,7 +100,7 @@ void los_free_list( los_list_t *list )
   free( list );
 }
 
-int los_bytes_used( los_t *los, int gen_no )
+s_word los_bytes_used( los_t *los, int gen_no )
 {
   assert( (0 <= gen_no && gen_no < los->generations)
 	  || gen_no == LOS_MARK1
@@ -114,11 +114,11 @@ int los_bytes_used( los_t *los, int gen_no )
     return los->object_lists[gen_no]->bytes;
 }
 
-static int count_bytes_on_marklist( los_t *los, los_list_t *mark, 
+static s_word count_bytes_on_marklist( los_t *los, los_list_t *mark, 
                                     int match_gen_no )
 {
   word *p, *n, *h;
-  int rtn, nbytes, gen_no;
+  s_word rtn, nbytes; int gen_no;
   h = mark->header;
   p = next( h );
   rtn = 0;
@@ -135,9 +135,9 @@ static int count_bytes_on_marklist( los_t *los, los_list_t *mark,
   return rtn;
 }
 
-int los_bytes_used_include_marklists( los_t *los, int gen_no )
+s_word los_bytes_used_include_marklists( los_t *los, int gen_no )
 {
-  int rtn;
+  s_word rtn;
   assert( 0 <= gen_no && gen_no < los->generations );
 
   rtn = los->object_lists[gen_no]->bytes 
@@ -147,10 +147,10 @@ int los_bytes_used_include_marklists( los_t *los, int gen_no )
   return rtn;
 }
 
-word *los_allocate( los_t *los, int nbytes, int gen_no )
+word *los_allocate( los_t *los, s_word nbytes, int gen_no )
 {
   word *w;
-  int size;
+  s_word size;
 
   assert( 0 <= gen_no && gen_no < los->generations && nbytes > 0 );
 
@@ -209,7 +209,7 @@ bool los_mark_and_set_generation( los_t *los, los_list_t *marked, word *w,
 void los_sweep( los_t *los, int gen_no )
 {
   word *p, *n, *h;
-  int nbytes;
+  s_word nbytes;
 
   assert( 0 <= gen_no && gen_no < los->generations );
 
@@ -429,7 +429,7 @@ static void append_and_clear( los_list_t *left, los_list_t *right )
    WARNING: don't run this on a mark list during GC because the prev() 
    pointers are not right during GC.
    */
-static void dump_list( los_list_t *l, char *tag, int nbytes )
+static void dump_list( los_list_t *l, char *tag, s_word nbytes )
 {
   word *p;
   int fwd_n, fwd_size, backwd_n, backwd_size;

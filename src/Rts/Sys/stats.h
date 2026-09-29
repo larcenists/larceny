@@ -13,27 +13,27 @@
 
 struct gclib_stats {
   /* Snapshot */
-  int heap_allocated;		/* words currently allocated to heap areas */
-  int heap_allocated_max;	/* max of heap_allocated over time */
-  int heap_limit;		/* 0 or the current heap limit */
-  int remset_allocated;		/* words allocated to remembered sets */
-  int remset_allocated_max;	/* max of remset_allocated over time */
-  int summ_allocated;		/* words allocated to summary sets */
-  int summ_allocated_max;	/* max of summ_allocated over time */
-  int smircy_allocated;		/* words allocated to marking state */
-  int smircy_allocated_max;	/* max of smircy_allocated over time */
-  int rts_allocated;		/* words allocated to run-time systems */
-  int rts_allocated_max;	/* max of rts_allocated over time */
-  int heap_fragmentation;	/* words of fragmentation in heap areas */
-  int heap_fragmentation_max;	/* max of heap_fragmentation over time */
-  int mem_allocated;		/* words of allocation: heap+rts+remset+frag */
-  int mem_allocated_max;	/* max of mem_allocated over time */
-  int heap_allocated_peak;	/* words allocated to heap areas when mem_allocated_max was last set. */
-  int remset_allocated_peak;	/* words allocated to remembered sets when mem_allocated_max was last set. */
-  int summ_allocated_peak;	/* words allocated to summary sets when mem_allocated_max was last set. */
-  int smircy_allocated_peak;	/* words allocated to marking state when mem_allocated_max was last set. */
-  int rts_allocated_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
-  int heap_fragmentation_peak;	/* words of fragmentation when mem_allocated_max was last set. */
+  s_word heap_allocated;		/* words currently allocated to heap areas */
+  s_word heap_allocated_max;	/* max of heap_allocated over time */
+  s_word heap_limit;		/* 0 or the current heap limit */
+  s_word remset_allocated;		/* words allocated to remembered sets */
+  s_word remset_allocated_max;	/* max of remset_allocated over time */
+  s_word summ_allocated;		/* words allocated to summary sets */
+  s_word summ_allocated_max;	/* max of summ_allocated over time */
+  s_word smircy_allocated;		/* words allocated to marking state */
+  s_word smircy_allocated_max;	/* max of smircy_allocated over time */
+  s_word rts_allocated;		/* words allocated to run-time systems */
+  s_word rts_allocated_max;	/* max of rts_allocated over time */
+  s_word heap_fragmentation;	/* words of fragmentation in heap areas */
+  s_word heap_fragmentation_max;	/* max of heap_fragmentation over time */
+  s_word mem_allocated;		/* words of allocation: heap+rts+remset+frag */
+  s_word mem_allocated_max;	/* max of mem_allocated over time */
+  s_word heap_allocated_peak;	/* words allocated to heap areas when mem_allocated_max was last set. */
+  s_word remset_allocated_peak;	/* words allocated to remembered sets when mem_allocated_max was last set. */
+  s_word summ_allocated_peak;	/* words allocated to summary sets when mem_allocated_max was last set. */
+  s_word smircy_allocated_peak;	/* words allocated to marking state when mem_allocated_max was last set. */
+  s_word rts_allocated_peak;	/* words allocated to run-time systems when mem_allocated_max was last set. */
+  s_word heap_fragmentation_peak;	/* words of fragmentation when mem_allocated_max was last set. */
 
   int max_remset_scan;
   int max_remset_scan_cpu;
@@ -77,12 +77,12 @@ struct gclib_stats {
 
 struct gc_stats {
   /* For accumulation */
-  int allocated;		/* Words allocated */
-  int reclaimed;		/* Words reclaimed */
-  int objects_copied;		/* By copying collector */
-  int words_copied;		/* ditto */
-  int objects_moved;		/* By large object manager */
-  int words_moved;		/* ditto */
+  s_word allocated;		/* Words allocated */
+  s_word reclaimed;		/* Words reclaimed */
+  s_word objects_copied;		/* By copying collector */
+  s_word words_copied;		/* ditto */
+  s_word objects_moved;		/* By large object manager */
+  s_word words_moved;		/* ditto */
 
   /* NP (ROF) collector */
   word np_k;			/* snapshot: total steps */
@@ -110,9 +110,9 @@ struct gc_stats {
 
 struct gen_stats {
   /* Snapshot */
-  int target;			/* Heap words target size */
-  int allocated;		/* Heap words allocated */
-  int used;			/* Heap words in use, excluding stack cache */
+  s_word target;			/* Heap words target size */
+  s_word allocated;		/* Heap words allocated */
+  s_word used;			/* Heap words in use, excluding stack cache */
 
   /* For accumulation */
   int ms_promotion;		/* Milliseconds doing promotion into area */
@@ -125,9 +125,9 @@ struct gen_stats {
 
 struct remset_stats {
   /* Snapshot */
-  int allocated;		/* Total words allocated (SSB+table+pool) */
-  int used;			/* Words in use */
-  int live;			/* Words in use minus currently removed */
+  s_word allocated;		/* Total words allocated (SSB+table+pool) */
+  s_word used;			/* Words in use */
+  s_word live;			/* Words in use minus currently removed */
 
   /* For accumulation */
   int ssb_recorded;		/* SSB entries recorded */

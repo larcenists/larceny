@@ -111,7 +111,7 @@ struct gc {
        controlled by the collector, and initializes the write barrier.
        */
 
-  word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic );
+  word *(*allocate)( gc_t *gc, s_word nbytes, bool no_gc, bool atomic );
     /* A method that allocates an object of size at least `nbytes'.  
        If `no_gc' == 1, then no garbage collection may be performed 
        during the allocation.  `nbytes' must not be larger than 
@@ -124,7 +124,7 @@ struct gc {
 	  ALLOC_ATOMIC_DATUM
        */
 
-  word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic );
+  word *(*allocate_nonmoving)( gc_t *gc, s_word nbytes, bool atomic );
     /* A method that allocates a non-moving object of size at least `nbytes'.
        Returns a pointer to the allocated object.
        */
@@ -134,7 +134,7 @@ struct gc {
        the allocation pointer; does not perform any actual allocation.
        */
 
-  void (*collect)( gc_t *gc, int gen, int bytes_needed, gc_type_t type );
+  void (*collect)( gc_t *gc, int gen, s_word bytes_needed, gc_type_t type );
     /* A method that requests that a garbage collection be performed in
        generation `gen', such that at least `bytes_needed' bytes can be
        allocated following the collection.
@@ -147,7 +147,7 @@ struct gc {
 
   void (*set_policy)( gc_t *gc, int heap, int x, int y );
 
-  word *(*data_load_area)( gc_t *gc, int nbytes );
+  word *(*data_load_area)( gc_t *gc, s_word nbytes );
     /* Return a pointer to a data area with the following properties:
        - it is contiguous
        - it will hold exactly as many bytes as requested 
@@ -156,7 +156,7 @@ struct gc {
          return a pointer to the area
        */
 
-  word *(*text_load_area)( gc_t *gc, int nbytes );
+  word *(*text_load_area)( gc_t *gc, s_word nbytes );
 
   int  (*iflush)( gc_t *gc, int generation );
     /* A method that returns 1 if the instruction cache must be flushed
@@ -252,7 +252,7 @@ struct gc {
      /* Creates a fresh space to copy objects into with a 
       * distinct generation number.
       */
-  semispace_t *(*find_space)(gc_t *gc, unsigned bytes_needed, semispace_t *ss);
+  semispace_t *(*find_space)(gc_t *gc, s_word bytes_needed, semispace_t *ss);
      /* modifies: ss
       * The returned semispace is guaranteed to have sufficient space
       * to store an object of size bytes_needed.  It will either be ss
@@ -260,8 +260,8 @@ struct gc {
       * may share the same gen_no as another semispace).
       */
   
-  int (*allocated_to_areas)( gc_t *gc, gset_t gs );
-  int (*maximum_allotted)( gc_t *gc, gset_t gs );
+  s_word (*allocated_to_areas)( gc_t *gc, gset_t gs );
+  s_word (*maximum_allotted)( gc_t *gc, gset_t gs );
   bool (*is_nonmoving)( gc_t *gc, int gen_no );
   bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy );
   void (*check_remset_invs)( gc_t *gc, word src, word tgt );
@@ -335,14 +335,14 @@ gc_t
 *create_gc_t(char *id,
 	     void *data,
 	     int  (*initialize)( gc_t *gc ),
-	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
-	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
+	     word *(*allocate)( gc_t *gc, s_word nbytes, bool no_gc, bool atomic),
+	     word *(*allocate_nonmoving)( gc_t *gc, s_word nbytes, bool atomic ),
 	     void (*make_room)( gc_t *gc ),
-	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
+	     void (*collect)( gc_t *gc, int gen, s_word bytes, gc_type_t req ),
              void (*incremental)( gc_t *gc ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
-	     word *(*data_load_area)( gc_t *gc, int nbytes ),
-	     word *(*text_load_area)( gc_t *gc, int nbytes ),
+	     word *(*data_load_area)( gc_t *gc, s_word nbytes ),
+	     word *(*text_load_area)( gc_t *gc, s_word nbytes ),
 	     int  (*iflush)( gc_t *gc, int generation ),
 	     word (*creg_get)( gc_t *gc ),
 	     void (*creg_set)( gc_t *gc, word k ),
@@ -376,10 +376,10 @@ gc_t
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s,word *l,void *d), void *d),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
-	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
+	     semispace_t *(*find_space)( gc_t *gc, s_word bytes_needed,
 					 semispace_t *ss ),
-	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
-	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     s_word (*allocated_to_areas)( gc_t *gc, gset_t gs ),
+	     s_word (*maximum_allotted)( gc_t *gc, gset_t gs ),
 	     bool (*is_nonmoving)( gc_t *gc, int gen_no ),
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
@@ -389,7 +389,7 @@ gc_t
 	     void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no )
 	     );
 
-void gc_parameters( gc_t *gc, int op, int *ans );
+void gc_parameters( gc_t *gc, int op, s_word *ans );
 
 #endif   /* INCLUDED_GC_T_H */
 

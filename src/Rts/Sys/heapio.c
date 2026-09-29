@@ -103,8 +103,8 @@ struct hio_range  {
   word *top;
   bool is_large;
   word *real_bot;
-  int  bytes;
-  int  pages;
+  s_word bytes;
+  s_word pages;
 };
 
 #define HIBIT  ((word)1 << (8*sizeof(word)-1))
@@ -129,8 +129,8 @@ static jmp_buf EX_heapio_ex;
 #define CATCH( var )  if ((var = setjmp( EX_heapio_ex )) != 0)
 #define THROW( val )  longjmp( EX_heapio_ex, val )
 
-static int  load_text( heapio_t *h, word *base, int count );
-static int  load_data( heapio_t *h, word *text, word *data, int count );
+static int  load_text( heapio_t *h, word *base, s_word count );
+static int  load_data( heapio_t *h, word *text, word *data, s_word count );
 #if 0
 static void putheader( FILE*, word, word, word, word*, word );
 static void put_tagged_word( word, FILE*, word, word, word );
@@ -322,7 +322,8 @@ int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
 int hio_dump_commit( heapio_t *h )
 {
   word *lowest, *highest, *pagetbl;
-  int pages, i, j, pg, r, text_size, data_size, nextpage;
+  int i, r;
+  s_word pages, j, pg, text_size, data_size, nextpage;
 
   /* Compute limits */
   lowest = min( h->text_segments->lowest, h->data_segments->lowest );
@@ -384,7 +385,7 @@ put_tagged_word( word w, word *lowest, word *pagetbl, FILE *fp )
 }    
 
 static void
-pad( int bytes, FILE *fp )
+pad( s_word bytes, FILE *fp )
 {
   int i;
 
@@ -405,8 +406,8 @@ static void
 dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
 {
   word w, *p;
-  int i, data_count;
-  int bytes_written;
+  s_word i, data_count;
+  s_word bytes_written;
   data_count = (a.top - a.bot);
   p = a.bot;
   if (a.is_large) {
@@ -476,7 +477,7 @@ int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
 }
 
 static int
-load_text( heapio_t *h, word *text_base, int count )
+load_text( heapio_t *h, word *text_base, s_word count )
 {
   word n;
   supremely_annoyingmsg("heapio load_text( h, 0x%08x, %d )", 
@@ -489,7 +490,7 @@ load_text( heapio_t *h, word *text_base, int count )
   {
     word buf[ 4096 ];
     while (count > 0) {
-      int k = min( count, (int)(sizeof( buf )/sizeof( word )) );
+      s_word k = min( count, (s_word)(sizeof( buf )/sizeof( word )) );
       n = fread( (char*)buf, sizeof( word ), k, h->fp );
       if (n < k)
         return HEAPIO_CANTREAD;
@@ -507,10 +508,10 @@ load_text( heapio_t *h, word *text_base, int count )
 }
 
 static int
-load_data( heapio_t *h, word *text_base, word *data_base, int count )
+load_data( heapio_t *h, word *text_base, word *data_base, s_word count )
 {
   word *p, w;
-  int i;
+  s_word i;
   supremely_annoyingmsg("heapio load_data( h, 0x%08x, [0x%08x,0x%08x), %d )", 
 			text_base, data_base, data_base+count, count);
 
@@ -605,7 +606,7 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
 	   FILE *fp )
 {
   word w, *p, words, data_count;
-  int i, r;
+  s_word i; int r;
 
   data_count = (data_top - data_base)/sizeof(word);
   p = (word *) data_base;

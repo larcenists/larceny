@@ -611,7 +611,7 @@ static void arena_init( void )
 #endif
 }
 
-static void *arena_alloc( arena_t *a, int bytes )
+static void *arena_alloc( arena_t *a, s_word bytes )
 {
   arena_extent_t *x, **prev;
   size_t n;
@@ -640,20 +640,20 @@ static void *arena_alloc( arena_t *a, int bytes )
 
   if (a->grows_down) {
     while (a->frontier - n < a->base)
-      memfail( MF_MALLOC, "Code arena exhausted by request for %d bytes; "
+      memfail( MF_MALLOC, "Code arena exhausted by request for %ld bytes; "
                "try setting LARCENY_CODE_GB.", bytes );
     a->frontier -= n;
     return a->frontier;
   }
   while (a->frontier + n > a->limit) 
-    memfail( MF_MALLOC, "Heap arena exhausted by request for %d bytes; "
+    memfail( MF_MALLOC, "Heap arena exhausted by request for %ld bytes; "
              "try setting LARCENY_ARENA_GB.", bytes );
   p = a->frontier;
   a->frontier += n;
   return p;
 }
 
-static void arena_free( arena_t *a, void *block, int bytes )
+static void arena_free( arena_t *a, void *block, s_word bytes )
 {
   arena_extent_t *x, *prev, *y;
   byte *p = (byte*)block;
@@ -710,23 +710,23 @@ static void arena_free( arena_t *a, void *block, int bytes )
   }
 }
 
-void *osdep_alloc_aligned( int bytes ) 
+void *osdep_alloc_aligned( s_word bytes ) 
 {
   return arena_alloc( &arena, bytes );
 }
 
-void osdep_free_aligned( void *block, int bytes ) 
+void osdep_free_aligned( void *block, s_word bytes ) 
 {
   arena_free( &arena, block, bytes );
 }
 
 #if CODE_SPACE
-void *osdep_alloc_code( int bytes )
+void *osdep_alloc_code( s_word bytes )
 {
   return arena_alloc( &code_arena, bytes );
 }
 
-void osdep_free_code( void *block, int bytes )
+void osdep_free_code( void *block, s_word bytes )
 {
   arena_free( &code_arena, block, bytes );
 }
@@ -765,7 +765,7 @@ static void free_aligned( void *p, int bytes );
 static void *alloc_aligned_8k();
 static void free_aligned_8k( void *p );
 
-void *osdep_alloc_aligned( int bytes ) 
+void *osdep_alloc_aligned( s_word bytes ) 
 {
   if (PARCEL_8K_BlOCKS && bytes == 8*KILOBYTE) {
     return alloc_aligned_8k();
@@ -774,7 +774,7 @@ void *osdep_alloc_aligned( int bytes )
   }
 }
 
-void osdep_free_aligned( void *p, int bytes ) 
+void osdep_free_aligned( void *p, s_word bytes ) 
 {
   if (PARCEL_8K_BlOCKS && bytes == 8*KILOBYTE) {
     free_aligned_8k( p );

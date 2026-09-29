@@ -213,7 +213,7 @@ static void init_np_env( cheney_env_t *e, gc_t *gc,
 static void root_scanner_np( word *ptr, void *data );
 static bool remset_scanner_np( word obj, void *data );
 static void scan_oflo_np_promote( cheney_env_t *e );
-static void expand_semispace_np( word **, word **, unsigned, cheney_env_t* );
+static void expand_semispace_np( word **, word **, s_word, cheney_env_t* );
 #endif
 
 #if ROF_COLLECTOR
@@ -463,7 +463,7 @@ static void scan_np_los_young( cheney_env_t *e, word **los_p )
 
 #if ROF_COLLECTOR
 static void
-expand_semispace_np( word **lim, word **dest, unsigned bytes, cheney_env_t *e )
+expand_semispace_np( word **lim, word **dest, s_word bytes, cheney_env_t *e )
 {
   semispace_t *ss;
 

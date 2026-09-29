@@ -264,32 +264,16 @@ hrtime_t gethrtime( void )
 }
 #endif
 
-/* For use when computing the maximum of two int values that are
+/* For use when computing the maximum or minimum of two values that are
  * really unsigned values.  (Typically used with peak memory sizes.)
  */
 
-int umax( int x, int y ) {
-  if ((x >= 0) && (y >= 0))
-    return max( x, y );
-  else if ((x < 0) && (y >= 0))
-    return x;
-  else if ((x >= 0) && (y < 0))
-    return y;
-  else if (x < y)
-    return x; /* yes, x */
-  else return y;
-} 
+word umax( word x, word y ) {
+  return (x > y ? x : y);
+}
 
-int umin( int x, int y ) {
-  if ((x >= 0) && (y >= 0))
-    return min( x, y );
-  else if ((x < 0) && (y >= 0))
-    return y;
-  else if ((x >= 0) && (y < 0))
-    return x;
-  else if (x < y)
-    return y; /* yes, y */
-  else return x;
-} 
+word umin( word x, word y ) {
+  return (x < y ? x : y);
+}
 
 /* eof */

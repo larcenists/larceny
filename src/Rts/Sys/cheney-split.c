@@ -109,7 +109,7 @@ extern void mem_icache_flush( void *start, void *end );
 static void scan_oflo_splitting( cheney_env_t *e );
 
 static void
-expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
+expand_semispace( semispace_t *ss, word **lim, word **dest, s_word bytes )
 {
   seal_chunk( ss, *lim, *dest );
   ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );

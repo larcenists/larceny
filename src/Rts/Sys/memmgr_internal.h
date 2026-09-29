@@ -20,9 +20,9 @@ struct gc_data {
   bool remset_undirected;       /* Regional (vs gen'l directed remsets) */
   bool mut_activity_bounded;    /* True for RROF alone (for now). */
 
-  int  dynamic_min;		/* 0 or lower limit of expandable area */
-  int  dynamic_max;		/* 0 or upper limit of expandable area */
-  int  nonexpandable_size;	/* Size of nonexpandable areas (but RROF?) */
+  s_word  dynamic_min;		/* 0 or lower limit of expandable area */
+  s_word  dynamic_max;		/* 0 or upper limit of expandable area */
+  s_word nonexpandable_size;	/* Size of nonexpandable areas (but RROF?) */
 
   word *globals;
   word *handles;               /* array of handles */
@@ -163,11 +163,11 @@ struct gc_data {
   bool print_float_stats_each_refine;
 
   /* these are precise measures according to heap snapshots */
-  int last_live_words;
-  int max_live_words;
+  s_word last_live_words;
+  s_word max_live_words;
 
-  int last_live_words_at_time_cycle_began;    /* N_old */
-  int max_live_words_at_time_cycle_began;     /* P_old */
+  s_word last_live_words_at_time_cycle_began;    /* N_old */
+  s_word max_live_words_at_time_cycle_began;     /* P_old */
 
   int total_heap_words_allocated; 
   int allocation_target_for_cycle; /* Will's A variable */

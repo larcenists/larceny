@@ -64,13 +64,13 @@ typedef struct {
   semispace_t *current_space;   /* The heap area */
 
   /* Strategy/Policy/Mechanism */
-  int         target_size;      /* Dynamic area size computed following GC. */
+  s_word         target_size;      /* Dynamic area size computed following GC. */
   double      load_factor;      /* Really the inverse load, L */
-  int         lower_limit;      /* 0 or lower bound on area (bytes) */
-  int         upper_limit;      /* 0 or upper bound on area (bytes) */
+  s_word         lower_limit;      /* 0 or lower bound on area (bytes) */
+  s_word         upper_limit;      /* 0 or upper bound on area (bytes) */
 
   /* Statistics */
-  int         used_after_last_gc;  /* Bytes */
+  s_word         used_after_last_gc;  /* Bytes */
   gen_stats_t gen_stats;        /* Local statistics */
   gc_stats_t  gc_stats;         /* Global statistics */
 } sc_data_t;
@@ -78,19 +78,19 @@ typedef struct {
 #define DATA(heap)  ((sc_data_t*)((heap)->data))
 
 static young_heap_t *allocate_heap( int gen_no, gc_t *gc );
-static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok );
-static int  collect_if_no_room( young_heap_t *heap, int nbytes );
-static int  compute_target_size( young_heap_t *heap, int D, int Q );
+static void make_space_for( young_heap_t *heap, s_word nbytes, int stack_ok );
+static int  collect_if_no_room( young_heap_t *heap, s_word nbytes );
+static s_word  compute_target_size( young_heap_t *heap, s_word D, s_word Q );
 static void must_create_stack( young_heap_t *heap );
 static void must_restore_frame( young_heap_t *heap );
 static void flush_stack( young_heap_t *heap );
 static void mode_ss_to_globals( young_heap_t *heap );
 static void mode_globals_to_ss( young_heap_t *heap );
-static int  free_current_chunk( young_heap_t *heap );
-static int  used_stack_space( young_heap_t *heap );
-static int  used_space( young_heap_t *heap );
-static int  static_used( young_heap_t *heap );
-static int  free_space( young_heap_t *heap );
+static s_word  free_current_chunk( young_heap_t *heap );
+static s_word  used_stack_space( young_heap_t *heap );
+static s_word  used_space( young_heap_t *heap );
+static s_word  static_used( young_heap_t *heap );
+static s_word  free_space( young_heap_t *heap );
 
 young_heap_t*
 create_sc_heap( int gen_no, 
@@ -115,7 +115,7 @@ create_sc_heap( int gen_no,
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
   data->target_size =
-    compute_target_size( heap, (int)(info->size_bytes/data->load_factor), 0 );
+    compute_target_size( heap, (s_word)(info->size_bytes/data->load_factor), 0 );
 
   supremely_annoyingmsg( "sc-heap: initial size = %d", data->target_size );
 
@@ -140,7 +140,7 @@ semispace_t *yhsc_data_area( young_heap_t *heap )
   return DATA(heap)->current_space;
 }
 
-static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
+static word *allocate( young_heap_t *heap, s_word nbytes, int no_gc )
 {
   sc_data_t *data = DATA(heap);
   word *globals = data->globals;
@@ -172,11 +172,11 @@ static void make_room( young_heap_t *heap )
 }
 
 /* Request is ignored -- doesn't make sense in stop/copy heap. */
-static void collect( young_heap_t *heap, int request_bytes, int request )
+static void collect( young_heap_t *heap, s_word request_bytes, int request )
 {
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
-  int total_bytes, stack, used_before, used_after;
+  s_word total_bytes, stack, used_before, used_after;
   stats_id_t timer1, timer2;
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
@@ -307,9 +307,9 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
 }
 
-static int compute_target_size( young_heap_t *heap, int D, int Q )
+static s_word compute_target_size( young_heap_t *heap, s_word D, s_word Q )
 {
-  int s;
+  s_word s;
   s = gc_compute_dynamic_size( heap->collector,
                                D,
                                static_used( heap ),
@@ -334,7 +334,7 @@ static void after_collection( young_heap_t *heap )
   /* Nothing */
 }
 
-static int free_space( young_heap_t *heap ) 
+static s_word free_space( young_heap_t *heap ) 
 {
   sc_data_t *data = DATA(heap);
 
@@ -364,10 +364,10 @@ static void stats( young_heap_t *heap )
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
-static word *data_load_area( young_heap_t *heap, int nbytes )
+static word *data_load_area( young_heap_t *heap, s_word nbytes )
 {
   sc_data_t *data = DATA(heap);
-  int n;
+  s_word n;
 
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
@@ -427,7 +427,7 @@ static void creg_set( young_heap_t *heap, word k )
 
 /* Internal functions past this point. */
 
-static int collect_if_no_room( young_heap_t *heap, int nbytes )
+static int collect_if_no_room( young_heap_t *heap, s_word nbytes )
 {
   if (free_space( heap ) < nbytes) {
     supremely_annoyingmsg( "sc-heap: couldn't find room for %d bytes",
@@ -442,12 +442,12 @@ static int collect_if_no_room( young_heap_t *heap, int nbytes )
     return 0;
 }
 
-static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
+static void make_space_for( young_heap_t *heap, s_word nbytes, int stack_ok )
 {
   sc_data_t *data = DATA(heap);
   word *globals = data->globals;
   semispace_t *ss = data->current_space;
-  int extra = 0, bytes_to_alloc, budget;
+  s_word extra = 0, bytes_to_alloc, budget;
   word *top, *stklim;
 
   if (free_current_chunk( heap ) < nbytes) {
@@ -521,7 +521,7 @@ static void mode_ss_to_globals( young_heap_t *heap )
   globals[ G_STKP ] = globals[ G_ELIM ];
 }
 
-static int static_used( young_heap_t *heap )
+static s_word static_used( young_heap_t *heap )
 {
   static_heap_t *s = heap->collector->static_area;  /* may be NULL */
 
@@ -536,21 +536,21 @@ static int static_used( young_heap_t *heap )
   return (s ? s->data_area->allocated : 0);
 }
 
-static int free_current_chunk( young_heap_t *heap )
+static s_word free_current_chunk( young_heap_t *heap )
 {
   word *globals = DATA(heap)->globals;
   return globals[ G_STKP ] - globals[ G_ETOP ] - SCE_BUFFER;
 }
 
-static int used_stack_space( young_heap_t *heap )
+static s_word used_stack_space( young_heap_t *heap )
 {
   semispace_t *ss = DATA(heap)->current_space;
   word *globals = DATA(heap)->globals;
 
-  return (int)((word)ss->chunks[ss->current].lim - globals[ G_STKP ]);
+  return (s_word)((word)ss->chunks[ss->current].lim - globals[ G_STKP ]);
 }
 
-static int used_space( young_heap_t *heap )
+static s_word used_space( young_heap_t *heap )
 {
   semispace_t *ss = DATA(heap)->current_space;
 

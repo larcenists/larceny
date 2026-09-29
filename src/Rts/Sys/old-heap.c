@@ -51,15 +51,15 @@ struct old_data {
   oh_type_t   oh_type;            /* ephemeral/dynamic/regional */
 
   /* Strategy/Policy/Mechanism */
-  int         size_bytes;         /* Initial size */
-  int         lower_limit;        /* 0 or lower limit on expandable area */
-  int         upper_limit;	  /* 0 or upper limit on expandable area */
-  int         target_size;        /* Current size */
+  s_word         size_bytes;         /* Initial size */
+  s_word         lower_limit;        /* 0 or lower limit on expandable area */
+  s_word         upper_limit;	  /* 0 or upper limit on expandable area */
+  s_word         target_size;        /* Current size */
   double      load_factor;        /* That's the L from the formula above */
   bool        must_clear_area;    /* Clear area after collection */
   bool        must_clear_remset;  /* Clear remset after collection */
 
-  int         promoted_last_gc;	  /* For policy use */
+  s_word         promoted_last_gc;	  /* For policy use */
 
   gen_stats_t gen_stats;	  /* accumulates collections and time */
   gc_stats_t  gc_stats;		  /* accumulates words copied/moved */
@@ -75,16 +75,16 @@ static int  decision( old_heap_t *heap );
 static void perform_collect( old_heap_t *heap );
 static void perform_promote( old_heap_t *heap );
 static void perform_promote_then_promote( old_heap_t *heap );
-static int  compute_dynamic_size( old_heap_t *heap, int live, int los );
-static int  used_space( old_heap_t *heap );
-static int  used_space_amid_gc( old_heap_t *heap );
+static s_word  compute_dynamic_size( old_heap_t *heap, s_word live, s_word los );
+static s_word  used_space( old_heap_t *heap );
+static s_word  used_space_amid_gc( old_heap_t *heap );
 #if FLOAT_REDUCTION
 static void full_collection( old_heap_t *heap );
 #endif
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 );
 static void stop_timers( bool is_promotion,
 			 old_heap_t *heap, 
-			 int bytes_copied, int bytes_moved, 
+			 s_word bytes_copied, s_word bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 );
 
 semispace_t *
@@ -185,9 +185,9 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
   old_data_t *data_to = DATA(heap_to);
   semispace_t *from, *to, *newspace;
   int rgn_idx = data_from->gen_no;
-  int used_before, tospace_before, los_before;
+  s_word used_before, tospace_before, los_before;
   stats_id_t timer1, timer2;
-  int bytes_copied, bytes_moved;
+  s_word bytes_copied, bytes_moved;
 
   annoyingmsg( "Regional area: garbage collection." );
 
@@ -293,7 +293,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request )
 {
   gc_t *gc = heap->collector;
   old_data_t *data = DATA(heap);
-  int alloc, i;
+  s_word alloc; int i;
 
   annoyingmsg( "Dynamic area: garbage collection." );
 
@@ -360,7 +360,7 @@ static int decision( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
-  int X, Y, Z, M, Xnext;
+  s_word X, Y, Z, M, Xnext;
   int i, n, j;
 
 #if 0
@@ -428,7 +428,7 @@ static void start_timers( stats_id_t *timer1, stats_id_t *timer2 ) {
 
 static void stop_timers( bool is_promotion, 
 			 old_heap_t *heap, 
-			 int bytes_copied, int bytes_moved, 
+			 s_word bytes_copied, s_word bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 ) {
   int ms;
   int ms_cpu;
@@ -496,7 +496,7 @@ static void perform_collect( old_heap_t *heap )
 static void perform_promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
-  int used_before, tospace_before, los_before;
+  s_word used_before, tospace_before, los_before;
   stats_id_t timer1, timer2;
 
   annoyingmsg( "  Promoting into generation %d.", data->gen_no );
@@ -538,8 +538,8 @@ static void check_budget( old_heap_t *heap, char *where )
 {
 #if 0
   if (heap->allocated > heap->maximum) {
-    int nonlos_allocated = DATA(heap)->current_space->used;
-    int los_allocated = 
+    s_word nonlos_allocated = DATA(heap)->current_space->used;
+    s_word los_allocated = 
       los_bytes_used( heap->collector->los, DATA(heap)->gen_no );
     consolemsg("old-heap[%d] allocated=%d=%d+%d more than maximum=%d %s",
                DATA(heap)->gen_no, 
@@ -605,10 +605,10 @@ static void stats( old_heap_t *heap )
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
-static word *data_load_area( old_heap_t *heap, int nbytes )
+static word *data_load_area( old_heap_t *heap, s_word nbytes )
 {
   old_data_t *data = DATA( heap );
-  int n;
+  s_word n;
 
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
@@ -619,7 +619,7 @@ static word *data_load_area( old_heap_t *heap, int nbytes )
 
 /* Internal */
 
-static int static_used( old_heap_t *heap )
+static s_word static_used( old_heap_t *heap )
 {
   static_heap_t *s = heap->collector->static_area;  /* may be NULL */
 
@@ -634,19 +634,19 @@ static int static_used( old_heap_t *heap )
   return (s ? s->data_area->allocated : 0);
 }
 
-static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
+static s_word compute_dynamic_size( old_heap_t *heap, s_word D, s_word Q )
 {
-  int S = static_used( heap );
+  s_word S = static_used( heap );
   double L = DATA(heap)->load_factor;
-  int upper_limit = DATA(heap)->upper_limit;
-  int lower_limit = DATA(heap)->lower_limit;
+  s_word upper_limit = DATA(heap)->upper_limit;
+  s_word lower_limit = DATA(heap)->lower_limit;
 
   return gc_compute_dynamic_size( heap->collector,
 				  D, S, Q, L, lower_limit, upper_limit );
 }
 
 
-static int used_space( old_heap_t *heap )
+static s_word used_space( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
 
@@ -655,7 +655,7 @@ static int used_space( old_heap_t *heap )
            los_bytes_used( heap->collector->los, data->gen_no );
 }
 
-static int used_space_amid_gc( old_heap_t *heap )
+static s_word used_space_amid_gc( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
 

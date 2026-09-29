@@ -476,7 +476,7 @@ static void free_block( void *block, int bytes )
 		 strerror(errno), bytes );
 }
 
-void *osdep_alloc_aligned( int bytes )
+void *osdep_alloc_aligned( s_word bytes )
 {
   void *addr;
   int i;
@@ -545,7 +545,7 @@ void *osdep_alloc_aligned( int bytes )
   return addr;
 }
 
-void osdep_free_aligned( void *block, int bytes )
+void osdep_free_aligned( void *block, s_word bytes )
 {
   int i;
   hrtime_t now = gethrtime();
