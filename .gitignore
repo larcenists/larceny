@@ -24,6 +24,8 @@ larceny.heap
 twobit.heap
 sasstrap.heap
 arm.heap
+arm64.heap
+bootstrap.log
 lib/R6RS/r6rs-standard-libraries.exp
 src/Lib/Common/ecodes.sch
 src/Lib/Common/globals.sch

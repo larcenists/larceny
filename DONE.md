@@ -1,0 +1,19 @@
+# DONE
+
+Finished items, moved here from TODO.md.  Newest first.
+
+## 2026-09-29
+
+- Native build in the main tree, bootstrapped with the Larceny in
+  `../accomplice-native2`; R7RS/R6RS libraries compiled.
+- Ignore `arm64.heap` and `bootstrap.log`.
+- `src/Build/bootstrap-arm64-native.sh`: one command to bootstrap native
+  AArch64 Larceny from Racket (3509d216).
+- Code space collects code when much code is installed (0524c5d6).
+- Native Larceny for AArch64 on macOS (34a6a685), with the collectable
+  code space (f15e8caa), 64-bit support in the Fence code generator
+  (2557ab85), and the AArch64 back end (272bbe8b).  Passes test/Lib, the
+  compiler tests, and the R7RS (8782) and R6RS (6260) suites with the
+  default and stop-and-copy collectors.
+- 64-bit Petit Larceny on macOS/arm64, bootstrapped from Racket, with the
+  regional collector working (62135dce).
