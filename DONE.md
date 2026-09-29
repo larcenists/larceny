@@ -8,7 +8,7 @@ Finished items, moved here from TODO.md.  Newest first.
   the low-level allocator, heap sizes and policies, statistics, heap
   images, and command-line sizes (which now accept a G suffix).  Before,
   a heap over 2 GB overflowed them: the statistics went negative and the
-  stop-and-copy collector looped (COMMIT).
+  stop-and-copy collector looped (c606805d).
 - Code space memory is included in the owning generation's statistics
   (90a7fb9e).
 - Native: long branch sequences for code vectors that may exceed the
