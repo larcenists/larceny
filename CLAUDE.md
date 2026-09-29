@@ -36,6 +36,13 @@ one.  Add new ideas to `TODO.md` as they come up.
   set automatically), since the tree's `.fasl` files are the target's.
 - After building, compile the R7RS/R6RS libraries once:
   `(require 'r7rsmode) (larceny:compile-r7rs-runtime)`.
+- The build's make rules treat compiled files as out of date when the
+  compiler or assembler sources are newer (`make:tool-files`, set in
+  `src/Build/nbuild.sch`), so editing the compiler recompiles the
+  libraries at the next `build-heap`.
+- `larceny.bin` is installed read-only.  Never copy over it in place:
+  MacOS kills a signed binary modified in place when it starts.  Remove
+  it first, or copy to a new file and `mv` it into place.
 - `make clean` in `src/Rts` deletes the generated `Shared/arithmetic.c`;
   rerun `build-config-files` afterwards.
 

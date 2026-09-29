@@ -15,12 +15,6 @@ DONE.md (with the date and the commit, if any).
 - More peephole optimization for the AArch64 back end (the ARM-32 back
   end has a framework in `src/Asm/Fence/arm-optimizer.sch`), e.g. the
   stack overflow check and timer tick sequences.
-- `-rrof` fails with this tree's `larceny.heap` (built 2026-09-29 15:40
-  by `../accomplice-native2`): compiling the test/Lib files corrupts the
-  heap ("symbol-hash: #<WEIRD OBJECT>", then a panic at
-  `Sys/summ_matrix.c;2212`).  The same runtime with native2's heap
-  passes, and native2's runtime with this heap fails, so it is in the
-  heap (or a latent collector bug it exposes), not the runtime.
 - Native mutation primitives (`set-car!`, `bytevector-u8-set!`, ...)
   leave whatever was in RESULT as their value, so the REPL prints e.g.
   `(set-car! p 2)` as a large fixnum (a heap address); Petit returns
@@ -50,6 +44,23 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
+- Feature markers on compiled code, so stale or mismatched code is
+  caught rather than trusted (in progress).  `#lap(...)` and `#lop(...)`
+  markers at the head of `.lap` and `.lop` files (and `#lop(...)` after
+  `#!fasl`) carry two sets:
+  - *assumes*: what the code needs from the runtime (target spec and
+    calling convention, word size, millicode entries such as the SATB
+    barrier, inline-allocation conventions).  Loadable into any runtime
+    providing a superset.  A runtime may provide several target specs.
+  - *guarantees*: what the code promises (write barrier, SATB
+    pre-barrier).  Loadable into any runtime whose current requirements
+    (which depend on the collector: `-rrof` needs the SATB pre-barrier)
+    are a subset.
+  Both readers (Larceny's and the Racket compatibility reader) and
+  writers need to know the markers.  Checked by `build-larceny-files`
+  (a mismatch means out of date), recorded in the heap (guarantees
+  intersected, assumes unioned) and checked at startup, and checked when
+  a `.fasl` is loaded.
 - `setup`'s `'clean` needs git to find the build products; it could fall
   back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).

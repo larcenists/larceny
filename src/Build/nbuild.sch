@@ -92,6 +92,17 @@
 (writeln "Loading make utility, makefile, and help.")
 (nbuild-load-files (nbuild:utility-files))
 
+; Compiled files are out of date when the compiler that made them has
+; changed, not just when their sources have.
+
+(let* ((twobit (nbuild:twobit-files))
+       (asm (append twobit
+                    (nbuild:common-asm-files)
+                    (nbuild:machine-asm-files))))
+  (make:tool-files ".lap" twobit)
+  (make:tool-files ".lop" asm)
+  (make:tool-files ".fasl" asm))
+
 (writeln "Loading utility functions.")
 (compat:load (param-filename 'rts "make-templates.sch"))
 (compat:load (param-filename 'util "cleanup.sch"))

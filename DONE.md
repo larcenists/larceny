@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Compiled files (`.lap`, `.lop`, `.fasl`) made by the build's make
+  rules are out of date when the compiler or assembler sources are newer
+  (`make:tool-files`); `larceny.bin` is installed read-only by renaming
+  a fresh copy into place; `'clean` keeps the bootstrap logs (COMMIT).
+  The `-rrof` failures in this tree came from library code compiled
+  before the SATB pre-barrier existed and reused by later heap builds.
 - GC byte counts are 64-bit on 64-bit systems (`s_word`): semispaces,
   the low-level allocator, heap sizes and policies, statistics, heap
   images, and command-line sizes (which now accept a G suffix).  Before,

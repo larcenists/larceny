@@ -77,7 +77,7 @@
             (rts/name (param-filename 'rts name)))
        (if (file-exists? rts/name)
            (begin
-             (copy-file/regexp (nbuild-parameter 'rts) name ".")
+             (install-executable (nbuild-parameter 'rts) name ".")
              (copy-script "larceny"))
            (error
             "You need to build-runtime [in order to generate Rts/larceny.bin]")

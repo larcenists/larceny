@@ -321,7 +321,9 @@
         (file-exists? "src/Lib/Common/malcode.lop")))
 
   ;; Removes the build products: the files git ignores in the root
-  ;; directory and in include, src, and lib (except editor backups).
+  ;; directory and in include, src, and lib (except editor backups and
+  ;; the logs of src/Build/bootstrap.sh, which may be the build that is
+  ;; running).
   (define (clean-build-products!)
     (if (not (zero? (system "git rev-parse --git-dir > /dev/null 2>&1")))
         (error 'setup
@@ -331,6 +333,7 @@
              "git ls-files -z -o -i --exclude-standard -- "
              "':(glob)*' include src lib "
              "':(exclude,glob)*~' ':(exclude,glob)**/*~' "
+             "':(exclude)bootstrap.log' ':(exclude)bootstrap-r7rs.log' "
              "| xargs -0 rm -f --")))
 
   (define (refuse why)
