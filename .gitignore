@@ -26,6 +26,7 @@ sasstrap.heap
 arm.heap
 arm64.heap
 bootstrap.log
+bootstrap-r7rs.log
 build-configuration
 lib/R6RS/r6rs-standard-libraries.exp
 src/Lib/Common/ecodes.sch
