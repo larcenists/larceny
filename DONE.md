@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- REPL/debugger no longer loop forever ("Read error on port") when the
+  console must be reopened but there is no controlling terminal; the
+  console falls back to /dev/null (27a26528).
 - Native build in the main tree, bootstrapped with the Larceny in
   `../accomplice-native2`; R7RS/R6RS libraries compiled.
 - Ignore `arm64.heap` and `bootstrap.log`.
