@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Native: allocation in line (fixed-size and make-vector-style) when the
+  nursery has room; allocation-heavy loops 1.4x-4.5x faster, now faster
+  than Petit (e997e334).
 - Nightly-build scripts (`test/Scripts/nightly-build`, `checkout-git`)
   know macosx-arm64, native and Petit, hosted by Larceny or Racket (175aec4d).
 - `(build-larceny-heap)` / `(build-twobit-heap)` for the second build
