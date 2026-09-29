@@ -5,7 +5,7 @@ Finished items, moved here from TODO.md.  Newest first.
 ## 2026-09-29
 
 - `-nocontract` works again: the heap-size policy compared bytes with the
-  peak heap size in words, so it kept only 1/8 of the peak (COMMIT).
+  peak heap size in words, so it kept only 1/8 of the peak (4f4cb540).
 - Feature markers on compiled code: `#lap(...)`/`#lop(...)` with
   `assumes` and `guarantees` sets, in both readers (8922e52f); written by
   the compiler into `.lap`, `.lop`, and `.fasl` files (718fac3f); checked
