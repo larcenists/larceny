@@ -39,8 +39,10 @@
 ; - Peephole optimization: the ARM-32 back end has a framework in
 ;   arm-optimizer.sch.
 ;
-; - The CPU's return-address predictor is not used; calls and returns
-;   are plain indirect branches.
+; Calls that set a return address use BL/BLR, returns use RET, and tail
+; calls use B/BR, so that the CPU's return-address predictor sees
+; matching calls and returns.  (The link register value is not used;
+; the return address is in the frame.)
 
 (define (cant.label as L)
   (emit-label! as L))
@@ -88,7 +90,7 @@
 
 (define (cant.ldrtn/return as offset)
   (arm64.load as 8 arm64.TMP1 arm64.STKP offset)
-  (arm64.BR   as arm64.TMP1))
+  (arm64.RET  as arm64.TMP1))
 
 (define (cant.setrtn/strtn as L offset)
   (arm64.ADR   as arm64.TMP1 L 0)
@@ -124,7 +126,7 @@
   (arm64.alignment as align 12)
   (arm64.ADR*  as arm64.TMP2 12)
   (arm64.store as 8 arm64.TMP2 arm64.STKP offset)
-  (arm64.BR    as arm64.TMP1)
+  (arm64.BLR   as arm64.TMP1)
   (assert (zero? (remainder (here as) align))))
 
 ; Set the return address of the instruction after the branch, store it
@@ -135,7 +137,7 @@
   (arm64.alignment as align 12)
   (arm64.ADR*  as arm64.TMP2 12)
   (arm64.store as 8 arm64.TMP2 arm64.STKP offset)
-  (arm64.B     as L)
+  (arm64.BL    as L)
   (assert (zero? (remainder (here as) align))))
 
 (define (cant.ba as L)
@@ -808,6 +810,9 @@
 (define (arm64.B as L)
   (arm64.branch as L (lambda (bits) (+ #x14000000 bits)) arm64.imm26-bits))
 
+(define (arm64.BL as L)
+  (arm64.branch as L (lambda (bits) (+ #x94000000 bits)) arm64.imm26-bits))
+
 (define (arm64.Bcond as cond L)
   (arm64.branch as L (lambda (bits) (+ #x54000000 bits cond)) arm64.imm19-bits))
 
@@ -822,6 +827,9 @@
 
 (define (arm64.BLR as rn)
   (arm64.emit as (+ #xD63F0000 (* 32 rn))))
+
+(define (arm64.RET as rn)
+  (arm64.emit as (+ #xD65F0000 (* 32 rn))))
 
 (define (arm64.NOP as)
   (arm64.emit as #xD503201F))

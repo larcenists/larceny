@@ -208,6 +208,9 @@
     (,(lambda (as) (arm64.CBNZ as 3 (L as -16))) "cbnz x3, .-16")
     (,(lambda (as) (arm64.BR as 16)) "br x16")
     (,(lambda (as) (arm64.BLR as 17)) "blr x17")
+    (,(lambda (as) (arm64.RET as 16)) "ret x16")
+    (,(lambda (as) (arm64.RET as 30)) "ret")
+    (,(lambda (as) (arm64.BL as (L as -40))) "bl .-40")
     (,(lambda (as) (arm64.NOP as)) "nop")
 
     ;; Forward branches, patched by fixups
@@ -260,7 +263,7 @@
     ;; A few Cant operations
     (,(lambda (as) (cant.trap as 1296 'foo)) "ldr x17, [x23, #1296] ; blr x17")
     (,(lambda (as) (cant.trap as 1296 'foo 17)) "movz x21, #17 ; ldr x17, [x23, #1296] ; blr x17")
-    (,(lambda (as) (cant.ldrtn/return as 0)) "ldr x16, [x22] ; br x16")
+    (,(lambda (as) (cant.ldrtn/return as 0)) "ldr x16, [x22] ; ret x16")
     (,(lambda (as) (cant.jump as #f)) "ldur x16, [x2, #1] ; add x16, x16, #3 ; br x16")
     (,(lambda (as) (cant.bcci as 'equal $r.result 0 (L as 8))) "cbz x0, .+8")
     (,(lambda (as) (cant.bcci as 'low2-not-equal $r.result 0 (L as 8)))
@@ -280,9 +283,9 @@
     (,(lambda (as) (cant.mul/bnv as $r.result $r.tmp $r.result (L as 20)))
      "mul x16, x0, x21 ; smulh x17, x0, x21 ; cmp x17, x16, asr #63 ; csel x0, x16, x0, eq ; b.eq .+4")
     (,(lambda (as) (cant.setrtn/strtn/branch as (L as 100) 4 0))
-     "adr x17, .+12 ; str x17, [x22] ; b .+92")
+     "adr x17, .+12 ; str x17, [x22] ; bl .+92")
     (,(lambda (as) (cant.setrtn/strtn/branch as (L as 100) 8 0))
-     "nop ; adr x17, .+12 ; str x17, [x22] ; b .+88")
+     "nop ; adr x17, .+12 ; str x17, [x22] ; bl .+88")
     (,(lambda (as) (cant.fsetcc as 'less 0 1 $r.result))
      "fcmp d8, d9 ; cset x16, mi ; lsl x16, x16, #2 ; add x0, x16, #2")
     (,(lambda (as) (cant.fldi as $r.second 3 1)) "ldur d9, [x1, #3]")

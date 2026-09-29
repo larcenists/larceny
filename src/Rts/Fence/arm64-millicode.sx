@@ -175,7 +175,7 @@ EXTNAME(asmname):                              %% \
         mov     x1, #(value)                   %% \
         bl      EXTNAME(cname)                 %% \
         LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR %% \
-        br      x30
+        ret
 
 #define MILLIPROC1(asmname,cname) \
         MILLIPROC2(asmname,cname,4)
@@ -254,4 +254,4 @@ EXTNAME(fmc_exception):
         ldr     x1, [GLOBALS, #G_PUSHTMP]
         bl      EXTNAME(mc_exception)
         LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
-        br      x30
+        ret
