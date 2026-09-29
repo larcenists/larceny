@@ -35,6 +35,7 @@
 #include "stats.h"
 #include "gc_mmu_log.h"
 #include "uremset_t.h"
+#include "code-space.h"
 
 #define PROMOTE_WITHOUT_COLLECTING       0
 #define PROMOTE_WHILE_COLLECTING         1
@@ -591,6 +592,9 @@ static void stats( old_heap_t *heap )
     bytes2words(data->current_space->allocated + 
 		los_bytes_used( heap->collector->los, data->gen_no ));
   data->gen_stats.used = bytes2words(used_space( heap ));
+#if CODE_SPACE
+  cs_add_stats( heap->collector->code_space, data->gen_no, &data->gen_stats );
+#endif
 
   stats_add_gen_stats( data->self, &data->gen_stats );
   stats_add_gc_stats( &data->gc_stats );

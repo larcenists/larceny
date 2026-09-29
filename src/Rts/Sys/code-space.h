@@ -104,6 +104,12 @@ void cs_after_collection( code_space_t *cs );
      the current code space and free the old one.
      */
 
+void cs_add_stats( code_space_t *cs, int gen_no, gen_stats_t *stats );
+  /* If the code space belongs to generation gen_no, add its allocated
+     and used memory to the statistics for that generation.  (cs may be
+     NULL.)
+     */
+
 semispace_t *cs_semispace( code_space_t *cs );
   /* The semispace holding the code, for heap dumping.
      */

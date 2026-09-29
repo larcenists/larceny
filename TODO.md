@@ -22,8 +22,6 @@ DONE.md (with the date and the commit, if any).
   procedure of 8000 statements needs over 2 GB); the AArch64 long-branch
   mode for code vectors over 1 MB could only be tested with its
   threshold lowered.
-- Account for the code space in the heap statistics (`memstats`,
-  `gclib_stats`).
 - FFI and the `-np` collector (neither exists for Petit either).  Part
   of the FFI: `foreign-ctools` compiles its C helpers with `-arch armv4t`
   on ARM, so `src/Build/compile-standard-libraries.sch` (used by the

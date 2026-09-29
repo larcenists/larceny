@@ -54,6 +54,7 @@
 #include "stack.h"
 #include "gclib.h"
 #include "stats.h"
+#include "code-space.h"
 
 typedef struct {
   /* The heap */
@@ -352,6 +353,9 @@ static void stats( young_heap_t *heap )
                  + los_bytes_used( heap->collector->los, data->gen_no ) );
   data->gen_stats.used = 
     bytes2words( used_space( heap ) - used_stack_space( heap ) );
+#if CODE_SPACE
+  cs_add_stats( heap->collector->code_space, data->gen_no, &data->gen_stats );
+#endif
 
   stats_add_gen_stats( data->self, &data->gen_stats );
   memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );

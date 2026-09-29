@@ -104,6 +104,9 @@ static void stats( static_heap_t *heap )
     ss_sync( heap->data_area );
     s.used += bytes2words(heap->data_area->used);
   }
+#if CODE_SPACE
+  cs_add_stats( heap->collector->code_space, DATA(heap)->gen_no, &s );
+#endif
 
   stats_add_gen_stats( DATA(heap)->self, &s );
   if (heap->collector->gno_count > DATA(heap)->gen_no)

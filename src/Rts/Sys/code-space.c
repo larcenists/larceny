@@ -8,7 +8,8 @@
 #include <string.h>
 #include "larceny.h"
 #include "gclib.h"
-#include "memmgr.h"            /* GC_CHUNK_SIZE */
+#include "memmgr.h"
+#include "stats.h"            /* GC_CHUNK_SIZE */
 #include "semispace_t.h"
 #include "code-space.h"
 
@@ -180,6 +181,15 @@ void cs_after_collection( code_space_t *cs )
   if (cs->writing) {
     writing( cs, 0 );
     flush_semispace( cs->current );
+  }
+}
+
+void cs_add_stats( code_space_t *cs, int gen_no, gen_stats_t *stats )
+{
+  if (cs != 0 && cs->gen_no == gen_no) {
+    ss_sync( cs->current );
+    stats->allocated += bytes2words( cs->current->allocated );
+    stats->used += bytes2words( cs->current->used );
   }
 }
 
