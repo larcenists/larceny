@@ -21,7 +21,11 @@
 ;
 ; Features:
 ;  - Little/big-endian independent.
-;  - By and large it is 64-bit clean.
+;  - 64-bit clean: fixnums have two tag bits whatever the word size,
+;    so on a 64-bit system a fixnum index must be doubled to become a
+;    word offset, and header size fields (in bytes) must be halved to
+;    become fixnum lengths.  See fence.index->word-offset and
+;    fence.header-length-shift.
 ;  - Direct support for floating point operations.
 ;
 ; TODO:
@@ -32,7 +36,6 @@
 ;    branches to existing handlers instead of new handlers; the
 ;    optimizer should carefully optimize branch-over-branch to
 ;    reverse the condition and eliminate the redundant branch.
-;  - Add the missing parts of the 64-bit support, search for FIXME64.
 
 ; Arguably a hack, should define these elsewhere.  But they are
 ; target-independent.
@@ -354,7 +357,7 @@
           ;; n+3 words for retaddr, dynamic link, and REG0..REGn
           ;; realsize includes the size field and padding
           (let* ((framesize (* $bytewidth.wordsize (+ n 3)))
-                 (realsize  (fence.roundup8
+                 (realsize  (fence.roundup-dword
                              (+ framesize $bytewidth.wordsize))))
             (list-instruction "pop" instruction)
             (cant.addi as $r.stkp realsize $r.stkp))))))
@@ -397,7 +400,7 @@
       (cant.mov as $r.result $r.second)
       (let ((base (emit-follow-lexical-chain as rib $r.result)))
         (cant.sti           as $r.second base (fence.procedure-slot slot))
-        (emit-write-barrier as base $r.second)))))
+        (emit-write-barrier as base $r.second base (fence.procedure-slot slot))))))
 
 (define-instruction $reg
   (lambda (instruction as)
@@ -679,7 +682,7 @@
   (let* ((L1        (fence.make-label as))
          (L0        (fence.make-label as))
          (framesize (* $bytewidth.wordsize (+ n 3))) ; Retaddr + dynamic link + REG0..REGn
-         (realsize  (fence.roundup8 (+ framesize $bytewidth.wordsize)))) ; Additional word for the size field
+         (realsize  (fence.roundup-dword (+ framesize $bytewidth.wordsize)))) ; Additional word for the size field
     (fence.label as L0)
     (cant.ldi    as $r.globals $g.etop $r.tmp) ; System invariant: nursery top is stack limit (TODO: sce_buffer)
     ;; TODO: Should just use subi here (and the ARM back-end should implement subi as well as addi)
@@ -697,8 +700,7 @@
     (cant.sti    as $r.tmp $r.stkp $stk.dynlink) ; Clearing the dynamic link is redundant.  TODO: remove.
     (cant.sti    as $r.tmp $r.stkp $stk.retaddr)
     ;; Clearing the pad word is redundant, the GC does not inspect it.  TODO: remove.
-    (if (and (= 4 $bytewidth.wordsize) 
-             (= (- realsize framesize) 8))
+    (if (= (- realsize framesize) (* 2 $bytewidth.wordsize))
         (cant.sti as $r.tmp $r.stkp (fence.frame-slot (+ n 1))))))
 
 ; Clear all the slots in the frame.  We depend on $r.tmp being
@@ -734,7 +736,7 @@
       (cant.mov          as rs $r.second))
   (emit-global->register as name $r.result)
   (cant.sti              as $r.second $r.result (- $tag.pair-tag))
-  (emit-write-barrier    as $r.result $r.second))
+  (emit-write-barrier    as $r.result $r.second $r.result (- $tag.pair-tag)))
 
     
 ;;; Helpers
@@ -796,11 +798,41 @@
 (define (fence.label as L)
   (cant.label as L))
 
-; Round a value up to next increment of 8, x must be a fixnum
-; as must the rounded-up value.
+; Round a byte count up to the next multiple of two words (the
+; alignment of objects and stack frames); x must be a fixnum as must
+; the rounded-up value.
 
-(define (fence.roundup8 x)
-  (fxlogand (+ x 7) (fxlognot 7)))
+(define (fence.roundup-dword x)
+  (let ((m (- (* 2 $bytewidth.wordsize) 1)))
+    (fxlogand (+ x m) (fxlognot m))))
+
+; A fixnum index scaled to a word offset: on a 64-bit system a word
+; is twice the size of the fixnum representation of 1.  Destroys
+; only rd, which may be the same as ridx but must not be rbase.
+
+(define (fence.index->word-offset as rbase ridx rd)
+  (case $bytewidth.wordsize
+    ((4) (cant.add as rbase ridx rd))
+    ((8) (cant.shli as ridx 1 rd)
+         (cant.add as rbase rd rd))
+    (else ???)))
+
+; Shift a header right by this much to get the object's length as a
+; fixnum, if the length is counted in words.
+
+(define fence.header-length-shift
+  (case $bytewidth.wordsize
+    ((4) 8)
+    ((8) 9)
+    (else ???)))
+
+; Size in bytes of the data part of a flonum, including padding.
+
+(define fence.flonum-data-bytes
+  (case $bytewidth.wordsize
+    ((4) 12)
+    ((8) 8)
+    (else ???)))
 
 ;;; Emitter utilities
 
@@ -914,17 +946,20 @@
           (cant.ldi as base $p.linkoffset target)
           (loop (- q 1) target)))))
 
-; val has been stored in obj, now record that store.
-; This may destroy RESULT and SECOND, and it will destroy TMP 
-; only if r1=SECOND and r2=RESULT.
+; val has been stored in obj at address base+offset, now record that
+; store.  This may destroy RESULT, SECOND, and TMP.
 ;
-; TODO: Need to support full-barrier.
+; The millicode wants the object in RESULT, the value in SECOND, and
+; the address of the slot in THIRD.
+;
+; TODO: Need to support full-barrier, and the SATB pre-barrier used by
+; the regional collector's concurrent marking.
 ;
 ; To reduce code size we could imagine several entry points, eg, one
 ; for RESULT/SECOND, another for SECOND/RESULT.  Not clear how big the
 ; benefit would be.
 
-(define (emit-write-barrier as r_obj r_val)
+(define (emit-write-barrier as r_obj r_val r_base offset)
 
   ;; Not yet useful outside emit-write-barrier.
   (define (emit-millicode-arguments2 as r1 r2)
@@ -941,6 +976,8 @@
 
   (let ((L (fence.make-label as)))
     (cant.bcci as 'low1-equal r_val 0 L)        ; Skip if value is not pointer
+    (cant.addi as r_base offset $r.tmp)
+    (cant.sti  as $r.tmp $r.globals $g.third)
     (emit-millicode-arguments2 as r_obj r_val)
     (cant.trap as $m.partial-barrier '*partial-barrier)
     (fence.label as L)))
@@ -973,7 +1010,8 @@
 (define (emit-allocate-uninitialized as nbytes)
   (if (not (zero? (remainder nbytes $bytewidth.wordsize)))
       (error "Allocation request size must be divisible by the word size"))
-  (cant.movi as nbytes $r.result)
+  ;; The millicode takes the number of words, as a fixnum.
+  (cant.movi as (fence.native->fixnum (quotient nbytes $bytewidth.wordsize)) $r.result)
   (cant.trap as $m.alloc '*alloc))
 
 ; rinit is a register name or ().  If () we initialize with $imm.null,
@@ -987,8 +1025,6 @@
 
 (define (emit-make-word-structure as rlen rinit rd tag hdr exn)
   (assert (or (null? rinit) (not (= rinit $r.result))))
-  (if (= $bytewidth.wordsize 8)
-      (error "emit-make-word-structure must correctly compute and store 64-bit length value")) ; FIXME64
   (emit-check-positive-fixnum as rlen exn)
   (cant.sti    as rlen $r.globals $g.alloctmp)             ; Save the actual length
   (cant.addi   as rlen (fence.native->fixnum 1) $r.result) ; Add one word for the header
@@ -997,7 +1033,7 @@
       (cant.mov  as rinit $r.second))
   (cant.trap   as $m.alloci '*alloci)
   (cant.ldi    as $r.globals $g.alloctmp $r.tmp)
-  (cant.shli   as $r.tmp 8 $r.tmp)
+  (cant.shli   as $r.tmp fence.header-length-shift $r.tmp)
   (cant.addi   as $r.tmp hdr $r.tmp)
   (cant.sti    as $r.tmp $r.result 0)
   (cant.addi   as $r.result tag rd))
@@ -1009,8 +1045,6 @@
 ; TODO: Verify that alloc-bv performs the necessary check.
 
 (define (emit-make-byte-structure as rlen rd tag hdr exn)
-  (if (= $bytewidth.wordsize 8)
-      (error "emit-make-byte-structure must correctly compute and store 64-bit length value")) ; FIXME64
   (emit-check-positive-fixnum as rlen exn)
   (cant.sti    as rlen $r.globals $g.alloctmp)  ; Save the actual length
   (cant.addi   as rlen (fence.native->fixnum $bytewidth.wordsize) $r.result) ; Add space for header
@@ -1020,6 +1054,27 @@
   (cant.addi   as $r.tmp hdr $r.tmp)            ;     with header tag
   (cant.sti    as $r.tmp $r.result 0)           ;       and store
   (cant.addi   as $r.result tag rd))            ; Tag
+
+; A flat4 string on a 64-bit system: characters are 32 bits, so the
+; string is allocated as ceiling(n/2) words initialized with two
+; copies of the character, plus a header.  rinit must be a character.
+
+(define (emit-make-ustring-64 as rlen rinit rd exn)
+  (assert (not (= rinit $r.result)))
+  (emit-check-positive-fixnum as rlen exn)
+  (cant.sti    as rlen $r.globals $g.alloctmp)  ; Save the actual length
+  (cant.addi   as rlen (fence.native->fixnum 1) $r.result)
+  (cant.shri   as $r.result 1 $r.result)        ; Fixnum ceiling(n/2),
+  (cant.andni  as $r.result 3 $r.result)        ;   the number of data words
+  (cant.addi   as $r.result (fence.native->fixnum 1) $r.result) ; Add a word for the header
+  (cant.shli   as rinit 32 $r.tmp)              ; Two copies of the character
+  (cant.or     as rinit $r.tmp $r.second)
+  (cant.trap   as $m.alloci '*alloci)
+  (cant.ldi    as $r.globals $g.alloctmp $r.tmp); Length in characters, as a fixnum,
+  (cant.shli   as $r.tmp 8 $r.tmp)              ;   is the length in bytes
+  (cant.addi   as $r.tmp (+ $imm.bytevector-header $tag.ustring-typetag) $r.tmp)
+  (cant.sti    as $r.tmp $r.result 0)
+  (cant.addi   as $r.result $tag.bytevector-tag rd))
 
 (define (emit-op1 as name rs rd)
 
@@ -1113,7 +1168,7 @@
     ;; Vectors
     ((vector-length:vec)
      (cant.ldi as rs (- $tag.vector-tag) rd)
-     (cant.shri as rd 8 rd))
+     (cant.shri as rd fence.header-length-shift rd))
     ((vector-length)
      (emit-structure-length2 as rs rd $tag.vector-tag $hdr.vector $ex.vref))
     ((vector-like-length)
@@ -1201,7 +1256,7 @@
            (fence.label as L))
          (begin
            (cant.movi as 0 $r.tmp)
-           (cant.sub/bnv  as $r.tmp rs rd L))))
+           (cant.sub  as $r.tmp rs rd))))
     ((fxzero?)
      (emit-check-fixnum as rs $ex.fxzero?)
      (cant.setcci as 'equal rs 0 rd))
@@ -1363,7 +1418,7 @@
     (cant.fldi as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1)
     (op        as $r.f0 $r.f1 $r.f0)
     (emit-allocate-uninitialized as 16)
-    (cant.movi as (+ (* 16 256) $hdr.flonum) $r.tmp)
+    (cant.movi as (+ (* fence.flonum-data-bytes 256) $hdr.flonum) $r.tmp)
     (cant.sti  as $r.tmp $r.result 0)
     (cant.fsti as $r.f0 $r.result 8)
     (cant.addi as $r.result $tag.bytevector-tag rd))
@@ -1378,17 +1433,17 @@
   (case name
     ((cell-set!)
      (cant.sti as rs2 rs1 (- $tag.pair-tag))
-     (emit-write-barrier as rs1 rs2))
+     (emit-write-barrier as rs1 rs2 rs1 (- $tag.pair-tag)))
     ((cell-set!:nwb)
      (cant.sti as rs2 rs1 (- $tag.pair-tag)))
     ((set-car!)
      (emit-check-tag as rs1 $tag.pair-tag $ex.setcar)
      (cant.sti as rs2 rs1 (- $tag.pair-tag))
-     (emit-write-barrier as rs1 rs2))
+     (emit-write-barrier as rs1 rs2 rs1 (- $tag.pair-tag)))
     ((set-cdr!)
      (emit-check-tag as rs1 $tag.pair-tag $ex.setcdr)
      (cant.sti as rs2 rs1 (- $bytewidth.wordsize $tag.pair-tag))
-     (emit-write-barrier as rs1 rs2))
+     (emit-write-barrier as rs1 rs2 rs1 (- $bytewidth.wordsize $tag.pair-tag)))
     ((cons)
      (let ((spill? (or (= rs1 $r.result) (= rs2 $r.result))))
        (if spill?
@@ -1431,7 +1486,7 @@
      (emit-op2 as 'bytevector-like-ref:trusted rs1 rs2 rd))
     ((bytevector-like-ref)
      (emit-check-tag as rs1 $tag.bytevector-tag $ex.bvlref)
-     (emit-check-fixnum rs1 $ex.bvlref)
+     (emit-check-fixnum as rs2 $ex.bvlref)
      (emit-check-byte-range as $tag.bytevector-tag rs1 rs2 $ex.bvlref)
      (emit-op2 as 'bytevector-like-ref:trusted rs1 rs2 rd))
     ((bytevector-fill!)
@@ -1458,7 +1513,7 @@
         (emit-check-character as rs2 $ex.mkstr)
         (if (= $bytewidth.wordsize 4)
             (emit-make-word-structure as rs1 rs2 rd $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag) $ex.mkstr)
-            (error "make-ustring not implemented for 64-bit systems"))) ; FIXME64
+            (emit-make-ustring-64 as rs1 rs2 rd $ex.mkstr)))
        (else
         (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
     ((ustring-ref:trusted)
@@ -1470,10 +1525,9 @@
         (cant.shli  as rd 8 rd)
         (cant.addi  as rd $imm.character rd))
        ((flat4)
-        (cant.add as rs1 rs2 rd)
-        (if (= $bytewidth.wordsize 4)
-            (cant.ldi as rd (- $bytewidth.wordsize $tag.bytevector-tag) rd)
-            (error "ustring-ref:trusted not implemented for 64-bit systems"))) ; FIXME64
+        ;; The fixnum index is the byte offset of a 32-bit character.
+        (cant.add   as rs1 rs2 rd)
+        (cant.ldwiz as rd (- $bytewidth.wordsize $tag.bytevector-tag) rd))
        (else
         (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
 
@@ -2009,10 +2063,8 @@
         (cant.stbi as $r.result $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag))
         (cant.movi as 0 $r.result))     ; clear untagged value
        ((flat4)
-        (cant.add as rs1 rs2 $r.tmp)
-        (if (= $bytewidth.wordsize 4)
-            (cant.sti as rs3 $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag))
-            (error "ustring-set!:trusted not implemented for 64-bit systems"))) ; FIXME64
+        (cant.add  as rs1 rs2 $r.tmp)
+        (cant.stwi as rs3 $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag)))
        (else
         (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
 
@@ -2037,8 +2089,8 @@
         (fence.label    as L2)
         (emit-exception as exn reg)
         (fence.label    as L1)
-        (cant.ldi       as $r.result (- ptr) $r.tmp)
-        (cant.bcci      as 'low8-equal $r.tmp hdr L2))))
+        (cant.ldi       as reg (- ptr) $r.tmp)
+        (cant.bcci      as 'low8-not-equal $r.tmp hdr L2))))
 
 (define (emit-check-fixnum as reg exn)
   (if (runtime-safety-checking)
@@ -2080,7 +2132,7 @@
   (if (runtime-safety-checking)
       (let ((L1 (fence.make-label as)))
         (cant.ldi       as r_obj (- tag) $r.tmp)
-        (cant.shrai     as $r.tmp 8 $r.tmp)
+        (cant.shrai     as $r.tmp fence.header-length-shift $r.tmp)
         (cant.bcc       as 'unsigned-less r_idx $r.tmp L1)
         (emit-exception as exn r_obj r_idx)
         (fence.label    as L1))))
@@ -2131,12 +2183,12 @@
 (define (emit-structure-length1 as rs rd tag exn)
   (emit-check-tag as rs tag exn)
   (cant.ldi       as rs (- tag) rd)
-  (cant.shri      as rd 8 rd))
+  (cant.shri      as rd fence.header-length-shift rd))
 
 (define (emit-structure-length2 as rs rd tag hdr exn)
   (emit-check-tags as rs tag hdr exn)
   (cant.ldi        as rs (- tag) rd)
-  (cant.shri       as rd 8 rd))
+  (cant.shri       as rd fence.header-length-shift rd))
 
 (define (emit-structure-ref1 as rs1 rs2 rd tag exn)
   (emit-check-tag        as rs1 tag exn)
@@ -2144,7 +2196,7 @@
   (emit-check-word-range as tag rs1 rs2 exn)
   (emit-unchecked-structure-ref as rs1 rs2 rd tag))
 
-(define (emit-structure-ref2 rs1 rs2 rd tag hdr exn)
+(define (emit-structure-ref2 as rs1 rs2 rd tag hdr exn)
   (emit-check-tags       as rs1 tag hdr exn)
   (emit-check-fixnum     as rs2 exn)
   (emit-check-word-range as tag rs1 rs2 exn)
@@ -2162,15 +2214,22 @@
   (emit-check-word-range as tag rs1 rs2 exn)
   (emit-unchecked-structure-set as rs1 rs2 rs3 tag #t))
 
+; rd may be the same as rs2 but not rs1.
+
 (define (emit-unchecked-structure-ref as rs1 rs2 rd tag)
-  (cant.add as rs1 rs2 rd)
-  (cant.ldi as rd (- $bytewidth.wordsize tag) rd))
+  (if (= rd rs1)
+      (begin
+        (fence.index->word-offset as rs1 rs2 $r.tmp)
+        (cant.ldi as $r.tmp (- $bytewidth.wordsize tag) rd))
+      (begin
+        (fence.index->word-offset as rs1 rs2 rd)
+        (cant.ldi as rd (- $bytewidth.wordsize tag) rd))))
 
 (define (emit-unchecked-structure-set as rs1 rs2 rs3 tag barrier?)
-  (cant.add           as rs1 rs2 $r.tmp)
+  (fence.index->word-offset as rs1 rs2 $r.tmp)
   (cant.sti           as rs3 $r.tmp (- $bytewidth.wordsize tag))
   (if barrier?
-      (emit-write-barrier as rs1 rs3)))
+      (emit-write-barrier as rs1 rs3 $r.tmp (- $bytewidth.wordsize tag))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2236,6 +2295,14 @@
   (list-cant "ldb" `(#f ,(list-regname base) ,offset ,(list-regname rd)))
   (emit! as $cant$))
 
+; Load a 32-bit value from memory and zero-extend into an integer
+; register: rd=zeroExtend(*(uint32*)(base+offset)).  On a 32-bit
+; system this is the same as ldi.
+
+(define (cant.ldwiz as base offset rd)
+  (list-cant "ldwiz" `(#f ,(list-regname base) ,offset ,(list-regname rd)))
+  (emit! as $cant$))
+
 ; Load a floating register from memory.  The effective address must be
 ; 8-byte aligned.
 
@@ -2256,6 +2323,14 @@
 
 (define (cant.stbi as rs base offset)
   (list-cant "sti" `(#f ,(list-regname rs) ,(list-regname base) ,offset))
+  (emit! as $cant$))
+
+; Store the low 32 bits of an integer register into memory without a
+; write barrier: *(uint32*)(base+offset)=(uint32)rs.  On a 32-bit
+; system this is the same as sti.
+
+(define (cant.stwi as rs base offset)
+  (list-cant "stwi" `(#f ,(list-regname rs) ,(list-regname base) ,offset))
   (emit! as $cant$))
 
 ; Store a floating register to memory.  The effective address must be

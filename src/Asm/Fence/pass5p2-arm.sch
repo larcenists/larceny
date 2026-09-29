@@ -150,6 +150,14 @@
           (arm.setval as arm.TMP1 offset)
           (arm.STR    as rs base arm.TMP1)))))
 
+; 32-bit loads and stores are ordinary word loads and stores here.
+
+(define (cant.ldwiz as base offset rd)
+  (cant.ldi as base offset rd))
+
+(define (cant.stwi as rs base offset)
+  (cant.sti as rs base offset))
+
 (define (cant.stbi as rs base offset)
   (let ((base (arm.reg base))
         (rs   (arm.reg rs)))

@@ -98,8 +98,12 @@
 ; This predicate returns #t iff its argument will be represented
 ; as a fixnum on the target machine.
 
+; Target fixnums are 30 bits on 32-bit systems and 62 bits on 64-bit
+; systems.  (When Twobit is hosted by some other Scheme system, the
+; compatibility layer defines fixnum? to describe the target's fixnums.)
+
 (define smallint?
-  (let* ((least (- (expt 2 29)))
+  (let* ((least (- (expt 2 (if (fixnum? (expt 2 32)) 61 29))))
          (greatest (- (- least) 1)))
     (lambda (x)
       (and (number? x)
