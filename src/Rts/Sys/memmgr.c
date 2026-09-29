@@ -206,7 +206,8 @@ s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L
     gclib_stats_t stats;
 
     gclib_stats( &stats );
-    M = umax( M, stats.heap_allocated_max ); /* use no less than before */
+    /* use no less than before (the statistics are in words) */
+    M = umax( M, words2bytes( stats.heap_allocated_max ) );
   }
 
   if (upper_limit > 0) {

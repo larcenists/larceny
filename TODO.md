@@ -37,9 +37,6 @@ DONE.md (with the date and the commit, if any).
   3e9 bytes signals "requested allocation exceeds max object size".
   Raising it needs a look at the millicode's `int nwords` and the
   copying collector's `unsigned` word counts.
-- `gc_compute_dynamic_size` (memmgr.c) compares the new heap size in
-  bytes against `stats.heap_allocated_max`, which is in words, so "use
-  no less than before" is only a quarter as strong as intended on 64-bit.
 - Many diagnostic messages print `word`/`s_word` values with `%d`/`%x`.
 
 ## Build process footguns
