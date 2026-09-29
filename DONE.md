@@ -7,7 +7,7 @@ Finished items, moved here from TODO.md.  Newest first.
 - `-rrof` collects the code space even when marking is nearly
   continuous: a code collection requested during marking stays pending
   and runs between mark cycles; before, it was dropped, and code grew
-  without bound (COMMIT).
+  without bound (d4617689).
 - The value of `set!` and of mutation primitives is `#!unspecified` in
   native and Petit code; before, it could be a global's value cell or a
   code vector (22ba9dad).
