@@ -5,10 +5,12 @@ DONE.md (with the date and the commit, if any).
 
 ## Native AArch64 Larceny
 
-- Under `-rrof`, the code-scanning pass is skipped while concurrent
-  marking is in progress (the mark stack may hold code pointers); it could
-  instead update the mark state.  It also copies code referenced only
-  from garbage.
+- Under `-rrof`, collecting code by scanning keeps code that is
+  referenced only from garbage until the garbage's region is collected
+  (a delay, not a leak: code use levels off).  The marks of a completed
+  mark cycle could tell live objects from dead ones, but a dead
+  object's code pointer would then have to be cleared, and `sro` can
+  return dead objects.
 - Lighter-weight millicode calls: every call saves and restores the whole
   register context (allocation is now in line in the common case, but
   arithmetic on non-fixnums, generic comparisons, etc. still call out).

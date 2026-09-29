@@ -144,16 +144,27 @@ word w_bv;
   if (gc->code_space == 0)
     panic_exit( "This collector does not support compiled code." );
   if (cs_wants_collection( gc->code_space )) {
-    globals[ G_RESULT ] = w_bv;          /* A root; the collection moves it */
-    if (!gc->code_space->by_scanning)
-      gc_collect( gc, gc->code_space->gen_no, 0, GCTYPE_COLLECT );
-    else if (gc->smircy == NULL) {
-      /* Collect the nursery, then scan for code; see memmgr.c */
-      gc->code_space->scan_requested = 1;
-      gc_collect( gc, 0, 0, GCTYPE_EVACUATE );
+    code_space_t *cs = gc->code_space;
+    if (!cs->by_scanning) {
+      globals[ G_RESULT ] = w_bv;        /* A root; the collection moves it */
+      gc_collect( gc, cs->gen_no, 0, GCTYPE_COLLECT );
+      cs_collected( cs );
+      w_bv = globals[ G_RESULT ];
     }
-    cs_collected( gc->code_space );
-    w_bv = globals[ G_RESULT ];
+    else if (!cs->scan_requested) {
+      /* The scan (see memmgr.c) follows a collection, but not while
+         the regional collector is marking; until it has happened the
+         request stays pending. */
+      cs->scan_requested = 1;
+      if (gc->smircy == NULL) {
+        /* Collect the nursery, then scan for code. */
+        globals[ G_RESULT ] = w_bv;
+        gc_collect( gc, 0, 0, GCTYPE_EVACUATE );
+        w_bv = globals[ G_RESULT ];
+      }
+      else
+        annoyingmsg( "Code space: scan deferred until marking is done." );
+    }
   }
   globals[ G_RESULT ] = cs_install( gc->code_space, w_bv );
 #else

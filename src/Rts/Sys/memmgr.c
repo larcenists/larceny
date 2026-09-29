@@ -49,6 +49,9 @@ const char *larceny_gc_technology = "precise";
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, s_word size_bytes, int load_text );
+#if CODE_SPACE
+static void collect_code_by_scanning( gc_t *gc );
+#endif
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
 static int allocate_regional_system( gc_t *gc, gc_param_t *info );
@@ -1088,6 +1091,14 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
   if (gc->smircy != NULL 
       && smircy_in_completed_stage_p( gc->smircy )) {
     incremental_refinement_has_completed( gc );
+#if CODE_SPACE
+    /* Marking has finished and the next cycle has not begun: a code
+       collection deferred during marking can happen now.  (The nursery
+       has been evacuated and the stack flushed.)  With enough regions
+       marking is nearly continuous, so this may be the only chance. */
+    if (gc->code_space && gc->code_space->scan_requested)
+      collect_code_by_scanning( gc );
+#endif
   }
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
@@ -2432,10 +2443,12 @@ static void collect_code_by_scanning( gc_t *gc )
   int gno;
 
   cs->scan_requested = 0;
+  annoyingmsg( "Code space: collecting by scanning." );
   gc_enumerate_roots( gc, cs_scan_root, (void*)cs );
   for ( gno=1 ; gno < gc->gno_count ; gno++ )
     gc_enumerate_hdr_address_ranges( gc, gno, cs_scan_range, (void*)cs );
   cs_after_collection( cs );
+  cs_collected( cs );
   /* Code objects moved: address-based hash tables must be rehashed. */
   DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
 }
