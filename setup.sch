@@ -185,12 +185,18 @@
          ((environment-get (interaction-environment) 'current-larceny-root))))
 
   (set! *always-source* always-source)
-  (set! *runtime:additional-features* 
-        (append 
-         (if dof-collector     '("DOF_COLLECTOR") '())
-         (if rof-collector:    '("ROF_COLLECTOR") '())
-         (if gclib-large-table '("GCLIB_LARGE_TABLE") '())
-         *runtime:additional-features*))
+  ;; setup may be called more than once in a session; don't accumulate
+  ;; duplicates.
+  (let loop ((new (append 
+                   (if dof-collector     '("DOF_COLLECTOR") '())
+                   (if rof-collector:    '("ROF_COLLECTOR") '())
+                   (if gclib-large-table '("GCLIB_LARGE_TABLE") '()))))
+    (if (pair? new)
+        (begin
+          (if (not (member (car new) *runtime:additional-features*))
+              (set! *runtime:additional-features*
+                    (cons (car new) *runtime:additional-features*)))
+          (loop (cdr new)))))
 
   (cond (quiet-load   (set! *verbose-load* #f))
         (verbose-load (set! *verbose-load* #t)))
@@ -334,9 +340,28 @@
     (displn "'keep-build-products if you are sure they belong to this configuration.")
     (error 'setup "build products from another configuration"))
 
+  ;; Compares descriptions word by word, ignoring repeated words (the
+  ;; description once recorded a feature twice when setup had been called
+  ;; twice in a session).
+  (define (same-configuration? old new)
+    (define (words s)
+      (let loop ((i 0) (start 0) (acc '()))
+        (cond ((= i (string-length s))
+               (reverse (if (< start i) (cons (substring s start i) acc) acc)))
+              ((char=? (string-ref s i) #\space)
+               (loop (+ i 1) (+ i 1)
+                     (if (< start i) (cons (substring s start i) acc) acc)))
+              (else (loop (+ i 1) start acc)))))
+    (define (dedup l)
+      (cond ((null? l) '())
+            ((member (car l) (cdr l)) (dedup (cdr l)))
+            (else (cons (car l) (dedup (cdr l))))))
+    (and (string? old)
+         (equal? (dedup (words old)) (dedup (words new)))))
+
   (let ((old (recorded-configuration))
         (new (build-configuration-string)))
-    (cond ((equal? old new)
+    (cond ((same-configuration? old new)
            (if clean (begin (clean-build-products!) (record-configuration!))))
           (clean
            (clean-build-products!)
