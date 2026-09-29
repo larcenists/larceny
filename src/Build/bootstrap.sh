@@ -45,7 +45,8 @@ if [ ! -f setup.sch ]; then
 fi
 
 script=`mktemp -t larceny-bootstrap`
-trap 'rm -f "$script"' EXIT
+stamp=`mktemp -t larceny-bootstrap-stamp`
+trap 'rm -f "$script" "$stamp"' EXIT
 cat > "$script" <<EOS
 (load "setup.sch")
 (setup 'scheme: '$HOST 'host: 'macosx-arm64 $TARGET $CLEAN)
@@ -60,7 +61,9 @@ cat > "$script" <<EOS
 EOS
 
 if [ -n "$TARGET" ]; then heap=larceny.heap; else heap=petit-larceny.heap; fi
-rm -f $heap
+# The heap is not removed first: the host may be this tree's own Larceny.
+# The build succeeded if it wrote a heap newer than the stamp.
+sleep 1
 
 echo "Building (log: bootstrap.log)..."
 case $HOST in
@@ -68,7 +71,7 @@ case $HOST in
   larceny) "$HOST_CMD" -- "$script" > bootstrap.log 2>&1 < /dev/null ;;
 esac || true
 
-if [ ! -f $heap ]; then
+if [ ! -f $heap ] || [ ! $heap -nt "$stamp" ]; then
   grep -A3 "set up for another\|unknown configuration" bootstrap.log >&2 ||
     echo "$0: failed; see bootstrap.log" >&2
   exit 1
