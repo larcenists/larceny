@@ -83,6 +83,37 @@
   (define table-objects '())
   (define table-counter 0)
 
+  ;; Output is written to <file>.new, and <file> is replaced only if its
+  ;; contents change, so that files that depend on it (the compiled
+  ;; libraries depend on layouts.sch, for example) are not remade.
+
+  (define pending-outputs '())
+
+  (define (open-new-output-file file)
+    (let ((new (string-append file ".new")))
+      (set! pending-outputs (cons file pending-outputs))
+      (delete-file new)
+      (open-output-file new)))
+
+  (define (file->string fn)
+    (call-with-input-file fn
+      (lambda (in)
+        (let ((out (open-output-string)))
+          (do ((c (read-char in) (read-char in)))
+              ((eof-object? c) (get-output-string out))
+            (write-char c out))))))
+
+  (define (commit-outputs!)
+    (for-each (lambda (file)
+                (let ((new (string-append file ".new")))
+                  (if (and (file-exists? file)
+                           (string=? (file->string file) (file->string new)))
+                      (delete-file new)
+                      (begin (delete-file file)
+                             (rename-file new file)))))
+              pending-outputs)
+    (set! pending-outputs '()))
+
   (define asm-comment-template #f)
   (define asm-define-template #f)
   (define asm-table-generator #f)
@@ -148,8 +179,7 @@
 			(map (lambda (name define-fmt warning-comment param)
 			       (if name
 				   (let ((file (param-filename param name)))
-                                     (delete-file file)
-                                     (let ((port (open-output-file file)))
+                                     (let ((port (open-new-output-file file)))
                                        (display warning-comment port)
                                        (newline port)
                                        (newline port)
@@ -292,8 +322,7 @@
 
     (define (open-table-output name table comment)
       (let ((name (string-append (nbuild-parameter 'rts) name)))
-        (delete-file name)
-        (let ((port (open-output-file name)))
+        (let ((port (open-new-output-file name)))
           (display comment port)
           (newline port)
           (set! table-objects (cons (the-table port table) table-objects)))))
@@ -430,7 +459,8 @@
 	 (let ((config-info (open-output-files (cdr files))))
 	   (config-loop inp config-info)
 	   (close-input-port inp)
-	   (close-output-files config-info))))))
+	   (close-output-files config-info)
+	   (commit-outputs!))))))
 
   (define (close-output-files info)
     (if (info.c info) (close-output-port (lang.port (info.c info))))
