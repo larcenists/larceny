@@ -295,12 +295,102 @@
 ;
 ; Input and output
 
+; LOP and FASL files must be readable by any host Scheme, notably by
+; Larceny, so they are written in Larceny's syntax rather than with
+; Racket's write (which writes bytevectors as #"..." and the unspecified
+; value as #<void>, among other things).
+
 (define (write-lop x p)
-  (write x p)
+  (larceny-syntax-write x p)
   (newline p)
   (newline p))
 
-(define write-fasl-datum write)
+(define write-fasl-datum
+  (lambda (x . rest)
+    (larceny-syntax-write x (if (null? rest) (current-output-port) (car rest)))))
+
+(define (larceny-syntax-write x port)
+
+  (define (put s) (write-string s port))
+
+  (define (hex n) (number->string n 16))
+
+  (define (plain-symbol? s)
+    (let ((n (string-length s)))
+      (and (> n 0)
+           (not (string->number s))
+           (not (string=? s "."))
+           (not (char-numeric? (string-ref s 0)))
+           (not (char=? (string-ref s 0) #\#))
+           (let loop ((i 0))
+             (or (= i n)
+                 (let ((c (string-ref s i)))
+                   (and (or (char-alphabetic? c)
+                            (char-numeric? c)
+                            (memv c '(#\! #\$ #\% #\& #\* #\/ #\: #\< #\= #\>
+                                      #\? #\^ #\_ #\~ #\+ #\- #\. #\@)))
+                        (< (char->integer c) 128)
+                        (loop (+ i 1)))))))))
+
+  ; Characters of a string or |symbol|, escaping delim.
+  (define (put-escaped s delim)
+    (do ((i 0 (+ i 1)))
+        ((= i (string-length s)))
+      (let* ((c (string-ref s i))
+             (k (char->integer c)))
+        (cond ((or (char=? c delim) (char=? c #\\))
+               (put (string #\\ c)))
+              ((and (<= 32 k) (< k 127))
+               (put (string c)))
+              (else
+               (put (string-append "\\x" (hex k) ";")))))))
+
+  (define (w x)
+    (cond ((pair? x)
+           (put "(")
+           (w (car x))
+           (let loop ((x (cdr x)))
+             (cond ((null? x))
+                   ((pair? x) (put " ") (w (car x)) (loop (cdr x)))
+                   (else (put " . ") (w x))))
+           (put ")"))
+          ((null? x) (put "()"))
+          ((eq? x #t) (put "#t"))
+          ((eq? x #f) (put "#f"))
+          ((symbol? x)
+           (let ((s (symbol->string x)))
+             (if (plain-symbol? s)
+                 (put s)
+                 (begin (put "|") (put-escaped s #\|) (put "|")))))
+          ((string? x)
+           (put "\"") (put-escaped x #\") (put "\""))
+          ((number? x) (put (number->string x)))
+          ((char? x)
+           (let ((k (char->integer x)))
+             (if (and (< 32 k) (< k 127))
+                 (put (string #\# #\\ x))
+                 (put (string-append "#\\x" (hex k))))))
+          ((vector? x)
+           (put "#(")
+           (do ((i 0 (+ i 1)))
+               ((= i (vector-length x)))
+             (if (> i 0) (put " "))
+             (w (vector-ref x i)))
+           (put ")"))
+          ((bytes? x)
+           (put "#vu8(")
+           (do ((i 0 (+ i 1)))
+               ((= i (bytes-length x)))
+             (if (> i 0) (put " "))
+             (put (number->string (bytes-ref x i))))
+           (put ")"))
+          ((eq? x *unspecified-expression*) (put "#!unspecified"))
+          ((eq? x *undefined-expression*) (put "#!undefined"))
+          ((eof-object? x) (put "#!eof"))
+          (else
+           (error "larceny-syntax-write: cannot write " x))))
+
+  (w x))
 
 (define (twobit-format port fmt . args)
   (cond ((port? port)
