@@ -4,6 +4,8 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Nightly-build scripts (`test/Scripts/nightly-build`, `checkout-git`)
+  know macosx-arm64, native and Petit, hosted by Larceny or Racket (175aec4d).
 - `(build-larceny-heap)` / `(build-twobit-heap)` for the second build
   stage; `src/Build/bootstrap.sh` over host (Racket or Larceny) and
   target (native or Petit); Larceny hosts of another kind load build
