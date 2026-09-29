@@ -1493,19 +1493,14 @@
         (cant.mov as rs2 $r.second))
     (cant.trap as code name))
 
-  (define (fixnum-fast-case op trap-code)
-    (let ((L1 (fence.make-label as))
-          (L2 (fence.make-label as)))
-      (cant.or     as rs1 rs2 $r.tmp)
-      (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
-      (op L2)
-      (fence.label as L1)
-      (trap2 trap-code)
-      (fence.label as L2)))
-
   (define (flonum-math op)
     (cant.fldi as rs1 (+ 8 (- $tag.bytevector-tag)) $r.f0)
     (cant.fldi as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1)
+    (flonum-math-fregs op))
+
+  ; The result of op on f0 and f1, as a new flonum in rd.
+
+  (define (flonum-math-fregs op)
     (op        as $r.f0 $r.f1 $r.f0)
     (emit-allocate-uninitialized as 16)
     (cant.movi as (+ (* fence.flonum-data-bytes 256) $hdr.flonum) $r.tmp)
@@ -1517,6 +1512,45 @@
     (cant.fldi   as rs1 (+ 8 (- $tag.bytevector-tag)) $r.f0)
     (cant.fldi   as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1)
     (cant.fsetcc as op $r.f0 $r.f1 rd))
+
+  ; Generic arithmetic: inline for two fixnums (op, which branches to
+  ; its label unless it overflows) or two flonums (flop), millicode
+  ; otherwise.
+
+  (define (arith-fast-case op flop trap-code)
+    (let ((L1 (fence.make-label as))
+          (L2 (fence.make-label as))
+          (L3 (fence.make-label as)))
+      (if op
+          (begin (cant.or     as rs1 rs2 $r.tmp)
+                 (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
+                 (op L2)))
+      (fence.label as L1)
+      (emit-flonum-operands as rs1 rs2 #f L3)
+      (flonum-math-fregs flop)
+      (cant.ba     as L2)
+      (fence.label as L3)
+      (trap2 trap-code)
+      (fence.label as L2)))
+
+  ; A generic comparison: inline for two fixnums or two flonums,
+  ; millicode otherwise.
+
+  (define (compare-fast-case op trap-code)
+    (let ((L1 (fence.make-label as))
+          (L2 (fence.make-label as))
+          (L3 (fence.make-label as)))
+      (cant.or     as rs1 rs2 $r.tmp)
+      (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
+      (cant.setcc  as op rs1 rs2 rd)
+      (cant.ba     as L2)
+      (fence.label as L1)
+      (emit-flonum-operands as rs1 rs2 #t L3)
+      (cant.fsetcc as op $r.f0 $r.f1 rd)
+      (cant.ba     as L2)
+      (fence.label as L3)
+      (trap2 trap-code)
+      (fence.label as L2)))
 
   (assert (not (= rs1 $r.second)))
   (assert (not (= rs2 $r.result)))
@@ -1668,43 +1702,31 @@
     ((>:fix:fix)
      (cant.setcc as 'greater rs1 rs2 rd))
     ((+)
-     (fixnum-fast-case (lambda (Ldone) 
-                         (cant.add/bnv as rs1 rs2 rd Ldone))
-                       $m.add))
+     (arith-fast-case (lambda (Ldone) 
+                        (cant.add/bnv as rs1 rs2 rd Ldone))
+                      cant.fadd
+                      $m.add))
     ((-)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.sub/bnv as rs1 rs2 rd Ldone))
-                       $m.subtract))
+     (arith-fast-case (lambda (Ldone)
+                        (cant.sub/bnv as rs1 rs2 rd Ldone))
+                      cant.fsub
+                      $m.subtract))
     ((*)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.shrai as rs2 2 $r.tmp)
-                         (cant.mul/bnv as rs1 $r.tmp rd Ldone))
-                       $m.multiply))
+     (arith-fast-case (lambda (Ldone)
+                        (cant.shrai as rs2 2 $r.tmp)
+                        (cant.mul/bnv as rs1 $r.tmp rd Ldone))
+                      cant.fmul
+                      $m.multiply))
     ((=)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'equal rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numeq))
+     (compare-fast-case 'equal $m.numeq))
     ((<)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'less rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numlt))
+     (compare-fast-case 'less $m.numlt))
     ((<=)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'less-or-equal rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numle))
+     (compare-fast-case 'less-or-equal $m.numle))
     ((>)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'greater rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numgt))
+     (compare-fast-case 'greater $m.numgt))
     ((>=)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'greater-or-equal rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numge))
+     (compare-fast-case 'greater-or-equal $m.numge))
     ((fx+)
      (if (runtime-safety-checking)
          (let ((L (fence.make-label as)))
@@ -1806,7 +1828,7 @@
     ((sys$bvlcmp)
      (trap2 $m.bvlcmp))
     ((/)
-     (trap2 $m.divide))
+     (arith-fast-case #f cant.fdiv $m.divide))
     ((quotient)                         ; TODO: in-line fast path?
      (trap2 $m.quotient))
     ((remainder)                        ; TODO: in-line fast path?
@@ -1817,14 +1839,23 @@
 
 (define (emit-op2-branchf as name rs1 rs2 label)
 
-  (define (fixnum-fast-case op trap-code)
+  ; Inline for two fixnums (op is the negated condition) or two
+  ; flonums (flop is the condition), millicode otherwise.
+
+  (define (fixnum-fast-case op flop trap-code)
     (let ((L1 (fence.make-label as))
-          (L2 (fence.make-label as)))
+          (L2 (fence.make-label as))
+          (L3 (fence.make-label as)))
       (cant.or     as rs1 rs2 $r.tmp)
       (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
       (cant.bcc    as op rs1 rs2 label)
       (cant.ba     as L2)
       (fence.label as L1)
+      (emit-flonum-operands as rs1 rs2 #t L3)
+      (cant.fsetcc as flop $r.f0 $r.f1 $r.result)
+      (cant.bcci   as 'equal $r.result $imm.false label)
+      (cant.ba     as L2)
+      (fence.label as L3)
       (if (not (= rs1 $r.result))
           (cant.mov as rs1 $r.result))
       (if (not (= rs2 $r.second))
@@ -1839,15 +1870,15 @@
     ((eq?)
      (cant.bcc as 'not-equal rs1 rs2 label))
     ((<)
-     (fixnum-fast-case 'greater-or-equal $m.numlt))
+     (fixnum-fast-case 'greater-or-equal 'less $m.numlt))
     ((<=)
-     (fixnum-fast-case 'greater $m.numle))
+     (fixnum-fast-case 'greater 'less-or-equal $m.numle))
     ((=)
-     (fixnum-fast-case 'not-equal $m.numeq))
+     (fixnum-fast-case 'not-equal 'equal $m.numeq))
     ((>)
-     (fixnum-fast-case 'less-or-equal $m.numgt))
+     (fixnum-fast-case 'less-or-equal 'greater $m.numgt))
     ((>=)
-     (fixnum-fast-case 'less $m.numge))
+     (fixnum-fast-case 'less 'greater-or-equal $m.numge))
     ((<:fix:fix)
      (cant.bcc as 'greater-or-equal rs1 rs2 label))
     ((<=:fix:fix)
@@ -2185,6 +2216,78 @@
         (fence.label    as L1)
         (cant.ldi       as reg (- ptr) $r.tmp)
         (cant.bcci      as 'low8-not-equal $r.tmp hdr L2))))
+
+; Branch to Lfail unless reg holds a flonum.  Destroys TMP.
+
+(define (emit-branch-unless-flonum as reg Lfail)
+  (cant.bcci as 'low3-not-equal reg $tag.bytevector-tag Lfail)
+  (cant.ldi  as reg (- $tag.bytevector-tag) $r.tmp)
+  (cant.bcci as 'low8-not-equal $r.tmp $hdr.flonum Lfail))
+
+; Leave the value of reg, a fixnum or a flonum, as a double in frd;
+; branch to Lfail if it is neither, if exact? and it is a fixnum that a
+; double does not represent exactly (magnitude of 2^53 or more), or if
+; zero-fails? and it is a flonum zero.  Only on targets with
+; cant.fixnum->flonum.  Destroys TMP.
+
+(define (emit-number->flonum as reg frd exact? zero-fails? Lfail)
+  (let ((Lnotfix (fence.make-label as))
+        (Ldone (fence.make-label as)))
+    (cant.bcci as 'low2-not-equal reg 0 Lnotfix)
+    (if exact?
+        (let ((Lok (fence.make-label as)))
+          (cant.shrai  as reg (+ 2 53) $r.tmp)    ; 0 or -1 if it fits
+          (cant.addi   as $r.tmp 1 $r.tmp)
+          (cant.bcci   as 'unsigned-less $r.tmp 2 Lok)
+          (cant.ba     as Lfail)
+          (fence.label as Lok)))
+    (cant.fixnum->flonum as reg frd)
+    (cant.ba     as Ldone)
+    (fence.label as Lnotfix)
+    (emit-branch-unless-flonum as reg Lfail)
+    (if zero-fails?
+        (begin
+          (cant.ldi  as reg (+ 8 (- $tag.bytevector-tag)) $r.tmp)
+          (cant.shli as $r.tmp 1 $r.tmp)            ; drop the sign
+          (cant.bcci as 'equal $r.tmp 0 Lfail)))
+    (cant.fldi   as reg (+ 8 (- $tag.bytevector-tag)) frd)
+    (fence.label as Ldone)))
+
+; Load the operands of a generic arithmetic operation or comparison
+; (compare?) into f0 and f1, or branch to Lfail: two flonums, or (where
+; the target converts fixnums inline) a fixnum and a flonum.  Not two
+; fixnums: their sums and so on are exact.
+;
+; A flonum zero compared with a fixnum takes the millicode path: when
+; (larceny:r7strict) is 'extremely, 0.0 represents a small positive
+; number there (see contag.sch).
+
+(define (emit-flonum-operands as rs1 rs2 compare? Lfail)
+  (define (both-flonums)
+    (emit-branch-unless-flonum as rs1 Lfail)
+    (emit-branch-unless-flonum as rs2 Lfail)
+    (cant.fldi as rs1 (+ 8 (- $tag.bytevector-tag)) $r.f0)
+    (cant.fldi as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1))
+  (if fence.inline-fixnum->flonum?
+      (let ((Lsame (fence.make-label as))
+            (Ldone (fence.make-label as)))
+        (cant.or   as rs1 rs2 $r.tmp)
+        (cant.bcci as 'low2-equal $r.tmp 0 Lfail)   ; two fixnums
+        ; A fixnum and a pointer have low2 bits in common only if the
+        ; pointer's are 00, and pointers have nonzero tags.
+        (cant.and  as rs1 rs2 $r.tmp)
+        (cant.bcci as 'low2-not-equal $r.tmp 0 Lsame)
+        (emit-number->flonum as rs1 $r.f0 compare? compare? Lfail)
+        (emit-number->flonum as rs2 $r.f1 compare? compare? Lfail)
+        (cant.ba     as Ldone)
+        (fence.label as Lsame)
+        (both-flonums)
+        (fence.label as Ldone))
+      (both-flonums)))
+
+; Targets that implement cant.fixnum->flonum redefine this.
+
+(define fence.inline-fixnum->flonum? #f)
 
 (define (emit-check-fixnum as reg exn)
   (if (runtime-safety-checking)
@@ -2669,6 +2772,9 @@
   (emit! as $cant$))
 
 ; Floating register add
+
+(define (cant.fixnum->flonum as rs frd)
+  (list-cant "fixnum->flonum" `(#f ,(list-regname rs) ,(list-fregname frd))))
 
 (define (cant.fadd as frs1 frs2 frd)
   (list-cant "fadd" `(#f ,(list-fregname frs1) ,(list-fregname frs2) ,(list-fregname frd)))

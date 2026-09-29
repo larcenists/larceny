@@ -300,6 +300,7 @@
     (,(lambda (as) (arm64.FMUL as 11 8 9)) "fmul d11, d8, d9")
     (,(lambda (as) (arm64.FDIV as 8 8 9)) "fdiv d8, d8, d9")
     (,(lambda (as) (arm64.FCMP as 8 9)) "fcmp d8, d9")
+    (,(lambda (as) (arm64.SCVTF as 8 16)) "scvtf d8, x16")
 
     ;; A few Cant operations
     (,(lambda (as) (cant.trap as 1296 'foo)) "ldr x17, [x23, #1296] ; blr x17")

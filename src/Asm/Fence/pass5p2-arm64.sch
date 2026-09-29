@@ -265,6 +265,14 @@
 (define (cant.fadd as frs1 frs2 frd)
   (arm64.FADD as (arm64.freg frd) (arm64.freg frs1) (arm64.freg frs2)))
 
+; The value of the fixnum in rs, as a double.
+
+(define (cant.fixnum->flonum as rs frd)
+  (arm64.ASRI  as arm64.TMP1 (arm64.reg rs) 2)
+  (arm64.SCVTF as (arm64.freg frd) arm64.TMP1))
+
+(define fence.inline-fixnum->flonum? #t)
+
 (define (cant.fsub as frs1 frs2 frd)
   (arm64.FSUB as (arm64.freg frd) (arm64.freg frs1) (arm64.freg frs2)))
 
@@ -952,6 +960,9 @@
 
 (define (arm64.FCMP as rn rm)
   (arm64.emit as (+ #x1E602000 (* 65536 rm) (* 32 rn))))
+
+(define (arm64.SCVTF as rd rn)          ; Dd = (double) Xn
+  (arm64.emit as (+ #x9E620000 (* 32 rn) rd)))
 
 ; The features of the code this assembler produces (see
 ; Lib/Common/code-features.sch).  The version number in the target
