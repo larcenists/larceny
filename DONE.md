@@ -7,7 +7,7 @@ Finished items, moved here from TODO.md.  Newest first.
 - Compiled files (`.lap`, `.lop`, `.fasl`) made by the build's make
   rules are out of date when the compiler or assembler sources are newer
   (`make:tool-files`); `larceny.bin` is installed read-only by renaming
-  a fresh copy into place; `'clean` keeps the bootstrap logs (COMMIT).
+  a fresh copy into place; `'clean` keeps the bootstrap logs (4dd308c4).
   The `-rrof` failures in this tree came from library code compiled
   before the SATB pre-barrier existed and reused by later heap builds.
 - GC byte counts are 64-bit on 64-bit systems (`s_word`): semispaces,
