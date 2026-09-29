@@ -120,14 +120,14 @@ static struct {
   unsigned     max_mem_bytes;        /* max ditto */
 } data;
 
-static byte *gclib_alloc( unsigned bytes );
+static byte *gclib_alloc( unsigned bytes, int code );
 #if !GCLIB_LARGE_TABLE
 static void allocation_below_membot( byte *ptr, int bytes );
 static void allocation_above_memtop( byte *ptr, int bytes );
 static void grow_table( byte *new_bot, byte *new_top );
 #endif
-static byte *alloc_aligned( unsigned bytes );
-static void free_aligned( byte *p, unsigned bytes );
+static byte *alloc_aligned( unsigned bytes, int code );
+static void free_aligned( byte *p, unsigned bytes, int code );
 static void update_mem_bytes( void );
 
 /* Initialize descriptor tables and memory allocation pointers. */
@@ -200,7 +200,7 @@ void *gclib_alloc_heap( int bytes, int gen_no )
 	     bytes, data.heap_bytes );
   }
 
-  ptr = gclib_alloc( bytes );
+  ptr = gclib_alloc( bytes, 0 );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
     gclib_desc_g[i] = gen_no;
@@ -221,13 +221,40 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   return (void*)ptr;
 }
 
+#if CODE_SPACE
+void *gclib_alloc_code( int bytes, int gen_no )
+{
+  byte *ptr;
+  int i;
+
+  bytes = roundup_page( bytes );
+  ptr = gclib_alloc( bytes, 1 );
+
+  for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
+    gclib_desc_g[i] = gen_no;
+    gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY | MB_CODE;
+  }
+  data.heap_bytes += bytes;
+  data.max_heap_bytes = umax( data.max_heap_bytes, data.heap_bytes );
+
+  supremely_annoyingmsg( "Allocated code memory gen=%d bytes=%d addr=[0x%08x,0x%08x)",
+			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );
+
+  update_mem_bytes();
+
+  if (data.heapbot == 0 || ptr < data.heapbot) data.heapbot = ptr;
+  if (data.heaplim == 0 || ptr+bytes > data.heaplim) data.heaplim = ptr+bytes;
+  return (void*)ptr;
+}
+#endif
+
 void *gclib_alloc_rts( int bytes, unsigned attribute )
 {
   byte *ptr;
   int i;
 
   bytes = roundup_page( bytes );
-  ptr = gclib_alloc( bytes );
+  ptr = gclib_alloc( bytes, 0 );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
 #if GCLIB_LARGE_TABLE
@@ -289,12 +316,12 @@ static void update_mem_bytes( void )
  * grows down (MacOS, Solaris with mmap()) it would be better to slide
  * more aggressively.  FIXME.
  */
-static byte *gclib_alloc( unsigned bytes )
+static byte *gclib_alloc( unsigned bytes, int code )
 {
   byte *ptr, *top;
   
   assert( ( bytes % PAGESIZE) == 0 );
-  ptr = alloc_aligned( bytes );
+  ptr = alloc_aligned( bytes, code );
   top = ptr+bytes;
 
 #if GCLIB_LARGE_TABLE
@@ -437,6 +464,7 @@ void gclib_free( void *addr, int bytes )
 {
   unsigned pages;
   unsigned pageno;
+  int code = 0;
 
   assert( (word)addr % PAGESIZE == 0 );
 
@@ -444,7 +472,10 @@ void gclib_free( void *addr, int bytes )
 
   supremely_annoyingmsg( "Freeing: bytes=%d addr=[0x%08x,0x%08x)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
   
-  free_aligned( addr, bytes );
+#if CODE_SPACE
+  code = bytes > 0 && is_code_page( addr );
+#endif
+  free_aligned( addr, bytes, code );
 
   pages = bytes/PAGESIZE;
   pageno = pageof( addr );
@@ -555,12 +586,17 @@ void gclib_stats( gclib_stats_t *stats )
 
 /* Very lowest level allocator */
 
-static byte *alloc_aligned( unsigned bytes )
+static byte *alloc_aligned( unsigned bytes, int code )
 {
   byte *p;
   
   assert( bytes % PAGESIZE == 0 );
 
+#if CODE_SPACE
+  if (code)
+    p = (byte*)osdep_alloc_code( bytes );
+  else
+#endif
   p = (byte*)osdep_alloc_aligned( bytes );
   if (DEMONIC_PREINIT) { int i; for(i=0; i<bytes; i++) p[i] = 1; }
   data.wastage_bytes = osdep_fragmentation();
@@ -568,10 +604,15 @@ static byte *alloc_aligned( unsigned bytes )
   return p;
 }
 
-static void free_aligned( byte *p, unsigned bytes )
+static void free_aligned( byte *p, unsigned bytes, int code )
 {
   assert( bytes % PAGESIZE == 0 );
 
+#if CODE_SPACE
+  if (code)
+    osdep_free_code( (void*)p, bytes );
+  else
+#endif
   osdep_free_aligned( (void*)p, bytes );
   data.wastage_bytes = osdep_fragmentation();
 }

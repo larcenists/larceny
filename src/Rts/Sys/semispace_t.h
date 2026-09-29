@@ -45,6 +45,7 @@ struct semispace {
   ss_chunk_t *chunks;    /* Array of chunks */
   int        allocated;  /* Total allocated bytes in semispace */
   int        used;       /* Total used bytes in semispace */
+  int        code;       /* Chunks are in the code arena? */
 };
 
 semispace_t *create_semispace( int bytes, int gen_no );
@@ -54,6 +55,13 @@ semispace_t *create_semispace( int bytes, int gen_no );
      bytes > 0
      gen_no >= 0
      */
+
+#if CODE_SPACE
+semispace_t *create_code_semispace( int bytes, int gen_no );
+  /* Like create_semispace, but the chunks are executable code memory
+     with the MB_CODE attribute (see code-space.h).
+     */
+#endif
 
 semispace_t *create_semispace_n( int chunk_bytes, int chunks, int gen_no );
   /* Create a semispace_t with `chunks' chunks of `chunk_bytes' each,

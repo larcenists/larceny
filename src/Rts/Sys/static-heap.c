@@ -16,6 +16,7 @@
 #include "gc_t.h"
 #include "remset_t.h"
 #include "uremset_t.h"
+#include "code-space.h"
 
 typedef struct static_data static_data_t;
 
@@ -62,13 +63,30 @@ static void reorganize( static_heap_t *heap )
   text = create_semispace( textsize, s_data->gen_no);
   data = create_semispace( datasize, s_data->gen_no);
   gclib_stopcopy_split_heap( heap->collector, data, text );
+#if CODE_SPACE
+  /* On CODE_SPACE systems the text area holds nothing (code lives in
+     the code space, and other bytevectors are data); the code moved by
+     the collection must be adopted. */
+  if (heap->collector->code_space)
+    cs_after_collection( heap->collector->code_space );
+#endif
   if (heap->text_area) ss_free( heap->text_area );
   if (heap->data_area) ss_free( heap->data_area );
   heap->text_area = heap->data_area = 0;
-  ss_shrinkwrap( text ); ss_sync( text );
-  ss_shrinkwrap( data ); ss_sync( data );
-  if (text->used > 0) heap->text_area = text; else ss_free( text );
-  if (data->used > 0) heap->data_area = data; else ss_free( data );
+  ss_sync( text );
+  ss_sync( data );
+  if (text->used > 0) {
+    ss_shrinkwrap( text ); ss_sync( text );
+    heap->text_area = text;
+  }
+  else 
+    ss_free( text );
+  if (data->used > 0) {
+    ss_shrinkwrap( data ); ss_sync( data );
+    heap->data_area = data;
+  }
+  else 
+    ss_free( data );
 }
 
 static void stats( static_heap_t *heap )

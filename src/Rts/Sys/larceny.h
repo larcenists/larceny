@@ -157,6 +157,7 @@ extern void primitive_listenv_init( void );
 extern void primitive_listenv( word );
 extern void primitive_garbage_collect( word, word );
 extern void primitive_iflush( word );
+extern void primitive_codevector_install( word );
 extern void primitive_flonum_exp( word, word );
 extern void primitive_flonum_log( word, word );
 extern void primitive_flonum_sin( word, word );

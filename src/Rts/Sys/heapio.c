@@ -482,9 +482,27 @@ load_text( heapio_t *h, word *text_base, int count )
   supremely_annoyingmsg("heapio load_text( h, 0x%08x, %d )", 
 			text_base, count);
 
+#if CODE_SPACE
+  /* The kernel will not read directly into code memory that is
+     writable only by user-mode code (MAP_JIT memory on MacOS X), so
+     read the text through a buffer. */
+  {
+    word buf[ 4096 ];
+    while (count > 0) {
+      int k = min( count, (int)(sizeof( buf )/sizeof( word )) );
+      n = fread( (char*)buf, sizeof( word ), k, h->fp );
+      if (n < k)
+        return HEAPIO_CANTREAD;
+      memcpy( text_base, buf, k*sizeof( word ) );
+      text_base += k;
+      count -= k;
+    }
+  }
+#else
   n = fread( (char*)text_base, sizeof( word ), count, h->fp );
   if (n < count)
     return HEAPIO_CANTREAD;
+#endif
   return HEAPIO_OK;
 }
 

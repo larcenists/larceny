@@ -40,6 +40,11 @@ struct gc {
     /* In precise collectors: A pointer to a static area, or NULL.
        */
 
+  code_space_t *code_space;
+    /* In precise collectors on CODE_SPACE systems: the space that holds
+       compiled code, or NULL.  See code-space.h.
+       */
+
   uremset_t *the_remset;
     /* In precise collectors: A pointer to the unified remset, or NULL. 
        */

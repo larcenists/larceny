@@ -27,6 +27,7 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "code-space.h"
 #include "seqbuf_t.h"
 
 /* Additional forwarding macros for non-predictive promotion.
@@ -119,6 +120,8 @@
     check_memory( dest, 2 );                            \
     dest += 2;                                          \
   }                                                     \
+  else if (is_code_obj( T_obj ))                        \
+    FORW_CODE( T_obj, loc, e );                         \
   else {                                                \
     word *TMPD;                                         \
     check_space_np(dest,lim,sizefield(TMP_W)+sizeof(word),e);      \

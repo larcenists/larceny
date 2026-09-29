@@ -96,6 +96,14 @@
     ; 
     ; Recommended setting is on.
 
+ "CODE_SPACE"
+    ; When set, compiled code (code vectors) lives in a separate,
+    ; executable semispace owned by the oldest non-static generation,
+    ; rather than in the data heap.  The code space is collected, by
+    ; copying, whenever that generation is.  Required on systems that
+    ; forbid memory that is both writable and executable, such as
+    ; MacOS X on Apple Silicon.  Native systems only.
+
  "GCLIB_LARGE_TABLE"
     ; When set, preallocates a page table for the entire 4GB address
     ; space rather than allocating it lazily.  The table uses one byte
@@ -764,6 +772,10 @@
   (if (and (member "BITS_64" fs)
            (not (member "PETIT_LARCENY" fs)))
       (error "Only Petit Larceny can handle 64-bit systems."))
+
+  (if (and (member "CODE_SPACE" fs)
+           (member "PETIT_LARCENY" fs))
+      (error "CODE_SPACE is only for native systems."))
 
   (if (not (or (member "BITS_32" fs) (member "BITS_64" fs)))
       (error "You need to select a word size"))

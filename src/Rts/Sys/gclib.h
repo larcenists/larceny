@@ -90,6 +90,14 @@
 # define MB_FLONUMS        128    /* Memory is part of a flonum space */
 # define MB_SUMMARY_SETS   256    /* Memory belongs to summarization sets */
 # define MB_SMIRCY_MARK    512     /* Memory belongs to marking state */
+# define MB_CODE           1024    /* Memory belongs to the code space */
+#endif
+
+#if CODE_SPACE
+# if GCLIB_LARGE_TABLE
+#  error "CODE_SPACE requires the small page table"
+# endif
+# define is_code_page( ptr ) ((gclib_desc_b[pageof(ptr)] & MB_CODE) != 0)
 #endif
 
 /* The following values are used in the desc_g array for 
@@ -125,6 +133,12 @@ void gclib_set_heap_limit( int bytes );
      */
 
 void *gclib_alloc_heap( int bytes, int gen_no );
+#if CODE_SPACE
+void *gclib_alloc_code( int bytes, int gen_no );
+  /* Like gclib_alloc_heap, but the memory is in the code arena and
+     the pages have the MB_CODE attribute.  Free it with gclib_free.
+     */
+#endif
   /* Allocate `bytes' bytes of heap memory with the given generation
      attribute, and return a pointer to the block.  The memory is
      allocated starting on a page boundary.  If a heap limit is in

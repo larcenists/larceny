@@ -16,6 +16,18 @@
    */
 #define FORWARD_HDR      ((word)-2)
 
+/* Code objects (on CODE_SPACE systems) are forwarded into the code
+   space rather than into the to-space of the collection; see
+   code-space.h.  FORW_CODE() is used by the forwarding macros.  */
+#if CODE_SPACE
+# define is_code_obj( obj ) (tagof( obj ) == BVEC_TAG && is_code_page( obj ))
+# define FORW_CODE( T_obj, loc, e ) \
+    (*(loc) = cs_forward( (e)->gc->code_space, (T_obj) ))
+#else
+# define is_code_obj( obj ) 0
+# define FORW_CODE( T_obj, loc, e ) ((void)0)
+#endif
+
 /* Copy loop implementation.
 
    FORW_BY_LOOP is biased in favor of smaller structures, which is probably
@@ -72,6 +84,12 @@ struct cheney_env {
        */
 
   bool scan_static;
+  bool static_instead_of_remsets;
+    /* On CODE_SPACE systems: the collection moves code, and every
+       generation except the static generation is being collected, so
+       the static area is scanned in full and the remembered sets
+       (which then remember only static objects) are not scanned;
+       scanning both would visit some locations twice.  */
     /* TRUE if the static area needs to be scanned in its entirety.
        */
 

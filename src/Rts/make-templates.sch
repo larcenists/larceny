@@ -524,7 +524,7 @@ larceny.bin: kill_version_o $(X86_SASSY_LARCENY_OBJECTS)
 	Sys/syscall.$(O) Sys/util.$(O) Sys/version.$(O)
 
 PRECISE_GC_OBJECTS=\\
-	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
+	Sys/alloc.$(O) Sys/cheney.$(O) Sys/code-space.$(O) Sys/gc.$(O) \\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
 	Sys/extbmp.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\

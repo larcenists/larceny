@@ -20,6 +20,8 @@
 #include "semispace_t.h"
 #include "heapio.h"
 #include "memmgr.h"
+#include "gc_t.h"
+#include "code-space.h"
 
 static gc_t *gc;
 static int  generations;
@@ -114,6 +116,10 @@ int load_heap_image_from_file( const char *filename )
     tbase = gc_data_load_area( gc, data_size );
     if ((r = hio_load_bootstrap( heap, sbase, tbase, globals )) < 0)
       goto fail;
+#if CODE_SPACE
+    if (text_size > 0)
+      cs_load_complete( gc->code_space );
+#endif
   }
   else if (!gc_load_heap( gc, heap ))
     goto fail2;
@@ -174,7 +180,7 @@ int reorganize_and_dump_static_heap( const char *filename )
   data = gc->static_area->data_area;
   text = gc->static_area->text_area;
   consolemsg( "Data: %d bytes, Text: %d bytes",
-	      data->allocated, text->allocated );
+	      (data ? data->allocated : 0), (text ? text->allocated : 0) );
 
   consolemsg( "Dumping \"%s\".", filename );
   if ((r = gc_dump_heap( gc, filename, 0 )) < 0) {

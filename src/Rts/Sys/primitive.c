@@ -16,6 +16,8 @@
 #include "gc_t.h"
 #include "gc.h"
 #include "stats.h"
+#include "gc_t.h"
+#include "code-space.h"
 
 extern void mem_icache_flush( void *lo, void *limit );
 
@@ -128,6 +130,24 @@ word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
                     ptrof( w_bv )+1+roundup_word(sizefield(*ptrof(w_bv)))/sizeof(word) );
+}
+
+/* Make the code vector w_bv executable, and return (in RESULT) the code
+   vector to be stored into procedures.  On CODE_SPACE systems that is a
+   copy of w_bv in the code space; otherwise it is w_bv itself.  */
+
+void primitive_codevector_install( w_bv )
+word w_bv;
+{
+#if CODE_SPACE
+  gc_t *gc = the_gc( globals );
+  if (gc->code_space == 0)
+    panic_exit( "This collector does not support compiled code." );
+  globals[ G_RESULT ] = cs_install( gc->code_space, w_bv );
+#else
+  primitive_iflush( w_bv );
+  globals[ G_RESULT ] = w_bv;
+#endif
 }
 
 /* Floating-point operations */

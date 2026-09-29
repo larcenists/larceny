@@ -115,6 +115,7 @@ typedef struct seqbuf seqbuf_t;
 
 /* semispace_t and ss_chunk_t are elaborated in semispace_t.h */
 typedef struct semispace semispace_t;
+typedef struct code_space code_space_t;
 typedef struct ss_chunk ss_chunk_t;
 
 /* uremset_t is elaborated in uremset_t.h */

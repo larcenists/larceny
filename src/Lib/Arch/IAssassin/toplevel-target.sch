@@ -28,6 +28,7 @@
   ;; miscellaneous extensions and hacks
 
   (environment-set! larc 'sys$codevector-iflush sys$codevector-iflush)
+  (environment-set! larc 'sys$codevector-install sys$codevector-install)
 
   ;; Support for loading compiled files as code-less FASL files with
   ;; the code vectors already linked into the executable or present

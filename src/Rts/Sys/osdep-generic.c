@@ -506,12 +506,30 @@ void osdep_pollinput( word w_fd )
 
    The size of the arena can be set with the LARCENY_ARENA_GB
    environment variable; the default is 64 GB of address space.
+
+   With CODE_SPACE, a second arena for executable code is reserved
+   immediately below the data arena, so code and data stay close
+   together in the address space.  On MacOS X it is mapped with
+   MAP_JIT, which makes it writable or executable, but not both, as
+   selected per thread by osdep_code_writing().  Its size can be set
+   with LARCENY_CODE_GB; the default is 1 GB of address space.
+
+   The code arena is allocated from the bottom up, like the data arena:
+   an allocation below the lowest address seen so far makes the page
+   tables slide (see alloc.c), which invalidates page numbers cached by
+   the collector, so it must happen only once, when the code space is
+   created.  The page tables then cover the entire code arena.
    */
 
 #include <sys/mman.h>
+#if CODE_SPACE && defined(MACOS_X)
+#include <pthread.h>
+#include <libkern/OSCacheControl.h>
+#endif
 
 #define ARENA_PAGE        4096
 #define ARENA_DEFAULT_GB  64
+#define CODE_DEFAULT_GB   1
 
 typedef struct arena_extent arena_extent_t;
 struct arena_extent {
@@ -520,37 +538,80 @@ struct arena_extent {
   arena_extent_t *next;           /* sorted by address */
 };
 
-static struct {
+typedef struct {
   byte *base;                     /* start of the reservation */
   byte *limit;                    /* end of the reservation */
-  byte *frontier;                 /* never-allocated memory starts here */
-  arena_extent_t *free;           /* free extents below the frontier */
-} arena = { 0, 0, 0, 0 };
+  byte *frontier;                 /* boundary of never-allocated memory */
+  arena_extent_t *free;           /* freed extents on the allocated side */
+  int grows_down;                 /* allocate downward from limit? */
+} arena_t;
+
+static arena_t arena = { 0, 0, 0, 0, 0 };
+#if CODE_SPACE
+static arena_t code_arena = { 0, 0, 0, 0, 0 };
+#endif
+
+static size_t arena_gb( const char *var, size_t dflt )
+{
+  char *e = getenv( var );
+
+  if (e != 0 && atoi( e ) > 0)
+    return (size_t)atoi( e );
+  return dflt;
+}
+
+static void arena_set( arena_t *a, byte *base, size_t bytes )
+{
+  a->base = (byte*)roundup( (word)base, ARENA_PAGE );
+  a->limit = base + bytes;
+  a->frontier = (a->grows_down ? a->limit : a->base);
+}
 
 static void arena_init( void )
 {
-  size_t gb = ARENA_DEFAULT_GB;
-  char *e = getenv( "LARCENY_ARENA_GB" );
+  size_t gb = arena_gb( "LARCENY_ARENA_GB", ARENA_DEFAULT_GB );
+  size_t code_bytes = 0;
   void *p;
 
-  if (e != 0 && atoi( e ) > 0)
-    gb = (size_t)atoi( e );
+#if CODE_SPACE
+  code_bytes = arena_gb( "LARCENY_CODE_GB", CODE_DEFAULT_GB )*1024*1024*1024;
+#endif
   for (;;) {
     size_t bytes = gb*1024*1024*1024;
-    p = mmap( 0, bytes, PROT_READ|PROT_WRITE,
+    p = mmap( 0, bytes+code_bytes, PROT_READ|PROT_WRITE,
               MAP_PRIVATE|MAP_ANON|MAP_NORESERVE, -1, 0 );
     if (p != MAP_FAILED) {
-      arena.base = arena.frontier = (byte*)roundup( (word)p, ARENA_PAGE );
-      arena.limit = (byte*)p + bytes;
-      return;
+      arena_set( &arena, (byte*)p+code_bytes, bytes );
+      break;
     }
     if (gb <= 1)
       panic_exit( "Unable to reserve address space for the heap." );
     gb = gb / 2;
   }
+
+#if CODE_SPACE
+  /* Replace the bottom of the reservation with the code arena.  The
+     address was just released, so the hint is normally honored, but
+     if not we just get a larger page table.
+     */
+  {
+    void *q;
+    int flags = MAP_PRIVATE|MAP_ANON|MAP_NORESERVE;
+# if defined(MACOS_X)
+    flags |= MAP_JIT;
+# endif
+    munmap( p, code_bytes );
+    q = mmap( p, code_bytes, PROT_READ|PROT_WRITE|PROT_EXEC, flags, -1, 0 );
+    if (q == MAP_FAILED)
+      panic_exit( "Unable to reserve address space for code." );
+    if (q != p)
+      annoyingmsg( "Code arena is not adjacent to the heap arena." );
+    arena_set( &code_arena, (byte*)q, code_bytes );
+  }
+#endif
 }
 
-void *osdep_alloc_aligned( int bytes ) 
+static void *arena_alloc( arena_t *a, int bytes )
 {
   arena_extent_t *x, **prev;
   size_t n;
@@ -561,7 +622,7 @@ void *osdep_alloc_aligned( int bytes )
   n = roundup( (size_t)bytes, ARENA_PAGE );
 
   /* First fit among freed extents. */
-  for ( prev = &arena.free, x = arena.free ; x != 0 ; 
+  for ( prev = &a->free, x = a->free ; x != 0 ; 
         prev = &x->next, x = x->next ) {
     if (x->bytes >= n) {
       p = x->start;
@@ -577,25 +638,34 @@ void *osdep_alloc_aligned( int bytes )
     }
   }
 
-  while (arena.frontier + n > arena.limit) 
+  if (a->grows_down) {
+    while (a->frontier - n < a->base)
+      memfail( MF_MALLOC, "Code arena exhausted by request for %d bytes; "
+               "try setting LARCENY_CODE_GB.", bytes );
+    a->frontier -= n;
+    return a->frontier;
+  }
+  while (a->frontier + n > a->limit) 
     memfail( MF_MALLOC, "Heap arena exhausted by request for %d bytes; "
              "try setting LARCENY_ARENA_GB.", bytes );
-  p = arena.frontier;
-  arena.frontier += n;
+  p = a->frontier;
+  a->frontier += n;
   return p;
 }
 
-void osdep_free_aligned( void *block, int bytes ) 
+static void arena_free( arena_t *a, void *block, int bytes )
 {
   arena_extent_t *x, *prev, *y;
   byte *p = (byte*)block;
   size_t n = roundup( (size_t)bytes, ARENA_PAGE );
 
-  assert( arena.base <= p && p + n <= arena.frontier );
+  assert( a->grows_down
+          ? (a->frontier <= p && p + n <= a->limit)
+          : (a->base <= p && p + n <= a->frontier) );
   madvise( p, n, MADV_FREE );
 
   /* Find insertion point. */
-  for ( prev = 0, x = arena.free ; x != 0 && x->start < p ; 
+  for ( prev = 0, x = a->free ; x != 0 && x->start < p ; 
         prev = x, x = x->next )
     ;
 
@@ -610,7 +680,7 @@ void osdep_free_aligned( void *block, int bytes )
     y->bytes = n;
     y->next = x;
     if (prev == 0) 
-      arena.free = y;
+      a->free = y;
     else
       prev->next = y;
   }
@@ -623,18 +693,60 @@ void osdep_free_aligned( void *block, int bytes )
   }
 
   /* Give back memory at the frontier. */
-  if (y->start + y->bytes == arena.frontier) {
-    arena.frontier = y->start;
-    if (arena.free == y)
-      arena.free = y->next;
+  if (a->grows_down ? y->start == a->frontier
+                    : y->start + y->bytes == a->frontier) {
+    if (a->grows_down)
+      a->frontier += y->bytes;
+    else
+      a->frontier = y->start;
+    if (a->free == y)
+      a->free = y->next;
     else {
-      for ( x = arena.free ; x->next != y ; x = x->next )
+      for ( x = a->free ; x->next != y ; x = x->next )
         ;
       x->next = y->next;
     }
     free( y );
   }
 }
+
+void *osdep_alloc_aligned( int bytes ) 
+{
+  return arena_alloc( &arena, bytes );
+}
+
+void osdep_free_aligned( void *block, int bytes ) 
+{
+  arena_free( &arena, block, bytes );
+}
+
+#if CODE_SPACE
+void *osdep_alloc_code( int bytes )
+{
+  return arena_alloc( &code_arena, bytes );
+}
+
+void osdep_free_code( void *block, int bytes )
+{
+  arena_free( &code_arena, block, bytes );
+}
+
+void osdep_code_writing( int enable )
+{
+# if defined(MACOS_X)
+  pthread_jit_write_protect_np( enable ? 0 : 1 );
+# endif
+}
+
+void osdep_code_flush( void *start, void *end )
+{
+# if defined(MACOS_X)
+  sys_icache_invalidate( start, (size_t)((byte*)end - (byte*)start) );
+# else
+  __builtin___clear_cache( (char*)start, (char*)end );
+# endif
+}
+#endif
 
 int osdep_fragmentation( void )
 {

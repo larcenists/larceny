@@ -83,6 +83,16 @@
       (error "sys$codevector-iflush: not a bytevector-like: " bv))
   (syscall syscall:iflush bv))
 
+; Given a bytevector of machine code, returns a code vector that can be
+; stored into slot 0 of a procedure: on systems that keep code in a
+; separate executable space, a copy in that space, and otherwise the
+; argument itself.  Either way the instruction cache has been flushed.
+
+(define (sys$codevector-install bv)
+  (if (not (bytevector? bv))
+      (error "sys$codevector-install: not a bytevector: " bv))
+  (syscall syscall:codevector-install bv))
+
 (define (sys$gcctl heap rator rand)
   (if (not (and (fixnum? heap) (fixnum? rator) (fixnum? rand)))
       (error "sys$gcctl: bogus: " (list heap rator rand)))

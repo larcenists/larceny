@@ -1656,9 +1656,7 @@
             (if (char=? c #\")
                 (begin (consumeChar)
                        (set! string_accumulator_length 0)
-                       (let ((bv (loop)))
-			 (sys$codevector-iflush bv)
-			 bv))
+                       (sys$codevector-install (loop)))
                 (parse-error '<datum> datum-starters)))
           (parse-error '<datum> datum-starters)))
   

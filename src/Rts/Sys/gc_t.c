@@ -76,6 +76,7 @@ gc_t
   gc->los = 0;
   gc->young_area = 0;
   gc->static_area = 0; 
+  gc->code_space = 0;
   gc->los = 0;
   gc->gno_count = 0;
   gc->smircy = 0;

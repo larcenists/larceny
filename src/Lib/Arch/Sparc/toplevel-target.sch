@@ -52,6 +52,7 @@
   ;; miscellaneous extensions and hacks
 
   (environment-set! larc 'sys$codevector-iflush sys$codevector-iflush)
+  (environment-set! larc 'sys$codevector-install sys$codevector-install)
 
   larc)
 

@@ -70,7 +70,25 @@ semispace_t *create_semispace( int bytes, int gen_no )
 }
 
 
+static semispace_t *make_semispace( int bytes, int nchunks, int gen_no, 
+                                    int code );
+
+#if CODE_SPACE
+semispace_t *create_code_semispace( int bytes, int gen_no )
+{
+  assert( bytes > 0 );
+  assert( gen_no >= 0 );
+  return make_semispace( bytes, 1, gen_no, 1 );
+}
+#endif
+
 semispace_t *create_semispace_n( int bytes, int nchunks, int gen_no )
+{
+  return make_semispace( bytes, nchunks, gen_no, 0 );
+}
+
+static semispace_t *make_semispace( int bytes, int nchunks, int gen_no, 
+                                    int code )
 {
   semispace_t *ss;
   ss_chunk_t *chunks;
@@ -96,6 +114,7 @@ semispace_t *create_semispace_n( int bytes, int nchunks, int gen_no )
   ss->chunks = chunks+1;        /* Entry -1 is valid, too */
   ss->allocated = 0;
   ss->used = 0;
+  ss->code = code;
 
   for ( i=0 ; i < nchunks ; i++ )
     allocate_chunk_memory( ss, i, bytes );
@@ -649,6 +668,11 @@ static void allocate_chunk_memory( semispace_t *ss, int slot, int bytes )
   assert( ss->chunks[slot].bytes == 0 );
 
  again:
+#if CODE_SPACE
+  if (ss->code)
+    p = (word*)gclib_alloc_code( bytes, ss->gen_no );
+  else
+#endif
   p = (word*)gclib_alloc_heap( bytes, ss->gen_no );
   if (p == 0) {
     memfail( MF_HEAP, "Could not expand semispace, request=%u bytes.\n", 

@@ -26,6 +26,7 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "code-space.h"
 
 /* Additional forwarding macros for a splitting garbage collection.
 
@@ -64,6 +65,14 @@
     dest += 2;                                                           \
   } while ( 0 )
 
+/* On CODE_SPACE systems code is forwarded into the code space, and
+   other bytevector-like objects stay with the data. */
+#if CODE_SPACE
+# define SPLIT_BVECS_TO_TEXT 0
+#else
+# define SPLIT_BVECS_TO_TEXT 1
+#endif
+
 #define forw_core2( T_obj, loc, dest, dest2, lim, lim2, e, forw_limit_gen )             \
   word *TMP_P = ptrof( T_obj );                                         \
   if (*TMP_P == FORWARD_HDR)                                            \
@@ -71,7 +80,9 @@
   else if (tagof( T_obj ) == PAIR_TAG) {                                \
     FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen);               \
   }                                                                     \
-  else if (tagof( T_obj ) == BVEC_TAG) {                                \
+  else if (is_code_obj( T_obj ))                                        \
+    FORW_CODE( T_obj, loc, e );                                         \
+  else if (tagof( T_obj ) == BVEC_TAG && SPLIT_BVECS_TO_TEXT) {        \
     word *TMPD;                                                         \
     check_space2(dest2,lim2,sizefield(*TMP_P)+sizeof(word),e->tospace2); /*text*/  \
     TMPD = dest2;                                                       \

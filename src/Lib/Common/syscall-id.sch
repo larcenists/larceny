@@ -67,5 +67,6 @@
 (define syscall:flonum-fma 56)
 (define syscall:flonum-jn 57)
 (define syscall:flonum-yn 58)
+(define syscall:codevector-install 59)
 
 ; eof

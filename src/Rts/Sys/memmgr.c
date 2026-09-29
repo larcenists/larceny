@@ -45,6 +45,7 @@ const char *larceny_gc_technology = "precise";
 #include "memmgr_flt.h"
 #include "memmgr_vfy.h"
 #include "memmgr_internal.h"
+#include "code-space.h"
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
@@ -2459,6 +2460,10 @@ static void after_collection( gc_t *gc )
     oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
   if (DATA(gc)->dynamic_area)
     oh_after_collection( DATA(gc)->dynamic_area );
+#if CODE_SPACE
+  if (gc->code_space)
+    cs_after_collection( gc->code_space );
+#endif
   if (! DATA(gc)->remset_undirected) {
     /* hack to work around delayed clearing of remset in generational gc;
      * the remset has dangling pointers in it until it is cleared by
@@ -2766,6 +2771,14 @@ static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
   
+#if CODE_SPACE
+  if (load_text) {
+    if (gc->code_space == 0)
+      panic_exit( "This collector does not support compiled code." );
+    return cs_load_area( gc->code_space, nbytes );
+  }
+#endif
+
   if (gc->static_area)
     DATA(gc)->nonexpandable_size += nbytes;
   effect_heap_limits( gc );
@@ -3009,6 +3022,10 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
     compact_all_areas( gc );
 
   type = (gc->static_area ? HEAP_SPLIT : HEAP_SINGLE);
+#if CODE_SPACE
+  if (gc->code_space)
+    type = HEAP_SPLIT;
+#endif
   heap = create_heapio();
   if ((r = hio_create( heap, filename, type )) < 0) goto fail;
 
@@ -3019,6 +3036,13 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
      It's awkward, but an OK temporary solution.
      */
   if ((r = hio_dump_initiate( heap, DATA(gc)->globals )) < 0) goto fail;
+
+#if CODE_SPACE
+  if (gc->code_space) {
+    r = dump_semispace( heap, TEXT_SEGMENT, cs_semispace( gc->code_space ) );
+    if (r < 0) goto fail;
+  }
+#endif
 
   if (gc->static_area) {
     if (gc->static_area->text_area) {
@@ -3507,6 +3531,9 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
   gc->young_area = create_sc_heap( 0, gc, &info->sc_info, info->globals );
   strcat( buf, gc->young_area->id );
+#if CODE_SPACE
+  gc->code_space = create_code_space( 0 );
+#endif
 
   if (info->use_static_area) {
     gc->static_area = create_static_area( 1, gc );
@@ -3817,6 +3844,9 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   else {
     DATA(gc)->dynamic_area = 
       create_sc_area( gen_no, gc, &info->dynamic_sc_info, OHTYPE_DYNAMIC );
+#if CODE_SPACE
+    gc->code_space = create_code_space( gen_no );
+#endif
     gen_no += 1;
   }
   strcat( buf, "+" );

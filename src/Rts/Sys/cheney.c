@@ -34,6 +34,7 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "code-space.h"
 #include "remset_t.h"
 #include "seqbuf_t.h"
 #include "msgc-core.h"
@@ -170,6 +171,8 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   else if (tagof( T_obj ) == PAIR_TAG) {                                      \
     FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI );                      \
   }                                                                           \
+  else if (is_code_obj( T_obj ))                                              \
+    FORW_CODE( T_obj, loc, e );                                               \
   else {                                                                      \
     word *TMPD;                                                               \
     check_spaceI(dest,lim,sizefield(TMP_W)+sizeof(word),2*sizeof(word),e);                            \
@@ -517,6 +520,20 @@ init_env_with_cursors( cheney_env_t *e,
   e->gclib_desc_g = gclib_desc_g;
   e->forw_gset = forw_gset;
   e->scan_static = attributes & SCAN_STATIC;
+#if CODE_SPACE
+  /* Pointers from the static area into the code space are not
+     remembered (they are created when a heap image is loaded), so a
+     collection that moves code must scan the static area, unless it
+     is collecting the static area itself (the splitting collection).  */
+  if (gc->code_space && gset_memberp( gc->code_space->gen_no, forw_gset )
+      && !(attributes & SPLITTING_GC)) {
+    /* The code space belongs to the oldest non-static generation, and
+       collections collect a generation and all younger ones, so every
+       non-static generation is being collected.  */
+    e->scan_static = SCAN_STATIC;
+    e->static_instead_of_remsets = TRUE;
+  }
+#endif
   e->splitting = attributes & SPLITTING_GC;
   e->iflush = gc_iflush( gc );
   e->tospaces = tospaces;
@@ -591,10 +608,11 @@ void oldspace_copy( cheney_env_t *e )
     timer2 = stats_start_timer( TIMER_CPU );
 
     objects_scanned = 0;
-    gc_enumerate_remsets_complement( e->gc,
-                                     e->forw_gset,
-                                     e->scan_from_remsets,
-                                     (void*)e );
+    if (!(e->static_instead_of_remsets && e->gc->static_area))
+      gc_enumerate_remsets_complement( e->gc,
+                                       e->forw_gset,
+                                       e->scan_from_remsets,
+                                       (void*)e );
 
 
     elapsed = stats_stop_timer( timer1 );
@@ -662,10 +680,11 @@ void oldspace_copy_using_locations( cheney_env_t *e )
     timer2 = stats_start_timer( TIMER_CPU );
     objects_scanned = 0;
 
-    gc_enumerate_remembered_locations
-      ( e->gc, e->forw_gset, 
-        remset_loc_scanner_oflo, (void*)e,
-        e->scan_from_remsets, (void*)e );
+    if (!(e->static_instead_of_remsets && e->gc->static_area))
+      gc_enumerate_remembered_locations
+        ( e->gc, e->forw_gset, 
+          remset_loc_scanner_oflo, (void*)e,
+          e->scan_from_remsets, (void*)e );
 
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );
@@ -955,6 +974,10 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
  */
 
 void copied_icache_flush( word *bv ) {
+#if CODE_SPACE
+  /* Code is never copied into the data heap. */
+}
+#else
   word hdr = *bv;
   word T_h = header( hdr );
   word T_bytes = sizefield( hdr );
@@ -963,6 +986,7 @@ void copied_icache_flush( word *bv ) {
   if ( T_h == BV_HDR )
     mem_icache_flush( start, end );
 }
+#endif
 
 /* "p" is a tagged pointer into oldspace;
  * "*dest" is a pointer into newspace, the destination of the next object.
