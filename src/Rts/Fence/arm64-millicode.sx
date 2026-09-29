@@ -32,33 +32,29 @@
         .globl EXTNAME(fence_scheme_jump)
         .globl EXTNAME(fence_return_from_scheme)
 
-/* Save Scheme context where the garbage collector will find it. */
+/* Save Scheme context where the garbage collector will find it.
+ * Adjacent slots of the globals table are stored in pairs (the
+ * offsets are checked below); the flonum slots are not adjacent. */
+
+#if G_SECOND != G_RESULT+8 || G_STKP != G_RETADDR+8 || G_REG15 != G_REG0+15*8
+# error "arm64-millicode.sx: the globals table layout has changed"
+#endif
 
 #define SAVE_SCHEME_CONTEXT \
-        str     RESULT, [GLOBALS, #G_RESULT] %% \
-        str     SECOND, [GLOBALS, #G_SECOND] %% \
-        str     STKP, [GLOBALS, #G_STKP]     %% \
-        str     REG0, [GLOBALS, #G_REG0]     %% \
-        str     REG1, [GLOBALS, #G_REG1]     %% \
-        str     REG2, [GLOBALS, #G_REG2]     %% \
-        str     REG3, [GLOBALS, #G_REG3]     %% \
-        str     REG4, [GLOBALS, #G_REG4]     %% \
-        str     REG5, [GLOBALS, #G_REG5]     %% \
-        str     REG6, [GLOBALS, #G_REG6]     %% \
-        str     REG7, [GLOBALS, #G_REG7]     %% \
-        str     REG8, [GLOBALS, #G_REG8]     %% \
-        str     REG9, [GLOBALS, #G_REG9]     %% \
-        str     REG10, [GLOBALS, #G_REG10]   %% \
-        str     REG11, [GLOBALS, #G_REG11]   %% \
-        str     REG12, [GLOBALS, #G_REG12]   %% \
-        str     REG13, [GLOBALS, #G_REG13]   %% \
-        str     REG14, [GLOBALS, #G_REG14]   %% \
-        str     REG15, [GLOBALS, #G_REG15]   %% \
-        str     d8, [GLOBALS, #G_F0]         %% \
-        str     d9, [GLOBALS, #G_F1]         %% \
-        str     d10, [GLOBALS, #G_F2]        %% \
-        str     d11, [GLOBALS, #G_F3]        %% \
-        str     x30, [GLOBALS, #G_RETADDR]
+        stp     RESULT, SECOND, [GLOBALS, #G_RESULT] %% \
+        stp     x30, STKP, [GLOBALS, #G_RETADDR]     %% \
+        stp     REG0, REG1, [GLOBALS, #G_REG0]       %% \
+        stp     REG2, REG3, [GLOBALS, #G_REG2]       %% \
+        stp     REG4, REG5, [GLOBALS, #G_REG4]       %% \
+        stp     REG6, REG7, [GLOBALS, #G_REG6]       %% \
+        stp     REG8, REG9, [GLOBALS, #G_REG8]       %% \
+        stp     REG10, REG11, [GLOBALS, #G_REG10]    %% \
+        stp     REG12, REG13, [GLOBALS, #G_REG12]    %% \
+        stp     REG14, REG15, [GLOBALS, #G_REG14]    %% \
+        str     d8, [GLOBALS, #G_F0]                 %% \
+        str     d9, [GLOBALS, #G_F1]                 %% \
+        str     d10, [GLOBALS, #G_F2]                %% \
+        str     d11, [GLOBALS, #G_F3]
 
 /* The return address, relative to the start of the code of the
  * procedure in REG0.  The garbage collector may move the code. */
@@ -76,30 +72,20 @@
 /* Load the Scheme context into registers assuming GLOBALS has been set up */
 
 #define LOAD_SCHEME_CONTEXT \
-        ldr     RESULT, [GLOBALS, #G_RESULT] %% \
-        ldr     SECOND, [GLOBALS, #G_SECOND] %% \
-        ldr     STKP, [GLOBALS, #G_STKP]     %% \
-        ldr     REG0, [GLOBALS, #G_REG0]     %% \
-        ldr     REG1, [GLOBALS, #G_REG1]     %% \
-        ldr     REG2, [GLOBALS, #G_REG2]     %% \
-        ldr     REG3, [GLOBALS, #G_REG3]     %% \
-        ldr     REG4, [GLOBALS, #G_REG4]     %% \
-        ldr     REG5, [GLOBALS, #G_REG5]     %% \
-        ldr     REG6, [GLOBALS, #G_REG6]     %% \
-        ldr     REG7, [GLOBALS, #G_REG7]     %% \
-        ldr     REG8, [GLOBALS, #G_REG8]     %% \
-        ldr     REG9, [GLOBALS, #G_REG9]     %% \
-        ldr     REG10, [GLOBALS, #G_REG10]   %% \
-        ldr     REG11, [GLOBALS, #G_REG11]   %% \
-        ldr     REG12, [GLOBALS, #G_REG12]   %% \
-        ldr     REG13, [GLOBALS, #G_REG13]   %% \
-        ldr     REG14, [GLOBALS, #G_REG14]   %% \
-        ldr     REG15, [GLOBALS, #G_REG15]   %% \
-        ldr     d8, [GLOBALS, #G_F0]         %% \
-        ldr     d9, [GLOBALS, #G_F1]         %% \
-        ldr     d10, [GLOBALS, #G_F2]        %% \
-        ldr     d11, [GLOBALS, #G_F3]        %% \
-        ldr     x30, [GLOBALS, #G_RETADDR]
+        ldp     RESULT, SECOND, [GLOBALS, #G_RESULT] %% \
+        ldp     x30, STKP, [GLOBALS, #G_RETADDR]     %% \
+        ldp     REG0, REG1, [GLOBALS, #G_REG0]       %% \
+        ldp     REG2, REG3, [GLOBALS, #G_REG2]       %% \
+        ldp     REG4, REG5, [GLOBALS, #G_REG4]       %% \
+        ldp     REG6, REG7, [GLOBALS, #G_REG6]       %% \
+        ldp     REG8, REG9, [GLOBALS, #G_REG8]       %% \
+        ldp     REG10, REG11, [GLOBALS, #G_REG10]    %% \
+        ldp     REG12, REG13, [GLOBALS, #G_REG12]    %% \
+        ldp     REG14, REG15, [GLOBALS, #G_REG14]    %% \
+        ldr     d8, [GLOBALS, #G_F0]                 %% \
+        ldr     d9, [GLOBALS, #G_F1]                 %% \
+        ldr     d10, [GLOBALS, #G_F2]                %% \
+        ldr     d11, [GLOBALS, #G_F3]
 
 #define LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR \
         LOAD_SCHEME_CONTEXT                  %% \
