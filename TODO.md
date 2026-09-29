@@ -11,9 +11,11 @@ DONE.md (with the date and the commit, if any).
   mark cycle could tell live objects from dead ones, but a dead
   object's code pointer would then have to be cleared, and `sro` can
   return dead objects.
-- Lighter-weight millicode calls: every call saves and restores the whole
-  register context (allocation is now in line in the common case, but
-  arithmetic on non-fixnums, generic comparisons, etc. still call out).
+- Lighter-weight millicode calls, what is left: calls still switch the
+  whole context (now with paired stores).  Other candidates for inline
+  or context-free fast paths: the SATB barrier (only during marking),
+  eqv? on flonums, mixed-exactness arithmetic on ARM-32 (no
+  cant.fixnum->flonum there yet).
 - More peephole optimization for the AArch64 back end (the ARM-32 back
   end has a framework in `src/Asm/Fence/arm-optimizer.sch`), e.g. the
   stack overflow check and timer tick sequences.

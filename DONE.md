@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Lighter millicode on AArch64: the generational write barrier in
+  assembly without a context switch (pointer stores 2.5x faster,
+  1759ca5e); inline flonum and mixed fixnum/flonum paths for generic
+  arithmetic and comparison (2.5x-35x faster, fd7a9f24); paired stores for
+  the context switch of the remaining calls (5c5f18ac).
 - `-rrof` collects the code space even when marking is nearly
   continuous: a code collection requested during marking stays pending
   and runs between mark cycles; before, it was dropped, and code grew
