@@ -8,7 +8,10 @@
 #include "larceny.h"
 
 char *larceny_system_name = "Larceny";
-#ifdef ARM
+#if defined(ARM) && defined(BITS_64)
+char *larceny_heap_name = "arm64.heap";
+char *larceny_architecture = "ARM";
+#elif defined(ARM)
 char *larceny_heap_name = "arm.heap";
 char *larceny_architecture = "ARM";
 #else

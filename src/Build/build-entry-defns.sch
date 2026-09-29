@@ -129,7 +129,75 @@
      (copy-script "larceny"))
     ((sparc-native arm-native arm-native0 arm64-native sassy)
      'done)
-    (else (error 'build-larceny-files "Unknown heap type"))))
+    (else (error 'build-larceny-files "Unknown heap type")))
+  (newline)
+  (display "Next, build the heap image with (build-larceny-heap), or with")
+  (newline)
+  (display "    % ")
+  (display (heap-build-command 'larceny))
+  (newline))
+
+; Building the heap images.
+;
+; A heap image is built by running the new executable on a script that
+; loads the compiler (and so on) into the bootstrap heap and dumps the
+; result.  These procedures run that command from the host Scheme.
+
+(define (heap-build-script which)
+  (define (script-name base)
+    (let ((fasl (string-append "src/Build/" base ".fasl")))
+      (if (file-exists? fasl)
+          fasl
+          (string-append "src/Build/" base ".sch"))))
+  (case *heap-type*
+    ((petit)        (script-name (string-append "petit-" which "-heap")))
+    ((arm64-native) (script-name (string-append "arm64-macosx-" which "-heap")))
+    ((arm-native arm-native0)
+     (script-name (string-append "arm-el-hardfp-" which "-heap")))
+    ((sassy)        (script-name (string-append "iasn-" which "-heap")))
+    ((sparc-native) (script-name (string-append "sparc-" which "-heap")))
+    (else (error 'heap-build-script "Unknown heap type" *heap-type*))))
+
+(define (heap-build-command which)
+  (let ((which (symbol->string which)))
+    (string-append
+     (case *heap-type*
+       ((petit) (if (string=? which "twobit")
+                    "./twobit.bin"
+                    "./petit-larceny.bin"))
+       (else "./larceny.bin"))
+     " -stopcopy -heap "
+     (case *heap-type*
+       ((petit) "petit.heap")
+       ((arm64-native) "arm64.heap")
+       ((arm-native arm-native0) "arm.heap")
+       ((sassy) "sasstrap.heap")
+       ((sparc-native) "sparc.heap")
+       (else (error 'heap-build-command "Unknown heap type" *heap-type*)))
+     " -- "
+     (heap-build-script which))))
+
+(define (run-heap-build-script which heap-file)
+  (let ((cmd (heap-build-command which)))
+    (display cmd)
+    (newline)
+    ;; The new system must not use the host's LARCENY_ROOT (the host's
+    ;; larceny script exports it), and must not read the host's input.
+    (if (not (zero? (system (string-append "LARCENY_ROOT=`pwd` " cmd
+                                           " < /dev/null"))))
+        (error 'run-heap-build-script "Failed: " cmd))
+    (if (not (file-exists? heap-file))
+        (error 'run-heap-build-script "Did not create " heap-file))
+    (unspecified)))
+
+(define (build-larceny-heap)
+  (run-heap-build-script 'larceny
+                    (case *heap-type*
+                      ((petit) "petit-larceny.heap")
+                      (else "larceny.heap"))))
+
+(define (build-twobit-heap)
+  (run-heap-build-script 'twobit "twobit.heap"))
      
 
 (define (is-macosx?)

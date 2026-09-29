@@ -21,6 +21,19 @@ To build Common Larceny, see the Common Larceny documentation in
 doc/CommonLarceny/user-manual.txt.
 
 
+BUILDING ON APPLE SILICON (macOS/arm64): THE SHORT VERSION
+
+From the Larceny root directory,
+
+    % src/Build/bootstrap.sh --native --r7rs      # native Larceny
+    % src/Build/bootstrap.sh --petit --r7rs       # Petit Larceny
+
+builds everything with Racket as the host (--larceny PATH-TO-LARCENY
+uses an existing Larceny instead; --clean removes the build products
+of another configuration first).  The rest of this section describes
+the steps the script performs.
+
+
 BUILDING 64-BIT PETIT LARCENY ON APPLE SILICON (macOS/arm64)
 
 Petit Larceny can be built as a 64-bit system (64-bit words, 62-bit
@@ -40,12 +53,13 @@ Larceny.  The C compiler is Apple's clang (invoked as cc/gcc).
         > (build-runtime)
         > (build-executable)
         > (build-larceny-files)
+        > (build-larceny-heap)
         > (exit)
 
     (Racket's plt-r5rs is in the bin directory of the Racket
     installation, e.g. "/Applications/Racket v9.3/bin/plt-r5rs".)
 
- 2. Create the heap image:
+ 2. (build-larceny-heap) creates the heap image; it runs
 
         % ./petit-larceny.bin -stopcopy -heap petit.heap \
               -- src/Build/petit-larceny-heap.sch
@@ -92,9 +106,10 @@ performs steps 1 and 2 below; or, by hand:
         > (build-runtime)
         > (build-executable)
         > (build-larceny-files)
+        > (build-larceny-heap)
         > (exit)
 
- 2. Create the heap image:
+ 2. (build-larceny-heap) creates the heap image; it runs
 
         % ./larceny.bin -stopcopy -heap arm64.heap \
               -- src/Build/arm64-macosx-larceny-heap.sch

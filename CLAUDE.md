@@ -27,10 +27,13 @@ one.  Add new ideas to `TODO.md` as they come up.
 - Racket (`/Applications/Racket v9.3/bin/plt-r5rs --no-prim`) or an
   existing Larceny can host the build.  Pass build commands to the host
   in a file, not on stdin (a build step consumes stdin).
-- Native builds have two stages: the host-Scheme stage (`setup` with
-  `'native`, ... `build-larceny-files`), then
-  `./larceny.bin -stopcopy -heap arm64.heap -- src/Build/arm64-macosx-larceny-heap.sch`.
-  `src/Build/bootstrap-arm64-native.sh [--clean]` does both from Racket.
+- `src/Build/bootstrap.sh [--native|--petit] [--racket|--larceny PATH]
+  [--clean] [--r7rs]` does a whole build.  By hand: `setup`, ...,
+  `build-larceny-files`, then `(build-larceny-heap)`, which runs the new
+  binary on the heap script (`src/Build/*-larceny-heap.sch`).
+- A Larceny host whose kind differs from the target (e.g. native
+  building Petit) loads the build files from source (`'always-source`,
+  set automatically), since the tree's `.fasl` files are the target's.
 - After building, compile the R7RS/R6RS libraries once:
   `(require 'r7rsmode) (larceny:compile-r7rs-runtime)`.
 - `make clean` in `src/Rts` deletes the generated `Shared/arithmetic.c`;

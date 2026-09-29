@@ -599,6 +599,14 @@
 
   (if (eq? *target:machine* 'arm)
       (set! *globals-table* "globals-fence.cfg"))
+
+  ;; A Larceny host loads compiled (.fasl) versions of the build files
+  ;; from the tree when they exist, but those were compiled for the
+  ;; tree's target, so a host of another kind (say, native Larceny
+  ;; building Petit Larceny) must load the sources instead.
+  (if (and (eq? host-scheme 'larceny)
+           (not (host-matches-target?)))
+      (set! *always-source* #t))
  
   (case target-arch
    ((clr-be clr-el)
@@ -606,6 +614,21 @@
     (larceny-setup "Larceny" *target:os* *target:endianness*))   ; FIXME
    (else
     (unix-&-win32-initialize))))
+
+; Is the host Larceny the kind of Larceny being built?
+
+(define (host-matches-target?)
+  (let ((features (system-features)))
+    (and (equal? (cdr (assq 'arch-name features))
+                 (case *target:machine*
+                   ((standard-c) "Standard-C")
+                   ((arm) "ARM")
+                   ((sparc) "SPARC")
+                   ((x86-sass) "IAssassin")
+                   ((x86-nasm) "X86-NASM")
+                   (else #f)))
+         (eqv? (cdr (assq 'arch-word-size features))
+               *target:word-size*))))
 
 (define (setup-load-build . args) 
   (apply setup args)
