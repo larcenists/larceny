@@ -27,10 +27,6 @@ DONE.md (with the date and the commit, if any).
 - `setup`'s `'clean` needs git to find the build products; it could fall
   back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).
-- A `setup.sch` command for the second stage (building `larceny.heap`
-  with the new binary), and have the first stage print what to run next;
-  generalize `src/Build/bootstrap-arm64-native.sh` over the host Scheme
-  and target.
 - Teach the nightly-build scripts in `test/Scripts` about the Racket host,
   `macosx-arm64`, and `'native`.
 

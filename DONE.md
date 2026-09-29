@@ -4,6 +4,10 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- `(build-larceny-heap)` / `(build-twobit-heap)` for the second build
+  stage; `src/Build/bootstrap.sh` over host (Racket or Larceny) and
+  target (native or Petit); Larceny hosts of another kind load build
+  files from source (38263b70).
 - Native `-rrof`: SATB pre-write barrier in the Fence code generator;
   under the regional collector the code space belongs to the static
   generation and is collected by a scanning pass (29a90872).
