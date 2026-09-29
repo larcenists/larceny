@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Native `-rrof`: SATB pre-write barrier in the Fence code generator;
+  under the regional collector the code space belongs to the static
+  generation and is collected by a scanning pass (29a90872).
 - `setup` records the build configuration in `build-configuration` and
   refuses to mix configurations; `'clean` removes the build products
   (via git), `'keep-build-products` keeps them (d14b9927).
