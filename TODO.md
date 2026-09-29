@@ -44,23 +44,15 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
-- Feature markers on compiled code, so stale or mismatched code is
-  caught rather than trusted (in progress).  `#lap(...)` and `#lop(...)`
-  markers at the head of `.lap` and `.lop` files (and `#lop(...)` after
-  `#!fasl`) carry two sets:
-  - *assumes*: what the code needs from the runtime (target spec and
-    calling convention, word size, millicode entries such as the SATB
-    barrier, inline-allocation conventions).  Loadable into any runtime
-    providing a superset.  A runtime may provide several target specs.
-  - *guarantees*: what the code promises (write barrier, SATB
-    pre-barrier).  Loadable into any runtime whose current requirements
-    (which depend on the collector: `-rrof` needs the SATB pre-barrier)
-    are a subset.
-  Both readers (Larceny's and the Racket compatibility reader) and
-  writers need to know the markers.  Checked by `build-larceny-files`
-  (a mismatch means out of date), recorded in the heap (guarantees
-  intersected, assumes unioned) and checked at startup, and checked when
-  a `.fasl` is loaded.
+- Feature markers, follow-ups:
+  - A system provides exactly the features its heap's code assumes; it
+    could provide several target specs (say, an older calling-convention
+    version it still supports), and the C runtime is not versioned on
+    its own.
+  - The startup check (a heap whose code lacks what the collector needs)
+    has not been seen to fire: no such heap can be built now.
+  - `.lap` markers are written and compared by the build, but nothing
+    loads `.lap` files outside it.
 - `setup`'s `'clean` needs git to find the build products; it could fall
   back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).

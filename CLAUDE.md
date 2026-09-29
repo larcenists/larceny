@@ -46,6 +46,20 @@ one.  Add new ideas to `TODO.md` as they come up.
 - `make clean` in `src/Rts` deletes the generated `Shared/arithmetic.c`;
   rerun `build-config-files` afterwards.
 
+## Feature markers
+
+Compiled files begin with `#lap(...)` or `#lop(...)` (after `#!fasl` in
+`.fasl` files), listing what the code assumes of the system and what it
+guarantees; see `src/Lib/Common/code-features.sch`.  When changing code
+generation, keep them true:
+
+- Bump the version in `(target fence-arm64 N)` (in
+  `assembler-lop-features`, `src/Asm/Fence/pass5p2-arm64.sch`) when the
+  calling convention or millicode interface changes incompatibly.
+- Add to or remove from the guarantees when barriers change.
+- A collector that needs something new of compiled code adds it to
+  `system-code-requirements`.
+
 ## Testing
 
 - `test/Lib`: `(load "load-all-tests.sch") (run-all-tests)` in a copy of

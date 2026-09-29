@@ -4,6 +4,15 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Feature markers on compiled code: `#lap(...)`/`#lop(...)` with
+  `assumes` and `guarantees` sets, in both readers (8922e52f); written by
+  the compiler into `.lap`, `.lop`, and `.fasl` files (718fac3f); checked
+  by make (a mismatch is out of date), at startup, and when loading
+  `.fasl` files, against what the heap's code assumes and what the
+  collector requires; `gc-technology` reports `regional` (cc7da70a).
+- `build-config-files` rewrites generated files only when they change,
+  so builds no longer recompile everything (f9cae291); `bootstrap.sh`
+  can be hosted by the tree's own Larceny (514d2611).
 - Compiled files (`.lap`, `.lop`, `.fasl`) made by the build's make
   rules are out of date when the compiler or assembler sources are newer
   (`make:tool-files`); `larceny.bin` is installed read-only by renaming
