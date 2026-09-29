@@ -154,6 +154,9 @@
                      (flag quiet-load)
                      (flag verbose-load)
                      (flag always-source)
+                     ;; Build products from another configuration
+                     (flag clean)
+                     (flag keep-build-products)
                      ;; Target variation options
                      (flag native)
                      (flag nasm)
@@ -250,7 +253,102 @@
                                (else host:))))
            (setup-real! scheme: host: target: c-compiler: string-rep:
             (or native sassy nasm) code-cov rebuild-code-cov
-            sassy nasm)))))
+            sassy nasm)
+           (check-build-configuration! clean keep-build-products)))))
+
+;; Build products (.lop, .fasl, object files, heaps, generated headers,
+;; and so on) are written into the source tree, and make decides what
+;; to rebuild by comparing timestamps only, so products of one
+;; configuration (Petit vs native, 32 vs 64 bits, ...) must never be
+;; mixed with those of another.  setup therefore records the target
+;; configuration in the file below and checks it on every later setup.
+;; The host Scheme is not part of the configuration: the products are
+;; the same whichever Scheme hosts the build.
+
+(define *build-configuration-file* "build-configuration")
+
+(define (build-configuration-string)
+  (define (->string x)
+    (cond ((symbol? x) (symbol->string x))
+          ((number? x) (number->string x))
+          ((string? x) x)
+          ((not x) "#f")
+          ((pair? x) (apply string-append
+                            (map (lambda (y) (string-append (->string y) " "))
+                                 x)))
+          ((null? x) "")
+          (else "?")))
+  (apply string-append
+         (map (lambda (x) (string-append (->string x) "; "))
+              (list *target:machine* *target:os* *target:word-size*
+                    *target:endianness* *runtime-type* *heap-type*
+                    *target:string-rep* *change-feature-set*
+                    *runtime:additional-features* *globals-table*))))
+
+(define (check-build-configuration! clean keep-build-products)
+
+  ;; Looked up at run time: some hosts (Racket) import file-exists? when
+  ;; the compatibility package is loaded, after this file was compiled.
+  (define (file-exists? f)
+    ((eval 'file-exists? (interaction-environment)) f))
+
+  (define (displn . args)
+    (for-each display args)
+    (newline))
+
+  (define (recorded-configuration)
+    (and (file-exists? *build-configuration-file*)
+         (call-with-input-file *build-configuration-file* read)))
+
+  (define (record-configuration!)
+    (if (file-exists? *build-configuration-file*)
+        (delete-file *build-configuration-file*))
+    (call-with-output-file *build-configuration-file*
+      (lambda (out)
+        (write (build-configuration-string) out)
+        (newline out))))
+
+  (define (build-products-present?)
+    (or (file-exists? "include/config.h")
+        (file-exists? "src/Rts/Makefile")
+        (file-exists? "src/Lib/Common/malcode.lap")
+        (file-exists? "src/Lib/Common/malcode.lop")))
+
+  ;; Removes the build products: the files git ignores in the root
+  ;; directory and in include, src, and lib (except editor backups).
+  (define (clean-build-products!)
+    (if (not (zero? (system "git rev-parse --git-dir > /dev/null 2>&1")))
+        (error 'setup
+               "'clean needs git to find the build products; remove them by hand"))
+    (displn "Removing build products...")
+    (system (string-append
+             "git ls-files -z -o -i --exclude-standard -- "
+             "':(glob)*' include src lib "
+             "':(exclude,glob)*~' ':(exclude,glob)**/*~' "
+             "| xargs -0 rm -f --")))
+
+  (define (refuse why)
+    (displn why)
+    (displn "Products of different configurations must not be mixed.  Re-run setup")
+    (displn "with 'clean to remove the existing build products first, or with")
+    (displn "'keep-build-products if you are sure they belong to this configuration.")
+    (error 'setup "build products from another configuration"))
+
+  (let ((old (recorded-configuration))
+        (new (build-configuration-string)))
+    (cond ((equal? old new)
+           (if clean (begin (clean-build-products!) (record-configuration!))))
+          (clean
+           (clean-build-products!)
+           (record-configuration!))
+          ((or keep-build-products
+               (and (not old) (not (build-products-present?))))
+           (record-configuration!))
+          (old
+           (refuse (string-append "This tree was set up for another configuration:\n  "
+                                  old "\nnot:\n  " new)))
+          (else
+           (refuse "This tree contains build products of an unknown configuration.")))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.

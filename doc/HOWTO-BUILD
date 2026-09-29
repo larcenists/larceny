@@ -73,9 +73,9 @@ BUILDING NATIVE LARCENY ON APPLE SILICON (macOS/arm64)
 
 Native Larceny for AArch64 uses the Fence/Cant code generator (see
 src/Asm/Fence/pass5p2-arm64.sch) and, like the 64-bit Petit Larceny,
-uses 64-bit words and 62-bit fixnums.  It is bootstrapped with Racket,
-in a tree that has not been used for a Petit Larceny build (the build
-products of the two would clash).  The script
+uses 64-bit words and 62-bit fixnums.  It is bootstrapped with Racket
+(see "Build configurations", below, if the tree has been used for other
+builds).  The script
 
         % src/Build/bootstrap-arm64-native.sh
 
@@ -109,6 +109,26 @@ generation.  Heap images keep code in their text segment.  The code
 space is supported by the stop-and-copy (-stopcopy) and generational
 (default) collectors, but not yet by the regional collector (-rrof).
 Its address space can be set with LARCENY_CODE_GB (default 1 GB).
+
+
+BUILD CONFIGURATIONS
+
+Build products are written into the source tree, and must not be mixed
+between configurations (Petit vs native, 32 vs 64 bits, and so on).
+setup records the configuration in the file build-configuration, and
+refuses to proceed if the tree was set up for a different one, or holds
+build products but no record.  Then either
+
+    > (setup ... 'clean)
+
+removes the build products (using git to find them) before proceeding,
+or
+
+    > (setup ... 'keep-build-products)
+
+keeps them and records the new configuration.  The Scheme that hosts
+the build is not part of the configuration, so, for example, a tree
+built with Racket as the host can be rebuilt with Larceny as the host.
 
 
 WHAT TO DO

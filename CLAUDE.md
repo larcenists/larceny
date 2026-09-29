@@ -18,17 +18,19 @@ one.  Add new ideas to `TODO.md` as they come up.
 
 ## Building
 
-- Never build Petit and native (or builds hosted by different Schemes)
-  in the same tree: they write build products to the same paths, and
-  `make` goes by timestamps only.  Use separate worktrees, or clean with
-  `git clean -fdX` (removes only ignored build products) before switching.
+- Never mix build products of different configurations (Petit vs
+  native, ...) in one tree: they share paths, and `make` goes by
+  timestamps only.  `setup` records the configuration in
+  `build-configuration` and refuses a different one; pass `'clean` to
+  `setup` to remove the old products (or use separate worktrees).
+  The host Scheme is not part of the configuration.
 - Racket (`/Applications/Racket v9.3/bin/plt-r5rs --no-prim`) or an
   existing Larceny can host the build.  Pass build commands to the host
   in a file, not on stdin (a build step consumes stdin).
 - Native builds have two stages: the host-Scheme stage (`setup` with
   `'native`, ... `build-larceny-files`), then
   `./larceny.bin -stopcopy -heap arm64.heap -- src/Build/arm64-macosx-larceny-heap.sch`.
-  `src/Build/bootstrap-arm64-native.sh` does both from Racket.
+  `src/Build/bootstrap-arm64-native.sh [--clean]` does both from Racket.
 - After building, compile the R7RS/R6RS libraries once:
   `(require 'r7rsmode) (larceny:compile-r7rs-runtime)`.
 - `make clean` in `src/Rts` deletes the generated `Shared/arithmetic.c`;
