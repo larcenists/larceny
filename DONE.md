@@ -4,6 +4,8 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Native: zero stores from xzr, no redundant frame-header stores,
+  LDP/STP pairing of adjacent loads and stores (e917577c).
 - Native: calls and returns use BL/BLR and RET, so the return-address
   predictor works; call-heavy code 13-20% faster (cf9a21c5).
 - Native: allocation in line (fixed-size and make-vector-style) when the
