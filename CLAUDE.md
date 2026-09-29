@@ -42,8 +42,10 @@ one.  Add new ideas to `TODO.md` as they come up.
 - R7RS/R6RS suites: `test/R7RS/Lib/testall` and `testr6rs-larceny`.
 - Test both the default collector and `-stopcopy`; for Petit also
   `-rrof` (not yet supported natively).
-- When piping input into `./larceny`, use a timeout: after an error at end
-  of input the REPL loops forever (see TODO.md).
+- When piping input into `./larceny` from an interactive shell, note that
+  after end of input the console is reopened on `/dev/tty` (the REPL
+  waits for the keyboard); without a terminal it falls back to
+  `/dev/null`.  Use a timeout in scripts anyway.
 
 ## Conventions
 

@@ -56,7 +56,13 @@
 ; Console.
 ;
 ; The first time through, we use standard file descriptors inherited from
-; the parent process.  Later, we open /dev/tty.
+; the parent process.  Later, we open /dev/tty.  A process without a
+; controlling terminal (for example, one run from cron or a CI system)
+; cannot open /dev/tty; then we open /dev/null instead, so that console
+; input is at end of file and console output is discarded.  (Without the
+; fallback, a console reopened after end of file or an error was a
+; port on an invalid descriptor, and the REPL and debugger looped
+; forever reporting the resulting read errors.)
 
 (define *conio-input-firsttime*)
 (define *conio-output-firsttime*)
@@ -74,20 +80,26 @@
      (if *conio-input-firsttime* 
          (begin (set! *conio-input-firsttime* #f)
                 unix:stdin)
-         (unix:open "/dev/tty" unix:open-read 0)))
+         (osdep/open-terminal unix:open-read 0)))
     ((output)
      (if *conio-output-firsttime*
          (begin (set! *conio-output-firsttime* #f)
                 unix:stdout)
-         (unix:open "/dev/tty" unix:open-write unix:create-mode)))
+         (osdep/open-terminal unix:open-write unix:create-mode)))
     ((error)
      (if *conio-error-firsttime*
          (begin (set! *conio-error-firsttime* #f)
                 unix:stderr)
-         (unix:open "/dev/tty" unix:open-write unix:create-mode)))
+         (osdep/open-terminal unix:open-write unix:create-mode)))
     (else
      (error "osdep/open-terminal: invalid mode: " io-mode)
              #t)))
+
+(define (osdep/open-terminal flags mode)
+  (let ((fd (unix:open "/dev/tty" flags mode)))
+    (if (< fd 0)
+        (unix:open "/dev/null" flags mode)
+        fd)))
 
 (define (osdep/close-console fd)
   (osdep/close-file fd))

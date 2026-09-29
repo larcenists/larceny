@@ -44,12 +44,6 @@ DONE.md (with the date and the commit, if any).
 - Teach the nightly-build scripts in `test/Scripts` about the Racket host,
   `macosx-arm64`, and `'native`.
 
-## Runtime / REPL
-
-- After an error, when console input is at end of file, the REPL and the
-  debugger loop forever reporting "Read error on port" (42 MB of output in
-  15 s).  Seen natively; check whether Petit does the same.
-
 ## Repository
 
 - Push the 64-bit work on `master` to `origin`.
