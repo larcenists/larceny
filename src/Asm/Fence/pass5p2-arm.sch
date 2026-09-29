@@ -674,7 +674,7 @@
            (if (not src2-imm?)
                (arm.CMP as src2 r1)
                (begin
-                 (arm.setval as arm.TMP1 imm)
+                 (arm.setval as arm.TMP1 src2)
                  (arm.CMP as arm.TMP1 r1))))
           (else
            ;; TODO: We may be able to use CMN here for negative immediate src2

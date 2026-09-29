@@ -1028,12 +1028,31 @@
 ;
 ; TODO: Verify that alloc performs the necessary check.
 
+; The allocation is done in line when there is room in the nursery:
+; the nursery grows up from G_ETOP towards the stack, which grows down
+; from STKP, and SCE_BUFFER words must be left between them (as in the
+; allocation millicode).  Otherwise the millicode allocates.
+
+(define fence.sce-buffer-bytes $sce.buffer)          ; In bytes
+
 (define (emit-allocate-uninitialized as nbytes)
   (if (not (zero? (remainder nbytes $bytewidth.wordsize)))
       (error "Allocation request size must be divisible by the word size"))
-  ;; The millicode takes the number of words, as a fixnum.
-  (cant.movi as (fence.native->fixnum (quotient nbytes $bytewidth.wordsize)) $r.result)
-  (cant.trap as $m.alloc '*alloc))
+  (let ((n     (fence.roundup-dword nbytes))
+        (b     fence.sce-buffer-bytes)
+        (Lslow (fence.make-label as))
+        (Ldone (fence.make-label as)))
+    (cant.ldi    as $r.globals $g.etop $r.result)
+    (cant.addi   as $r.result (+ n b) $r.tmp)
+    (cant.bcc    as 'unsigned-less $r.stkp $r.tmp Lslow)
+    (cant.addi   as $r.tmp (- b) $r.tmp)
+    (cant.sti    as $r.tmp $r.globals $g.etop)
+    (cant.ba     as Ldone)
+    (fence.label as Lslow)
+    ;; The millicode takes the number of words, as a fixnum.
+    (cant.movi   as (fence.native->fixnum (quotient nbytes $bytewidth.wordsize)) $r.result)
+    (cant.trap   as $m.alloc '*alloc)
+    (fence.label as Ldone)))
 
 ; rinit is a register name or ().  If () we initialize with $imm.null,
 ; otherwise with the register contents.
@@ -1044,15 +1063,48 @@
 ;
 ; TODO: Verify that alloci performs the necessary check.
 
+; The allocation and initialization are done in line when there is
+; room in the nursery (see emit-allocate-uninitialized) and the length
+; is reasonable; the in-line loop fills the header and any padding word
+; too, and the header is written afterwards.
+
+(define fence.inline-alloci-limit (fence.native->fixnum (expt 2 24)))
+
 (define (emit-make-word-structure as rlen rinit rd tag hdr exn)
   (assert (or (null? rinit) (not (= rinit $r.result))))
   (emit-check-positive-fixnum as rlen exn)
   (cant.sti    as rlen $r.globals $g.alloctmp)             ; Save the actual length
-  (cant.addi   as rlen (fence.native->fixnum 1) $r.result) ; Add one word for the header
   (if (null? rinit)
       (cant.movi as $imm.null $r.second)
       (cant.mov  as rinit $r.second))
-  (cant.trap   as $m.alloci '*alloci)
+  (let ((b     fence.sce-buffer-bytes)
+        (a     (- (* 2 $bytewidth.wordsize) 1))
+        (Lslow (fence.make-label as))
+        (Lloop (fence.make-label as))
+        (Ldone (fence.make-label as)))
+    (cant.bcci   as 'greater-or-equal rlen fence.inline-alloci-limit Lslow)
+    ;; Bytes needed: the header plus length words, rounded up.
+    (if (= $bytewidth.wordsize 8)
+        (cant.shli as rlen 1 $r.tmp)
+        (cant.mov  as rlen $r.tmp))
+    (cant.addi   as $r.tmp (+ $bytewidth.wordsize a) $r.tmp)
+    (cant.andni  as $r.tmp a $r.tmp)
+    (cant.ldi    as $r.globals $g.etop $r.result)
+    (cant.add    as $r.result $r.tmp $r.tmp)
+    (cant.addi   as $r.tmp b $r.tmp)
+    (cant.bcc    as 'unsigned-less $r.stkp $r.tmp Lslow)
+    (cant.addi   as $r.tmp (- b) $r.tmp)
+    (cant.sti    as $r.tmp $r.globals $g.etop)
+    (fence.label as Lloop)                                 ; Fill from the end down
+    (cant.addi   as $r.tmp (- $bytewidth.wordsize) $r.tmp)
+    (cant.sti    as $r.second $r.tmp 0)
+    (cant.bcc    as 'unsigned-less $r.result $r.tmp Lloop)
+    (cant.ba     as Ldone)
+    (fence.label as Lslow)
+    (cant.ldi    as $r.globals $g.alloctmp $r.result)      ; rlen may have been RESULT
+    (cant.addi   as $r.result (fence.native->fixnum 1) $r.result) ; Add one word for the header
+    (cant.trap   as $m.alloci '*alloci)
+    (fence.label as Ldone))
   (cant.ldi    as $r.globals $g.alloctmp $r.tmp)
   (cant.shli   as $r.tmp fence.header-length-shift $r.tmp)
   (cant.addi   as $r.tmp hdr $r.tmp)

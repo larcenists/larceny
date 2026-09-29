@@ -9,10 +9,9 @@ DONE.md (with the date and the commit, if any).
   marking is in progress (the mark stack may hold code pointers); it could
   instead update the mark state.  It also copies code referenced only
   from garbage.
-- Cheaper allocation: every allocation is a millicode call that saves
-  and restores the whole register context (an allocation-heavy loop takes
-  85 ms native vs 54 ms Petit).  Inline allocation, or lighter-weight
-  millicode entry points.
+- Lighter-weight millicode calls: every call saves and restores the whole
+  register context (allocation is now in line in the common case, but
+  arithmetic on non-fixnums, generic comparisons, etc. still call out).
 - Peephole optimization for the AArch64 back end (the ARM-32 back end has
   a framework in `src/Asm/Fence/arm-optimizer.sch`); use the CPU's
   return-address predictor for calls and returns.
