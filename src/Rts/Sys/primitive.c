@@ -143,6 +143,12 @@ word w_bv;
   gc_t *gc = the_gc( globals );
   if (gc->code_space == 0)
     panic_exit( "This collector does not support compiled code." );
+  if (cs_wants_collection( gc->code_space )) {
+    globals[ G_RESULT ] = w_bv;          /* A root; the collection moves it */
+    gc_collect( gc, gc->code_space->gen_no, 0, GCTYPE_COLLECT );
+    cs_collected( gc->code_space );
+    w_bv = globals[ G_RESULT ];
+  }
   globals[ G_RESULT ] = cs_install( gc->code_space, w_bv );
 #else
   primitive_iflush( w_bv );

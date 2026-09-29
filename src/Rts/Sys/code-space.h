@@ -39,6 +39,8 @@ struct code_space {
   int         writing;          /* Code memory writable? */
   word        *load_bot;        /* Range being loaded, or NULL */
   word        *load_top;
+  int         installed;        /* Bytes installed since code was collected */
+  int         live;             /* Bytes live after code was collected */
 };
 
 code_space_t *create_code_space( int gen_no );
@@ -59,6 +61,16 @@ void cs_load_complete( code_space_t *cs );
 word cs_install( code_space_t *cs, word bv );
   /* Copy the bytevector bv into the code space and return a tagged
      pointer to the copy, which is ready to execute.
+     */
+
+int cs_wants_collection( code_space_t *cs );
+  /* Returns nonzero if so much code has been installed since the code
+     space was last collected that its generation should be collected
+     before more code is installed.
+     */
+
+void cs_collected( code_space_t *cs );
+  /* Called after an explicit collection of the code space's generation.
      */
 
 word cs_forward( code_space_t *cs, word obj );

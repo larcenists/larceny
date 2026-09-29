@@ -61,6 +61,8 @@ code_space_t *create_code_space( int gen_no )
   cs->gen_no = gen_no;
   cs->writing = 0;
   cs->load_bot = cs->load_top = 0;
+  cs->installed = 0;
+  cs->live = 0;
   return cs;
 }
 
@@ -97,7 +99,26 @@ word cs_install( code_space_t *cs, word bv )
   memcpy( dest, src, nbytes );
   writing( cs, 0 );
   osdep_code_flush( dest, (char*)dest + nbytes );
+  cs->installed += nbytes;
   return tagptr( dest, BVEC_TAG );
+}
+
+/* Code is normally collected when its generation fills up with data,
+   but a program that creates a lot of code (and little data) could
+   exhaust the code arena first.  */
+
+#define CS_MIN_INSTALLED  (8*1024*1024)
+
+int cs_wants_collection( code_space_t *cs )
+{
+  return cs->installed > max( CS_MIN_INSTALLED, cs->live );
+}
+
+void cs_collected( code_space_t *cs )
+{
+  ss_sync( cs->current );
+  cs->live = cs->current->used;
+  cs->installed = 0;
 }
 
 word cs_forward( code_space_t *cs, word obj )
@@ -128,7 +149,7 @@ void cs_after_collection( code_space_t *cs )
     ss_free( cs->current );
     cs->current = cs->tospace;
     cs->tospace = 0;
-    ss_sync( cs->current );
+    cs_collected( cs );
     supremely_annoyingmsg( "Code space after collection: %d bytes.",
                            cs->current->used );
   }
