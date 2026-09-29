@@ -1046,3 +1046,14 @@
 
 (define (arm.VMRS.APSR as)
   (arm.emit-other as (+ #b00001110 arm-cond.AL) #b11110001 #b11111010 #b00010000))
+
+; The features of the code this assembler produces (see
+; Lib/Common/code-features.sch).  The version number in the target
+; changes when the calling convention or the millicode interface does.
+; Both barriers are always emitted.
+
+(define (assembler-lop-features)
+  (make-code-features 'lop
+                      '((target fence-arm 1)
+                        (word-size 32))
+                      '(write-barrier satb-barrier)))

@@ -953,4 +953,15 @@
 (define (arm64.FCMP as rn rm)
   (arm64.emit as (+ #x1E602000 (* 65536 rm) (* 32 rn))))
 
+; The features of the code this assembler produces (see
+; Lib/Common/code-features.sch).  The version number in the target
+; changes when the calling convention or the millicode interface does.
+; Both barriers are always emitted.
+
+(define (assembler-lop-features)
+  (make-code-features 'lop
+                      '((target fence-arm64 1)
+                        (word-size 64))
+                      '(write-barrier satb-barrier)))
+
 ; eof

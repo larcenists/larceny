@@ -61,18 +61,22 @@
     ;; when the environment is implicit, that change should be reflected in
     ;; subsequent evaluations.
 
+    ;; A fasl file's #lop(...) feature marker (see code-features.sch)
+    ;; is not evaluated.
+
     (do ((expr (read p) (read p)))
         ((eof-object? expr))
-      (call-with-values
-       (lambda () ((load-evaluator) expr (get-environment)))
-       (lambda values
-         (if (load-print)
-             (for-each (lambda (value)
-                         (newline (current-output-port))
-                         (write-string ";    " (current-output-port))
-                         (write value (current-output-port))
-                         (flush-output-port (current-output-port)))
-                       values))))))
+      (if (not (code-features? expr))
+          (call-with-values
+           (lambda () ((load-evaluator) expr (get-environment)))
+           (lambda values
+             (if (load-print)
+                 (for-each (lambda (value)
+                             (newline (current-output-port))
+                             (write-string ";    " (current-output-port))
+                             (write value (current-output-port))
+                             (flush-output-port (current-output-port)))
+                           values)))))))
   (unspecified))
 
 (define (load filename . rest)

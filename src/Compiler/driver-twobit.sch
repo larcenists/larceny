@@ -39,7 +39,8 @@
             (process-file-block infilename
                                 `(,outfilename binary)
                                 (cons write-fasl-token
-                                      (assembly-declarations user))
+                                      (cons write-lop-features
+                                            (assembly-declarations user)))
                                 read
                                 dump-fasl-segment-to-port
                                 (lambda (forms)
@@ -48,7 +49,8 @@
             (process-file infilename
                           `(,outfilename binary)
                           (cons write-fasl-token
-                                (assembly-declarations user))
+                                (cons write-lop-features
+                                      (assembly-declarations user)))
                           read
                           dump-fasl-segment-to-port
                           (lambda (expr)
@@ -78,14 +80,14 @@
       (if (benchmark-block-mode)
           (process-file-block infilename 
 			      outfilename 
-			      '()
+			      (list write-lap-features)
                               read
 			      write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
           (process-file infilename 
 			outfilename 
-			'()
+			(list write-lap-features)
                         read
 			write-lap 
                         (lambda (x) 
@@ -108,8 +110,8 @@
          (assembly-user-data)))
     (process-file file
                   `(,outputfile binary)
-		  (assembly-declarations user)
-                  read
+		  (cons write-lop-features (assembly-declarations user))
+                  (code-features-skipping-reader read)
                   write-lop
                   (lambda (x) 
 		    (assemble (if malfile? (eval x) x) user)))
@@ -131,14 +133,14 @@
       (if (benchmark-block-mode)
           (process-file-block input-file
                               `(,output-file binary)
-			      (assembly-declarations user)
+			      (cons write-lop-features (assembly-declarations user))
                               read
                               write-lop
                               (lambda (x)
 				(assemble (compile-block x syntaxenv) user)))
           (process-file input-file
                         `(,output-file binary)
-			(assembly-declarations user)
+			(cons write-lop-features (assembly-declarations user))
                         read
                         write-lop
                         (lambda (x) 
@@ -158,8 +160,9 @@
                                   *fasl-file-type*))))
       (process-file `(,infilename binary)
                     `(,outfilename binary)
-		    (list write-fasl-token)
-                    read
+		    (list write-fasl-token
+                          (write-code-features-of infilename))
+                    (code-features-skipping-reader read)
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

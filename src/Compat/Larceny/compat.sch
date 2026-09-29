@@ -45,6 +45,22 @@
                                  "code-features.sch")))
         )))
 
+;; Fasl files begin with #!fasl and, since the feature markers were
+;; introduced, a #lop(...) marker.  A host that predates the markers
+;; cannot read such a file, and loads the source instead.
+
+(define compat:host-reads-markers?
+  (guard (e (#t #f))
+    (not (eof-object? (read (open-input-string "#lop()"))))))
+
+(define (compat:host-can-load-fasl? fn)
+  (or compat:host-reads-markers?
+      (call-with-input-file fn
+        (lambda (p)
+          (read-line p)
+          (let ((c (peek-char p)))
+            (not (eqv? c #\#)))))))
+
 (define (larc-new-extension fn ext)
   (let* ((l (string-length fn))
 	 (x (let loop ((i (- l 1)))
@@ -67,7 +83,8 @@
 	;; exist, handy for cross-compilation.
 	(cond ((and (file-exists? fn)
 		    (file-exists? filename)
-		    (compat:file-newer? fn filename))
+		    (compat:file-newer? fn filename)
+                    (compat:host-can-load-fasl? fn))
 	       (loadit fn))
 	      ((and (file-exists? fn) 
 		    (not (file-exists? filename)))

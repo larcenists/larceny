@@ -294,6 +294,7 @@
 (define (dump-file! h filename)
   (call-with-raw-latin-1-input-file filename
     (lambda (in)
+      (read-code-features-marker in)
       (let loop ((decls '()))
         (let ((item (read in)))
           (if (string? item)

@@ -720,4 +720,15 @@
     x))
 
 
+; The features of the code this assembler produces (see
+; Lib/Common/code-features.sch).  The version number in the target
+; changes when the calling convention or the millicode interface does.
+; The barriers are in the C macros of petit-instr.h.
+
+(define (assembler-lop-features)
+  (make-code-features 'lop
+                      (list '(target petit 1)
+                            (list 'word-size (nbuild-parameter 'word-size)))
+                      '(write-barrier satb-barrier)))
+
 ; eof
