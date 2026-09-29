@@ -15,8 +15,13 @@ DONE.md (with the date and the commit, if any).
 - More peephole optimization for the AArch64 back end (the ARM-32 back
   end has a framework in `src/Asm/Fence/arm-optimizer.sch`), e.g. the
   stack overflow check and timer tick sequences.
-- Conditional branches reach only +/-1 MB, so larger code vectors fail an
-  assertion; fall back to longer sequences.
+- GC byte counts are C `int`s (`semispace_t.allocated`/`used`, the GC
+  statistics, ...), so a heap over 2 GB overflows them and the collector
+  panics (seen compiling a 20000-statement procedure, below).  Widen them.
+- Twobit's memory use explodes on enormous single procedures (a
+  procedure of 8000 statements needs over 2 GB); the AArch64 long-branch
+  mode for code vectors over 1 MB could only be tested with its
+  threshold lowered.
 - Account for the code space in the heap statistics (`memstats`,
   `gclib_stats`).
 - FFI and the `-np` collector (neither exists for Petit either).  Part

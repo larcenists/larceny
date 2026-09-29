@@ -31,8 +31,11 @@
 ; Instructions are four bytes and four-byte aligned, so every return
 ; address looks like a fixnum to the garbage collector.
 ;
-; Conditional branches reach +/-1MB and unconditional branches reach
-; +/-128MB; larger code vectors are not supported.
+; Conditional branches and ADR reach only +/-1MB, unconditional branches
+; +/-128MB.  A code vector assembled from many MAL instructions (see
+; arm64.long-mode?) uses long forms: an inverted conditional branch
+; around an unconditional one, and return addresses computed from the
+; code vector's address.
 ;
 ; TODO:
 ;
@@ -49,7 +52,8 @@
   (emit-label! as L))
 
 (define (cant.end as)
-  (arm64.flush! as))
+  (arm64.flush! as)
+  (arm64.end-long-mode! as))
 
 ; Assumes that exceptions are non-continuable, as does the ARM-32
 ; back end, but the call sequence is the same either way.
@@ -97,7 +101,9 @@
   (arm64.RET  as arm64.TMP1))
 
 (define (cant.setrtn/strtn as L offset)
-  (arm64.ADR   as arm64.TMP1 L 0)
+  (if (arm64.long-mode? as)
+      (arm64.code-address as L)         ; REG0 is the current procedure
+      (arm64.ADR as arm64.TMP1 L 0))
   (arm64.store as 8 arm64.TMP1 arm64.STKP offset))
 
 ; Leave in TMP1 the address of L within the code vector of REG0, or
@@ -584,6 +590,7 @@
 
 (define (arm64.bccx as condition r1 src2 src2-imm? L)
   (cond ((and src2-imm?
+              (not (arm64.long-mode? as))
               (eqv? src2 0)
               (memq condition '(equal not-equal)))
          ((if (eq? condition 'equal) arm64.CBZ arm64.CBNZ) as r1 L))
@@ -870,6 +877,35 @@
                   (arm64.patch! cv loc (patch-bits (quotient offset 4))))))
           (arm64.emit as (make-instr 0))))))
 
+; Long mode.  The number of MAL instructions is a proxy for the size of
+; the code vector, which is not known until it has been assembled; the
+; limit allows about 125 bytes per instruction, far more than typical.
+
+(define arm64.long-mode-instructions 8000)
+
+(define arm64.long-mode-assemblers '())
+
+(define make-assembly-structure
+  (let ((make-assembly-structure make-assembly-structure))
+    (lambda (source table user-data)
+      (let ((as (make-assembly-structure source table user-data)))
+        (if (and (list? source)
+                 (> (length source) arm64.long-mode-instructions))
+            (set! arm64.long-mode-assemblers
+                  (cons as arm64.long-mode-assemblers)))
+        as))))
+
+(define (arm64.long-mode? as)
+  (and (memq as arm64.long-mode-assemblers) #t))
+
+(define (arm64.end-long-mode! as)
+  (if (arm64.long-mode? as)
+      (set! arm64.long-mode-assemblers
+            (let loop ((l arm64.long-mode-assemblers))
+              (cond ((null? l) '())
+                    ((eq? (car l) as) (cdr l))
+                    (else (cons (car l) (loop (cdr l)))))))))
+
 (define (arm64.imm26-bits n)
   (arm64.field n 26))
 
@@ -883,7 +919,11 @@
   (arm64.branch as L (lambda (bits) (+ #x94000000 bits)) arm64.imm26-bits))
 
 (define (arm64.Bcond as cond L)
-  (arm64.branch as L (lambda (bits) (+ #x54000000 bits cond)) arm64.imm19-bits))
+  (if (arm64.long-mode? as)
+      (begin
+        (arm64.emit as (+ #x54000000 (* 32 2) (arm64.invert-condition cond)))
+        (arm64.B as L))
+      (arm64.branch as L (lambda (bits) (+ #x54000000 bits cond)) arm64.imm19-bits)))
 
 (define (arm64.CBZ as rt L)
   (arm64.branch as L (lambda (bits) (+ #xB4000000 bits rt)) arm64.imm19-bits))

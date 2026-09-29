@@ -55,6 +55,7 @@
 ; the location counter, and a list of fixup procedures.
 
 (define (make-test-as) (vector '() 0 '()))
+(define (make-assembly-structure source table user-data) (make-test-as))
 
 (define (emit! as bv)
   (vector-set! as 0 (cons bv (vector-ref as 0)))
@@ -276,6 +277,22 @@
      "str x3, [x22, #8] ; nop ; str x4, [x22, #16]")
     (,(lambda (as) (arm64.store as 8 3 22 504) (arm64.store as 8 4 22 512))
      "str x3, [x22, #504] ; str x4, [x22, #512]")
+
+    ;; Long mode (very large code vectors)
+    (,(lambda (as) (set! arm64.long-mode-assemblers (list as))
+                   (arm64.Bcond as arm64-cond.EQ (L as 100))
+                   (cant.end as))
+     "b.ne .+8 ; b .+96")
+    (,(lambda (as) (set! arm64.long-mode-assemblers (list as))
+                   (cant.bcci as 'equal $r.result 0 (L as 200))
+                   (cant.end as))
+     "cmp x0, #0 ; b.ne .+8 ; b .+192")
+    (,(lambda (as) (set! arm64.long-mode-assemblers (list as))
+                   (let ((lbl (cons 'label #f)))
+                     (cant.setrtn/strtn as lbl 0)
+                     (cant.label as lbl))
+                   (cant.end as))
+     "ldur x16, [x2, #1] ; movz x17, #23 ; movk x17, #0, lsl #16 ; add x16, x16, x17 ; str x16, [x22]")
 
     ;; Floating point
     (,(lambda (as) (arm64.FADD as 8 8 9)) "fadd d8, d8, d9")
