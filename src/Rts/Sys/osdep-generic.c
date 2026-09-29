@@ -493,6 +493,156 @@ void osdep_pollinput( word w_fd )
        first block that can accomodate the required alignment
    */
 
+#if defined(BITS_64) && defined(UNIX)
+/* Reserved-arena allocator for 64-bit Unix systems.
+
+   The garbage collector's page tables (see alloc.c) cover the range of
+   addresses between the lowest and highest block ever allocated, so on
+   a 64-bit system blocks must not be scattered across the address
+   space.  At the first request we therefore reserve a large region of
+   virtual memory (backed lazily by the OS) and satisfy all requests
+   from it, page-aligned, with a first-fit free list and coalescing.
+   Freed extents are returned to the OS with madvise().
+
+   The size of the arena can be set with the LARCENY_ARENA_GB
+   environment variable; the default is 64 GB of address space.
+   */
+
+#include <sys/mman.h>
+
+#define ARENA_PAGE        4096
+#define ARENA_DEFAULT_GB  64
+
+typedef struct arena_extent arena_extent_t;
+struct arena_extent {
+  byte *start;
+  size_t bytes;
+  arena_extent_t *next;           /* sorted by address */
+};
+
+static struct {
+  byte *base;                     /* start of the reservation */
+  byte *limit;                    /* end of the reservation */
+  byte *frontier;                 /* never-allocated memory starts here */
+  arena_extent_t *free;           /* free extents below the frontier */
+} arena = { 0, 0, 0, 0 };
+
+static void arena_init( void )
+{
+  size_t gb = ARENA_DEFAULT_GB;
+  char *e = getenv( "LARCENY_ARENA_GB" );
+  void *p;
+
+  if (e != 0 && atoi( e ) > 0)
+    gb = (size_t)atoi( e );
+  for (;;) {
+    size_t bytes = gb*1024*1024*1024;
+    p = mmap( 0, bytes, PROT_READ|PROT_WRITE,
+              MAP_PRIVATE|MAP_ANON|MAP_NORESERVE, -1, 0 );
+    if (p != MAP_FAILED) {
+      arena.base = arena.frontier = (byte*)roundup( (word)p, ARENA_PAGE );
+      arena.limit = (byte*)p + bytes;
+      return;
+    }
+    if (gb <= 1)
+      panic_exit( "Unable to reserve address space for the heap." );
+    gb = gb / 2;
+  }
+}
+
+void *osdep_alloc_aligned( int bytes ) 
+{
+  arena_extent_t *x, **prev;
+  size_t n;
+  byte *p;
+
+  if (arena.base == 0)
+    arena_init();
+  n = roundup( (size_t)bytes, ARENA_PAGE );
+
+  /* First fit among freed extents. */
+  for ( prev = &arena.free, x = arena.free ; x != 0 ; 
+        prev = &x->next, x = x->next ) {
+    if (x->bytes >= n) {
+      p = x->start;
+      if (x->bytes == n) {
+        *prev = x->next;
+        free( x );
+      }
+      else {
+        x->start += n;
+        x->bytes -= n;
+      }
+      return p;
+    }
+  }
+
+  while (arena.frontier + n > arena.limit) 
+    memfail( MF_MALLOC, "Heap arena exhausted by request for %d bytes; "
+             "try setting LARCENY_ARENA_GB.", bytes );
+  p = arena.frontier;
+  arena.frontier += n;
+  return p;
+}
+
+void osdep_free_aligned( void *block, int bytes ) 
+{
+  arena_extent_t *x, *prev, *y;
+  byte *p = (byte*)block;
+  size_t n = roundup( (size_t)bytes, ARENA_PAGE );
+
+  assert( arena.base <= p && p + n <= arena.frontier );
+  madvise( p, n, MADV_FREE );
+
+  /* Find insertion point. */
+  for ( prev = 0, x = arena.free ; x != 0 && x->start < p ; 
+        prev = x, x = x->next )
+    ;
+
+  /* Coalesce with predecessor? */
+  if (prev != 0 && prev->start + prev->bytes == p) {
+    prev->bytes += n;
+    y = prev;
+  }
+  else {
+    y = (arena_extent_t*)must_malloc( sizeof( arena_extent_t ) );
+    y->start = p;
+    y->bytes = n;
+    y->next = x;
+    if (prev == 0) 
+      arena.free = y;
+    else
+      prev->next = y;
+  }
+
+  /* Coalesce with successor? */
+  if (x != 0 && y != x && y->start + y->bytes == x->start) {
+    y->bytes += x->bytes;
+    y->next = x->next;
+    free( x );
+  }
+
+  /* Give back memory at the frontier. */
+  if (y->start + y->bytes == arena.frontier) {
+    arena.frontier = y->start;
+    if (arena.free == y)
+      arena.free = y->next;
+    else {
+      for ( x = arena.free ; x->next != y ; x = x->next )
+        ;
+      x->next = y->next;
+    }
+    free( y );
+  }
+}
+
+int osdep_fragmentation( void )
+{
+  return 0;
+}
+
+#else  /* !(defined(BITS_64) && defined(UNIX)) */
+
 static int fragmentation = 0;
 
 #define PARCEL_8K_BlOCKS 1
@@ -774,6 +924,7 @@ static byte *find_and_free_pointer( byte *derived, int *frag_recv )
   registry[i].frag = 0;
   return p;
 }
+#endif /* defined(BITS_64) && defined(UNIX) */
 #endif  /* USE_GENERIC_ALLOCATOR || GENERIC_OS */
 
 /* eof */

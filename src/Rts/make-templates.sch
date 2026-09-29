@@ -117,6 +117,10 @@
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc-v6
 		  make-template-target-petit-unix-static)))
+    (petit-macosx-arm64-static-clang
+     . ,(lambda ()
+	  (values make-template-petit-macosx-arm64-clang
+		  make-template-target-petit-macosx-static)))
     (petit-win32-static-mingw-v3
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc-v3
@@ -203,6 +207,18 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
   (template-common (makefile-variable-definitions 'gcc-v5)))
 (define make-template-petit-unix-gcc-v6
   (template-common (makefile-variable-definitions 'gcc-v6)))
+
+; Petit Larceny: MacOS X on Apple Silicon (arm64, 64-bit words): clang
+(define make-template-petit-macosx-arm64-clang
+  (template-common
+"O=o
+CC=cc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wno-format
+# Floating-point contraction (fused multiply-add) changes results.
+CFLAGS+=-c -fno-common -ffp-contract=off -I$(INC_ROOT)/Standard-C $(WARNINGS)
+LIBS=-lm"))
 
 ; Native Larceny with Sassy back-end: Unix: NASM macro assembler for Rts
 (define make-template-sassy-unix-gcc
@@ -435,6 +451,13 @@ bdwlarceny.bin: kill_version_o $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 "libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a")
+
+; MacOS X on Apple Silicon: the linker requires 8-byte aligned archive
+; members, which Apple's libtool guarantees but ar does not.
+(define make-template-target-petit-macosx-static
+"libpetit.a: $(PETIT_LARCENY_OBJECTS)
+	rm -f libpetit.a
+	libtool -static -o libpetit.a $(PETIT_LARCENY_OBJECTS)")
 
 ; Unix: generic gcc
 (define make-template-target-petit-unix-shared

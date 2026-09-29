@@ -50,21 +50,21 @@ word w_envvar;
     return;
   }
   l = strlen( p );
-  q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+  q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
   *q = mkheader( l, BV_HDR );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
 /* returns a freshly allocated bytevector initialized to environ */
-/* FIXME: hard-codes 4 as the header size (in bytes)             */
+/* (the header is sizeof(word) bytes)             */
 
 void primitive_listenv_init( void )
 {
   extern char **environ;
   word *q;
 
-  q = (word*)gc_allocate( the_gc(globals), (4 + sizeof(char**)), 0, 1 );
+  q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + sizeof(char**)), 0, 1 );
   *q = mkheader( sizeof(char**), BV_HDR );
   *((word **) string_data( q )) = (word *) environ;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
@@ -72,7 +72,7 @@ void primitive_listenv_init( void )
 
 /* given a bytevector created by primitive_listenv_init, returns */
 /* the next environment variable and updates the bytevector      */
-/* FIXME: hard-codes 4 as the header size (in bytes)             */
+/* (the header is sizeof(word) bytes)             */
 
 void primitive_listenv( generator )
 word generator;
@@ -91,7 +91,7 @@ word generator;
     return;
   }
   l = strlen( p );
-  q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+  q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
   *q = mkheader( l, BV_HDR );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
@@ -127,13 +127,15 @@ void primitive_iflush( w_bv )
 word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
-                    ptrof( w_bv )+1+roundup4(sizefield(*ptrof(w_bv)))/4 );
+                    ptrof( w_bv )+1+roundup_word(sizefield(*ptrof(w_bv)))/sizeof(word) );
 }
 
 /* Floating-point operations */
 
-#define flonum_val( p )    (*(double*)((char*)(p)-5+8))
-#define box_flonum( p, v ) (*(double*)((char*)(p)-5+8) = (v))
+#define flonum_val( p ) \
+  (*(double*)((char*)(p)-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
+#define box_flonum( p, v ) \
+  (*(double*)((char*)(p)-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)) = (v))
 
 /* One-argument math operations */
 #define numeric_onearg( name, op ) \
@@ -238,7 +240,7 @@ void primitive_object_to_address( word w_obj )
    * FIXME: can't we check that this invariant holds?
    */
   if (isptr(w_obj))
-    globals[ G_RESULT ] = box_uint( (word)ptrof( w_obj ) );
+    globals[ G_RESULT ] = box_word( (word)ptrof( w_obj ) );
   else
     globals[ G_RESULT ] = w_obj;
 }
@@ -378,7 +380,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
@@ -395,7 +397,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
@@ -418,7 +420,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
@@ -435,7 +437,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );

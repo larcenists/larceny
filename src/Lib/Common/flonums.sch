@@ -163,9 +163,10 @@
         (begin
           (error "make-compnum: not a flonum: " (if (flonum? real) imag real))
           #t)
-        (let ((b (make-bytevector 20)))
-          (cp real 4 b 4 8)
-          (cp imag 4 b 12 8)
+        (let* ((o flonum:o)
+               (b (make-bytevector (+ o 16))))
+          (cp real o b o 8)
+          (cp imag o b (+ o 8) 8)
           (typetag-set! b sys$tag.compnum-typetag)
           b)))
 
@@ -197,7 +198,7 @@
   ; Create a bytevector-like structure that can hold a flonum.
 
   (define (%make-flonum-datum)
-    (let ((b (make-bytevector 12)))
+    (let ((b (make-bytevector (+ flonum:o 8))))
       (typetag-set! b sys$tag.flonum-typetag)
       b))
 

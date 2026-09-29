@@ -74,7 +74,7 @@ static int gset_count( gset_t gs ) {
   }
   assert2(0);
 }
-static bool gset_max_elem( gset_t gs ) {
+static int gset_max_elem( gset_t gs ) {
   switch (gs.tag) {
   case gs_singleton: return gs.g1;
   case gs_range:     return gs.g2-1;
@@ -83,7 +83,7 @@ static bool gset_max_elem( gset_t gs ) {
   }
   assert2(0); return 0;
 }
-static bool gset_last_elem( gset_t gs ) {
+static int gset_last_elem( gset_t gs ) {
   switch (gs.tag) {
   case gs_singleton: return gs.g1;
   case gs_range:     return gs.g2-1;
@@ -92,7 +92,7 @@ static bool gset_last_elem( gset_t gs ) {
   }
   assert2(0); return 0;
 }
-static bool gset_first_elem( gset_t gs ) {
+static int gset_first_elem( gset_t gs ) {
   switch (gs.tag) {
   case gs_singleton: return gs.g1;
   case gs_range:     return gs.g1;

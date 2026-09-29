@@ -21,7 +21,7 @@
 #define HEADER_NEXTP     -2	/* Offset of 'next' pointer */
 #define HEADER_PREVP     -1	/* Offset of 'previous' pointer */
 
-#define size( x )         (((int*)(x))[ HEADER_SIZE ])
+#define size( x )         (((s_word*)(x))[ HEADER_SIZE ])
 #define next( x )         (((word**)(x))[ HEADER_NEXTP ])
 #define prev( x )         (((word**)(x))[ HEADER_PREVP ])
 

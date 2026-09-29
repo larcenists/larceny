@@ -203,7 +203,7 @@ void UNIX_iflush( w_bv )
 word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
-		    ptrof( w_bv )+roundup4(sizefield(*ptrof(w_bv)))/4 );
+		    ptrof( w_bv )+roundup_word(sizefield(*ptrof(w_bv)))/sizeof(word) );
 }
 
 /* Copy a file name from a Scheme string to a C string. */
@@ -313,7 +313,7 @@ void UNIX_object_to_address( word w_obj )
    * or the result may be completely invalid.
    */
   if (isptr(w_obj))
-    globals[ G_RESULT ] = box_uint( (word)ptrof( w_obj ) );
+    globals[ G_RESULT ] = box_word( (word)ptrof( w_obj ) );
   else
     globals[ G_RESULT ] = w_obj;
 }

@@ -149,7 +149,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   do {                                                                 \
     word next_obj;                                                     \
     word new_obj, old_obj; int new_gno, old_gno;                       \
-    check_spaceI(dest,lim,8,0,e);                                      \
+    check_spaceI(dest,lim,2*sizeof(word),0,e);                                      \
     *dest = *TMP_P;                                                    \
     *(dest+1) = next_obj = *(TMP_P+1);                                 \
     new_obj = install_fwdptr( TMP_P, dest, PAIR_TAG);                  \
@@ -172,7 +172,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   }                                                                           \
   else {                                                                      \
     word *TMPD;                                                               \
-    check_spaceI(dest,lim,sizefield(TMP_W)+4,8,e);                            \
+    check_spaceI(dest,lim,sizefield(TMP_W)+sizeof(word),2*sizeof(word),e);                            \
     TMPD = dest;                                                              \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;                           \
   }
@@ -959,7 +959,7 @@ void copied_icache_flush( word *bv ) {
   word T_h = header( hdr );
   word T_bytes = sizefield( hdr );
   word *start = bv;
-  word *end = (word *) (((char *) (start + 1)) + roundup8( T_bytes ));
+  word *end = (word *) (((char *) (start + 1)) + roundup_word( T_bytes ));
   if ( T_h == BV_HDR )
     mem_icache_flush( start, end );
 }
@@ -1014,13 +1014,13 @@ word forward( const word p, word **dest, cheney_env_t *e )
 
     /* gcc gets this right, so no sense in being obscure.
        words = (((hdr >> 8) + 11) >> 3) << 1; */
-    words = roundup8( sizefield( hdr ) + 4 ) / 4;
+    words = object_size_bytes( hdr ) / sizeof(word);
     wordsz = words;
 
 #if CHECK_EVERY_WORD
     switch (tag) {
     case VEC_TAG : case PROC_TAG :
-      gclib_check_memory_validity( p2, (sizefield( hdr ) + 4)/4 );
+      gclib_check_memory_validity( p2, (sizefield( hdr ) + sizeof(word))/sizeof(word) );
     }
 #endif
     /* 32 is pretty arbitrary; chosen to match overhead of memcpy(). */
@@ -1034,10 +1034,10 @@ word forward( const word p, word **dest, cheney_env_t *e )
         words -= 2;
       }
     }
-    else if (words > GC_LARGE_OBJECT_LIMIT/4 && e->los) 
+    else if (words > GC_LARGE_OBJECT_LIMIT/sizeof(word) && e->los) 
       return forward_large_object( e, ptr, tag, tospace_dest(e)->gen_no );
     else {
-      memcpy( p1, p2, words*4 );
+      memcpy( p1, p2, words*sizeof(word) );
       p1 += words;
     }
     *dest = p1;
@@ -1047,13 +1047,13 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #if FORW_BY_DUFF
   { unsigned bytes;
 
-  bytes = roundup8( sizefield( hdr ) + 4 );
+  bytes = object_size_bytes( hdr );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los) 
     return forward_large_object( e, ptr, tag, gen_of(p1) );
 
   wordsz = bytes / sizeof(word);
 
-  switch (bytes >> 3) {
+  switch (bytes / (2*sizeof(word))) {
     case 8  : *p1++ = *p2++;
               *p1++ = *p2++;
     case 7  : *p1++ = *p2++;
@@ -1071,7 +1071,7 @@ word forward( const word p, word **dest, cheney_env_t *e )
     case 1  : *p1++ = *p2++;
               *p1++ = *p2++;
     case 0  : break;
-    default : memcpy( p1, p2, bytes );  p1 += (bytes >> 2);
+    default : memcpy( p1, p2, bytes );  p1 += (bytes / sizeof(word));
   }
   *dest = p1;
   }
@@ -1080,14 +1080,14 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #if FORW_BY_MEMCPY
   { unsigned bytes;
   /* This appears to be slowest */
-  bytes = roundup8( sizefield( hdr ) + 4 );
+  bytes = object_size_bytes( hdr );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los)
     return forward_large_object( e, ptr, tag, gen_of(p1) );
 
   wordsz = bytes / sizeof(word);
 
   memcpy( p1, p2, bytes );
-  *dest = p1 + (bytes >> 2);
+  *dest = p1 + (bytes / sizeof(word));
   }
 #endif
 
@@ -1223,12 +1223,12 @@ static word forward_large_object( cheney_env_t * const e,
   int bytes, was_marked, sub1 = 0, sub2 = 0;
 
   hdr = *ptr;
-  bytes = roundup8( sizefield( hdr ) + 4 );
+  bytes = object_size_bytes( hdr );
 
 #if CHECK_EVERY_WORD
     switch (tag) {
     case VEC_TAG : case PROC_TAG :
-      gclib_check_memory_validity( ptr, (sizefield(hdr)+4)/4 );
+      gclib_check_memory_validity( ptr, (sizefield(hdr)+sizeof(word))/sizeof(word) );
       break;
     }
 #endif
@@ -1270,7 +1270,7 @@ static word forward_large_object( cheney_env_t * const e,
     word *new;
 
     hdr = *ptr;
-    bytes = roundup8( sizefield( hdr ) + 4 );
+    bytes = object_size_bytes( hdr );
     new = los_allocate( los, bytes, gen_of( ptr ) );
     memcpy( new, ptr, bytes );
     

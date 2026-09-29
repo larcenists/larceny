@@ -107,7 +107,22 @@ struct hio_range  {
   int  pages;
 };
 
-#define HIBIT  0x80000000U
+#define HIBIT  ((word)1 << (8*sizeof(word)-1))
+
+/* In Petit Larceny, the code slot of a procedure holds the address of a
+   C function (encoded so it looks like a fixnum).  Executables are
+   position-independent on modern systems, so code addresses change
+   from run to run; when a heap is dumped the code addresses are stored
+   relative to an anchor function in the executable, and they are
+   relocated when the heap is loaded.  (Code in dynamically loaded
+   shared objects cannot be relocated this way.)
+   */
+#if defined(PETIT_LARCENY)
+extern int larceny_main( int argc, char **argv );
+# define CODE_ANCHOR       ((word)&larceny_main)
+# define is_proc_header(w) (ishdr(w) && header(w) == header(PROC_HDR))
+# define is_codeptr(w)     (is_fixnum(w) && (w) != 0)
+#endif
 
 static jmp_buf EX_heapio_ex;
 
@@ -408,8 +423,17 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
     put_tagged_word( w, lowest, pagetbl, fp );
     data_count--;
 
+#if defined(PETIT_LARCENY)
+    if (is_proc_header( w ) && data_count > 0) {
+      word code = *p++;
+      if (is_codeptr( code ))
+        code = code - CODE_ANCHOR;
+      put_tagged_word( code, lowest, pagetbl, fp );
+      data_count--;
+    }
+#endif
     if (header( w ) == BV_HDR) {
-      i = roundup4( sizefield( w ) ) / sizeof( word );
+      i = roundup_word( sizefield( w ) ) / sizeof( word );
       while (i--) {
 	putword( *p++, fp );
 	data_count--;
@@ -486,6 +510,12 @@ load_data( heapio_t *h, word *text_base, word *data_base, int count )
 	*p = w + (word)data_base;
     }
     p++;
+#if defined(PETIT_LARCENY)
+    if (is_proc_header( w ) && count > 0) {
+      if (is_codeptr( *p ))
+        *p = *p + CODE_ANCHOR;
+    }
+#endif
     if (header( w ) == BV_HDR) { /* is well-defined on non-hdrs */
       i = roundup_word( sizefield( w ) ) / sizeof( word );
       p += i;
@@ -569,7 +599,7 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
     words++;
 
     if (header( w ) == BV_HDR) {
-      i = roundup4( sizefield( w ) ) / sizeof( word );
+      i = roundup_word( sizefield( w ) ) / sizeof( word );
       while (i--) {
 	putword( *p++, fp );
 	data_count--;
@@ -597,7 +627,7 @@ put_tagged_word( word w, FILE *fp,
 {
   if (isptr( w )) {
     if (w >= text_base && w < text_top) 
-      putword( (w-text_base) | 0x80000000, fp );
+      putword( (w-text_base) | HIBIT, fp );
     else 
       putword( w-data_base, fp );
   }
@@ -606,50 +636,38 @@ put_tagged_word( word w, FILE *fp,
 }
 #endif
 
-#if defined( BIG_ENDIAN ) && defined( BITS_32 )
+/* Words are written in the target's byte order, sizeof(word) bytes each. */
 
 static void putword( word w, FILE *fp )
 {
-  if (putc( (w >> 24) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 16) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 8) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( w & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
+  int i;
+#if defined( BIG_ENDIAN )
+  for ( i=sizeof(word)-1 ; i >= 0 ; i-- )
+    if (putc( (int)((w >> (8*i)) & 0xFF), fp ) == EOF) 
+      THROW( HEAPIO_CANTWRITE );
+#elif defined( ENDIAN_LITTLE )
+  for ( i=0 ; i < sizeof(word) ; i++ )
+    if (putc( (int)((w >> (8*i)) & 0xFF), fp ) == EOF) 
+      THROW( HEAPIO_CANTWRITE );
+#else
+#  error "Must select an endianness."
+#endif
 }
 
 /* FIXME: does not check EOF */
 
 static word getword( FILE *fp )
 {
-  word a = getc( fp );
-  word b = getc( fp );
-  word c = getc( fp );
-  word d = getc( fp );
-
-  return (a << 24) | (b << 16) | (c << 8) | d;
-}
-
-#elif defined( ENDIAN_LITTLE ) && defined( BITS_32 )
-
-static void putword( word w, FILE *fp )
-{
-  if (putc( w & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 8) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 16) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 24) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-}
-
-static word getword( FILE *fp )
-{
-  word d = getc( fp );
-  word c = getc( fp );
-  word b = getc( fp );
-  word a = getc( fp );
-
-  return (a << 24) | (b << 16) | (c << 8) | d;
-}
-
+  word w = 0;
+  int i;
+#if defined( BIG_ENDIAN )
+  for ( i=0 ; i < sizeof(word) ; i++ )
+    w = (w << 8) | (word)(getc( fp ) & 0xFF);
 #else
-#  error "Must write new putword() and getword()."
-#endif  /* defined( BIG_ENDIAN ) && defined( BITS_32 ) */
+  for ( i=0 ; i < sizeof(word) ; i++ )
+    w = w | ((word)(getc( fp ) & 0xFF) << (8*i));
+#endif
+  return w;
+}
 
 /* eof */

@@ -4,7 +4,8 @@
  *
  * Larceny run-time system (Unix) -- stack handling
  *
- * FIXME: the comments and code in this file assume 32-bit words
+ * The comments below describe 32-bit words; on 64-bit systems the
+ * sizes in bytes are doubled (e.g. a minimal frame's size field is 24).
  *
  * The stack lives at the high end of the current ephemeral area. There
  * are three major advantages to this:
@@ -88,7 +89,7 @@ static struct {
   int words_flushed;
 } stack_state;                        /* FIXME: hang off GC or globals */
 
-#define STACK_BASE_SIZE    16   /* bytes */
+#define STACK_BASE_SIZE    (4*sizeof(word))   /* bytes */
 
 /* Allocates and initializes a stack underflow frame. */
 
@@ -106,7 +107,7 @@ int stk_create( word *globals )
     return 0;
   }
   
-  *(stktop+STK_CONTSIZE) = fixnum(3);           /* header/size field */
+  *(stktop+STK_CONTSIZE) = 3*sizeof(word);      /* header/size field */
   *(stktop+STK_RETADDR)  = 0xDEADBEEF;          /* retaddr: uflow handler */
   *(stktop+STK_DYNLINK) = 0xDEADBEEF;           /* dynamic link field */
   *(stktop+STK_PROC) = 0xDEADBEEF;              /* saved procedure */
@@ -145,8 +146,8 @@ void stk_flush( word *globals )
     retaddr = *(stktop+STK_RETADDR);
 
     /* convert header to vector header */
-    assert2( size % 4 == 0 );            /* size must be words, a fixnum */
-    assert2( (s_word)size >= 12 );    /* 3-word minimum, and nonnegative */
+    assert2( size % sizeof(word) == 0 );   /* size must be words, a fixnum */
+    assert2( (s_word)size >= 3*sizeof(word) ); /* 3-word minimum, nonneg */
     *(stktop+HC_HEADER) = mkheader( size, VEC_HDR );
 
     /* convert return address */
@@ -156,7 +157,7 @@ void stk_flush( word *globals )
       codeptr = *(ptrof( proc )+PROC_CODEPTR);
       if (tagof( codeptr ) == BVEC_TAG) {
         codeaddr = (word)ptrof( codeptr );
-        *(stktop+HC_RETOFFSET) = retaddr-(codeaddr+4);
+        *(stktop+HC_RETOFFSET) = retaddr-(codeaddr+sizeof(word));
       } else {
         *(stktop+HC_RETOFFSET) = retaddr;
       }
@@ -173,8 +174,8 @@ void stk_flush( word *globals )
 
     framecount++;
 
-    size = roundup8( size+4 );
-    stktop += size / 4;
+    size = roundup_balign( size+sizeof(word) );
+    stktop += size / sizeof(word);
 
 #if 0
     annoyingmsg("Flush: %d", size );
@@ -202,10 +203,10 @@ int stk_restore_frame( word *globals )
   assert2(globals[ G_STKP ] == globals[ G_STKBOT ]);
 
   hframe = ptrof( globals[ G_CONT ] );
-  size = roundup8( sizefield( *hframe ) + 4 );   /* bytes to copy */
+  size = object_size_bytes( *hframe );   /* bytes to copy */
   stktop = (word*)globals[ G_STKP ];
 
-  stktop -= size / 4;
+  stktop -= size / sizeof(word);
   if (stktop < (word*)globals[ G_ETOP ]) {
     supremely_annoyingmsg( "Failed to create stack." );
     return 0;
@@ -222,7 +223,7 @@ int stk_restore_frame( word *globals )
   while (size) {
     *p++ = *hframe++;
     *p++ = *hframe++;
-    size -= 8;
+    size -= 2*sizeof(word);
   }
 
   /* Follow continuation chain. */
@@ -240,7 +241,7 @@ int stk_restore_frame( word *globals )
     codeptr = *(ptrof( proc )+PROC_CODEPTR);
     if (tagof( codeptr ) == BVEC_TAG) {
       codeaddr = (word)ptrof( codeptr );
-      *(stktop+STK_RETADDR) = (codeaddr+4)+retoffs;
+      *(stktop+STK_RETADDR) = (codeaddr+sizeof(word))+retoffs;
     } else {
       *(stktop+STK_RETADDR) = retoffs;
     }
@@ -257,12 +258,12 @@ int stk_size_for_top_stack_frame( word *globals )
   return
     nativeint( *(word*)globals[ G_STKP ] )*sizeof( word ) + STACK_BASE_SIZE;
 #else
-  int frame_size;
+  word frame_size;
   if (globals[ G_STKP ] == globals[ G_STKBOT])
     frame_size = sizefield( *ptrof( globals[ G_CONT ] ) );
   else
     frame_size = *((word*)globals[ G_STKP ] + STK_CONTSIZE);
-  return roundup8( frame_size + 4 ) + STACK_BASE_SIZE;
+  return (int)(roundup_balign( frame_size + sizeof(word) ) + STACK_BASE_SIZE);
 #endif
 
 }

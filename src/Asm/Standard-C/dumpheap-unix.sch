@@ -71,36 +71,64 @@
   
 ; Compiler definitions
 
+; Word-size-specific flags: 32-bit targets are compiled with -m32,
+; 64-bit targets use the compiler's native (64-bit) mode.
+
+(define (unix/petit-arch-flags)
+  (if (= 64 (nbuild-parameter 'word-size))
+      "-fno-common -ffp-contract=off"   ; fused multiply-add changes results
+      "-m32"))
+
+; Clang (e.g. Apple's) does not support -gstabs+.
+
+(define (unix/petit-debug-flags)
+  (cond ((optimize-c-code) "")
+        ((= 64 (nbuild-parameter 'word-size)) "-g")
+        (else "-gstabs+")))
+
 ;;; The -fno-stack-protector option requires gcc 4 or later.
 
 (define (c-compiler:gcc-unix c-name o-name)
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC -fno-stack-protector -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC -fno-stack-protector -falign-functions=4 -c ~a ~a -D__USE_FIXED_PROTOTYPES__ -Wpointer-arith -Wimplicit ~a -o ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     unix/petit-include-path
-    (if (optimize-c-code) "-O3 -DNDEBUG" "")
+    (if (optimize-c-code) (if (= 64 (nbuild-parameter 'word-size)) "-O2 -DNDEBUG" "-O3 -DNDEBUG") "")
     o-name
     c-name)))
 
 (define (c-library-linker:gcc-unix output-name object-files libs)
-  (execute 
-   (twobit-format #f
-		  "ar -r ~a ~a"
-		  output-name (apply string-append 
-				     (insert-space object-files))))
-  (execute
-   (twobit-format #f
-		  "ranlib ~a"
-		  output-name)))
+  (if (= 64 (nbuild-parameter 'word-size))
+      ; Apple's linker requires 8-byte aligned archive members, which
+      ; Apple's libtool guarantees but ar does not.
+      (begin
+       (delete-file output-name)
+       (execute
+        (twobit-format #f
+                       "libtool -static -o ~a ~a"
+                       output-name (apply string-append
+                                          (insert-space object-files)))))
+      (begin
+       (execute 
+        (twobit-format #f
+                       "ar -r ~a ~a"
+                       output-name (apply string-append 
+                                          (insert-space object-files))))
+       (execute
+        (twobit-format #f
+                       "ranlib ~a"
+                       output-name)))))
 
 (define (c-linker:gcc-linux output-name object-files libs)
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC ~a -rdynamic -o ~a ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC ~a -rdynamic -o ~a ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -109,8 +137,9 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC ~a -o ~a ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC ~a -o ~a ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -119,8 +148,9 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC ~a -Wl,-export-dynamic -o ~a ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC ~a -Wl,-export-dynamic -o ~a ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -129,8 +159,9 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC ~a -shared -o ~a ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC ~a -shared -o ~a ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -139,8 +170,9 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC ~a -shared -o ~a ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC ~a -shared -o ~a ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -151,8 +183,9 @@
   (execute
    (twobit-format 
     #f
-    "gcc -m32 -fPIC ~a -flat_namespace -bundle -undefined suppress -o ~a ~a ~a"
-    (if (optimize-c-code) "" "-gstabs+")
+    "gcc ~a -fPIC ~a -bundle -undefined dynamic_lookup -o ~a ~a ~a"
+    (unix/petit-arch-flags)
+    (unix/petit-debug-flags)
     output-name
     (apply string-append (insert-space object-files))
     (apply string-append (insert-space libs)))))
@@ -177,6 +210,8 @@
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix)
       (make-configuration . ,(cond 
+			      ((= 64 (nbuild-parameter 'word-size))
+			       'petit-macosx-arm64-static-clang)
 			      ((match-gcc-version? " 3.")
 			       'petit-unix-static-gcc-v3)
 			      ((match-gcc-version? " 4.")

@@ -217,6 +217,10 @@
             ((and (equal? os-name "Win32") (eq? arch-endianness 'little)) 
              (set! host: 'win32))
 
+            ((and (equal? os-name "MacOS X") (eq? arch-endianness 'little)
+                  (eqv? 64 (cdr (assq 'arch-word-size (system-features)))))
+             (set! host: 'macosx-arm64))
+
             ((and (equal? os-name "MacOS X") (eq? arch-endianness 'little)) 
              (set! host: 'macosx-el))
 
@@ -263,13 +267,13 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris clr-be)                  'big)
-      ((macosx-el linux-el linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
+      ((macosx-el macosx-arm64 linux-el linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
                   cygwin win32 clr-el)
        'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx macosx-el solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp
+      ((macosx macosx-el macosx-arm64 solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp
                linux-arm-el-hardfp0)
        'unix)
       ((win32) 'win32)
@@ -300,6 +304,9 @@
     ((plt-r5rs)
      (set! *host-dir*  "PLT-R5RS")
      (set! *host-name* "PLT-R5RS"))
+    ((racket)
+     (set! *host-dir*  "Racket")
+     (set! *host-name* "Racket"))
     ((mzscheme) 
      (set! *host-dir*  "MzScheme") 
      (set! *host-name* "MzScheme"))
@@ -322,6 +329,7 @@
           ((macosx-el)    (cond (sassy 'features-x86-sassy-macosx)
                                 (else 'features-petit-macosx-el)))
           ((macosx)       'features-petit-macosx)
+          ((macosx-arm64) 'features-petit-macosx-arm64)
           ((solaris)      (cond (native 'features-sparc-solaris)
                                 (else 'features-petit-solaris)))
           ((linux-arm-el-hardfp linux-arm-el-hardfp0)
@@ -355,12 +363,18 @@
   (set! *make:larceny-target*
         (case target-arch
           ((macosx
-            macosx-el) "petitmacosx")
+            macosx-el
+            macosx-arm64) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
           ((linux-el linux-arm-el-hardfp linux-arm-el-hardfp0)
            "petitdebianlinux")
           ((clr-be clr-le) "common")))        ; FIXME
+
+  (set! *target:word-size*
+        (case target-arch
+          ((macosx-arm64) 64)
+          (else 32)))
 
   (set! *host:endianness* (platform->endianness host-arch))
   (set! *target:endianness* (platform->endianness target-arch))

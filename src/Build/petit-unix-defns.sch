@@ -17,7 +17,7 @@
 
 (define (unix-&-win32-initialize)
   (load (case *host:os*
-          ((unix macosx macosx-el solaris linux-el linux-arm-el)
+          ((unix macosx macosx-el macosx-arm64 solaris linux-el linux-arm-el)
            "src/Build/sysdep-unix.sch")
           ((cygwin win32)
            "src/Build/sysdep-win32.sch")
@@ -41,6 +41,7 @@
          'target-endianness *target:endianness*
          'compatibility     (pathname-append "src" "Compat" *host-dir*)
          'globals-table     *globals-table*
+         'word-size         *target:word-size*
          'host-system       *host-name*))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
@@ -132,6 +133,7 @@
      features-petit-solaris             ; solaris 2.5 or later
      features-petit-macosx              ; gcc and GNU libc
      features-petit-macosx-el           ; gcc and GNU libc
+     features-petit-macosx-arm64        ; clang, 64-bit
      features-petit-win32               ; works for Mingw; believed to work
      features-petit-linux               ; Debian GNU/Linux 3.0 (woody), x86
      features-petit-cygwin              ; Tested with cygwin 1.5.10 (May 2004)

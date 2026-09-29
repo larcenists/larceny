@@ -4,12 +4,14 @@
 ;
 ; 30 April 1999 / lth
 ;
-; Flonum constructors and accessors for little-endian 32-bit architectures.
+; Flonum constructors and accessors for little-endian architectures.
 ; Depends on both flonum and bignum representations.
 ;
-; Larceny flonums are represented as a bytevector of 12 bytes, where the
-; first four are unused (may be garbage) and the remaining eight hold an 
-; IEEE flonum in native endianness.
+; Larceny flonums are represented as a bytevector-like structure that
+; holds an IEEE double in native endianness at byte offset
+; $flonum.data-offset.  On 32-bit systems the first four bytes are
+; unused (may be garbage) and the double occupies bytes 4 through 11;
+; on 64-bit systems the double occupies bytes 0 through 7.
 ;
 ; Larceny bignums are represented as a bytevector with word-sized data
 ; in native endianness.  The first word contains the sign (high byte)
@@ -18,10 +20,18 @@
 
 ($$trace "flonums-el")
 
+; Byte offset of the IEEE double within a flonum.  The value is captured
+; here, when the system is initialized, because $flonum.data-offset
+; describes the target system and is redefined when the compiler is
+; loaded for cross-compilation.
+
+(define flonum:o $flonum.data-offset)
+
 ; Create a boxed flonum from a bignum:
 ;   `s' is 0 or 1, a fixnum.
 ;   `m', the mantissa (with the leading 1 present), is a bignum with 
 ;        exactly 53 significant bits, and the high bit is 1.
+;        (On 64-bit systems, m is a fixnum.)
 ;   `e', the unbiased exponent, is a fixnum.
 ;
 ; The parameters represent the number -1^s * m.0 * 2^e.
@@ -31,51 +41,91 @@
 
 (define make-flonum
   (let ((two^52 4503599627370496)
-        (two^63 9223372036854775808))
+        (two^63 9223372036854775808)
+        (two^32 4294967296)
+        (two^31 2147483648)
+        (two^20 1048576))
+
+    ; Stores the 32-bit fixnum v at byte offset i of f.
+
+    (define (set32! f i v)
+      (bytevector-like-set! f i (fxlogand v 255))
+      (bytevector-like-set! f (+ i 1) (fxlogand (fxrshl v 8) 255))
+      (bytevector-like-set! f (+ i 2) (fxlogand (fxrshl v 16) 255))
+      (bytevector-like-set! f (+ i 3) (fxlogand (fxrshl v 24) 255)))
+
     (lambda (s m e)
-      (let ((t (+ (if (zero? s) 0 two^63)
-                  (* (+ e 1023) two^52)
-                  (remainder m two^52)))
-            (f (make-flonum-datum)))
-        ; t is a normalized bignum.
-        (bytevector-like-set! f 4  (bytevector-like-ref t 4))
-        (bytevector-like-set! f 5  (bytevector-like-ref t 5))
-        (bytevector-like-set! f 6  (bytevector-like-ref t 6))
-        (bytevector-like-set! f 7  (bytevector-like-ref t 7))
-        (bytevector-like-set! f 8  (bytevector-like-ref t 8))
-        (bytevector-like-set! f 9  (bytevector-like-ref t 9))
-        (bytevector-like-set! f 10 (bytevector-like-ref t 10))
-        (bytevector-like-set! f 11 (bytevector-like-ref t 11))
-        f))))
+      (if (= flonum:o 4)
+          (let ((t (+ (if (zero? s) 0 two^63)
+                      (* (+ e 1023) two^52)
+                      (remainder m two^52)))
+                (f (make-flonum-datum)))
+            ; t is a normalized bignum.
+            (bytevector-like-set! f 4  (bytevector-like-ref t 4))
+            (bytevector-like-set! f 5  (bytevector-like-ref t 5))
+            (bytevector-like-set! f 6  (bytevector-like-ref t 6))
+            (bytevector-like-set! f 7  (bytevector-like-ref t 7))
+            (bytevector-like-set! f 8  (bytevector-like-ref t 8))
+            (bytevector-like-set! f 9  (bytevector-like-ref t 9))
+            (bytevector-like-set! f 10 (bytevector-like-ref t 10))
+            (bytevector-like-set! f 11 (bytevector-like-ref t 11))
+            f)
+          ; 64-bit: all of the quantities below are fixnums.
+          (let* ((frac (remainder m two^52))
+                 (lo (remainder frac two^32))
+                 (hi (+ (if (zero? s) 0 two^31)
+                        (* (+ e 1023) two^20)
+                        (quotient frac two^32)))
+                 (f (make-flonum-datum)))
+            (set32! f flonum:o lo)
+            (set32! f (+ flonum:o 4) hi)
+            f)))))
 
 ; Return the fraction of a flonum as a nonnegative bignum.
+; (On 64-bit systems, it's a fixnum.)
 
 (define float-significand
   (let ((two^52 4503599627370496))
     (lambda (f)
-      (let ((n (make-bytevector 12)))
-        (bytevector-set! n 0 2)
-        (bytevector-set! n 1 0)         ; size
-        (bytevector-set! n 2 0)
-        (bytevector-set! n 3 0)         ; sign
-        (bytevector-set! n 4 (bytevector-like-ref f 4))
-        (bytevector-set! n 5 (bytevector-like-ref f 5))
-        (bytevector-set! n 6 (bytevector-like-ref f 6))
-        (bytevector-set! n 7 (bytevector-like-ref f 7))
-        (bytevector-set! n 8 (bytevector-like-ref f 8))
-        (bytevector-set! n 9 (bytevector-like-ref f 9))
-        (bytevector-set! n 10 (fxlogior 16
-                                        (fxlogand 15 
-                                                  (bytevector-like-ref f 10))))
-        (bytevector-set! n 11 0)
+      (if (= flonum:o 4)
+          (let ((n (make-bytevector 12)))
+            (bytevector-set! n 0 2)
+            (bytevector-set! n 1 0)         ; size
+            (bytevector-set! n 2 0)
+            (bytevector-set! n 3 0)         ; sign
+            (bytevector-set! n 4 (bytevector-like-ref f 4))
+            (bytevector-set! n 5 (bytevector-like-ref f 5))
+            (bytevector-set! n 6 (bytevector-like-ref f 6))
+            (bytevector-set! n 7 (bytevector-like-ref f 7))
+            (bytevector-set! n 8 (bytevector-like-ref f 8))
+            (bytevector-set! n 9 (bytevector-like-ref f 9))
+            (bytevector-set! n 10 (fxlogior 16
+                                            (fxlogand 15 
+                                                      (bytevector-like-ref f 10))))
+            (bytevector-set! n 11 0)
 
-        ; Subtract hidden bit if x is denormalized or zero.
+            ; Subtract hidden bit if x is denormalized or zero.
 
-        (typetag-set! n sys$tag.bignum-typetag)
-        (if (and (zero? (fxlogand 127 (bytevector-like-ref f 11)))
-                 (zero? (fxlogand -16 (bytevector-like-ref f 10))))
-            (- n two^52)
-            n)))))
+            (typetag-set! n sys$tag.bignum-typetag)
+            (if (and (zero? (fxlogand 127 (bytevector-like-ref f 11)))
+                     (zero? (fxlogand -16 (bytevector-like-ref f 10))))
+                (- n two^52)
+                n))
+          (let* ((o flonum:o)
+                 (r (fxlogior 16 (fxlogand 15 (bytevector-like-ref f (+ o 6)))))
+                 (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 5))))
+                 (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 4))))
+                 (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 3))))
+                 (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 2))))
+                 (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 1))))
+                 (r (fxlogior (fxlsh r 8) (bytevector-like-ref f o))))
+
+            ; Subtract hidden bit if x is denormalized or zero.
+
+            (if (and (zero? (fxlogand 127 (bytevector-like-ref f (+ o 7))))
+                     (zero? (fxlogand -16 (bytevector-like-ref f (+ o 6)))))
+                (- r two^52)
+                r))))))
 
 ; Return the high-order 29 bits of a flonum's significand
 ; as a nonnegative exact integer (which is a fixnum in most
@@ -84,17 +134,18 @@
 (define float-significand-high-bits
   (let ((two^28 268435456))
     (lambda (f)
-      (let* ((r (fxlogior 16
+      (let* ((o (- flonum:o 4))
+             (r (fxlogior 16
                           (fxlogand 15 
-                                    (bytevector-like-ref f 10))))
-             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 9)))
-             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 8)))
-             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 7))))
+                                    (bytevector-like-ref f (+ o 10)))))
+             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 9))))
+             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 8))))
+             (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 7)))))
 
         ; Subtract hidden bit if x is denormalized or zero.
 
-        (if (and (zero? (fxlogand 127 (bytevector-like-ref f 11)))
-                 (zero? (fxlogand -16 (bytevector-like-ref f 10))))
+        (if (and (zero? (fxlogand 127 (bytevector-like-ref f (+ o 11))))
+                 (zero? (fxlogand -16 (bytevector-like-ref f (+ o 10)))))
             (- r two^28)
             r)))))
 
@@ -104,9 +155,10 @@
 
 (define float-significand-low-bits
   (lambda (f)
-    (let* ((r (bytevector-like-ref f 6))
-           (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 5)))
-           (r (fxlogior (fxlsh r 8) (bytevector-like-ref f 4))))
+    (let* ((o (- flonum:o 4))
+           (r (bytevector-like-ref f (+ o 6)))
+           (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 5))))
+           (r (fxlogior (fxlsh r 8) (bytevector-like-ref f (+ o 4)))))
       r)))
 
 ; Return the unbiased exponent of a flonum as a fixnum.
@@ -118,8 +170,10 @@
 (define float-exponent
   (let ((flonum:minexponent-51 -1074))
     (lambda (f)
-      (let ((e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f 11)) 4)
-                       (fxrshl (bytevector-like-ref f 10) 4))))
+      (let* ((o (- flonum:o 4))
+             (e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f (+ o 11)))
+                                 4)
+                          (fxrshl (bytevector-like-ref f (+ o 10)) 4))))
         (if (zero? e)
             flonum:minexponent-51        ; no hidden bit
             (- e (+ 1023 52)))))))
@@ -130,8 +184,9 @@
 ; thus not the "natural" exponent.
 
 (define (float-unbiased-exponent f)
-  (let ((e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f 11)) 4)
-                     (fxrshl (bytevector-like-ref f 10) 4))))
+  (let* ((o (- flonum:o 4))
+         (e (fxlogior (fxlsh (fxlogand 127 (bytevector-like-ref f (+ o 11))) 4)
+                      (fxrshl (bytevector-like-ref f (+ o 10)) 4))))
     (if (= e 0)
         -1022
         (- e 1023))))
@@ -139,6 +194,6 @@
 ; Return the sign of the flonum as 0 (positive) or 1 (negative).
 
 (define (float-sign f)
-  (fxrshl (bytevector-like-ref f 11) 7))
+  (fxrshl (bytevector-like-ref f (+ flonum:o 7)) 7))
 
 ; eof

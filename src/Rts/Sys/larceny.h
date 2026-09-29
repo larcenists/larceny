@@ -267,8 +267,12 @@ word box_int( int i );
 word box_uint( unsigned u );
 word box_longlong( long long ll );
 word box_ulonglong( unsigned long long ull );
+word box_word( word w );
 unsigned unbox_uint( word w );
 int unbox_int( word w );
+unsigned long long unbox_ulonglong( word w );
+long long unbox_longlong( word w );
+word unbox_word( word w );
 /* Some of the following may be supplied by the system libraries. */
 double rint( double f );
 double aint( double f );
@@ -363,10 +367,17 @@ extern int memfail( int code, char *fmt, ... );
  * The size of the largest object is determined by the size field in
  * a vector, bytevector, or procedure header.  In the 32-bit implementation,
  * this field is 24 bits, so the largest object can be 2^24-1 bytes long.
+ * In the 64-bit implementation the size field is 56 bits, but the
+ * run-time system uses 32-bit sizes, so objects are limited to 2GB.
  */
 
+#if defined(BITS_64)
+#define LARGEST_OBJECT    0x7FFFFFF0
+#define BYTE_ALIGNMENT    16
+#else
 #define LARGEST_OBJECT    16777215
 #define BYTE_ALIGNMENT    8
+#endif
 #define WORD_ALIGNMENT    2
 
 /* debugmsg( char *fmt, ... ); */

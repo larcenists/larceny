@@ -242,7 +242,7 @@ static int sro_mark( sro_t *tbl, word w )
   }
   else
     t = tbl->buckets[page];
-  offs = ((word)ptrof(w) & PAGEMASK) >> 2;   /* Doubleword index */
+  offs = ((word)ptrof(w) & PAGEMASK) >> WORD_SHIFT;   /* Doubleword index */
   t[offs] = w;
   return ++t[offs+1];
 }
@@ -275,7 +275,7 @@ static void *sro_alloc( sro_t *tbl, unsigned n_bytes )
   sro_w_t *w;
   int k;
 
-  n_bytes = roundup8( n_bytes );
+  n_bytes = roundup_dword( n_bytes );
   if (tbl->free < n_bytes) {
     if (n_bytes > BIG_BLOCK_CUTOFF) {
       /* Allocate a block for this request alone, and return */
@@ -292,7 +292,7 @@ static void *sro_alloc( sro_t *tbl, unsigned n_bytes )
     /* Allocate a new block, abandon the current */
     p = gclib_alloc_rts( BLOCKSIZE, SRO_MEM_ATTRIB );
     w = (sro_w_t*)p;
-    k = roundup8( sizeof( sro_w_t ) );
+    k = roundup_dword( sizeof( sro_w_t ) );
     w->memory = p;		/* [sic] */
     w->size = BLOCKSIZE;
     w->next = tbl->workspace;

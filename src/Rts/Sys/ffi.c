@@ -364,7 +364,7 @@ larceny_C_ffi_dlopen( word w_path )
 {
   char *path = (char*)(ptrof(w_path)+1);
   word desc = osdep_dlopen( path );
-  globals[ G_RESULT ] = box_uint( (unsigned)desc );
+  globals[ G_RESULT ] = box_word( desc );
 }
 
 
@@ -381,9 +381,9 @@ void
 larceny_C_ffi_dlsym( word w_handle, word w_sym )
 {
   char *sym = (char*)(ptrof(w_sym)+1);
-  word handle = (word)unbox_uint( w_handle );
+  word handle = unbox_word( w_handle );
   word r = osdep_dlsym( handle, sym );
-  globals[ G_RESULT ] = box_uint( (unsigned)r );
+  globals[ G_RESULT ] = box_word( r );
 }
 
 
@@ -392,7 +392,7 @@ void larceny_C_ffi_getaddr( word w_key )
 {
   switch (nativeint(w_key)) {
   case 0 : 
-    globals[ G_RESULT ] = box_uint( (unsigned)larceny_C_ffi_convert_and_call);
+    globals[ G_RESULT ] = box_word( (word)larceny_C_ffi_convert_and_call );
     break;
   default : 
     globals[ G_RESULT ] = FALSE_CONST;
@@ -545,7 +545,7 @@ void larceny_peek_bytes( word w_addr, word w_bytevector, word w_count )
 {
   int n = nativeint( w_count );
   void *dest = ptrof( w_bytevector ) + 1;
-  void *src  = (void*)(unbox_uint( w_addr ));
+  void *src  = (void*)(unbox_word( w_addr ));
 
   memcpy( dest, src, n );
 }
@@ -556,7 +556,7 @@ void larceny_poke_bytes( word w_addr, word w_bytevector, word w_count )
 {
   int n = nativeint( w_count );
   void *src  = ptrof( w_bytevector ) + 1;
-  void *dest = (void*)(unbox_uint( w_addr ));
+  void *dest = (void*)(unbox_word( w_addr ));
 
   memcpy( dest, src, n );
 }

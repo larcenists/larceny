@@ -186,15 +186,15 @@ static void backtrace( void )
     w = *((word *)p + 2);    /* R0 */
     if ((w & TAG_MASK) == PROC_TAG) {
       w &= ~TAG_MASK;
-      w = *(word *) (w + 8);   /* get constant vector ptr */
+      w = *(word *) (w + 2*sizeof(word));   /* get constant vector ptr */
       printf( "%08x  ", w );
-      w = *(word *) (w - 3 + 4);  /* get slot 0, the procedure name */
+      w = *(word *) (w - 3 + sizeof(word));  /* get slot 0, the procedure name */
       printf( "%08x  ", w );
       if ((w & TAG_MASK) == VEC_TAG) {  /* may be symbol! */
 	if ((*(word *) (w - 3) & 0xFF) == SYMBOL_HDR) { /* Yes!! */
-	  w = *(word *) (w - 3 + 4) & ~TAG_MASK;  /* get bv ptr */
+	  w = *(word *) (w - 3 + sizeof(word)) & ~TAG_MASK;  /* get bv ptr */
 	  len = *(word *) w >> 8;
-	  w += 4;
+	  w += sizeof(word);
 	  while (len--) {
 	    putchar( *(char *) w );
 	    w++;
@@ -379,7 +379,7 @@ static void examine( char *cmdl )
     case VEC_TAG  :
     case PROC_TAG :
       hdr = *ptrof( loc );
-      len = sizefield(hdr)/4;
+      len = sizefield(hdr)/sizeof(word);
       printf( "%s, length %d tag %d\n", 
 	      (tagof( loc ) == VEC_TAG ? "Vector-like" : "Procedure"),
 	      len, typetag( hdr ) );
@@ -523,7 +523,7 @@ static void dumpproc( void )
   p = ptrof( w );
   q = *p++;
   printf( "0x%08x\n", q );
-  l = sizefield( q ) / 4;
+  l = sizefield( q ) / sizeof(word);
   while (l--) {
     q = *p++;
     printf( "0x%08x\n", q );
@@ -601,7 +601,7 @@ static void dumpglob( void )
 static void dump_top_frame( void )
 {
   word *stkp = (word*)globals[ G_STKP ];
-  word size = stkp[0]/4;
+  word size = stkp[0]/sizeof(word);
   int i;
 
   for ( i=0 ; i < size && i < 10 ; i++ )

@@ -30,8 +30,16 @@
 # define BITS_IN_WORD       32
 /* This upper bounds distinct entries in bitmap. */
 # define SHIFTED_ADDRESS_SPACE 536870912 /* 2^32 >> 3 */
+#elif defined(BITS_64)
+# define BIT_IDX_SHIFT       4  /* shift to get doubleword bit address */
+# define BIT_IDX_TO_WORDADDR 6  /* shift to get word addr from bit addr */
+# define BIT_IN_WORD_MASK   63  /* mask to get bit shift */
+# define BITS_IN_WORD       64
+/* This upper bounds distinct entries in bitmap; user-space virtual
+   addresses on current 64-bit systems fit in 47 bits. */
+# define SHIFTED_ADDRESS_SPACE (((long long)1 << 47) >> BIT_IDX_SHIFT)
 #else
-# error "Must define EXTBMP macros for non-32 bit systems."
+# error "Must define EXTBMP macros for this word size."
 #endif
 
 /* All objects are double word aligned */
@@ -393,7 +401,7 @@ extbmp_t *create_extensible_bitmap_params( gc_t *gc, gc_param_t *info,
   /* Creates bitmap representing empty set of addresses */
   extbmp_t *ebmp;
   int depth;
-  int max_leaves;
+  long long max_leaves;
   int leaf_words = CEILDIV(leaf_bytes, sizeof(word));
   long long address_range_in_words;
 
@@ -628,7 +636,7 @@ bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
   word first, lim;
   word entry_word;
   bool retval;
-  unsigned int bit_idx, word_idx, bit_in_word;
+  word bit_idx, word_idx, bit_in_word;
 
   assert( tagof(untagged_w) == 0 );
 
@@ -643,7 +651,7 @@ bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
 
   bit_idx     = (untagged_w - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
-  bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
 
 #if 0
   if ( ! (bit_in_word & leaf->bitmap[ word_idx ] ))
@@ -679,13 +687,13 @@ void extbmp_del_elem( extbmp_t *ebmp, word untagged_w )
   leaf_t *leaf;
   word first;
   bool found;
-  unsigned int bit_idx, word_idx, bit_in_word;
+  word bit_idx, word_idx, bit_in_word;
   found = find_leaf_or_fail( ebmp, untagged_w, &leaf, &first );
 
   if (found) {
     bit_idx     = (untagged_w - first) >> BIT_IDX_SHIFT;
     word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
-    bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+    bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
 
     if (leaf->bitmap[ word_idx ] & bit_in_word) {
       leaf->bitmap[ word_idx ] &= ~bit_in_word;
@@ -698,7 +706,7 @@ bool extbmp_is_member( extbmp_t *ebmp, word untagged_w )
   leaf_t *leaf;
   word first;
   bool found;
-  unsigned int bit_idx, word_idx, bit_in_word;
+  word bit_idx, word_idx, bit_in_word;
   found = find_leaf_or_fail( ebmp, untagged_w, &leaf, &first );
 
 #if 0
@@ -721,7 +729,7 @@ bool extbmp_is_member( extbmp_t *ebmp, word untagged_w )
 
   bit_idx     = (untagged_w - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
-  bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
 
   return (leaf->bitmap[ word_idx ] & bit_in_word);
 }
@@ -731,7 +739,7 @@ static void kill_member( extbmp_t *ebmp, word untagged_w )
   leaf_t *leaf;
   word first;
   bool found;
-  unsigned int bit_idx, word_idx, bit_in_word;
+  word bit_idx, word_idx, bit_in_word;
   found = find_leaf_or_fail( ebmp, untagged_w, &leaf, &first );
 
   if (! found)
@@ -739,7 +747,7 @@ static void kill_member( extbmp_t *ebmp, word untagged_w )
 
   bit_idx     = (untagged_w - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
-  bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
 
   leaf->bitmap[ word_idx ] &= ~bit_in_word;
 }
@@ -791,7 +799,8 @@ static bool tnode_enum_leaf( extbmp_t *ebmp,
 {
   word *bitmap;
   int leaf_words, leaf_word_limit;
-  int word_idx, j, bit_in_word;
+  int word_idx, j;
+  word bit_in_word;
   word curr_bmp_word, obj;
   bool scan_retval;
   bool found_nonzero_word;
@@ -882,7 +891,7 @@ static bool tnode_enum_leaf( extbmp_t *ebmp,
       }
 
       for (j = 0; j < BITS_IN_WORD; j += 1) {
-        bit_in_word = (1 << j);
+        bit_in_word = ((word)1 << j);
         if (curr_bmp_word & bit_in_word) {
           obj = (first_addr_for_leaf 
                  + ((word_idx*BITS_IN_WORD + j) << BIT_IDX_SHIFT));
@@ -980,7 +989,7 @@ static void tnode_enumerate_slow_but_certain
   bool scan_ret;
   for ( i = 0; i < SHIFTED_ADDRESS_SPACE; i += 1 ) {
     assert( i >= 0 );
-    w = ((unsigned)i) << BIT_IDX_SHIFT;
+    w = ((word)i) << BIT_IDX_SHIFT;
     if (extbmp_is_member( ebmp, w )) {
       scan_ret = scanner( w, data );
       if (! scan_ret) {
@@ -1203,7 +1212,7 @@ static void tnode_enumerate_in_slow(
   *ranges_enumerated = 0;
   tnode_enumerate( ebmp, incl_tag, gno, FALSE, gno_is_static_area, 
                    ebmp->tree, ebmp->depth, 
-                   0, 0, 0xFFFFFFFF,
+                   0, 0, ~(word)0,
                    leaves_enumerated, 
                    nodes_enumerated, 
                    scanner, data );
@@ -1222,7 +1231,7 @@ static void tnode_enumerate_all( extbmp_t *ebmp,
   nodes_enumerated = 0;
   tnode_enumerate( ebmp, incl_tag, -66, TRUE, FALSE, 
                    tree, depth, 
-                   first_addr_for_node, 0, 0xFFFFFFFF, 
+                   first_addr_for_node, 0, ~(word)0, 
                    &leaves_enumerated, 
                    &nodes_enumerated, 
                    scanner, data );

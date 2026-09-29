@@ -123,7 +123,7 @@
           "petit-init-proc.sch"
           "md5.sch"
           ,@(case (nbuild-parameter 'host-os)
-             ((macosx macosx-el unix cygwin solaris linux-el)
+             ((macosx macosx-el macosx-arm64 unix cygwin solaris linux-el)
               '("dumpheap-unix.sch"))
              ((win32)
               '("dumpheap-win32.sch"))

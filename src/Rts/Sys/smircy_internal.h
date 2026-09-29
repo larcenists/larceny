@@ -13,8 +13,13 @@
 # define BIT_IDX_TO_WORD_IDX 5  /* shift to get word addr from bit addr */
 # define BIT_IN_WORD_MASK   31  /* mask to get bit shift */
 # define BITS_IN_WORD       32
+#elif defined(BITS_64)
+# define BIT_IDX_SHIFT       4  /* shift to get doubleword bit address */
+# define BIT_IDX_TO_WORD_IDX 6  /* shift to get word addr from bit addr */
+# define BIT_IN_WORD_MASK   63  /* mask to get bit shift */
+# define BITS_IN_WORD       64
 #else
-# error "Must define SMIRCY macros for non-32 bit systems."
+# error "Must define SMIRCY macros for this word size."
 #endif
 
 #define OBJ_STACK_SIZE 2047

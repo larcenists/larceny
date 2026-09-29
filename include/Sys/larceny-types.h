@@ -10,10 +10,26 @@
 
 #include "config.h"
 
-/* Scalar data types. */
+/* Scalar data types.
+ *
+ * A word is the size of a pointer: 32 bits when BITS_32, 64 bits when
+ * BITS_64.  An s_word is the signed counterpart of a word.
+ */
+#include <stdint.h>
+#if defined(BITS_64)
+typedef uint64_t word;
+typedef int64_t s_word;
+#else
 typedef unsigned int word;
 typedef int s_word;
+#endif
 typedef unsigned char byte;
+typedef uint32_t u32;         /* 32-bit quantities, e.g. bignum digits */
+typedef int32_t s32;
+/* Note: bool is int-sized (not C99's bool), and some functions declared
+   to return bool return other integers.  On 64-bit systems, converting a
+   word to bool can therefore lose information: compare with 0 instead,
+   e.g. ((w & mask) != 0). */
 #if defined __bool_true_false_are_defined /* C99 <stdbool.h> */
 #define TRUE true
 #define FALSE false

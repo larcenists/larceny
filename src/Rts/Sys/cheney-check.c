@@ -137,7 +137,7 @@ void gclib_check_object( word obj )
                       obj, firstword );
       conditional_abort();
     }
-    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + 4)/4);
+    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + sizeof(word))/sizeof(word));
     break;
   case PROC_TAG :
     firstword = *ptrof( obj );
@@ -147,7 +147,7 @@ void gclib_check_object( word obj )
                       obj, firstword );
       conditional_abort();
     }
-    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + 4)/4);
+    gclib_check_memory_validity( ptrof( obj ), (sizefield( firstword ) + sizeof(word))/sizeof(word));
     break;
   case BVEC_TAG :
     firstword = *ptrof( obj );

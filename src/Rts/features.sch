@@ -389,6 +389,24 @@
     "USE_CACHED_STATE"
     ))
 
+(define features-petit-macosx-arm64	; Apple Silicon, clang, 64-bit words
+  '("PETIT_LARCENY"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "EXPLICIT_DIVZ_CHECK"                ; arm64 does not trap on x/0
+    "MACOS_X"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_SELECT"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "USE_CACHED_STATE"
+    ))
+
 (define features-petit-win32		; works for Mingw; believed to work
                                         ; for CodeWarrior 6, and probably
                                         ; for Microsoft Visual C/C++ 6
@@ -743,8 +761,9 @@
     fs))
 
 (define (feature-sanity-checks fs)
-  (if (member "BITS_64" fs)
-      (error "Larceny cannot yet handle 64-bit systems."))
+  (if (and (member "BITS_64" fs)
+           (not (member "PETIT_LARCENY" fs)))
+      (error "Only Petit Larceny can handle 64-bit systems."))
 
   (if (not (or (member "BITS_32" fs) (member "BITS_64" fs)))
       (error "You need to select a word size"))

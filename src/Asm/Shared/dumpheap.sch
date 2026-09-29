@@ -97,8 +97,9 @@
 ;  thunks           a list of codevector addresses
 ;
 ; Bytes are emitted with the heap.byte! and heap.word! procedures,
-; which emit a byte and a 4-byte word respectively.  These update
-; the top field.
+; which emit a byte and a word respectively.  These update the top
+; field.  A word is 4 bytes on 32-bit targets and 8 bytes on 64-bit
+; targets; see heap.wordsize.
 
 (define (make-heap extra output-port)
   (vector heap.version-number        ; version
@@ -185,37 +186,32 @@
 (define twofiftysix^2 (* 256 256))
 (define twofiftysix   256)
 
+; Number of bytes in a target word.
+
+(define (heap.wordsize)
+  (quotient (nbuild-parameter 'word-size) 8))
+
 (define (heap.word! h w)
   (write-word w (heap.output-port h))
-  (heap.top! h (+ 4 (heap.top h))))
+  (heap.top! h (+ (heap.wordsize) (heap.top h))))
 
 (define (heap.byte! h b)
   (write-byte b (heap.output-port h))
   (heap.top! h (+ 1 (heap.top h))))
 
+; The word w must be a nonnegative integer less than 2^(8*wordsize).
+
 (define (write-word-be w out)
-  (write-byte (quotient w twofiftysix^3)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^3) 
-                        twofiftysix^2)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^2) 
-                        twofiftysix)
-              out)
-  (write-byte (remainder w twofiftysix)
-              out))
+  (let loop ((i (- (heap.wordsize) 1)))
+    (if (>= i 0)
+        (begin (write-byte (remainder (quotient w (expt 256 i)) 256) out)
+               (loop (- i 1))))))
 
 (define (write-word-el w out)
-  (write-byte (remainder w twofiftysix)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^2) 
-                        twofiftysix)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^3) 
-                        twofiftysix^2)
-              out)
-  (write-byte (quotient w twofiftysix^3)
-              out))
+  (let loop ((i 0) (w w))
+    (if (< i (heap.wordsize))
+        (begin (write-byte (remainder w 256) out)
+               (loop (+ i 1) (quotient w 256))))))
 
 (define write-word write-word-be)
 
@@ -231,16 +227,21 @@
 (define (heap.header-word! h immediate length)
   (heap.word! h (+ (* length 256) immediate)))
 
+; Objects are aligned on double-word boundaries.
+
 (define (heap.adjust! h)
-  (let ((p (heap.top h)))
-    (let loop ((i (- (* 8 (quotient (+ p 7) 8)) p)))
+  (let* ((p (heap.top h))
+         (a (* 2 (heap.wordsize))))
+    (let loop ((i (- (* a (quotient (+ p (- a 1)) a)) p)))
       (if (zero? i)
           '()
           (begin (heap.byte! h 0)
                  (loop (- i 1)))))))
-  
-(define heap.largest-fixnum (- (expt 2 29) 1))
-(define heap.smallest-fixnum (- (expt 2 29)))
+
+; Target fixnums have two tag bits.
+
+(define heap.largest-fixnum (- (expt 2 (- (nbuild-parameter 'word-size) 3)) 1))
+(define heap.smallest-fixnum (- (expt 2 (- (nbuild-parameter 'word-size) 3))))
 
 (define (heap.set-root! h name value)
   (heap.roots! h (cons (cons name value) (heap.roots h))))
@@ -363,7 +364,7 @@
 
 (define (dump-fixnum! h f)
   (if (negative? f)
-      (- #x100000000 (* (abs f) 4))
+      (- (expt 2 (nbuild-parameter 'word-size)) (* (abs f) 4))
       (* 4 f)))
 
 ; In the Old Days, the character representation was this:
@@ -413,6 +414,7 @@
      ((flat1)
       (dump-bytevector! h (flat1->bytevector s) $tag.string-typetag))
      ((flat4)
+      ; Each character is stored as a 32-bit character immediate.
       (let* ((n (string-length s))
              (bv (make-bytevector (* 4 n)))
              (offsets (case (nbuild-parameter 'target-endianness)
@@ -422,10 +424,15 @@
              (j 0 (+ j 4)))
             ((= i n)
              (dump-bytevector! h bv $tag.ustring-typetag))
-          (bytevector-set! bv (+ j (vector-ref offsets 0)) 0)
-          (bytevector-set! bv (+ j (vector-ref offsets 1)) 0)
-          (bytevector-set! bv (+ j (vector-ref offsets 2)) (char->integer (string-ref s i)))
-          (bytevector-set! bv (+ j (vector-ref offsets 3)) $imm.character))))
+          (let ((code (char->integer (string-ref s i))))
+            (bytevector-set! bv (+ j (vector-ref offsets 0))
+                             (quotient code 65536))
+            (bytevector-set! bv (+ j (vector-ref offsets 1))
+                             (remainder (quotient code 256) 256))
+            (bytevector-set! bv (+ j (vector-ref offsets 2))
+                             (remainder code 256))
+            (bytevector-set! bv (+ j (vector-ref offsets 3))
+                             $imm.character)))))
      (else
       (error 'dump-string! "Unknown string representation: " rep)))))
 
@@ -459,7 +466,8 @@
           (begin (vector-set! v i (recur! h (vector-ref cv i)))
                  (loop (+ i 1)))
           (let ((base (heap.top h)))
-            (heap.header-word! h (+ $imm.vector-header variation) (* l 4))
+            (heap.header-word! h (+ $imm.vector-header variation)
+                                  (* l (heap.wordsize)))
             (let loop ((i 0))
               (if (< i l)
                   (begin (heap.word! h (vector-ref v i))
@@ -489,7 +497,7 @@
 
 (define (dump-thunk! h code constants)
   (let ((base (heap.top h)))
-    (heap.header-word! h $imm.procedure-header 8)
+    (heap.header-word! h $imm.procedure-header (* 2 (heap.wordsize)))
     (heap.word! h code)
     (heap.word! h constants)
     (heap.adjust! h)
@@ -662,7 +670,7 @@
 
       (write-word heap.version-number out)
       (write-roots)
-      (write-word (quotient (heap.top h) 4) out))))
+      (write-word (quotient (heap.top h) (heap.wordsize)) out))))
 
 
 ; Ugliness.

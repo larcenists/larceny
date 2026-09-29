@@ -61,12 +61,19 @@
   (allof "number fixnum?, bignum?, ratnum?, flonum?, compnum?, rectnum?"
    (test "(rpred 1)" (rpred 1) '(#t #f #f #f #f #f))
    (test "(rpred -1)" (rpred -1) '(#t #f #f #f #f #f))
-   (test "(rpred 536870911)" (rpred 536870911) '(#t #f #f #f #f #f))
-   (test "(rpred -536870912)" (rpred -536870912) '(#t #f #f #f #f #f))
-   (test "(rpred 536870912)" (rpred 536870912) '(#f #t #f #f #f #f))
-   (test "(rpred -536870913)" (rpred -536870913) '(#f #t #f #f #f #f))
-   (test "(rpred 1234567890)" (rpred 1234567890) '(#f #t #f #f #f #f))
-   (test "(rpred -1234567890)" (rpred -1234567890) '(#f #t #f #f #f #f))
+   ; The fixnum range depends on the word size.
+   (test "(rpred (most-positive-fixnum))"
+         (rpred (most-positive-fixnum)) '(#t #f #f #f #f #f))
+   (test "(rpred (most-negative-fixnum))"
+         (rpred (most-negative-fixnum)) '(#t #f #f #f #f #f))
+   (test "(rpred (+ (most-positive-fixnum) 1))"
+         (rpred (+ (most-positive-fixnum) 1)) '(#f #t #f #f #f #f))
+   (test "(rpred (- (most-negative-fixnum) 1))"
+         (rpred (- (most-negative-fixnum) 1)) '(#f #t #f #f #f #f))
+   (test "(rpred 12345678901234567890)"
+         (rpred 12345678901234567890) '(#f #t #f #f #f #f))
+   (test "(rpred -12345678901234567890)"
+         (rpred -12345678901234567890) '(#f #t #f #f #f #f))
    (test "(rpred 1122334455667788990011223344556677889900)"
 	 (rpred 1122334455667788990011223344556677889900)
 	 '(#f #t #f #f #f #f))
@@ -541,8 +548,9 @@
      (test "(= (fxrshl #x44 2) #x11)" (= (fxrshl #x44 2) #x11) #t)
      (test "(= (fxrshl #x44 7) 0)" (= (fxrshl #x44 7) 0) #t)
      (test "(= (fxrsha -1 4) -1)" (= (fxrsha -1 4) -1) #t)
-     (test "(= (fxrshl #x-20000000 4) #x2000000)"
-	   (= (fxrshl #x-20000000 4) #x2000000)
+     (test "(= (fxrshl (most-negative-fixnum) 4) (expt 2 (- w 5)))"
+	   (let ((w (fixnum-width)))
+             (= (fxrshl (most-negative-fixnum) 4) (expt 2 (- w 5))))
 	   #t)))
 
   (test-logand)

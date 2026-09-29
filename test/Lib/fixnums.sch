@@ -12,13 +12,17 @@
       #t)
   )
 
+; The fixnum range depends on the word size (30-bit or 62-bit fixnums).
+
 (define (fixnum-test-functionality)
-  (let ((x '((0
+  (let* ((mpf (most-positive-fixnum))
+         (mnf (most-negative-fixnum))
+         (x `((0
               0
               (#t #f #f 1 -1 0 0
                #t #f #t #f #t #t #f #t #f #t
                #t #f #t #f #t #t #f #t #f #t
-               0 0 536870911 -536870912)
+               0 0 ,mpf ,mnf)
               (0 1 1 0 1 0 1 0 0 1 0 1 0
                      0 1 0 1 0 0 1 0 1 0))
              (-10
@@ -26,7 +30,7 @@
               (#f #t #f -9 -11 0 -20
                #f #t #t #f #f #f #t #t #f #f
                #f #t #t #f #f #f #t #t #f #f
-               -10 -100 536870911 -536870912)
+               -10 -100 ,mpf ,mnf)
               (1 0 1 1 0 0 1 1 1 0 0 1 1
                      1 0 0 1 1 1 0 0 1 1))
              (10
@@ -34,7 +38,7 @@
               (#f #f #t 11 9 0 20
                #f #f #f #t #t #f #f #f #t #t
                #f #f #f #t #t #f #f #f #t #t
-               10 -100 536870911 -536870912)
+               10 -100 ,mpf ,mnf)
               (1 1 0 1 1 1 0 0 1 1 1 0 0
                      1 1 1 0 0 1 1 1 0 0)))))
     (allof-map
@@ -124,22 +128,25 @@
   (define fxsub (lambda (a b) (fx- a b)))
   (define fxmul (lambda (a b) (fx* a b)))
   (define fxneg (lambda (a) (fx-- a)))
+  (define mpf (most-positive-fixnum))
+  (define mnf (most-negative-fixnum))
+  (define half (+ (quotient mpf 1024) 1))         ; half * 1024 > mpf
   
   (allof "Fixnum error cases"
    (mustfail "add#1" fxadd 10 1.5)                ; 1.5 is not a fixnum
-   (mustfail "add#2" fxadd 413414123 123456789)   ; barely overflows (positive)
-   (mustfail "add#3" fxadd -413414124 -123456789) ; barely overflows (negative)
+   (mustfail "add#2" fxadd (- mpf 1000) 1001)     ; barely overflows (positive)
+   (mustfail "add#3" fxadd (+ mnf 1000) -1001)    ; barely overflows (negative)
 
    (mustfail "sub#1" fxsub 10 1.5)                ; 1.5 is not a fixnum
-   (mustfail "sub#2" fxsub -413414124 123456789)  ; barely overflows (negative)
-   (mustfail "sub#3" fxsub 413414123 -123456789)  ; barely overflows (positive)
+   (mustfail "sub#2" fxsub (+ mnf 1000) 1001)     ; barely overflows (negative)
+   (mustfail "sub#3" fxsub (- mpf 1000) -1001)    ; barely overflows (positive)
 
-   (mustfail "neg#1" fxneg -536870912)            ; barely overflows (positive)
+   (mustfail "neg#1" fxneg mnf)                   ; barely overflows (positive)
    (mustfail "neg#2" fxneg 1.5)                   ; 1.5 is not a fixnum
 
    (mustfail "mul#1" fxmul 10 1.5)                ; 1.5 is not a fixnum
-   (mustfail "mul#2" fxmul 524288 1024)           ; barely overflows (positive)
-   (mustfail "mul#3" fxmul 524288 -1025)          ; overflows (negative)
+   (mustfail "mul#2" fxmul half 1024)             ; barely overflows (positive)
+   (mustfail "mul#3" fxmul half -1025)            ; overflows (negative)
    ))
 
 ; eof

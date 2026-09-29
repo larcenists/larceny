@@ -54,7 +54,7 @@
 #define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen )            \
   do {                                                                   \
     word next_obj;                                                       \
-    check_space2(dest,lim,8,e->tospace2);                                \
+    check_space2(dest,lim,2*sizeof(word),e->tospace2);                                \
     *dest = *TMP_P;                                                      \
     *(dest+1) = next_obj = *(TMP_P+1);                                   \
     check_address( TMP_P );                                              \
@@ -73,13 +73,13 @@
   }                                                                     \
   else if (tagof( T_obj ) == BVEC_TAG) {                                \
     word *TMPD;                                                         \
-    check_space2(dest2,lim2,sizefield(*TMP_P)+4,e->tospace2); /*text*/  \
+    check_space2(dest2,lim2,sizefield(*TMP_P)+sizeof(word),e->tospace2); /*text*/  \
     TMPD = dest2;                                                       \
     *loc = forward( T_obj, &TMPD, e ); dest2 = TMPD;              \
   }                                                                     \
   else {                                                                \
     word *TMPD;                                                         \
-    check_space2(dest,lim,sizefield(*TMP_P)+4,tospace_dest(e));/*data*/ \
+    check_space2(dest,lim,sizefield(*TMP_P)+sizeof(word),tospace_dest(e));/*data*/ \
     TMPD = dest;                                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;               \
   }

@@ -110,7 +110,7 @@
   if (TMP_W == FORWARD_HDR)                             \
     *loc = *(TMP_P+1);                                  \
   else if (tagof( T_obj ) == PAIR_TAG) {                \
-    check_space_np(dest,lim,8,e);                       \
+    check_space_np(dest,lim,2*sizeof(word),e);                       \
     *dest = TMP_W;                                      \
     *(dest+1) = *(TMP_P+1);                             \
     check_address( TMP_P );                             \
@@ -121,7 +121,7 @@
   }                                                     \
   else {                                                \
     word *TMPD;                                         \
-    check_space_np(dest,lim,sizefield(TMP_W)+4,e);      \
+    check_space_np(dest,lim,sizefield(TMP_W)+sizeof(word),e);      \
     TMPD = dest;                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD; \
   }
@@ -142,9 +142,9 @@
       if (T_h == BV_HDR) {                                                    \
         /* bytevector: skip it, and flush the icache if code */               \
         word *T_oldptr = ptr;                                                 \
-        word T_bytes = roundup4( sizefield( T_w ) );                          \
-        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
-        if (!(T_bytes & 4)) *ptr++ = 0;            /* pad. */                 \
+        word T_bytes = roundup_word( sizefield( T_w ) );                      \
+        ptr = (word *)((word)ptr + (T_bytes + sizeof(word))); /* no pad */    \
+        if (!(T_bytes & sizeof(word))) *ptr++ = 0; /* pad. */                 \
         /* Only code vectors typically use a plain bytevector typetag,        \
          * so almost any bytevector will be a code vector that must           \
          * be flushed.                                                        \
@@ -154,7 +154,7 @@
       }                                                                       \
       else {                                                                  \
         /* vector or procedure: scan in a tight loop */                       \
-        word T_words = sizefield( T_w ) >> 2;                                 \
+        word T_words = sizefield( T_w ) >> WORD_SHIFT;                                 \
         word* T_objp = ptr;                                                   \
         int must_add_to_extra = 0;                                            \
         ptr++;                                                                \
@@ -163,7 +163,7 @@
           ptr++;                                                              \
         }                                                                     \
         if (must_add_to_extra) remember_vec( tagptr( T_objp, VEC_TAG ), e );  \
-        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
+        if (!(sizefield( T_w ) & sizeof(word))) *ptr++ = 0; /* pad. */                \
       }                                                                       \
     }                                                                         \
     else {                                                                    \

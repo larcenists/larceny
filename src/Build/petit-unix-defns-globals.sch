@@ -26,6 +26,7 @@
 (define *target:endianness* 'big)
 (define *target:os*         'unix)
 (define *target:machine*    'standard-c)
+(define *target:word-size*  32)
 
 (define *runtime:additional-features* '())
 

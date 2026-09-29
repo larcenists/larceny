@@ -1058,8 +1058,8 @@ static bool mark_word( word *bitmap, word obj, word first )
   /* Note: marks object "header" only, not entire range it occupies. */
   bit_idx     = (obj - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORD_IDX;
-  bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
-  retval      = (bool)( bitmap[ word_idx ] & bit_in_word );
+  bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+  retval      = (( bitmap[ word_idx ] & bit_in_word ) != 0);
   bitmap[ word_idx ] |= bit_in_word;
   return retval;
 }
@@ -1072,9 +1072,9 @@ static bool unmark_word( word *bitmap, word obj, word first )
   /* Note: unmarks object "header" only, not entire range it occupies. */
   bit_idx     = (obj - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORD_IDX;
-  set_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  set_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
   bit_in_word = ~set_in_word;
-  retval      = (bool)( bitmap[ word_idx ] & set_in_word );
+  retval      = (( bitmap[ word_idx ] & set_in_word ) != 0);
   bitmap[ word_idx ] &= bit_in_word;
   return retval;
 }
@@ -1348,8 +1348,8 @@ bool smircy_object_marked_p( smircy_context_t *context, word obj )
        ptrof( obj ) < highest_heap_address ) {
     bit_idx = (obj - (word)lowest_heap_address) >> BIT_IDX_SHIFT;
     word_idx = bit_idx >> BIT_IDX_TO_WORD_IDX;
-    bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
-    return (bool)(bitmap[ word_idx ] & bit_in_word);
+    bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+    return ((bitmap[ word_idx ] & bit_in_word) != 0);
   } else {
     return TRUE; /* all objects outside bitmap considered marked. */
   }

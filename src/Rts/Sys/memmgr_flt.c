@@ -92,7 +92,7 @@ static void* visit_measuring_float( word *addr, int tag, void *accum )
   case VEC_TAG:
   case BVEC_TAG:
   case PROC_TAG:
-    words = roundup8( sizefield( *addr )+4 ) / 4;
+    words = object_size_bytes( *addr ) / sizeof(word);
     break;
   default:
     assert(0);
@@ -139,9 +139,9 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
     bars[BAR_LENGTH+1] = '\0';
     {
       int allocated;
-      data_count = data.words.total*4;
-      easy_float = data.words.zzflt*4+data.words.rsflt*4;
-      hard_float = data.words.rsflt*4;
+      data_count = data.words.total*sizeof(word);
+      easy_float = data.words.zzflt*sizeof(word)+data.words.rsflt*sizeof(word);
+      hard_float = data.words.rsflt*sizeof(word);
       newmax = DATA(gc)->ephemeral_area[i]->maximum;
       allocated = DATA(gc)->ephemeral_area[i]->allocated;
       if ( allocated > newmax ) {
@@ -181,7 +181,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
                   data.words.total, 
-                  heap->allocated/4, 
+                  heap->allocated/sizeof(word), 
 
                   rgn_grp_str,
 

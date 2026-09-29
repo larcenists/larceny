@@ -272,8 +272,8 @@
 
 ; Fixnum primitives
 
-(define most-negative-fixnum (lambda () (- (- #x1FFFFFFF) 1)))
-(define most-positive-fixnum (lambda () #x1FFFFFFF))
+(define most-negative-fixnum (lambda () (most-negative-fixnum)))
+(define most-positive-fixnum (lambda () (most-positive-fixnum)))
 
 ; Bignum primitives.
 

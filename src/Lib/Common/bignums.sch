@@ -102,10 +102,12 @@
 ;---------------------------------------------------------------------------
 ; Section 0. System-independent constants (not really).
 
-(define smallest-positive-bignum 536870912)  ; 2^29
-(define largest-negative-bignum -536870913)  ; -(2^29+1)
-(define max-negative-fixnum     -536870912)  ; -(2^29)
-(define max-positive-fixnum      536870911)  ; 2^29-1
+; Fixnums are 30 bits on 32-bit systems and 62 bits on 64-bit systems.
+
+(define max-negative-fixnum      (most-negative-fixnum))   ; -(2^29), -(2^61)
+(define max-positive-fixnum      (most-positive-fixnum))   ; 2^29-1, 2^61-1
+(define smallest-positive-bignum (+ max-positive-fixnum 1))
+(define largest-negative-bignum  (- max-negative-fixnum 1))
 
 (define negative-sign 1)                     ; the sign of a negative bignum
 (define positive-sign 0)                     ; ditto of a positive one
@@ -371,16 +373,19 @@
 
 ; Assumes that the number fits in a fixnum.
 
+; A negative value is accumulated negatively, so the most negative
+; fixnum can be computed without overflow.
+
 (define (bignum->fixnum b)
-  (let ((d0 (bignum-ref b 0))
-        (d1 (bignum-ref b 1))
-        (n  (sign-negative? (bignum-sign b))))
-    (if (>= (fxlsh d1 2) bignum-base/2)
-        max-negative-fixnum
-        (let ((c (fxlogior (fxlsh d1 bigit-shift) d0)))
-          (if n
-              (- c)
-              c)))))
+  (let ((neg? (sign-negative? (bignum-sign b))))
+    (let loop ((i (- (bignum-length b) 1))
+               (c 0))
+      (if (< i 0)
+          c
+          (let ((c (fxlsh c bigit-shift))
+                (d (bignum-ref b i)))
+            (loop (- i 1)
+                  (if neg? (fx- c d) (fxlogior c d))))))))
 
 ; Can't use `big-normalize!' because it'd convert it back to a fixnum.
 ; (Could use big-limited-normalize, though.)
@@ -398,11 +403,15 @@
         (begin 
           (if (zero? f)
               (bignum-length-set! b 0)
-              (begin
-                (bignum-set! b 0 (fxlogand a bigit-mask))
-                (bignum-set! b 1 (fxrsha a bigit-shift))))
+              (let loop ((i 0) (a a))
+                (if (< i bigits-per-fixnum)
+                    (begin (bignum-set! b i (fxlogand a bigit-mask))
+                           (loop (+ i 1) (fxrsha a bigit-shift))))))
           (if (< f 0) (bignum-sign-set! b negative-sign))
-          b))))
+          ; On 64-bit systems the high 32-bit bigit may be zero.
+          (if (zero? f)
+              b
+              (big-limited-normalize! b))))))
 
 ;-----------------------------------------------------------------------------
 ; Section 3.

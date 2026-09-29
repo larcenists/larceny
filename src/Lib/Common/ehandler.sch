@@ -577,10 +577,12 @@
        ;; We report the unsigned value in bytes.
 
        ((= code $ex.alloc)
-        (let ((uwords (if (< arg1 0)
-                        (+ arg1 (expt 2 30))
-                        arg1)))
-          (error #f (errmsg 'msg:alloctoobig) (list (* uwords 4)))))
+        (let* ((bits (fixnum-width))                   ; 30 or 62
+               (uwords (if (< arg1 0)
+                           (+ arg1 (expt 2 bits))
+                           arg1)))
+          (error #f (errmsg 'msg:alloctoobig)
+                 (list (* uwords (quotient (+ bits 2) 8))))))
 
        ;; Others
 

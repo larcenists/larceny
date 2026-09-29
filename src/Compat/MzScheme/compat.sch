@@ -40,7 +40,7 @@
 (define version-370? 
   ((version-greater-or-equal-to? 370) (version)))
 (define version-4.x? 
-  ((version-greater-or-equal-to? "4.0.0") (version)))
+  ((version-greater-or-equal-to? "4.0") (version)))
 
 (define bytes->list
   (cond (version-4.x?

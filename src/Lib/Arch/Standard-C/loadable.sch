@@ -43,22 +43,20 @@
 			    (else (error "loadable.sch: Bad codevector representation": cvr)))))))
       (let ((bv (make-bytevector word-size)))
 	(syscall syscall:peek-bytes (+ table (* idx word-size)) bv word-size)
-	(let ((x (cond ((and (= word-size 4) (eq? endianness 'big))
-			(+ (* 256 (+ (* 256 (+ (* 256 (bytevector-ref bv 0))
-					       (bytevector-ref bv 1)))
-				     (bytevector-ref bv 2)))
-			   (bytevector-ref bv 3)))
-		       ((and (= word-size 4) (eq? endianness 'little))
-			(+ (* 256 (+ (* 256 (+ (* 256 (bytevector-ref bv 3))
-					       (bytevector-ref bv 2)))
-				     (bytevector-ref bv 1)))
-			   (bytevector-ref bv 0)))
-		       (else
-			(error "No DLL lookup procedure for this word size and endianness.")))))
+	(let ((x (let loop ((i 0) (x 0))
+                   ; assemble the word from its bytes
+                   (if (= i word-size)
+                       x
+                       (loop (+ i 1)
+                             (+ (* 256 x)
+                                (bytevector-ref bv (if (eq? endianness 'big)
+                                                       i
+                                                       (- word-size i 1)))))))))
+          ; The result is the fixnum whose representation is the address.
 	  (fxlsh (let ((p (quotient x 4)))
 		 (if (fixnum? p)
 		     p
-		     (- p 1073741824)))  ; 2^30
+		     (- p (expt 2 (- (* 8 word-size) 2)))))
 	       shift))))))
 
 ; Given the name of a shared object file that contains compiled code for

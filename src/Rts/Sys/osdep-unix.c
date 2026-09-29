@@ -265,7 +265,7 @@ void osdep_cwd( void )
   else
   {
     int k = strlen( buf );
-    int nwords = roundup4(k)/4;
+    int nwords = (int)(roundup_word(k)/sizeof(word));
     word *p = alloc_from_heap( (nwords+1)*sizeof(word) );
     *p = mkheader( k, BV_HDR );
     memcpy( p+1, buf, k );

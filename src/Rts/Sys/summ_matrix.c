@@ -2237,7 +2237,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
     word words;
     int offset;
     assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
-    words = sizefield( *loc ) / 4;
+    words = sizefield( *loc ) / sizeof(word);
     scanned = words;
     offset = 0;
     while (words--) {

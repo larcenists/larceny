@@ -28,8 +28,13 @@
 # define BITS_TO_WORDS     5    /* shift to get word addr from bit addr */
 # define BIT_IN_WORD_MASK  31   /* mask to get bit shift */
 # define BITS_IN_WORD      32
+#elif defined(BITS_64)
+# define BIT_IDX_SHIFT     4    /* shift to get doubleword bit address */
+# define BITS_TO_WORDS     6    /* shift to get word addr from bit addr */
+# define BIT_IN_WORD_MASK  63   /* mask to get bit shift */
+# define BITS_IN_WORD      64
 #else
-# error "Must define MSGC macros for non-32 bit systems."
+# error "Must define MSGC macros for this word size."
 #endif
 
 typedef struct msgc_stackseg msgc_stackseg_t;
@@ -394,8 +399,8 @@ static bool mark_word( word *bitmap, word obj, word first ) {
   */
   bit_idx = (obj - first) >> BIT_IDX_SHIFT;
   word_idx = bit_idx >> BITS_TO_WORDS;
-  bit = 1 << (bit_idx & BIT_IN_WORD_MASK);
-  retval = (bitmap[ word_idx ] & bit);
+  bit = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+  retval = ((bitmap[ word_idx ] & bit) != 0);
   bitmap[ word_idx ] |= bit;
   return retval;
 }
@@ -409,8 +414,8 @@ static bool unmark_word( word *bitmap, word obj, word first ) {
   */
   bit_idx = (obj - first) >> BIT_IDX_SHIFT;
   word_idx = bit_idx >> BITS_TO_WORDS;
-  bit = 1 << (bit_idx & BIT_IN_WORD_MASK);
-  retval = (bitmap[ word_idx ] & bit);
+  bit = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+  retval = ((bitmap[ word_idx ] & bit) != 0);
   bitmap[ word_idx ] &= ~bit;
   return retval;
 }
@@ -487,23 +492,23 @@ bool msgc_object_marked_p( msgc_context_t *context, word obj )
 
   bit_idx = (obj - (word)context->lowest_heap_address) >> BIT_IDX_SHIFT;
   word_idx = bit_idx >> BITS_TO_WORDS;
-  bit = 1 << (bit_idx & BIT_IN_WORD_MASK);
-  return (context->bitmap[ word_idx ] & bit);
+  bit = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+  return ((context->bitmap[ word_idx ] & bit) != 0);
 }
 
 void msgc_mark_range( msgc_context_t *context, void *bot, void *lim )
 {
-  unsigned bit_idx_lo, word_idx_lo, bit_idx_hi, word_idx_hi;
+  word bit_idx_lo, word_idx_lo, bit_idx_hi, word_idx_hi;
   byte *first = (byte*)context->lowest_heap_address;
   byte* botp = (byte*)bot, *limp = (byte*)lim;
   
-  bit_idx_lo = ((unsigned)(botp - first)) >> BIT_IDX_SHIFT;
+  bit_idx_lo = ((word)(botp - first)) >> BIT_IDX_SHIFT;
   word_idx_lo = bit_idx_lo >> BITS_TO_WORDS;
-  bit_idx_hi = ((unsigned)(limp - 1 - first)) >> BIT_IDX_SHIFT;
+  bit_idx_hi = ((word)(limp - 1 - first)) >> BIT_IDX_SHIFT;
   word_idx_hi = bit_idx_hi >> BITS_TO_WORDS;
   
   /* First partial word */
-  context->bitmap[ word_idx_lo ] |= ~0 << (bit_idx_lo & BIT_IN_WORD_MASK);
+  context->bitmap[ word_idx_lo ] |= ~(word)0 << (bit_idx_lo & BIT_IN_WORD_MASK);
   
   /* Middle segment: whole words */
   memset( &context->bitmap[word_idx_lo+1], 
@@ -515,7 +520,7 @@ void msgc_mark_range( msgc_context_t *context, void *bot, void *lim )
     context->bitmap[ word_idx_hi ] = ~0;
   else
     context->bitmap[ word_idx_hi ] |= 
-      ((~0 << ((bit_idx_hi & BIT_IN_WORD_MASK)+1)) ^ ~0);
+      ((~(word)0 << ((bit_idx_hi & BIT_IN_WORD_MASK)+1)) ^ ~(word)0);
 }
 
 void msgc_mark_object( msgc_context_t *context, word obj )

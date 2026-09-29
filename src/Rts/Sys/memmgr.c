@@ -2669,7 +2669,7 @@ static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
     word words; 
     int offset;
     assert2( tagof(obj) == VEC_TAG || tagof(obj) == PROC_TAG );
-    words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    words = sizefield( *w ) / sizeof(word);
     offset = 0;
     while (words--) {
       offset += sizeof(word);
@@ -3209,7 +3209,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     new_ssb[i] = gc->ssb[i];
     seqbuf_swap_in_ssb( gc->ssb[i], &new_ssb_bot[i], 
                         &new_ssb_top[i], &new_ssb_lim[i] );
-    seqbuf_set_sp_data( gc->ssb[i], /* XXX */(void*) i );
+    seqbuf_set_sp_data( gc->ssb[i], (void*)(intptr_t) i );
   }
   /* XXX This code only works with RROF, but I do not have a
    * reasonable way to assert that precondition. */
@@ -3217,12 +3217,12 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     create_seqbuf( DATA(gc)->ssb_entry_count, 
                    &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
                    &new_ssb_lim[fresh_gno], ssb_process_rrof, 
-                   /* XXX */(void*) fresh_gno );
+                   (void*)(intptr_t) fresh_gno );
   for( i = fresh_gno+1; i < new_gno_count; i++ ) {
     new_ssb[i] = gc->ssb[i-1];
     seqbuf_swap_in_ssb( gc->ssb[i-1], 
                         &new_ssb_bot[i], &new_ssb_top[i], &new_ssb_lim[i] );
-    seqbuf_set_sp_data( gc->ssb[i-1], /* XXX */(void*)i );
+    seqbuf_set_sp_data( gc->ssb[i-1], (void*)(intptr_t)i );
   }
 
   free( gc->ssb );
@@ -3733,7 +3733,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   }
   retval |= urs_add_elems( gc->the_remset, bot, top );
 
-  g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
+  g_rhs = (int)(intptr_t)ep_data;
   if (DATA(gc)->summaries != NULL
 #if 0
       && g_rhs <= DATA(gc)->region_count /* XXX is region_count sane? */

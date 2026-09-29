@@ -14,7 +14,7 @@
    This bit pattern is an unused immediate and can be generated in a single
    cycle on most machines (it's -2).
    */
-#define FORWARD_HDR      0xFFFFFFFE
+#define FORWARD_HDR      ((word)-2)
 
 /* Copy loop implementation.
 
@@ -224,9 +224,9 @@ static void stop( void )
       if (T_h == BV_HDR) {                                                    \
         /* bytevector: skip it, and flush the icache if code */               \
         word *T_oldptr = ptr;                                                 \
-        word T_bytes = roundup4( sizefield( T_w ) );                          \
-        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
-        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                \
+        word T_bytes = roundup_word( sizefield( T_w ) );                      \
+        ptr = (word *)((word)ptr + (T_bytes + sizeof(word))); /* no pad */    \
+        if (!(T_bytes & sizeof(word))) *ptr++ = 0;  /* pad. */                \
         /* Only code vectors typically use a plain bytevector typetag,        \
          * so almost any bytevector will be a code vector that must           \
          * be flushed.                                                        \
@@ -236,13 +236,13 @@ static void stop( void )
       }                                                                       \
       else {                                                                  \
         /* vector or procedure: scan in a tight loop */                       \
-        word T_words = sizefield( T_w ) >> 2;                                 \
+        word T_words = sizefield( T_w ) >> WORD_SHIFT;                                 \
         ptr++;                                                                \
         while (T_words--) {                                                   \
           FORW;                                                               \
           ptr++;                                                              \
         }                                                                     \
-        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
+        if (!(sizefield( T_w ) & sizeof(word))) *ptr++ = 0; /* pad. */                \
       }                                                                       \
     }                                                                         \
     else {                                                                    \
@@ -264,9 +264,9 @@ static void stop( void )
       if (T_h == BV_HDR) {                                                    \
         /* bytevector: skip it, and flush the icache if code */               \
         word *T_oldptr = ptr;                                                 \
-        word T_bytes = roundup4( sizefield( T_w ) );                          \
-        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
-        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                \
+        word T_bytes = roundup_word( sizefield( T_w ) );                      \
+        ptr = (word *)((word)ptr + (T_bytes + sizeof(word))); /* no pad */    \
+        if (!(T_bytes & sizeof(word))) *ptr++ = 0;  /* pad. */                \
         /* Only code vectors typically use a plain bytevector typetag,        \
          * so almost any bytevector will be a code vector that must           \
          * be flushed.                                                        \
@@ -276,7 +276,7 @@ static void stop( void )
       }                                                                       \
       else {                                                                  \
         /* vector or procedure: scan in a tight loop */                       \
-        word T_words = sizefield( T_w ) >> 2;                                 \
+        word T_words = sizefield( T_w ) >> WORD_SHIFT;                                 \
         bool updated = FALSE;                                                 \
         ptr++;                                                                \
         while (T_words) {                                                     \
@@ -294,7 +294,7 @@ static void stop( void )
           FORW;                                                               \
           ptr++;                                                              \
         }                                                                     \
-        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
+        if (!(sizefield( T_w ) & sizeof(word))) *ptr++ = 0; /* pad. */                \
       }                                                                       \
     }                                                                         \
     else {                                                                    \
@@ -329,7 +329,7 @@ static void stop( void )
       FORW;                                                          \
     }                                                                \
     else {                                                           \
-      word words = sizefield( *p ) / 4;                              \
+      word words = sizefield( *p ) / sizeof(word);                              \
       COUNT_REMSET_LARGE_OBJ( words );                               \
       while (words--) {                                              \
         ++p;                                                         \
@@ -350,7 +350,7 @@ static void stop( void )
       FORW;                                                               \
     }                                                                     \
     else {                                                                \
-      word words = sizefield( *p ) / 4;                                   \
+      word words = sizefield( *p ) / sizeof(word);                                   \
       COUNT_REMSET_LARGE_OBJ( words );                                    \
       while (words--) {                                                   \
         ++p;                                                              \

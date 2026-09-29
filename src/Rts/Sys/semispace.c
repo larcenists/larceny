@@ -207,7 +207,7 @@ void ss_shrinkwrap( semispace_t *ss )
   if (ss->current >= 0) {
     word *newtop;
     c = &ss->chunks[ss->current];
-    newtop = (word*)roundup_page( (unsigned)c->top );
+    newtop = (word*)roundup_page( (word)c->top );
     while(c->top < newtop) {
       *c->top = 0;
       c->top++;
@@ -507,10 +507,10 @@ void* ss_enumerate( semispace_t *ss,
         if (h == BV_HDR) {
           word bytes;
           accum = visitor( cursor, BVEC_TAG, accum );
-          bytes = roundup4( sizefield( w ));
+          bytes = roundup_word( sizefield( w ) );
           cursor++;         /* header */
           cursor = (word*)((word)cursor + bytes);
-          if (!(bytes & 4)) cursor++; /* padding */
+          if (!(bytes & sizeof(word))) cursor++; /* padding */
         } else {
           word words;
           int tag;
@@ -521,10 +521,10 @@ void* ss_enumerate( semispace_t *ss,
           else
             assert(0);
           accum = visitor( cursor, tag, accum );
-          words = sizefield( w ) >> 2;
+          words = sizefield( w ) >> WORD_SHIFT;
           cursor++;        /* header */
           cursor += words; /* contents */
-          if (!( sizefield( w ) & 4))
+          if (!( sizefield( w ) & sizeof(word)))
             cursor++;      /* padding */
         }
       } else {

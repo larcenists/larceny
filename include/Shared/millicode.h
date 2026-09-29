@@ -137,16 +137,29 @@ void EXPORT mc_full_barrier( word *globals );
 
      Input:  RESULT = left-hand-side (mutable object)
              SECOND = right-hand-side (any value)
+             THIRD  = address of the assigned slot
      Output: nothing.
      */
 
 void EXPORT mc_partial_barrier( word *globals );
-  /* The rhs is assumed to be a pointer.  If the rhs is in a younger
-     generation than the rhs, then the lhs is added to the SSB of the
-     older generation.
+  /* The rhs is assumed to be a pointer.  If the assignment creates a
+     pointer across generations (or regions) that is not filtered out,
+     then the lhs and the byte offset of the slot (a fixnum) are added
+     to the SSB of the rhs's generation.
 
      Input:  RESULT = left-hand-side (mutable object)
              SECOND = right-hand-side (boxed object)
+             THIRD  = address of the assigned slot
+     Output: nothing.
+     */
+
+void EXPORT mc_satb_barrier( word *globals );
+  /* The snapshot-at-the-beginning barrier for concurrent marking; must
+     be called before an assignment.  If concurrent marking is in
+     progress, logs the old value of the slot.
+
+     Input:  RESULT = left-hand-side (mutable object)
+             THIRD  = address of the slot about to be assigned
      Output: nothing.
      */
 

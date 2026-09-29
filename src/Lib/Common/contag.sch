@@ -100,6 +100,28 @@
     (lambda (a b retry)
       (retry (f1 a) (f2 b))))
 
+  ; On 64-bit systems a fixnum may have more significant bits than a
+  ; flonum, so converting it to a flonum for a comparison may lose
+  ; information.  For such fixnums, comparisons with finite flonums
+  ; are performed exactly.  (This never happens with 30-bit fixnums.)
+
+  (define two^53 9007199254740992)
+  (define big-fixnums? (fixnum? two^53))
+
+  (define (fixnum-flonum-compare a b retry)          ; a fixnum, b flonum
+    (if (and big-fixnums?
+             (or (< two^53 a) (< a (- two^53)))
+             (let ((zero (- b b))) (= zero zero)))
+        (retry a (->rat b))
+        (retry (fixnum->flonum a) (flonum->flonum b))))
+
+  (define (flonum-fixnum-compare a b retry)          ; a flonum, b fixnum
+    (if (and big-fixnums?
+             (or (< two^53 b) (< b (- two^53)))
+             (let ((zero (- a a))) (= zero zero)))
+        (retry (->rat a) b)
+        (retry (flonum->flonum a) (fixnum->flonum b))))
+
   ; For operations targeted by algorithm* a compnum with a zero imag
   ; part is equivalent to a flonum, and the operations are well-defined
   ; in the millicode implementations.  Hence, the compnum case with
@@ -405,7 +427,7 @@
                     (fun fixnum->bignum id)
                     (fun fixnum->ratnum id)
                     (fun fixnum->rectnum id)
-                    (fun fixnum->flonum flonum->flonum)
+                    fixnum-flonum-compare
                     oops-in-predicate)
             (vector (fun id fixnum->bignum)
                     oops
@@ -425,7 +447,7 @@
                     oops
                     (fun id flonum->ratnum)
                     oops-in-predicate)
-            (vector (fun flonum->flonum fixnum->flonum)
+            (vector flonum-fixnum-compare
                     algorithm*p
                     algorithm*pratnum
                     (fun flonum->ratnum id)
@@ -445,7 +467,7 @@
                     (fun fixnum->bignum id)
                     (fun fixnum->ratnum id) 
                     (fun fixnum->rectnum id)
-                    (fun fixnum->flonum flonum->flonum) 
+                    fixnum-flonum-compare
                     (fun fixnum->compnum compnum->compnum))
             (vector (fun id fixnum->bignum)
                     oops
@@ -465,7 +487,7 @@
                     oops
                     algorithm*cre
                     algorithm*cre)
-            (vector (fun flonum->flonum fixnum->flonum)
+            (vector flonum-fixnum-compare
                     algorithm*e
                     algorithm*eratnum
                     algorithm*cre

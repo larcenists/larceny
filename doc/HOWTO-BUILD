@@ -21,6 +21,54 @@ To build Common Larceny, see the Common Larceny documentation in
 doc/CommonLarceny/user-manual.txt.
 
 
+BUILDING 64-BIT PETIT LARCENY ON APPLE SILICON (macOS/arm64)
+
+Petit Larceny can be built as a 64-bit system (64-bit words, 62-bit
+fixnums) for macOS on Apple Silicon, using Racket (v8 or later, with
+its plt-r5rs language) to host the build instead of a prebuilt
+Larceny.  The C compiler is Apple's clang (invoked as cc/gcc).
+
+ 1. From the Larceny root directory, run plt-r5rs with --no-prim and
+    build the bootstrap system:
+
+        % plt-r5rs --no-prim
+        > (load "setup.sch")
+        > (setup 'scheme: 'racket 'host: 'macosx-arm64)
+        > (build-config-files)
+        > (load-compiler)
+        > (build-heap)
+        > (build-runtime)
+        > (build-executable)
+        > (build-larceny-files)
+        > (exit)
+
+    (Racket's plt-r5rs is in the bin directory of the Racket
+    installation, e.g. "/Applications/Racket v9.3/bin/plt-r5rs".)
+
+ 2. Create the heap image:
+
+        % ./petit-larceny.bin -stopcopy -heap petit.heap \
+              -- src/Build/petit-larceny-heap.sch
+
+ 3. Compile the R7RS/R6RS/SRFI libraries as in step 4 below:
+
+        % ./larceny
+        > (require 'r7rsmode)
+        > (larceny:compile-r7rs-runtime)
+        > (exit)
+
+The 64-bit system uses the same object representations as the 32-bit
+system, scaled to 8-byte words, except that flonums and compnums have
+no pad word after the header, and fixnums have 62 bits.  Heap memory
+is allocated from a reserved region of virtual address space (64 GB by
+default; set LARCENY_ARENA_GB to change it).  Petit Larceny's write
+barrier now follows the same protocol as native Larceny's, so the
+regional collector (-rrof) works.  Code compiled by earlier versions
+of Petit Larceny must be recompiled.  Known limitations, shared with
+the 32-bit Petit Larceny: the FFI is not available, and the
+non-predictive collector (-np) is not implemented.
+
+
 WHAT TO DO
 
 Building Larceny has four major steps:
@@ -39,11 +87,14 @@ declare which implementation of Scheme you want to use for
 the build process (SCHEME) and which OS you are using as
 both the host and target of the build (HOST):
 
-        SCHEME      ::= 'larceny | 'mzscheme | 'petite | 'chez
-        HOST        ::= 'macosx | 'macosx-el | 'linux86 | 'win32 | 'linux-arm-el
+        SCHEME      ::= 'larceny | 'racket | 'mzscheme | 'petite | 'chez
+        HOST        ::= 'macosx | 'macosx-el | 'macosx-arm64 | 'linux86
+                      | 'win32 | 'linux-arm-el
         STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
+The HOST option macosx-arm64 is for Apple Silicon Macintosh computers;
+it builds a 64-bit Petit Larceny (see above).
 The HOST option macosx is for PowerPC-based Macintosh computers.
 
 The HOST option linux-arm-el is for most ARM-based Linux systems.

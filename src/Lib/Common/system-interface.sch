@@ -448,7 +448,7 @@
            (<= count (bytevector-length bv))
            (or (fixnum? addr)
                (and (bignum? addr)
-                    (<= 0 addr 4294967295))))
+                    (<= 0 addr 18446744073709551615))))
       (syscall syscall:peek-bytes addr bv count)
       (error "peek-bytes: invalid arguments " addr ", " bv ", " count)))
 
@@ -458,7 +458,7 @@
            (<= count (bytevector-length bv))
            (or (fixnum? addr)
                (and (bignum? addr)
-                    (<= 0 addr 4294967295))))
+                    (<= 0 addr 18446744073709551615))))
       (syscall syscall:poke-bytes addr bv count)
       (error "poke-bytes: invalid arguments " addr ", " bv ", " count)))
 

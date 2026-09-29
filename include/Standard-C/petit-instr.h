@@ -148,9 +148,9 @@ extern cont_t twobit_cont_label;
    to compile with allocation inlined.
    */
 #ifdef INLINE_ALLOCATION
-# define ALLOCATE( nbytes ) /* fixnum number of words = native number of bytes */ \
+# define ALLOCATE( nwords ) /* fixnum number of words */ \
     do { \
-          word size = nbytes; \
+          word size = FIXNUM_TO_WORDBYTES( nwords ); \
           size = roundup_balign( size ); \
           if (globals[G_ETOP] + size <= STKP) { \
             RESULT = globals[G_ETOP]; \
@@ -199,17 +199,37 @@ extern cont_t twobit_cont_label;
 #endif
 
 
-/* Define INLINE_ASSIGNMENT at the head of a file (before including petit-instr.h)
-   to compile with a fast pointer check inlined before calling the barrier.
+/* The write barrier.  When an assignment is performed, RESULT holds the
+   object assigned into and SECOND the value stored; the address of the
+   slot is passed to the barrier in THIRD.
+
+   PRE_BARRIER( slot ) must precede the store: during the concurrent
+   marking phase of the regional collector it logs the old value of the
+   slot (snapshot at the beginning).  BARRIER( slot ) must follow the
+   store: it logs pointers that cross generations or regions.
+
+   Define INLINE_ASSIGNMENT at the head of a file (before including
+   petit-instr.h) to compile with a fast pointer check inlined before
+   calling the barrier.
    */
+#define PRE_BARRIER( slot ) \
+    do { if (globals[ G_CONCURRENT_MARK ]) { \
+           THIRD = (word)(slot); \
+           WITH_SAVED_STATE( mc_satb_barrier( globals ) ); \
+         } \
+    } while(0)
 #ifdef INLINE_ASSIGNMENT
-# define BARRIER()  \
-    do { if (SECOND & 1) \
-            WITH_SAVED_STATE( mc_partial_barrier( globals ) ); \
+# define BARRIER( slot )  \
+    do { if (SECOND & 1) { \
+           THIRD = (word)(slot); \
+           WITH_SAVED_STATE( mc_partial_barrier( globals ) ); \
+         } \
     } while(0)
 #else
-# define BARRIER()  \
-    WITH_SAVED_STATE( mc_full_barrier( globals ) )
+# define BARRIER( slot )  \
+    do { THIRD = (word)(slot); \
+         WITH_SAVED_STATE( mc_full_barrier( globals ) ); \
+    } while(0)
 #endif
 
 
@@ -235,11 +255,12 @@ extern cont_t twobit_cont_label;
 #define framesize( n )      (n+2) /* not STK_OVERHEAD -- counts header also */
 #define realframesize( n )  roundup_walign(framesize(n)+1)
 
+/* fixnum_offset is a word index represented as a fixnum. */
 #define word_addr( x, tag, header_words, fixnum_offset ) \
-  ((word*)((byte*)(x)+((header_words)*sizeof(word)-(tag))+(fixnum_offset)))
+  ((word*)((word)(x)+(header_words)*sizeof(word)-(word)(tag)+FIXNUM_TO_WORDBYTES(fixnum_offset)))
 
 #define byte_addr( x, tag, header_words, fixnum_offset ) \
-  ((byte*)(x)+((header_words)*sizeof(word)-(tag))+((fixnum_offset)>>2))
+  ((byte*)((word)(x)+(header_words)*sizeof(word)-(word)(tag)+((word)(fixnum_offset)>>2)))
 
 #define car_addr( x )     word_addr( x, PAIR_TAG, 0, fixnum(0) )
 #define cdr_addr( x )     word_addr( x, PAIR_TAG, 0, fixnum(1) )
@@ -256,13 +277,13 @@ extern cont_t twobit_cont_label;
 
 /* make-vector, make-procedure */
 #define make_vectorish( header_words, excode, header, ptrtag, init ) \
-   do { int n; word *p; \
+   do { word n; word *p; \
         SECOND = init; \
         if (UNSAFE_TRUE(is_nonnegative_fixnum( RESULT ))) { \
           n = RESULT; \
           ALLOCATE_I( n + fixnum(header_words) ); \
           p = (word*)RESULT; \
-          p[0] = mkheader( n, header ); \
+          p[0] = mkheader( FIXNUM_TO_WORDBYTES(n), header ); \
           RESULT = tagptr( p, ptrtag ); \
         } else { FAIL( excode ); } \
    } while(0)
@@ -376,8 +397,9 @@ extern cont_t twobit_cont_label;
 #define twobit_setglbl( k ) \
   do { word b=SECOND=RESULT; \
        word a=RESULT=get_const( k ); \
+       PRE_BARRIER( car_addr( a ) ); \
        global_cell_set( a, b ); \
-       BARRIER(); \
+       BARRIER( car_addr( a ) ); \
        integrity_check( "setglbl" ); \
   } while(0)
 
@@ -464,9 +486,10 @@ extern cont_t twobit_cont_label;
 #define twobit_setlex( m, n ) \
   do { int i; word p=reg(0); \
        for ( i=m ; i > 0 ; i-- ) p=*proc_addr( p, IDX_PROC_REG0 ); \
-       *proc_addr( p, IDX_PROC_REG0+n ) = RESULT; \
        SECOND = RESULT; RESULT = p; \
-       BARRIER(); \
+       PRE_BARRIER( proc_addr( p, IDX_PROC_REG0+n ) ); \
+       *proc_addr( p, IDX_PROC_REG0+n ) = SECOND; \
+       BARRIER( proc_addr( p, IDX_PROC_REG0+n ) ); \
        integrity_check( "setlex" ); \
   } while(0)
 
@@ -485,7 +508,7 @@ extern cont_t twobit_cont_label;
             WITH_SAVED_STATE( mc_stack_overflow( globals ) ); \
        } while(1); \
        STKP = (word)stkp; \
-       stkp[ STK_FRAMESIZE ] = fixnum(framesize(n+1)); \
+       stkp[ STK_FRAMESIZE ] = (word)framesize(n+1)*sizeof(word); \
        stkp[ STK_RETURN ] = 0; \
        stkp[ STK_REG0 ] = reg(0); \
        while (i > 0) { stkp[ STK_REG0+i ] = UNSPECIFIED_CONST; i--; } \
@@ -809,7 +832,7 @@ extern cont_t twobit_cont_label;
    do { word h, a=RESULT;						  \
         if (UNSAFE_TRUE2(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ),	  \
                          h = the_header( a, VEC_TAG )))			  \
-          RESULT = h >> 8;						  \
+          RESULT = WORDBYTES_TO_FIXNUM( sizefield( h ) );		  \
         else { FAIL( EX_VECTOR_LENGTH ); } \
         integrity_check( "vector-length" );				  \
    } while(0)
@@ -902,8 +925,9 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_59( y ) /* set-car! */ \
    do { word a=RESULT, b=SECOND=reg(y); \
 	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) { \
+	  PRE_BARRIER( car_addr( a ) ); \
 	  *car_addr( a ) = b; \
-	  BARRIER(); \
+	  BARRIER( car_addr( a ) ); \
         } \
 	else { FAIL( EX_SETCAR ); } \
    } while(0)
@@ -911,8 +935,9 @@ extern cont_t twobit_cont_label;
 #define twobit_op2_60( y ) /* set-cdr! */ \
    do { word a=RESULT, b=SECOND=reg(y); \
 	if (UNSAFE_TRUE(tagof( a ) == PAIR_TAG)) { \
+	  PRE_BARRIER( cdr_addr( a ) ); \
 	  *cdr_addr( a ) = b; \
-	  BARRIER(); \
+	  BARRIER( cdr_addr( a ) ); \
         } \
 	else { FAIL( EX_SETCDR ); } \
    } while(0)
@@ -1026,7 +1051,7 @@ extern cont_t twobit_cont_label;
   do { word a=RESULT, b=reg(y), h; \
        if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
                        is_fixnum(b) && \
-                       b < (h >> 8))) \
+                       b < WORDBYTES_TO_FIXNUM(h >> 8))) \
          RESULT = *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ); \
        else { SECOND=b; \
 	      FAIL( EX_VECTOR_REF ); } \
@@ -1046,7 +1071,7 @@ extern cont_t twobit_cont_label;
   do { word a=RESULT, b=reg(y); \
        if (UNSAFE_TRUE(tagof( a ) == PROC_TAG && \
                        is_fixnum(b) && \
-                       (b < (the_header( a, PROC_TAG ) >> 8)))) \
+                       (b < WORDBYTES_TO_FIXNUM(the_header( a, PROC_TAG ) >> 8)))) \
         RESULT = *word_addr( a, PROC_TAG, PROC_HEADER_WORDS, b);\
        else { SECOND=b; \
 	      FAIL( EX_PROCEDURE_REF ); } \
@@ -1054,8 +1079,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_84( y ) /* cell-set! */ \
   do { word b=SECOND=reg(y); \
+       PRE_BARRIER( car_addr( RESULT ) ); \
        *car_addr( RESULT ) = b; \
-       BARRIER(); \
+       BARRIER( car_addr( RESULT ) ); \
   } while(0)
 
 #define charcmp( op, y, ex ) /* generic character comparison */ \
@@ -1087,10 +1113,11 @@ extern cont_t twobit_cont_label;
   do { word a=RESULT, b=reg(y), c=reg(z), h; \
        if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) && \
                        is_fixnum(b) && \
-                       b < (h >> 8))) { \
+                       b < WORDBYTES_TO_FIXNUM(h >> 8))) { \
+         PRE_BARRIER( word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) ); \
          *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) = c; \
          SECOND = c; \
-	 BARRIER(); \
+	 BARRIER( word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) ); \
        } else { SECOND=b; THIRD=c; \
 		FAIL( EX_VECTOR_SET ); \
        } \
@@ -1111,10 +1138,11 @@ extern cont_t twobit_cont_label;
   do { word a=RESULT, b=reg(y), c=reg(z); \
        if (UNSAFE_TRUE(tagof( a ) == PROC_TAG && \
                        is_fixnum(b) && \
-                       (b < (the_header( a, PROC_TAG ) >> 8)))) { \
+                       (b < WORDBYTES_TO_FIXNUM(the_header( a, PROC_TAG ) >> 8)))) { \
+         PRE_BARRIER( word_addr(a, PROC_TAG, PROC_HEADER_WORDS, b) ); \
          *word_addr(a, PROC_TAG, PROC_HEADER_WORDS, b) = c; \
          SECOND=c; \
-	 BARRIER(); \
+	 BARRIER( word_addr(a, PROC_TAG, PROC_HEADER_WORDS, b) ); \
        } else { SECOND=b; THIRD=c; \
 		FAIL( EX_PROCEDURE_SET ); \
        } \
@@ -1154,7 +1182,7 @@ extern cont_t twobit_cont_label;
   do { word a=RESULT, b=reg(y); \
        if (UNSAFE_TRUE(tagof( a ) == VEC_TAG && \
                        is_fixnum(b) && \
-                       (b < (the_header( a, VEC_TAG ) >> 8)))) \
+                       (b < WORDBYTES_TO_FIXNUM(the_header( a, VEC_TAG ) >> 8)))) \
          RESULT = *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ); \
        else { SECOND=b; \
 	      FAIL( EX_VECTOR_LIKE_REF ); } \
@@ -1164,10 +1192,11 @@ extern cont_t twobit_cont_label;
   do { word a=RESULT, b=reg(y), c=reg(z); \
        if (UNSAFE_TRUE(tagof( a ) == VEC_TAG && \
                        is_fixnum(b) && \
-                       (b < (the_header( a, VEC_TAG ) >> 8)))) { \
+                       (b < WORDBYTES_TO_FIXNUM(the_header( a, VEC_TAG ) >> 8)))) { \
+         PRE_BARRIER( word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) ); \
          *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) = c; \
 	 SECOND=c; \
-	 BARRIER(); \
+	 BARRIER( word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b ) ); \
        } else { SECOND=b; THIRD=c; \
 		FAIL( EX_VECTOR_LIKE_SET ); \
        } \
@@ -1176,7 +1205,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op1_101() /* vector-like-length */ \
    do { word a=RESULT; \
         if (UNSAFE_TRUE(tagof(a) == VEC_TAG)) \
-          RESULT = sizefield( the_header( a, VEC_TAG ) ); \
+          RESULT = WORDBYTES_TO_FIXNUM( sizefield( the_header( a, VEC_TAG ) ) ); \
         else { FAIL( EX_VECTOR_LIKE_LENGTH ); } \
    } while(0)
 
@@ -1288,7 +1317,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op2imm_143( b ) /* vector-ref */				\
   do { word a=RESULT, h;						\
        if (UNSAFE_TRUE(double_tag_test( a, VEC_TAG, VECTOR_HDR, h ) &&	\
-                       b < (h >> 8)))					\
+                       b < WORDBYTES_TO_FIXNUM(h >> 8)))					\
          RESULT = *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b );        \
        else { SECOND=b;						\
 	      FAIL( EX_VECTOR_REF ); }					\
@@ -1315,7 +1344,7 @@ extern cont_t twobit_cont_label;
 #define twobit_op2imm_146( b ) /* vector-like-ref */		\
   do { word a=RESULT;						\
        if (UNSAFE_TRUE(tagof( a ) == VEC_TAG &&			\
-                       (b < (the_header( a, VEC_TAG ) >> 8))))	\
+                       (b < WORDBYTES_TO_FIXNUM(the_header( a, VEC_TAG ) >> 8))))	\
          RESULT = *word_addr( a, VEC_TAG, VEC_HEADER_WORDS, b );\
        else { SECOND=b;					\
 	      FAIL( EX_VECTOR_LIKE_REF ); }			\
@@ -1324,10 +1353,10 @@ extern cont_t twobit_cont_label;
 /* Fixnum primitives: 200 - 299 */
 
 #define twobit_op1_200() /* most-positive-fixnum */ \
-  RESULT = 0x7ffffffc
+  RESULT = ((word)MOST_POSITIVE_FIXNUM << 2)
 
 #define twobit_op1_201() /* most-negative-fixnum */ \
-  RESULT = 0x80000000
+  RESULT = ((word)MOST_NEGATIVE_FIXNUM << 2)
 
 /* See comments to twobit_add, above */
 #define twobit_op2_202( y ) /* fx+ */					    \
@@ -1361,6 +1390,15 @@ extern cont_t twobit_cont_label;
        else { SECOND=b; FAIL( ex ); }         \
   } while(0)
 
+#if defined(BITS_64)
+#define twobit_op2_205( y ) /* fx* */				\
+  do { word a = RESULT, b = reg(y); s_word res;			\
+      if (UNSAFE_TRUE(is_both_fixnums(a,b)) &&			\
+          !__builtin_mul_overflow( (s_word)a, (s_word)b / 4, &res )) \
+        RESULT = (word)res;					\
+      else { SECOND = b; FAIL( EX_FXMUL ); }			\
+  } while(0)
+#else
 #define sllong(X) ((long long)(s_word)(X))
 
 #define twobit_op2_205( y ) /* fx* */				\
@@ -1371,6 +1409,7 @@ extern cont_t twobit_cont_label;
         RESULT = res;						\
       else { SECOND = b; FAIL( EX_FXMUL ); }			\
   } while(0)
+#endif
 
 #define twobit_op2_206( y ) twobit_fxcmp( y, ==, EX_FXEQ )  /* fx= */
 #define twobit_op2_207( y ) twobit_fxcmp( y, <, EX_FXLT )   /* fx< */
@@ -1440,8 +1479,9 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_403( y, z ) /* vector-set!:trusted */	\
   do { word b=reg(y) >> 2, c=SECOND=reg(z);			\
+       PRE_BARRIER( &vector_ref( RESULT, b ) );			\
        vector_set( RESULT, b, c );				\
-       BARRIER();		                                \
+       BARRIER( &vector_ref( RESULT, b ) );			\
   } while(0)
 
 #define twobit_op1_404() /* car:pair */ \
@@ -1581,7 +1621,7 @@ extern cont_t twobit_cont_label;
   twobit_alloc_known_vector( 1 );				\
   SECOND = reg(y);						\
   *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS)) = SECOND;	\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_602( y ) /* make-vector:2 */				\
   twobit_alloc_known_vector( 2 );					\
@@ -1590,7 +1630,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS)) = x;		\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+1)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_603( y ) /* make-vector:3 */				\
   twobit_alloc_known_vector( 3 );					\
@@ -1600,7 +1640,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+1)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+2)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_604( y ) /* make-vector:4 */				\
   twobit_alloc_known_vector( 4 );					\
@@ -1611,7 +1651,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+2)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+3)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_605( y ) /* make-vector:5 */				\
   twobit_alloc_known_vector( 5 );					\
@@ -1623,7 +1663,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+3)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+4)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_606( y ) /* make-vector:6 */				\
   twobit_alloc_known_vector( 6 );					\
@@ -1636,7 +1676,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+4)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+5)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_607( y ) /* make-vector:7 */				\
   twobit_alloc_known_vector( 7 );					\
@@ -1650,7 +1690,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+5)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+6)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_608( y ) /* make-vector:8 */				\
   twobit_alloc_known_vector( 8 );					\
@@ -1665,7 +1705,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+6)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+7)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op2_609( y ) /* make-vector:9 */				\
   twobit_alloc_known_vector( 9 );					\
@@ -1681,7 +1721,7 @@ extern cont_t twobit_cont_label;
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+7)) = x;	\
     *(word*)(RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS+8)) = x;	\
   }									\
-  BARRIER();
+  BARRIER( RESULT-VEC_TAG+words2bytes(VEC_HEADER_WORDS) );
 
 #define twobit_op1_branchf_610( L_numeric, L_symbolic ) /* null? */ \
   do { if( RESULT != NIL_CONST ) twobit_branch( L_numeric, L_symbolic ); } while(0)
@@ -1881,6 +1921,11 @@ extern cont_t twobit_cont_label;
        y2 = fixnum(string_length(x1));					\
   } while(0)
 
+/* Ustrings hold one 32-bit character immediate per character; the
+   fixnum index b of a character is its byte offset in the data. */
+#define ustr_addr( x, tag, fixnum_index ) \
+  ((u32*)((word)(x)+BVEC_HEADER_WORDS*sizeof(word)-(word)(tag)+(word)(fixnum_index)))
+
 #define twobit_op2_799( y ) /* make-ustring */ \
    do { word a=RESULT, b=reg(y), *p; \
         if (UNSAFE_TRUE(is_nonnegative_fixnum(a) && is_char(b))) { \
@@ -1890,7 +1935,7 @@ extern cont_t twobit_cont_label;
           p =(word*)RESULT; \
           *p = mkheader( size, BV_HDR+USTR_SUBTAG ); \
           while (n > 0) { \
-              *(p+n) = b; \
+              *(ustr_addr( p, 0, fixnum(n-1) )) = (u32)b; \
               n = n - 1; \
           } \
 	  RESULT = tagptr( p, BVEC_TAG ); \
@@ -1921,7 +1966,7 @@ extern cont_t twobit_cont_label;
  
 #define twobit_op2_802( y )      /* ustring-ref    */                         \
    do { word a=RESULT, b=reg(y);                                              \
-         RESULT = *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b);             \
+         RESULT = *ustr_addr( a, BVEC_TAG, b );                               \
    } while (0)
 
 /*
@@ -1937,7 +1982,7 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op3_803( y, z )   /* ustring-set!   */                         \
    do { word a=RESULT, b=reg(y), c=reg(z);                                    \
-           *word_addr( a, BVEC_TAG, BVEC_HEADER_WORDS, b ) = c;               \
+           *ustr_addr( a, BVEC_TAG, b ) = (u32)c;                             \
    } while (0)
 
 /*
