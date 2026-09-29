@@ -170,6 +170,7 @@
     "memstats"          ; runtime stats
     "record"            ; records
     "code-features"     ; feature markers of compiled code
+    "heap-code-features" ; features of the heap's code (generated)
     "condition"         ; conditions
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler

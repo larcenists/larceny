@@ -83,4 +83,63 @@
 
 (rtd-printer-set! code-features:rtd write-code-features)
 
+; What the running system provides and requires.
+;
+; The system provides what the code in its heap assumes: the build
+; records the features of the heap's code in larceny:heap-code-features
+; (see heap-code-features.sch, which the build generates).
+;
+; What the system requires of code depends on the collector: the
+; generational collector needs the write barrier, and the regional
+; collector also needs the SATB pre-barrier for its concurrent marking.
+
+(define (system-code-features)
+  (list->code-features 'lop larceny:heap-code-features))
+
+; Not cached: a heap may be dumped and started with another collector.
+
+(define (system-code-requirements)
+  (case (cdr (assq 'gc-technology (system-features)))
+    ((regional) '(write-barrier satb-barrier))
+    ((generational) '(write-barrier))
+    (else '())))
+
+; Code compiled before the markers existed: it has the write barrier but
+; not the SATB pre-barrier, and its assumptions are unknown.
+
+(define (legacy-code-features)
+  (make-code-features 'lop '() '(write-barrier)))
+
+; Returns a list of problems that keep code with the features cf from
+; running in this system: (assumes <feature>) for each feature it
+; assumes that the system does not provide, and (lacks <feature>) for
+; each feature the system requires that it does not guarantee.
+; Legacy code's assumptions are not checked.
+
+(define (code-features-problems cf)
+  (let ((provided (code-features-assumes (system-code-features)))
+        (guaranteed (code-features-guarantees cf)))
+    (append
+     (let loop ((fs (code-features-assumes cf)) (problems '()))
+       (cond ((null? fs) (reverse problems))
+             ((member (car fs) provided) (loop (cdr fs) problems))
+             (else (loop (cdr fs) (cons (list 'assumes (car fs)) problems)))))
+     (let loop ((fs (system-code-requirements)) (problems '()))
+       (cond ((null? fs) (reverse problems))
+             ((memq (car fs) guaranteed) (loop (cdr fs) problems))
+             (else (loop (cdr fs) (cons (list 'lacks (car fs)) problems))))))))
+
+; Signals an error if code with the features cf, or legacy code if cf is
+; #f, cannot run in this system.  Where is a file name or #f.
+
+(define (check-code-features! cf where)
+  (let ((problems (code-features-problems (or cf (legacy-code-features)))))
+    (if (not (null? problems))
+        (error 'load
+               (if cf
+                   "compiled code does not fit this system; recompile it"
+                   "compiled code predates feature markers; recompile it")
+               where
+               problems))))
+
 ; eof

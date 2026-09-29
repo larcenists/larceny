@@ -134,7 +134,27 @@
 ; The feature marker of a .lap or .lop file, or #f.
 
 (define (file-code-features filename)
-  (call-with-raw-latin-1-input-file filename read-code-features-marker))
+  (define (first-line in)
+    (let ((out (open-output-string)))
+      (do ((c (read-char in) (read-char in)))
+          ((or (eof-object? c) (char=? c #\newline))
+           (get-output-string out))
+        (write-char c out))))
+  (if (string=? "#!fasl"
+                (call-with-raw-latin-1-input-file filename first-line))
+      (call-with-raw-latin-1-input-file filename
+        (lambda (in)
+          (first-line in)
+          (read-code-features-marker in)))
+      (call-with-raw-latin-1-input-file filename read-code-features-marker)))
+
+; Are cf1 and cf2 (which may be #f) the same features?
+
+(define (code-features-equal? cf1 cf2)
+  (and cf1
+       cf2
+       (eq? (code-features-kind cf1) (code-features-kind cf2))
+       (equal? (code-features-clauses cf1) (code-features-clauses cf2))))
 
 ; Write a declaration to an output port
 

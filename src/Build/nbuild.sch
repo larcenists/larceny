@@ -103,6 +103,19 @@
   (make:tool-files ".lop" asm)
   (make:tool-files ".fasl" asm))
 
+; They are also out of date when their feature markers differ from what
+; the compiler would write now.
+
+(make:target-check ".lap"
+  (lambda (file)
+    (code-features-equal? (file-code-features file) (twobit-lap-features))))
+(make:target-check ".lop"
+  (lambda (file)
+    (code-features-equal? (file-code-features file) (assembler-lop-features))))
+(make:target-check ".fasl"
+  (lambda (file)
+    (code-features-equal? (file-code-features file) (assembler-lop-features))))
+
 (writeln "Loading utility functions.")
 (compat:load (param-filename 'rts "make-templates.sch"))
 (compat:load (param-filename 'util "cleanup.sch"))

@@ -1105,6 +1105,10 @@
   (environment-set! larc 'code-features-assumes code-features-assumes)
   (environment-set! larc 'code-features-guarantees code-features-guarantees)
   (environment-set! larc 'write-code-features write-code-features)
+  (environment-set! larc 'system-code-features system-code-features)
+  (environment-set! larc 'system-code-requirements system-code-requirements)
+  (environment-set! larc 'code-features-problems code-features-problems)
+  (environment-set! larc 'check-code-features! check-code-features!)
 
   ;; R7RS exception mechanism
 

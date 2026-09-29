@@ -54,30 +54,43 @@
 
 (define (load-from-port p get-environment . maybe-read)
 
-  (let ((read (if (null? maybe-read) read (car maybe-read))))
+  (let ((read (if (null? maybe-read) read (car maybe-read)))
+        (after-fasl-flag? #f))
 
     ;; The environment must be recomputed for each expression evaluation --
     ;; the loaded expressions may change the interaction environment, and
     ;; when the environment is implicit, that change should be reflected in
     ;; subsequent evaluations.
 
-    ;; A fasl file's #lop(...) feature marker (see code-features.sch)
-    ;; is not evaluated.
+    ;; In a fasl file, #!fasl is followed by a #lop(...) feature marker
+    ;; (see code-features.sch), which is checked, not evaluated.  A fasl
+    ;; file without one predates the markers.
 
-    (do ((expr (read p) (read p)))
-        ((eof-object? expr))
-      (if (not (code-features? expr))
-          (call-with-values
-           (lambda () ((load-evaluator) expr (get-environment)))
-           (lambda values
-             (if (load-print)
-                 (for-each (lambda (value)
-                             (newline (current-output-port))
-                             (write-string ";    " (current-output-port))
-                             (write value (current-output-port))
-                             (flush-output-port (current-output-port)))
-                           values)))))))
+    (parameterize ((fasl-evaluator (lambda () load-from-port:fasl-flag)))
+      (do ((expr (read p) (read p)))
+          ((eof-object? expr))
+        (cond ((eq? expr load-from-port:fasl-flag)
+               (set! after-fasl-flag? #t))
+              ((code-features? expr)
+               (set! after-fasl-flag? #f)
+               (check-code-features! expr (port-name p)))
+              (else
+               (if after-fasl-flag?
+                   (begin (set! after-fasl-flag? #f)
+                          (check-code-features! #f (port-name p))))
+               (call-with-values
+                (lambda () ((load-evaluator) expr (get-environment)))
+                (lambda values
+                  (if (load-print)
+                      (for-each (lambda (value)
+                                  (newline (current-output-port))
+                                  (write-string ";    " (current-output-port))
+                                  (write value (current-output-port))
+                                  (flush-output-port (current-output-port)))
+                                values)))))))))
   (unspecified))
+
+(define load-from-port:fasl-flag (list 'fasl-flag))
 
 (define (load filename . rest)
 

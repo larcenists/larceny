@@ -43,6 +43,17 @@
 
 (define (interactive-entry-point0 argv)
   (command-line-arguments argv)
+
+  ;; The heap's own code must guarantee what the collector requires,
+  ;; such as the SATB pre-barrier of the regional collector.
+
+  (let ((problems (code-features-problems (system-code-features))))
+    (if (not (null? problems))
+        (let ((out (current-error-port)))
+          (display "This heap's code cannot run with this collector: " out)
+          (write problems out)
+          (newline out)
+          (exit 1))))
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
 

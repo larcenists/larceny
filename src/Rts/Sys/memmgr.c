@@ -230,7 +230,8 @@ void gc_parameters( gc_t *gc, int op, s_word *ans )
   assert( op >= 0 && op <= data->generations );
 
   if (op == 0) {
-    ans[0] = data->is_partitioned_system;
+    /* 0 = stop+copy, 1 = generational, 3 = regional */
+    ans[0] = (data->is_regional_system ? 3 : data->is_partitioned_system);
     ans[1] = data->generations;
   }
   else {
@@ -3978,6 +3979,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   data->globals[ G_FILTER_REMSET_GEN_ORDER ] = FALSE;
   gen_no = 0;
   data->is_partitioned_system = 1;
+  data->is_regional_system = 1;
   assert( ! info->use_non_predictive_collector );
   data->use_np_collector = 0; /* RROF is not ROF. */
   data->remset_undirected = TRUE;

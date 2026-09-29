@@ -248,6 +248,28 @@
              (display "Make:tool-files: strange: " args)
              state)))))
 
+; A file made by a rule can also be out of date for reasons its
+; timestamp does not show.  (make:target-check ext proc) records that a
+; file with extension 'ext' made by a rule is out of date unless (proc
+; file) returns true.  Like make:pretend, this is global.
+
+(define make:target-check
+  (let ((state '()))
+    (lambda args
+      (cond ((null? args) state)
+            ((and (pair? (cdr args))
+                  (null? (cddr args))
+                  (string? (car args))
+                  (procedure? (cadr args)))
+             (let ((probe (assoc (car args) state)))
+               (if probe
+                   (set-cdr! probe (cadr args))
+                   (set! state (cons (cons (car args) (cadr args)) state)))
+               (unspecified)))
+            (else
+             (display "Make:target-check: strange: " args)
+             state)))))
+
 ; Turn debugging output on/off.
 
 (define make:debug
@@ -365,6 +387,10 @@
   ; the time of the newest tool that builds it (or #f), build all the
   ; dependencies and then the target.
 
+  (define (target-ok? target)
+    (let ((probe (assoc (extension target) (make:target-check))))
+      (or (not probe) ((cdr probe) target))))
+
   (define (make-target target cmd deps tool-time)
     (make:debugmsg "make-target target=" target "; deps=" deps)
     (for-each make deps)
@@ -372,7 +398,8 @@
 		(not (some? (lambda (d) (newer-than? d target)) deps))
                 (not (and tool-time
                           (timestamp-newer? tool-time
-                                            (file-modification-time target)))))
+                                            (file-modification-time target))))
+                (or (not tool-time) (target-ok? target)))
 	   (make:debugmsg
             "make-target target=" target ": all dependencies are older."))
 	  (else

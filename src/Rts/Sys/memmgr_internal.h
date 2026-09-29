@@ -14,6 +14,7 @@ typedef struct gc_data gc_data_t;
    */
 struct gc_data {
   bool is_partitioned_system;   /* True if system has partitioned heap */
+  bool is_regional_system;      /* True if system is the regional collector */
   bool use_np_collector;	/* True if dynamic area is non-predictive */
   bool shrink_heap;		/* True if heap can be shrunk */
   bool fixed_ephemeral_area;    /* True iff ephemeral_area_count is invariant */

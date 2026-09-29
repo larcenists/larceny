@@ -246,6 +246,7 @@
                ((0) 'stop+copy)
                ((1) 'generational)
                ((2) 'conservative)
+               ((3) 'regional)
                (else 'unknown))
              g)))
     ((stats-generations)
