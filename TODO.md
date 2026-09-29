@@ -12,10 +12,9 @@ DONE.md (with the date and the commit, if any).
 - Lighter-weight millicode calls: every call saves and restores the whole
   register context (allocation is now in line in the common case, but
   arithmetic on non-fixnums, generic comparisons, etc. still call out).
-- Peephole optimization for the AArch64 back end (the ARM-32 back end has
-  a framework in `src/Asm/Fence/arm-optimizer.sch`): store zero from xzr
-  instead of loading 0 into TMP first (frame setup), pair adjacent
-  stores into STP, and so on.
+- More peephole optimization for the AArch64 back end (the ARM-32 back
+  end has a framework in `src/Asm/Fence/arm-optimizer.sch`), e.g. the
+  stack overflow check and timer tick sequences.
 - Conditional branches reach only +/-1 MB, so larger code vectors fail an
   assertion; fall back to longer sequences.
 - Account for the code space in the heap statistics (`memstats`,

@@ -158,6 +158,12 @@
 (define (cant.stwi as rs base offset)
   (cant.sti as rs base offset))
 
+(define (cant.stzi as base offset)
+  (let ((base (arm.reg base)))
+    (assert (< (abs offset) #x1000))
+    (arm.MOVWI as arm.TMP1 0)
+    (arm.STRI  as arm.TMP1 base offset)))
+
 (define (cant.stbi as rs base offset)
   (let ((base (arm.reg base))
         (rs   (arm.reg rs)))

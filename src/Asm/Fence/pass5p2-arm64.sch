@@ -45,10 +45,11 @@
 ; the return address is in the frame.)
 
 (define (cant.label as L)
+  (arm64.flush! as)
   (emit-label! as L))
 
 (define (cant.end as)
-  #t)
+  (arm64.flush! as))
 
 ; Assumes that exceptions are non-continuable, as does the ARM-32
 ; back end, but the call sequence is the same either way.
@@ -75,6 +76,9 @@
 
 (define (cant.sti as rs base offset)
   (arm64.store as 8 (arm64.reg rs) (arm64.reg base) offset))
+
+(define (cant.stzi as base offset)
+  (arm64.store as 8 arm64.ZR (arm64.reg base) offset))
 
 (define (cant.stbi as rs base offset)
   (arm64.store as 1 (arm64.reg rs) (arm64.reg base) offset))
@@ -286,6 +290,7 @@
 ; the end of those bytes will be aligned on an 'align' boundary.
 
 (define (arm64.alignment as align bytes)
+  (arm64.flush! as)
   (let loop ()
     (if (not (zero? (remainder (+ (here as) bytes) align)))
         (begin
@@ -330,6 +335,10 @@
 ; arithmetic suffices and the code works on hosts with 30-bit fixnums.
 
 (define (arm64.emit as instr)
+  (arm64.flush! as)
+  (arm64.emit-now as instr))
+
+(define (arm64.emit-now as instr)
   (let ((buf (make-bytevector 4)))
     (bytevector-set! buf 0 (remainder instr 256))
     (bytevector-set! buf 1 (remainder (quotient instr 256) 256))
@@ -412,6 +421,7 @@
 ; offsets are nonnegative and less than 2^32.
 
 (define (arm64.label->reg as L r adjust)
+  (arm64.flush! as)
   (if (label-value as L)
       (arm64.setval as r (+ adjust (label-value as L)))
       (begin
@@ -483,7 +493,12 @@
                   ((1) (if load? arm64.op.LDRB arm64.op.STRB))
                   ((d) (if load? arm64.op.LDRD arm64.op.STRD))
                   (else (error 'arm64.ldst "Bad size " size)))))
-    (cond ((and (>= offset 0)
+    (cond ((and (eqv? size 8)
+                (zero? (remainder offset 8))
+                (<= -512 offset 504))
+           ;; Maybe combined with a neighbor into LDP/STP.
+           (arm64.pair-or-hold as load? rt base offset))
+          ((and (>= offset 0)
                 (zero? (remainder offset bytes))
                 (< (quotient offset bytes) 4096))
            (arm64.emit as (+ (vector-ref ops 0)
@@ -503,6 +518,58 @@
                              (* 65536 arm64.TMP2)
                              (* 32 base)
                              rt))))))
+
+; Pairing of loads and stores.
+;
+; An 8-byte integer load or store with a small aligned offset is held
+; back; if the next instruction is a load (store) of the adjacent word
+; off the same base register, the two are emitted as one LDP (STP).
+; Anything else emits the held instruction first.  Everything that
+; depends on the location counter (labels, fixups, alignment, the end
+; of the code vector) must call arm64.flush! first, as arm64.emit does.
+
+(define arm64.held #f)          ; #f or #(as load? rt base offset)
+
+(define (arm64.flush! as)
+  (let ((h arm64.held))
+    (if h
+        (begin
+          (set! arm64.held #f)
+          (arm64.emit-ldst-now (vector-ref h 0) (vector-ref h 1)
+                               (vector-ref h 2) (vector-ref h 3)
+                               (vector-ref h 4))))))
+
+(define (arm64.emit-ldst-now as load? rt base offset)
+  (if (>= offset 0)
+      (arm64.emit-now as (+ (if load? #xF9400000 #xF9000000)
+                            (* 1024 (quotient offset 8)) (* 32 base) rt))
+      (arm64.emit-now as (+ (if load? #xF8400000 #xF8000000)
+                            (* 4096 (arm64.field offset 9)) (* 32 base) rt))))
+
+(define (arm64.pair-or-hold as load? rt base offset)
+  (let ((h arm64.held))
+    (cond ((and h
+                (eq? (vector-ref h 0) as)
+                (eq? (vector-ref h 1) load?)
+                (= (vector-ref h 3) base)
+                (= (abs (- (vector-ref h 4) offset)) 8)
+                (or (not load?)
+                    ;; The first load must not change the base, and the
+                    ;; two destinations must differ.
+                    (and (not (= (vector-ref h 2) base))
+                         (not (= (vector-ref h 2) rt)))))
+           (set! arm64.held #f)
+           (let* ((lo-first? (< (vector-ref h 4) offset))
+                  (rt1 (if lo-first? (vector-ref h 2) rt))
+                  (rt2 (if lo-first? rt (vector-ref h 2)))
+                  (lo  (min offset (vector-ref h 4))))
+             (arm64.emit-now as (+ (if load? #xA9400000 #xA9000000)
+                                   (* 32768 (arm64.field (quotient lo 8) 7))
+                                   (* 1024 rt2) (* 32 base) rt1))))
+          (else
+           (arm64.flush! as)
+           (if h (arm64.flush! (vector-ref h 0)))
+           (set! arm64.held (vector as load? rt base offset))))))
 
 ; Opcodes for: unsigned scaled offset, unscaled offset, register offset.
 
@@ -767,6 +834,7 @@
 ; PC-relative address of label L plus adjust.
 
 (define (arm64.ADR as rd L adjust)
+  (arm64.flush! as)
   (let ((loc (here as)))
     (if (label-value as L)
         (arm64.ADR* as rd (- (+ (label-value as L) adjust) loc))
@@ -790,6 +858,7 @@
 ; instruction itself, and counted in instructions.
 
 (define (arm64.branch as L make-instr patch-bits)
+  (arm64.flush! as)
   (let ((loc (here as)))
     (if (label-value as L)
         (arm64.emit as (make-instr (patch-bits (quotient (- (label-value as L) loc) 4))))

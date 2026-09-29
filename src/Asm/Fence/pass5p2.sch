@@ -506,7 +506,7 @@
       (do ((i 0 (+ i 1)))
           ((> i n))
         (if (not (vector-ref v i))
-            (cant.sti as $r.tmp $r.stkp (fence.frame-slot i))))
+            (cant.stzi as $r.stkp (fence.frame-slot i))))
       (do ((rs rs (cdr rs))
            (ss ss (cdr ss)))
           ((null? rs))
@@ -697,23 +697,19 @@
     (fence.label as L1)
     (cant.movi   as framesize $r.tmp)
     (cant.sti    as $r.tmp $r.stkp $stk.contsize)
-    (cant.movi   as 0 $r.tmp)                    ; $r.tmp == 0 is used by emit-save1 also
-    (cant.sti    as $r.tmp $r.stkp $stk.dynlink) ; Clearing the dynamic link is redundant.  TODO: remove.
-    (cant.sti    as $r.tmp $r.stkp $stk.retaddr)
-    ;; Clearing the pad word is redundant, the GC does not inspect it.  TODO: remove.
-    (if (= (- realsize framesize) (* 2 $bytewidth.wordsize))
-        (cant.sti as $r.tmp $r.stkp (fence.frame-slot (+ n 1))))))
+    ;; The return address must be valid in case the frame is flushed
+    ;; to the heap before the return address is set.  The dynamic link
+    ;; need not be initialized (it is set when the frame is flushed), nor
+    ;; the pad word, if any (the collector does not inspect it).
+    (cant.stzi   as $r.stkp $stk.retaddr)))
 
-; Clear all the slots in the frame.  We depend on $r.tmp being
-; set to zero when we enter.  (In principle we could reinitialize
-; and count on the Cant back-end to optimize out the redundant
-; initialization, if it is redundant.)
+; Clear all the slots in the frame.
 
 (define (emit-save1 as slots)
   (do ((i 0 (+ i 1))
        (offset $stk.reg0 (+ offset $bytewidth.wordsize)))
       ((> i slots))
-    (cant.sti as $r.tmp $r.stkp offset)))
+    (cant.stzi as $r.stkp offset)))
 
 ; emit-getglbl may destroy RESULT (because of the error trap).
 ; Note that rd may be RESULT or SECOND.
@@ -2396,6 +2392,13 @@
 
 (define (cant.sti as rs base offset)
   (list-cant "sti" `(#f ,(list-regname rs) ,(list-regname base) ,offset))
+  (emit! as $cant$))
+
+; Store the value zero (a fixnum) into memory without a write barrier:
+; *(base+offset)=0.
+
+(define (cant.stzi as base offset)
+  (list-cant "stzi" `(#f ,(list-regname base) ,offset))
   (emit! as $cant$))
 
 ; Store a byte value from an integer register into memory without a
