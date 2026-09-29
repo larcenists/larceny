@@ -69,6 +69,42 @@ the 32-bit Petit Larceny: the FFI is not available, and the
 non-predictive collector (-np) is not implemented.
 
 
+BUILDING NATIVE LARCENY ON APPLE SILICON (macOS/arm64)
+
+Native Larceny for AArch64 uses the Fence/Cant code generator (see
+src/Asm/Fence/pass5p2-arm64.sch) and, like the 64-bit Petit Larceny,
+uses 64-bit words and 62-bit fixnums.  It is bootstrapped with Racket:
+
+ 1. From the Larceny root directory:
+
+        % plt-r5rs --no-prim
+        > (load "setup.sch")
+        > (setup 'scheme: 'racket 'host: 'macosx-arm64 'native)
+        > (build-config-files)
+        > (load-compiler)
+        > (build-heap)
+        > (build-runtime)
+        > (build-executable)
+        > (build-larceny-files)
+        > (exit)
+
+ 2. Create the heap image:
+
+        % ./larceny.bin -stopcopy -heap arm64.heap \
+              -- src/Build/arm64-macosx-larceny-heap.sch
+
+ 3. Compile the R7RS/R6RS/SRFI libraries as in step 4 below.
+
+MacOS X on Apple Silicon does not allow memory that is both writable
+and executable, so compiled code lives in a separate code space: a
+semispace of MAP_JIT memory that belongs to the oldest non-static
+generation and is garbage collected, by copying, together with that
+generation.  Heap images keep code in their text segment.  The code
+space is supported by the stop-and-copy (-stopcopy) and generational
+(default) collectors, but not yet by the regional collector (-rrof).
+Its address space can be set with LARCENY_CODE_GB (default 1 GB).
+
+
 WHAT TO DO
 
 Building Larceny has four major steps:

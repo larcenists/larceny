@@ -46,6 +46,7 @@
 (define (build-heap-image output-file input-files)
 
   (define tmp-file "HEAPDATA.dat")
+  (define text-file "HEAPTEXT.dat")
 
   (define (process-input-files heap)
     (let loop ((files input-files) (inits '()))
@@ -63,7 +64,10 @@
   ; for MzScheme to implement R6RS i/o.
 
   (delete-file tmp-file)
+  (delete-file text-file)
   (let ((heap  (make-heap #f (open-raw-latin-1-output-file tmp-file))))
+    (if (heap.split-code?)
+        (heap.text-port! heap (open-raw-latin-1-output-file text-file)))
     (before-all-files heap output-file input-files)
     (process-input-files heap)
     (heap.set-root! heap
@@ -75,6 +79,9 @@
     (write-header heap output-file)
     (after-all-files heap output-file input-files)
     (close-output-port (heap.output-port heap))
+    (if (heap.split-code?)
+        (begin (close-output-port (heap.text-port heap))
+               (append-file-shell-command text-file output-file)))
     (append-file-shell-command tmp-file output-file)
     (load-map heap)
     (unspecified)))
@@ -95,7 +102,13 @@
 ;  extra            any value - a client-extension field
 ;  output-port      an output port (for the data stream)
 ;  thunks           a list of codevector addresses
+;  text-top         an exact nonnegative integer: the address of the
+;                   next byte to be emitted in the text segment
+;  text-port        an output port for the text segment, or #f
 ;
+; On targets that keep compiled code in a separate code space (see
+; heap.split-code?, below), code vectors are dumped into a separate
+; text segment and the heap image is a split heap.
 ; Bytes are emitted with the heap.byte! and heap.word! procedures,
 ; which emit a byte and a word respectively.  These update the top
 ; field.  A word is 4 bytes on 32-bit targets and 8 bytes on 64-bit
@@ -109,6 +122,8 @@
           extra                      ; extra
           output-port                ; output port
           '()                        ; thunks
+          0                          ; text-top
+          #f                         ; text-port
           ))
 
 (define (heap.version h) (vector-ref h 0))
@@ -122,6 +137,24 @@
 (define (heap.roots! h x) (vector-set! h 1 x))
 (define (heap.top! h x) (vector-set! h 2 x))
 (define (heap.thunks! h x) (vector-set! h 6 x))
+(define (heap.text-top h) (vector-ref h 7))
+(define (heap.text-top! h x) (vector-set! h 7 x))
+(define (heap.text-port h) (vector-ref h 8))
+(define (heap.text-port! h x) (vector-set! h 8 x))
+
+; Does the target keep code vectors in a separate code space?  Then the
+; bootstrap heap is a split heap: code vectors go in the text segment,
+; and pointers from the data segment to the text segment have the high
+; bit set (see Rts/Sys/heapio.c).
+
+(define (heap.split-code?)
+  (and (eq? 'arm (nbuild-parameter 'target-machine))
+       (= 64 (nbuild-parameter 'word-size))))
+
+(define heap.split-type 1)               ; heap type for split heaps
+
+(define (heap.hibit)
+  (expt 2 (- (nbuild-parameter 'word-size) 1)))
 
 
 ; Symbol table.
@@ -476,7 +509,28 @@
                          (+ base $tag.vector-tag)))))))))
 
 (define (dump-codevector! h cv)
-  (dump-bytevector! h cv $tag.bytevector-typetag))
+  (if (heap.split-code?)
+      (dump-text-bytevector! h cv)
+      (dump-bytevector! h cv $tag.bytevector-typetag)))
+
+; Dump a code vector into the text segment and return a pointer to it.
+
+(define (dump-text-bytevector! h bv)
+  (let ((out  (heap.text-port h))
+        (base (heap.text-top h))
+        (l    (bytevector-length bv))
+        (a    (* 2 (heap.wordsize))))
+    (write-word (+ (* l 256) $imm.bytevector-header $tag.bytevector-typetag) out)
+    (do ((i 0 (+ i 1)))
+        ((= i l))
+      (write-byte (bytevector-ref bv i) out))
+    (let* ((n   (+ (heap.wordsize) l))
+           (pad (- (* a (quotient (+ n (- a 1)) a)) n)))
+      (do ((i 0 (+ i 1)))
+          ((= i pad))
+        (write-byte 0 out))
+      (heap.text-top! h (+ base n pad)))
+    (+ (heap.hibit) base $tag.bytevector-tag)))
 
 (define (dump-constantvector! h cv)
   (dump-vector-like! h cv dump-tagged-item! $tag.vector-typetag))
@@ -668,8 +722,14 @@
                             (write-word $imm.false out))))
                     heap.root-names)))
 
-      (write-word heap.version-number out)
-      (write-roots)
+      (if (heap.split-code?)
+          (begin
+            (write-word (+ (* heap.split-type 65536) heap.version-number) out)
+            (write-roots)
+            (write-word (quotient (heap.text-top h) (heap.wordsize)) out))
+          (begin
+            (write-word heap.version-number out)
+            (write-roots)))
       (write-word (quotient (heap.top h) (heap.wordsize)) out))))
 
 

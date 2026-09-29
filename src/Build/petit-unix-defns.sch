@@ -91,6 +91,7 @@
     ((sassy-native) (config (in-rts "iasn-regs.cfg")))
     ((arm-native) (config (in-rts "fence-arm-regs.cfg")))
     ((arm-native0) (config (in-rts "fence-arm-regs0.cfg")))
+    ((arm64-native) (config (in-rts "fence-arm64-regs.cfg")))
     ((petit) #t)
     (else (error "No registers config file for this runtime-type: " *runtime-type*)))
   (catfiles (map in-include
@@ -108,7 +109,7 @@
                    "layouts.ah"
                    "mprocs.ah"
                    ,@(case *runtime-type* 
-                       ((sparc-native sassy-native arm-native arm-native0)
+                       ((sparc-native sassy-native arm-native arm-native0 arm64-native)
                         '("regs.ah"))
                        (else '()))))
             (in-include "asmdefs.h"))
@@ -143,6 +144,7 @@
      features-x86-nasm-win32
      features-x86-sassy-win32
      features-arm-el-hardfp-linux	; Hardfp is modern
+     features-arm64-macosx              ; Native AArch64, clang
      features-petit-linux-redhat5       ; Very old, Redhat linux 5.1
      features-sparc-linux-debian        ; Very old, SPARC Debian v2(?)
      features-petit-macos9-cw3          ; Very old (ca v0.48), CW Pro 3

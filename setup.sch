@@ -329,7 +329,8 @@
           ((macosx-el)    (cond (sassy 'features-x86-sassy-macosx)
                                 (else 'features-petit-macosx-el)))
           ((macosx)       'features-petit-macosx)
-          ((macosx-arm64) 'features-petit-macosx-arm64)
+          ((macosx-arm64) (cond (native 'features-arm64-macosx)
+                                (else   'features-petit-macosx-arm64)))
           ((solaris)      (cond (native 'features-sparc-solaris)
                                 (else 'features-petit-solaris)))
           ((linux-arm-el-hardfp linux-arm-el-hardfp0)
@@ -416,6 +417,13 @@
             (set! *makefile-configuration* 'arm-hardfp-linux-gcc-v4-gas)
             (set! *heap-type* 'arm-native)
             (set! *runtime-type* 'arm-native))
+
+           ((macosx-arm64)
+            (set! *target:machine* 'arm)
+            (set! *target:machine-source* "Fence")
+            (set! *makefile-configuration* 'arm64-macosx-clang)
+            (set! *heap-type* 'arm64-native)
+            (set! *runtime-type* 'arm64-native))
 
            ((linux-arm-el-hardfp0)
             (set! *target:machine* 'arm)

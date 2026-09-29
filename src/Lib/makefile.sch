@@ -351,6 +351,39 @@
     (make:make arm-heap-project "arm.heap" 
                (lambda (tgt) (error 'make-arm-heap tgt)))))
 
+; The AArch64 heap is built from the same files as the ARM heap.
+
+(define arm64-heap-project
+  (let ((arm64-heap-files
+         (objects (nbuild-parameter 'common-source)
+                  ".lop"
+                  common-heap-files
+                  `((primops . ,(param-filename 'source "Arch" "Fence" "primops.lop"))
+                    (toplevel-target . ,(param-filename 'source "Arch" "Fence" "toplevel-target.lop"))
+                    (flonum-endian . ,(common-relative "flonums-el.lop"))
+                    (bignum-endian . ,(common-relative "bignums-el.lop"))
+                    (osdep . ,(common-relative "sys-unix.lop"))
+                    (extra . #f))))
+        (arm64-eval-files
+         (objects "" ".lop" eval-files)))
+    (make:project "arm64.heap"
+      `(rules
+        (".lop" ".mal" ,make-assemble)
+        (".lop" ".lap" ,make-assemble)
+        (".lap" ".sch" ,make-compile))
+      `(targets
+        ("arm64.heap" ,make-dumpheap))
+      `(dependencies                    ; Order matters.  [Why??!]
+        ("arm64.heap" ,arm64-heap-files)
+        ("arm64.heap" ,arm64-eval-files)))))
+
+(define (make-arm64-heap . rest)
+  (make:pretend (not (null? rest)))
+  (parameterize ((integrate-procedures 'larceny)
+                 (compat:read-case-sensitive? #t))
+    (make:make arm64-heap-project "arm64.heap"
+               (lambda (tgt) (error 'make-arm64-heap tgt)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Project for building the dotNet-larceny heap image

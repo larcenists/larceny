@@ -300,6 +300,7 @@
                                      (read-abbrev port 'unsyntax-splicing))
                               (read-abbrev port 'unsyntax)))
           ((char=? c #\!) (read-char port) (read-hash-bang port))
+          ((char=? c #\") (read-char port) (read-byte-string port))
           (else
            (let ((tok (read-token port "#")))
              (cond ((member tok '("#u8" "#vu8"))
@@ -310,6 +311,40 @@
                    ((member tok '("#f" "#false")) #f)
                    ((string->number tok) => values)
                    (else (read-error port "bad # syntax: ~a" tok))))))))
+
+;; Racket's byte-string syntax #"...", which is how Racket writes the
+;; bytevectors in .lop files produced by a Racket-hosted build.
+(define (read-byte-string port)
+  ;; After #" .
+  (define (octal? c) (and (char? c) (char<=? #\0 c #\7)))
+  (let loop ((acc '()))
+    (let ((c (read-char port)))
+      (cond ((eof-object? c) (read-error port "unterminated byte string"))
+            ((char=? c #\") (apply bytes (reverse acc)))
+            ((char=? c #\\)
+             (let ((e (read-char port)))
+               (cond ((eof-object? e) (read-error port "bad byte string escape"))
+                     ((octal? e)
+                      (let oct ((n (- (char->integer e) 48)) (k 1))
+                        (if (and (< k 3) (octal? (peek-char port)))
+                            (oct (+ (* n 8) (- (char->integer (read-char port)) 48))
+                                 (+ k 1))
+                            (loop (cons n acc)))))
+                     ((memv e '(#\x #\X))
+                      (let hex ((n 0) (k 0))
+                        (let ((d (peek-char port)))
+                          (if (and (< k 2) (char? d) (string->number (string d) 16))
+                              (begin (read-char port)
+                                     (hex (+ (* n 16) (string->number (string d) 16))
+                                          (+ k 1)))
+                              (loop (cons n acc))))))
+                     (else
+                      (loop (cons (case e
+                                    ((#\a) 7) ((#\b) 8) ((#\t) 9) ((#\n) 10)
+                                    ((#\v) 11) ((#\f) 12) ((#\r) 13) ((#\e) 27)
+                                    (else (char->integer e)))
+                                  acc))))))
+            (else (loop (cons (char->integer c) acc)))))))
 
 (define (read-hash-bang port)
   ;; After #!

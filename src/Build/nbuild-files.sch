@@ -88,7 +88,7 @@
      "ecodes.sch"
      "layouts.sch"
      ,@(case *runtime-type* 
-        ((sparc-native sassy-native arm-native arm-native0)
+        ((sparc-native sassy-native arm-native arm-native0 arm64-native)
          '("regs.sch"))
         (else '())))))
 
@@ -176,12 +176,17 @@
   (if (eq? 'arm (nbuild-parameter 'target-machine))
       (append
        (param-filename 'arm-fence-asm
-                       `("asm-switches.sch"
-			 "pass5p2.sch"
-			 "peepopt.sch"
-			 "pass5p2-arm.sch"
-                         "arm-optimizer.sch"
-                         "arm-disassembler.sch")))
+                       (if (= 64 (nbuild-parameter 'word-size))
+                           `("asm-switches.sch"
+                             "pass5p2.sch"
+                             "peepopt.sch"
+                             "pass5p2-arm64.sch")
+                           `("asm-switches.sch"
+                             "pass5p2.sch"
+                             "peepopt.sch"
+                             "pass5p2-arm.sch"
+                             "arm-optimizer.sch"
+                             "arm-disassembler.sch"))))
       '()))
 
 (define *nbuild:dotnetasm-files* 

@@ -141,6 +141,10 @@
      . ,(lambda ()
           (values make-template-arm-hardfp-linux
                   make-template-target-arm-linux)))
+    (arm64-macosx-clang
+     . ,(lambda ()
+          (values make-template-arm64-macosx-clang
+                  make-template-target-arm64-macosx)))
     (x86-win32-static-visualc-nasm
      . ,(lambda ()
 	  (values make-template-petit-win32-visualc
@@ -301,6 +305,21 @@ quick-test: larceny.bin
 LIBS=-ldl -lm
 AS=$(CC)"))
 
+; Native Larceny: MacOS X on Apple Silicon (AArch64): clang
+(define make-template-arm64-macosx-clang
+  (template-common
+"O=o
+CC=cc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wno-format
+# Floating-point contraction (fused multiply-add) changes results.
+CFLAGS+=-c -fno-common -ffp-contract=off -IBuild $(WARNINGS)
+ASFLAGS+=-c
+LIBS=-lm
+# clang does not recognize .sx as assembler source to be preprocessed
+AS=$(CC) -x assembler-with-cpp"))
+
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
   (template-common
@@ -419,6 +438,16 @@ kill_version_o:
 	/bin/rm -f Sys/version.o
 larceny.bin: kill_version_o $(ARM_LINUX_LARCENY_OBJECTS) Util/ffi-dummy.o
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(ARM_LINUX_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	/bin/rm -f Sys/version.o")
+
+; AArch64 MacOS X
+(define make-template-target-arm64-macosx
+"default_target: larceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+larceny.bin: kill_version_o $(ARM64_MACOSX_LARCENY_OBJECTS)
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(ARM64_MACOSX_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
 
@@ -579,6 +608,18 @@ ARM_LINUX_OBJECTS=\\
 	Fence/fence-config.$(O) Fence/arm-millicode.$(O) \\
 	fence-table.$(O) 
 
+ARM64_MACOSX_OBJECTS=\\
+	Shared/arithmetic.$(O) Shared/multiply.$(O) \\
+	Fence/fence-driver.$(O) Fence/fence-millicode.$(O) Fence/fence-syscall2.$(O) \\
+	Fence/fence-config.$(O) Fence/arm64-millicode.$(O) \\
+	fence-table.$(O) 
+
+ARM64_MACOSX_LARCENY_OBJECTS=\\
+	Sys/larceny.$(O)\\
+	$(COMMON_RTS_OBJECTS)\\
+	$(PRECISE_GC_OBJECTS)\\
+	$(ARM64_MACOSX_OBJECTS)
+
 X86_SASSY_LARCENY_OBJECTS=\\
 	Sys/larceny.$(O)\\
 	IAssassin/config.$(O)\\
@@ -652,7 +693,7 @@ Util/hsplit.o: Util/hsplit.c
 clean:
 	rm -f larceny.bin larceny.bin.exe hsplit bdwlarceny.bin petit-larceny core \\
 	   Build/*.$(O) Nasm/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \\
-	   IAssassin/*.$(O) \\
+	   IAssassin/*.$(O) Fence/*.$(O) *.$(O) \\
 	   Sys/*.$(O) Util/*.$(O) \\
 	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \\
 	   Shared/arithmetic.c Shared/*.$(O)

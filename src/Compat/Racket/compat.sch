@@ -154,6 +154,12 @@
 
 (define (unspecified) *unspecified-expression*)
 (define (undefined) *undefined-expression*)
+
+; Larceny's assert procedure, used by the native back ends.
+
+(define (assert x . rest)
+  (if (not x)
+      (error "Assertion failed")))
 (define (eof-object) *eof-object*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

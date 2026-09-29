@@ -102,7 +102,8 @@
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))
       ((arm)
-       (set! asm-table-generator arm-table)
+       (set! asm-table-generator
+             (if (= 64 (nbuild-parameter 'word-size)) arm64-table arm-table))
        (set! asm-comment-template "/* ~a */")
        (set! asm-define-template  "#define ~a ~a~%"))
       ((x86-nasm x86-sass)
@@ -498,6 +499,40 @@
 
     (define (table-branch name)
       (show `(#\tab "b" #\tab ,name #\newline))
+      1)
+
+    (define (table-footer) #f)
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
+  ;; AArch64 (Mach-O) globals table.  Millicode entries are pointers
+  ;; to the millicode procedures, called with LDR/BLR.
+
+  (define (arm64-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '(#\tab ".data" #\newline
+	      #\tab ".globl _globals" #\newline
+	      #\tab ".p2align 4" #\newline
+	      "_globals:" #\newline)))
+
+    (define (table-word value comment)
+      (show `(#\tab ".quad" #\tab ,value #\tab "/* "
+		    ,(or comment "padding") " */"
+		    #\newline)))
+
+    (define (table-branch name)
+      (show `(#\tab ".quad" #\tab "_" ,name #\newline))
       1)
 
     (define (table-footer) #f)

@@ -23,7 +23,8 @@
  "SPARC" 			; Native: SPARC v8 or later
  "X86_SASSY"			; Native: Intel 486 using Sassy assembler
  "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
- "ARM"				; Native: ARMv7-A using Fence/Cant assembler
+ "ARM"				; Native: ARMv7-A or AArch64 (with BITS_64)
+				; using Fence/Cant assembler
  "PPC_GAS"                      ; Native: PowerPC using GNU 'as'
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
 
@@ -415,6 +416,24 @@
     "USE_CACHED_STATE"
     ))
 
+(define features-arm64-macosx		; Native: Apple Silicon, clang, 64-bit words
+  '("ARM"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "EXPLICIT_DIVZ_CHECK"                ; arm64 does not trap on x/0
+    "MACOS_X"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_SELECT"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "CODE_SPACE"
+    ))
+
 (define features-petit-win32		; works for Mingw; believed to work
                                         ; for CodeWarrior 6, and probably
                                         ; for Microsoft Visual C/C++ 6
@@ -770,8 +789,9 @@
 
 (define (feature-sanity-checks fs)
   (if (and (member "BITS_64" fs)
-           (not (member "PETIT_LARCENY" fs)))
-      (error "Only Petit Larceny can handle 64-bit systems."))
+           (not (member "PETIT_LARCENY" fs))
+           (not (member "ARM" fs)))
+      (error "Only Petit Larceny and ARM (AArch64) can handle 64-bit systems."))
 
   (if (and (member "CODE_SPACE" fs)
            (member "PETIT_LARCENY" fs))
