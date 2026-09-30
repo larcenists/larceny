@@ -80,9 +80,19 @@
       
       (let* ((formals (make-null-terminated (lambda.args L)))
              (defined (map def.lhs (lambda.defs L)))
-             (escaping (intersection formals
-                                     (notepad-captured-variables notepad)))
+             ; Computed only when needed: notepad-captured-variables is
+             ; costly for a notepad with many lambdas, and this is done
+             ; for every lambda (each inlined primitive is one), which
+             ; made compile time cubic in the size of a procedure.
+             (escaping-list #f)
              (R (lambda.R L)))
+
+        (define (escaping)
+          (if (not escaping-list)
+              (set! escaping-list
+                    (intersection formals
+                                  (notepad-captured-variables notepad))))
+          escaping-list)
         
         ; Given:
         ;    exprs that remain in the body;
@@ -100,7 +110,7 @@
                    (if (and (memq I1 formals)
                             (= (length (assignments R I1)) 1)
                             (not (and call-has-occurred?
-                                      (memq I1 escaping))))
+                                      (memq I1 (escaping)))))
                        (let* ((free-in-E1 (free-variables E1))
                               (newfree (union free-in-E1 free)))
                          (if (or (memq I1 newfree)
