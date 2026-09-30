@@ -16,6 +16,7 @@
 (define (run-bytevector-tests)
   (display "Bytevector") (newline)
   (basic-bytevector-tests)
+  (bytevector-copy-tests)
   (ieee-bytevector-tests)
 
   ; There is little point to testing Unicode conversions
@@ -221,6 +222,69 @@
      (test "->uint-list" (bytevector->uint-list b (endianness little) 2)
                          '(513 65283 513 513)))))
 
+
+; Copies of all sizes (long ones use memmove), overlapping in both
+; directions, against a copy made through a list.
+
+(define (bytevector-copy-tests)
+
+  (define (numbered n)
+    (let ((b (make-bytevector n)))
+      (do ((i 0 (+ i 1)))
+          ((= i n) b)
+        (bytevector-u8-set! b i (remainder (* 7 i) 256)))))
+
+  (define (reference-copy! src i dst j n)
+    (let ((l (list-tail (bytevector->u8-list src) i)))
+      (do ((k 0 (+ k 1))
+           (l l (cdr l)))
+          ((= k n))
+        (bytevector-u8-set! dst (+ j k) (car l)))))
+
+  (define (bad-args? thunk)
+    (call-with-current-continuation
+     (lambda (k)
+       (with-exception-handler
+        (lambda (e) (k #t))
+        (lambda () (thunk) #f)))))
+
+  (allof "bytevector copies"
+   (allof-map "sizes and overlaps"
+    (lambda (n)
+      (for-each
+       (lambda (shift)
+         (let ((a (numbered 400))
+               (b (numbered 400)))
+           (r6rs:bytevector-copy! a 100 a (+ 100 shift) n)
+           (reference-copy! b 100 b (+ 100 shift) n)
+           (test (string-append "copy " (number->string n)
+                                " by " (number->string shift))
+                 (bytevector=? a b)
+                 #t)))
+       '(-100 -9 -1 0 1 9 100)))
+    '(0 1 7 8 9 63 64 65 200))
+   (test "copy of 100000"
+         (let ((a (numbered 100000))
+               (b (make-bytevector 100000 0)))
+           (r6rs:bytevector-copy! a 0 b 0 100000)
+           (bytevector=? a b))
+         #t)
+   (test "source range" (bad-args? (lambda ()
+                                     (r6rs:bytevector-copy!
+                                      (numbered 10) 5 (numbered 10) 0 6)))
+         #t)
+   (test "target range" (bad-args? (lambda ()
+                                     (r6rs:bytevector-copy!
+                                      (numbered 10) 0 (numbered 10) 5 6)))
+         #t)
+   (test "negative count" (bad-args? (lambda ()
+                                       (r6rs:bytevector-copy!
+                                        (numbered 10) 0 (numbered 10) 0 -1)))
+         #t)
+   (test "not a bytevector" (bad-args? (lambda ()
+                                         (r6rs:bytevector-copy!
+                                          "abcdefghij" 0 (numbered 10) 0 3)))
+         #t)))
 
 (define (ieee-bytevector-tests)
 

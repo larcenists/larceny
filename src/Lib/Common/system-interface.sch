@@ -23,7 +23,7 @@
 
 ; FIXME: temporary instrumentation for C <--> Scheme string conversions.
 
-(define **syscall-magic-cookie** (make-vector 50 #f))
+(define **syscall-magic-cookie** (make-vector 64 #f))   ; one per syscall
 
 (define (syscall id . args)
   (cond ((eq? id '**syscall-magic-cookie**)
@@ -77,6 +77,17 @@
       (error "sys$gc: bad type " type))
   (syscall syscall:gc gen type)
   (unspecified))
+
+;; Copies count bytes of bytevector-like src, starting at byte i, to
+;; bytevector-like dst, starting at byte j, with memmove (the ranges may
+;; overlap).  Trusts its caller: the arguments must be bytevector-like
+;; objects and fixnums with both ranges in bounds.  For fewer than
+;; sys$bytevector-like-move-threshold bytes a loop is faster.
+
+(define (sys$bytevector-like-move! src i dst j count)
+  (%syscall syscall:bytevector-like-move src i dst j count))
+
+(define sys$bytevector-like-move-threshold 8)
 
 (define (sys$codevector-iflush bv)
   (if (not (bytevector-like? bv))

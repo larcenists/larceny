@@ -68,5 +68,6 @@
 (define syscall:flonum-jn 57)
 (define syscall:flonum-yn 58)
 (define syscall:codevector-install 59)
+(define syscall:bytevector-like-move 60)
 
 ; eof

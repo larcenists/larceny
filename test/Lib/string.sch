@@ -5,9 +5,50 @@
 ; These tests are incomplete, but are a lot better
 ; than nothing.
 
+; Copies of all sizes (long ones use memmove), overlapping in both
+; directions, against copies made through lists.
+
+(define (string-copy-tests)
+
+  (define s
+    (let ((s (make-string 500)))
+      (do ((i 0 (+ i 1)))
+          ((= i 500) s)
+        (string-set! s i (integer->char (+ 945 (remainder i 50)))))))
+
+  (define (reference-substring s i j)
+    (list->string (list-head (list-tail (string->list s) i) (- j i))))
+
+  (allof "string copies"
+   (allof-map "substring and string-append"
+    (lambda (n)
+      (test (string-append "substring " (number->string n))
+            (substring s 7 (+ 7 n))
+            (reference-substring s 7 (+ 7 n)))
+      (test (string-append "string-append " (number->string n))
+            (string-append "ab" (substring s 0 n) "cd")
+            (list->string (append (string->list "ab")
+                                  (list-head (string->list s) n)
+                                  (string->list "cd")))))
+    '(0 1 5 6 7 16 100 480))
+   (allof-map "overlapping string-copy!"
+    (lambda (n)
+      (let ((t1 (string-copy s))
+            (t2 (string-copy s)))
+        (string-copy! t1 13 t1 3 (+ 3 n))
+        (string-copy! t2 3 t2 13 (+ 13 n))
+        (test (string-append "copy! up " (number->string n))
+              (substring t1 13 (+ 13 n))
+              (reference-substring s 3 (+ 3 n)))
+        (test (string-append "copy! down " (number->string n))
+              (substring t2 3 (+ 3 n))
+              (reference-substring s 13 (+ 13 n)))))
+    '(0 1 5 6 7 100 480))))
+
 (define (run-string-tests)
   (display "String") (newline)
   (string-predicate-test)
+  (string-copy-tests)
   (string-for-each-test)
   (vector-for-each-test)            ; FIXME: belongs in some other file
   ;(string-simple-comparisons)

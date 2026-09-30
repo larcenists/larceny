@@ -123,19 +123,38 @@
 
 (define string-copy-into-down!
   (lambda (x i j y k)
-    (do ((i i (.+:idx:idx i 1))
-         (k k (.+:idx:idx k 1)))
-        ((.>=:fix:fix i j))
-      (.string-set!:trusted y k (.string-ref:trusted x i)))))
+    (if (.>=:fix:fix (.-:idx:idx j i) string-copy:move-threshold)
+        (string-copy:move! x i j y k)
+        (do ((i i (.+:idx:idx i 1))
+             (k k (.+:idx:idx k 1)))
+            ((.>=:fix:fix i j))
+          (.string-set!:trusted y k (.string-ref:trusted x i))))))
 
 ; As above, but assumes k >= i.
 
 (define string-copy-into-up!
   (lambda (x i j y k)
-    (do ((j (- j 1) (- j 1))
-         (k (+ k (- j i) -1) (- k 1)))
-        ((> i j))
-      (string-set! y k (string-ref x j)))))
+    (if (>= (- j i) string-copy:move-threshold)
+        (string-copy:move! x i j y k)
+        (do ((j (- j 1) (- j 1))
+             (k (+ k (- j i) -1) (- k 1)))
+            ((> i j))
+          (string-set! y k (string-ref x j))))))
+
+; Copies of at least string-copy:move-threshold characters use memmove
+; on the strings' bytes.  (The number of bytes per character is found
+; on first use, not when the heap is initialized.)
+
+(define string-copy:move-threshold 6)
+
+(define string-copy:char-bytes #f)
+
+(define (string-copy:move! x i j y k)
+  (if (not string-copy:char-bytes)
+      (set! string-copy:char-bytes
+            (bytevector-like-length (make-string 1 #\space))))
+  (let ((b string-copy:char-bytes))
+    (sys$bytevector-like-move! x (* b i) y (* b k) (* b (- j i)))))
 
 ;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
 ;;; the length of to.  It is also an error if (- (string-length to) at)

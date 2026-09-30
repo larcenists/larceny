@@ -56,10 +56,13 @@
 
 
 (define (bytevector-like-copy-into! src from lim dest to)
-  (do ((i from (+ i 1))
-       (j to   (+ j 1)))
-      ((= i lim) dest)
-    (bytevector-like-set! dest j (bytevector-like-ref src i))))
+  (if (>= (- lim from) sys$bytevector-like-move-threshold)
+      (begin (sys$bytevector-like-move! src from dest to (- lim from))
+             dest)
+      (do ((i from (+ i 1))
+           (j to   (+ j 1)))
+          ((= i lim) dest)
+        (bytevector-like-set! dest j (bytevector-like-ref src i)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -383,17 +386,34 @@
           (bytevector-u8-set! b i fill)))))
 
 (define (r6rs:bytevector-copy! source source-start target target-start count)
-  (if (>= source-start target-start)
-      (do ((i 0 (+ i 1)))
-          ((>= i count))
-        (bytevector-u8-set! target
-                       (+ target-start i)
-                       (bytevector-u8-ref source (+ source-start i))))
-      (do ((i (- count 1) (- i 1)))
-          ((< i 0))
-        (bytevector-u8-set! target
-                       (+ target-start i)
-                       (bytevector-u8-ref source (+ source-start i))))))
+  (if (not (and (bytevector? source)
+                (bytevector? target)
+                (fixnum? source-start)
+                (fixnum? target-start)
+                (fixnum? count)
+                (<= 0 source-start)
+                (<= 0 target-start)
+                (<= 0 count)
+                (<= (+ source-start count) (bytevector-length source))
+                (<= (+ target-start count) (bytevector-length target))))
+      (assertion-violation 'bytevector-copy!
+                           "illegal arguments"
+                           source source-start target target-start count))
+  (cond ((>= count sys$bytevector-like-move-threshold)
+         (sys$bytevector-like-move! source source-start
+                                    target target-start count))
+        ((>= source-start target-start)
+         (do ((i 0 (+ i 1)))
+             ((>= i count))
+           (bytevector-u8-set! target
+                               (+ target-start i)
+                               (bytevector-u8-ref source (+ source-start i)))))
+        (else
+         (do ((i (- count 1) (- i 1)))
+             ((< i 0))
+           (bytevector-u8-set! target
+                               (+ target-start i)
+                               (bytevector-u8-ref source (+ source-start i)))))))
 
 ;;; Generalized from one argument for R7RS.
 

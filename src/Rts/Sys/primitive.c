@@ -536,6 +536,24 @@ word w_errcode;
   errno = nativeint( w_errcode );
 }
 
+/* Copies w_count bytes from bytevector-like w_src, starting at byte
+   w_from, to bytevector-like w_dst, starting at byte w_to; the ranges
+   may overlap.  The arguments are fixnums and bytevector-like objects,
+   and the ranges are in bounds (checked in Scheme, see bytevector.sch).
+   Bytevector-like objects contain no pointers, so there is no barrier.
+   */
+
+void primitive_bytevector_like_move( word w_src, word w_from,
+                                     word w_dst, word w_to, word w_count )
+{
+  byte *src = (byte*)(ptrof( w_src ) + BVEC_HEADER_WORDS);
+  byte *dst = (byte*)(ptrof( w_dst ) + BVEC_HEADER_WORDS);
+
+  memmove( dst + nativeint( w_to ), src + nativeint( w_from ),
+           (size_t)nativeint( w_count ) );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
 /* Returns the current time, in seconds since the epoch, in the flonum
    provided.  With POSIX clocks, the time has a fractional part. */
 

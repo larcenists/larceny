@@ -76,6 +76,7 @@ static struct {
 		      { (fptr)primitive_flonum_jn, 3, 0 },
 		      { (fptr)primitive_flonum_yn, 3, 0 },
 		      { (fptr)primitive_codevector_install, 1, 0 },
+	/* 60 */      { (fptr)primitive_bytevector_like_move, 5, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )
@@ -101,6 +102,7 @@ void larceny_syscall( int nargs, int nproc, word *args )
     case 2 : proc( args[0], args[1] ); break;
     case 3 : proc( args[0], args[1], args[2] ); break;
     case 4 : proc( args[0], args[1], args[2], args[3] ); break;
+    case 5 : proc( args[0], args[1], args[2], args[3], args[4] ); break;
     default: panic_exit( "syscall: Too many arguments." ); break;
   }
 
