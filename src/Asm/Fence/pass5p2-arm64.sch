@@ -216,6 +216,57 @@
   (arm64.SUBS as arm64.TMP1 (arm64.reg rs1) (arm64.reg rs2))
   (arm64.move-if-no-overflow as (arm64.reg rd) L))
 
+; The /bov forms (see pass5p2.sch) branch on overflow, so the common
+; case falls through.
+
+; When rd is not an operand the result goes to rd directly: on
+; overflow rd is garbage, but the slow paths use only the operands.
+
+(define (cant.add/bov as rs1 rs2 rd L)
+  (if (or (= rd rs1) (= rd rs2))
+      (begin
+        (arm64.ADDS as arm64.TMP1 (arm64.reg rs1) (arm64.reg rs2))
+        (arm64.move-if-no-overflow/bov as (arm64.reg rd) L))
+      (begin
+        (arm64.ADDS  as (arm64.reg rd) (arm64.reg rs1) (arm64.reg rs2))
+        (arm64.Bcond as arm64-cond.VS L))))
+
+(define (cant.sub/bov as rs1 rs2 rd L)
+  (if (or (= rd rs1) (= rd rs2))
+      (begin
+        (arm64.SUBS as arm64.TMP1 (arm64.reg rs1) (arm64.reg rs2))
+        (arm64.move-if-no-overflow/bov as (arm64.reg rd) L))
+      (begin
+        (arm64.SUBS  as (arm64.reg rd) (arm64.reg rs1) (arm64.reg rs2))
+        (arm64.Bcond as arm64-cond.VS L))))
+
+(define (cant.addi/bov as rs imm rd L)
+  (if (= rd rs)
+      (begin
+        (arm64.addi/flags as arm64.TMP1 (arm64.reg rs) imm)
+        (arm64.move-if-no-overflow/bov as (arm64.reg rd) L))
+      (begin
+        (arm64.addi/flags as (arm64.reg rd) (arm64.reg rs) imm)
+        (arm64.Bcond as arm64-cond.VS L))))
+
+(define (cant.subi/bov as rs imm rd L)
+  (if (= rd rs)
+      (begin
+        (arm64.subi/flags as arm64.TMP1 (arm64.reg rs) imm)
+        (arm64.move-if-no-overflow/bov as (arm64.reg rd) L))
+      (begin
+        (arm64.subi/flags as (arm64.reg rd) (arm64.reg rs) imm)
+        (arm64.Bcond as arm64-cond.VS L))))
+
+(define (cant.mul/bov as rs1 rs2 rd L)
+  (let ((rs1 (arm64.reg rs1))
+        (rs2 (arm64.reg rs2)))
+    (arm64.MUL        as arm64.TMP1 rs1 rs2)
+    (arm64.SMULH      as arm64.TMP2 rs1 rs2)
+    (arm64.CMP/ASR    as arm64.TMP2 arm64.TMP1 63)
+    (arm64.CSEL       as (arm64.reg rd) arm64.TMP1 (arm64.reg rd) arm64-cond.EQ)
+    (arm64.Bcond      as arm64-cond.NE L)))
+
 (define (cant.mul as rs1 rs2 rd)
   (arm64.MUL as (arm64.reg rd) (arm64.reg rs1) (arm64.reg rs2)))
 
@@ -487,6 +538,10 @@
   (arm64.CSEL  as rd arm64.TMP1 rd arm64-cond.VC)
   (arm64.Bcond as arm64-cond.VC L))
 
+(define (arm64.move-if-no-overflow/bov as rd L)
+  (arm64.CSEL  as rd arm64.TMP1 rd arm64-cond.VC)
+  (arm64.Bcond as arm64-cond.VS L))
+
 ; Loads and stores.  size is 8, 4, or 1 for integer loads (which are
 ; zero-extending), or d for a double-precision floating register.
 ;
@@ -628,6 +683,7 @@
     ((less-or-equal) arm64-cond.LE)
     ((greater-or-equal) arm64-cond.GE)
     ((unsigned-less) arm64-cond.LO)
+    ((unsigned-greater-or-equal) arm64-cond.HS)
     (else (error 'arm64.condition-code "Bad condition: " condition))))
 
 (define (arm64.generate-condition as condition r1 src2 src2-imm?)
@@ -903,8 +959,14 @@
                   (cons as arm64.long-mode-assemblers)))
         as))))
 
+; Setting FENCE_LONG_BRANCHES in the environment of the compiler forces
+; long mode everywhere, to exercise it.
+
+(define arm64.force-long-mode? (and (getenv "FENCE_LONG_BRANCHES") #t))
+
 (define (arm64.long-mode? as)
-  (and (memq as arm64.long-mode-assemblers) #t))
+  (or arm64.force-long-mode?
+      (and (memq as arm64.long-mode-assemblers) #t)))
 
 (define (arm64.end-long-mode! as)
   (if (arm64.long-mode? as)
@@ -933,11 +995,22 @@
         (arm64.B as L))
       (arm64.branch as L (lambda (bits) (+ #x54000000 bits cond)) arm64.imm19-bits)))
 
+; In long mode CBZ and CBNZ, like Bcond, skip over a B with the
+; opposite test.
+
 (define (arm64.CBZ as rt L)
-  (arm64.branch as L (lambda (bits) (+ #xB4000000 bits rt)) arm64.imm19-bits))
+  (if (arm64.long-mode? as)
+      (begin
+        (arm64.emit as (+ #xB5000000 (* 32 2) rt))    ; cbnz rt, .+8
+        (arm64.B as L))
+      (arm64.branch as L (lambda (bits) (+ #xB4000000 bits rt)) arm64.imm19-bits)))
 
 (define (arm64.CBNZ as rt L)
-  (arm64.branch as L (lambda (bits) (+ #xB5000000 bits rt)) arm64.imm19-bits))
+  (if (arm64.long-mode? as)
+      (begin
+        (arm64.emit as (+ #xB4000000 (* 32 2) rt))    ; cbz rt, .+8
+        (arm64.B as L))
+      (arm64.branch as L (lambda (bits) (+ #xB5000000 bits rt)) arm64.imm19-bits)))
 
 (define (arm64.BR as rn)
   (arm64.emit as (+ #xD61F0000 (* 32 rn))))

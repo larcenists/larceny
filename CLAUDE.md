@@ -46,6 +46,18 @@ one.  Add new ideas to `TODO.md` as they come up.
 - `make clean` in `src/Rts` deletes the generated `Shared/arithmetic.c`;
   rerun `build-config-files` afterwards.
 
+## Code generation switches (AArch64)
+
+Environment variables read when the compiler is loaded, for testing:
+
+- `FENCE_LONG_BRANCHES=1` forces long-branch mode in every code vector
+  (normally only in code vectors of more than 8000 MAL instructions).
+- `FENCE_INLINE_DEFERRED="timer stack arith imm check satb"` (or `all`)
+  emits those kinds of slow paths in line instead of at the end of the
+  code vector (see `fence.defer!` in `src/Asm/Fence/pass5p2.sch`).
+
+Set them when building (`bootstrap.sh`) to affect the heap.
+
 ## Feature markers
 
 Compiled files begin with `#lap(...)` or `#lop(...)` (after `#!fasl` in

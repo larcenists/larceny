@@ -628,6 +628,7 @@
                    ((less-or-equal) arm.B.LE)
                    ((greater-or-equal) arm.B.GE)
                    ((unsigned-less) arm.B.HI) ; op1 < op2 === op2 > op1
+                   ((unsigned-greater-or-equal) arm.B.LS) ; op1 >= op2 === op2 <= op1
                    (else (error "bccx: should not happen: branch condition: " condition)))
               L))
 
@@ -674,7 +675,7 @@
                   ;; if any, fits in n bits, and we support only n<=8.
                   (assert (<= 0 src2 255))
                   (arm.CMPI as arm.TMP1 0 src2))))
-          ((eq? condition 'unsigned-less)
+          ((memq condition '(unsigned-less unsigned-greater-or-equal))
            ;; Here we must reverse the operands for the caller to be able to
            ;; use available instructions.  Ergo tricky to use an immediate form.
            (if (not src2-imm?)
@@ -983,6 +984,7 @@
 (define arm.B.NE (arm.bcc "B.NE" arm-cond.NE))
 (define arm.B.VC (arm.bcc "B.VC" arm-cond.VC))
 (define arm.B.HI (arm.bcc "B.HI" arm-cond.HI))
+(define arm.B.LS (arm.bcc "B.LS" arm-cond.LS))
 (define arm.B.LT (arm.bcc "B.LT" arm-cond.LT))
 (define arm.B.GT (arm.bcc "B.GT" arm-cond.GT))
 (define arm.B.LE (arm.bcc "B.LE" arm-cond.LE))
