@@ -88,19 +88,23 @@ struct opt {
 
 extern opt_t command_line_options;
 
-extern int  panic_exit( const char *fmt, ... );
-extern int  panic_abort( const char *fmt, ... );
+/* Lets the compiler check the arguments of printf-like functions. */
 #ifdef __GNUC__
-extern void annoyingmsg( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
+#define PRINTF_LIKE( fmt_arg, first_arg ) \
+  __attribute__ ((format (printf, fmt_arg, first_arg)))
 #else
-extern void annoyingmsg( const char *fmt, ... );
+#define PRINTF_LIKE( fmt_arg, first_arg )
 #endif
-extern void supremely_annoyingmsg( const char *fmt, ... );
-extern void consolemsg( const char *fmt, ... );
-extern void hardconsolemsg( const char *fmt, ... );
+
+extern int  panic_exit( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern int  panic_abort( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void annoyingmsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void supremely_annoyingmsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void consolemsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void hardconsolemsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
 extern void conditional_abort( void );
 extern int  saw_event( void );
-extern void eventmsg( const char *fnt, ... );
+extern void eventmsg( const char *fnt, ... ) PRINTF_LIKE( 1, 2 );
 
 /* In "Rts/Sys/heapio.c" */
 
@@ -325,7 +329,7 @@ extern void cache_setup( void );
 /* Out-of-memory exception handling */
 /* In Rts/Sys/larceny.c */
 
-extern int memfail( int code, char *fmt, ... );
+extern int memfail( int code, char *fmt, ... ) PRINTF_LIKE( 2, 3 );
 
 #define MF_MALLOC   0     /* malloc() failed */
 #define MF_HEAP     1     /* gclib_alloc_heap() failed */

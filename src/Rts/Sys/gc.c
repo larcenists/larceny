@@ -179,7 +179,7 @@ int reorganize_and_dump_static_heap( const char *filename )
   sh_reorganize( gc->static_area );
   data = gc->static_area->data_area;
   text = gc->static_area->text_area;
-  consolemsg( "Data: %d bytes, Text: %d bytes",
+  consolemsg( "Data: %" PRIdWORD " bytes, Text: %" PRIdWORD " bytes",
 	      (data ? data->allocated : 0), (text ? text->allocated : 0) );
 
   consolemsg( "Dumping \"%s\".", filename );

@@ -162,7 +162,7 @@ word *los_allocate( los_t *los, s_word nbytes, int gen_no )
   set_size( w, size );
   insert_at_end( w, los->object_lists[ gen_no ] );
 
-  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%08x", 
+  supremely_annoyingmsg( "{LOS} Allocating large object size %" PRIdWORD " at %p", 
 			 size, w );
 
   return w;
@@ -220,7 +220,7 @@ void los_sweep( los_t *los, int gen_no )
     remove( p );
     nbytes = size( p );
     gclib_free( p - HEADER_WORDS, nbytes );
-    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%08x",
+    supremely_annoyingmsg( "{LOS} Freeing large object %" PRIdWORD " bytes at %p",
 			   nbytes, (void*)p );
     p = n;
   }
@@ -434,11 +434,11 @@ static void dump_list( los_list_t *l, char *tag, s_word nbytes )
   word *p;
   int fwd_n, fwd_size, backwd_n, backwd_size;
 
-  consolemsg( "{LOS} list dump %s for %d bytes", tag, nbytes );
-  consolemsg( "{LOS}   header at 0x%08x", l->header - HEADER_WORDS );
+  consolemsg( "{LOS} list dump %s for %" PRIdWORD " bytes", tag, nbytes );
+  consolemsg( "{LOS}   header at %p", l->header - HEADER_WORDS );
   fwd_n = fwd_size = 0;
   for ( p = next( l->header ) ; p != l->header ; p = next( p ) ) {
-    consolemsg( "{LOS}   > %d bytes at 0x%08x", size( p ), p - HEADER_WORDS );
+    consolemsg( "{LOS}   > %" PRIdWORD " bytes at %p", size( p ), p - HEADER_WORDS );
     fwd_n++;
     fwd_size += size( p );
   }
@@ -448,7 +448,7 @@ static void dump_list( los_list_t *l, char *tag, s_word nbytes )
     backwd_n++;
     backwd_size += size( p );
   }
-  consolemsg( "{LOS}   l->bytes=%d, fwd=%d/%d, backwd=%d/%d",
+  consolemsg( "{LOS}   l->bytes=%" PRIdWORD ", fwd=%d/%d, backwd=%d/%d",
 	      l->bytes, fwd_n, fwd_size, backwd_n, backwd_size );
   if (fwd_size != l->bytes || backwd_size != l->bytes || fwd_n != backwd_n)
     consolemsg( "{LOS}    WARNING: sizes computed differently!" );
@@ -475,15 +475,15 @@ bool los_is_address_mapped( los_t *los, word *addr, bool noisy )
 	byte* finis = start + size(cursor);
 	if (((byte*)addr >= start) && ((byte*)addr < finis)) {
 	  if (noisy)
-	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
-		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) Y",
+	    consolemsg("los_is_address_mapped los: %p addr: %p "
+		       "i: %d cursor: %p size: %" PRIdWORD " (range): [%p,%p) Y",
 		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
 	  
 	  assert(! ret); ret = TRUE;
 	} else {
 	  if (noisy)
-	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
-		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) N",
+	    consolemsg("los_is_address_mapped los: %p addr: %p "
+		       "i: %d cursor: %p size: %" PRIdWORD " (range): [%p,%p) N",
 		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
 	}
       }

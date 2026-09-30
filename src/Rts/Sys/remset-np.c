@@ -96,7 +96,7 @@ void rs_assimilate( remset_t *r1, remset_t *r2 )  /* r1 += r2 */
   word *p, *q;
 
   assert( WORDS_PER_POOL_ENTRY == 2 );
-  supremely_annoyingmsg( "REMSET @0x%x assimilate @0x%x.", 
+  supremely_annoyingmsg( "REMSET @0x%" PRIxWORD " assimilate @0x%" PRIxWORD ".", 
 			 (word)r1, (word)r2 );
 
   ps = DATA(r2)->first_pool;
@@ -188,7 +188,7 @@ void rs_consistency_check( remset_t *rs, int gen_no )
 	qi = pi+1;
 	while (q != 0) {
 	  if (*p == *q) 
-	    consolemsg( "Chain %d: duplicate value (%d,%d): %lx", 
+	    consolemsg( "Chain %d: duplicate value (%d,%d): %" PRIxWORD, 
 		       i, pi, qi, *p );
 	  qi++;
 	  q = (word*)*(q+1);
@@ -197,7 +197,7 @@ void rs_consistency_check( remset_t *rs, int gen_no )
 	if (gen_no >= 0) {
 	  if (gen_of(obj) != gen_no) {
 	    consolemsg( "Remset contains ptr to wrong gen: "
-			"0x%08x, gen=%d, want=%d",
+			"0x%08" PRIxWORD ", gen=%d, want=%d",
 			obj, gen_of( obj ), gen_no );
 	    conditional_abort();
 	  }
@@ -205,7 +205,7 @@ void rs_consistency_check( remset_t *rs, int gen_no )
 	  if ((attr_of(obj) & (MB_ALLOCATED|MB_HEAP_MEMORY)) !=
 	      (MB_ALLOCATED|MB_HEAP_MEMORY)) {
 	    consolemsg( "Remset entry points to page with bogus attributes: "
-			"0x%08x, 0x%08x",
+			"0x%08" PRIxWORD ", 0x%08x",
 			obj, attr_of(obj) );
 	    conditional_abort();
 	  }

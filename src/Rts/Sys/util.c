@@ -176,7 +176,7 @@ int unbox_int( word w )
 
   if (unbox_magnitude( w, &m, &neg ) && m <= 0x80000000ULL)
     return (neg ? -(int)m : (int)m);
-  hardconsolemsg( "Illegal value in unbox_int: 0x%08x; returning -1", w );
+  hardconsolemsg( "Illegal value in unbox_int: 0x%08" PRIxWORD "; returning -1", w );
   return -1;
 }
 

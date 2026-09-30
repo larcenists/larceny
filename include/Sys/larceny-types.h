@@ -23,6 +23,20 @@ typedef int64_t s_word;
 typedef unsigned int word;
 typedef int s_word;
 #endif
+/* printf formats for words, like those of <inttypes.h>:
+   printf( "%" PRIxWORD, w ) */
+#include <inttypes.h>
+#if defined(BITS_64)
+#define PRIdWORD PRId64
+#define PRIuWORD PRIu64
+#define PRIxWORD PRIx64
+#define PRIXWORD PRIX64
+#else
+#define PRIdWORD "d"
+#define PRIuWORD "u"
+#define PRIxWORD "x"
+#define PRIXWORD "X"
+#endif
 typedef unsigned char byte;
 typedef uint32_t u32;         /* 32-bit quantities, e.g. bignum digits */
 typedef int32_t s32;

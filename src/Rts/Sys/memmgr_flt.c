@@ -146,7 +146,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       allocated = DATA(gc)->ephemeral_area[i]->allocated;
       if ( allocated > newmax ) {
         if ( allocated > 2*newmax ) {
-          consolemsg( "  rgn %d allocated: %d significantly exceeds %d", 
+          consolemsg( "  rgn %d allocated: %" PRIdWORD " significantly exceeds %" PRIdWORD, 
                       i, allocated, newmax );
         }
         newmax = allocated;
@@ -170,8 +170,8 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       rgn_grp_str = region_group_name( region_group_of(heap ));
       oh_synchronize( heap );
       consolemsg( "%scycle % 3d region% 4d "
-                  "rgn sumz live: %8d lastmajor: %7d "
-                  "float{ objs: %7d/%7d words: %7d/%7d %7d }%s%s %s %s", 
+                  "rgn sumz live: %8d lastmajor: %7" PRIdWORD " "
+                  "float{ objs: %7d/%7d words: %7d/%7d %7" PRIdWORD " }%s%s %s %s", 
                   caller_name,
                   DATA(gc)->rrof_cycle_count, 
                   rgn, 
@@ -253,7 +253,7 @@ void print_float_stats( char *caller_name, gc_t *gc )
     }
     consolemsg( "cycle % 3d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
                 "promoted % 10d/% 10d "
-                "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
+                "live{ est: %dK act: %dK max: %" PRIdWORD "K } estdelta: %0.2f ",
                 DATA(gc)->rrof_cycle_count, 
                 total_float_objects/1000, 
                 total_float_words/1024, 

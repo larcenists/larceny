@@ -487,7 +487,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
     break;
   }
   default : 
-    panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
+    panic_exit( "Unknown code %" PRIdWORD " passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }
 }
 

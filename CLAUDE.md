@@ -91,4 +91,8 @@ generation, keep them true:
   tests; say in the commit message what was tested.
 - Keep code word-size independent (the runtime is shared with 32-bit
   targets), and keep Petit's behavior unchanged when changing shared code.
+- Print a `word` or `s_word` with `"%" PRIxWORD` (also `PRIdWORD`,
+  `PRIuWORD`, `PRIXWORD`, in `larceny-types.h`) and a pointer with `%p`.
+  The runtime's message functions (`consolemsg`, `panic_exit`, ...) are
+  declared `PRINTF_LIKE`, and the arm64 builds compile with `-Wformat`.
 - Match the style of surrounding code.

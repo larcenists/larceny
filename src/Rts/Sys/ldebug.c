@@ -361,7 +361,7 @@ static void examine( char *cmdl )
     unsigned char *p = (unsigned char *) loc;
 
     while (count--) {
-      printf( "%08x    %u\n", (unsigned int)p, *p );
+      printf( "%p    %u\n", (void*)p, *p );
       p++;
     }
   }
@@ -374,17 +374,17 @@ static void examine( char *cmdl )
     switch( tagof( loc ) ) {
     case PAIR_TAG :
       printf( "Pair\n" );
-      printf( "  0x%08x\n  0x%08x\n", pair_car( loc ), pair_cdr( loc ) );
+      printf( "  0x%08" PRIxWORD "\n  0x%08" PRIxWORD "\n", pair_car( loc ), pair_cdr( loc ) );
       break;
     case VEC_TAG  :
     case PROC_TAG :
       hdr = *ptrof( loc );
       len = sizefield(hdr)/sizeof(word);
-      printf( "%s, length %d tag %d\n", 
+      printf( "%s, length %d tag %" PRIdWORD "\n", 
 	      (tagof( loc ) == VEC_TAG ? "Vector-like" : "Procedure"),
 	      len, typetag( hdr ) );
       for ( i=0, p=ptrof( loc )+1 ; len ; i++, len--, p++ )
-	printf( "  %04d 0x%08x\n", i, *p );
+	printf( "  %04d 0x%08" PRIxWORD "\n", i, *p );
       break;
     case BVEC_TAG :
       hdr = *ptrof( loc );
@@ -417,11 +417,11 @@ static void examine( char *cmdl )
       break;
     case IMM1_TAG :
     case IMM2_TAG :
-      printf( "Immediate: 0x%08x\n", loc );
+      printf( "Immediate: 0x%08" PRIxWORD "\n", loc );
       break;
     case FIX1_TAG :
     case FIX2_TAG :
-      printf( "Fixnum: %d\n", nativeint( loc ) );
+      printf( "Fixnum: %" PRIdWORD "\n", nativeint( loc ) );
       break;
     }
   }
@@ -429,7 +429,7 @@ static void examine( char *cmdl )
     word *p = (word *) ptrof( loc );
 
     while (count--) {
-      printf( "%08x    %08x\n", (unsigned int)p,  *p );
+      printf( "%p    %08" PRIxWORD "\n", (void*)p,  *p );
       p++;
     }
   }
@@ -522,11 +522,11 @@ static void dumpproc( void )
 
   p = ptrof( w );
   q = *p++;
-  printf( "0x%08x\n", q );
+  printf( "0x%08" PRIxWORD "\n", q );
   l = sizefield( q ) / sizeof(word);
   while (l--) {
     q = *p++;
-    printf( "0x%08x\n", q );
+    printf( "0x%08" PRIxWORD "\n", q );
   }
 }
 
@@ -535,13 +535,13 @@ static void dumpregs( void )
   int j, k;
 
 #ifdef G_SECOND
-  printf( "RESULT=0x%08x  SECOND=0x%08x  THIRD= 0x%08x  FOURTH=0x%08x\n", 
+  printf( "RESULT=0x%08" PRIxWORD "  SECOND=0x%08" PRIxWORD "  THIRD= 0x%08" PRIxWORD "  FOURTH=0x%08" PRIxWORD "\n", 
 	  globals[ G_RESULT ],
 	  globals[ G_SECOND ],
 	  globals[ G_THIRD ],
 	  globals[ G_FOURTH ] );
 #else
-  printf( "RESULT=0x%08x  ARGREG2=0x%08x  ARGREG3=0x%08x  RETADDR=0x%08x\n", 
+  printf( "RESULT=0x%08" PRIxWORD "  ARGREG2=0x%08" PRIxWORD "  ARGREG3=0x%08" PRIxWORD "  RETADDR=0x%08" PRIxWORD "\n", 
 	  globals[ G_RESULT ],
 	  globals[ G_ARGREG2 ],
 	  globals[ G_ARGREG3 ],
@@ -549,10 +549,10 @@ static void dumpregs( void )
 #endif
   for (j = 0 ; j < 8 ; j++ ) {
     for (k = 0 ; k < 4 ; k++ )
-      printf( "REG %2d=0x%08x  ", j*4+k, globals[ G_REG0 + j*4+k ] );
+      printf( "REG %2d=0x%08" PRIxWORD "  ", j*4+k, globals[ G_REG0 + j*4+k ] );
     putchar( '\n' );
   }
-  printf( "TIMER=0x%08x  Flags=%c%c%c  PC=0x%08x  CONT=0x%08x\n",
+  printf( "TIMER=0x%08" PRIxWORD "  Flags=%c%c%c  PC=0x%08" PRIxWORD "  CONT=0x%08" PRIxWORD "\n",
 	  globals[ G_TIMER2 ] + globals[ G_TIMER ],
 	  (globals[ G_TIMER_ENABLE ] == TRUE_CONST ? 'T' : 't'),
 	  (globals[ G_SINGLESTEP_ENABLE ] == TRUE_CONST ? 'S' : 's'),
@@ -564,15 +564,15 @@ static void dumpregs( void )
 	  (long unsigned int)globals[ G_STKBOT ],
 	  (long unsigned int)globals[ G_EBOT ],
           (long unsigned int)globals[ G_ETOP ] );
-  printf( "CALLOUTS=0x%08x\n", globals[ G_CALLOUTS ] );
+  printf( "CALLOUTS=0x%08" PRIxWORD "\n", globals[ G_CALLOUTS ] );
 }
 
 static void dumpglob( void )
 {
   printf( "Roots for precise GC:\n" );
-  printf( "  G_STARTUP=0x%08x  G_CALLOUTS=0x%08x"
+  printf( "  G_STARTUP=0x%08" PRIxWORD "  G_CALLOUTS=0x%08" PRIxWORD
 #ifdef G_SCHCALL_ARG4
-	  "G_SCHCALL_ARG4=0x%08x"
+	  "G_SCHCALL_ARG4=0x%08" PRIxWORD
 #endif
 	  "\n",
 	  globals[ G_STARTUP ],
@@ -582,18 +582,18 @@ static void dumpglob( void )
 #endif
 	  );
 #ifdef G_ALLOCI_TMP
-  printf( "  G_ALLOCI_TMP=0x%08x\n", globals[ G_ALLOCI_TMP ] );
+  printf( "  G_ALLOCI_TMP=0x%08" PRIxWORD "\n", globals[ G_ALLOCI_TMP ] );
 #endif
   printf( "\nNon-roots:\n" );
 #ifdef G_GENERIC_NRTMP1
-  printf( "  G_GENERIC_NRTMP1=0x%08x G_GENERIC_NRTMP2=0x%08x\n", 
+  printf( "  G_GENERIC_NRTMP1=0x%08" PRIxWORD " G_GENERIC_NRTMP2=0x%08" PRIxWORD "\n", 
 	  globals[ G_GENERIC_NRTMP1 ], globals[ G_GENERIC_NRTMP2 ] );
-  printf( "  G_GENERIC_NRTMP3=0x%08x G_GENERIC_NRTMP4=0x%08x\n", 
+  printf( "  G_GENERIC_NRTMP3=0x%08" PRIxWORD " G_GENERIC_NRTMP4=0x%08" PRIxWORD "\n", 
 	  globals[ G_GENERIC_NRTMP3 ], globals[ G_GENERIC_NRTMP4 ] );
 #endif
-  printf( "  G_PUSHTMP=0x%08x G_SCHCALL_RETADDR=0x%08x\n",
+  printf( "  G_PUSHTMP=0x%08" PRIxWORD " G_SCHCALL_RETADDR=0x%08" PRIxWORD "\n",
 	  globals[ G_PUSHTMP ], globals[ G_SCHCALL_RETADDR ] );
-  printf( "  G_CALLOUT_TMP0=0x%08x G_CALLOUT_TMP1=0x%08x G_CALLOUT_TMP2=0x%08x\n",
+  printf( "  G_CALLOUT_TMP0=0x%08" PRIxWORD " G_CALLOUT_TMP1=0x%08" PRIxWORD " G_CALLOUT_TMP2=0x%08" PRIxWORD "\n",
 	  globals[ G_CALLOUT_TMP0 ], globals[ G_CALLOUT_TMP1 ],
 	  globals[ G_CALLOUT_TMP2 ] );
 }
@@ -605,9 +605,9 @@ static void dump_top_frame( void )
   int i;
 
   for ( i=0 ; i < size && i < 10 ; i++ )
-    printf( "%-3d  %08x\n", i*4, stkp[i] );
+    printf( "%-3d  %08" PRIxWORD "\n", i*4, stkp[i] );
   if (i < size)
-    printf( "... (%d slots)\n", size );
+    printf( "... (%" PRIdWORD " slots)\n", size );
 }
 
 static void dumpcodevec( void )

@@ -105,7 +105,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 
   if (tagof(trampoline_bytevector) != BVEC_TAG 
       || typetag(*ptrof(trampoline_bytevector)) != BVEC_SUBTAG) {
-    hardconsolemsg( "FFICALL failed: invalid function pointer 0x%08x",
+    hardconsolemsg( "FFICALL failed: invalid function pointer 0x%08" PRIxWORD,
 		    trampoline_bytevector );
     goto failed;
   }
@@ -139,7 +139,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 	break;
       default :
       badarg_s32:
-	hardconsolemsg( "FFICALL failed: bad arg to signed-word32, val=0x%08x",
+	hardconsolemsg( "FFICALL failed: bad arg to signed-word32, val=0x%08" PRIxWORD,
 		        arg );
 	goto failed;
       }
@@ -163,7 +163,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
       default :
       badarg_u32:
 	hardconsolemsg( "FFICALL failed: bad arg to unsigned-word32, "
-		        "val=0x%08x", arg );
+		        "val=0x%08" PRIxWORD, arg );
 	goto failed;
       }
       break;
@@ -179,7 +179,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
       }
       else {
       badarg_f32:
-	hardconsolemsg( "FFICALL failed: bad arg to ieee32, val=0x%08x",
+	hardconsolemsg( "FFICALL failed: bad arg to ieee32, val=0x%08" PRIxWORD,
 		        arg );
 	goto failed;
       }
@@ -196,7 +196,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
       }
       else {
       badarg_f64:
-	hardconsolemsg( "FFICALL failed: bad arg to ieee64, val=0x%08x",
+	hardconsolemsg( "FFICALL failed: bad arg to ieee64, val=0x%08" PRIxWORD,
 		        arg );
 	goto failed;
       }
@@ -215,7 +215,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 	  args[i].pointer = (byte*)(ptrof(arg)+1);
 	  break;
 	default :
-	  hardconsolemsg( "FFICALL failed: bad arg to pointer, val=0x%08x",
+	  hardconsolemsg( "FFICALL failed: bad arg to pointer, val=0x%08" PRIxWORD,
 			 arg );
 	  goto failed;
 	}
@@ -257,7 +257,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
 	break;
       default :
       badarg_s64:
-	hardconsolemsg( "FFICALL failed: bad arg to signed-word64, val=0x%08x",
+	hardconsolemsg( "FFICALL failed: bad arg to signed-word64, val=0x%08" PRIxWORD,
 		        arg );
 	goto failed;
       }
@@ -289,7 +289,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
       default :
       badarg_u64:
 	hardconsolemsg( "FFICALL failed: bad arg to unsigned-word64, "
-			"val=0x%08x", arg );
+			"val=0x%08" PRIxWORD, arg );
       goto failed;
       }
       break;
@@ -341,7 +341,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
     globals[ G_RESULT ] = box_ulonglong( ull_result );
     return;
   default :
-    hardconsolemsg( "FFICALL failed: bad return descriptor %d", 
+    hardconsolemsg( "FFICALL failed: bad return descriptor %" PRIdWORD, 
 		    return_descriptor );
     goto failed;
   }

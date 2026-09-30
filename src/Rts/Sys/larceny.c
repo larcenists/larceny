@@ -1259,24 +1259,24 @@ static void dump_options( opt_t *o )
     consolemsg( "  Inverse expansion factor: %f", 
                 o->gc_info.bdw_info.expansion_factor );
     consolemsg( "  Divisor: %d", o->gc_info.bdw_info.divisor );
-    consolemsg( "  Min size: %d", o->gc_info.bdw_info.dynamic_min );
-    consolemsg( "  Max size: %d", o->gc_info.bdw_info.dynamic_max );
+    consolemsg( "  Min size: %" PRIdWORD, o->gc_info.bdw_info.dynamic_min );
+    consolemsg( "  Max size: %" PRIdWORD, o->gc_info.bdw_info.dynamic_max );
   }
   else if (o->gc_info.is_stopcopy_system) {
     consolemsg( "Using stop-and-copy garbage collector." );
-    consolemsg( "  Size (bytes): %d", o->gc_info.sc_info.size_bytes );
+    consolemsg( "  Size (bytes): %" PRIdWORD, o->gc_info.sc_info.size_bytes );
     consolemsg( "  Inverse load factor: %f", o->gc_info.sc_info.load_factor );
     consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
-    consolemsg( "  Min size: %d", o->gc_info.sc_info.dynamic_min );
-    consolemsg( "  Max size: %d", o->gc_info.sc_info.dynamic_max );
+    consolemsg( "  Min size: %" PRIdWORD, o->gc_info.sc_info.dynamic_min );
+    consolemsg( "  Max size: %" PRIdWORD, o->gc_info.sc_info.dynamic_max );
   }
   else if (o->gc_info.is_regional_system) {
     consolemsg( "Using regional garbage collector." );
     consolemsg( "  Nursery" );
-    consolemsg( "    Size (bytes): %d", o->gc_info.nursery_info.size_bytes );
+    consolemsg( "    Size (bytes): %" PRIdWORD, o->gc_info.nursery_info.size_bytes );
     for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
       consolemsg( "  Ephemeral area %d", i );
-      consolemsg( "    Size (bytes): %d",
+      consolemsg( "    Size (bytes): %" PRIdWORD,
                   o->gc_info.ephemeral_info[i-1].size_bytes );
     }    
     consolemsg( "  Using static area: %d", o->gc_info.use_static_area );
@@ -1284,10 +1284,10 @@ static void dump_options( opt_t *o )
   else if (o->gc_info.is_generational_system) {
     consolemsg( "Using generational garbage collector." );
     consolemsg( "  Nursery" );
-    consolemsg( "    Size (bytes): %d", o->gc_info.nursery_info.size_bytes );
+    consolemsg( "    Size (bytes): %" PRIdWORD, o->gc_info.nursery_info.size_bytes );
     for ( i=1 ; i<= o->gc_info.ephemeral_area_count ; i++ ) {
       consolemsg( "  Ephemeral area %d", i );
-      consolemsg( "    Size (bytes): %d",
+      consolemsg( "    Size (bytes): %" PRIdWORD,
                   o->gc_info.ephemeral_info[i-1].size_bytes );
     }
 #if ROF_COLLECTOR
@@ -1295,11 +1295,11 @@ static void dump_options( opt_t *o )
       np_info_t *i = &o->gc_info.dynamic_np_info;
       consolemsg( "  Dynamic area (nonpredictive copying)" );
       consolemsg( "    Steps: %d", i->steps );
-      consolemsg( "    Step size (bytes): %d", i->stepsize );
-      consolemsg( "    Total size (bytes): %d", i->size_bytes );
+      consolemsg( "    Step size (bytes): %" PRIdWORD, i->stepsize );
+      consolemsg( "    Total size (bytes): %" PRIdWORD, i->size_bytes );
       consolemsg( "    Inverse load factor: %f", i->load_factor );
-      consolemsg( "    Min size: %d", i->dynamic_min );
-      consolemsg( "    Max size: %d", i->dynamic_max );
+      consolemsg( "    Min size: %" PRIdWORD, i->dynamic_min );
+      consolemsg( "    Max size: %" PRIdWORD, i->dynamic_max );
       consolemsg( "    Luck: %f", i->luck );
     }
     else 
@@ -1307,10 +1307,10 @@ static void dump_options( opt_t *o )
     {
       sc_info_t *i = &o->gc_info.dynamic_sc_info;
       consolemsg( "  Dynamic area (normal copying)" );
-      consolemsg( "    Size (bytes): %d", i->size_bytes );
+      consolemsg( "    Size (bytes): %" PRIdWORD, i->size_bytes );
       consolemsg( "    Inverse load factor: %f", i->load_factor );
-      consolemsg( "    Min size: %d", i->dynamic_min );
-      consolemsg( "    Max size: %d", i->dynamic_max );
+      consolemsg( "    Min size: %" PRIdWORD, i->dynamic_min );
+      consolemsg( "    Max size: %" PRIdWORD, i->dynamic_max );
     }
     consolemsg( "  Using non-predictive dynamic area: %d",
                o->gc_info.use_non_predictive_collector );
@@ -1611,10 +1611,10 @@ static void help(int wizardp)
   consolemsg("" );
   consolemsg("Options:" );
   for (i=0 ; helptext[i] != 0 ; i++ )
-    consolemsg( helptext[i] );
+    consolemsg( "%s", helptext[i] );
   if (wizardp) {
       for (i=0 ; wizardhelptext[i] != 0 ; i++ )
-          consolemsg( wizardhelptext[i] );
+          consolemsg( "%s", wizardhelptext[i] );
   }
   consolemsg("The Larceny User's Manual is available on the web at");
   consolemsg("  http://www.larcenists.org/doc.html/");

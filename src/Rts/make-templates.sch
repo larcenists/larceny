@@ -219,7 +219,7 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
 CC=cc
 DEBUGINFO=-g
 OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
-WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wno-format
+WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wformat
 # Floating-point contraction (fused multiply-add) changes results.
 CFLAGS+=-c -fno-common -ffp-contract=off -I$(INC_ROOT)/Standard-C $(WARNINGS)
 LIBS=-lm"))
@@ -312,7 +312,7 @@ AS=$(CC)"))
 CC=cc
 DEBUGINFO=-g
 OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
-WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wno-format
+WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wformat
 # Floating-point contraction (fused multiply-add) changes results.
 CFLAGS+=-c -fno-common -ffp-contract=off -IBuild $(WARNINGS)
 ASFLAGS+=-c

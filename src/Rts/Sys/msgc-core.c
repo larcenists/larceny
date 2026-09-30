@@ -721,7 +721,7 @@ void msgc_assert_conservative_approximation( msgc_context_t *context )
     if (w1 != w2) {
       /* Want w1 superset of w2 */
       if ((w1 & w2) != w2) {
-        consolemsg( " gen mark failed@%p: conservative=0x%08x accurate=0x%08x",
+        consolemsg( " gen mark failed@%p: conservative=0x%08" PRIxWORD " accurate=0x%08" PRIxWORD,
                     (void*)(ncontext->lowest_heap_address + 
                             (i*8*BITS_IN_WORD)/sizeof(word)), 
                     w1, w2 );

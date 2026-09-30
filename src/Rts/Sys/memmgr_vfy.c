@@ -57,7 +57,7 @@ static void* verify_remsets_msgc_fcn( word obj, word src, s_word offset, void *d
   obj_gen = gen_of(obj);
   if (src_gen < 0 || obj_gen < 0) {
     consolemsg( "verify_remsets_msgc_fcn( "
-                "obj=0x%08x (%d), src=0x%08x (%d), data )",
+                "obj=0x%08" PRIxWORD " (%d), src=0x%08" PRIxWORD " (%d), data )",
                 obj, obj_gen, src, src_gen );
   }
   assert( src_gen >= 0);
@@ -70,7 +70,7 @@ static void* verify_remsets_msgc_fcn( word obj, word src, s_word offset, void *d
       assert( *gc->ssb[src_gen]->bot == *gc->ssb[src_gen]->top );
       assert( *gc->ssb[obj_gen]->bot == *gc->ssb[obj_gen]->top );
       if (!urs_isremembered( gc->the_remset, src )) {
-	consolemsg( " src: 0x%08x (%d) points to obj: 0x%08x (%d),"
+	consolemsg( " src: 0x%08" PRIxWORD " (%d) points to obj: 0x%08" PRIxWORD " (%d),"
 		    " but not in remset ",
 		    src, src_gen, obj, obj_gen );
 	if (! gc_is_address_mapped( gc, ptrof(src), FALSE)) {
@@ -223,10 +223,10 @@ print_path_to( gc_t *gc, word obj, bool via_roots_alone )
     if (data.src != 0x0) {
       found_tgt = TRUE;
       if (isptr(data.src)) {
-        consolemsg( "obj: 0x%08x (%d) <-- src: 0x%08x (%d)", 
+        consolemsg( "obj: 0x%08" PRIxWORD " (%d) <-- src: 0x%08" PRIxWORD " (%d)", 
                     data.obj, gen_of(data.obj), data.src, gen_of(data.src) );
       } else {
-        consolemsg( "obj: 0x%08x (%d) <-- src: 0x%08x     ", 
+        consolemsg( "obj: 0x%08" PRIxWORD " (%d) <-- src: 0x%08" PRIxWORD "     ", 
                     data.obj, gen_of(data.obj), data.src );
       }
       if (isptr(data.src)) {
@@ -245,10 +245,10 @@ static void check_valid_object( gc_t *gc, word obj, int bad_gno )
 {
   bool found_it;
   if ( gen_of(obj) == bad_gno ) {
-    consolemsg("invalid object reached: 0x%08x (%d)", obj, gen_of(obj));
+    consolemsg("invalid object reached: 0x%08" PRIxWORD " (%d)", obj, gen_of(obj));
     found_it = print_path_to( gc, obj, TRUE );
     if (! found_it) {
-      consolemsg("not reachable from roots: 0x%08x (%d)", obj, gen_of(obj));
+      consolemsg("not reachable from roots: 0x%08" PRIxWORD " (%d)", obj, gen_of(obj));
       found_it = print_path_to( gc, obj, FALSE );
     }
   }

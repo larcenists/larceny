@@ -33,7 +33,7 @@ static void dumpwords( word *p, int n )
 {
   int i;
   for ( i = 0; i < n; i = i + 1 )
-    hardconsolemsg( "    0x%08d  0x%08x  0x%08x ", i - 1, &(p[i]), p[i] );
+    hardconsolemsg( "    0x%08d  %p  0x%08" PRIxWORD " ", i - 1, &(p[i]), p[i] );
 }
 
 void gclib_check_memory_validity( word *p, int n )
@@ -45,15 +45,15 @@ void gclib_check_memory_validity( word *p, int n )
 
     if (ishdr( x )) {
       if (i != 0) {
-        hardconsolemsg( "Header 0x%08x found at offset %d in object 0x%08x!",
+        hardconsolemsg( "Header 0x%08" PRIxWORD " found at offset %d in object 0x%08" PRIxWORD "!",
                         x, i, (word)p );
         dumpwords( p, n );
         conditional_abort();
       }
       else if (sizefield( x ) > 4*1024*1024) {
         /* Bigger than the big array in gcbench! */
-        hardconsolemsg( "Implausible but valid size %u in header "
-                        "0x%08x in  object 0x%08x.", sizefield(x), x, (word)p);
+        hardconsolemsg( "Implausible but valid size %" PRIuWORD " in header "
+                        "0x%08" PRIxWORD " in  object 0x%08" PRIxWORD ".", sizefield(x), x, (word)p);
       }
     }
     else {
@@ -67,8 +67,8 @@ void gclib_check_memory_validity( word *p, int n )
             || x == EOF_CONST)
           ;
         else {
-          hardconsolemsg( "Invalid immediate 0x%08x found at offset %d"
-                         " in object 0x%08x!", x, i, (word)p );
+          hardconsolemsg( "Invalid immediate 0x%08" PRIxWORD " found at offset %d"
+                         " in object 0x%08" PRIxWORD "!", x, i, (word)p );
           dumpwords( p, n );
           conditional_abort();
         }
@@ -76,8 +76,8 @@ void gclib_check_memory_validity( word *p, int n )
       case 1 :                  /* pair */
         y = *ptrof( x );
         if (y != FORWARD_HDR && ishdr( y )) {
-          hardconsolemsg( "Pair pointer 0x%08x at offset %d in object 0x%08x"
-                          " points to a header (0x%08x)!", x, i, (word)p, y );
+          hardconsolemsg( "Pair pointer 0x%08" PRIxWORD " at offset %d in object 0x%08" PRIxWORD
+                          " points to a header (0x%08" PRIxWORD ")!", x, i, (word)p, y );
           dumpwords( ptrof(x), 2 );
           conditional_abort();
         }
@@ -85,8 +85,8 @@ void gclib_check_memory_validity( word *p, int n )
       case 3 :                  /* vector */
         y = *ptrof( x );
         if (y != FORWARD_HDR && (!ishdr( y ) || header( y ) != VEC_HDR)) {
-          hardconsolemsg( "Vector pointer 0x%08x at offset %d in object 0x%08x"
-                          " does not point to a vector header (0x%08x)!", 
+          hardconsolemsg( "Vector pointer 0x%08" PRIxWORD " at offset %d in object 0x%08" PRIxWORD
+                          " does not point to a vector header (0x%08" PRIxWORD ")!", 
                           x, i, (word)p, y );
           dumpwords( p, n );
           dumpwords( ptrof(x), 4 );
@@ -96,9 +96,9 @@ void gclib_check_memory_validity( word *p, int n )
       case 5 :                  /* bytevector */
         y = *ptrof( x );
         if (y != FORWARD_HDR && (!ishdr( y ) || header( y ) != BV_HDR)) {
-          hardconsolemsg( "Bytevector pointer 0x%08x at offset %d in object "
-                          "0x%08x does not point to a bytevector header "
-                          "(0x%08x)!",
+          hardconsolemsg( "Bytevector pointer 0x%08" PRIxWORD " at offset %d in object "
+                          "0x%08" PRIxWORD " does not point to a bytevector header "
+                          "(0x%08" PRIxWORD ")!",
                           x, i, (word)p, y );
           dumpwords( p, n );
           dumpwords( ptrof(x), 4 );
@@ -109,9 +109,9 @@ void gclib_check_memory_validity( word *p, int n )
         y = *ptrof( x );
         if (y != FORWARD_HDR && 
             (!ishdr( y ) || header(y) != header(PROC_HDR))) {
-          hardconsolemsg( "Procedure pointer 0x%08x at offset %d in object "
-                          "0x%08x does not point to a procedure header "
-                          "(0x%08x)!", 
+          hardconsolemsg( "Procedure pointer 0x%08" PRIxWORD " at offset %d in object "
+                          "0x%08" PRIxWORD " does not point to a procedure header "
+                          "(0x%08" PRIxWORD ")!", 
                           x, i, (word)p, y );
           conditional_abort();
         }
@@ -133,7 +133,7 @@ void gclib_check_object( word obj )
   case VEC_TAG :
     firstword = *ptrof( obj );
     if (!ishdr( firstword ) || header( firstword ) != VEC_HDR) {
-      hardconsolemsg( "gclib_check_object: Inconsistent header: 0x%08x 0x%08x",
+      hardconsolemsg( "gclib_check_object: Inconsistent header: 0x%08" PRIxWORD " 0x%08" PRIxWORD,
                       obj, firstword );
       conditional_abort();
     }
@@ -143,7 +143,7 @@ void gclib_check_object( word obj )
     firstword = *ptrof( obj );
     /* Procedure headers are weird (known bug, bit me big-time here) */
     if (!ishdr( firstword ) || header( firstword ) != header(PROC_HDR)) {
-      hardconsolemsg( "gclib_check_object: Inconsistent header: 0x%08x 0x%08x",
+      hardconsolemsg( "gclib_check_object: Inconsistent header: 0x%08" PRIxWORD " 0x%08" PRIxWORD,
                       obj, firstword );
       conditional_abort();
     }
@@ -152,13 +152,13 @@ void gclib_check_object( word obj )
   case BVEC_TAG :
     firstword = *ptrof( obj );
     if (!ishdr( firstword ) || header( firstword ) != BV_HDR) {
-      hardconsolemsg( "gclib_check_object: Inconsistent header: 0x%08x 0x%08x",
+      hardconsolemsg( "gclib_check_object: Inconsistent header: 0x%08" PRIxWORD " 0x%08" PRIxWORD,
                       obj, firstword );
       conditional_abort();
     }
     break;
   default :
-    hardconsolemsg( "gclib_check_object: Not a pointer as expected: 0x%08x",
+    hardconsolemsg( "gclib_check_object: Not a pointer as expected: 0x%08" PRIxWORD,
                     obj );
     conditional_abort();
     }

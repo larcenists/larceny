@@ -222,7 +222,7 @@ s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L
       M = newM;
   }
 
-  annoyingmsg( "New heap size by policy should be %ld bytes", M );
+  annoyingmsg( "New heap size by policy should be %" PRIdWORD " bytes", M );
 
   return roundup_page( M - est_live_next_gc );
 }
@@ -359,12 +359,12 @@ static word *allocate( gc_t *gc, s_word nbytes, bool no_gc, bool atomic )
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
-    panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
+    panic_exit( "Can't allocate an object of size %" PRIdWORD " bytes: max is %" PRIdWORD " bytes.",
                 nbytes, LARGEST_OBJECT );
 
   if (DATA(gc)->ephemeral_area_count > 0 && 
       nbytes > DATA(gc)->ephemeral_area[ 0 ]->maximum ) {
-    consolemsg("allocate: holy cow; nbytes=%d and max=%d",
+    consolemsg("allocate: holy cow; nbytes=%" PRIdWORD " and max=%" PRIdWORD,
                nbytes, DATA(gc)->ephemeral_area[0]->maximum );
   }
 
@@ -380,7 +380,7 @@ static word *allocate_nonmoving( gc_t *gc, s_word nbytes, bool atomic )
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
-    panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
+    panic_exit( "Can't allocate an object of size %" PRIdWORD " bytes: max is %" PRIdWORD " bytes.",
                 nbytes, LARGEST_OBJECT );
 
   return sh_allocate( gc->static_area, nbytes );
@@ -462,10 +462,10 @@ static void collect_generational( gc_t *gc,
     stats_following_gc( gc );
 
     gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+    annoyingmsg( "  Memory usage: heap %" PRIdWORD ", remset %" PRIdWORD ", RTS %" PRIdWORD " words",
                  stats.heap_allocated, stats.remset_allocated, 
                  stats.rts_allocated );
-    annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+    annoyingmsg( "  Max heap usage: %" PRIdWORD " words", stats.heap_allocated_max );
   }
 }
 
@@ -1282,7 +1282,7 @@ static bool lsscan_summary_sound( loc_t loc, void *my_data )
                    && (gen_of(val) != 0));
   if (bad_condition) {
     word loc_obj = loc_to_obj(loc);
-    consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) -> 0x%08x (%d) "
+    consolemsg(  "UNSOUND SUMMARY 0x%08" PRIxWORD " (%d) -> 0x%08" PRIxWORD " (%d) "
                  "marked {obj->slot:N obj:%s, rs: %s, smircy obj->slot:%s obj:%s}", 
                  loc_obj, gen_of(loc_obj), val, gen_of(val), 
                  msgc_object_marked_p( msgc, loc_obj )?"Y":"N", 
@@ -1935,7 +1935,7 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
   case GCTYPE_FULL:     type_str = "FULL"; break;
   default: assert(0);
   }
-  supremely_annoyingmsg("collect_rgnl(gc, %d, %d, %s)", 
+  supremely_annoyingmsg("collect_rgnl(gc, %d, %" PRIdWORD ", %s)", 
                         rgn, bytes_needed, type_str );
 }
 
@@ -2215,10 +2215,10 @@ static void collect_rgnl( gc_t *gc, int rgn, s_word bytes_needed, gc_type_t requ
 
     stats_following_gc( gc );
     gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+    annoyingmsg( "  Memory usage: heap %" PRIdWORD ", remset %" PRIdWORD ", RTS %" PRIdWORD " words",
                  stats.heap_allocated, stats.remset_allocated, 
                  stats.rts_allocated );
-    annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+    annoyingmsg( "  Max heap usage: %" PRIdWORD " words", stats.heap_allocated_max );
   }
 
 }
@@ -2327,7 +2327,7 @@ static void incremental_rgnl( gc_t *gc )
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
 {
   assert(isptr(tgt));
-  supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08x (%d), 0x%08x (%d) )", 
+  supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08" PRIxWORD " (%d), 0x%08" PRIxWORD " (%d) )", 
                          src, isptr(src)?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
   assert( ! isptr(src) ||
@@ -2338,7 +2338,7 @@ static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt )
 }
 static void check_remset_invs( gc_t *gc, word src, word tgt ) 
 {
-  supremely_annoyingmsg( "check_remset_invs( gc, 0x%08x (%d), 0x%08x (%d) )", 
+  supremely_annoyingmsg( "check_remset_invs( gc, 0x%08" PRIxWORD " (%d), 0x%08" PRIxWORD " (%d) )", 
                          src, src?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
   assert( !src || 
@@ -3024,7 +3024,7 @@ static int compact_all_ssbs( gc_t *gc )
     FIXME_UNUSED_VARIABLE(mut_effort_full);
     if (mut_effort_sumz > cN) {
       annoyingmsg( "compact_all_ssbs force_progress because "
-                   "mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
+                   "mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%" PRIdWORD,
                   mut_effort_sumz, 
                   DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle,
                   DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
@@ -3157,7 +3157,7 @@ static void effect_heap_limits( gc_t *gc )
 {
   if (DATA(gc)->dynamic_max) {
     s_word lim = DATA(gc)->dynamic_max+DATA(gc)->nonexpandable_size;
-    annoyingmsg( "*** Changing heap limit to %ld", lim );
+    annoyingmsg( "*** Changing heap limit to %" PRIdWORD, lim );
     gclib_set_heap_limit( lim );
   }
 }
@@ -3409,7 +3409,7 @@ static semispace_t *find_space_rgnl( gc_t *gc, s_word bytes_needed,
   to_rgn_new = find_appropriate_to( gc );
 
   if (expansion_amount > DATA(gc)->ephemeral_area[ to_rgn_new-1 ]->maximum ) {
-    consolemsg("find_space_rgnl: holy cow; bytes_needed=%d and max=%d",
+    consolemsg("find_space_rgnl: holy cow; bytes_needed=%" PRIdWORD " and max=%" PRIdWORD,
                bytes_needed, DATA(gc)->ephemeral_area[ to_rgn_new-1]->maximum );
   }
 
@@ -3648,7 +3648,7 @@ static int calc_cN( gc_t *gc )
 
   retval = (int)(c * ((double)N));
   if (retval <= 0 ) {
-    consolemsg("c:%g * N:%d yields nonneg.", c, N );
+    consolemsg("c:%g * N:%" PRIdWORD " yields nonneg.", c, N );
   }
   assert( retval > 0 );
   return retval;

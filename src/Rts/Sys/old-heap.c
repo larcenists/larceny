@@ -301,7 +301,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request )
      */
   alloc = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
 
-  supremely_annoyingmsg( "  alloc=%d  size=%d  used=%d",
+  supremely_annoyingmsg( "  alloc=%" PRIdWORD "  size=%" PRIdWORD "  used=%" PRIdWORD,
 			 alloc, data->target_size, used_space( heap ) );
 
   data->must_clear_remset = 1;
@@ -388,8 +388,8 @@ static int decision( old_heap_t *heap )
   Xnext = (X+M) / 2;
 
   supremely_annoyingmsg( "old-heap: DECISION for generation %d\n"
-			 "  M=%d, X=%d, Y=%d, Z=%d, Xnext=%d\n"
-			 "  alloc=%d, max=%d",
+			 "  M=%" PRIdWORD ", X=%" PRIdWORD ", Y=%" PRIdWORD ", Z=%" PRIdWORD ", Xnext=%" PRIdWORD "\n"
+			 "  alloc=%" PRIdWORD ", max=%" PRIdWORD,
 			 data->gen_no, M, X, Y, Z, Xnext, 
 			 heap->allocated, heap->maximum );
 
@@ -576,7 +576,7 @@ static void after_collection( old_heap_t *heap )
 
   heap->allocated = used_space( heap );
   check_budget( heap, "after_collection" );
-  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
+  annoyingmsg( "  Generation %d: Size=%" PRIdWORD ", Live=%" PRIdWORD ", Remset live=%d.", 
 	       data->gen_no, data->target_size, heap->allocated, 
 	       urs_live_count( heap->collector->the_remset, data->gen_no ));
 }

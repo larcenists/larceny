@@ -503,7 +503,7 @@ void rs_enumerate( remset_t *rs,
   DATA(rs)->stats.removed += removed_count;
   rs->live -= removed_count;
   DATA(rs)->stats.scanned++;
-  supremely_annoyingmsg( "REMSET @0x%x: removed %d elements (total %d).", 
+  supremely_annoyingmsg( "REMSET @0x%" PRIxWORD ": removed %d elements (total %d).", 
 			 (word)rs, removed_count, 
 			 DATA(rs)->stats.removed );
 }

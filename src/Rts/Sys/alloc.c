@@ -195,8 +195,8 @@ void *gclib_alloc_heap( s_word bytes, int gen_no )
 
   if (data.heap_bytes_limit > 0 &&
       data.heap_bytes + bytes > data.heap_bytes_limit) {
-    memfail( MF_HEAP, "Hard heap limit exceeded by request for %ld bytes.\n"
-	    "Current size is %ld bytes.", 
+    memfail( MF_HEAP, "Hard heap limit exceeded by request for %" PRIdWORD " bytes.\n"
+	    "Current size is %" PRIdWORD " bytes.", 
 	     bytes, data.heap_bytes );
   }
 
@@ -211,7 +211,7 @@ void *gclib_alloc_heap( s_word bytes, int gen_no )
   data.heap_bytes += bytes;
   data.max_heap_bytes = umax( data.max_heap_bytes, data.heap_bytes );
 
-  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%ld addr=[0x%08x,0x%08x)",
+  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%" PRIdWORD " addr=[%p,%p)",
 			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
@@ -237,7 +237,7 @@ void *gclib_alloc_code( s_word bytes, int gen_no )
   data.heap_bytes += bytes;
   data.max_heap_bytes = umax( data.max_heap_bytes, data.heap_bytes );
 
-  supremely_annoyingmsg( "Allocated code memory gen=%d bytes=%ld addr=[0x%08x,0x%08x)",
+  supremely_annoyingmsg( "Allocated code memory gen=%d bytes=%" PRIdWORD " addr=[%p,%p)",
 			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
@@ -283,7 +283,7 @@ void *gclib_alloc_rts( s_word bytes, unsigned attribute )
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
 
-  supremely_annoyingmsg( "Allocated rts memory bytes=%ld addr=[0x%08x,0x%08x)",
+  supremely_annoyingmsg( "Allocated rts memory bytes=%" PRIdWORD " addr=[%p,%p)",
 			 bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
@@ -470,7 +470,7 @@ void gclib_free( void *addr, s_word bytes )
 
   bytes = roundup_page( bytes );
 
-  supremely_annoyingmsg( "Freeing: bytes=%ld addr=[0x%08x,0x%08x)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
+  supremely_annoyingmsg( "Freeing: bytes=%" PRIdWORD " addr=[%p,%p)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
   
 #if CODE_SPACE
   code = bytes > 0 && is_code_page( addr );

@@ -247,7 +247,7 @@ void twobit_integrity_check( word *globals, const char *name )
   /* Fixme: should check handles too */
   for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     if (!valid_datum( globals[i] ))
-      panic_abort( "Invalid value 0x%08x found in global %d\n", 
+      panic_abort( "Invalid value 0x%08" PRIxWORD " found in global %d\n", 
                   globals[i], i );
 
   stkp = (word*)globals[ G_STKP ];
@@ -259,13 +259,13 @@ void twobit_integrity_check( word *globals, const char *name )
   /* Check heap and stack pointers */
   if (stkp < etop)
     panic_abort( "Stack pointer points below heap top!\n"
-                 "stkp=0x%08x, etop=0x%08x\n", (word)stkp, (word)etop );
+                 "stkp=0x%08" PRIxWORD ", etop=0x%08" PRIxWORD "\n", (word)stkp, (word)etop );
   if (stkp > stkbot)
     panic_abort( "Stack pointer points above stack bottom!\n"
-                 "stkp=0x%08x, stkbot=0x%08x\n", (word)stkp, (word)stkbot );
+                 "stkp=0x%08" PRIxWORD ", stkbot=0x%08" PRIxWORD "\n", (word)stkp, (word)stkbot );
   if (etop < ebot || etop > elim)
     panic_abort( "Heap pointers are not ordered correctly!\n"
-                "ebot=0x%08x, etop=0x%08x, elim=0x%08x",
+                "ebot=0x%08" PRIxWORD ", etop=0x%08" PRIxWORD ", elim=0x%08" PRIxWORD,
                 (word)ebot, (word)etop, (word)elim );
                  
   /* Check that all stack frames look OK
@@ -278,12 +278,12 @@ void twobit_integrity_check( word *globals, const char *name )
     word size = frame[ STK_FRAMESIZE ];
     word retaddr = frame[ STK_RETADDR ];
     if (!is_fixnum(size) || (s_word)size < 3*sizeof(word))
-      panic_abort( "Invalid stack frame size %u\n", size );
+      panic_abort( "Invalid stack frame size %" PRIuWORD "\n", size );
     if (!is_fixnum(retaddr))
-      panic_abort( "Invalid return address 0x%08x\n", retaddr );
+      panic_abort( "Invalid return address 0x%08" PRIxWORD "\n", retaddr );
     for ( i=STK_REG0 ; i <= size/sizeof(word) ; i++ )
       if (!valid_datum( frame[i] ))
-        panic_abort( "Invalid datum in stack frame: 0x%08x\n", frame[i] );
+        panic_abort( "Invalid datum in stack frame: 0x%08" PRIxWORD "\n", frame[i] );
     frame = frame + roundup_walign( size/sizeof(word)+1 );
   }
 

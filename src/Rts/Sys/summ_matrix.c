@@ -1883,7 +1883,7 @@ static void col_print_ptr( summ_matrix_t *summ, summ_col_t *col )
     for( objs = cell->objects; objs != NULL; objs = objs->next ) {
       word *wptr;
       for( wptr = objs->bot; wptr < objs->top; wptr++ ) {
-        printf("0x%08x (%d) ", *wptr, gen_of(*wptr));
+        printf("0x%08" PRIxWORD " (%d) ", *wptr, gen_of(*wptr));
       }
     }
     cell = cell->next_col;
@@ -2115,7 +2115,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
       assert( 1 == ((top - q) % 2));
       w = *q;
       if (! is_fixnum(w)) {
-        consolemsg("non-fixnum: 0x%08x at q: 0x%08x p: 0x%08x (q-p):%d (top-q):%d", w, q, p, (q-p), (top-q));
+        consolemsg("non-fixnum: 0x%08" PRIxWORD " at q: %p p: %p (q-p):%ld (top-q):%ld", w, q, p, (q-p), (top-q));
       }
       assert( 1 == ((top - q) % 2));
       assert(is_fixnum(w));
@@ -2185,7 +2185,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
       int gen = gen_of(*loc);
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
-                    "pair 0x%08x (%d) car: 0x%08d (%d)", 
+                    "pair 0x%08" PRIxWORD " (%d) car: 0x%08" PRIdWORD " (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2212,7 +2212,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
       assert( gen >= 0 );
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
-                    "pair 0x%08x (%d) cdr: 0x%08d (%d)", 
+                    "pair 0x%08" PRIxWORD " (%d) cdr: 0x%08" PRIdWORD " (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2248,7 +2248,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
         assert2( gen >= 0 );
         if (instrumented) 
           annoyingmsg("scan_object_for_remset_summary "
-                      "vecproc 0x%08x (%d) : 0x%08x (%d)", 
+                      "vecproc 0x%08" PRIxWORD " (%d) : 0x%08" PRIxWORD " (%d)", 
                       ptr, gen_of(ptr), *loc, gen);
         if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2893,10 +2893,10 @@ static void* verify_summaries_msgc_fcn( word obj, word src, s_word byte_offset,
         loc = make_loc( src, byte_offset );
         assert2( byte_offset < 0 || ((byte_offset % sizeof(word)) == 0));
         if ( summaries[ tgt_gen ] == NULL ) {
-          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08" PRIxWORD " (%d) obj: 0x%08" PRIxWORD " (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
-          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08" PRIxWORD "[%" PRIdWORD "] (%d) obj: 0x%08" PRIxWORD " (%d)",
                     tgt_gen, src, byte_offset, src_gen, obj, tgt_gen );
         }
         assert( summaries[ tgt_gen ] != NULL );
@@ -2913,10 +2913,10 @@ static void* verify_summaries_msgc_fcn( word obj, word src, s_word byte_offset,
         loc_t loc;
         loc = make_loc( src, byte_offset );
         if ( summaries[ tgt_gen ] == NULL ) {
-          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08" PRIxWORD " (%d) obj: 0x%08" PRIxWORD " (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
-          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08" PRIxWORD "[%" PRIdWORD "] (%d) obj: 0x%08" PRIxWORD " (%d)",
                     tgt_gen, src, byte_offset, src_gen, obj, tgt_gen );
         }
         assert( summaries[ tgt_gen ] != NULL );
@@ -2990,7 +2990,7 @@ static bool verify_summaries_locset_fcn( loc_t loc, void *the_data )
   if ( msvfy_object_marked_p( data->conserv_context, obj ) &&
        ( gen_of(obj) != data->summary_for_region )) {
   } else {
-    consolemsg(  "VERIFY SUMM REMS 0x%08x (%d) "
+    consolemsg(  "VERIFY SUMM REMS 0x%08" PRIxWORD " (%d) "
                  "marked {agg: %s, con: %s, rs[%d]: %s, smircy: %s}", 
                  obj, gen_of(obj), 
                  msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 

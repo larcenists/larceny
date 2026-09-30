@@ -117,7 +117,7 @@ create_sc_heap( int gen_no,
   data->target_size =
     compute_target_size( heap, (s_word)(info->size_bytes/data->load_factor), 0 );
 
-  supremely_annoyingmsg( "sc-heap: initial size = %d", data->target_size );
+  supremely_annoyingmsg( "sc-heap: initial size = %" PRIdWORD, data->target_size );
 
   mode_ss_to_globals( heap );
 
@@ -183,7 +183,7 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
   timer2 = stats_start_timer( TIMER_CPU );
 
 #if 1
-  annoyingmsg("Request: %d\n", request_bytes);
+  annoyingmsg("Request: %" PRIdWORD "\n", request_bytes);
 #endif
 
   assert( request_bytes >= 0 );
@@ -220,13 +220,13 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
 
   used_before = used_space( heap );
   annoyingmsg( "Stop-and-copy heap: Garbage collection." );
-  annoyingmsg( "  Avail=%d,  Used=%d", free_space( heap ), used_before );
+  annoyingmsg( "  Avail=%" PRIdWORD ",  Used=%" PRIdWORD, free_space( heap ), used_before );
   
   /* MODE: ss */
   mode_globals_to_ss( heap );
 
   ss_sync( data->current_space );
-  supremely_annoyingmsg( "ss used=%d, ss allocd=%d, stack=%d, los=%d",
+  supremely_annoyingmsg( "ss used=%" PRIdWORD ", ss allocd=%" PRIdWORD ", stack=%" PRIdWORD ", los=%" PRIdWORD,
                          data->current_space->used,
                          data->current_space->allocated,
                          stack,
@@ -240,7 +240,7 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
     int i;
     for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
       if (!(i > G_REG5 && i <= G_REG31))
-        annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+        annoyingmsg( "GLOB %d = %08" PRIxWORD, i, data->globals[i] );
     }
   }
 #endif
@@ -293,12 +293,12 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
       max( data->gc_stats.max_ms_cheney_collection_cpu, ms_cpu );
   }
 
-  annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
+  annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%" PRIdWORD,
                used_space( heap ) );
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( 
-    "  size=%d, ss used=%d, ss allocd=%d, los=%d, static=%d",
+    "  size=%" PRIdWORD ", ss used=%" PRIdWORD ", ss allocd=%" PRIdWORD ", los=%" PRIdWORD ", static=%" PRIdWORD,
     data->target_size,
     data->current_space->used,
     data->current_space->allocated,
@@ -437,7 +437,7 @@ static void creg_set( young_heap_t *heap, word k )
 static int collect_if_no_room( young_heap_t *heap, s_word nbytes )
 {
   if (free_space( heap ) < nbytes) {
-    supremely_annoyingmsg( "sc-heap: couldn't find room for %d bytes",
+    supremely_annoyingmsg( "sc-heap: couldn't find room for %" PRIdWORD " bytes",
                            nbytes );
     if (nbytes <= GC_LARGE_OBJECT_LIMIT)
       gc_collect( heap->collector, 0, nbytes, GCTYPE_COLLECT );

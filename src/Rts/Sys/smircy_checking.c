@@ -46,7 +46,7 @@ static void *visit_check_gnos_match( word w, int gno, void *data )
   if (w != 0x0) {
     assert2( isptr(w) );
     if (gen_of(w) != gno) {
-      consolemsg("visit_check_gnos_match( 0x%08x (%d), %d, data )", 
+      consolemsg("visit_check_gnos_match( 0x%08" PRIxWORD " (%d), %d, data )", 
                  w, gen_of(w), gno );
     }
     assert2( gen_of(w) == gno );
@@ -70,7 +70,7 @@ static void check_rgn_stkp_all_present( smircy_context_t *context )
     while (obj_entry != NULL ) {
       if (! is_stkp_already_present( context, obj_entry )) {
         consolemsg( "check_rgn_stkp_all_present: "
-                    "rgn %d obj_entry: 0x%08x not present",
+                    "rgn %d obj_entry: %p not present",
                     rgn, obj_entry );
       }
       assert( is_stkp_already_present( context, obj_entry ));
@@ -89,7 +89,7 @@ static void check_stkp_not_already_present_in_rgn_stks( smircy_context_t *contex
     while (obj_entry != NULL ) {
       if (! ( obj_entry != stkp ) ) {
         consolemsg( "check_stkp_not_already_present_in_rgn_stks mrrh "
-                    "stkp: 0x%08x rgn: %d", stkp, rgn );
+                    "stkp: %p rgn: %d", stkp, rgn );
       }
       assert( obj_entry != stkp );
       obj_entry = obj_entry->next_in_rgn;
@@ -330,7 +330,7 @@ static void smircy_unmark_and_push_stack( msgc_context_t *context_new,
     if (w != 0x0) {
       if (loud)
         consolemsg( "smircy_push_stack unmark and push: "
-                    "0x%08x (%d)", w, gen_of(w));
+                    "0x%08" PRIxWORD " (%d)", w, gen_of(w));
       msgc_unmark_object( context_new, w );
       msgc_push_object( context_new, w );
     }
@@ -404,7 +404,7 @@ static void *visit_make_clone_mark( word obj, word src, s_word offset, void *dat
 {
   if (isptr(obj))
     consolemsg("visit_make_clone_mark( "
-               "obj: 0x%08x (%d), src: 0x%08x (%d), data )",
+               "obj: 0x%08" PRIxWORD " (%d), src: 0x%08" PRIxWORD " (%d), data )",
                obj, gen_of(obj), src, isptr(src)?gen_of(src):-1 );
   return data;
 }
@@ -458,16 +458,16 @@ void *visit_check_clone_mark( word obj, word src, s_word offset, void *data )
     if (! ( gen_of(obj) == 0 || obj_marked )) {
       if (! isptr(src)) {
         consolemsg("visit_check_clone_mark( "
-                   "obj: 0x%08x (%d), "
-                   "src: 0x%08x (%d), data ) smircy: obj %s", 
+                   "obj: 0x%08" PRIxWORD " (%d), "
+                   "src: 0x%08" PRIxWORD " (%d), data ) smircy: obj %s", 
                    obj, gen_of(obj), src, -1, 
                    obj_beyond?"B":obj_marked?"Y":"N" );
       } else {
         bool src_beyond = ! msgc_object_in_domain( clone, src );
         bool src_marked = src_beyond || msgc_object_marked_p( clone, src );
         consolemsg("visit_check_clone_mark( "
-                   "obj: 0x%08x (%d), "
-                   "src: 0x%08x (%d), data ) smircy: obj %s src %s",
+                   "obj: 0x%08" PRIxWORD " (%d), "
+                   "src: 0x%08" PRIxWORD " (%d), data ) smircy: obj %s src %s",
                    obj, gen_of(obj), src, gen_of(src), 
                    obj_beyond?"B":obj_marked?"Y":"N", 
                    src_beyond?"B":src_marked?"Y":"N" );
@@ -548,8 +548,8 @@ bool smircy_assert_conservative_approximation( smircy_context_t *context )
         }
         assert(msgc_object_marked_p( msgc_ctxt, tptr ));
         if (gen_of(tptr) != 0 && ! msgc_object_marked_p( clone, tptr )) {
-          dbmsg( "SMIRCY: 0x%08x (%d) msgc says reachable smircy did not mark "
-                 "[low: 0x%08x, hgh: 0x%08x]",
+          dbmsg( "SMIRCY: 0x%08" PRIxWORD " (%d) msgc says reachable smircy did not mark "
+                 "[low: %p, hgh: %p]",
                  tptr, gen_of(tptr), low, hgh );
         }
         assert( (gen_of(tptr) == 0) || msgc_object_marked_p( clone, tptr ));

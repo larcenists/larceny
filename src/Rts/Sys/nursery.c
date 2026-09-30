@@ -178,7 +178,7 @@ static void collect( young_heap_t *heap, s_word nbytes, int request )
 {
   young_data_t *data = DATA(heap);
 
-  supremely_annoyingmsg( "nursery: promoting (free=%d; request=%d)%s",
+  supremely_annoyingmsg( "nursery: promoting (free=%" PRIdWORD "; request=%" PRIdWORD ")%s",
 			 free_space( heap ), nbytes,
 			 (nbytes == 0 ? " [stack overflow]" : "" ) );
 

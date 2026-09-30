@@ -640,13 +640,13 @@ static void *arena_alloc( arena_t *a, s_word bytes )
 
   if (a->grows_down) {
     while (a->frontier - n < a->base)
-      memfail( MF_MALLOC, "Code arena exhausted by request for %ld bytes; "
+      memfail( MF_MALLOC, "Code arena exhausted by request for %" PRIdWORD " bytes; "
                "try setting LARCENY_CODE_GB.", bytes );
     a->frontier -= n;
     return a->frontier;
   }
   while (a->frontier + n > a->limit) 
-    memfail( MF_MALLOC, "Heap arena exhausted by request for %ld bytes; "
+    memfail( MF_MALLOC, "Heap arena exhausted by request for %" PRIdWORD " bytes; "
              "try setting LARCENY_ARENA_GB.", bytes );
   p = a->frontier;
   a->frontier += n;

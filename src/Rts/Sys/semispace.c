@@ -579,15 +579,15 @@ bool ss_is_address_mapped( semispace_t *ss, word *addr, bool noisy )
   for (i=0; i < ss->n; i++ ) {
     if ((ss->chunks[i].bot <= addr) && (addr < ss->chunks[i].lim)) {
       if (noisy) 
-        consolemsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
-                    " bot: 0x%08x top: 0x%08x lim: 0x%08x Y",
+        consolemsg( "ss_is_address_mapped ss: %p addr: %p i: %d"
+                    " bot: %p top: %p lim: %p Y",
                     ss, addr, i,
                     ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
       assert( !ret ); ret = TRUE;
     } else {
       if (noisy) 
-        consolemsg( "ss_is_address_mapped ss: 0x%08x addr: 0x%08x i: %d"
-                    " bot: 0x%08x top: 0x%08x lim: 0x%08x N",
+        consolemsg( "ss_is_address_mapped ss: %p addr: %p i: %d"
+                    " bot: %p top: %p lim: %p N",
                     ss, addr, i,
                     ss->chunks[i].bot, ss->chunks[i].top, ss->chunks[i].lim );
     }
@@ -675,7 +675,7 @@ static void allocate_chunk_memory( semispace_t *ss, int slot, s_word bytes )
 #endif
   p = (word*)gclib_alloc_heap( bytes, ss->gen_no );
   if (p == 0) {
-    memfail( MF_HEAP, "Could not expand semispace, request=%ld bytes.\n", 
+    memfail( MF_HEAP, "Could not expand semispace, request=%" PRIdWORD " bytes.\n", 
              bytes );
     goto again;
   }
@@ -710,7 +710,7 @@ static void ss_chunk_check_rep( ss_chunk_t *c, int i )
   assert( c->top <= c->lim );
   delta = c->lim - c->bot;
   if( c->bytes != delta*sizeof(word))
-    consolemsg( "i: %d lim: 0x%08x top: 0x%08x bot: 0x%08x delta: %ld bytes: %ld", 
+    consolemsg( "i: %d lim: %p top: %p bot: %p delta: %" PRIdWORD " bytes: %" PRIdWORD, 
                 i, c->lim, c->top, c->bot, delta, c->bytes );
   assert( c->bytes == delta*sizeof(word));
   for ( p = c->bot; p < c->lim; p++) {

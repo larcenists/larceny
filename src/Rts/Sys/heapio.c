@@ -480,7 +480,7 @@ static int
 load_text( heapio_t *h, word *text_base, s_word count )
 {
   word n;
-  supremely_annoyingmsg("heapio load_text( h, 0x%08x, %d )", 
+  supremely_annoyingmsg("heapio load_text( h, %p, %" PRIdWORD " )", 
 			text_base, count);
 
 #if CODE_SPACE
@@ -512,7 +512,7 @@ load_data( heapio_t *h, word *text_base, word *data_base, s_word count )
 {
   word *p, w;
   s_word i;
-  supremely_annoyingmsg("heapio load_data( h, 0x%08x, [0x%08x,0x%08x), %d )", 
+  supremely_annoyingmsg("heapio load_data( h, %p, [%p,%p), %" PRIdWORD " )", 
 			text_base, data_base, data_base+count, count);
 
   if (fread( (char*)data_base, sizeof( word ), count, h->fp ) < count)

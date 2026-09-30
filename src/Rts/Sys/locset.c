@@ -176,7 +176,7 @@ void ls_add_loc( locset_t *ls, loc_t loc )
   mask = tblsize - 1;
 
   h = hash_object( (word)w, mask );
-  if (0) consolemsg("ls_add_obj_offset hash_object(w=0x%08x, tblsize-1=%d) => %d", w, mask, h);
+  if (0) consolemsg("ls_add_obj_offset hash_object(w=%p, tblsize-1=%" PRIdWORD ") => %" PRIdWORD, w, mask, h);
   b = tbl[ h ];
   while (b != NULL && loc_to_slot(b->loc) != w)
     b = b->next;
@@ -187,9 +187,9 @@ void ls_add_loc( locset_t *ls, loc_t loc )
       pooltop = data->curr_pool->top;
       poollim = data->curr_pool->lim;
       overflowed = TRUE;
-      if (0) consolemsg("ls_add_obj_offset insert overflow; pooltop: 0x%08x poollim: 0x%08x", pooltop, poollim);
+      if (0) consolemsg("ls_add_obj_offset insert overflow; pooltop: %p poollim: %p", pooltop, poollim);
     } else {
-      if (0) consolemsg("ls_add_obj_offset insert withroom; pooltop: 0x%08x poollim: 0x%08x", pooltop, poollim);
+      if (0) consolemsg("ls_add_obj_offset insert withroom; pooltop: %p poollim: %p", pooltop, poollim);
     }
     pooltop->loc = loc;
     pooltop->next = tbl[h];
@@ -326,7 +326,7 @@ void ls_enumerate( locset_t *ls,
   }
 
   ls->live -= removed_count;
-  supremely_annoyingmsg( "LOCSET @0x%x: removed %d elements.", 
+  supremely_annoyingmsg( "LOCSET @0x%" PRIxWORD ": removed %d elements.", 
                          (word)ls, removed_count );
 }
 
@@ -359,7 +359,7 @@ void ls_enumerate_locs( locset_t *ls,
   }
 
   ls->live -= removed_count;
-  supremely_annoyingmsg( "LOCSET @0x%x: removed %d elements.", 
+  supremely_annoyingmsg( "LOCSET @0x%" PRIxWORD ": removed %d elements.", 
                          (word)ls, removed_count );
 }
 
@@ -526,7 +526,7 @@ static pool_t *allocate_pool_segment( unsigned pool_entries, unsigned attr )
   p->next = 0;
 
   if (0) consolemsg( "allocate_pool_segment(%u, attr) "
-              "=> 0x%08x{bot: 0x%08x, top: 0x%08x, lim: 0x%08x}",
+              "=> %p{bot: %p, top: %p, lim: %p}",
               pool_entries, p, p->bot, p->top, p->lim );
 
   return p;
@@ -539,7 +539,7 @@ static void   free_pool_segments( pool_t *first, unsigned pool_entries )
   while (first) {
     { pool_t *p = first;
       if (0) consolemsg( "free_pool_segments free"
-                  " 0x%08x{bot: 0x%08x, top: 0x%08x, lim: 0x%08x}",
+                  " %p{bot: %p, top: %p, lim: %p}",
                   p, p->bot, p->top, p->lim ); }
 
     gclib_free( first->bot, pool_entries*sizeof(ent_t) );

@@ -172,7 +172,7 @@ static void collect( old_heap_t *heap, gc_type_t request )
   int type, t1, t2;
   stats_id_t timer1, timer2;
 
-  annoyingmsg( "ROF dynamic area GC.  Live old=%d  Live young=%d  k=%d  j=%d",
+  annoyingmsg( "ROF dynamic area GC.  Live old=%" PRIdWORD "  Live young=%" PRIdWORD "  k=%d  j=%d",
                used_old( heap ), used_young( heap ), data->k, data->j );
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
@@ -230,7 +230,7 @@ static void collect( old_heap_t *heap, gc_type_t request )
     break;
   }
 
-  annoyingmsg( "ROF GC done.  Live old=%d  Live young=%d  k=%d  j=%d",
+  annoyingmsg( "ROF GC done.  Live old=%" PRIdWORD "  Live young=%" PRIdWORD "  k=%d  j=%d",
                used_old( heap ), used_young( heap ), data->k, data->j );
 }
 
@@ -337,7 +337,7 @@ static bool run_phase_detector( old_heap_t *heap )
     return FALSE;
 
   annoyingmsg( "Phase detector triggered. "
-               "(old k=%d, old j=%d, used_old=%d, used_young=%d).",
+               "(old k=%d, old j=%d, used_old=%" PRIdWORD ", used_young=%" PRIdWORD ").",
                data->k, data->j, used_old(heap), used_young(heap) );
   annoyingmsg( "Buffer contents (oldest first):" );
   for ( i=0, j=data->phase_idx; i < PHASE_BUFSIZ ; i++, j=(j+1)%PHASE_BUFSIZ )
@@ -755,12 +755,12 @@ static void after_collection( old_heap_t *heap )
   heap->allocated = used_old( heap ) + used_young( heap );
   heap->maximum = data->target_size;
 
-  annoyingmsg( "  Generation %d (non-predictive old):  Size=%d, Live=%d, "
+  annoyingmsg( "  Generation %d (non-predictive old):  Size=%" PRIdWORD ", Live=%" PRIdWORD ", "
                "Remset live=%d",
                data->old->gen_no,
                data->stepsize * (data->k - data->j), used_old( heap ),
                old_rslive( heap ));
-  annoyingmsg( "  Generation %d (non-predictive young):  Size=%d, Live=%d, "
+  annoyingmsg( "  Generation %d (non-predictive young):  Size=%" PRIdWORD ", Live=%" PRIdWORD ", "
                "Remset live=%d",
                data->young->gen_no,
                data->stepsize * data->j, used_young( heap ),
