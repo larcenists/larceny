@@ -1869,35 +1869,135 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Handles the common case in which the line is all-Ascii,
-; terminated by a linefeed, and lies entirely within the buffer.
+; Handles the common case in which the line is terminated by a
+; linefeed and lies entirely within the buffer, and is Ascii or valid
+; UTF-8 (for a UTF-8 port) without a #\return, #\x85, or #\x2028.
+; The scan relies on the sentinel at mainbuf[mainlim]: 255 is never
+; part of a UTF-8 character.
+;
+; Like get-char, updates the character position (port.mainpos
+; counts the extra bytes of multibyte characters) and the line count.
 
 (define (io/get-line-maybe p)
   (and (port? p)
        (let ((type (.vector-ref:trusted p port.type))
              (buf  (.vector-ref:trusted p port.mainbuf))
              (ptr  (.vector-ref:trusted p port.mainptr)))
-         (define (loop i)
+         (define (continuation? i)
+           (let ((unit (bytevector-ref buf i)))
+             (and (.<=:fix:fix #x80 unit) (.<=:fix:fix unit #xbf))))
+         ; Returns #f, or the index of the linefeed; n counts characters.
+         (define (scan i n)
            (let ((unit (bytevector-ref buf i)))     ; FIXME: should be trusted
-             (cond ((and (.<:fix:fix 13 unit)       ; 13 = #\return
-                         (.<:fix:fix unit 128))
-                    (loop (.+:idx:idx i 1)))
-                   ((.=:fix:fix 10 unit)            ; 10 = #\linefeed
-                    (let* ((n (.-:idx:idx i ptr))
-                           (s (make-string n)))
-                      (loop2 ptr i s 0)))
+             (cond ((.<:fix:fix unit 128)
+                    (cond ((.=:fix:fix 10 unit)     ; 10 = #\linefeed
+                           (fill ptr i (make-string n) 0))
+                          ((.=:fix:fix 13 unit)     ; 13 = #\return
+                           #f)
+                          (else
+                           (scan (.+:idx:idx i 1) (.+:idx:idx n 1)))))
+                   ((not utf-8?)
+                    #f)
+                   ((.<:fix:fix unit #xc2)           ; not a first byte
+                    #f)
+                   ((.<:fix:fix unit #xe0)
+                    (and (continuation? (.+:idx:idx i 1))
+                         (not (and (.=:fix:fix unit #xc2)    ; #\x85
+                                   (.=:fix:fix (bytevector-ref buf (.+:idx:idx i 1))
+                                               #x85)))
+                         (scan (.+:idx:idx i 2) (.+:idx:idx n 1))))
+                   ((.<:fix:fix unit #xf0)
+                    (let ((unit2 (bytevector-ref buf (.+:idx:idx i 1))))
+                      (and (cond ((.=:fix:fix unit #xe0)
+                                  (and (.<=:fix:fix #xa0 unit2)
+                                       (.<=:fix:fix unit2 #xbf)))
+                                 ((.=:fix:fix unit #xed)    ; surrogates
+                                  (and (.<=:fix:fix #x80 unit2)
+                                       (.<=:fix:fix unit2 #x9f)))
+                                 ((.=:fix:fix unit #xe2)    ; #\x2028
+                                  (and (continuation? (.+:idx:idx i 1))
+                                       (not (and (.=:fix:fix unit2 #x80)
+                                                 (.=:fix:fix
+                                                  (bytevector-ref
+                                                   buf (.+:idx:idx i 2))
+                                                  #xa8)))))
+                                 (else
+                                  (continuation? (.+:idx:idx i 1))))
+                           (continuation? (.+:idx:idx i 2))
+                           (scan (.+:idx:idx i 3) (.+:idx:idx n 1)))))
+                   ((.<:fix:fix unit #xf5)
+                    (let ((unit2 (bytevector-ref buf (.+:idx:idx i 1))))
+                      (and (cond ((.=:fix:fix unit #xf0)
+                                  (and (.<=:fix:fix #x90 unit2)
+                                       (.<=:fix:fix unit2 #xbf)))
+                                 ((.=:fix:fix unit #xf4)
+                                  (and (.<=:fix:fix #x80 unit2)
+                                       (.<=:fix:fix unit2 #x8f)))
+                                 (else
+                                  (continuation? (.+:idx:idx i 1))))
+                           (continuation? (.+:idx:idx i 2))
+                           (continuation? (.+:idx:idx i 3))
+                           (scan (.+:idx:idx i 4) (.+:idx:idx n 1)))))
                    (else #f))))
-         (define (loop2 j k s i)
+         ; Decodes the bytes from j to k (the linefeed) into s.
+         (define (fill j k s i)
            (cond ((.<:fix:fix j k)
-                  (.string-set!:trusted s i (.integer->char:trusted
-                                             (bytevector-ref buf j)))
-                  (loop2 (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
+                  (let ((unit (bytevector-ref buf j)))
+                    (cond ((.<:fix:fix unit 128)
+                           (.string-set!:trusted s i (.integer->char:trusted unit))
+                           (fill (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
+                          ((.<:fix:fix unit #xe0)
+                           (.string-set!:trusted
+                            s i
+                            (.integer->char:trusted
+                             (fxlogior
+                              (fxlsh (fxlogand #x1f unit) 6)
+                              (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 1))))))
+                           (fill (.+:idx:idx j 2) k s (.+:idx:idx i 1)))
+                          ((.<:fix:fix unit #xf0)
+                           (.string-set!:trusted
+                            s i
+                            (.integer->char:trusted
+                             (fxlogior
+                              (fxlsh (fxlogand #x0f unit) 12)
+                              (fxlogior
+                               (fxlsh (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 1)))
+                                      6)
+                               (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 2)))))))
+                           (fill (.+:idx:idx j 3) k s (.+:idx:idx i 1)))
+                          (else
+                           (.string-set!:trusted
+                            s i
+                            (.integer->char:trusted
+                             (fxlogior
+                              (fxlogior
+                               (fxlsh (fxlogand #x07 unit) 18)
+                               (fxlsh (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 1)))
+                                      12))
+                              (fxlogior
+                               (fxlsh (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 2)))
+                                      6)
+                               (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 3)))))))
+                           (fill (.+:idx:idx j 4) k s (.+:idx:idx i 1))))))
                  (else
-                  (.vector-set!:trusted:nwb p port.mainptr (.+:idx:idx k 1))
-                  s)))
+                  (let* ((extra (.-:idx:idx (.-:idx:idx k ptr) i))
+                         (pos (- (.vector-ref:trusted p port.mainpos) extra))
+                         (ptr (.+:idx:idx k 1)))
+                    (if (not (.=:fix:fix extra 0))
+                        (.vector-set!:trusted p port.mainpos pos))
+                    (.vector-set!:trusted:nwb p port.mainptr ptr)
+                    (.vector-set!:trusted
+                     p port.linesread
+                     (+ (.vector-ref:trusted p port.linesread) 1))
+                    (.vector-set!:trusted p port.linestart (+ pos ptr))
+                    s))))
+         (define utf-8?
+           (.=:fix:fix codec:utf-8
+                       (fxlogand transcoder-mask:codec
+                                 (.vector-ref:trusted p port.transcoder))))
          (and (eq? type type:textual-input)
               (not (vector-like-ref p port.wasreturn))
-              (loop ptr)))))
+              (scan ptr 0)))))
 
 ; Handles the common case in which the string is all-Ascii
 ; and can be buffered without flushing.

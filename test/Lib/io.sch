@@ -1047,4 +1047,87 @@
          (get-string-all (open-string-input-port "r6 \x3bb;"))
          "r6 \x3bb;")
 
+   ; get-line reads a line that is in the buffer at once, and must
+   ; agree with get-char on positions, line counts, and line endings.
+
+   (test "get-line with UTF-8, positions and line counts"
+         (let ((p (transcoded-port
+                   (open-bytevector-input-port
+                    (string->utf8 "abc\nx\x3bb;\x4e2d;\x1f600;y\n\nlast"))
+                   (make-transcoder (utf-8-codec) 'none 'replace))))
+           (let loop ((acc '()))
+             (let ((s (get-line p)))
+               (if (eof-object? s)
+                   (reverse acc)
+                   (loop (cons (list s
+                                     (port-position p)
+                                     (port-lines-read p)
+                                     (port-line-start p))
+                               acc))))))
+         '(("abc" 4 1 4) ("x\x3bb;\x4e2d;\x1f600;y" 10 2 10) ("" 11 3 11)
+           ("last" 15 3 11)))
+
+   (test "get-line and line endings"
+         (map (lambda (eol)
+                (let ((p (transcoded-port
+                          (open-bytevector-input-port
+                           (string->utf8
+                            "a\x85;b\x2028;c\r\nd\re\n"))
+                          (make-transcoder (utf-8-codec) eol 'replace))))
+                  (let loop ((acc '()))
+                    (let ((s (get-line p)))
+                      (if (eof-object? s)
+                          (reverse acc)
+                          (loop (cons s acc)))))))
+              '(none crlf))
+         '(("a\x85;b\x2028;c\r" "d\re")
+           ("a" "b" "c" "d" "e")))
+
+   ; (The decoder's replacements are not checked here: it consumes
+   ; the byte after an invalid sequence, even a linefeed.)
+
+   (test "get-line with invalid UTF-8"
+         (let ((bytes (bytevector #x61 #xce #x62 #xff #x63 #xe4 #xb8 #x0a
+                                  #x64 #xed #xa0 #x0a #x65 #x0a)))
+           (define (port)
+             (transcoded-port (open-bytevector-input-port bytes)
+                              (make-transcoder (utf-8-codec) 'none 'replace)))
+           (define (get-line-by-chars p)
+             (let loop ((l '()))
+               (let ((c (get-char p)))
+                 (if (or (eof-object? c) (char=? c #\newline))
+                     (list->string (reverse l))
+                     (loop (cons c l))))))
+           (let ((p (port)) (q (port)))
+             (let loop ((lines '()))
+               (let ((a (get-line p)))
+                 (if (eof-object? a)
+                     (port-eof? q)
+                     (let ((b (get-line-by-chars q)))
+                       (and (string=? a b)
+                            (= (port-position p) (port-position q))
+                            (loop (cons a lines)))))))))
+         #t)
+
+   (test "get-line with Latin-1"
+         (get-line
+          (transcoded-port
+           (open-bytevector-input-port (bytevector #x61 #xce #xbb #x0a))
+           (make-transcoder (latin-1-codec) 'none 'replace)))
+         "a\xce;\xbb;")
+
+   (test "get-line across buffer boundaries"
+         (let* ((line (list->string
+                       (filter (lambda (c) (not (char=? c #\newline)))
+                               (string->list (make-test 700)))))
+                (text (string-append line "\n" line "\n" line))
+                (p (transcoded-port
+                    (open-bytevector-input-port (string->utf8 text))
+                    (make-transcoder (utf-8-codec) 'none 'replace))))
+           (let* ((a (get-line p)) (b (get-line p)) (c (get-line p)))
+             (list (string=? a line) (string=? b line) (string=? c line)
+                   (= (port-position p) (string-length text))
+                   (eof-object? (get-line p)))))
+         '(#t #t #t #t #t))
+
    ))
