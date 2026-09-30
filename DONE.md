@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- `-rrof` drops code referenced only from garbage when collecting the
+  code space after a mark cycle, using the marks (e1761505); fixed an
+  out-of-bounds region index that crashed minor collections when
+  regions had been added since the cycle began (13c01da4).  Test:
+  `test/GC/code-space.sch`.
 - AArch64 millicode without a context switch for the SATB pre-barrier
   and for eqv? (flonums, immediates, eq? objects): memv of flonums 2.3x
   faster (fbacc6c0).
