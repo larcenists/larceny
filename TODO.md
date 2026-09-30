@@ -14,24 +14,18 @@ DONE.md (with the date and the commit, if any).
   very slow); Larceny faster on 42.  compiler 0.74x, equal 0.46x,
   string 0.99x.  Outliers to investigate, with guesses at causes that
   have not been checked:
-  - fibc 3.1x, ctak 2.6x (call/cc: capture and each underflowing
-    return switch to C; a call/cc in a loop costs 50 ns, Racket's 18).
-    Capture goes to C in every native Larceny (stk_flush), but the
-    SPARC back end restores an underflowing frame in line
-    (mem_stkuflow_retpoint in Rts/Sparc/memory.s, "15-50%" on deeply
-    recursive code), while Fence (ARM-32 and AArch64) always calls
-    mem_stkuflow in C.  Port that fast path to arm64-millicode.sx,
-    following stk_restore_frame in stack.c; it also helps every return
-    through frames flushed by a collection;
+  - fibc 3.1x, ctak 2.5x (call/cc): capture (creg_get: flush, then
+    restore the top frame) and reinstating a continuation (creg_set)
+    switch to C; the returns through the flushed frames no longer do
+    (930bfa49), which gained only 1-4%.  In-line capture next?
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
-  - vecsort 2.2x: 38% of its time is in fxarithmetic-shift-right and
-    its range check (fx:range-check!), which its comparison procedure
-    calls; Twobit does not integrate it (it could for a constant shift
-    count, as fxrsha);
-  - normalization 3.9x: most time is in binary searches of Unicode
-    tables (sv-combining-class, sv-decomposition-index-of-index);
-    two-level lookup tables instead?
+  - vecsort 1.4x, listsort (after in-line fxarithmetic-shift-right).
+  - normalization 2.9x: after two-stage tables (lookups 6% of its time),
+    about a third is string output ports, which are layered on a
+    bytevector port (put-bytevector, string-io/flush-buffer) and decode
+    UTF-8 at get-output-string (utf8->string): a string buffer instead?
+    Much of the rest is decompose's lists (append, list->string).
 - Return prediction.  Calls use BL/BLR and returns RET, so the CPU's
   return-address stack predicts returns; it holds only a few dozen
   entries, and deeper recursion mispredicts most returns: 1e8 calls
