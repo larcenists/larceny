@@ -21,11 +21,17 @@ DONE.md (with the date and the commit, if any).
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
   - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
-  - normalization 2.9x: after two-stage tables (lookups 6% of its time),
-    about a third is string output ports, which are layered on a
-    bytevector port (put-bytevector, string-io/flush-buffer) and decode
-    UTF-8 at get-output-string (utf8->string): a string buffer instead?
-    Much of the rest is decompose's lists (append, list->string).
+  - normalization 2.1x (after two-stage tables and string ports that
+    keep a string): much of the rest is decompose's lists (append,
+    list->string).
+- Loading test/Lib/io.sch prints `(.check! #f 71 .buf .lim 65537)` and
+  `(... 955)`: something in the compiler reports an index check it
+  could prove false?  (Also in older logs.)
+- String ports still encode characters into the 1024-byte UTF-8 byte
+  buffer that every textual port has (so that the in-line get-char and
+  put-char work on them), and decode it into their string.  A port
+  type whose buffer is a string would need those in-line paths to
+  check the buffer's kind.
 - Return prediction.  Calls use BL/BLR and returns RET, so the CPU's
   return-address stack predicts returns; it holds only a few dozen
   entries, and deeper recursion mispredicts most returns: 1e8 calls

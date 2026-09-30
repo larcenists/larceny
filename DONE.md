@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-30
 
+- String ports keep their characters in a string instead of layering
+  on bytevector ports under a UTF-8 transcoder (a layering from 2007,
+  d41c1fdb, when buffers became bytevectors): the port's byte buffer
+  is flushed into, or filled from, the string.  Opening a string output
+  port costs 157 ns instead of 330; normalization 8.46 s -> 5.99
+  (Racket 2.90).  Tests in `test/Lib/io.sch` (03b7dc0e).
 - The copying collector's scan could stop before scanning all of
   to-space after forwarding large objects (45b12101); found through
   crashes of the vecsort benchmark under the profiler.  Test:
