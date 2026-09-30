@@ -536,13 +536,21 @@ word w_errcode;
   errno = nativeint( w_errcode );
 }
 
-/* Returns the current time in the flonum provided. */
+/* Returns the current time, in seconds since the epoch, in the flonum
+   provided.  With POSIX clocks, the time has a fractional part. */
 
 void primitive_time( word w_result )
 {
+#if defined(POSIX_UNIX)
+  struct timespec ts;
+  double d;
+  clock_gettime( CLOCK_REALTIME, &ts );
+  d = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+#else
   time_t t0 = 0;
   time_t t1 = time(0);
   double d = difftime(t1, t0);
+#endif
   box_flonum( w_result, d );
   globals[ G_RESULT ] = w_result;
 }

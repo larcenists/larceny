@@ -24,11 +24,10 @@
 	     'i386-win32)
 	    ((and (string=? os "MacOS X") (string=? ar "IAssassin"))
 	     'i386-macosx)
+	    ;; The only MacOS systems with 64-bit words are arm64 ones.
 	    ((and (string=? os "MacOS X")
 		  (= bits 64)
-		  (or (string=? ar "ARM")
-		      (and (string=? ar "Standard-C")
-			   (zero? (system "test \"`uname -m`\" = arm64")))))
+		  (or (string=? ar "ARM") (string=? ar "Standard-C")))
 	     'arm64-macosx)
 	    ((and (string=? os "Linux")
 		  (string=? ar "ARM"))

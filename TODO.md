@@ -86,11 +86,14 @@ DONE.md (with the date and the commit, if any).
 - Twobit on enormous single procedures: commoning (pass 3) still
   allocates about 30K words per statement, so a procedure of 7000
   statements, just under `anf-threshold`, peaks at 560 MB.
-- FFI and the `-np` collector (neither exists for Petit either).  Part
-  of the FFI: `foreign-ctools` compiles its C helpers with `-arch armv4t`
-  on ARM, so `src/Build/compile-standard-libraries.sch` (used by the
-  nightly builds) fails at the libraries that use it, such as
-  `lib/Standard/file-system.sch`.
+- The `-np` collector (it does not exist for Petit either).
+- FFI on AArch64, what is left: callouts work (native and Petit), but
+  not callbacks (C calling Scheme; the README says they were never
+  finished off SPARC) or variadic functions (MacOS passes variadic
+  arguments on the stack).  `foreign-ctools` compiles its C helpers
+  with `-arch armv4t` on ARM, so `src/Build/compile-standard-libraries.sch`
+  (used by the nightly builds) fails at the libraries that use it,
+  such as `lib/Standard/file-system.sch`.
 
 - Hypothetical, not planned: faster bignums (pi is 12x Racket's
   time) and unboxed flonums (mbrot 5.0x, mbrotZ 4.4x, fft 1.9x), unless
@@ -112,9 +115,9 @@ DONE.md (with the date and the commit, if any).
   codevector syntax of fasl files (`makeCodevector` in `reader.sch`)
   loops at an unterminated end of input, as strings did.
 
-- `current-second` and `current-jiffy` have one-second resolution:
-  `primitive_time` (src/Rts/Sys/primitive.c) uses time(0), and
-  `jiffies-per-second` is 1 because `current-utc-time` needs the FFI.
+- `timezone-offset` (lib/Standard/time.sch) returns the standard-time
+  offset during daylight saving time (-18000 for EDT, not -14400): it
+  computes mktime(gmtime(t)) with tm_isdst forced to 0.
 
 ## Build process footguns
 

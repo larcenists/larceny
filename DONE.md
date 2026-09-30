@@ -10,6 +10,11 @@ Finished items, moved here from TODO.md.  Newest first.
   evaluates the value of the #!fasl flag, which imports the Petit
   primitives (f4dd3e1c; broken since the feature markers, cc7da70a).
 - Ran the R6RS benchmarks against Racket 9.3; results in TODO.md.
+- FFI callouts on AArch64 MacOS, native and Petit (c08fcb59), and
+  pointer-sized C types on 64-bit systems (f199b1df).
+- Microsecond clocks: `current-second` is fractional, and
+  `current-jiffy` has 1000000 jiffies per second on arm64 MacOS, through
+  the FFI's gettimeofday.
 
 ## 2026-09-29
 

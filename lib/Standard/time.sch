@@ -26,28 +26,33 @@
   ;; tm:local-tz-offset must return positive values east of Greenwich.
   ;; Unix normally reports negative values east of Greenwitch.
 
+  ;; A struct timeval is two longs, or on MacOS a long (tv_sec) and an
+  ;; int (tv_usec) padded to the size of a long; the buffer is zeroed
+  ;; so that the padding reads as 0.  A time_t is a long.
+
   (define current-utc-time
     (let ((_gettimeofday 
 	   (foreign-procedure "gettimeofday" '(boxed boxed) 'int)))
       (lambda ()
-	(let ((tv (make-bytevector 8)))
+	(let ((tv (make-bytevector (* 2 sizeof:long) 0)))
 	  (_gettimeofday tv #f)
-	  (values (%get32 tv 0) (%get32 tv 4))))))
+	  (values (%get-long tv 0) (%get-long tv sizeof:long))))))
 
   (define timezone-offset
     (let ((_localtime 
-           (foreign-procedure "localtime" '(boxed) 'uint))
+           (foreign-procedure "localtime" '(boxed) 'ulong))
           (_gmtime 
-           (foreign-procedure "gmtime"    '(boxed) 'uint))
+           (foreign-procedure "gmtime"    '(boxed) 'ulong))
           (_mktime
-           ;; mktime takes a pointer to storage owned by the C runtime, aka a uint.
+           ;; mktime takes a pointer to storage owned by the C runtime,
+           ;; passed as a pointer-sized integer.
            ;; (We need to fix our FFI interface to express this directly)
-           (foreign-procedure "mktime"    '(uint) 'uint))
+           (foreign-procedure "mktime"    '(ulong) 'long))
           (_difftime
-           (foreign-procedure "difftime"  '(uint uint) 'double)))
+           (foreign-procedure "difftime"  '(long long) 'double)))
       (lambda (t)
-	(let ((tv (make-bytevector 4)))
-          (%set32 tv 0 t)
+	(let ((tv (make-bytevector sizeof:long)))
+          (%set-long tv 0 t)
           ;; A trick from the Apache Portable Runtime: mktime is inverse of localtime,
           ;; so mktime(gmtime(now)) - mktime(localtime(now)) _should_ be offset from utc.
           (let ((gmean-tm (_gmtime tv)))

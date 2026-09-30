@@ -2,11 +2,8 @@
 ;;; zero jiffies corresponding to the approximate time this library was
 ;;; loaded.
 
-(define arbitrary-baseline
-  (call-with-values
-   current-utc-time
-   (lambda (secs usecs)
-     secs)))
+(define arbitrary-baseline              ; (current-utc-time) may load the FFI
+  (exact (floor (current-second))))
 
 (define current-jiffy
   (case (jiffies-per-second)
