@@ -14,7 +14,7 @@ Finished items, moved here from TODO.md.  Newest first.
   pointer-sized C types on 64-bit systems (f199b1df).
 - Microsecond clocks: `current-second` is fractional, and
   `current-jiffy` has 1000000 jiffies per second on arm64 MacOS, through
-  the FFI's gettimeofday.
+  the FFI's gettimeofday (3a4462b1).
 
 ## 2026-09-29
 
