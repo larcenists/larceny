@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Twobit on enormous single procedures: hashtrees ordered by a
+  scrambled hash code, so the environments of pass 3 commoning stay
+  balanced (7000 statements: 2.4 GB to 559 MB, 6e6b1427); pass 2
+  computes escaping formals lazily (3aea5ccd); pass 1 finds source
+  positions with an eq table, via a new compat-layer eq table API
+  (fb7eb475).  8000 statements compile in under 2 s.
 - AArch64 code layout: slow paths (timer, stack overflow, SATB barrier,
   generic arithmetic's flonum and millicode paths, safety checks' error
   calls) at the end of the code vector, branch-on-overflow fixnum

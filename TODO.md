@@ -20,10 +20,9 @@ DONE.md (with the date and the commit, if any).
   loop-invariant loads (vector-length is reloaded every iteration),
   redundant compares after a range check, and the generational write
   barrier's call on pointer stores (inline the generation test?).
-- Twobit's memory use explodes on enormous single procedures (a
-  procedure of 8000 statements needs over 2 GB); the AArch64 long-branch
-  mode for code vectors over 1 MB could only be tested with its
-  threshold lowered.
+- Twobit on enormous single procedures: commoning (pass 3) still
+  allocates about 30K words per statement, so a procedure of 7000
+  statements, just under `anf-threshold`, peaks at 560 MB.
 - FFI and the `-np` collector (neither exists for Petit either).  Part
   of the FFI: `foreign-ctools` compiles its C helpers with `-arch armv4t`
   on ARM, so `src/Build/compile-standard-libraries.sch` (used by the
