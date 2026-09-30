@@ -20,7 +20,7 @@ DONE.md (with the date and the commit, if any).
     (930bfa49), which gained only 1-4%.  In-line capture next?
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
-  - vecsort 1.4x, listsort (after in-line fxarithmetic-shift-right).
+  - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
   - normalization 2.9x: after two-stage tables (lookups 6% of its time),
     about a third is string output ports, which are layered on a
     bytevector port (put-bytevector, string-io/flush-buffer) and decode
