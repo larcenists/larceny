@@ -38,7 +38,6 @@ DONE.md (with the date and the commit, if any).
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take
   about 100 ms.  Card marking for large objects?
-- Many diagnostic messages print `word`/`s_word` values with `%d`/`%x`.
 
 ## Build process footguns
 

@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Runtime diagnostics print words with `PRI?WORD` and pointers with
+  `%p`; message functions are format-checked and the arm64 builds use
+  `-Wformat` (176537b2).
 - Objects up to 16GB on 64-bit systems, was 2GB (716da5b5): 64-bit
   byte offsets within objects in the regional collector, whose locsets
   truncated them and crashed on stores beyond 2GB (2efe8c91); nonmoving
