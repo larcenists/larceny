@@ -9,6 +9,7 @@
   (io-basic-tests)
   (io-eol-tests)
   (io-input/output-tests)
+  (io-string-port-tests)
   (if (and #f (null? rest)) ;FIXME
       (io-test-error)
       #t)
@@ -922,3 +923,128 @@
          '(0 1 #f 3 #vu8(0 1 101 3 4 5 6 7 8 9 10 11 12)))
 
   ))
+
+; String ports keep a string for their characters and use the port's
+; byte buffer only as a staging area, so these tests cross the buffer's
+; size with characters of every UTF-8 length.
+
+(define (io-string-port-tests)
+
+  (define chars
+    (list #\a #\x3bb #\x4e2d #\x1f600 #\newline #\x7f #\x80 #\x7ff
+          #\x800 #\xffff #\x10000 #\x10ffff))
+
+  (define (make-test n)
+    (let loop ((i 0) (l '()))
+      (if (= i n)
+          (list->string (reverse l))
+          (loop (+ i 1)
+                (cons (list-ref chars (remainder (* i 7) (length chars)))
+                      l)))))
+
+  (define sizes '(0 1 2 3 100 1019 1020 1021 1022 1023 1024 1025 3000 5000))
+
+  (define (all-chars p read)
+    (let loop ((l '()))
+      (let ((c (read p)))
+        (if (eof-object? c)
+            (list->string (reverse l))
+            (loop (cons c l))))))
+
+  (allof "string port tests"
+
+   (test "string output ports"
+         (let loop ((ns sizes))
+           (or (null? ns)
+               (let* ((s (make-test (car ns)))
+                      (p (open-output-string))
+                      (q (open-output-string)))
+                 (string-for-each (lambda (c) (write-char c p)) s)
+                 (write-string s q)
+                 (and (string=? (get-output-string p) s)
+                      (string=? (get-output-string p) s)
+                      (string=? (get-output-string q) s)
+                      (loop (cdr ns))))))
+         #t)
+
+   (test "get-output-string, reset-output-string"
+         (let* ((p (open-output-string))
+                (a (begin (write-string "hello" p) (get-output-string p)))
+                (b (begin (write-string " world" p) (get-output-string p)))
+                (c (begin (reset-output-string p) (get-output-string p)))
+                (d (begin (write-string "x\x3bb;y" p) (get-output-string p))))
+           (list a b c d))
+         '("hello" "hello world" "" "x\x3bb;y"))
+
+   (test "string output port positions"
+         (let ((p (open-output-string)))
+           (write-string "abc\x3bb;def" p)
+           (let ((posn (port-position p)))
+             (write-string "ghi" p)
+             (set-port-position! p 7)
+             (write-string "XY" p)
+             (list posn (get-output-string p))))
+         '(7 "abc\x3bb;defXYi"))
+
+   (test "open-string-output-port"
+         (call-with-values
+          open-string-output-port
+          (lambda (p extract)
+            (put-string p "r6rs \x3bb;")
+            (let ((a (extract)))
+              (put-string p "again")
+              (list a (extract)))))
+         '("r6rs \x3bb;" "again"))
+
+   (test "call-with-string-output-port"
+         (call-with-string-output-port
+          (lambda (p) (put-string p "abc") (put-char p #\x3bb)))
+         "abc\x3bb;")
+
+   (test "string input ports"
+         (let loop ((ns sizes))
+           (or (null? ns)
+               (let ((s (make-test (car ns))))
+                 (and (string=? (all-chars (open-input-string s) read-char) s)
+                      (string=? (all-chars (open-string-input-port s)
+                                           get-char)
+                                s)
+                      (let ((q (open-input-string s)))
+                        (string=? (all-chars q
+                                             (lambda (q)
+                                               (let ((c (peek-char q)))
+                                                 (read-char q)
+                                                 c)))
+                                  s))
+                      (loop (cdr ns))))))
+         #t)
+
+   (test "string input port positions"
+         (let ((p (open-input-string "ab\x3bb;cdef")))
+           (read-char p) (read-char p) (read-char p)
+           (let* ((posn (port-position p))
+                  (c1 (read-char p))
+                  (c2 (begin (set-port-position! p posn) (read-char p)))
+                  (c3 (begin (set-port-position! p 0) (read-char p))))
+             (list posn c1 c2 c3)))
+         '(3 #\c #\c #\a))
+
+   (test "get-line on a string port"
+         (let* ((p (open-string-input-port "line one\nl\x3bb;ne two\nlast"))
+                (a (get-line p))
+                (b (get-line p))
+                (c (get-line p)))
+           (list a b c (eof-object? (get-line p))))
+         '("line one" "l\x3bb;ne two" "last" #t))
+
+   (test "read from a string port"
+         (let ((p (open-input-string "(a \"\x3bb;\" 1.5 #\\x4e2d) 2")))
+           (let* ((a (read p)) (b (read p)))
+             (list a b (eof-object? (read p)))))
+         '((a "\x3bb;" 1.5 #\x4e2d) 2 #t))
+
+   (test "get-string-all on a string port"
+         (get-string-all (open-string-input-port "r6 \x3bb;"))
+         "r6 \x3bb;")
+
+   ))

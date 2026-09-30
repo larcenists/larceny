@@ -273,9 +273,7 @@
         port)))
 
 (define (open-string-input-port s)
-  (let ((transcoder (make-transcoder (utf-8-codec) 'none 'ignore))
-        (port (bytevector-io/open-input-bytevector-no-copy (string->utf8 s))))
-    (transcoded-port port transcoder)))
+  (string-io/open-input-string s))
 
 (define (standard-input-port)
   (let ((fd (osdep/open-console 'input)))
@@ -364,13 +362,10 @@
 
 (define (open-string-output-port)
   (issue-warning-deprecated 'open-string-output-port)
-  (let* ((transcoder (make-transcoder (utf-8-codec) 'none 'ignore))
-         (port (bytevector-io/open-output-bytevector))
-         (port (transcoded-port port transcoder))
+  (let* ((port (open-output-string))
          (f (lambda ()
-              (let ((s (utf8->string
-                        (bytevector-io/get-output-bytevector port))))
-                (bytevector-io/reset-output-bytevector port)
+              (let ((s (get-output-string port)))
+                (reset-output-string port)
                 s))))
     (values port f)))
 
