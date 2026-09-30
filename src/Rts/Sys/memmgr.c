@@ -1756,7 +1756,11 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   }
 
 #if 1
-  if (DATA(gc)->region_count == 2) {
+  /* region_count is updated at the start of a cycle, so there may be
+     more areas by now (and rgn_to may be one of them); see also
+     collect_rgnl_majorgc. */
+  if (DATA(gc)->region_count == 2 &&
+      DATA(gc)->ephemeral_area_count == 2) {
     int to_idx = rgn_to - 1;
     assert2( rgn_to == 1 || rgn_to == 2 );
 
