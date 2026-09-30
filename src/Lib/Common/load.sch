@@ -55,6 +55,7 @@
 (define (load-from-port p get-environment . maybe-read)
 
   (let ((read (if (null? maybe-read) read (car maybe-read)))
+        (outer-fasl-evaluator (fasl-evaluator))
         (after-fasl-flag? #f))
 
     ;; The environment must be recomputed for each expression evaluation --
@@ -62,15 +63,39 @@
     ;; when the environment is implicit, that change should be reflected in
     ;; subsequent evaluations.
 
+    (define (evaluate expr)
+      (call-with-values
+       (lambda () ((load-evaluator) expr (get-environment)))
+       (lambda values
+         (if (load-print)
+             (for-each (lambda (value)
+                         (newline (current-output-port))
+                         (write-string ";    " (current-output-port))
+                         (write value (current-output-port))
+                         (flush-output-port (current-output-port)))
+                       values)))))
+
     ;; In a fasl file, #!fasl is followed by a #lop(...) feature marker
     ;; (see code-features.sch), which is checked, not evaluated.  A fasl
-    ;; file without one predates the markers.
+    ;; file without one predates the markers.  The value the #!fasl
+    ;; flag would otherwise have is still evaluated: in R7RS mode on
+    ;; Petit, it imports the primitives the rest of the file uses.  The
+    ;; flag reads as that value wrapped (twice or more when loads nest).
 
-    (parameterize ((fasl-evaluator (lambda () load-from-port:fasl-flag)))
+    (define (fasl-flag? x)
+      (and (pair? x) (eq? (car x) load-from-port:fasl-flag)))
+
+    (define (fasl-flag-value x)
+      (if (fasl-flag? x) (fasl-flag-value (cdr x)) x))
+
+    (parameterize ((fasl-evaluator
+                    (lambda ()
+                      (cons load-from-port:fasl-flag (outer-fasl-evaluator)))))
       (do ((expr (read p) (read p)))
           ((eof-object? expr))
-        (cond ((eq? expr load-from-port:fasl-flag)
-               (set! after-fasl-flag? #t))
+        (cond ((fasl-flag? expr)
+               (set! after-fasl-flag? #t)
+               (evaluate (fasl-flag-value expr)))
               ((code-features? expr)
                (set! after-fasl-flag? #f)
                (check-code-features! expr (port-name p)))
@@ -78,16 +103,7 @@
                (if after-fasl-flag?
                    (begin (set! after-fasl-flag? #f)
                           (check-code-features! #f (port-name p))))
-               (call-with-values
-                (lambda () ((load-evaluator) expr (get-environment)))
-                (lambda values
-                  (if (load-print)
-                      (for-each (lambda (value)
-                                  (newline (current-output-port))
-                                  (write-string ";    " (current-output-port))
-                                  (write value (current-output-port))
-                                  (flush-output-port (current-output-port)))
-                                values)))))))))
+               (evaluate expr))))))
   (unspecified))
 
 (define load-from-port:fasl-flag (list 'fasl-flag))
