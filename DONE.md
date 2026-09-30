@@ -4,6 +4,16 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-30
 
+- The copying collector's scan could stop before scanning all of
+  to-space after forwarding large objects (45b12101); found through
+  crashes of the vecsort benchmark under the profiler.  Test:
+  `test/GC/scan-after-large-objects.sch`.
+- String and bytevector copies with memmove, through a new syscall
+  (a84df02d): the string benchmark takes 2.70 s instead of 7.62.
+- Sorting vectors with a merge sort on vectors instead of lists
+  (97d27658).
+- AArch64: quotient and remainder of fixnums in line (68a4c316): 110 ms
+  for 1e8 quotients instead of 387.
 - Reading an unterminated string or |symbol| raises a lexical error
   instead of looping forever (19c4963c); found by the read0 benchmark.
 - Petit's R7RS mode loads compiled libraries again: load-from-port

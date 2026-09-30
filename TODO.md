@@ -9,9 +9,11 @@ DONE.md (with the date and the commit, if any).
   (test/Benchmarking/R6RS, 2026-09-30; about 3 s per run, best of 3,
   startup subtracted): geometric mean 0.92 of Racket's time over all
   68, 1.24 without the 12 I/O-bound ones (Racket's R6RS ports are very
-  slow).  Outliers to investigate, with guesses at causes that have not
-  been checked:
-  - compiler 7.3x and normalization 7.1x;
+  slow).  After memmove copies, the vector merge sort, and in-line
+  quotient (2026-09-30, same method): 0.86 and 1.14; string 2.9 s
+  (Racket 2.75), normalization 3.9x (was 7.1x), pi 6.8x (was 12x).
+  Outliers to investigate, with guesses at causes that have not been
+  checked:
   - fibc 3.1x, ctak 2.6x (call/cc: capture and each underflowing
     return switch to C; a call/cc in a loop costs 50 ns, Racket's 18).
     Capture goes to C in every native Larceny (stk_flush), but the
@@ -23,16 +25,13 @@ DONE.md (with the date and the commit, if any).
     through frames flushed by a collection;
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
-  - string 2.8x: string-append and substring copy a character per
-    iteration (string-copy-into-down!), as do bytevector-copy! and
-    bytevector-like-copy-into!; a memmove millicode for
-    bytevector-like objects would help;
-  - vecsort 2.1x, listsort 1.6x: vector-sort converts to a list and
-    merge-sorts pairs with set-cdr! (write barrier on every store); a
-    merge sort on vectors would avoid that;
-  - normalization 7.1x: most time is in binary searches of Unicode
-    tables (sv-combining-class, sv-decomposition-index-of-index), whose
-    every step calls quotient in C; two-level lookup tables instead?
+  - vecsort 2.1x: 38% of its time is in fxarithmetic-shift-right and
+    its range check (fx:range-check!), which its comparison procedure
+    calls; Twobit does not integrate it (it could for a constant shift
+    count, as fxrsha);
+  - normalization 3.9x: most time is in binary searches of Unicode
+    tables (sv-combining-class, sv-decomposition-index-of-index);
+    two-level lookup tables instead?
   - compiler 7.3x: a flat profile (prim-info's assq, env-lookup,
     string->symbol at 2x Racket's cost); not understood yet;
   - equal 3.0x: not looked at yet (deep trees and cyclic lists).
@@ -54,9 +53,9 @@ DONE.md (with the date and the commit, if any).
   with B (no push) and that returns with BR, and an external entry
   that reaches it with B through one extra frame and returns with RET.
   Expect fib (shallow recursion) to lose about 10% even so.
-- quotient and remainder switch to C (mc_quo, mc_rem) even for
-  fixnums, about 3 ns a call; SDIV with a tag check would be a few
-  instructions (tagged fixnums divide exactly: 4x/4y = x/y).
+- vector-copy and the other vector copies move an element per
+  iteration; into a freshly allocated vector a memmove would need no
+  barrier (check SATB marking under -rrof first).
 - Under `-rrof`, a code collection that does not follow a completed
   mark cycle (with two regions, or when no marking is in progress)
   still keeps code referenced only from garbage until the garbage's
@@ -95,7 +94,7 @@ DONE.md (with the date and the commit, if any).
   (used by the nightly builds) fails at the libraries that use it,
   such as `lib/Standard/file-system.sch`.
 
-- Hypothetical, not planned: faster bignums (pi is 12x Racket's
+- Hypothetical, not planned: faster bignums (pi is 6.8x Racket's
   time) and unboxed flonums (mbrot 5.0x, mbrotZ 4.4x, fft 1.9x), unless
   some very local analysis (a flonum loop's variables, say) would do.
 
