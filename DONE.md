@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Objects up to 16GB on 64-bit systems, was 2GB (716da5b5): 64-bit
+  byte offsets within objects in the regional collector, whose locsets
+  truncated them and crashed on stores beyond 2GB (2efe8c91); nonmoving
+  vectors had an uninitialized last slot (6ba39414).  Test:
+  `test/GC/big-objects.sch`.
 - Twobit on enormous single procedures: hashtrees ordered by a
   scrambled hash code, so the environments of pass 3 commoning stay
   balanced (7000 statements: 2.4 GB to 559 MB, 6e6b1427); pass 2

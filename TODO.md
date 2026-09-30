@@ -31,11 +31,13 @@ DONE.md (with the date and the commit, if any).
 
 ## Runtime
 
-- Single objects are limited to `LARGEST_OBJECT` (0x7FFFFFF0 bytes, in
-  `src/Rts/Sys/larceny.h`) on 64-bit systems too; `make-bytevector` of
-  3e9 bytes signals "requested allocation exceeds max object size".
-  Raising it needs a look at the millicode's `int nwords` and the
-  copying collector's `unsigned` word counts.
+- Single objects are limited to 2^31 words (16GB) on 64-bit systems,
+  because the collectors keep word counts and indices within an object
+  in ints.
+- A large vector in the remembered set is rescanned whole at every
+  minor collection (the remset records objects, not slots): a young
+  object stored into a 4.8GB vector makes each minor collection take
+  about 100 ms.  Card marking for large objects?
 - Many diagnostic messages print `word`/`s_word` values with `%d`/`%x`.
 
 ## Build process footguns
