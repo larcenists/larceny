@@ -187,7 +187,7 @@ MILLIPROC1(fmc_capture_continuation,mc_capture_continuation)
 MILLIPROC1(fmc_restore_continuation,mc_restore_continuation)
 MILLIPROC1(fmc_full_barrier,mc_full_barrier)
 MILLIPROC1(fmc_compact_ssbs,mc_compact_ssbs)
-MILLIPROC1(fmc_satb_barrier,mc_satb_barrier)
+MILLIPROC1(fmc_compact_satb_ssb,mc_compact_satb_ssb)
 MILLIPROC1(fmc_break,mc_break)
 MILLIPROC2(fmc_global_exception,mc_exception,EX_UNDEF_GLOBAL)
 MILLIPROC2(fmc_invoke_exception,mc_exception,EX_NONPROC)
@@ -200,7 +200,7 @@ MILLIPROC1(fmc_restargs,mc_restargs)
 MILLIPROC2(fmc_syscall,mc_syscall,4)
 MILLIPROC1(fmc_typetag,mc_typetag)
 MILLIPROC1(fmc_typetag_set,mc_typetag_set)
-MILLIPROC2(fmc_eqv,mc_eqv,4)
+MILLIPROC2(fmc_eqv_slow,mc_eqv,4)
 MILLIPROC1(fmc_partial_list2vector,mc_partial_list2vector)
 MILLIPROC1(fmc_bytevector_like_fill,mc_bytevector_like_fill)
 MILLIPROC1(fmc_bytevector_like_compare,mc_bytevector_like_compare)
@@ -279,6 +279,88 @@ EXTNAME(fmc_partial_barrier):
         add     TMP0, TMP0, #8
         cmp     TMP0, TMP1
         b.hs    EXTNAME(fmc_compact_ssbs)       /* SSB full */
+1:      ret
+
+/* eqv? of RESULT and SECOND, result in RESULT.  This is mc_eqv
+ * (fence-millicode.c) without the context switch when the answer is
+ * easy: the same object or immediate, objects with different tags,
+ * immediates, or two flonums (compared by their bits).  Other
+ * bytevector-like and vector-like objects, which may be bignums,
+ * compnums, ratnums, rectnums, or empty strings and vectors, go to C.
+ *
+ * Destroys only the TMPs.
+ */
+
+        .globl  EXTNAME(fmc_eqv)
+        .p2align 2
+EXTNAME(fmc_eqv):
+        cmp     RESULT, SECOND
+        b.eq    2f                              /* eq? */
+        eor     TMP0, RESULT, SECOND
+        tst     TMP0, #7
+        b.ne    3f                              /* Different tags */
+        and     TMP0, RESULT, #7
+        cmp     TMP0, #BVEC_TAG
+        b.eq    4f
+        cmp     TMP0, #VEC_TAG
+        b.eq    EXTNAME(fmc_eqv_slow)
+3:      mov     RESULT, #FALSE_CONST            /* Not eqv? */
+        ret
+2:      mov     RESULT, #TRUE_CONST
+        ret
+4:      ldur    TMP1, [RESULT, #-BVEC_TAG]
+        and     TMP1, TMP1, #255
+        cmp     TMP1, #FLONUM_HDR
+        b.ne    EXTNAME(fmc_eqv_slow)
+        ldur    TMP2, [SECOND, #-BVEC_TAG]
+        and     TMP2, TMP2, #255
+        cmp     TMP2, #FLONUM_HDR
+        b.ne    EXTNAME(fmc_eqv_slow)
+        ldur    TMP1, [RESULT, #(8-BVEC_TAG)]   /* The flonums' bits */
+        ldur    TMP2, [SECOND, #(8-BVEC_TAG)]
+        cmp     TMP1, TMP2
+        b.eq    2b
+        b       3b
+
+/* The SATB pre-barrier of the regional collector's concurrent marking,
+ * called before a store into an object (RESULT) at the address in
+ * globals[G_THIRD], while marking.  This is mc_satb_barrier
+ * (fence-millicode.c) without the context switch: if the value about
+ * to be overwritten is a pointer, and neither it nor the object is in
+ * the nursery (generation 0), push it on the SATB SSB.  Only when the
+ * SSB fills does it save the context and call C to process the SSB.
+ *
+ * Destroys only the TMPs.  The page map has 32-bit entries
+ * (GCLIB_LARGE_TABLE is not supported).
+ */
+
+        .globl  EXTNAME(fmc_satb_barrier)
+        .p2align 2
+EXTNAME(fmc_satb_barrier):
+        ldr     TMP1, [GLOBALS, #G_CONCURRENT_MARK]
+        cbz     TMP1, 1f                        /* Not marking */
+        ldr     TMP0, [GLOBALS, #G_THIRD]
+        ldr     TMP0, [TMP0]                    /* TMP0 = old value */
+        tbz     TMP0, #0, 1f                    /* Not a pointer */
+        ldr     TMP1, [GLOBALS, #G_GENV]
+        ldr     TMP2, [GLOBALS, #G_PGBASE]
+        sub     TMP2, TMP0, TMP2
+        lsr     TMP2, TMP2, #12
+        ldr     w17, [TMP1, TMP2, lsl #2]       /* TMP2 = gen(old value) */
+        cbz     TMP2, 1f
+        ldr     TMP2, [GLOBALS, #G_PGBASE]
+        sub     TMP2, RESULT, TMP2
+        lsr     TMP2, TMP2, #12
+        ldr     w17, [TMP1, TMP2, lsl #2]       /* TMP2 = gen(object) */
+        cbz     TMP2, 1f
+        ldr     TMP1, [GLOBALS, #G_SATBTOPV]
+        ldr     TMP2, [TMP1]                    /* SATB SSB top */
+        str     TMP0, [TMP2], #8
+        str     TMP2, [TMP1]
+        ldr     TMP1, [GLOBALS, #G_SATBLIMV]
+        ldr     TMP1, [TMP1]                    /* SATB SSB limit */
+        cmp     TMP2, TMP1
+        b.hs    EXTNAME(fmc_compact_satb_ssb)   /* SSB full */
 1:      ret
 
 /* Special case: the exception code is transmitted in TMP0 */

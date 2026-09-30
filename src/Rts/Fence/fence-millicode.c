@@ -729,6 +729,17 @@ void EXPORT mc_satb_barrier( word *globals )
   }
 }
 
+/* Used by the SATB barrier in assembly when the SATB SSB fills. */
+
+void EXPORT mc_compact_satb_ssb( word *globals )
+{
+  gc_t *gc = the_gc(globals);
+  seqbuf_t *ssb = gc->satb_ssb;
+
+  if (*ssb->top == *ssb->lim)
+    process_seqbuf( gc, ssb );
+}
+
 static void mc_gen_barrier( word *globals )
 {
   if (isptr( globals[ G_SECOND ] ))

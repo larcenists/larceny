@@ -154,6 +154,7 @@ void EXPORT mc_partial_barrier( word *globals );
      */
 
 void EXPORT mc_satb_barrier( word *globals );
+void EXPORT mc_compact_satb_ssb( word *globals );
   /* The snapshot-at-the-beginning barrier for concurrent marking; must
      be called before an assignment.  If concurrent marking is in
      progress, logs the old value of the slot.
