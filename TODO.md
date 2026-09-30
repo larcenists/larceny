@@ -13,7 +13,14 @@ DONE.md (with the date and the commit, if any).
   been checked:
   - compiler 7.3x and normalization 7.1x;
   - fibc 3.1x, ctak 2.6x (call/cc: capture and each underflowing
-    return switch to C; a call/cc in a loop costs 50 ns, Racket's 18);
+    return switch to C; a call/cc in a loop costs 50 ns, Racket's 18).
+    Capture goes to C in every native Larceny (stk_flush), but the
+    SPARC back end restores an underflowing frame in line
+    (mem_stkuflow_retpoint in Rts/Sparc/memory.s, "15-50%" on deeply
+    recursive code), while Fence (ARM-32 and AArch64) always calls
+    mem_stkuflow in C.  Port that fast path to arm64-millicode.sx,
+    following stk_restore_frame in stack.c; it also helps every return
+    through frames flushed by a collection;
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
   - string 2.8x: string-append and substring copy a character per
