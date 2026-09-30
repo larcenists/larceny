@@ -287,6 +287,30 @@
     (arm64.CSEL       as (arm64.reg rd) arm64.TMP1 (arm64.reg rd) arm64-cond.EQ)
     (arm64.Bcond      as arm64-cond.EQ L)))
 
+; Quotient and remainder of two fixnums (64-bit targets only).  Tagged
+; fixnums divide to the untagged quotient (4x/4y = x/y, truncated), and
+; 4x - (x/y)*4y = 4(x rem y) is the tagged remainder.  Both branch to
+; L, leaving rd unchanged, if rs2 is 0; the quotient also if it is not
+; a fixnum (the most negative fixnum divided by -1; the remainder is 0
+; then, as the msub computes).
+
+(define (cant.fxquotient/bov as rs1 rs2 rd L)
+  (let ((rs1 (arm64.reg rs1))
+        (rs2 (arm64.reg rs2)))
+    (arm64.bccx       as 'equal rs2 0 #t L)
+    (arm64.SDIV       as arm64.TMP1 rs1 rs2)
+    (arm64.LSLI       as arm64.TMP2 arm64.TMP1 2)
+    (arm64.CMP/ASR    as arm64.TMP1 arm64.TMP2 2)
+    (arm64.Bcond      as arm64-cond.NE L)
+    (arm64.MOV        as (arm64.reg rd) arm64.TMP2)))
+
+(define (cant.fxremainder/bov as rs1 rs2 rd L)
+  (let ((rs1 (arm64.reg rs1))
+        (rs2 (arm64.reg rs2)))
+    (arm64.bccx       as 'equal rs2 0 #t L)
+    (arm64.SDIV       as arm64.TMP1 rs1 rs2)
+    (arm64.MSUB       as (arm64.reg rd) arm64.TMP1 rs2 rs1)))
+
 (define (cant.and as rs1 rs2 rd)
   (arm64.AND as (arm64.reg rd) (arm64.reg rs1) (arm64.reg rs2)))
 
@@ -814,6 +838,12 @@
 (define arm64.ASRV (arm64.rd-rn-rm #x9AC02800))
 (define arm64.MUL  (arm64.rd-rn-rm #x9B007C00))  ; MADD with XZR addend
 (define arm64.SMULH (arm64.rd-rn-rm #x9B407C00))
+(define arm64.SDIV (arm64.rd-rn-rm #x9AC00C00))
+
+; msub rd, rn, rm, ra: rd = ra - rn*rm
+
+(define (arm64.MSUB as rd rn rm ra)
+  (arm64.emit as (+ #x9B008000 (* 65536 rm) (* 1024 ra) (* 32 rn) rd)))
 
 (define (arm64.CMP as rn rm)
   (arm64.SUBS as arm64.ZR rn rm))

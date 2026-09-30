@@ -7,10 +7,49 @@
 (define (run-fixnum-tests . rest)
   (display "Fixnums") (newline)
   (fixnum-test-functionality)
+  (quotient-remainder-tests)
   (if (null? rest)
       (fixnum-test-error)
       #t)
   )
+
+; Generic quotient and remainder, compiled in line for two fixnums on
+; some targets: signs, small divisors, the ends of the fixnum range
+; (the most negative fixnum divided by -1 is a bignum), bignum and
+; flonum operands, and division by zero.  The expected values come
+; from truncate on exact rationals.
+
+(define (quotient-remainder-tests)
+  (let* ((mpf (most-positive-fixnum))
+         (mnf (most-negative-fixnum))
+         (values (list 0 1 -1 2 -2 7 -7 12 -12 1000003 -1000003
+                       mpf (- mpf 1) mnf (+ mnf 1) (quotient mpf 3)))
+         (divisors (list 1 -1 2 -2 3 -3 7 -7 1000003 mpf mnf -4
+                         (+ mpf 1) (- mnf 1)))) ; bignums
+    (define (expected-q a b) (truncate (/ a b)))
+    (define (expected-r a b) (- a (* b (truncate (/ a b)))))
+    (allof "quotient and remainder"
+     (allof-map "exact operands"
+      (lambda (a)
+        (for-each
+         (lambda (b)
+           (let ((name (string-append (number->string a) " by "
+                                      (number->string b))))
+             (test (string-append "quotient " name)
+                   (quotient a b) (expected-q a b))
+             (test (string-append "remainder " name)
+                   (remainder a b) (expected-r a b))))
+         divisors))
+      values)
+     (test "quotient of the most negative fixnum by -1"
+           (quotient mnf -1) (- mnf))
+     (test "remainder of the most negative fixnum by -1"
+           (remainder mnf -1) 0)
+     (test "quotient of flonums" (quotient 17. -5) -3.)
+     (test "remainder of flonums" (remainder -17 5.) -2.)
+     (mustfail "quotient by 0" (lambda (a b) (quotient a b)) 5 0)
+     (mustfail "remainder by 0" (lambda (a b) (remainder a b)) 5 0)
+     (mustfail "quotient of 0 by 0" (lambda (a b) (quotient a b)) 0 0))))
 
 ; The fixnum range depends on the word size (30-bit or 62-bit fixnums).
 

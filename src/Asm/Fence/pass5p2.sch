@@ -1624,6 +1624,26 @@
          (cant.ba     as L2)) 'arith)
       (fence.label as L2)))
 
+  ; Quotient and remainder: inline for two fixnums on 64-bit targets
+  ; (op branches to its label when the divisor is 0 or the quotient
+  ; overflows), millicode otherwise.
+
+  (define (divide-fast-case op trap-code)
+    (if (= $bytewidth.wordsize 8)
+        (let ((L1 (fence.make-label as))
+              (L2 (fence.make-label as)))
+          (cant.or     as rs1 rs2 $r.tmp)
+          (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
+          (op L1)
+          (fence.defer!
+           as
+           (lambda ()
+             (fence.label as L1)
+             (trap2 trap-code)
+             (cant.ba     as L2)) 'arith)
+          (fence.label as L2))
+        (trap2 trap-code)))
+
   ; A generic comparison: inline for two fixnums or two flonums,
   ; millicode otherwise.
 
@@ -1927,10 +1947,12 @@
      (trap2 $m.bvlcmp))
     ((/)
      (arith-fast-case #f cant.fdiv $m.divide))
-    ((quotient)                         ; TODO: in-line fast path?
-     (trap2 $m.quotient))
-    ((remainder)                        ; TODO: in-line fast path?
-     (trap2 $m.remainder))
+    ((quotient)
+     (divide-fast-case (lambda (L) (cant.fxquotient/bov as rs1 rs2 rd L))
+                       $m.quotient))
+    ((remainder)
+     (divide-fast-case (lambda (L) (cant.fxremainder/bov as rs1 rs2 rd L))
+                       $m.remainder))
 
     (else
      (error "Unknown 2-argument primitive: " name))))
