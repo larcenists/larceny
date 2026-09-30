@@ -834,6 +834,18 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
   return has_intergen_ptr;
 }
 
+/* The scan is done when it has reached dest in the chunk that dest
+ * points into.  Comparing the pointers alone is not enough: when
+ * to-space grows, dest may be the first word of a new chunk that
+ * happens to begin where the chunk being scanned ends (as the chunks
+ * made for large objects, which are forwarded without copying, may),
+ * and the scan would stop before the chunks in between.
+ */
+#define scan_reached_dest( e, scanptr, dest )                             \
+  ((scanptr) == (dest)                                                    \
+   && (e)->tospaces_cur_scan == (e)->tospaces_cur_dest                    \
+   && (e)->scan_idx == tospace_dest(e)->current)
+
 void scan_oflo_normal( cheney_env_t *e )
 {
   gset_t   forw_gset = e->forw_gset;
@@ -850,13 +862,13 @@ void scan_oflo_normal( cheney_env_t *e )
   do {
     morework = 0;
 
-    while (scanptr != dest) {
-      while (scanptr != dest && scanptr < scanlim) {
+    while (!scan_reached_dest( e, scanptr, dest )) {
+      while (scanptr < scanlim && !scan_reached_dest( e, scanptr, dest )) {
         scan_and_forward( scanptr, e->iflush, forward_nursery_and, forw_gset, 
                           dest, copylim, e, check_space_expand );
       }
 
-      if (scanptr != dest) {
+      if (!scan_reached_dest( e, scanptr, dest )) {
         e->scan_idx++;
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
@@ -867,18 +879,6 @@ void scan_oflo_normal( cheney_env_t *e )
         } else {
           scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
           scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
-        }
-        
-        /* A corner case when we fill up all of the to-space chunk
-         * (that is, when dest == copylim).  In this situation, dest
-         * does not point to a valid location in to-space; it may be
-         * pointing at the _next_ chunk that we would scan when the
-         * scan_idx is incremented below, which leads to a premature
-         * scan loop termination. */
-        if (dest == copylim) {
-          /* Set dest and copylim to values that we *know* cannot
-           * alias the new scanptr. */
-          dest = copylim = 0;
         }
       }
     }
@@ -912,14 +912,14 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
   do {
     morework = 0;
 
-    while (scanptr != dest) {
-      while (scanptr != dest && scanptr < scanlim) {
+    while (!scan_reached_dest( e, scanptr, dest )) {
+      while (scanptr < scanlim && !scan_reached_dest( e, scanptr, dest )) {
         scan_and_forward_update_rs( scanptr, e->iflush,
                                     forward_nursery_and, forw_gset,
                                     dest, copylim, e, check_space_expand );
       }
 
-      if (scanptr != dest) {
+      if (!scan_reached_dest( e, scanptr, dest )) {
         e->scan_idx++;
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
@@ -931,18 +931,6 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
         } else {
           scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
           scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
-        }
-        
-        /* A corner case when we fill up all of the to-space chunk
-         * (that is, when dest == copylim).  In this situation, dest
-         * does not point to a valid location in to-space; it may be
-         * pointing at the _next_ chunk that we would scan when the
-         * scan_idx is incremented below, which leads to a premature
-         * scan loop termination. */
-        if (dest == copylim) {
-          /* Set dest and copylim to values that we *know* cannot
-           * alias the new scanptr. */
-          dest = copylim = 0;
         }
       }
     }
