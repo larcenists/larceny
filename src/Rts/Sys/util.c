@@ -23,7 +23,7 @@
 word copy_object( gc_t *gc, word obj )
 {
   word *p;
-  unsigned size;
+  word size;
   int t;
 
   t = tagof( obj );

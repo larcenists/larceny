@@ -157,7 +157,7 @@ static void sro_push_root( word *loc, void *data )
 
 static void sro_traverse( sro_t *tbl )
 {
-  unsigned n, i;
+  word n, i;
   word w;
 
   while (sro_pop( tbl, &w )) {

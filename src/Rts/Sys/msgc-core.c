@@ -59,7 +59,7 @@ struct msgc_context {
   int          marked;          /* Objects marked */
   int          words_marked;    /* Words marked */
 
-  void* (*object_visitor)( word obj, word src, int offset, void *data );
+  void* (*object_visitor)( word obj, word src, s_word offset, void *data );
   void *object_visitor_data;
 
   bool (*stop_when)( word obj, word src, void *data );
@@ -336,7 +336,7 @@ static void LOS_PUSH( msgc_context_t *context, word next, word obj ) {
 
 static bool fill_from_los_stack( msgc_context_t *context )
 {
-  int next, k, n, i;
+  s_word next, k, n, i;
   word obj;
 
   if (context->los_stack.stkp == context->los_stack.stkbot) {
@@ -345,7 +345,7 @@ static bool fill_from_los_stack( msgc_context_t *context )
       return FALSE;
   }
   obj = *--context->los_stack.stkp;
-  next = (int)*--context->los_stack.stkp;
+  next = (s_word)*--context->los_stack.stkp;
   n = bytes2words( sizefield( *ptrof(obj) ) );
   k = min( n-next, LARGE_OBJECT_LIMIT );
   assert2_los_addresses_mapped( context, obj, k, next );
@@ -365,7 +365,7 @@ static int push_pair_constiuents( msgc_context_t *context, word w )
 
 static int push_constituents( msgc_context_t *context, word w )
 {
-  int i, n;
+  s_word i, n;
 
   switch (tagof(w)) {
   case PAIR_TAG :
@@ -382,7 +382,7 @@ static int push_constituents( msgc_context_t *context, word w )
         PUSH( context, vector_ref( w, i ), w, i+1 );
       }
     }
-    return n+1;
+    return (int)(n+1);
   default :
     return 0;
   }
@@ -736,7 +736,7 @@ void msgc_assert_conservative_approximation( msgc_context_t *context )
 void msgc_set_object_visitor( msgc_context_t *context,
                               void* (*visitor)( word obj, 
                                                 word src, 
-                                                int offset,
+                                                s_word offset,
                                                 void *data ),
                               void *visit_data ) 
 {

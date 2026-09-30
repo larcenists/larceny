@@ -131,7 +131,7 @@ void ls_clear( locset_t *ls )
 
 void ls_add_loc( locset_t *ls, loc_t loc );
 
-void ls_add_obj_offset( locset_t *ls, word objptr, int offset)
+void ls_add_obj_offset( locset_t *ls, word objptr, s_word offset)
 {
   word *w = (word*)((char*)ptrof(objptr)+offset);
 
@@ -226,7 +226,7 @@ void ls_add_nonpair( locset_t *ls, word *ptr )
   word *hdr_search;
   loc_t loc;
   word obj;
-  int offset;
+  s_word offset;
 
   hdr_search = ptr;
   do {
@@ -454,9 +454,9 @@ void ls_add_elems_funnel( locset_t *ls, word *bot, word *top )
     assert( is_ptr( w1 ));
     assert( is_fixnum( w2 ));
 
-    /* fixnum representation corresponds to a byte-offset from object start, 
-     * because its tag is two low-order zero bits. */
-    ls_add_obj_offset( ls, w1, (int) w2 );
+    /* w2 is the byte offset from the start of the object; being a
+     * multiple of the word size, it is also a fixnum. */
+    ls_add_obj_offset( ls, w1, (s_word) w2 );
   }
 }
 

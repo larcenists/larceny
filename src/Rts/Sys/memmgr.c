@@ -1219,7 +1219,7 @@ struct msgc_visit_check_summary_data {
   locset_t *summary_as_ls;
 };
 
-static void* msgc_visit_check_summary( word obj, word src, int offset, 
+static void* msgc_visit_check_summary( word obj, word src, s_word offset, 
                                        void *my_data )
 {
   struct msgc_visit_check_summary_data *data;
@@ -1370,7 +1370,7 @@ struct summaryscan_buildup_ls_data {
 static void summaryscan_buildup_ls( loc_t loc, void *my_data ) 
 { 
   word obj   = loc_to_obj(loc);
-  int offset = loc_to_offset(loc);
+  s_word offset = loc_to_offset(loc);
   struct summaryscan_buildup_ls_data *data;
   locset_t *target_ls;
   static word last_obj = 0x0;
@@ -2745,7 +2745,7 @@ static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
     f( make_loc(obj, sizeof(word)), scan_data );
   } else {
     word words; 
-    int offset;
+    s_word offset;
     assert2( tagof(obj) == VEC_TAG || tagof(obj) == PROC_TAG );
     words = sizefield( *w ) / sizeof(word);
     offset = 0;
@@ -4200,7 +4200,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 }
 
 static word last_origin_ptr_added = 0;
-static void points_across_callback( gc_t *gc, word lhs, int offset, word rhs ) 
+static void points_across_callback( gc_t *gc, word lhs, s_word offset, word rhs ) 
 {
   int g_lhs = gen_of(lhs);
   int g_rhs = gen_of(rhs);

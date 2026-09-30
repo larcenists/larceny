@@ -8,7 +8,7 @@
 #if USE_OBJ_OFFS_REP_FOR_LOC_T
 struct loc {
   word obj;
-  int  offset; /* measured in bytes */
+  s_word offset; /* measured in bytes */
                /* (happens to match tagged fixnum word-count, for now) */
 };
 
@@ -22,7 +22,7 @@ static void assert_loc_ok( loc_t loc )
   assert( (loc.offset % sizeof(word)) == 0);
 }
 
-static loc_t make_loc( word obj, int offset ) 
+static loc_t make_loc( word obj, s_word offset ) 
 {
   loc_t loc;
 
@@ -52,7 +52,7 @@ static word loc_to_obj( loc_t loc )
 {
   return loc.obj;
 }
-static int loc_to_offset( loc_t loc )
+static s_word loc_to_offset( loc_t loc )
 {
   return loc.offset;
 }
@@ -70,7 +70,7 @@ static void assert_loc_ok( loc_t loc )
 {
 }
 
-static loc_t make_loc( word obj, int offset )
+static loc_t make_loc( word obj, s_word offset )
 {
   loc_t l;
   l.slot = (word*)(((byte*)ptrof(obj))+offset);
@@ -96,7 +96,7 @@ static word loc_to_obj( loc_t loc )
 {
   assert(0);
 }
-static int loc_to_offset( loc_t loc )
+static s_word loc_to_offset( loc_t loc )
 {
   assert(0);
 }

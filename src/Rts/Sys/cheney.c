@@ -462,7 +462,7 @@ static word gf_last_lhs;
 
 static bool update_remset( cheney_env_t *e,
                            word *origin_ptr, int origin_gen, int origin_tag,
-                           int offset, 
+                           s_word offset, 
                            word target_ptr ) {
   if (e->points_across == NULL)
     return FALSE;
@@ -483,12 +483,12 @@ static bool update_remset( cheney_env_t *e,
   }
 }
 
-static bool points_across_noop( cheney_env_t* e, word lhs, int offset, word rhs ) 
+static bool points_across_noop( cheney_env_t* e, word lhs, s_word offset, word rhs ) 
 {
   return FALSE;
 }
 
-static bool points_across( cheney_env_t* e, word lhs, int offset, word rhs )
+static bool points_across( cheney_env_t* e, word lhs, s_word offset, word rhs )
 {
   gc_points_across( e->gc, lhs, offset, rhs );
   return FALSE;
@@ -1034,12 +1034,12 @@ word forward( const word p, word **dest, cheney_env_t *e )
   assert2( ishdr( hdr ) );
 
 #if FORW_BY_LOOP
-  { unsigned words;
+  { word words;
 
     /* gcc gets this right, so no sense in being obscure.
        words = (((hdr >> 8) + 11) >> 3) << 1; */
     words = object_size_bytes( hdr ) / sizeof(word);
-    wordsz = words;
+    wordsz = (int)words;
 
 #if CHECK_EVERY_WORD
     switch (tag) {

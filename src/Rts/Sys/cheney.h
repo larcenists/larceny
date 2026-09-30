@@ -113,7 +113,7 @@ struct cheney_env {
        address of codevectors.
        */
 
-  bool (*points_across)( cheney_env_t *e, word l, int offset, word r);
+  bool (*points_across)( cheney_env_t *e, word l, s_word offset, word r);
     /* (potentially) invoked by scanner when l[offset] points to r across 
        generations.  Returns true iff l is added to remset. 
        */

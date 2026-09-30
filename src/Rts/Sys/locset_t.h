@@ -75,7 +75,7 @@ create_locset( int tbl_ent,        /* Number of entries in hash table */
 void ls_clear( locset_t *locset );
   /* Clears the location set. */
 
-void ls_add_obj_offset( locset_t *ls, word w, int offset);
+void ls_add_obj_offset( locset_t *ls, word w, s_word offset);
   /* Copies slot for w.offset into ls. */
 void ls_add_loc( locset_t *ls, loc_t loc );
   /* Copies loc into ls.  Note that this method potentially keeps us

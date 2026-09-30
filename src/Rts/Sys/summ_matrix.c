@@ -1902,12 +1902,12 @@ static void oflo_check_loc( summ_matrix_t *summ,
 static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
                                       void (*incr_words)( summ_col_t *c, int dw ))
 {
-  int word_count;
+  int word_count;   /* < 2^31: see LARGEST_OBJECT */
   summ_col_t *col = DATA(summ)->cols[tgno];
   if (tagof(w) == PAIR_TAG) {
     word_count = 2;
   } else {
-    word_count = sizefield( *ptrof(w) ) / sizeof(word);
+    word_count = (int)(sizefield( *ptrof(w) ) / sizeof(word));
   }
 
   incr_words( col, word_count );
@@ -2235,7 +2235,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
     scanned = 2;
   } else { /* vector or procedure */
     word words;
-    int offset;
+    s_word offset;
     assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
     words = sizefield( *loc ) / sizeof(word);
     scanned = words;
@@ -2868,7 +2868,7 @@ struct verify_summaries_msgc_fcn_data {
   locset_t **summaries;
 };
 
-static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset, 
+static void* verify_summaries_msgc_fcn( word obj, word src, s_word byte_offset, 
                                         void *my_data )
 {
   struct verify_summaries_msgc_fcn_data *data =
@@ -2944,7 +2944,7 @@ static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
 static void msvfy_set_object_visitor( msgc_context_t *c, 
                                       void* (*visitor)( word obj, 
                                                         word src,
-                                                        int offset, 
+                                                        s_word offset, 
                                                         void *data ), 
                                       void *data ) {
   msgc_set_object_visitor( c, visitor, data );
@@ -4094,7 +4094,7 @@ static bool region_summarizing_curr( summ_matrix_t *summ, int gno )
  * keep transient table that maps (SZED u SZING) -> [Maybe Cell].
  */
 EXPORT void sm_points_across_callback( summ_matrix_t *summ, 
-                                       word lhs, int offset, int g_rhs )
+                                       word lhs, s_word offset, int g_rhs )
 {
 
   /* Below condition is subtle.

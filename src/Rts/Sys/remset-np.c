@@ -292,7 +292,7 @@ static bool remset_crossing_fn( word w, void *data, unsigned *ignored )
     if (isptr(cdr)) genv[gen_of(cdr)]++;
   }
   else if (tag == VEC_TAG || tag == PROC_TAG) {
-    unsigned size = sizefield(*ptrof(w))/sizeof(word);
+    word size = sizefield(*ptrof(w))/sizeof(word);
     word *p = ptrof(w)+1;
     while (size-- > 0) {
       word k = *p++;
