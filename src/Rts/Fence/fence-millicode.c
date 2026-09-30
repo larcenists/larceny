@@ -94,7 +94,7 @@ void EXPORT mc_alloc_bv( word *globals )
 
 #if defined( BDW_GC )
 #error "This must be changed because RESULT is size in bytes"
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
 
   nwords = roundup_walign( nwords );
   p = GC_malloc_atomic( nwords*sizeof(word) );
@@ -124,7 +124,7 @@ void EXPORT mc_alloc_bv( word *globals )
 void EXPORT mc_alloc( word *globals )
 {
 #if defined( BDW_GC )
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
 
   assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
@@ -137,7 +137,7 @@ void EXPORT mc_alloc( word *globals )
   assert (p != 0);
   globals[ G_RESULT ] = (word)p;
 #else
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *etop = (word*)globals[ G_ETOP ];
   word *elim = (word*)globals[ G_STKP ] - SCE_BUFFER;
   word *p;
@@ -168,7 +168,7 @@ void EXPORT mc_alloc( word *globals )
 
 void EXPORT mc_alloci( word *globals )
 {
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
   word init;
 
@@ -631,7 +631,7 @@ void EXPORT mc_bytevector_like_fill( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   unsigned char c = (globals[ G_SECOND ] >> 2) & 255;
-  int length = sizefield( *x );
+  word length = sizefield( *x );
 
   memset( x+BVEC_HEADER_WORDS, c, length );
 }
@@ -640,7 +640,8 @@ void EXPORT mc_bytevector_like_compare( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   word *y = ptrof( globals[ G_SECOND ] ); /* assume: bytevector-like */
-  int lx, ly, n;
+  s_word lx, ly;
+  int n;
 
   lx = sizefield( *x );
   ly = sizefield( *y );

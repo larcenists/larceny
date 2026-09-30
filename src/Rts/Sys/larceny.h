@@ -369,11 +369,13 @@ extern int memfail( int code, char *fmt, ... );
  * a vector, bytevector, or procedure header.  In the 32-bit implementation,
  * this field is 24 bits, so the largest object can be 2^24-1 bytes long.
  * In the 64-bit implementation the size field is 56 bits, but the
- * run-time system uses 32-bit sizes, so objects are limited to 2GB.
+ * collectors keep word counts and word indices within an object in an
+ * int, so objects are limited to 2^31 words (16GB).  (Byte offsets
+ * within an object are s_words.)
  */
 
 #if defined(BITS_64)
-#define LARGEST_OBJECT    0x7FFFFFF0
+#define LARGEST_OBJECT    ((s_word)0x3FFFFFFF0)
 #define BYTE_ALIGNMENT    16
 #else
 #define LARGEST_OBJECT    16777215

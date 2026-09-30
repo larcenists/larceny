@@ -37,3 +37,8 @@ A fast machine is better -- some of these programs take a while.  Also,
 plenty of real memory is a plus, since the heap size can grow over 30MB
 for some programs.
 
+
+big-objects.sch tests objects of more than 2GB and 4GB on 64-bit
+systems; it needs about 12GB of memory.  Run it under each collector:
+
+    LARCENY_ARENA_GB=64 larceny [-stopcopy | -rrof] < big-objects.sch
