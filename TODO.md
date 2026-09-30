@@ -79,6 +79,10 @@ DONE.md (with the date and the commit, if any).
     (1e8 stores: 66 ms for fixnums, 110 ms for pointers within a
     generation), and would add about 11 instructions per store site.
     Recording old-to-young stores costs 2.4 ns per store.
+- The inline bytevector-fill! (pass5p2.sch) checks only the
+  bytevector's tag, not the fill value: the millicode keeps its low 8
+  bits, so (bytevector-fill! b 256) fills with 0 and a non-fixnum fills
+  with garbage, where Petit raises an error.
 - Twobit on enormous single procedures: commoning (pass 3) still
   allocates about 30K words per statement, so a procedure of 7000
   statements, just under `anf-threshold`, peaks at 560 MB.

@@ -92,10 +92,17 @@
 ;;; Support code that is really compiler specific.  These definitions are OK
 ;;; for SunOS 4, SunOS 5 with the compilers I've tried.
 
+;; C longs, size_t, and pointers have the size of a word.
+
+(define ffi:word-bytes
+  (quotient (cdr (assq 'arch-word-size (system-features))) 8))
+
+(define ffi:64-bit? (= ffi:word-bytes 8))
+
 (define (trampoline->pointer x name)
   (cond ((trampoline? x)
          (let ((address (ffi/handle->address (tr-code x))))
-           (+ 4 address))) ;; XXX should not hard code bv header length...
+           (+ ffi:word-bytes address)))   ; skip the bytevector header
         ((integer? x)
          x)
         (else
@@ -126,13 +133,14 @@
 (define (void*-word-set! x idx val)
   (%poke32 (+ ((record-accessor void*-rt 'ptr) x) idx) val))
 (define (void*-void*-ref x idx)
-  ((record-constructor void*-rt) (void*-word-ref x idx)))
+  ((record-constructor void*-rt)
+   (%peek-pointer (+ ((record-accessor void*-rt 'ptr) x) idx))))
 (define (void*-void*-set! x idx val)
   (let* ((void*-ptr (record-accessor void*-rt 'ptr))
          (dest-addr (+ (void*-ptr x) idx))
          (hex (lambda (n) (string-append "0x" (number->string n 16))))
          (source-val (void*-ptr val)))
-    (%poke32 dest-addr source-val)
+    (%poke-pointer dest-addr source-val)
     ))
 
 (define (void*-double-ref x idx)
@@ -279,9 +287,15 @@
       (uint     unsigned32 ,unsigned-integer-check  ,id)
       (ushort   unsigned32 ,unsigned-integer-check  ,id)
       (uchar    unsigned32 ,character->uchar        ,uchar->character)
-      (long     signed32   ,integer-check           ,id)
-      (ulong    unsigned32 ,unsigned-integer-check  ,id)
-      (size_t   unsigned32 ,unsigned-integer-check  ,id)
+      (long     ,(if ffi:64-bit? 'signed64 'signed32)
+                ,(if ffi:64-bit? longlong-check integer-check)
+                ,id)
+      (ulong    ,(if ffi:64-bit? 'unsigned64 'unsigned32)
+                ,(if ffi:64-bit? ulonglong-check unsigned-integer-check)
+                ,id)
+      (size_t   ,(if ffi:64-bit? 'unsigned64 'unsigned32)
+                ,(if ffi:64-bit? ulonglong-check unsigned-integer-check)
+                ,id)
       (float    ieee32     ,flonum-check            ,id)
       (double   ieee64     ,flonum-check            ,id)
       (longlong  signed64   ,longlong-check         ,id)
@@ -289,8 +303,10 @@
       (bool     signed32   ,object->bool            ,int->boolean)
       (void     void       ,#f                      ,id)
       (boxed    pointer    ,boxed->pointer          ,#f)
-      (void*    unsigned32 ,void*->unsigned          ,unsigned->void*)
-      (tramp    unsigned32 ,trampoline->pointer     ,#f)
+      (void*    ,(if ffi:64-bit? 'unsigned64 'unsigned32)
+                ,void*->unsigned          ,unsigned->void*)
+      (tramp    ,(if ffi:64-bit? 'unsigned64 'unsigned32)
+                ,trampoline->pointer     ,#f)
       (string   pointer    ,string->asciiz          ,asciiz->string))))
 
 (define (ffi-attribute-core? t)
@@ -334,7 +350,7 @@
      ((eq? '-> (car t))
       (let ((param-types (cadr t))
             (ret-type    (caddr t)))
-        `(,t unsigned32 
+        `(,t ,(if ffi:64-bit? 'unsigned64 'unsigned32)   ; a code address
              ,(lambda (proc name) ;; FIXME: space leak!
                 (trampoline->pointer 
                  (foreign-wrap-procedure proc param-types ret-type)
@@ -388,7 +404,7 @@
 
 (define (ffi/rename-ret-type t)
   (if (eq? t 'string)
-      'unsigned32
+      (if ffi:64-bit? 'unsigned64 'unsigned32)   ; the string's address
       (ffi/rename-arg-type t)))
 
 (define (ffi/arg-converter t)
@@ -462,10 +478,14 @@
 	    (peek addr)
 	    (poke addr (car args))))))
 
-  (cond ((or (eq? type 'long) (eq? type 'int))
+  (cond ((eq? type 'int)
 	 (var %peek32 %poke32))
-	((or (eq? type 'ulong) (eq? type 'uint))
+	((eq? type 'uint)
 	 (var %peek32u %poke32u))
+	((eq? type 'long)
+	 (var %peek-long %poke-long))
+	((eq? type 'ulong)
+	 (var %peek-ulong %poke-ulong))
 	((eq? type 'ushort)
 	 (var %peek16u %poke16u))
 	((eq? type 'short)
@@ -574,8 +594,8 @@
 
 (define sizeof:short 2)
 (define sizeof:int 4)
-(define sizeof:long 4)
-(define sizeof:pointer 4)
+(define sizeof:long ffi:word-bytes)
+(define sizeof:pointer ffi:word-bytes)
 
 ; %peek* and %poke*: convenient access to values in memory.
 
@@ -596,6 +616,16 @@
   (let ((x (make-bytevector 4)))
     (peek-bytes addr x 4)
     (%get32 x 0)))
+
+(define (%peek64 addr)
+  (let ((x (make-bytevector 8)))
+    (peek-bytes addr x 8)
+    (%get64 x 0)))
+
+(define (%peek64u addr)
+  (let ((x (make-bytevector 8)))
+    (peek-bytes addr x 8)
+    (%get64u x 0)))
 
 (define (%peek8u addr)
   (let ((x (make-bytevector 1)))
@@ -629,6 +659,16 @@
     (%set32 x 0 val)
     (poke-bytes addr x 4)))
 
+(define (%poke64 addr val)
+  (let ((x (make-bytevector 8)))
+    (%set64 x 0 val)
+    (poke-bytes addr x 8)))
+
+(define (%poke64u addr val)
+  (let ((x (make-bytevector 8)))
+    (%set64u x 0 val)
+    (poke-bytes addr x 8)))
+
 (define (%poke8u addr val)
   (let ((x (make-bytevector 1)))
     (bytevector-set! x 0 val)
@@ -645,22 +685,22 @@
     (poke-bytes addr x 4)))
 
 (define %peek-int %peek32)
-(define %peek-long %peek32)
+(define %peek-long (if ffi:64-bit? %peek64 %peek32))
 (define %peek-unsigned %peek32u)        ; avoid using
 (define %peek-uint %peek32u)
-(define %peek-ulong %peek32u)
+(define %peek-ulong (if ffi:64-bit? %peek64u %peek32u))
 (define %peek-short %peek16)
 (define %peek-ushort %peek16u)
-(define %peek-pointer %peek32u)
+(define %peek-pointer (if ffi:64-bit? %peek64u %peek32u))
 
 (define %poke-int %poke32)
-(define %poke-long %poke32)
+(define %poke-long (if ffi:64-bit? %poke64 %poke32))
 (define %poke-unsigned %poke32u)        ; avoid using
 (define %poke-uint %poke32u)
-(define %poke-ulong %poke32u)
+(define %poke-ulong (if ffi:64-bit? %poke64u %poke32u))
 (define %poke-short %poke16)
 (define %poke-ushort %poke16u)
-(define %poke-pointer %poke32u)
+(define %poke-pointer (if ffi:64-bit? %poke64u %poke32u))
 
 
 ; %get* and %set*: reading and writing multibyte values from bytevectors.
@@ -732,11 +772,26 @@
   (let ((v (%get32u x offs)))
     (if (>= v 2147483648) (- (- 4294967296 v)) v)))
 
-;; XXX this probably has to be parameterized as well...
+(define (%get64u x offs)
+  (let ((a (%get32u x offs))
+        (b (%get32u x (+ offs 4))))
+    (if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
+        (+ (* b 4294967296) a)
+        (+ (* a 4294967296) b))))
+
 (define (%get64 x offs)
-  (let ((lo (%get32u x (+ offs 0)))
-        (hi (%get32 x  (+ offs 32))))
-    (+ (* hi (expt 2 32)) lo)))
+  (let ((v (%get64u x offs)))
+    (if (>= v 9223372036854775808) (- v 18446744073709551616) v)))
+
+(define (%set64u x offs v)
+  (let ((hi (quotient v 4294967296))
+        (lo (remainder v 4294967296)))
+    (if (eq? 'little (cdr (assq 'arch-endianness (system-features))))
+        (begin (%set32u x offs lo) (%set32u x (+ offs 4) hi))
+        (begin (%set32u x offs hi) (%set32u x (+ offs 4) lo)))))
+
+(define (%set64 x offs v)
+  (%set64u x offs (if (< v 0) (+ 18446744073709551616 v) v)))
 
 (define (%set16 x offs v)
   (let ((v (if (< v 0) (+ 65536 v) v)))
@@ -774,7 +829,7 @@
                    (bytevector-set! x offs (remainder (quotient n d) 256))
                    (rec (- size 1) (- offs 1) (/ d 256))))))
         (lambda (x offs n)
-          (let rec ((size size) (offs 0) (d init-divisor))
+          (let rec ((size size) (offs offs) (d init-divisor))
             (cond ((not (zero? size))
                  (bytevector-set! x offs (remainder (quotient n d) 256))
                  (rec (- size 1) (+ offs 1) (/ d 256)))))))))
@@ -794,16 +849,18 @@
 (define %get-uint %get32u)
 (define %get-short %get16)
 (define %get-ushort %get16u)
-(define %get-long %get32)
-(define %get-ulong %get32u)
-(define %get-pointer %get32u)
+(define %get-long (if ffi:64-bit? %get64 %get32))
+(define %get-ulong (if ffi:64-bit? %get64u %get32u))
+(define %get-pointer (if ffi:64-bit? %get64u %get32u))
 
 (define %set-int %set32)
 (define %set-unsigned %set32u)          ; inconsistent name -- avoid
 (define %set-uint %set32u)
 (define %set-short %set16)
 (define %set-ushort %set16u)
-(define %set-pointer %set32u)
+(define %set-long (if ffi:64-bit? %set64 %set32))
+(define %set-ulong (if ffi:64-bit? %set64u %set32u))
+(define %set-pointer (if ffi:64-bit? %set64u %set32u))
 
 ; Given the address of a C string, get the string.
 
@@ -829,6 +886,6 @@
   (let ((p (%peek-pointer ptr)))
     (if (foreign-null-pointer? p)
 	'()
-	(cons (getter p) (%peek-pointer-array (+ ptr 4) getter)))))
+	(cons (getter p) (%peek-pointer-array (+ ptr sizeof:pointer) getter)))))
 
 ; eof

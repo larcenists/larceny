@@ -1,4 +1,14 @@
 Test suite for Foreign Function Interface.
 
-You want to look at comments at the head of the files ffi-test.sch and
-std-ffi-test.sch.
+Build the foreign files first (make macosx, or make linux, ...).  Then,
+in this directory:
+
+    larceny -- abi-test.sch              ; prints "abi-test: ok"
+
+and, in a Larceny started in this directory, as described at the head
+of each file:
+
+    (load "ffi-test.sch") (run-basic-ffi-tests)
+    (require 'std-ffi) (load "std-ffi-test.sch") (run-std-ffi-tests)
+
+These print nothing more if all tests pass.

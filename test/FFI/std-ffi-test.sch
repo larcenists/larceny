@@ -5,10 +5,10 @@
 ; Test cases for the standard FFI.
 ;
 ; How to run this:
-;  - fix the setup of *testsuite-dir* and *foreign-file*, if necessary
-;  - go to the toplevel development directory
+;  - build the foreign file (see the Makefile)
+;  - go to this directory (test/FFI)
 ;  - start Larceny (with any heap)
-;  - load Auxlib/std-ffi.sch
+;  - (require 'std-ffi)
 ;  - load this file
 ;  - evaluate (RUN-STD-FFI-TESTS)
 ; If no errors are printed, you're OK.
@@ -25,8 +25,11 @@
   (cond ((string-ci=? sys "win32")
 	 (set! *testsuite-dir* "/Source/Larceny/src/Testsuite/")
 	 (set! *foreign-file* "std-ffi-test-ff.dll"))
+	((string=? sys "MacOS X")
+	 (set! *testsuite-dir* (string-append (current-directory) "/../"))
+	 (set! *foreign-file* "std-ffi-test-ff.dylib"))
 	(else
-	 (set! *testsuite-dir* "/home/lth/net/lth/larceny/Testsuite/")
+	 (set! *testsuite-dir* (string-append (current-directory) "/../"))
 	 (set! *foreign-file* "std-ffi-test-ff.so"))))
 
 (load (string-append *testsuite-dir* "Lib/test.sch"))
@@ -45,11 +48,11 @@
 
 (foreign-file (string-append *testsuite-dir* "FFI/" *foreign-file*))
 
-(define valid-null-pointer?
-  (foreign-procedure "valid_null_pointer_p" '(unsigned) 'bool))
+(define valid-null-pointer?             ; ulong is pointer-sized
+  (foreign-procedure "valid_null_pointer_p" '(ulong) 'bool))
 
 (define return-null-pointer
-  (foreign-procedure "return_null_pointer" '() 'unsigned))
+  (foreign-procedure "return_null_pointer" '() 'ulong))
 
 (define (std-ffi-test-null)
   (allof "FFI NULL cases"

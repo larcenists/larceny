@@ -5,7 +5,8 @@
 ; This program loads and exercises the lowlevel FFI in various ways.
 ;
 ; How to run this:
-;   - fix the definition of *work-path* below, if necessary
+;   - build the foreign file (see the Makefile)
+;   - go to this directory (test/FFI)
 ;   - start Larceny (with any heap)
 ;   - load this file
 ;   - evaluate (RUN-BASIC-FFI-TESTS)
@@ -18,11 +19,11 @@
 
 ; Points to the top-level development directory
 
-(define *work-path* "/home/lth/net/lth/larceny/")
+(define *work-path* (string-append (current-directory) "/../../"))
 
-(define *ffi-path* (string-append *work-path* "Ffi/"))
-(define *test-path* (string-append *work-path* "Testsuite/Lib/"))
-(define *ffi-test-path* (string-append *work-path* "Testsuite/FFI/"))
+(define *ffi-path* (string-append *work-path* "lib/Ffi/"))
+(define *test-path* (string-append *work-path* "test/Lib/"))
+(define *ffi-test-path* (string-append *work-path* "test/FFI/"))
 
 (newline)
 (display "*** FFI PATH IS ")
@@ -46,14 +47,18 @@
 (define callback-abi)
 
 (call-with-values
- (lambda ()
-   (load-ffi *ffi-path*))
- (lambda (arch callout callback)
+ load-ffi
+ (lambda (arch callout callback . stdcall-abis)
    (set! architecture arch)
    (set! callout-abi callout)
    (set! callback-abi callback)))
 
-(ffi/libraries (cons (string-append *ffi-test-path* "ffi-test-ff.so")
+(ffi/libraries (cons (string-append *ffi-test-path*
+                                    (if (string=? "MacOS X"
+                                                  (cdr (assq 'os-name
+                                                             (system-features))))
+                                        "ffi-test-ff.dylib"
+                                        "ffi-test-ff.so"))
                      (ffi/libraries)))
 
 ;;; Callouts
@@ -61,7 +66,7 @@
 (define (fp name param ret)
 
   (define (rename p)
-    (cdr (assq p '((int . signed32)
+    (cdr (assq p `((int . signed32)
 		   (short . signed32)
 		   (char . signed32)
 		   (unsigned . unsigned32)
@@ -70,7 +75,11 @@
 		   (float . ieee32)
 		   (double . ieee64)
 		   (void . void)
-		   (pointer . pointer)))))
+		   (pointer . pointer)
+		   (address . ,(if (= 64 (cdr (assq 'arch-word-size
+		                                     (system-features))))
+		                   'unsigned64
+		                   'unsigned32))))))
 			  
   (ffi/foreign-procedure callout-abi name 
 			 (map rename param)
@@ -108,8 +117,10 @@
 (define fficb2 (fp "fficb2" '(pointer) 'int))
 (define fficb3 (fp "fficb3" '(int pointer) 'int))
 
-(define (make-callback proc args ret)
-  (tr-code (ffi/make-callback callback-abi proc args ret)))
+(define (make-callback proc args ret)        ; only SPARC has callbacks
+  (if (string=? "SPARC" (cdr (assq 'arch-name (system-features))))
+      (tr-code (ffi/make-callback callback-abi proc args ret))
+      #f))
 
 (define *the-value* #f)
 
@@ -150,8 +161,8 @@
 
 ;;; Peek and poke
 
-(define malloc (fp "malloc" '(int) 'unsigned))
-(define free (fp "free" '(unsigned) 'void))
+(define malloc (fp "malloc" '(int) 'address))
+(define free (fp "free" '(address) 'void))
 
 (define (run-peek-poke-tests)
   (allof "Peek/poke"
@@ -198,7 +209,7 @@
          (bytevector-set! bv1 i (remainder i 255)))
        (peek-bytes buffer lo1 4)
        (peek-bytes (+ buffer n 4) hi1 4)
-       (bytevector-fill! bv2 256)
+       (bytevector-fill! bv2 255)
        (poke-bytes (+ buffer 4) bv1 n)
        (peek-bytes (+ buffer 4) bv2 n)
        (peek-bytes buffer lo2 4)
