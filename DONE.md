@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- AArch64 millicode without a context switch for the SATB pre-barrier
+  and for eqv? (flonums, immediates, eq? objects): memv of flonums 2.3x
+  faster (fbacc6c0).
 - Tighter loops: Twobit omits checks of variables known true in the
   consequent of an `if` (6e1638a2), so a guarded range check no longer
   materializes the loop test; AArch64 shifted-register adds for indexing

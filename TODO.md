@@ -11,11 +11,10 @@ DONE.md (with the date and the commit, if any).
   mark cycle could tell live objects from dead ones, but a dead
   object's code pointer would then have to be cleared, and `sro` can
   return dead objects.
-- Lighter-weight millicode calls, what is left: calls still switch the
-  whole context (now with paired stores).  Other candidates for inline
-  or context-free fast paths: the SATB barrier (only during marking),
-  eqv? on flonums, mixed-exactness arithmetic on ARM-32 (no
-  cant.fixnum->flonum there yet).
+- Lighter-weight millicode calls, what is left: the remaining calls
+  still switch the whole context (with paired stores).  Mixed-exactness
+  arithmetic on ARM-32 (no cant.fixnum->flonum there yet), which cannot
+  be tested on this machine.
 - More optimization for the AArch64 back end, what is left:
   - Loop-invariant code: a loop over a vector still checks its type and
     loads its length every iteration (Twobit has no code motion).
