@@ -12,7 +12,8 @@
     (let* ((f   (system-features))
 	   (ar  (cdr (assq 'arch-name f)))
 	   (os  (cdr (assq 'os-name f)))
-	   (maj (cdr (assq 'os-major-version f))))
+	   (maj (cdr (assq 'os-major-version f)))
+	   (bits (cdr (assq 'arch-word-size f))))
       (cond ((string=? os "SunOS")
 	     (case maj
 	       ((4) 'sun4-sunos4)
@@ -23,6 +24,12 @@
 	     'i386-win32)
 	    ((and (string=? os "MacOS X") (string=? ar "IAssassin"))
 	     'i386-macosx)
+	    ((and (string=? os "MacOS X")
+		  (= bits 64)
+		  (or (string=? ar "ARM")
+		      (and (string=? ar "Standard-C")
+			   (zero? (system "test \"`uname -m`\" = arm64")))))
+	     'arm64-macosx)
 	    ((and (string=? os "Linux")
 		  (string=? ar "ARM"))
 	     'arm-linux)
@@ -87,6 +94,14 @@
      (values architecture
 	     ffi/i386-linux-C-callout-cdecl
 	     ffi/i386-linux-C-callback-cdecl
+             #f
+             #f))
+    ((arm64-macosx)
+     (require "ffi-arm64")
+     (ffi/libraries (list (ffi/arm64-macosx-libc)))
+     (values architecture
+             ffi/arm64-macosx-C-callout-stdabi
+             ffi/arm64-macosx-C-callback-stdabi
              #f
              #f))
     ((arm-linux)

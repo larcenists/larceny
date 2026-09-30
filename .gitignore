@@ -84,3 +84,5 @@ lib/SRFI/test/*.log
 /src/Compat/Racket/compiled/
 /src/Lib/Common/heap-code-features.sch
 /larceny-c-info.c
+test/FFI/*.dylib
+test/FFI/*.so
