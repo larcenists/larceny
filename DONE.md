@@ -14,6 +14,11 @@ Finished items, moved here from TODO.md.  Newest first.
   (97d27658).
 - AArch64: quotient and remainder of fixnums in line (68a4c316): 110 ms
   for 1e8 quotients instead of 387.
+- equal? interleaves recursion and union-find (4e6fda33): the equal
+  benchmark 0.46x Racket's time (3x before).
+- The compiler benchmark "outlier" (7x) was compile time: my benchmark
+  harness ran the .sch, which run-r6rs-program expands and compiles;
+  from the .slfasl it takes 2.2 s (Racket 3.0).
 - Reading an unterminated string or |symbol| raises a lexical error
   instead of looping forever (19c4963c); found by the read0 benchmark.
 - Petit's R7RS mode loads compiled libraries again: load-from-port

@@ -7,13 +7,13 @@ DONE.md (with the date and the commit, if any).
 
 - Performance against Racket 9.3 (CS) on the R6RS benchmarks
   (test/Benchmarking/R6RS, 2026-09-30; about 3 s per run, best of 3,
-  startup subtracted): geometric mean 0.92 of Racket's time over all
-  68, 1.24 without the 12 I/O-bound ones (Racket's R6RS ports are very
-  slow).  After memmove copies, the vector merge sort, and in-line
-  quotient (2026-09-30, same method): 0.86 and 1.14; string 2.9 s
-  (Racket 2.75), normalization 3.9x (was 7.1x), pi 6.8x (was 12x).
-  Outliers to investigate, with guesses at causes that have not been
-  checked:
+  startup subtracted, Larceny running the compiled .slfasl as the
+  bench script does; runs of the .sch compile it first, which cost the
+  compiler benchmark 18 s): geometric mean 0.79 of Racket's time over
+  all 68, 1.04 without the 12 I/O-bound ones (Racket's R6RS ports are
+  very slow); Larceny faster on 42.  compiler 0.74x, equal 0.46x,
+  string 0.99x.  Outliers to investigate, with guesses at causes that
+  have not been checked:
   - fibc 3.1x, ctak 2.6x (call/cc: capture and each underflowing
     return switch to C; a call/cc in a loop costs 50 ns, Racket's 18).
     Capture goes to C in every native Larceny (stk_flush), but the
@@ -25,16 +25,13 @@ DONE.md (with the date and the commit, if any).
     through frames flushed by a collection;
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
-  - vecsort 2.1x: 38% of its time is in fxarithmetic-shift-right and
+  - vecsort 2.2x: 38% of its time is in fxarithmetic-shift-right and
     its range check (fx:range-check!), which its comparison procedure
     calls; Twobit does not integrate it (it could for a constant shift
     count, as fxrsha);
   - normalization 3.9x: most time is in binary searches of Unicode
     tables (sv-combining-class, sv-decomposition-index-of-index);
     two-level lookup tables instead?
-  - compiler 7.3x: a flat profile (prim-info's assq, env-lookup,
-    string->symbol at 2x Racket's cost); not understood yet;
-  - equal 3.0x: not looked at yet (deep trees and cyclic lists).
 - Return prediction.  Calls use BL/BLR and returns RET, so the CPU's
   return-address stack predicts returns; it holds only a few dozen
   entries, and deeper recursion mispredicts most returns: 1e8 calls
