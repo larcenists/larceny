@@ -50,7 +50,7 @@ const char *larceny_gc_technology = "precise";
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, s_word size_bytes, int load_text );
 #if CODE_SPACE
-static void collect_code_by_scanning( gc_t *gc );
+static void collect_code_by_scanning( gc_t *gc, smircy_context_t *marks );
 #endif
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
@@ -1090,15 +1090,16 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
   if (gc->smircy != NULL 
       && smircy_in_completed_stage_p( gc->smircy )) {
-    incremental_refinement_has_completed( gc );
 #if CODE_SPACE
     /* Marking has finished and the next cycle has not begun: a code
        collection deferred during marking can happen now.  (The nursery
        has been evacuated and the stack flushed.)  With enough regions
-       marking is nearly continuous, so this may be the only chance. */
+       marking is nearly continuous, so this may be the only chance.
+       The marks tell garbage from live objects. */
     if (gc->code_space && gc->code_space->scan_requested)
-      collect_code_by_scanning( gc );
+      collect_code_by_scanning( gc, gc->smircy );
 #endif
+    incremental_refinement_has_completed( gc );
   }
 
 #if ! SYNC_REFINEMENT_RROF_CYCLE
@@ -2410,49 +2411,90 @@ void gc_check_infamy_drop_to_hasbeen( gc_t *gc,
    flushed into the heap and the nursery has been evacuated, so that
    every pointer to code is in a root, in an area enumerated by
    enumerate_hdr_address_ranges(), or in a large object.  Every pointer
-   to a code object is updated, and every code object referenced (even
-   from garbage) is copied.  */
+   to a code object is updated, and every code object referenced is
+   copied.
+
+   Without marks, that includes code referenced only from garbage, which
+   then lives until the garbage's region is collected.  With the marks
+   of a completed mark cycle (marks != NULL), an unmarked object is
+   known to be garbage (objects promoted since the snapshot are marked
+   when they are forwarded, and objects outside the mark bitmap count as
+   marked), and its pointers to code are cleared instead, so the code
+   is not kept.  Nothing can reach the object to see the cleared fields,
+   and a scan of the heap only reads them.  */
+
+typedef struct {
+  code_space_t *cs;
+  smircy_context_t *marks;      /* or NULL */
+  word dead_code_pointers;      /* cleared in garbage */
+} cs_scan_data_t;
 
 static void cs_scan_root( word *loc, void *data )
 {
-  *loc = cs_update_pointer( (code_space_t*)data, *loc );
+  *loc = cs_update_pointer( ((cs_scan_data_t*)data)->cs, *loc );
+}
+
+/* p[0..n) are the fields of an object, the tagged pointer obj. */
+
+static void cs_scan_fields( cs_scan_data_t *d, word obj, word *p, word n )
+{
+  word i;
+
+  if (d->marks != NULL && !smircy_object_marked_p( d->marks, obj )) {
+    for ( i=0 ; i < n ; i++ )
+      if (tagof( p[i] ) == BVEC_TAG && is_code_page( p[i] )) {
+        p[i] = FALSE_CONST;
+        d->dead_code_pointers++;
+      }
+  }
+  else {
+    for ( i=0 ; i < n ; i++ )
+      p[i] = cs_update_pointer( d->cs, p[i] );
+  }
 }
 
 static void cs_scan_range( word *p, word *lim, void *data )
 {
-  code_space_t *cs = (code_space_t*)data;
+  cs_scan_data_t *d = (cs_scan_data_t*)data;
 
   while (p < lim) {
     word w = *p;
     if (ishdr( w )) {
       word words = 1 + roundup_word( sizefield( w ) )/sizeof(word);
-      if (header( w ) != BV_HDR) {
-        word i;
-        for ( i=1 ; i < words ; i++ )
-          p[i] = cs_update_pointer( cs, p[i] );
-      }
+      if (header( w ) != BV_HDR)
+        cs_scan_fields( d,
+                        tagptr( p, header( w ) == VEC_HDR ? VEC_TAG
+                                                          : PROC_TAG ),
+                        p+1, words-1 );
       p += roundup_walign( words );
     }
     else {
-      p[0] = cs_update_pointer( cs, p[0] );
-      p[1] = cs_update_pointer( cs, p[1] );
+      cs_scan_fields( d, tagptr( p, PAIR_TAG ), p, 2 );
       p += 2;
     }
   }
 }
 
-static void collect_code_by_scanning( gc_t *gc )
+static void collect_code_by_scanning( gc_t *gc, smircy_context_t *marks )
 {
   code_space_t *cs = gc->code_space;
+  cs_scan_data_t d;
   int gno;
 
+  d.cs = cs;
+  d.marks = marks;
+  d.dead_code_pointers = 0;
   cs->scan_requested = 0;
-  annoyingmsg( "Code space: collecting by scanning." );
-  gc_enumerate_roots( gc, cs_scan_root, (void*)cs );
+  gc_enumerate_roots( gc, cs_scan_root, (void*)&d );
   for ( gno=1 ; gno < gc->gno_count ; gno++ )
-    gc_enumerate_hdr_address_ranges( gc, gno, cs_scan_range, (void*)cs );
+    gc_enumerate_hdr_address_ranges( gc, gno, cs_scan_range, (void*)&d );
   cs_after_collection( cs );
   cs_collected( cs );
+  annoyingmsg( "Code space: collected by scanning%s; "
+               "%" PRIdWORD " pointers to code cleared in garbage; "
+               "%" PRIdWORD " bytes of code live.",
+               (marks != NULL ? " with marks" : ""),
+               d.dead_code_pointers, cs->live );
   /* Code objects moved: address-based hash tables must be rehashed. */
   DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
 }
@@ -2529,7 +2571,7 @@ static void after_collection( gc_t *gc )
 #if CODE_SPACE
   /* Here the stack has been flushed and the nursery evacuated. */
   if (gc->code_space && gc->code_space->scan_requested && gc->smircy == NULL)
-    collect_code_by_scanning( gc );
+    collect_code_by_scanning( gc, NULL );
 #endif
 
   yh_after_collection( gc->young_area );

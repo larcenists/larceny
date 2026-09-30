@@ -5,12 +5,14 @@ DONE.md (with the date and the commit, if any).
 
 ## Native AArch64 Larceny
 
-- Under `-rrof`, collecting code by scanning keeps code that is
-  referenced only from garbage until the garbage's region is collected
-  (a delay, not a leak: code use levels off).  The marks of a completed
-  mark cycle could tell live objects from dead ones, but a dead
-  object's code pointer would then have to be cleared, and `sro` can
-  return dead objects.
+- Under `-rrof`, a code collection that does not follow a completed
+  mark cycle (with two regions, or when no marking is in progress)
+  still keeps code referenced only from garbage until the garbage's
+  region is collected.
+- Under `-rrof -size1 1M`, a program with 35MB of live data that loads
+  a compiled file 100000 times (keeping each procedure briefly) grows
+  the heap to 145M words (1.1GB): garbage floats in the regions.  Is
+  the policy right for small regions?
 - Lighter-weight millicode calls, what is left: the remaining calls
   still switch the whole context (with paired stores).  Mixed-exactness
   arithmetic on ARM-32 (no cant.fixnum->flonum there yet), which cannot
