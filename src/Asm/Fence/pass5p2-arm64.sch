@@ -205,6 +205,11 @@
 (define (cant.add as rs1 rs2 rd)
   (arm64.ADD as (arm64.reg rd) (arm64.reg rs1) (arm64.reg rs2)))
 
+; rd = rs1 + (rs2 << shift)
+
+(define (cant.addshli as rs1 rs2 shift rd)
+  (arm64.ADDLSL as (arm64.reg rd) (arm64.reg rs1) (arm64.reg rs2) shift))
+
 (define (cant.add/bnv as rs1 rs2 rd L)
   (arm64.ADDS as arm64.TMP1 (arm64.reg rs1) (arm64.reg rs2))
   (arm64.move-if-no-overflow as (arm64.reg rd) L))
@@ -792,6 +797,11 @@
     (arm64.emit as (+ base (* 65536 rm) (* 32 rn) rd))))
 
 (define arm64.ADD  (arm64.rd-rn-rm #x8B000000))
+
+; add rd, rn, rm, lsl #shift
+
+(define (arm64.ADDLSL as rd rn rm shift)
+  (arm64.emit as (+ #x8B000000 (* 65536 rm) (* 1024 shift) (* 32 rn) rd)))
 (define arm64.ADDS (arm64.rd-rn-rm #xAB000000))
 (define arm64.SUB  (arm64.rd-rn-rm #xCB000000))
 (define arm64.SUBS (arm64.rd-rn-rm #xEB000000))

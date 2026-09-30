@@ -875,8 +875,7 @@
 (define (fence.index->word-offset as rbase ridx rd)
   (case $bytewidth.wordsize
     ((4) (cant.add as rbase ridx rd))
-    ((8) (cant.shli as ridx 1 rd)
-         (cant.add as rbase rd rd))
+    ((8) (cant.addshli as rbase ridx 1 rd))     ; 64-bit targets only
     (else ???)))
 
 ; Shift a header right by this much to get the object's length as a

@@ -97,6 +97,8 @@
   `(
     ;; Register-register operations
     (,(lambda (as) (arm64.ADD as 3 4 5)) "add x3, x4, x5")
+    (,(lambda (as) (arm64.ADDLSL as 3 4 5 1)) "add x3, x4, x5, lsl #1")
+    (,(lambda (as) (arm64.ADDLSL as 20 3 20 3)) "add x20, x3, x20, lsl #3")
     (,(lambda (as) (arm64.ADDS as 16 0 1)) "adds x16, x0, x1")
     (,(lambda (as) (arm64.SUB as 3 4 5)) "sub x3, x4, x5")
     (,(lambda (as) (arm64.SUBS as 16 21 20)) "subs x16, x21, x20")
