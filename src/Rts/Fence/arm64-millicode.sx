@@ -127,10 +127,57 @@ EXTNAME(fence_dispatch_loop_return):
  * returns into this functions then Larceny will repopulate the
  * cache with at least one frame from the heap and return into
  * that frame.
+ *
+ * The frame is restored here, without a context switch, when there is
+ * room for it in the stack cache: this is stk_restore_frame (stack.c)
+ * and the underflow handlers of the young heaps (nursery.c, sc-heap.c),
+ * after the SPARC version (mem_stkuflow_retpoint in Sparc/memory.s).
+ * If you change this code, check that code too.  The frame goes under
+ * the underflow frame (which stays at the bottom of the stack): copy
+ * it from the heap frame in G_CONT, follow the dynamic link, turn the
+ * header back into the size, and turn the return offset back into an
+ * address, relative to the code of the frame's procedure.  Only RESULT
+ * is live at a return; this uses only the TMPs and x30.  When there is
+ * no room, C does it (and may collect).
  */
         .p2align 2
 EXTNAME(fence_stack_underflow):
-        SAVE_SCHEME_CONTEXT     /* globals[G_RETADDR] is junk, ignore it */
+        ldr     TMP0, [GLOBALS, #G_CONT]
+        sub     TMP0, TMP0, #VEC_TAG            /* the heap frame */
+        ldr     TMP1, [TMP0]                    /* its header */
+        lsr     TMP1, TMP1, #8                  /* size of the data */
+        add     TMP1, TMP1, #(8+15)             /* bytes to copy, */
+        and     TMP1, TMP1, #~15                /* header and padding */
+        sub     x30, STKP, TMP1                 /* new stack top */
+        ldr     TMP2, [GLOBALS, #G_ETOP]
+        cmp     x30, TMP2
+        b.lo    9f                              /* no room: C */
+        mov     TMP2, x30
+1:      ldr     TMP1, [TMP0], #8                /* copy the frame */
+        str     TMP1, [TMP2], #8
+        cmp     TMP2, STKP
+        b.lo    1b
+        mov     STKP, x30
+        ldr     TMP1, [STKP, #16]               /* HC_DYNLINK */
+        str     TMP1, [GLOBALS, #G_CONT]
+        ldr     TMP1, [STKP, #HC_HEADER]
+        lsr     TMP1, TMP1, #8
+        ldr     TMP0, [STKP, #HC_RETOFFSET]
+        str     TMP1, [STKP, #STK_CONTSIZE]
+        ldr     TMP1, [STKP, #STK_REG0]         /* the procedure */
+        cbz     TMP1, 2f
+        ldur    TMP2, [TMP1, #(8-PROC_TAG)]     /* its code (PROC_CODEPTR) */
+        and     x30, TMP2, #7
+        cmp     x30, #BVEC_TAG
+        b.ne    2f
+        add     TMP2, TMP2, #(8-BVEC_TAG)       /* start of the code */
+        add     TMP0, TMP0, TMP2
+2:      str     TMP0, [STKP, #STK_RETADDR]
+        ldr     TMP1, [GLOBALS, #G_STKUFLOW]
+        add     TMP1, TMP1, #1
+        str     TMP1, [GLOBALS, #G_STKUFLOW]
+        br      TMP0
+9:      SAVE_SCHEME_CONTEXT     /* globals[G_RETADDR] is junk, ignore it */
         LOAD_C_CONTEXT
         mov     x0, GLOBALS     /* arg #1: globals */
         bl      EXTNAME(mem_stkuflow)    /* Changes globals[G_RETADDR] */
