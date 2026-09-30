@@ -2,6 +2,15 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-09-30
+
+- Reading an unterminated string or |symbol| raises a lexical error
+  instead of looping forever (19c4963c); found by the read0 benchmark.
+- Petit's R7RS mode loads compiled libraries again: load-from-port
+  evaluates the value of the #!fasl flag, which imports the Petit
+  primitives (f4dd3e1c; broken since the feature markers, cc7da70a).
+- Ran the R6RS benchmarks against Racket 9.3; results in TODO.md.
+
 ## 2026-09-29
 
 - `-rrof` drops code referenced only from garbage when collecting the

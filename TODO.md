@@ -5,6 +5,18 @@ DONE.md (with the date and the commit, if any).
 
 ## Native AArch64 Larceny
 
+- Performance against Racket 9.3 (CS) on the R6RS benchmarks
+  (test/Benchmarking/R6RS, 2026-09-30; about 3 s per run, best of 3,
+  startup subtracted): geometric mean 0.92 of Racket's time over all
+  68, 1.24 without the 12 I/O-bound ones (Racket's R6RS ports are very
+  slow).  The largest gaps, with guesses at causes that have not been
+  checked:
+  - pi 12x (bignum arithmetic);
+  - compiler 7.3x and normalization 7.1x (not yet looked at);
+  - mbrot 5.0x, mbrotZ 4.4x, fft 1.9x (flonums are boxed);
+  - fibc 3.1x, ctak 2.6x (call/cc); ack 3.0x, divrec 2.9x, deriv
+    2.3x (deep recursion, stack overflow into the heap?);
+  - equal 3.0x, string 2.8x, vecsort 2.1x.
 - Under `-rrof`, a code collection that does not follow a completed
   mark cycle (with two regions, or when no marking is in progress)
   still keeps code referenced only from garbage until the garbage's
@@ -54,6 +66,8 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
+- `bootstrap.sh --r7rs` reports success when compiling the libraries
+  fails; it should check `bootstrap-r7rs.log` for errors.
 - Feature markers, follow-ups:
   - A system provides exactly the features its heap's code assumes; it
     could provide several target specs (say, an older calling-convention
