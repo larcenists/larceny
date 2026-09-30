@@ -540,4 +540,13 @@
 
 (define alist->hash-table 'not-yet-defined)
 
+;; Tables keyed by object identity (eq?), for the compiler:
+;;   (compat:make-eq-table)
+;;   (compat:eq-table-ref table key default)
+;;   (compat:eq-table-set! table key value)
+
+(define (compat:make-eq-table) (rkt:make-hasheq))
+(define (compat:eq-table-ref table key default) (rkt:hash-ref table key default))
+(define (compat:eq-table-set! table key value) (rkt:hash-set! table key value))
+
 ; eof

@@ -283,18 +283,39 @@
 ; If more arguments are given, they are used as alternatives
 ; when the starting position for the expression can't be found.
 
+; The positions are looked up by object identity: the list records the
+; objects the reader returned and the objects macro expansion made from
+; them (see pass1-equate-source-positions!).  An eq? table indexes the
+; list; it is rebuilt when the list is replaced (by compile-file or
+; load), and kept up to date by pass1-equate-source-positions!.
+; (Scanning the list with equal? made the expansion of a large
+; procedure quadratic in its size, and slow.)  Earlier entries in the
+; list take precedence, as they did in the scan.
+
+(define source-position-table #f)
+(define source-position-table-list #f)   ; the list the table indexes
+
+(define (source-position-table-current)
+  (if (or (not source-position-table)
+          (not (eq? source-position-table-list source-file-positions)))
+      (let ((table (compat:make-eq-table)))
+        (for-each (lambda (entry)
+                    (compat:eq-table-set! table (vector-ref entry 0) entry))
+                  (reverse (or source-file-positions '())))
+        (set! source-position-table table)
+        (set! source-position-table-list source-file-positions)))
+  source-position-table)
+
 (define (pass1-lookup-source-position exp . rest)
-  (do ((info (or source-file-positions '()) (cdr info)))
-      ((or (null? info)
-           (equal? exp (vector-ref (car info) 0)))
-       (cond ((not (null? info))
-              (vector-ref (car info) 1))
-             ((pair? rest)
-              (apply pass1-lookup-source-position rest))
-             ((pair? source-file-positions)
-              (vector-ref (car source-file-positions) 1))
-             (else
-              #f)))))
+  (let ((entry (compat:eq-table-ref (source-position-table-current) exp #f)))
+    (cond (entry
+           (vector-ref entry 1))
+          ((pair? rest)
+           (apply pass1-lookup-source-position rest))
+          ((pair? source-file-positions)
+           (vector-ref (car source-file-positions) 1))
+          (else
+           #f))))
 
 ; Given an original source expression and a new expression
 ; that results from the original via macro expansion, gives
@@ -303,7 +324,9 @@
 (define (pass1-equate-source-positions! original new)
   (let ((info (pass1-lookup-source-position original)))
     (if info
-        (set! source-file-positions
-              (cons (vector new info info)        ; FIXME: second info is wrong
-                    source-file-positions)))
+        (let ((table (source-position-table-current))
+              (entry (vector new info info)))    ; FIXME: second info is wrong
+          (set! source-file-positions (cons entry source-file-positions))
+          (compat:eq-table-set! table new entry)
+          (set! source-position-table-list source-file-positions)))
     (unspecified)))

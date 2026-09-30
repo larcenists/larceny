@@ -35,6 +35,7 @@
       (let ((dir (nbuild-parameter 'compatibility))
             (auxlib (nbuild-parameter 'auxiliary)))
 	(compat:load (string-append dir "compat2.sch"))
+	(compat:load (string-append dir "eq-table.sch"))
 	(compat:load (string-append auxlib "list.sch"))
 	(compat:load (string-append auxlib "pp.sch"))
         ; Hosts older than the feature markers of compiled code (#lap,

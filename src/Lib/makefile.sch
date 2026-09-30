@@ -255,6 +255,7 @@
   (append
    (param-filename 'repl-source '("main" "reploop"))
    (param-filename 'interp-source '("interp" "interp-prim" "switches"))
+   (param-filename 'larceny-compatibility '("eq-table"))  ; for pass1
    (param-filename 'compiler
                  '("pass0" "pass1" "pass1.aux" "pass2.aux" "prefs"
                    "syntaxenv" "syntaxrules2" "syntaxrules" "lowlevel"
