@@ -355,30 +355,96 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Two-stage lookup tables, indexed by scalar value: stage 1 maps each
+; page of 256 scalar values to a block of stage 2, which holds the
+; values for the page; pages without values share block 0, which holds
+; zeros.  A lookup is two bytevector references instead of a binary
+; search.  The tables are made on first use from the sorted tables
+; below, which remain the source of the data.
+;
+; (unicode:make-table width n key value) makes a table of n entries,
+; with values of width bytes (1 or 2), whose ith entry maps
+; (key i) to (value i), a nonzero exact integer.
+
+(define (unicode:make-table width n key value)
+  (let* ((npages (quotient #x110000 256))
+         (blocks (make-vector npages 0))   ; page -> block number or 0
+         (count 1))
+    (do ((i 0 (+ i 1)))
+        ((= i n))
+      (let ((page (quotient (key i) 256)))
+        (if (zero? (vector-ref blocks page))
+            (begin (vector-set! blocks page count)
+                   (set! count (+ count 1))))))
+    (let ((stage1 (make-bytevector (* 2 npages) 0))
+          (stage2 (make-bytevector (* count 256 width) 0)))
+      (do ((page 0 (+ page 1)))
+          ((= page npages))
+        (bytevector-u16-native-set! stage1 (* 2 page)
+                                    (vector-ref blocks page)))
+      (do ((i 0 (+ i 1)))
+          ((= i n))
+        (let* ((sv (key i))
+               (j (+ (* 256 (vector-ref blocks (quotient sv 256)))
+                     (remainder sv 256))))
+          (if (= width 1)
+              (bytevector-u8-set! stage2 j (value i))
+              (bytevector-u16-native-set! stage2 (* 2 j) (value i)))))
+      (cons stage1 stage2))))
+
+(define (unicode:table-block table sv)
+  (* 256 (bytevector-u16-native-ref (car table)
+                                    (* 2 (fxrsha sv 8)))))
+
+(define (unicode:table-u8 table sv)
+  (bytevector-u8-ref (cdr table)
+                     (+ (unicode:table-block table sv) (fxlogand sv 255))))
+
+(define (unicode:table-u16 table sv)
+  (bytevector-u16-native-ref
+   (cdr table)
+   (* 2 (+ (unicode:table-block table sv) (fxlogand sv 255)))))
+
 ; Given a Unicode scalar value, returns its combining class.
 
+(define combining-class-table #f)
+
 (define (sv-combining-class s)
-  (let ((index (binary-search s combining-class-is-nonzero)))
-    (if index
-        (bytevector-u8-ref combining-class-values index)
-        0)))
+  (if (not combining-class-table)
+      (set! combining-class-table
+            (unicode:make-table
+             1
+             (vector-length combining-class-is-nonzero)
+             (lambda (i) (vector-ref combining-class-is-nonzero i))
+             (lambda (i) (bytevector-u8-ref combining-class-values i)))))
+  (unicode:table-u8 combining-class-table s))
 
 ; Given a Unicode scalar value, returns the index of the index
 ; of its decomposition sequence if it has one, else returns #f.
+; The table maps a scalar value to 1 + the index of the scalar value
+; in decomposition-chars-16bit and decomposition-chars-morebits.
+
+(define decomposition-table #f)
 
 (define (sv-decomposition-index-of-index s)
-  (let ((index
-         (if (< s 65536)
-             (binary-search-16bit s decomposition-chars-16bit)
-             (let ((index0 (binary-search s decomposition-chars-morebits)))
-               (if index0
-                   (+ index0
-                      (div (bytevector-length decomposition-chars-16bit)
-                           2))
-                   index0)))))
-    (if index
-        (+ index index)
-        #f)))
+  (if (not decomposition-table)
+      (let ((n16 (quotient (bytevector-length decomposition-chars-16bit) 2)))
+        (set! decomposition-table
+              (unicode:make-table
+               2
+               (+ n16 (vector-length decomposition-chars-morebits))
+               (lambda (i)
+                 (if (< i n16)
+                     (+ (* 256 (bytevector-u8-ref decomposition-chars-16bit
+                                                  (* 2 i)))
+                        (bytevector-u8-ref decomposition-chars-16bit
+                                           (+ (* 2 i) 1)))
+                     (vector-ref decomposition-chars-morebits (- i n16))))
+               (lambda (i) (+ i 1))))))
+  (let ((v (unicode:table-u16 decomposition-table s)))
+    (if (zero? v)
+        #f
+        (* 2 (- v 1)))))
 
 ; Given the index of the index of a decomposition sequence,
 ; returns two values: the starting index (inclusive) and
