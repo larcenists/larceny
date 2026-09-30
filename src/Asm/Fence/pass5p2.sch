@@ -2079,6 +2079,18 @@
      (cant.movi as (char-representation imm) $r.second)
      (emit-check-character as rs $ex.char>=?)
      (cant.setcc as 'greater-or-equal rs $r.second rd))
+    ((fxrsha)                           ; 0 <= imm < fixnum width
+     (if (runtime-safety-checking)
+         (emit-check-branch
+          as
+          (lambda (L) (cant.bcci as 'low2-not-equal rs 0 L))
+          (lambda ()
+            (if (not (= rs $r.result))
+                (cant.mov as rs $r.result))
+            (cant.movi as (fence.native->fixnum imm) $r.second)
+            (cant.trap as $m.exception '*exception $ex.rsha))))
+     (cant.shrai as rs imm rd)
+     (cant.andni as rd 3 rd))
     ((eq?)
      (cond ((eq? imm #t)
             (cant.setcci as 'equal rs $imm.true rd))

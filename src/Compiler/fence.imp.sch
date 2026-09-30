@@ -114,6 +114,13 @@
 (define (fence-imm? x)
   (smallint? x))
 
+; A constant shift count for fxrsha: 0 <= x < the fixnum width.
+
+(define (fence-shift-imm? x)
+  (and (fixnum? x)
+       (<= 0 x)
+       (< x (if (fixnum? (expt 2 32)) 62 30))))
+
 (define (fence-eq-imm? x)
   (or (fence-imm? x)
       (eq? x #t)
@@ -235,7 +242,7 @@
     (.fxlogior        2 fxlogior         #f            72 ,:immortal ,:none #f)
     (.fxlogxor        2 fxlogxor         #f            73 ,:immortal ,:none #f)
     (.fxlsh           2 fxlsh            #f            74 ,:immortal ,:none #f)
-    (.fxrsha          2 fxrsha           #f            75 ,:immortal ,:none #f)
+    (.fxrsha          2 fxrsha           ,fence-shift-imm? 75 ,:immortal ,:none #f)
     (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none #f)
 
     (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
@@ -472,7 +479,7 @@
     (fxlogior         2 fxlogior         #f            72 ,:immortal ,:none #f)
     (fxlogxor         2 fxlogxor         #f            73 ,:immortal ,:none #f)
     (fxlsh            2 fxlsh            #f            74 ,:immortal ,:none #f)
-    (fxrsha           2 fxrsha           #f            75 ,:immortal ,:none #f)
+    (fxrsha           2 fxrsha           ,fence-shift-imm? 75 ,:immortal ,:none #f)
     (fxrshl           2 fxrshl           #f            76 ,:immortal ,:none #f)
 ;   (rot              2 rot              #f            77 ,:immortal ,:none #f)
     (bytevector-ref   2 bytevector-ref   ,fence-imm?    82 ,:string   ,:none #f)

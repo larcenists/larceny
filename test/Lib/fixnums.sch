@@ -8,10 +8,43 @@
   (display "Fixnums") (newline)
   (fixnum-test-functionality)
   (quotient-remainder-tests)
+  (fxarithmetic-shift-right-tests)
   (if (null? rest)
       (fixnum-test-error)
       #t)
   )
+
+; fxarithmetic-shift-right, compiled in line (for constant counts,
+; without a range check), against floor division by powers of 2.
+
+(define (fxarithmetic-shift-right-tests)
+  (let* ((mpf (most-positive-fixnum))
+         (mnf (most-negative-fixnum))
+         (width (fixnum-width))
+         (values (list 0 1 -1 5 -5 1000003 -1000003 mpf mnf)))
+    (define (shift x k) (fxarithmetic-shift-right x k))   ; variable count
+    (define (expected x k) (floor (/ x (expt 2 k))))
+    (allof "fxarithmetic-shift-right"
+     (allof-map "variable counts"
+      (lambda (x)
+        (do ((k 0 (+ k 1)))
+            ((= k width))
+          (test (string-append (number->string x) " by " (number->string k))
+                (shift x k) (expected x k))))
+      values)
+     (allof-map "constant counts"
+      (lambda (x)
+        (test "by 0" (fxarithmetic-shift-right x 0) x)
+        (test "by 2" (fxarithmetic-shift-right x 2) (expected x 2))
+        (test "by 7" (fxarithmetic-shift-right x 7) (expected x 7))
+        (test "by 61" (fxarithmetic-shift-right x 61) (expected x 61)))
+      values)
+     (mustfail "count = width" shift 5 width)
+     (mustfail "count < 0" shift 5 -1)
+     (mustfail "count not a fixnum" shift 5 (+ mpf 1))
+     (mustfail "not a fixnum" shift (+ mpf 1) 2)
+     (mustfail "not a fixnum, constant count"
+               (lambda (x) (fxarithmetic-shift-right x 2)) 2.5))))
 
 ; Generic quotient and remainder, compiled in line for two fixnums on
 ; some targets: signs, small divisors, the ends of the fixnum range

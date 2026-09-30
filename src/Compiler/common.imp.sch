@@ -529,6 +529,7 @@
               fxmin fxmax
               fx+ fx- fx*
               fxnot fxand fxior fxxor fxif
+              fxarithmetic-shift-right
               fxeven? fxodd?
               fl=? fl<? fl>? fl<=? fl>=?
               flzero? flpositive? flnegative?
@@ -1295,6 +1296,20 @@
           (z ?z))
       (fxior (fxand x y)
              (fxand (fxnot x) z))))
+
+; The shift count must be in [0, fixnum width); with a constant count
+; the check folds away.  (.fxrsha checks that both are fixnums.)
+
+`  ((_ larceny fxarithmetic-shift-right (fxarithmetic-shift-right ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (if (fixnum? y)
+                   (if (.<=:fix:fix 0 y)
+                       (.<:fix:fix y ,(- (nbuild-parameter 'word-size) 2))
+                       #f)
+                   #f)
+               ,$ex.rsha x y)
+      (.fxrsha x y)))
 
 `  ((_ larceny fxeven? (fxeven? ?x))
     (fxzero? (fxand ?x 1)))
