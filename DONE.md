@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- Tighter loops: Twobit omits checks of variables known true in the
+  consequent of an `if` (6e1638a2), so a guarded range check no longer
+  materializes the loop test; AArch64 shifted-register adds for indexing
+  (5237e641); the vector length comes from the type check's header load,
+  and mutators skip `#!unspecified` when RESULT is dead (15c2d886).  A
+  vector-sum loop is 25 instructions (was 32), 12% faster.
 - Runtime diagnostics print words with `PRI?WORD` and pointers with
   `%p`; message functions are format-checked and the arm64 builds use
   `-Wformat` (176537b2).
