@@ -45,6 +45,12 @@ DONE.md (with the date and the commit, if any).
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take
   about 100 ms.  Card marking for large objects?
+- The reader in `#!r6rs` mode accepts `@` and `@b` as symbols, accepts
+  a byte-order mark (U+FEFF) after `#!r6rs`, and does not treat
+  U+2029, U+202F, U+205F and U+3000 as whitespace; the read0 benchmark
+  (test/Benchmarking/R6RS) reports these.  Also, the `#^B"..."`
+  codevector syntax of fasl files (`makeCodevector` in `reader.sch`)
+  loops at an unterminated end of input, as strings did.
 
 ## Build process footguns
 

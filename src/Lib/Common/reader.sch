@@ -1492,6 +1492,27 @@
                        (+ string_accumulator_length 1)))))
           (begin (expand-accumulator) (consumeChar))))
 
+    ; Consumes the current character of a token for the state machine.
+    ; Where a token can contain any character (a string, for example),
+    ; the state machine consumes the end of input as well, so the end
+    ; of input within a token is an error instead of a loop.  (At the
+    ; start of a token, with nothing accumulated, the state machine
+    ; consumes the end of input before accepting it as eofobj.)
+
+    (define (consumeTokenChar)
+      (if (< string_accumulator_length (string-length string_accumulator))
+          (let ((c (read-char input-port)))
+            (if (char? c)
+                (begin
+                 (string-set! string_accumulator
+                              string_accumulator_length
+                              c)
+                 (set! string_accumulator_length
+                       (+ string_accumulator_length 1)))
+                (if (> string_accumulator_length 0)
+                    (scannerError errIncompleteToken))))
+          (begin (expand-accumulator) (consumeTokenChar))))
+
     ; Doubles the size of string_accumulator while
     ; preserving its contents.
     ;
@@ -2426,7 +2447,7 @@
     (define state0
       (make-state-machine (lambda () (set! string_accumulator_length 0))
                           (lambda () (scanChar))
-                          (lambda () (consumeChar))
+                          (lambda () (consumeTokenChar))
                           (lambda (t) (accept t))
                           (lambda (m) (scannerError m))
                           errIncompleteToken))
