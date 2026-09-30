@@ -536,6 +536,7 @@
                                  (copy-available-table available)))
                             (if (variable? E0)
                                 (let ((T0 (variable.name E0)))
+                                  (available-true! available1 T0)
                                   (available-add!
                                    available2 T0 (make-constant #f)))
                                 (error (make-readable E #t)))
@@ -681,6 +682,16 @@
                                              (abandon-expression! E)
                                              ;(values x '() '())
                                              (scan-rhs x env available))
+                                            ((and (variable? x)
+                                                  (available-true?
+                                                   available
+                                                   (variable.name x)))
+                                             ; e.g. in the consequent
+                                             ; of (if x ...)
+                                             (abandon-expression! E)
+                                             (values (make-constant #t)
+                                                     '()
+                                                     '()))
                                             ((variable? x)
                                              (available-add!
                                               available
