@@ -21,9 +21,26 @@ DONE.md (with the date and the commit, if any).
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
   - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
-  - normalization 2.1x (after two-stage tables and string ports that
-    keep a string): much of the rest is decompose's lists (append,
-    list->string).
+  - normalization 1.7x (4.95 s; Racket 2.90): measured by parts
+    (2026-09-30), normalizing takes 3.1 s (Racket 1.0), get-line 0.84
+    (1.08), and the benchmark's own parsing 0.8 (0.65).  In
+    normalizing, decompose is on the stack in 48% of samples (append
+    11%, table lookups 14%), compose! 13%, and
+    reorder-according-to-combining-class! 13%: see decompose below.
+- decompose (unicode4.sch) builds a reversed list of characters: a
+  fresh list per character (even unchanged ones) that append copies,
+  a recursive reverse-decomposition that appends each part, then
+  reverse and list->string.  Its slow path starts again at index 0
+  without an Ascii shortcut, and the reordering bubble-sorts the whole
+  string, looking up each combining class twice per pair per pass.
+  Write into a string instead, flatten decompositions once, and sort
+  only runs of non-starters.
+- UTF-8 decoding in get-char (io/get-char-utf-8): an invalid sequence
+  consumes the byte after it, even a linefeed (#xce #x62 loses the b);
+  #xed #xa0 #x80 (a surrogate) makes integer->char fail instead of
+  being a decoding error; and some invalid sequences at a buffer
+  boundary fail the assertion (fx= 0 auxptr) in read-more-bytes
+  (found by random tests of get-line against get-char).
 - Loading test/Lib/io.sch prints `(.check! #f 71 .buf .lim 65537)` and
   `(... 955)`: something in the compiler reports an index check it
   could prove false?  (Also in older logs.)

@@ -4,6 +4,15 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-30
 
+- get-line reads a line in the buffer at once when it is UTF-8, not
+  only when it is Ascii (NormalizationTest.txt has UTF-8 on almost
+  every line): reading that file 80 times takes 0.84 s instead of 2.08
+  (Racket 1.08), and the normalization benchmark 4.95 s instead of
+  6.03.  get-line's fast path now also counts the line for
+  port-lines-read and port-line-start (before, Ascii lines read by
+  get-line were not counted, so later line numbers, such as those in
+  the reader's error messages, were too small).  Tests in
+  `test/Lib/io.sch` (cac0438b).
 - String ports keep their characters in a string instead of layering
   on bytevector ports under a UTF-8 transcoder (a layering from 2007,
   d41c1fdb, when buffers became bytevectors): the port's byte buffer
