@@ -11,6 +11,7 @@
 (compile-file "string.sch")
 (compile-file "normalization.sch")
 (compile-file "bytevector.sch")
+(compile-file "sort.sch")
 (compile-file "io.sch")
 (compile-file "hashtable.sch")
 ;(compile-file "complex.sch")
@@ -37,6 +38,7 @@
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
 (load "bytevector.fasl")                ; Bytevectors
+(load "sort.fasl")                      ; Sorting
 (load "io.fasl")                        ; Input and output
 (load "hashtable.fasl")                 ; Hashtables
 ;(load "complex.fasl")                   ; Complex numbers
@@ -69,6 +71,7 @@
         (run-normalization-tests)))
 
   (run-bytevector-tests)
+  (run-sort-tests)
   (run-io-tests)
   (run-hashtable-tests)
   (run-predicate-tests)
