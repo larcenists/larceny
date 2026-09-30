@@ -118,7 +118,7 @@ extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 #if !defined( GC_INTERNAL )
 extern int  create_memory_manager( gc_param_t *params, int *generations );
 extern word *alloc_from_heap( s_word nbytes );
-extern word allocate_nonmoving( int length, int tag );
+extern word allocate_nonmoving( s_word length, int tag );
 extern int  load_heap_image_from_file( const char *filename );
 extern int  dump_heap_image_to_file( const char *filename );
 extern int  reorganize_and_dump_static_heap( const char *filename );

@@ -273,7 +273,7 @@ void primitive_block_signals( word code )
 void primitive_allocate_nonmoving( word w_length, word w_tag )
 {
   globals[ G_RESULT ] = 
-    allocate_nonmoving( nativeint( w_length ), nativeint( w_tag ) );
+    allocate_nonmoving( nativeint( w_length ), (int)nativeint( w_tag ) );
 }
 
 void primitive_object_to_address( word w_obj )

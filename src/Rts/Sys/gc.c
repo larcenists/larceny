@@ -51,15 +51,15 @@ word *alloc_from_heap( s_word bytes )
    The length is the number of data fields in the structure and does
    not include header or padding.
    */
-word allocate_nonmoving( int length, int tag )
+word allocate_nonmoving( s_word length, int tag )
 {
-  int i, bytes = 0;
+  s_word i, bytes = 0;
   word *obj;
 
   switch( tag ) {
   case PAIR_TAG :
   case VEC_TAG :
-    bytes = sizeof(word)*length + 1; /* header */
+    bytes = sizeof(word)*(length + 1); /* header */
     break;
   case BVEC_TAG :
     bytes = length + sizeof(word);   /* header */
@@ -76,7 +76,7 @@ word allocate_nonmoving( int length, int tag )
     return tagptr( obj, PAIR_TAG );
   case VEC_TAG :
     obj[0] = mkheader( length*sizeof(word), VECTOR_HDR );
-    for ( i=1 ; i < length ; i++ )
+    for ( i=1 ; i <= length ; i++ )
       obj[i] = FALSE_CONST;
     return tagptr( obj, VEC_TAG );
   case BVEC_TAG :
