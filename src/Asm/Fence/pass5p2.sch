@@ -560,22 +560,24 @@
     (list-instruction "reg/op1/setreg" instruction)
     (emit-op1 as (operand1 instruction) (operand2 instruction) (operand3 instruction))))
 
-(define-instruction $reg/op2/setreg     ; op rs1 rs2 rd
+(define-instruction $reg/op2/setreg     ; op rs1 rs2 rd [dead]
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
     (emit-op2 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))
-    (emit-mutator-result as (operand1 instruction) (operand4 instruction))))
+    (if (not (fence.result-dead? instruction 4))
+        (emit-mutator-result as (operand1 instruction) (operand4 instruction)))))
 
 (define-instruction $reg/op2imm/setreg  ; op rs imm rd
   (lambda (instruction as)
     (list-instruction "reg/op2imm/setreg" instruction)
     (emit-op2imm as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))))
 
-(define-instruction $reg/op3            ; op rs1 rs2 rs3
+(define-instruction $reg/op3            ; op rs1 rs2 rs3 [dead]
   (lambda (instruction as)
     (list-instruction "reg/op3" instruction)
     (emit-op3 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))
-    (emit-mutator-result as (operand1 instruction) $r.result)))
+    (if (not (fence.result-dead? instruction 4))
+        (emit-mutator-result as (operand1 instruction) $r.result))))
 
 (define-instruction $reg/branchf        ; rs label
   (lambda (instruction as)
@@ -620,6 +622,15 @@
                     (operand1 instruction)
                     (operand2 instruction)
                     (make-asm-label as (operand3 instruction)))))
+
+(define-instruction $reg/op1/check/length ; op rs label liveregs rd
+  (lambda (instruction as)
+    (list-instruction "reg/op1/check/length" instruction)
+    (emit-op1-check/length as
+                           (operand1 instruction)
+                           (operand2 instruction)
+                           (make-asm-label as (operand3 instruction))
+                           (operand5 instruction))))
 
 (define-instruction $reg/op2/check      ; op rs1 rs2 label liveregs
   (lambda (instruction as)
@@ -799,6 +810,14 @@
 (define (emit-mutator-result as name rd)
   (if (memq name fence.mutators)
       (cant.movi as $imm.unspecified rd)))
+
+; The peephole optimizer appends the symbol dead to an instruction
+; (after its n operands) whose result, in RESULT, the next instruction
+; overwrites; the mutators then need not leave #!unspecified there.
+
+(define (fence.result-dead? instruction n)
+  (let ((rest (list-tail instruction (+ n 1))))
+    (and (pair? rest) (eq? (car rest) 'dead))))
 
     
 ;;; Helpers
@@ -1527,6 +1546,20 @@
             (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
         (else
          (error "Unknown op1-check primitive: " name)))))
+
+; A type check of rs, then its length into rd, from the header the
+; check loaded (see emit-test-tags-branchf).  Without runtime safety
+; checking there is no check, so the header is loaded here.
+
+(define (emit-op1-check/length as name rs label rd)
+  (case name
+    ((vector?)
+     (if (runtime-safety-checking)
+         (begin (emit-op1-check as name rs label)
+                (cant.shri as $r.tmp fence.header-length-shift rd))
+         (emit-op1 as 'vector-length:vec rs rd)))
+    (else
+     (error "Unknown op1-check/length primitive: " name))))
 
 (define (emit-op2 as name rs1 rs2 rd)
 

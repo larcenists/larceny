@@ -16,10 +16,16 @@ DONE.md (with the date and the commit, if any).
   or context-free fast paths: the SATB barrier (only during marking),
   eqv? on flonums, mixed-exactness arithmetic on ARM-32 (no
   cant.fixnum->flonum there yet).
-- More peephole optimization for the AArch64 back end, what is left:
-  loop-invariant loads (vector-length is reloaded every iteration),
-  redundant compares after a range check, and the generational write
-  barrier's call on pointer stores (inline the generation test?).
+- More optimization for the AArch64 back end, what is left:
+  - Loop-invariant code: a loop over a vector still checks its type and
+    loads its length every iteration (Twobit has no code motion).
+  - The timer check is four instructions per iteration (load, test,
+    decrement, store the countdown in globals).
+  - Inlining the generational write barrier's generation test would
+    save little: its fast path costs about 0.45 ns per pointer store
+    (1e8 stores: 66 ms for fixnums, 110 ms for pointers within a
+    generation), and would add about 11 instructions per store site.
+    Recording old-to-young stores costs 2.4 ns per store.
 - Twobit on enormous single procedures: commoning (pass 3) still
   allocates about 30K words per statement, so a procedure of 7000
   statements, just under `anf-threshold`, peaks at 560 MB.

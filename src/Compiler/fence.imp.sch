@@ -49,7 +49,7 @@
 
 ; A non-inclusive upper bound for the instruction encodings.
 
-(define *number-of-mnemonics* 72)
+(define *number-of-mnemonics* 80)
 
 ; Integrable procedures and procedure-specific source code transformations.
 ; Every integrable procedure that takes a varying number of arguments must
@@ -615,6 +615,8 @@
   (make-mnemonic 'reg/check))
 (define $save/stores
   (make-mnemonic 'save/stores))           ; save/store         n,(k1 ...),(n1 ...)
+(define $reg/op1/check/length             ; reg/op1/check/length prim,k,L,liveregs,kr
+  (make-mnemonic 'reg/op1/check/length))
 
 ; misc
 
