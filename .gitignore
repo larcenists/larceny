@@ -83,3 +83,4 @@ lib/SRFI/test/*.log
 /lib/R7RS/*.c
 /src/Compat/Racket/compiled/
 /src/Lib/Common/heap-code-features.sch
+/larceny-c-info.c

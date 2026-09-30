@@ -4,6 +4,13 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-09-29
 
+- AArch64 code layout: slow paths (timer, stack overflow, SATB barrier,
+  generic arithmetic's flonum and millicode paths, safety checks' error
+  calls) at the end of the code vector, branch-on-overflow fixnum
+  operations, inline flonum paths for immediate operands (f219fd5c);
+  switches FENCE_LONG_BRANCHES and FENCE_INLINE_DEFERRED for testing.
+- The stop-and-copy heap no longer loops forever when a large frame
+  cannot be restored from the heap (b35db420).
 - Lighter millicode on AArch64: the generational write barrier in
   assembly without a context switch (pointer stores 2.5x faster,
   1759ca5e); inline flonum and mixed fixnum/flonum paths for generic
