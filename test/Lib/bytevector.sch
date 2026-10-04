@@ -210,6 +210,23 @@
 
      (test "fill!" (bytevector->u8-list b) '(127 127 127 127 127 127 127)))
 
+   ; The fill of bytevector-fill! and make-bytevector is from -128
+   ; through 255.  The procedures below use the inline primitive.
+
+   (let ((fill (lambda (b x) (bytevector-fill! b x) (bytevector->u8-list b)))
+         (make (lambda (n x) (bytevector->u8-list (make-bytevector n x)))))
+     (test "fill! 255" (fill (make-bytevector 2 0) 255) '(255 255))
+     (test "fill! -1" (fill (make-bytevector 2 0) -1) '(255 255))
+     (test "fill! -128" (fill (make-bytevector 2 0) -128) '(128 128))
+     (test "make-bytevector -1" (make 2 -1) '(255 255))
+     (mustfail "fill! 256" fill (make-bytevector 2 0) 256)
+     (mustfail "fill! -129" fill (make-bytevector 2 0) -129)
+     (mustfail "fill! symbol" fill (make-bytevector 2 0) 'a)
+     (mustfail "fill! flonum" fill (make-bytevector 2 0) 1.0)
+     (mustfail "fill! bignum" fill (make-bytevector 2 0) (expt 2 100))
+     (mustfail "make-bytevector 256" make 2 256)
+     (mustfail "make-bytevector symbol" make 2 'a))
+
    (let ((b (u8-list->bytevector '(1 2 3 4 5 6 7 8))))
      (r6rs:bytevector-copy! b 0 b 3 4)
 

@@ -851,7 +851,8 @@ extern cont_t twobit_cont_label;
 
 #define twobit_op2_45( y ) /* bytevector-fill! */ \
    do { word b=SECOND=reg(y); \
-        if (UNSAFE_TRUE(tagof( RESULT ) == BVEC_TAG && is_fixnum( b ))) \
+        if (UNSAFE_TRUE(tagof( RESULT ) == BVEC_TAG && is_fixnum( b ) && \
+                        (word)(b + fixnum(128)) < (word)fixnum(384))) /* -128..255 */ \
           WITH_SAVED_STATE( mc_bytevector_like_fill( globals ) ); \
         else { FAIL( EX_BVFILL ); } \
         integrity_check( "bytevector-fill!" ); \

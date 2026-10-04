@@ -1737,6 +1737,7 @@
      ;; and we fault in the current (July 2012) strings code if we
      ;; look too closely.
      (emit-check-tag as rs1 $tag.bytevector-tag $ex.bvfill)
+     (emit-check-byte-value as rs1 rs2 $ex.bvfill)
      (trap2 $m.bytevector-like-fill))
 
     ;; Strings
@@ -2567,6 +2568,19 @@
          (cant.andni as $r.tmp 3 $r.tmp)
          (cant.bcc   as 'unsigned-greater-or-equal r_idx $r.tmp L))
        (lambda () (emit-exception as exn r_obj r_idx)))))
+
+; r_val must be a fixnum from -128 through 255, as the fill of a
+; bytevector; the millicode stores its low 8 bits.
+
+(define (emit-check-byte-value as r_obj r_val exn)
+  (if (runtime-safety-checking)
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.bcci as 'low2-not-equal r_val 0 L)
+         (cant.addi as r_val (fence.native->fixnum 128) $r.tmp)
+         (cant.bcci as 'unsigned-greater-or-equal $r.tmp (fence.native->fixnum 384) L))
+       (lambda () (emit-exception as exn r_obj r_val)))))
 
 (define (emit-check-character as r exn)
   (if (runtime-safety-checking)
