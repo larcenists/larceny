@@ -1083,9 +1083,6 @@
          '(("a\x85;b\x2028;c\r" "d\re")
            ("a" "b" "c" "d" "e")))
 
-   ; (The decoder's replacements are not checked here: it consumes
-   ; the byte after an invalid sequence, even a linefeed.)
-
    (test "get-line with invalid UTF-8"
          (let ((bytes (bytevector #x61 #xce #x62 #xff #x63 #xe4 #xb8 #x0a
                                   #x64 #xed #xa0 #x0a #x65 #x0a)))
@@ -1108,6 +1105,57 @@
                             (= (port-position p) (port-position q))
                             (loop (cons a lines)))))))))
          #t)
+
+   ; An invalid UTF-8 sequence is replaced by one #\xfffd for its
+   ; maximal subpart, not consuming the byte that shows it is invalid;
+   ; the same when it is split between reads, or ends the input.
+
+   (let ()
+     (define bytes
+       (bytevector #x61 #xce #x62 #xed #xa0 #x80 #xe2 #x82 #x0a
+                   #xf0 #x9f #x98 #x80 #xf4 #x90 #x63 #xc0 #xe2 #x82))
+     (define chars
+       (string->list
+        "a\xfffd;b\xfffd;\xfffd;\xfffd;\xfffd;\n\x1f600;\xfffd;\xfffd;c\xfffd;\xfffd;"))
+     (define (port chunk mode)
+       (let ((pos 0) (n (bytevector-length bytes)))
+         (transcoded-port
+          (make-custom-binary-input-port
+           "chunked"
+           (lambda (bv start count)
+             (let ((k (min count chunk (- n pos))))
+               (r6rs:bytevector-copy! bytes pos bv start k)
+               (set! pos (+ pos k))
+               k))
+           #f #f #f)
+          (make-transcoder (utf-8-codec) 'none mode))))
+     (define (read-chars p)
+       (let loop ((l '()))
+         (let* ((c1 (lookahead-char p))
+                (c (get-char p)))
+           (cond ((not (eqv? c1 c)) (list 'lookahead c1 c))
+                 ((eof-object? c) (reverse l))
+                 (else (loop (cons c l)))))))
+     (for-each
+      (lambda (chunk)
+        (test (string-append "UTF-8 decoding errors, replace, read by "
+                             (number->string chunk))
+              (read-chars (port chunk 'replace))
+              chars)
+        (test (string-append "UTF-8 decoding errors, ignore, read by "
+                             (number->string chunk))
+              (read-chars (port chunk 'ignore))
+              (filter (lambda (c) (not (char=? c #\xfffd))) chars)))
+      '(1 2 3 1024))
+     (test "UTF-8 decoding errors, raise"
+           (let ((p (port 1 'raise)))
+             (let loop ((l '()))
+               (let ((c (guard (e ((i/o-decoding-error? e) 'error))
+                          (get-char p))))
+                 (if (eof-object? c)
+                     (reverse l)
+                     (loop (cons c l))))))
+           (map (lambda (c) (if (char=? c #\xfffd) 'error c)) chars)))
 
    (test "get-line with Latin-1"
          (get-line

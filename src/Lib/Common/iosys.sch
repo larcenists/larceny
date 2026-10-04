@@ -2358,10 +2358,19 @@
 
 (define (io/get-char-utf-8 p lookahead? unit buf ptr lim)
 
-  (define (decoding-error units)
-    (for-each (lambda (x) (io/consume-byte! p)) units)
+  ; Consumes the first k units, the maximal subpart of a character
+  ; (as in Unicode 6.0 chapter 3, U+FFFD substitution), but not the
+  ; unit that shows the sequence is invalid, which may begin the next
+  ; character; units, for the error message, includes that one.
+  ; A lookahead in replace mode consumes nothing.
+
+  (define (decoding-error k units)
     (let* ((transcoder (vector-like-ref p port.transcoder))
            (errmode (fxlogand transcoder-mask:errmode transcoder)))
+      (if (not (and lookahead? (fx= errmode errmode:replace)))
+          (do ((k k (fx- k 1)))
+              ((fx= k 0))
+            (io/consume-byte! p)))
       (cond ((fx= errmode errmode:replace)
              (integer->char #xfffd))
             ((fx= errmode errmode:ignore)
@@ -2376,7 +2385,32 @@
                                      units))))))
 
   ; Forces at least one more byte into the active buffer,
-  ; and retries.
+  ; and retries.  The active buffer ends with a valid prefix of a
+  ; character, so its units are pending; if end of file comes before
+  ; the rest of the character, they are a decoding error.  The eof
+  ; state discards the buffers, so a lookahead that replaces them with
+  ; #\xfffd puts them back for the next get-char to find again.
+
+  (define (fill-buffer-and-retry! pending)
+    (io/fill-buffer! p)
+    (if (eq? 'eof (vector-like-ref p port.state))
+        (let ((errmode (fxlogand transcoder-mask:errmode
+                                 (vector-like-ref p port.transcoder)))
+              (k (bytevector-length pending))
+              (mainbuf (vector-like-ref p port.mainbuf)))
+          (if (and lookahead? (fx= errmode errmode:replace))
+              (begin (r6rs:bytevector-copy! pending 0 mainbuf 0 k)
+                     (bytevector-set! mainbuf k port.sentinel)
+                     (vector-like-set! p port.mainptr 0)
+                     (vector-like-set! p port.mainlim k)
+                     (vector-like-set! p port.state 'textual)))
+          (decoding-error 0 (bytevector->list pending)))
+        (io/get-char p lookahead?)))
+
+  (define (pending-units bv k)
+    (let ((pending (make-bytevector k)))
+      (r6rs:bytevector-copy! bv 0 pending 0 k)
+      pending))
 
   (define (read-more-bytes)
     (let* ((state (vector-like-ref p port.state))
@@ -2419,13 +2453,18 @@
         (vector-like-set! p port.mainlim 0)
         (vector-like-set! p port.auxptr 0)
         (vector-like-set! p port.auxlim m)
-        (io/fill-buffer! p)
-        (io/get-char p lookahead?))
+        (fill-buffer-and-retry! (pending-units auxbuf m)))
 
        ((auxstart)
         (assert (eq? buf auxbuf))
-        (assert (fx= 0 auxptr))
         (assert (fx< n 4))
+
+        ; A decoding error may have consumed the start of auxbuf.
+
+        (if (fx< 0 auxptr)
+            (begin (r6rs:bytevector-copy! auxbuf auxptr auxbuf 0 n)
+                   (vector-like-set! p port.auxptr 0)
+                   (vector-like-set! p port.auxlim n)))
         (if (fx>= m 2)
             (begin
 
@@ -2433,15 +2472,13 @@
              ; and move mainbuf down by 1.
              ; FIXME:  This is grossly inefficient, but works for now.
 
-             (bytevector-set! auxbuf auxlim (bytevector-ref mainbuf 1))
+             (bytevector-set! auxbuf n (bytevector-ref mainbuf 1))
              (r6rs:bytevector-copy! mainbuf 2 mainbuf 1 (- m 2))
              (vector-like-set! p port.mainlim (- mainlim 1))
-             (vector-like-set! p port.auxlim (+ auxlim 1))
+             (vector-like-set! p port.auxlim (+ n 1))
              (io/get-char p lookahead?))
 
-            (begin
-             (io/fill-buffer! p)
-             (io/get-char p lookahead?))))
+            (fill-buffer-and-retry! (pending-units auxbuf n))))
 
        (else
         ; state is closed, error, eof, or binary
@@ -2466,74 +2503,49 @@
      (else
       (integer->char sv))))
 
-  (define (decode2) ; decodes 2 bytes
-    (let ((unit2 (bytevector-ref buf (+ ptr 1))))
-      (if (<= #x80 unit2 #xbf)
-          (finish 2
-                  (fxlogior
-                   (fxlsh (fxlogand #b00011111 unit) 6)
-                   (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1)))))
-          (decoding-error (list unit unit2)))))
+  ; Is u a valid second unit after the first unit?
 
-  (define (decode3) ; decodes 3 bytes
-    (let ((unit2 (bytevector-ref buf (+ ptr 1)))
-          (unit3 (bytevector-ref buf (+ ptr 2))))
-      (cond ((or (and (fx= unit #xe0)
-                      (fx< unit2 #xa0))
-                 (not (<= #x80 unit2 #xbf)))
-             (decoding-error (list unit unit2)))
-            ((not (<= #x80 unit3 #xbf))
-             (decoding-error (list unit unit2 unit3)))
-            (else
-             (finish 3
-                     (fxlogior
-                      (fxlsh (fxlogand #b00001111 unit) 12)
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f unit2) 6)
-                       (fxlogand #x3f unit3))))))))
+  (define (valid-second? u)
+    (cond ((fx= unit #xe0) (<= #xa0 u #xbf))
+          ((fx= unit #xed) (<= #x80 u #x9f))          ; not a surrogate
+          ((fx= unit #xf0) (<= #x90 u #xbf))
+          ((fx= unit #xf4) (<= #x80 u #x8f))
+          (else (<= #x80 u #xbf))))
 
-  (define (decode4) ; decodes 4 bytes
-    (let ((unit2 (bytevector-ref buf (+ ptr 1)))
-          (unit3 (bytevector-ref buf (+ ptr 2)))
-          (unit4 (bytevector-ref buf (+ ptr 3))))
-      (cond ((or (and (fx= unit #xf0)
-                      (fx< unit2 #x90))
-                 (and (fx= unit #xf4)
-                      (fx> unit2 #x8f))
-                 (not (<= #x80 unit2 #xbf)))
-             (decoding-error (list unit unit2)))
-            ((not (<= #x80 unit3 #xbf))
-             (decoding-error (list unit unit2 unit3)))
-            ((not (<= #x80 unit4 #xbf))
-             (decoding-error (list unit unit2 unit3 unit4)))
+  ; Decodes a character of k units, checking each unit as it becomes
+  ; available, so that more bytes are read only after a valid prefix.
+
+  (define (decode k mask)
+    (let loop ((i 1)
+               (sv (fxlogand mask unit)))
+      (cond ((fx= i k)
+             (finish k sv))
+            ((fx= i n)
+             (read-more-bytes))
             (else
-             (finish 4
-                     (fxlogior
-                      (fxlogior
-                       (fxlsh (fxlogand #b00000111 unit) 18)
-                       (fxlsh (fxlogand #x3f unit2) 12))
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f unit3) 6)
-                       (fxlogand #x3f unit4))))))))
+             (let ((u (bytevector-ref buf (+ ptr i))))
+               (if (if (fx= i 1) (valid-second? u) (<= #x80 u #xbf))
+                   (loop (fx+ i 1)
+                         (fxlogior (fxlsh sv 6) (fxlogand #x3f u)))
+                   (decoding-error
+                    i
+                    (do ((j i (fx- j 1))
+                         (units '() (cons (bytevector-ref buf (+ ptr j))
+                                          units)))
+                        ((fx< j 0) units)))))))))
 
   (define n (- lim ptr))
 
-  (cond ((< n 2)
-         (read-more-bytes))
-        ((<= unit #xc1)
-         (decoding-error (list unit)))
+  (cond ((<= unit #xc1)
+         (decoding-error 1 (list unit)))
         ((<= unit #xdf)
-         (decode2))
-        ((< n 3)
-         (read-more-bytes))
+         (decode 2 #b00011111))
         ((<= unit #xef)
-         (decode3))
-        ((< n 4)
-         (read-more-bytes))
+         (decode 3 #b00001111))
         ((<= unit #xf4)
-         (decode4))
+         (decode 4 #b00000111))
         (else
-         (decoding-error (list unit)))))
+         (decoding-error 1 (list unit)))))
 
 ; The special case of get-char and lookahead-char on a textual port
 ; that's in the auxstart state, where it reads from auxbuf instead
