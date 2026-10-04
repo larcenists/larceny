@@ -1737,7 +1737,10 @@
                   (bytevector-length buf))         ; FIXME: should be trusted
                  (.<:fix:fix 10 sv)                ; 10 = #\newline
                  (.<:fix:fix sv 128))
-            (begin (bytevector-set! buf lim sv)    ; 3 = port.mainlim
+            ; The tests above make bytevector-set!'s checks needless;
+            ; for a constant c of 128 or more they are false in this
+            ; dead code, and Twobit would warn about them.
+            (begin (.bytevector-like-set!:trusted buf lim sv)
                    (.vector-set!:trusted:nwb p 3 (.+:idx:idx lim 1))
                    (unspecified))
             (io/put-char p c)))))
