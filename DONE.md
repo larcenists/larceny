@@ -2,6 +2,27 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-04
+
+- UTF-8 decoding in get-char (c1b835cd): a decoding error consumes
+  only the maximal subpart of the invalid sequence, not the byte that
+  shows it is invalid (#xce #x62 lost the b); a surrogate (#xed #xa0
+  #x80) is a decoding error, not a failure of integer->char;
+  lookahead-char in replace mode no longer consumes the invalid bytes;
+  a decoding error in auxbuf no longer makes the next read fail the
+  assertion (fx= 0 auxptr); and a character left incomplete by end of
+  file is a decoding error instead of vanishing.  Tests in
+  `test/Lib/io.sch`.
+- bytevector-fill! (and make-bytevector with a fill) checks that the
+  fill is a fixnum from -128 through 255, in line on AArch64 and in
+  Petit (711322da): 256 filled with 0 and a symbol with garbage.
+  Tests in `test/Lib/bytevector.sch` (and on Petit: test/Lib, R7RS
+  and R6RS suites).
+- The `.check! #f 71` warnings when loading `test/Lib/io.sch` came
+  from put-char's fast path, whose bytevector-set! checks fail for a
+  constant character of 128 or more in dead code; it stores with the
+  trusted primitive now (be71e240).
+
 ## 2026-09-30
 
 - get-line reads a line in the buffer at once when it is UTF-8, not

@@ -35,15 +35,19 @@ DONE.md (with the date and the commit, if any).
   string, looking up each combining class twice per pair per pass.
   Write into a string instead, flatten decompositions once, and sort
   only runs of non-starters.
-- UTF-8 decoding in get-char (io/get-char-utf-8): an invalid sequence
-  consumes the byte after it, even a linefeed (#xce #x62 loses the b);
-  #xed #xa0 #x80 (a surrogate) makes integer->char fail instead of
-  being a decoding error; and some invalid sequences at a buffer
-  boundary fail the assertion (fx= 0 auxptr) in read-more-bytes
-  (found by random tests of get-line against get-char).
-- Loading test/Lib/io.sch prints `(.check! #f 71 .buf .lim 65537)` and
-  `(... 955)`: something in the compiler reports an index check it
-  could prove false?  (Also in older logs.)
+- Compiling src/Lib/Common/record.sch prints eight warnings
+  `Assertion is false: (.check! #f 198 .obj .rtd)`: a record check
+  that Twobit proves false, probably in dead code, as put-char's were
+  (be71e240).
+- In R5RS mode, with-exception-handler does not catch errors that
+  primitives signal (`(car 1)`, a failed inline check): the system
+  exception handler reports them and enters the debugger, though it
+  does catch `(error ...)`.  The R6RS and R7RS modes raise conditions.
+- bytevector-u8-set! (and bytevector-set!) accept -128 through 255:
+  the compiler macros in common.imp.sch check (>= x -128).  R6RS
+  requires an octet for bytevector-u8-set!.  Native stores (b 0 -1) as
+  255; Petit's inline bytevector-set! rejects negative values, and the
+  error message is "bytevector-like-set!: confused by ...".
 - String ports still encode characters into the 1024-byte UTF-8 byte
   buffer that every textual port has (so that the in-line get-char and
   put-char work on them), and decode it into their string.  A port
@@ -92,10 +96,6 @@ DONE.md (with the date and the commit, if any).
     (1e8 stores: 66 ms for fixnums, 110 ms for pointers within a
     generation), and would add about 11 instructions per store site.
     Recording old-to-young stores costs 2.4 ns per store.
-- The inline bytevector-fill! (pass5p2.sch) checks only the
-  bytevector's tag, not the fill value: the millicode keeps its low 8
-  bits, so (bytevector-fill! b 256) fills with 0 and a non-fixnum fills
-  with garbage, where Petit raises an error.
 - Twobit on enormous single procedures: commoning (pass 3) still
   allocates about 30K words per statement, so a procedure of 7000
   statements, just under `anf-threshold`, peaks at 560 MB.
