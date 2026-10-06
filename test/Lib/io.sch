@@ -1052,6 +1052,75 @@
            (list a b c (eof-object? (get-line p))))
          '("line one" "l\x3bb;ne two" "last" #t))
 
+   ; A string port's buffer is the string itself.
+
+   (test "string input port line counts"
+         (let ((p (open-input-string "ab\ncd\n\nef\ng\x3bb;\nh")))
+           (define (counts) (list (port-lines-read p) (port-line-start p)))
+           (let* ((a (begin (get-char p) (get-char p) (counts)))
+                  (b (begin (get-char p) (counts)))
+                  (c (begin (get-line p) (counts)))
+                  (d (begin (get-string-n p 3) (counts)))
+                  (e (begin (lookahead-char p) (read p) (counts)))
+                  (f (list (get-string-all p) (counts))))
+             (list a b c d e f)))
+         '((0 0) (1 3) (2 6) (3 7) (4 10) ("\nh" (5 13))))
+
+   (test "get-string-n, get-string-n!, get-string-all on string ports"
+         (let ((p (open-input-string "abc\x3bb;e"))
+               (s (make-string 4 #\-)))
+           (list (get-string-n p 0)
+                 (get-string-n p 2)
+                 (get-string-n! p s 1 2)
+                 s
+                 (get-string-all p)
+                 (get-string-n p 0)
+                 (eof-object? (get-string-n p 1))
+                 (eof-object? (get-string-n! p s 0 1))
+                 (eof-object? (get-string-all p))
+                 (eof-object? (get-line p))
+                 (eof-object? (get-char p))))
+         '("" "ab" 2 "-c\x3bb;-" "e" "" #t #t #t #t #t))
+
+   (test "string port positions out of range"
+         (let ((p (open-input-string "abc"))
+               (q (open-output-string)))
+           (define (invalid? thunk)
+             (call-with-current-continuation
+              (lambda (k)
+                (with-exception-handler
+                 (lambda (e) (k (i/o-invalid-position-error? e)))
+                 (lambda () (thunk) #f)))))
+           (write-string "xyz" q)
+           (set-port-position! q 1)
+           (list (invalid? (lambda () (set-port-position! p 4)))
+                 (begin (set-port-position! p 3) (eof-object? (read-char p)))
+                 (invalid? (lambda () (set-port-position! q 4)))
+                 (begin (set-port-position! q 3) (write-char #\! q)
+                        (get-output-string q))))
+         '(#t #t #t "xyz!"))
+
+   (test "large writes to a string port"
+         (let ((p (open-output-string))
+               (s (make-test 3000)))
+           (write-string s p)
+           (put-string p s 1000 5)
+           (write-char #\x3bb p)
+           (string=? (get-output-string p)
+                     (string-append s (substring s 1000 1005) "\x3bb;")))
+         #t)
+
+   (test "a closed string port"
+         (let ((p (open-output-string)))
+           (write-string "abc" p)
+           (close-port p)
+           (call-with-current-continuation
+            (lambda (k)
+              (with-exception-handler
+               (lambda (e) (k 'error))
+               (lambda () (get-output-string p))))))
+         'error)
+
    (test "read from a string port"
          (let ((p (open-input-string "(a \"\x3bb;\" 1.5 #\\x4e2d) 2")))
            (let* ((a (read p)) (b (read p)))

@@ -563,21 +563,23 @@
            (io/textual-port? p)
            (fixnum? count)
            (<= 0 count))
-      (let ((out (open-output-string)))
-        (define (loop count)
-          (cond ((<= count 0)
-                 (get-output-string out))
-                (else
-                 (let ((c (get-char p)))
-                   (cond ((eof-object? c)
-                          (let ((s (get-output-string out)))
-                            (if (= 0 (string-length s))
-                                c
-                                s)))
-                         (else
-                          (put-char out c)
-                          (loop (- count 1))))))))
-        (loop count))
+      (if (io/string-port? p)
+          (io/string-get-string p count)
+          (let ((out (open-output-string)))
+            (define (loop count)
+              (cond ((<= count 0)
+                     (get-output-string out))
+                    (else
+                     (let ((c (get-char p)))
+                       (cond ((eof-object? c)
+                              (let ((s (get-output-string out)))
+                                (if (= 0 (string-length s))
+                                    c
+                                    s)))
+                             (else
+                              (put-char out c)
+                              (loop (- count 1))))))))
+            (loop count)))
       (portio/illegal-arguments 'get-string-n p count)))
 
 (define (get-string-n! p s start count)
@@ -589,33 +591,37 @@
            (fixnum? count)
            (<= 0 count)
            (<= (fx+ start count) (string-length s)))
-      (let ((n (+ start count)))
-        (define (loop i)
-          (cond ((= i n)
-                 (- i start))
-                (else
-                 (let ((c (get-char p)))
-                   (cond ((eof-object? c)
-                          (if (= i start)
-                              c
-                              (- i start)))
-                         (else
-                          (string-set! s i c)
-                          (loop (+ i 1))))))))
-        (loop start))
+      (if (io/string-port? p)
+          (io/string-get-string! p s start count)
+          (let ((n (+ start count)))
+            (define (loop i)
+              (cond ((= i n)
+                     (- i start))
+                    (else
+                     (let ((c (get-char p)))
+                       (cond ((eof-object? c)
+                              (if (= i start)
+                                  c
+                                  (- i start)))
+                             (else
+                              (string-set! s i c)
+                              (loop (+ i 1))))))))
+            (loop start)))
       (portio/illegal-arguments 'get-string-n! p s start count)))
 
 (define (get-string-all p)
   (if (and (io/input-port? p)
            (io/textual-port? p))
-      (let ((s (call-with-string-output-port
-                 (lambda (out)
-                   (do ((char (get-char p) (get-char p)))
-                       ((eof-object? char))
-                     (put-char out char))))))
-        (if (fx= 0 (string-length s))
-            (eof-object)
-            s))
+      (if (io/string-port? p)
+          (io/string-get-string p #f)
+          (let ((s (call-with-string-output-port
+                     (lambda (out)
+                       (do ((char (get-char p) (get-char p)))
+                           ((eof-object? char))
+                         (put-char out char))))))
+            (if (fx= 0 (string-length s))
+                (eof-object)
+                s)))
       (portio/illegal-arguments 'get-string-all p)))
 
 (define (portio/get-line p)

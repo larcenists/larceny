@@ -1682,7 +1682,9 @@
               (else
                (io/get-u8 p #f))))))
 
-   ; The fast path for lookahead-char.
+   ; The fast paths for lookahead-char and get-char.  A string port
+   ; (type 11) has a string buffer and no sentinel; a #\linefeed is
+   ; read out of line, where lines are counted.
    ; FIXME:  This can be bummed further.
 
 `  ((_ larceny lookahead-char (lookahead-char p0))
@@ -1697,10 +1699,10 @@
           (if (and (.<:fix:fix 13 unit)            ; 13 = #\return
                    (.<:fix:fix unit 128))
               (.integer->char:trusted unit)
-              (io/get-char p #t))))))
-
-   ; The fast path for get-char.
-   ; FIXME:  This can be bummed further.
+              (if (and (eq? type 11)               ; 11 = input, string
+                       (.<:fix:fix ptr (.vector-ref:trusted p 3)))
+                  (.string-ref:trusted buf ptr)    ; 3 = port.mainlim
+                  (io/get-char p #t)))))))
 
 `  ((_ larceny get-char (get-char p0))
     (let ((p p0))
@@ -1718,7 +1720,14 @@
               (begin (.vector-set!:trusted:nwb p 2 (.+:idx:idx ptr 1))
                      (.integer->char:trusted unit))
 
-              (io/get-char p #f))))))
+              (let ((c (if (and (eq? type 11)      ; 11 = input, string
+                                (.<:fix:fix ptr (.vector-ref:trusted p 3)))
+                           (.string-ref:trusted buf ptr)
+                           #\linefeed)))
+                (if (eq? c #\linefeed)
+                    (io/get-char p #f)
+                    (begin (.vector-set!:trusted:nwb p 2 (.+:idx:idx ptr 1))
+                           c))))))))
 
    ; The fast path for put-char.
    ; FIXME:  This can be bummed further.
@@ -1731,19 +1740,26 @@
             (buf  (.vector-ref:trusted p 1))       ; 1 = port.mainbuf
             (lim  (.vector-ref:trusted p 3))       ; 3 = port.mainlim
             (sv   (char->integer c)))
-        (if (and (eq? type 5)                      ; 5 = output, textual
-                 (.<:fix:fix
-                  lim
-                  (bytevector-length buf))         ; FIXME: should be trusted
-                 (.<:fix:fix 10 sv)                ; 10 = #\newline
-                 (.<:fix:fix sv 128))
-            ; The tests above make bytevector-set!'s checks needless;
-            ; for a constant c of 128 or more they are false in this
-            ; dead code, and Twobit would warn about them.
-            (begin (.bytevector-like-set!:trusted buf lim sv)
-                   (.vector-set!:trusted:nwb p 3 (.+:idx:idx lim 1))
-                   (unspecified))
-            (io/put-char p c)))))
+        (cond ((and (eq? type 5)                   ; 5 = output, textual
+                    (.<:fix:fix
+                     lim
+                     (bytevector-length buf))      ; FIXME: should be trusted
+                    (.<:fix:fix 10 sv)             ; 10 = #\newline
+                    (.<:fix:fix sv 128))
+               ; The tests above make bytevector-set!'s checks needless;
+               ; for a constant c of 128 or more they are false in this
+               ; dead code, and Twobit would warn about them.
+               (.bytevector-like-set!:trusted buf lim sv)
+               (.vector-set!:trusted:nwb p 3 (.+:idx:idx lim 1))
+               (unspecified))
+              ((and (eq? type 13)                  ; 13 = output, string
+                    (.<:fix:fix lim (.string-length:str buf))
+                    (not (eq? c #\newline)))       ; eol-style
+               (.string-set!:trusted buf lim c)
+               (.vector-set!:trusted:nwb p 3 (.+:idx:idx lim 1))
+               (unspecified))
+              (else
+               (io/put-char p c))))))
 
    ; The fast path for peek-char and read-char.
 
