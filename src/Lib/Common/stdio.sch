@@ -185,7 +185,7 @@
              (finish c))
             ((char=? c #\return)
              (let ((c2 (peek-char p)))
-               (if (char=? c2 #\newline)
+               (if (eqv? c2 #\newline)            ; c2 may be the eof object
                    (get-char p)))
              (finish c))
             (else

@@ -792,6 +792,21 @@
       '#vu8(97 226 128 168 98 13 99 194 133 100 226 128 168
             101 13 226 128 168 102 13 194 133 103))
 
+   ; read-line ends a line at "\n", "\r\n" or "\r", even at the end.
+
+   (test "read-line"
+         (map (lambda (s)
+                (let ((p (transcoded-port
+                          (open-bytevector-input-port (string->utf8 s))
+                          (make-transcoder (utf-8-codec) 'none 'replace))))
+                  (let loop ((l '()))
+                    (let ((x (read-line p)))
+                      (if (eof-object? x)
+                          (reverse l)
+                          (loop (cons x l)))))))
+              '("a\nb\r\nc\rd" "a\r" "\r\r\n"))
+         '(("a" "b" "c" "d") ("a") ("" "")))
+
 )))
 
 (define (io-input/output-tests)

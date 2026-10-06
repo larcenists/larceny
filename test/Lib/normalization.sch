@@ -37,7 +37,7 @@
 
 (define normalization-tests-filename "NormalizationTest.txt")
 
-(define (read-line port)
+(define (normalization-read-line port)
   (let loop ((l '()))
     (let ((c (read-char port)))
       (if (eof-object? c)
@@ -186,7 +186,7 @@
   (call-with-input-file filename
     (lambda (port)
       (let loop ()
-	(let ((thing (read-line port)))
+	(let ((thing (normalization-read-line port)))
           (set! current-line thing)
 	  (if (string? thing)
 	      (begin
