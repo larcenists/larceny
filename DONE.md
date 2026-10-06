@@ -2,6 +2,20 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-06
+
+- String ports read and write their string directly (2b50abc1): the
+  port's buffer is the string, with its own port types (11 and 13)
+  and in-line paths, instead of a UTF-8 byte buffer encoded into or
+  decoded from.  Per 10 million characters: read-char 32 ms -> 20
+  (Ascii), 178 -> 21 (non-Ascii); write-char 59 -> 30, 135 -> 32;
+  write-string 104 -> 18; get-string-all 90 -> 12.  read0 4.23 s ->
+  3.72; reader-bound benchmarks on file ports 1-2% slower (read1,
+  slatex).  Tests in `test/Lib/io.sch`.
+- read-line at the end of input after a #\return raised an error
+  (be8ba400); `test/Lib/normalization.sch` no longer replaces the
+  system's read-line with its own.
+
 ## 2026-10-04
 
 - UTF-8 decoding in get-char (c1b835cd): a decoding error consumes

@@ -48,11 +48,6 @@ DONE.md (with the date and the commit, if any).
   requires an octet for bytevector-u8-set!.  Native stores (b 0 -1) as
   255; Petit's inline bytevector-set! rejects negative values, and the
   error message is "bytevector-like-set!: confused by ...".
-- String ports still encode characters into the 1024-byte UTF-8 byte
-  buffer that every textual port has (so that the in-line get-char and
-  put-char work on them), and decode it into their string.  A port
-  type whose buffer is a string would need those in-line paths to
-  check the buffer's kind.
 - Return prediction.  Calls use BL/BLR and returns RET, so the CPU's
   return-address stack predicts returns; it holds only a few dozen
   entries, and deeper recursion mispredicts most returns: 1e8 calls
