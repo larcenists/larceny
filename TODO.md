@@ -98,7 +98,31 @@ DONE.md (with the date and the commit, if any).
   be tested on this machine.
 - More optimization for the AArch64 back end, what is left:
   - Loop-invariant code: a loop over a vector still checks its type and
-    loads its length every iteration (Twobit has no code motion).
+    loads its length every iteration (Twobit has no code motion: loops
+    are lambda-lifted self-tail-recursive procedures, and pass 3's
+    commoning stops at calls).  Measured 2026-10-07, not done: with all
+    run-time checks off (runtime-safety-checking #f, the most any check
+    elimination could give) the R6RS benchmarks are 3.3% faster
+    (geometric mean of 55); puzzle 23%, pnpoly 21%, quicksort 14%,
+    scheme and triangl 13%, graphs/simplex/conform/nucleic 7-9%, most
+    under 5%.  By hand: puzzle's loops (fit, place, puzzle-remove), with
+    the global loads, the inner (vector-ref *p* i) and the vectors' type
+    checks hoisted and the bounds checks kept, run as fast as unsafe
+    (21%).  pnpoly gains nothing from removing all its vector checks:
+    its gain is in the flonum checks, partly on loop-invariant
+    parameters (x, y; liftable) and partly on elements loaded from the
+    vectors (not liftable: a vector's contents have no type).  A narrow
+    pass would do: self-tail-recursive loops that make no calls and no
+    assignments to the globals involved, hoisting invariant loads and
+    the type checks of invariant values, with one test at entry and a
+    checked copy of the loop otherwise (versioning), bounds checks kept.
+    A further step on the same machinery: a pre-scan at entry that finds
+    all of a vector's elements to be (say) flonums, so the fast copy can
+    skip the element checks; it costs a pass over the vector (bad for
+    loops that exit early, unless the index range is known), and an
+    interrupt in the fast copy must continue in the checked copy (a
+    handler could store into the vector).  Payoff limited to a few
+    numeric benchmarks (pnpoly, simplex, nucleic, fft).
   - The timer check is four instructions per iteration (load, test,
     decrement, store the countdown in globals).
   - Inlining the generational write barrier's generation test would
