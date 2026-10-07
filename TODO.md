@@ -30,21 +30,14 @@ DONE.md (with the date and the commit, if any).
 - compose-2 (unicode4.sch) finds a composition by two binary searches
   (the second character, then the first); a table like those for
   combining classes and decompositions would do it in a few loads.
-- case-lambda (Compiler/usual.sch) is a macro over (lambda args ...):
-  every call conses its arguments, and a clause of more than three
-  parameters is called through apply (a 5-argument clause costs about
-  31 ns a call, against 7 ns for a fixed-arity procedure).  Twobit
-  could compile it to one entry that branches on the argument count
-  (callers pass it already; entries check it with args= and args>=),
-  which needs a new MAL instruction in the back ends.  Short of that,
-  the macro could destructure as many arguments as its largest fixed
-  clause and never use apply.
-- string-copy! (and bytevector-copy!, string-copy, vector-copy!) take
-  their optional arguments as a rest list: a 2-character copy costs
-  12.3 ns, against 6.8 for the same checks with fixed arity, and
-  callers with short copies loop instead (decompose-copy! in
-  unicode4.sch).  A fast case-lambda would fix it; otherwise, compiler
-  macros for the usual arities.
+- Other procedures still take optional arguments as rest lists, now
+  that case-lambda is fast (2a28596a): vector-fill!, string-fill!,
+  vector->list, string->list, list->string and so on.  For copies of a
+  few characters a loop is still about twice as fast as string-copy!
+  (decompose-copy! in unicode4.sch).
+- In code that Petit interprets, case-lambda procedures are named
+  case-lambda: .make-case-lambda finds the name in a compiled clause's
+  constant vector, which interpreted procedures do not have.
 - Compiling src/Lib/Common/record.sch prints eight warnings
   `Assertion is false: (.check! #f 198 .obj .rtd)`: a record check
   that Twobit proves false, probably in dead code, as put-char's were
@@ -150,6 +143,10 @@ DONE.md (with the date and the commit, if any).
     has not been seen to fire: no such heap can be built now.
   - `.lap` markers are written and compared by the build, but nothing
     loads `.lap` files outside it.
+- A heap build that fails leaves a 29-byte `larceny.heap`, so the
+  tree's `./larceny` cannot run, not even to host the next build: build
+  with another Larceny, defining in it (if need be) whatever the
+  compiler's new output calls that the host lacks.
 - `setup`'s `'clean` needs git to find the build products; it could fall
   back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).

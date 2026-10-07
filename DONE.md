@@ -4,6 +4,15 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-06
 
+- case-lambda dispatches on the argument count without consing
+  (2a28596a): a new MAL instruction, arity-dispatch (Fence and
+  Petit), is the code of every case-lambda procedure, whose slots hold
+  the clauses and their arities.  A call takes 1.6-2.3 ns instead of
+  8-27 ns (40 with a rest clause, now 7.5); a fixed-arity procedure
+  1.9.  The copy procedures with optional arguments use it (788d303c):
+  string-copy! of 2 characters 12.0 ns -> 6.6.  Procedures are named
+  after their definitions again (3af005c4).
+- R7RS bytevector-copy! ignored an explicit end (7024985d).
 - Normalization: decompose writes into a string, from a cache of
   flattened decompositions, and sorts only runs of combining marks
   that are out of order (d20ae85b).  NFD of short strings 1.2-2x as
