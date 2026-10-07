@@ -60,9 +60,23 @@ DONE.md (with the date and the commit, if any).
   with B (no push) and that returns with BR, and an external entry
   that reaches it with B through one extra frame and returns with RET.
   Expect fib (shallow recursion) to lose about 10% even so.
-- vector-copy and the other vector copies move an element per
-  iteration; into a freshly allocated vector a memmove would need no
-  barrier (check SATB marking under -rrof first).
+- Bulk copies, what is left (see f97a0cf2 and the commits after it):
+  SRFI 13's `%string-copy!` (lib/SRFI/srfi-13.sch, srfi/%3a13.sls) and
+  SRFI 132's `vector-portion-copy!` still copy an element at a time,
+  as do the rarely used procedure-copy, io/clone-port, the record and
+  enum constructors' vector copies, and lib/Base's string-insert! and
+  pp.sch.  list->vector walks the list twice (length, then the fill
+  syscall); 1000 elements take 2.2 us.  A stack underflow copies the
+  frame a word at a time (fence_stack_underflow, stk_restore_frame),
+  but frames are short.
+- Under -rrof, a syscall whose argument is a freshly allocated large
+  object (a 100000-element vector) makes the following collections
+  promote it into a region, and region collections follow: 300 copies
+  with vector-copy take 1 ms of GC per copy instead of none.  Any
+  syscall does it (the bytevector move with a count of 0 too), an
+  ordinary procedure call does not.  Probably the saved registers in
+  globals[] (SAVE_SCHEME_CONTEXT in the millicode) keep the object
+  reachable until they are overwritten.
 - Under `-rrof`, a code collection that does not follow a completed
   mark cycle (with two regions, or when no marking is in progress)
   still keeps code referenced only from garbage until the garbage's
@@ -110,6 +124,10 @@ DONE.md (with the date and the commit, if any).
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take
   about 100 ms.  Card marking for large objects?
+- lib/SRFI/test/srfi-133-test.sps7 exits with status 1 without saying
+  why: test-exit does not report failures.  The one failure is
+  vector-cumulate called as (vector-cumulate + vec 0), an argument
+  order from a draft of SRFI 133 (the final one is (f knil vec)).
 - `(require 'srfi-19)` in R5RS mode fails: `(cond-expand (srfi-6))`
   (lib/SRFI/srfi-19.sch) reports `undefined global variable: srfi-6`.
   `(import (srfi 19))` works.

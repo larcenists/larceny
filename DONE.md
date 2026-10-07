@@ -4,6 +4,16 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- Bulk copies and fills (TODO: "vector-copy ... move an element per
+  iteration").  Vectors: two syscalls copy (memmove) and fill vector-like
+  objects, doing the barriers' work per slot in C, the SATB logging
+  included (f97a0cf2); vector-copy, vector-append, vector-copy! 3-4.5x
+  faster, vector-fill! 11x.  A third fills a vector from a list for
+  list->vector (fcea8bce).  Users: vector-sort's merges (c9a437e9),
+  bignum digit copies (5d4bd175), text chunk vectors (a9222e76), SRFI
+  43 and 133 (e783d7de).  bytevector-fill! (the procedure) uses the
+  memset primitive and string-fill! doubles with memmove (322482ed).
+  Tests: test/Lib/vector.sch, test/GC/vector-move.sch.
 - bytevector-u8-set! and bytevector-set! accept octets only
   (e9436201): the compiler macros accepted -128 through 255, and
   native stored -1 as 255.  bytevector-s8-set! checks -128..127.
