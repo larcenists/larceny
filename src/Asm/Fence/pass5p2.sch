@@ -334,17 +334,34 @@
          (cant.movi   as n $r.second)
          (cant.trap   as $m.argc-ex '*argc-ex)))))) ; THIRD=REG0 happens in millicode
 
+; With no arguments beyond the n required, the rest list is (), stored
+; in line; otherwise the millicode makes it.  (Register n+1 receives
+; the rest list; registers past *lastreg* are not hardware registers.)
+
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
-    (let ((n  (fence.native->fixnum (operand1 instruction))))
+    (let* ((k  (operand1 instruction))
+           (n  (fence.native->fixnum k)))
       (cant.movi as n $r.second)
       (if (runtime-safety-checking)
           (emit-check-branch
            as
            (lambda (L) (cant.bcc as 'less $r.result $r.second L))
            (lambda () (emit-exception as $ex.vargc $r.result $r.second)))) ; THIRD=REG0 happens in millicode
-      (cant.trap as $m.varargs '*varargs))))
+      (if (< (+ k 1) *lastreg*)
+          (let ((Lmore (fence.make-label as))
+                (Ldone (fence.make-label as)))
+            (cant.bcc  as 'not-equal $r.result $r.second Lmore)
+            (cant.movi as $imm.null (+ k 1))
+            (fence.defer! as
+                          (lambda ()
+                            (fence.label as Lmore)
+                            (cant.trap as $m.varargs '*varargs)
+                            (cant.ba   as Ldone))
+                          'check)
+            (fence.label as Ldone))
+          (cant.trap as $m.varargs '*varargs)))))
 
 ; The code of every procedure made by case-lambda (case-lambda.mal,
 ; and .make-case-lambda in Lib/Common/make-case-lambda.sch).  REG0 is the

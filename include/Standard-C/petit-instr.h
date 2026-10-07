@@ -451,6 +451,8 @@ extern cont_t twobit_cont_label;
         if (UNSAFE_FALSE(RESULT < fixnum(n))) { \
           FAIL( EX_ARGSGE ); \
         } \
+        else if (RESULT == fixnum(n) && (n)+1 < LASTREG) \
+          reg((n)+1) = NIL_CONST;   /* no rest arguments */ \
         else WITH_SAVED_STATE( mc_restargs( globals ) ); \
         integrity_check( "argsge" ); \
    } while(0)
