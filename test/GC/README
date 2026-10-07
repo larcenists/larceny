@@ -56,3 +56,10 @@ Cheney scan stopped early after forwarding large objects (see the
 comment at its head).  It prints "scan-after-large-objects: ok".
 
     larceny [-stopcopy | -rrof] < scan-after-large-objects.sch
+
+large-nursery.sch stores into objects all over a nursery larger than
+the low-level allocator's initial page table (32MB), which overflowed
+when it was not grown for the first allocation (see the comment at its
+head).  It prints "large-nursery: ok".
+
+    larceny -size0 256M -- large-nursery.sch

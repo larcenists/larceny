@@ -331,14 +331,25 @@ static byte *gclib_alloc( s_word bytes, int code )
   assert( gclib_pagebase == 0 || (byte*)gclib_pagebase == data.membot );
   
   if (gclib_pagebase == 0) {
+    /* The first allocation: the table must cover it, though it may be
+       larger than the initial table (a large nursery, say). */
     gclib_pagebase = (caddr_t)ptr;
     data.membot = ptr;
-    data.memtop = top;
+    data.memtop = ptr;
+    if (pageof( top-1 ) >= data.descriptor_slots) {
+      grow_table( ptr, top );         /* nothing to copy; sets memtop */
+      wb_re_setup( (byte*)gclib_pagebase, gclib_desc_g );
+    }
+    else
+      data.memtop = top;
   }
   else if (ptr < data.membot)
     allocation_below_membot( ptr, bytes );
   else if (top > data.memtop)
     allocation_above_memtop( ptr, bytes );
+
+  /* The callers set the descriptors of every page of the allocation. */
+  assert( pageof( ptr ) >= 0 && pageof( top-1 ) < data.descriptor_slots );
 #endif
   
   return ptr;
