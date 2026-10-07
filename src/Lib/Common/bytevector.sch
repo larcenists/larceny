@@ -99,15 +99,22 @@
 ;;; omitted.  If end is not specified, Larceny uses the largest index
 ;;; that will work.
 
-(define (r7rs:bytevector-copy! dst at src . rest)
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (rest (if (null? rest) rest (cdr rest)))
-         (end (if (null? rest)
-                  (min (bytevector-length src)
-                       (+ start (- (bytevector-length dst) at)))
-                  (car rest)))
-         (kount (- end start)))
-    (r6rs:bytevector-copy! src start dst at kount)))
+(define r7rs:bytevector-copy!
+  (case-lambda
+   ((dst at src)
+    (r7rs:bytevector-copy!:copy dst at src 0 #f))
+   ((dst at src start)
+    (r7rs:bytevector-copy!:copy dst at src start #f))
+   ((dst at src start end)
+    (r7rs:bytevector-copy!:copy dst at src start end))))
+
+; end is #f for the default.  r6rs:bytevector-copy! checks the rest.
+
+(define (r7rs:bytevector-copy!:copy dst at src start end)
+  (let ((end (or end
+                 (min (bytevector-length src)
+                      (+ start (- (bytevector-length dst) at))))))
+    (r6rs:bytevector-copy! src start dst at (- end start))))
 
 ;;; FIXME: this is the R6RS version with a temporary hack.
 
@@ -417,11 +424,17 @@
 
 ;;; Generalized from one argument for R7RS.
 
-(define (bytevector-copy b . rest)
-  (let* ((n (bytevector-length b))
-         (start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
-         (k (- end start))
+(define bytevector-copy
+  (case-lambda
+   ((b)
+    (bytevector-copy:copy b 0 (bytevector-length b)))
+   ((b start)
+    (bytevector-copy:copy b start (bytevector-length b)))
+   ((b start end)
+    (bytevector-copy:copy b start end))))
+
+(define (bytevector-copy:copy b start end)
+  (let* ((k (- end start))
          (b2 (make-bytevector k)))
     (r6rs:bytevector-copy! b start b2 0 k)
     b2))

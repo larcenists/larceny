@@ -146,6 +146,7 @@
 
     "malcode"           ; really basic things
     case-lambda         ; case-lambda's dispatch (to be substituted!)
+    "make-case-lambda"  ; what case-lambda expands into
     "layouts"           ; generated from Rts/layouts.cfg
     "typetags"          ; type tags
     "syscall-id"        ; syscall ID numbers

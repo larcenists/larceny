@@ -2,7 +2,7 @@
 ; vim: ft=scheme :
 ;
 ; case-lambda:template, whose code vector is the code of every
-; procedure made by case-lambda (see .make-case-lambda in control.sch):
+; procedure made by case-lambda (see make-case-lambda.sch):
 ; it dispatches on the number of arguments to one of the procedure's
 ; clauses (see $arity-dispatch in Asm/Fence/pass5p2.sch).  The template
 ; itself has no clauses and must not be called.

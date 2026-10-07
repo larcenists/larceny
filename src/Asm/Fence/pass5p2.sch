@@ -347,7 +347,7 @@
       (cant.trap as $m.varargs '*varargs))))
 
 ; The code of every procedure made by case-lambda (case-lambda.mal,
-; and .make-case-lambda in Lib/Common/control.sch).  REG0 is the
+; and .make-case-lambda in Lib/Common/make-case-lambda.sch).  REG0 is the
 ; procedure, whose slots from the first environment slot on hold an
 ; arity and a clause (a procedure) for each clause, then #f.  An arity
 ; n >= 0 accepts n arguments, and -(m+1) accepts m or more.  Jumps to

@@ -106,27 +106,29 @@
       (vector-set! dst k (vector-ref src j)))))
 
 (define vector-copy
-  (lambda (x . rest)
-    (define (complain msgcode culprit)
-      (assertion-violation 'vector-copy
-                           (errmsg msgcode)
-                           culprit))
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end  (if (or (null? rest) (null? (cdr rest)))
-                     (vector-length x)
-                     (cadr rest)))
-           (v (make-vector (- end start))))
-      (cond ((not (vector? x))
-             (complain 'msg:notvector v))
-            ((not (fixnum? start))
-             (complain 'msg:notfixnum start))
-            ((not (fixnum? end))
-             (complain 'msg:notfixnum end))
-            ((not (<= 0 start end (vector-length x)))
-             (complain 'msg:illegalargs (list x start end)))
-            (else
-             (vector-copy-into-up! x start end v 0)
-             v)))))
+  (case-lambda
+   ((x)
+    (vector-copy:copy x 0 (if (vector? x) (vector-length x) 0)))
+   ((x start)
+    (vector-copy:copy x start (if (vector? x) (vector-length x) 0)))
+   ((x start end)
+    (vector-copy:copy x start end))))
+
+(define (vector-copy:copy x start end)
+  (define (complain msgcode culprit)
+    (assertion-violation 'vector-copy (errmsg msgcode) culprit))
+  (cond ((not (vector? x))
+         (complain 'msg:notvector x))
+        ((not (fixnum? start))
+         (complain 'msg:notfixnum start))
+        ((not (fixnum? end))
+         (complain 'msg:notfixnum end))
+        ((not (<= 0 start end (vector-length x)))
+         (complain 'msg:illegalargs (list x start end)))
+        (else
+         (let ((v (make-vector (- end start))))
+           (vector-copy-into-down! x start end v 0)
+           v))))
 
 ;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
 ;;; the length of to.  It is also an error if (- (vector-length to) at)
@@ -136,44 +138,43 @@
 ;;; that will work.
 
 (define vector-copy!
-  (lambda (dst at src . rest)
+  (case-lambda
+   ((dst at src)
+    (vector-copy!:copy dst at src 0 (vector-copy!:end dst at src 0)))
+   ((dst at src start)
+    (vector-copy!:copy dst at src start (vector-copy!:end dst at src start)))
+   ((dst at src start end)
+    (vector-copy!:copy dst at src start end))))
 
-    (define (complain0 msgcode)
-      (assertion-violation 'vector-copy!
-                           (errmsg msgcode)
-                           (cons dst (cons at (cons src rest)))))
+(define (vector-copy!:end dst at src start)
+  (if (and (vector? dst) (vector? src) (fixnum? at) (fixnum? start))
+      (min (vector-length src)
+           (+ start (- (vector-length dst) at)))
+      0))
 
-    (define (complain msgcode culprit)
-      (assertion-violation 'vector-copy!
-                           (errmsg msgcode)
-                           culprit))
-
-    (let* ((start (if (null? rest)
-                      0
-                      (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (min (vector-length src)
-                         (+ start (- (vector-length dst) at)))
-                    (cadr rest))))
-      (cond ((not (vector? dst))
-             (complain 'msg:notvector dst))
-            ((not (vector? src))
-             (complain 'msg:notvector src))
-            ((not (fixnum? at))
-             (complain 'msg:notfixnum at))
-            ((not (fixnum? start))
-             (complain 'msg:notfixnum start))
-            ((not (fixnum? end))
-             (complain 'msg:notfixnum end))
-            ((not (and (<= 0 at (vector-length dst))
-                       (<= 0 start end (vector-length src))
-                       (<= (+ at (- end start)) (vector-length dst))))
-             (complain0 'msg:rangeerror))
-            (else
-             ((if (<= at start)
-                  vector-copy-into-down!
-                  vector-copy-into-up!)
-              src start end dst at))))))
+(define (vector-copy!:copy dst at src start end)
+  (define (complain msgcode culprit)
+    (assertion-violation 'vector-copy! (errmsg msgcode) culprit))
+  (cond ((not (vector? dst))
+         (complain 'msg:notvector dst))
+        ((not (vector? src))
+         (complain 'msg:notvector src))
+        ((not (fixnum? at))
+         (complain 'msg:notfixnum at))
+        ((not (fixnum? start))
+         (complain 'msg:notfixnum start))
+        ((not (fixnum? end))
+         (complain 'msg:notfixnum end))
+        ((not (and (<= 0 at (vector-length dst))
+                   (<= 0 start end (vector-length src))
+                   (<= (+ at (- end start)) (vector-length dst))))
+         (assertion-violation 'vector-copy!
+                              (errmsg 'msg:rangeerror)
+                              (list dst at src start end)))
+        ((<= at start)
+         (vector-copy-into-down! src start end dst at))
+        (else
+         (vector-copy-into-up! src start end dst at))))
 
 (define vector-fill!
   (lambda (v x . rest)

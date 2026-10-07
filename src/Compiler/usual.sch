@@ -425,7 +425,7 @@
 ; A case-lambda of several clauses is a procedure whose code dispatches
 ; on the number of arguments to one of the clauses, which are ordinary
 ; procedures, without consing (see .make-case-lambda in
-; Lib/Common/control.sch).
+; Lib/Common/make-case-lambda.sch).
 
 (define-syntax case-lambda
   (syntax-rules ()

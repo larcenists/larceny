@@ -2,7 +2,7 @@
 ;
 ; A case-lambda of several clauses dispatches on the number of
 ; arguments to its clauses, which are ordinary procedures (see
-; .make-case-lambda in src/Lib/Common/control.sch).
+; .make-case-lambda in src/Lib/Common/make-case-lambda.sch).
 
 (define (run-case-lambda-tests)
 
@@ -134,6 +134,48 @@
          ((eval '(case-lambda ((a) (list a)) ((a b) (list b a)))
                 (interaction-environment))
           1 2)
-         '(2 1))))
+         '(2 1))
+
+   ; Library procedures with optional arguments, made with case-lambda.
+
+   (test "string-copy, string-copy!"
+         (let ((s (lambda () (string-copy "abcdef"))))
+           (list (string-copy "abcdef" 2)
+                 (string-copy "abcdef" 2 4)
+                 (let ((d (s))) (string-copy! d 1 "xyz") d)
+                 (let ((d (s))) (string-copy! d 1 "xyz" 1) d)
+                 (let ((d (s))) (string-copy! d 1 "xyz" 1 2) d)
+                 (let ((d (s))) (string-copy! d 2 d 0 4) d)
+                 (let ((d (s))) (string-copy! d 0 d 2) d)
+                 (wrong-number? (lambda () (string-copy "abc" 0 1 2)))))
+         '("cdef" "cd" "axyzef" "ayzdef" "aycdef" "ababcd" "cdefef" #t))
+
+   (test "vector-copy, vector-copy!"
+         (let ((v (lambda () (vector-copy '#(a b c d e f)))))
+           (list (vector-copy '#(a b c d e f) 2)
+                 (vector-copy '#(a b c d e f) 2 4)
+                 (let ((d (v))) (vector-copy! d 1 '#(x y z)) d)
+                 (let ((d (v))) (vector-copy! d 1 '#(x y z) 1) d)
+                 (let ((d (v))) (vector-copy! d 1 '#(x y z) 1 2) d)
+                 (let ((d (v))) (vector-copy! d 2 d 0 4) d)
+                 (wrong-number? (lambda () (vector-copy 'a)))))
+         '(#(c d e f) #(c d) #(a x y z e f) #(a y z d e f) #(a y c d e f)
+           #(a b a b c d) #t))
+
+   (test "bytevector-copy, r7rs:bytevector-copy!"
+         (let ((b (lambda () (u8-list->bytevector '(0 1 2 3 4 5)))))
+           (map bytevector->u8-list
+                (list (bytevector-copy (b) 2)
+                      (bytevector-copy (b) 2 4)
+                      (let ((d (b)))
+                        (r7rs:bytevector-copy! d 1 (b))
+                        d)
+                      (let ((d (b)))
+                        (r7rs:bytevector-copy! d 1 (b) 3)
+                        d)
+                      (let ((d (b)))
+                        (r7rs:bytevector-copy! d 1 (b) 3 4)
+                        d))))
+         '((2 3 4 5) (2 3) (0 0 1 2 3 4) (0 3 4 5 4 5) (0 3 2 3 4 5)))))
 
 ; eof

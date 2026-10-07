@@ -109,12 +109,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define string-copy
-  (lambda (x . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end  (if (or (null? rest) (null? (cdr rest)))
-                     (string-length x)
-                     (cadr rest))))
-      (substring x start end))))
+  (case-lambda
+   ((x) (substring x 0 (string-length x)))
+   ((x start) (substring x start (string-length x)))
+   ((x start end) (substring x start end))))
 
 ; Copies (substring x i j) into y starting at k.
 ; Used only within this file.
@@ -164,44 +162,43 @@
 ;;; that will work.
 
 (define string-copy!
-  (lambda (dst at src . rest)
+  (case-lambda
+   ((dst at src)
+    (string-copy!:copy dst at src 0 (string-copy!:end dst at src 0)))
+   ((dst at src start)
+    (string-copy!:copy dst at src start (string-copy!:end dst at src start)))
+   ((dst at src start end)
+    (string-copy!:copy dst at src start end))))
 
-    (define (complain0 msgcode)
-      (assertion-violation 'string-copy!
-                           (errmsg msgcode)
-                           (cons dst (cons at (cons src rest)))))
+(define (string-copy!:end dst at src start)
+  (if (and (string? dst) (string? src) (fixnum? at) (fixnum? start))
+      (min (string-length src)
+           (+ start (- (string-length dst) at)))
+      0))
 
-    (define (complain msgcode culprit)
-      (assertion-violation 'string-copy!
-                           (errmsg msgcode)
-                           culprit))
-
-    (let* ((start (if (null? rest)
-                      0
-                      (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (min (string-length src)
-                         (+ start (- (string-length dst) at)))
-                    (cadr rest))))
-      (cond ((not (string? dst))
-             (complain 'msg:notstring dst))
-            ((not (string? src))
-             (complain 'msg:notstring src))
-            ((not (fixnum? at))
-             (complain 'msg:notfixnum at))
-            ((not (fixnum? start))
-             (complain 'msg:notfixnum start))
-            ((not (fixnum? end))
-             (complain 'msg:notfixnum end))
-            ((not (and (<= 0 at (string-length dst))
-                       (<= 0 start end (string-length src))
-                       (<= (+ at (- end start)) (string-length dst))))
-             (complain0 'msg:rangeerror))
-            (else
-             ((if (<= at start)
-                  string-copy-into-down!
-                  string-copy-into-up!)
-              src start end dst at))))))
+(define (string-copy!:copy dst at src start end)
+  (define (complain msgcode culprit)
+    (assertion-violation 'string-copy! (errmsg msgcode) culprit))
+  (cond ((not (string? dst))
+         (complain 'msg:notstring dst))
+        ((not (string? src))
+         (complain 'msg:notstring src))
+        ((not (fixnum? at))
+         (complain 'msg:notfixnum at))
+        ((not (fixnum? start))
+         (complain 'msg:notfixnum start))
+        ((not (fixnum? end))
+         (complain 'msg:notfixnum end))
+        ((not (and (<= 0 at (string-length dst))
+                   (<= 0 start end (string-length src))
+                   (<= (+ at (- end start)) (string-length dst))))
+         (assertion-violation 'string-copy!
+                              (errmsg 'msg:rangeerror)
+                              (list dst at src start end)))
+        ((<= at start)
+         (string-copy-into-down! src start end dst at))
+        (else
+         (string-copy-into-up! src start end dst at))))
 
 (define string
   (lambda chars
