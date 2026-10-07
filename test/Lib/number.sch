@@ -41,7 +41,48 @@
   (test-odd-even)
   (test-sundry-arithmetic)
   (test-in-out-conversion)
-  (test-trancendental-functions))
+  (test-trancendental-functions)
+  (test-inline-predicates))
+
+; zero?, integer?, exact? and inexact? are in line for fixnums, millicode
+; otherwise, and zero? also as a branch.  The arguments come from a list
+; so that the compiler cannot fold them.
+
+(define (test-inline-predicates)
+
+  (define values
+    (list 0 1 -1 (most-positive-fixnum) (most-negative-fixnum)
+          (+ (most-positive-fixnum) 1) (- (expt 2 100)) 1/2 -3/4
+          0.0 -0.0 1.5 -2.0 +inf.0 +nan.0 (make-rectangular 1 2)
+          (make-rectangular 0.0 0.0)))
+
+  (define (zero-value x) (zero? x))
+  (define (zero-branch x) (if (zero? x) 'yes 'no))
+  (define (not-zero-branch x) (if (not (zero? x)) 'no 'yes))
+
+  (define (reference-zero? x) (= x 0))
+
+  (allof "inline predicates"
+   (test "zero? as a value"
+         (map zero-value values) (map reference-zero? values))
+   (test "zero? as a branch"
+         (map zero-branch values)
+         (map (lambda (x) (if (reference-zero? x) 'yes 'no)) values))
+   (test "not zero? as a branch"
+         (map not-zero-branch values) (map zero-branch values))
+   (test "integer?"
+         (map integer? values)
+         '(#t #t #t #t #t #t #t #f #f #t #t #f #t #f #f #f #f))
+   (test "exact?"
+         (map exact? values)
+         '(#t #t #t #t #t #t #t #t #t #f #f #f #f #f #f #t #f))
+   (test "inexact?"
+         (map inexact? values)
+         '(#f #f #f #f #f #f #f #f #f #t #t #t #t #t #t #f #t))
+   (mustfail "zero? of a symbol" zero-value 'a)
+   (mustfail "zero? branch of a symbol" zero-branch 'a)
+   (mustfail "exact? of a symbol" exact? 'a)
+   (mustfail "inexact? of a string" inexact? "1")))
 
 
 ; NOTE

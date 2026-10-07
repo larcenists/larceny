@@ -1432,6 +1432,22 @@
         (cant.mov as rs $r.result))
     (cant.trap as code name))
 
+  ; A fixnum argument is handled in line by fixnum-case, which stores
+  ; the result in rd; anything else goes to the millicode, out of line.
+
+  (define (fixnum-fast-case fixnum-case code)
+    (let ((L1 (fence.make-label as))
+          (L2 (fence.make-label as)))
+      (cant.bcci as 'low2-not-equal rs 0 L1)
+      (fixnum-case)
+      (fence.defer! as
+                    (lambda ()
+                      (fence.label as L1)
+                      (trap1 code)
+                      (cant.ba as L2))
+                    'arith)
+      (fence.label as L2)))
+
   (assert (not (= rs $r.second)))
   (case name
     ;; Constants - rs ignored
@@ -1654,18 +1670,22 @@
      (trap1 $m.round))
     ((truncate)
      (trap1 $m.truncate))
-    ((zero?)                            ; TODO: fixnum fast case?
-     (trap1 $m.zerop))
+    ((zero?)
+     (fixnum-fast-case (lambda () (cant.setcci as 'equal rs 0 rd))
+                       $m.zerop))
     ((complex?)
      (trap1 $m.complexp))
     ((rational?)
      (trap1 $m.rationalp))
-    ((integer?)                         ; TODO: fixnum fast case?
-     (trap1 $m.integerp))
-    ((exact?)                           ; TODO: fixnum fast case?
-     (trap1 $m.exactp))
-    ((inexact?)                         ; TODO: fixnum fast case?
-     (trap1 $m.inexactp))
+    ((integer?)
+     (fixnum-fast-case (lambda () (cant.movi as $imm.true rd))
+                       $m.integerp))
+    ((exact?)
+     (fixnum-fast-case (lambda () (cant.movi as $imm.true rd))
+                       $m.exactp))
+    ((inexact?)
+     (fixnum-fast-case (lambda () (cant.movi as $imm.false rd))
+                       $m.inexactp))
 
     (else
      (error "Unknown 1-argument primitive: " name))))
@@ -1682,10 +1702,21 @@
      (cant.bcci as 'not-equal rs $imm.eof label))
     ((pair?)
      (cant.bcci as 'low3-not-equal rs $tag.pair-tag label))
-    ((zero?)
-     ;; TODO: implement better?
-     (emit-op1 as name rs $r.result)
-     (emit-branchf as $r.result label))
+    ((zero?)                            ; a fixnum in line
+     (let ((L1 (fence.make-label as))
+           (L2 (fence.make-label as)))
+       (cant.bcci as 'low2-not-equal rs 0 L1)
+       (cant.bcci as 'not-equal rs 0 label)
+       (fence.defer! as
+                     (lambda ()
+                       (fence.label as L1)
+                       (if (not (= rs $r.result))
+                           (cant.mov as rs $r.result))
+                       (cant.trap as $m.zerop name)
+                       (emit-branchf as $r.result label)
+                       (cant.ba as L2))
+                     'arith)
+       (fence.label as L2)))
     ((fixnum?)
      (cant.bcci as 'low2-not-equal rs 0 label))
     ((flonum?)
