@@ -503,4 +503,13 @@
   (,$const   make-case-lambda)
   (,$return))
 
+; case-lambda:template is a procedure whose code dispatches on the
+; number of arguments, on targets whose assemblers have the
+; arity-dispatch instruction (case-lambda.mal sets it), and #f on the
+; others.  See .make-case-lambda in control.sch.
+
+`((,$const #f)
+  (,$setglbl case-lambda:template)
+  (,$return))
+
 ; eof

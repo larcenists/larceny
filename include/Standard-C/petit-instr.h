@@ -555,6 +555,34 @@ extern cont_t twobit_cont_label;
    } while(0)
 #endif
 
+/* The code of procedures made by case-lambda: REG0's slots from
+   IDX_PROC_REG0 on hold an arity and a clause for each clause, then
+   #f.  An arity n >= 0 accepts n arguments, and -(m+1) accepts m or
+   more.  Transfers control to the first clause that accepts RESULT
+   arguments (or else to the first clause, which signals the error),
+   with RESULT and the arguments unchanged.  See $arity-dispatch in
+   src/Asm/Fence/pass5p2.sch.
+   */
+#define twobit_arity_dispatch() \
+  do { word p=reg(0); int i=IDX_PROC_REG0; s_word n=(s_word)RESULT; \
+       for (;;) { s_word a=(s_word)*proc_addr( p, i ); \
+         if (a == FALSE_CONST) { i = IDX_PROC_REG0; break; } \
+         if (a == n || (a < 0 && n + a + fixnum(1) >= 0)) break; \
+         i += 2; } \
+       reg(0) = *proc_addr( p, i+1 ); \
+       integrity_check( "arity-dispatch" ); \
+       twobit_arity_dispatch_transfer(); \
+  } while(0)
+
+#if USE_GOTOS_LOCALLY
+# define twobit_arity_dispatch_transfer() \
+  nonlocal_control_transfer( reg(0), 0 )
+#else
+# define twobit_arity_dispatch_transfer() \
+  do { cont_t dispL = (cont_t)*proc_addr( reg(0), IDX_PROC_CODE ); \
+       twobit_branch( -1, dispL ); } while(0)
+#endif
+
 #if USE_GOTOS_LOCALLY
 # define twobit_apply( k, l ) \
    do { SECOND=reg(k); THIRD=reg(l); \

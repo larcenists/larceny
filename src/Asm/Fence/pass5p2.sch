@@ -346,6 +346,45 @@
            (lambda () (emit-exception as $ex.vargc $r.result $r.second)))) ; THIRD=REG0 happens in millicode
       (cant.trap as $m.varargs '*varargs))))
 
+; The code of every procedure made by case-lambda (case-lambda.mal,
+; and .make-case-lambda in Lib/Common/control.sch).  REG0 is the
+; procedure, whose slots from the first environment slot on hold an
+; arity and a clause (a procedure) for each clause, then #f.  An arity
+; n >= 0 accepts n arguments, and -(m+1) accepts m or more.  Jumps to
+; the first clause that accepts the RESULT arguments, with RESULT and
+; the arguments as they are (so its own entry checks and conses the
+; rest list).  (.make-case-lambda ends with a clause that accepts any
+; number; if none did, the first clause would signal the error.)
+; SECOND and TMP are free at a procedure's entry.
+
+(define-instruction $arity-dispatch
+  (lambda (instruction as)
+    (list-instruction "arity-dispatch" instruction)
+    (let ((Lloop  (fence.make-label as))
+          (Lnext  (fence.make-label as))
+          (Lfail  (fence.make-label as))
+          (Lfound (fence.make-label as))
+          (step   (* 2 $bytewidth.wordsize)))
+      (cant.movi  as $p.reg0 $r.second)          ; byte offset of an arity
+      (fence.label as Lloop)
+      (cant.add   as $r.reg0 $r.second $r.tmp)
+      (cant.ldi   as $r.tmp 0 $r.tmp)            ; the arity, or #f
+      (cant.bcci  as 'equal $r.tmp $imm.false Lfail)
+      (cant.bcc   as 'equal $r.tmp $r.result Lfound)
+      (cant.bcci  as 'greater-or-equal $r.tmp 0 Lnext)
+      (cant.add   as $r.tmp $r.result $r.tmp)    ; argc-m-1, as a fixnum
+      (cant.addi  as $r.tmp (fence.native->fixnum 1) $r.tmp)
+      (cant.bcci  as 'greater-or-equal $r.tmp 0 Lfound)
+      (fence.label as Lnext)
+      (cant.addi  as $r.second step $r.second)
+      (cant.ba    as Lloop)
+      (fence.label as Lfail)
+      (cant.movi  as $p.reg0 $r.second)
+      (fence.label as Lfound)
+      (cant.add   as $r.reg0 $r.second $r.tmp)
+      (cant.ldi   as $r.tmp $bytewidth.wordsize $r.reg0)
+      (cant.jump  as #f))))
+
 (define-instruction $invoke
   (lambda (instruction as)
     (list-instruction "invoke" instruction)

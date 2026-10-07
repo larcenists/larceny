@@ -1,0 +1,21 @@
+; Copyright 2026 Felix S. Klock II.    -*- scheme -*-
+; vim: ft=scheme :
+;
+; case-lambda:template, whose code vector is the code of every
+; procedure made by case-lambda (see .make-case-lambda in control.sch):
+; it dispatches on the number of arguments to one of the procedure's
+; clauses (see $arity-dispatch in Asm/Fence/pass5p2.sch).  The template
+; itself has no clauses and must not be called.
+;
+; Only for targets whose assemblers have the arity-dispatch instruction
+; (Fence and Standard-C); on the others, malcode.mal leaves the
+; template #f.
+
+`((,$lambda ((,$.proc)
+             (,$arity-dispatch))
+            0
+            #(case-lambda #f 0.0 #f #f #f))
+  (,$setglbl case-lambda:template)
+  (,$return))
+
+; eof

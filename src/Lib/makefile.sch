@@ -145,6 +145,7 @@
     ; Fundamental
 
     "malcode"           ; really basic things
+    case-lambda         ; case-lambda's dispatch (to be substituted!)
     "layouts"           ; generated from Rts/layouts.cfg
     "typetags"          ; type tags
     "syscall-id"        ; syscall ID numbers
@@ -298,6 +299,7 @@
                     (flonum-endian . ,(common-relative "flonums-be.lop"))
                     (bignum-endian . ,(common-relative "bignums-be.lop"))
                     (osdep . ,(common-relative "sys-unix.lop"))
+                    (case-lambda . #f)
                     (extra . #f))))
         (sparc-eval-files
          (objects "" ".lop" eval-files)))
@@ -333,6 +335,7 @@
                     (flonum-endian . ,(common-relative "flonums-el.lop"))
                     (bignum-endian . ,(common-relative "bignums-el.lop"))
                     (osdep . ,(common-relative "sys-unix.lop"))
+                    (case-lambda . ,(common-relative "case-lambda.lop"))
                     (extra . #f))))
         (arm-eval-files
          (objects "" ".lop" eval-files)))
@@ -366,6 +369,7 @@
                     (flonum-endian . ,(common-relative "flonums-el.lop"))
                     (bignum-endian . ,(common-relative "bignums-el.lop"))
                     (osdep . ,(common-relative "sys-unix.lop"))
+                    (case-lambda . ,(common-relative "case-lambda.lop"))
                     (extra . #f))))
         (arm64-eval-files
          (objects "" ".lop" eval-files)))
@@ -416,6 +420,7 @@
                       . ,(common-endian "bignums" ".manifest"))
                      (osdep
                       . ,(common-relative osdep-file))
+                     (case-lambda . #f)
                      (extra
                       . ,(param-filename 'source "Arch" "IL"
                                          "loadable.manifest")))))
@@ -526,6 +531,9 @@
                      (flonum-endian . ,(common-endian "flonums"))
                      (bignum-endian . ,(common-endian "bignums"))
                      (osdep    . ,(common-relative target))
+                     (case-lambda
+                      . ,(and (eq? 'standard-c (nbuild-parameter 'target-machine))
+                              (common-relative "case-lambda.lop")))
                      (extra    . ,(machine-relative "loadable.lop")))))
     (set! petit-eval-files
           (objects "" ".lop" eval-files))

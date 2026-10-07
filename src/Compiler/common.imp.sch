@@ -2002,6 +2002,8 @@
 (define $branchf (make-mnemonic 'branchf))       ; branchf L
 (define $check (make-mnemonic 'check))           ; check   k1,k2,k3,L
 (define $trap (make-mnemonic 'trap))             ; trap    k1,k2,k3,exn
+(define $arity-dispatch                          ; arity-dispatch
+  (make-mnemonic 'arity-dispatch))               ;   (case-lambda.mal)
 
 ; A peephole optimizer may define more instructions in some
 ; target-specific file.

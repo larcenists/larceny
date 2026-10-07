@@ -422,119 +422,17 @@
 ;     (dotnet-mumble ?exp))))
 
 
+; A case-lambda of several clauses is a procedure whose code dispatches
+; on the number of arguments to one of the clauses, which are ordinary
+; procedures, without consing (see .make-case-lambda in
+; Lib/Common/control.sch).
+
 (define-syntax case-lambda
   (syntax-rules ()
-    ((case-lambda 
-      (?a1 ?e1 ...) 
-      ?clause1 ...)
-     (lambda args
-       (let* ((l 0)
-              (v1 (if (pair? args) (car args) #f))
-              (t1 (if (pair? args) (cdr args) #f))
-              (l  (if (pair? args) (+ l 1) l))
-              (v2 (if (pair? t1) (car t1) #f))
-              (t2 (if (pair? t1) (cdr t1) #f))
-              (l  (if (pair? t1) (+ l 1) l))
-              (v3 (if (pair? t2) (car t2) #f))
-              (t3 (if (pair? t2) (cdr t2) #f))
-              (l  (if (pair? t2)  (+ l 1) l))
-              (l  (if (pair? t3) (+ l (length t3)) l)))
-	 (case-lambda "CLAUSE" args l (v1 v2 v3 t1 t2 t3)
-           (?a1 ?e1 ...)
-           ?clause1 ...))))
-    ; The following alternative to the previous syntax-rule does not have as
-    ; good performance, probably in part due to a bug in Twobit where
-    ; it does not ignore some IGNORED parameters; see mail to larceny@ccs
-    ; on 990906.
-;    ((case-lambda 
-;      (?a1 ?e1 ...) 
-;      ?clause1 ...)
-;     (lambda args
-;       (define (f l v1 v2 v3 t1 t2 t3)
-;	 (case-lambda "CLAUSE" args l (v1 v2 v3 t1 t2 t3)
-;           (?a1 ?e1 ...)
-;           ?clause1 ...))
-;       (if (pair? args)
-;           (let ((v1 (car args))
-;                 (t1 (cdr args)))
-;             (if (pair? t1)
-;                 (let ((v2 (car t1))
-;                       (t2 (cdr t1)))
-;                   (if (pair? t2)
-;                       (let ((v3 (car t2))
-;                             (t3 (cdr t2)))
-;                         (if (pair? t3)
-;                             (f (+ 3 (length t3)) v1 v2 v3 t1 t2 t3)
-;                             (f 3 v1 v2 v3 t1 t2 t3)))
-;                       (f 2 v1 v2 #f t1 t2 #f)))
-;                 (f 1 v1 #f #f t1 #f #f)))
-;           (f 0 #f #f #f #f #f #f))))
-    ((case-lambda "CLAUSE" ?args ?l ?xs
-      ((?a1 ...) ?e1 ...) 
-      ?clause1 ...)
-     (if (eq? ?l (length '(?a1 ...)))
-         (case-lambda "APPLY" ?xs ((?a1 ...) ?e1 ...) ?args) 
-         (case-lambda "CLAUSE" ?args ?l ?xs
-           ?clause1 ...)))
-    ((case-lambda "CLAUSE" ?args ?l ?xs
-      ((?a1 . ?ar) ?e1 ...) 
-      ?clause1 ...)
-     (case-lambda "IMPROPER" ?args ?l 1 ?xs (?a1 . ?ar) (?ar ?e1 ...) 
-       ?clause1 ...))
-    ((case-lambda "CLAUSE" ?args ?l ?xs
-      (?a1 ?e1 ...)
-      ?clause1 ...)
-     (let ((?a1 ?args))
-       ?e1 ...))
-    ((case-lambda "CLAUSE" ?args ?l ?xs)
-     (error "Wrong number of arguments to CASE-LAMBDA."))
-    ((case-lambda "IMPROPER" ?args ?l ?k ?xs ?al ((?a1 . ?ar) ?e1 ...)
-      ?clause1 ...)
-     (case-lambda "IMPROPER" ?args ?l (+ ?k 1) ?xs ?al (?ar ?e1 ...) 
-      ?clause1 ...))
-    ((case-lambda "IMPROPER" ?args ?l ?k ?xs ?al (?ar ?e1 ...) 
-      ?clause1 ...)
-     (if (>= ?l ?k)
-         (case-lambda "APPLY-IMPROPER" ?xs ?al (?e1 ...) ?args)
-         (case-lambda "CLAUSE" ?args ?l ?xs
-           ?clause1 ...)))
-    ((case-lambda "APPLY" ?xs (() ?e1 ...) ?args)
-     (begin ?e1 ...))
-    ((case-lambda "APPLY" (?v1 ?v2 ?v3 ?t1 ?t2 ?t3) ((?a1) ?e1 ...) ?args)
-     (let ((?a1 ?v1))
-       ?e1 ...))
-    ((case-lambda "APPLY" (?v1 ?v2 ?v3 ?t1 ?t2 ?t3) ((?a1 ?a2) ?e1 ...) ?args)
-     (let ((?a1 ?v1)
-           (?a2 ?v2))
-       ?e1 ...))
-    ((case-lambda "APPLY" (?v1 ?v2 ?v3 ?t1 ?t2 ?t3) ((?a1 ?a2 ?a3) ?e1 ...) ?args)
-     (let ((?a1 ?v1)
-           (?a2 ?v2)
-           (?a3 ?v3))
-       ?e1 ...))
-    ((case-lambda "APPLY" ?xs ((?a1 ...) ?e1 ...) ?args)
-     (apply (lambda (?a1 ...) ?e1 ...) ?args))
-    ((case-lambda "APPLY-IMPROPER" ?xs 
-                  (?a1 ?a2 ?a3 ?a4 . ?ar) (?e1 ...) ?args)
-     (apply (lambda (?a1 ?a2 ?a3 ?a4 . ?ar) ?e1 ...) ?args))
-    ((case-lambda "APPLY-IMPROPER" (?v1 ?v2 ?v3 ?t1 ?t2 ?t3) 
-                  (?a1 ?a2 ?a3 . ?ar) (?e1 ...) ?args)
-     (let ((?a1 ?v1)
-           (?a2 ?v2)
-           (?a3 ?v3)
-           (?ar ?t3))
-       ?e1 ...))
-    ((case-lambda "APPLY-IMPROPER" (?v1 ?v2 ?v3 ?t1 ?t2 ?t3)
-                  (?a1 ?a2 . ?ar) (?e1 ...) ?args)
-     (let ((?a1 ?v1)
-           (?a2 ?v2)
-           (?ar ?t2))
-       ?e1 ...))
-    ((case-lambda "APPLY-IMPROPER" (?v1 ?v2 ?v3 ?t1 ?t2 ?t3)
-                  (?a1 . ?ar) (?e1 ...) ?args)
-     (let ((?a1 ?v1)
-           (?ar ?t1))
-       ?e1 ...))))
+    ((case-lambda (?formals ?e1 ?e2 ...))
+     (lambda ?formals ?e1 ?e2 ...))
+    ((case-lambda (?formals ?e1 ?e2 ...) ...)
+     (.make-case-lambda '(?formals ...) (lambda ?formals ?e1 ?e2 ...) ...))))
 
 ;;; From R7RS-small section 7.3 with changes as marked.
 

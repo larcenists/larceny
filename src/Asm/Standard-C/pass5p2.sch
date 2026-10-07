@@ -394,6 +394,13 @@
     (list-instruction "invoke" instruction)
     (emit-text as "twobit_invoke( ~a );" (operand1 instruction))))
 
+; See $arity-dispatch in Asm/Fence/pass5p2.sch.
+
+(define-instruction $arity-dispatch
+  (lambda (instruction as)
+    (list-instruction "arity-dispatch" instruction)
+    (emit-text as "twobit_arity_dispatch();")))
+
 (define-instruction $restore
   (lambda (instruction as)
     (if (not (negative? (operand1 instruction)))

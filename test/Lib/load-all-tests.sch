@@ -29,6 +29,7 @@
 (compile-file "condition.sch")
 (compile-file "enum.sch")
 (compile-file "except.sch")
+(compile-file "case-lambda.sch")
 
 (load "test.fasl")			; Scaffolding
 
@@ -56,6 +57,7 @@
 (load "condition.fasl")                 ; Conditions
 (load "enum.fasl")                      ; Enumeration sets
 (load "except.fasl")                    ; Exceptions
+(load "case-lambda.fasl")               ; Case-lambda
 
 (define (run-all-tests)
   (run-boolean-tests)
@@ -87,6 +89,7 @@
   (run-record-tests)
   (run-condition-tests)
   (run-enumset-tests)
+  (run-case-lambda-tests)
   ;(run-exception-tests)    ; FIXME
   )
 
