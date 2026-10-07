@@ -38,19 +38,10 @@ DONE.md (with the date and the commit, if any).
 - In code that Petit interprets, case-lambda procedures are named
   case-lambda: .make-case-lambda finds the name in a compiled clause's
   constant vector, which interpreted procedures do not have.
-- Compiling src/Lib/Common/record.sch prints eight warnings
-  `Assertion is false: (.check! #f 198 .obj .rtd)`: a record check
-  that Twobit proves false, probably in dead code, as put-char's were
-  (be71e240).
 - In R5RS mode, with-exception-handler does not catch errors that
   primitives signal (`(car 1)`, a failed inline check): the system
   exception handler reports them and enters the debugger, though it
   does catch `(error ...)`.  The R6RS and R7RS modes raise conditions.
-- bytevector-u8-set! (and bytevector-set!) accept -128 through 255:
-  the compiler macros in common.imp.sch check (>= x -128).  R6RS
-  requires an octet for bytevector-u8-set!.  Native stores (b 0 -1) as
-  255; Petit's inline bytevector-set! rejects negative values, and the
-  error message is "bytevector-like-set!: confused by ...".
 - Return prediction.  Calls use BL/BLR and returns RET, so the CPU's
   return-address stack predicts returns; it holds only a few dozen
   entries, and deeper recursion mispredicts most returns: 1e8 calls
@@ -119,21 +110,12 @@ DONE.md (with the date and the commit, if any).
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take
   about 100 ms.  Card marking for large objects?
-- The reader in `#!r6rs` mode accepts `@` and `@b` as symbols, accepts
-  a byte-order mark (U+FEFF) after `#!r6rs`, and does not treat
-  U+2029, U+202F, U+205F and U+3000 as whitespace; the read0 benchmark
-  (test/Benchmarking/R6RS) reports these.  Also, the `#^B"..."`
-  codevector syntax of fasl files (`makeCodevector` in `reader.sch`)
-  loops at an unterminated end of input, as strings did.
-
-- `timezone-offset` (lib/Standard/time.sch) returns the standard-time
-  offset during daylight saving time (-18000 for EDT, not -14400): it
-  computes mktime(gmtime(t)) with tm_isdst forced to 0.
+- `(require 'srfi-19)` in R5RS mode fails: `(cond-expand (srfi-6))`
+  (lib/SRFI/srfi-19.sch) reports `undefined global variable: srfi-6`.
+  `(import (srfi 19))` works.
 
 ## Build process footguns
 
-- `bootstrap.sh --r7rs` reports success when compiling the libraries
-  fails; it should check `bootstrap-r7rs.log` for errors.
 - Smoke-test `--r6rs` mode routinely.  The test suites run their
   programs in `--r7rs` mode, so a library that strict R6RS syntax
   cannot read (rnrs control, 2a28596a until fixed) went unnoticed until

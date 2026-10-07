@@ -4,6 +4,22 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- bytevector-u8-set! and bytevector-set! accept octets only
+  (e9436201): the compiler macros accepted -128 through 255, and
+  native stored -1 as 255.  bytevector-s8-set! checks -128..127.
+- Compiling record.sch no longer prints eight `Assertion is false`
+  warnings (10864607): the bummed record accessor macros complain
+  through record:wrong-type instead of a false .check!.
+- (rnrs control) read in `--r6rs` mode (a0ed4720): case-lambda's
+  expansion used an identifier beginning with a dot.
+- The reader after `#!r6rs` rejects `@`, `@b` and `#\null` (036e7940); an
+  unterminated `#^B"..."` codevector in a fasl file is a lexical error,
+  not a loop.  The byte-order mark and Unicode whitespace parts of the
+  TODO item had already been fixed.
+- `timezone-offset` gives the daylight saving offset during DST
+  (e2f32d11).
+- `bootstrap.sh --r7rs` fails, with the error, when compiling the
+  libraries fails (ca97dab0).
 - A heap build that fails leaves `larceny.heap` as it was (12921cfa):
   the heap scripts used it as a temporary file and dumped into it, so a
   failure left 29 bytes of date.  Each successful build keeps the
