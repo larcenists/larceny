@@ -444,6 +444,22 @@
                               (m-expand (cadddr exp) env)))
         (m-error "Malformed if expression" exp))))
 
+; Names the procedure that exp, the right-hand side of a definition or
+; assignment, evaluates to: a lambda expression, or the clauses of a
+; case-lambda (see .make-case-lambda in Lib/Common/make-case-lambda.sch,
+; which names the case-lambda after its first clause).
+
+(define (name-procedures! exp name)
+  (cond ((lambda? exp)
+         (doc.name-set! (lambda.doc exp) name))
+        ((and (call? exp)
+              (variable? (call.proc exp))
+              (eq? (variable.name (call.proc exp)) '.make-case-lambda))
+         (for-each (lambda (clause)
+                     (if (lambda? clause)
+                         (doc.name-set! (lambda.doc clause) name)))
+                   (call.args exp)))))
+
 (define (m-set exp env)
   (if (= (safe-length exp) 3)
       (let ((lhs (m-expand (cadr exp) env))
@@ -461,10 +477,8 @@
                     (R-entry.assignments-set!
                      R-entry
                      (cons assignment (R-entry.assignments R-entry)))))
-              (if (and (lambda? rhs)
-                       (include-procedure-names))
-                  (let ((doc (lambda.doc rhs)))
-                    (doc.name-set! doc (m-unmangled x))))
+              (if (include-procedure-names)
+                  (name-procedures! rhs (m-unmangled x)))
               (if pass1-block-compiling?
                   (set! pass1-block-assignments
                         (cons x pass1-block-assignments)))

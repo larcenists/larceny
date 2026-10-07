@@ -122,6 +122,14 @@
          (procedure? (case-lambda ((a) a) ((a b) b)))
          #t)
 
+   (test "procedure-name"
+         (let ()
+           (define named (case-lambda ((a) a) ((a b) b)))
+           (list (procedure-name named)
+                 (procedure-name order)
+                 (procedure-name string-copy!)))
+         '(named order string-copy!))
+
    (test "no clause accepts the arguments"
          (let ((f (case-lambda ((a) a) ((a b c) c))))
            (list (wrong-number? (lambda () (f)))

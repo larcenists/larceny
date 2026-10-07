@@ -31,6 +31,38 @@
         (= n a)
         (>= n (- -1 a))))
 
+  ; Twobit names the clauses of a case-lambda that is defined or
+  ; assigned (name-procedures! in Compiler/expand.sch).  The template's
+  ; constant vector holds only its documentation, #(name ...); a copy
+  ; of it, renamed for the first clause, makes procedure-name work.
+
+  (define (clause-name c)
+    (let* ((cv (procedure-ref c 1))
+           (doc (and (vector? cv) (vector-ref cv 0)))
+           (doc (if (and (pair? doc) (pair? (car doc)))
+                    (cdr (car doc))                  ; ((pc . doc) ...)
+                    doc)))
+      (and (vector? doc)
+           (< 0 (vector-length doc))
+           (vector-ref doc 0))))
+
+  (define (copy-vector v)
+    (let* ((n (vector-length v))
+           (w (make-vector n #f)))
+      (do ((i 0 (+ i 1)))
+          ((= i n) w)
+        (vector-set! w i (vector-ref v i)))))
+
+  (define (named-constants cv)
+    (let ((name (and (pair? clauses) (clause-name (car clauses)))))
+      (if name
+          (let ((cv (copy-vector cv))
+                (doc (copy-vector (vector-ref cv 0))))
+            (vector-set! doc 0 name)
+            (vector-set! cv 0 doc)
+            cv)
+          cv)))
+
   (define (wrong-number-of-arguments . args)
     (assertion-violation 'case-lambda (errmsg 'msg:wna:caselambda) args))
 
@@ -41,7 +73,7 @@
               (loop (+ k 1) (cdr cs))
               (let ((p (make-procedure (+ 5 (* 2 k)))))
                 (procedure-set! p 0 (procedure-ref t 0))
-                (procedure-set! p 1 (procedure-ref t 1))
+                (procedure-set! p 1 (named-constants (procedure-ref t 1)))
                 (let fill ((i 2) (fs formals) (cs clauses))
                   (if (pair? cs)
                       (begin (procedure-set! p i (arity (car fs)))

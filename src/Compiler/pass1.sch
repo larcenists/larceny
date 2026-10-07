@@ -140,8 +140,7 @@
            (definitions0 '())    ; for constants
            (definitions1 '()))   ; for lambda expressions
       (define (make-toplevel-definition id exp)
-        (if (lambda? exp)
-            (doc.name-set! (lambda.doc exp) (m-unmangled id)))
+        (name-procedures! exp (m-unmangled id))
         (let ((probe (assq id alist)))
           (if probe
               (let ((id1 (cdr probe)))
