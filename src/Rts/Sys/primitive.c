@@ -16,6 +16,8 @@
 #include "gc_t.h"
 #include "gc.h"
 #include "stats.h"
+#include "gclib.h"              /* For pageof() */
+#include "seqbuf_t.h"           /* For SSB_ENQUEUE */
 #include "gc_t.h"
 #include "code-space.h"
 
@@ -551,6 +553,106 @@ void primitive_bytevector_like_move( word w_src, word w_from,
 
   memmove( dst + nativeint( w_to ), src + nativeint( w_from ),
            (size_t)nativeint( w_count ) );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
+/* The barriers of a store into each of the n slots of vector-like lhs
+   starting at p, as mc_satb_barrier and mc_partial_barrier do them for
+   one slot (see Rts/Fence/fence-millicode.c and Standard-C/millicode.c).
+
+   range_pre_barrier precedes the stores: during the concurrent marking
+   phase of the regional collector, it logs the old values that are
+   pointers, unless the object or the value is in the nursery.
+
+   range_post_barrier follows them: it logs the object and the slot's
+   offset for each stored pointer that crosses generations (or regions)
+   and is not filtered out.  It looks at the filters for the whole
+   range first: an object in the nursery needs nothing logged when the
+   collector orders generations.
+   */
+
+static void range_pre_barrier( word lhs, word *p, word n )
+{
+  gc_t *gc;
+  word i, old;
+
+  if (!globals[ G_CONCURRENT_MARK ] || gen_of( lhs ) == 0)
+    return;
+  gc = the_gc( globals );
+  for ( i=0 ; i < n ; i++ ) {
+    old = p[i];
+    if (isptr( old ) && gen_of( old ) != 0)
+      SSB_ENQUEUE( gc, gc->satb_ssb, old );
+  }
+}
+
+static void range_post_barrier( word lhs, word *p, word n )
+{
+  gclib_desc_t *genv;
+  word gl, gr, i, rhs;
+  word **ssbtopv, **ssblimv;
+
+  genv = (gclib_desc_t*)globals[ G_GENV ];
+  if (genv == 0) return;        /* Barrier disabled */
+
+  gl = genv[pageof(lhs)];
+  if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl == 0) return;
+  if ((s_word)globals[ G_FILTER_REMSET_LHS_NUM ] == (s_word)gl) return;
+
+  for ( i=0 ; i < n ; i++ ) {
+    rhs = p[i];
+    if (!isptr( rhs )) continue;
+    genv = (gclib_desc_t*)globals[ G_GENV ];
+    gr = genv[pageof(rhs)];
+    if (gl == gr) continue;
+    if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl <= gr) continue;
+    if ((s_word)globals[ G_FILTER_REMSET_RHS_NUM ] == (s_word)gr) continue;
+
+    ssbtopv = (word**)globals[ G_SSBTOPV ];
+    ssblimv = (word**)globals[ G_SSBLIMV ];
+    *ssbtopv[gr] = lhs;
+    *(ssbtopv[gr]+1) = (word)(p+i) - (word)ptrof( lhs );
+    ssbtopv[gr] = ssbtopv[gr]+2;
+    if (ssbtopv[gr]+1 >= ssblimv[gr])
+      gc_compact_all_ssbs( the_gc(globals) );
+  }
+}
+
+/* Copies w_count elements of vector-like w_src, starting at element
+   w_from, to vector-like w_dst, starting at element w_to; the ranges
+   may overlap.  The arguments are fixnums and vector-like objects, and
+   the ranges are in bounds (checked in Scheme, see vector.sch).
+   */
+
+void primitive_vector_like_move( word w_src, word w_from,
+                                 word w_dst, word w_to, word w_count )
+{
+  word *src = ptrof( w_src ) + VEC_HEADER_WORDS + nativeint( w_from );
+  word *dst = ptrof( w_dst ) + VEC_HEADER_WORDS + nativeint( w_to );
+  word n = nativeint( w_count );
+
+  range_pre_barrier( w_dst, dst, n );
+  memmove( dst, src, n*sizeof(word) );
+  range_post_barrier( w_dst, dst, n );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
+/* Stores w_x into the w_count elements of vector-like w_dst starting
+   at element w_to, which are in bounds.
+   */
+
+void primitive_vector_like_fill( word w_dst, word w_to, word w_count,
+                                 word w_x )
+{
+  word *dst = ptrof( w_dst ) + VEC_HEADER_WORDS + nativeint( w_to );
+  word n = nativeint( w_count );
+  word i;
+
+  range_pre_barrier( w_dst, dst, n );
+  for ( i=0 ; i < n ; i++ )
+    dst[i] = w_x;
+  if (isptr( w_x ))
+    range_post_barrier( w_dst, dst, n );
   globals[ G_RESULT ] = UNSPECIFIED_CONST;
 }
 

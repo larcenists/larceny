@@ -163,6 +163,8 @@ extern void primitive_garbage_collect( word, word );
 extern void primitive_iflush( word );
 extern void primitive_codevector_install( word );
 extern void primitive_bytevector_like_move( word, word, word, word, word );
+extern void primitive_vector_like_move( word, word, word, word, word );
+extern void primitive_vector_like_fill( word, word, word, word );
 extern void primitive_flonum_exp( word, word );
 extern void primitive_flonum_log( word, word );
 extern void primitive_flonum_sin( word, word );

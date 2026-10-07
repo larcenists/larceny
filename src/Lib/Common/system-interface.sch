@@ -89,6 +89,20 @@
 
 (define sys$bytevector-like-move-threshold 8)
 
+;; Copies count elements of vector-like src, starting at element i, to
+;; vector-like dst, starting at element j, with memmove (the ranges may
+;; overlap), doing the write barrier's work for each slot.  Stores x
+;; into count elements of vector-like dst starting at element j.  Both
+;; trust their caller, as sys$bytevector-like-move! does.
+
+(define (sys$vector-like-move! src i dst j count)
+  (%syscall syscall:vector-like-move src i dst j count))
+
+(define (sys$vector-like-fill! dst j count x)
+  (%syscall syscall:vector-like-fill dst j count x))
+
+(define sys$vector-like-move-threshold 8)
+
 (define (sys$codevector-iflush bv)
   (if (not (bytevector-like? bv))
       (error "sys$codevector-iflush: not a bytevector-like: " bv))

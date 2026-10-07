@@ -77,6 +77,8 @@ static struct {
 		      { (fptr)primitive_flonum_yn, 3, 0 },
 		      { (fptr)primitive_codevector_install, 1, 0 },
 	/* 60 */      { (fptr)primitive_bytevector_like_move, 5, 0 },
+		      { (fptr)primitive_vector_like_move, 5, 0 },
+		      { (fptr)primitive_vector_like_fill, 4, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

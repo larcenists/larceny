@@ -91,23 +91,30 @@
 ; Copies src[i..j] into dst starting at k.
 ; Used only within this file.
 ; Performs no checking.
-; Assumes src and dst are distinct strings, or that k <= i.
+; Assumes src and dst are distinct vectors, or that k <= i.
+;
+; Copies of at least sys$vector-like-move-threshold elements use
+; memmove (which also handles the overlapping case of the -up! copy).
 
 (define vector-copy-into-down!
   (lambda (src i j dst k)
-    (do ((i i (.+:idx:idx i 1))
-         (k k (.+:idx:idx k 1)))
-        ((.>=:fix:fix i j))
-      (.vector-set!:trusted dst k (.vector-ref:trusted src i)))))
+    (if (.>=:fix:fix (.-:idx:idx j i) sys$vector-like-move-threshold)
+        (sys$vector-like-move! src i dst k (.-:idx:idx j i))
+        (do ((i i (.+:idx:idx i 1))
+             (k k (.+:idx:idx k 1)))
+            ((.>=:fix:fix i j))
+          (.vector-set!:trusted dst k (.vector-ref:trusted src i))))))
 
 ; As above, but assumes k >= i.
 
 (define vector-copy-into-up!
   (lambda (src i j dst k)
-    (do ((j (- j 1) (- j 1))
-         (k (+ k (- j i) -1) (- k 1)))
-        ((> i j))
-      (vector-set! dst k (vector-ref src j)))))
+    (if (>= (- j i) sys$vector-like-move-threshold)
+        (sys$vector-like-move! src i dst k (- j i))
+        (do ((j (- j 1) (- j 1))
+             (k (+ k (- j i) -1) (- k 1)))
+            ((> i j))
+          (vector-set! dst k (vector-ref src j))))))
 
 (define vector-copy
   (case-lambda
@@ -188,9 +195,16 @@
 
 (define subvector-fill!
   (lambda (v start end x)
-    (do ((i start (+ i 1)))
-        ((>= i end) v)
-        (vector-set! v i x))))
+    (if (and (vector? v)
+             (fixnum? start)
+             (fixnum? end)
+             (<= 0 start end (vector-length v))
+             (>= (- end start) sys$vector-like-move-threshold))
+        (begin (sys$vector-like-fill! v start (- end start) x)
+               v)
+        (do ((i start (+ i 1)))
+            ((>= i end) v)
+            (vector-set! v i x)))))
 
 (define (vector-equal? v1 v2)
 
