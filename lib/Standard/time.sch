@@ -55,9 +55,13 @@
           (%set-long tv 0 t)
           ;; A trick from the Apache Portable Runtime: mktime is inverse of localtime,
           ;; so mktime(gmtime(now)) - mktime(localtime(now)) _should_ be offset from utc.
-          (let ((gmean-tm (_gmtime tv)))
-            ;; set tm->tm_isdst to 0; GMT does not have DST.
-            (%poke32 (+ gmean-tm 32) 0)
+          ;; mktime must read gmtime's fields with local time's tm_isdst
+          ;; (offset 32), or it gives the standard offset during daylight
+          ;; saving time.  localtime and gmtime share their storage, so
+          ;; tm_isdst is read first.
+          (let* ((isdst (%peek32 (+ (_localtime tv) 32)))
+                 (gmean-tm (_gmtime tv)))
+            (%poke32 (+ gmean-tm 32) (if (> isdst 0) 1 0))
             (inexact->exact (ceiling (_difftime t (_mktime gmean-tm)))))))))
 )
  (win32 
