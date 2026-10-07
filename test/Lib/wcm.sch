@@ -24,6 +24,22 @@
 
 (define (run-wcm-tests)
   (display "Continuation Marks") (newline)
+  (allof "continuation mark sets"
+    (test "continuation-mark-set? of current-continuation-marks"
+          (continuation-mark-set? (current-continuation-marks))
+          #t)
+    (test "continuation-mark-set? of a continuation's marks"
+          (continuation-mark-set?
+           (continuation-marks (call-with-current-continuation (lambda (k) k))))
+          #t)
+    (test "continuation-mark-set? of other things"
+          (map continuation-mark-set? (list 1 '(a) (vector 1 2) (make-structure 2)))
+          '(#f #f #f #f))
+    (test "printing a continuation mark set"
+          (let ((p (open-output-string)))
+            (write (current-continuation-marks) p)
+            (get-output-string p))
+          "#<continuation-mark-set>"))
   (allof "with-continuation-mark, current-continuation-marks"
     (test "wcm 1 (new mark)"
           (wcm 'a 1 (ccm 'a))

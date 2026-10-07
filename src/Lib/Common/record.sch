@@ -1043,14 +1043,16 @@
      (display ">" port)))
 
   ; Record printer: if the record's rtd has a printer, call it.  Otherwise
-  ; print #<record name>.
+  ; print #<record name>.  Other structures (continuation mark sets, which
+  ; look like records with a fake hierarchy) go to the previous printer.
 
   (let ((previous-printer (structure-printer))
         (get-printer (rtd-printer rtdtd)))
     (structure-printer
      (lambda (obj port quote?)
        (assert (structure? obj))
-       (cond ((rtd-printer (vector-ref (vector-like-ref obj 0) 0))
+       (cond ((and (record? obj)
+                   (rtd-printer (vector-ref (vector-like-ref obj 0) 0)))
               =>
               (lambda (printer)
                 (printer obj port)))

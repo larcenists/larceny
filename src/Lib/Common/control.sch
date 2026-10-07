@@ -425,7 +425,7 @@
       fake-hierarchy))
 
   (define (cms-box alists)
-    (let ((cms (make-structure 3)))
+    (let ((cms (make-structure 2)))     ; the tag and the alists
       (vector-like-set! cms 0 cms-tag)
       (vector-like-set! cms 1 alists)
       cms))
