@@ -372,20 +372,24 @@
 ; the arguments as they are (so its own entry checks and conses the
 ; rest list).  (.make-case-lambda ends with a clause that accepts any
 ; number; if none did, the first clause would signal the error.)
-; SECOND and TMP are free at a procedure's entry.
+; SECOND and TMP are free at a procedure's entry, but SECOND is a root
+; for the garbage collector, which the clause may call, so it holds a
+; multiple of 4 (a fixnum): the byte offset of an arity less bias.
 
 (define-instruction $arity-dispatch
   (lambda (instruction as)
     (list-instruction "arity-dispatch" instruction)
-    (let ((Lloop  (fence.make-label as))
-          (Lnext  (fence.make-label as))
-          (Lfail  (fence.make-label as))
-          (Lfound (fence.make-label as))
-          (step   (* 2 $bytewidth.wordsize)))
-      (cant.movi  as $p.reg0 $r.second)          ; byte offset of an arity
+    (let* ((Lloop  (fence.make-label as))
+           (Lnext  (fence.make-label as))
+           (Lfail  (fence.make-label as))
+           (Lfound (fence.make-label as))
+           (step   (* 2 $bytewidth.wordsize))
+           (bias   (remainder $p.reg0 4))
+           (first  (- $p.reg0 bias)))
+      (cant.movi  as first $r.second)            ; offset of an arity - bias
       (fence.label as Lloop)
       (cant.add   as $r.reg0 $r.second $r.tmp)
-      (cant.ldi   as $r.tmp 0 $r.tmp)            ; the arity, or #f
+      (cant.ldi   as $r.tmp bias $r.tmp)         ; the arity, or #f
       (cant.bcci  as 'equal $r.tmp $imm.false Lfail)
       (cant.bcc   as 'equal $r.tmp $r.result Lfound)
       (cant.bcci  as 'greater-or-equal $r.tmp 0 Lnext)
@@ -396,10 +400,10 @@
       (cant.addi  as $r.second step $r.second)
       (cant.ba    as Lloop)
       (fence.label as Lfail)
-      (cant.movi  as $p.reg0 $r.second)
+      (cant.movi  as first $r.second)
       (fence.label as Lfound)
       (cant.add   as $r.reg0 $r.second $r.tmp)
-      (cant.ldi   as $r.tmp $bytewidth.wordsize $r.reg0)
+      (cant.ldi   as $r.tmp (+ bias $bytewidth.wordsize) $r.reg0)
       (cant.jump  as #f))))
 
 (define-instruction $invoke

@@ -118,6 +118,20 @@
                  (call-with-current-continuation (lambda (k) (f k 2)))))
          '(escaped 2))
 
+   ; The dispatch must leave no false pointer in a register that the
+   ; garbage collector scans when a clause allocates.
+
+   (test "allocation in clauses"
+         (let ((f (case-lambda
+                   ((a) (cons a a))
+                   ((a b) (cons a b))
+                   ((a b c) (cons b c)))))
+           (let loop ((i 0) (acc '()))
+             (if (= i 3000000)
+                 (length acc)
+                 (loop (+ i 1) (if (pair? acc) (f 1 2 '()) (f 1 2 acc))))))
+         1)
+
    (test "procedure?"
          (procedure? (case-lambda ((a) a) ((a b) b)))
          #t)
