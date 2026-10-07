@@ -106,59 +106,168 @@
 (define (string-normalize-nfkc s)
   (compose-after string-normalize-nfkd s))
 
+; Returns s itself if no character of s decomposes, has a nonzero
+; combining class, or is a Hangul syllable; otherwise returns a new
+; string.  (compose-after depends on that.)
+
 (define (decompose compat? s)
   (let ((size (string-length s)))
-    (define (fast-loop i)
+    (let loop ((i 0))
       (if (= i size)
           s
+          (let ((sv (char->integer (string-ref s i))))
+            (if (and (>= sv 128)
+                     (or (sv-hangul-syllable? sv)
+                         (< 0 (sv-combining-class sv))
+                         (sv-decomposition-index-of-index sv)))
+                (decompose-from compat? s i)
+                (loop (+ i 1))))))))
+
+; The characters before index start neither decompose nor combine,
+; so they are copied as they are.  Each character's full decomposition
+; is written into a string that grows as needed; then each run of
+; characters with nonzero combining classes is sorted by class.
+; (The strings to normalize are often a few characters long, so the
+; buffer starts with room to spare and short copies are loops.)
+
+(define (decompose-from compat? s start)
+  (let* ((size (string-length s))
+         (out (make-string (+ size size 4))))
+    (decompose-copy! out 0 s 0 start)
+    (let loop ((i start) (out out) (n start))
+      (if (= i size)
+          (begin (reorder-according-to-combining-class! out n)
+                 (if (= n (string-length out))
+                     out
+                     (substring out 0 n)))
           (let* ((c (string-ref s i))
                  (sv (char->integer c)))
-            (if (< sv 128)
-                (fast-loop (+ i 1))
-                (let ((index2 (sv-decomposition-index-of-index sv))
-                      (class (sv-combining-class sv)))
-                  (if (or index2 (< 0 class) (sv-hangul-syllable? sv))
-                      (slow-loop 0 '())
-                      (fast-loop (+ i 1))))))))
-    (define (slow-loop i rev-chars)
-      (if (>= i size)
-          (reorder-according-to-combining-class!
-           (list->string (reverse rev-chars)))
-          (let* ((c (string-ref s i))
-                 (sv (char->integer c)))
-            (if (sv-hangul-syllable? sv)
-                (slow-loop (+ 1 i)
-                           (prepend-reverse-jamo-decomposition sv rev-chars))
-                (slow-loop (+ 1 i)
-                           (append (reverse-decomposition compat? sv)
-                                   rev-chars))))))
-    (fast-loop 0)))
+            (cond ((< sv 128)
+                   (let ((out (decompose-room out n 1)))
+                     (string-set! out n c)
+                     (loop (+ i 1) out (+ n 1))))
+                  ((sv-hangul-syllable? sv)
+                   (let* ((out (decompose-room out n 3))
+                          (n (put-hangul-decomposition! out n sv)))
+                     (loop (+ i 1) out n)))
+                  ((full-decomposition compat? sv)
+                   => (lambda (d)
+                        (let* ((k (string-length d))
+                               (out (decompose-room out n k)))
+                          (decompose-copy! out n d 0 k)
+                          (loop (+ i 1) out (+ n k)))))
+                  (else
+                   (let ((out (decompose-room out n 1)))
+                     (string-set! out n c)
+                     (loop (+ i 1) out (+ n 1))))))))))
 
-; bubble-sort decompositions according to combining class
-; returns the modified string
+; Returns out, or a longer copy of out[0..n), with room for k more.
 
-(define (reorder-according-to-combining-class! s)
-  (let ((size (string-length s)))
-    (let repeat ()
-      (let loop ((i 0)
-                 (swapped? #f))
-        (cond
-         ((< (+ i 1) size)
-          (let ((sv-i (char->integer (string-ref s i)))
-                (sv-i+1 (char->integer (string-ref s (+ i 1)))))
-            (let ((cc-i (sv-combining-class sv-i))
-                  (cc-i+1 (sv-combining-class sv-i+1)))
-              (if (and (not (zero? cc-i))
-                       (not (zero? cc-i+1))
-                       (< cc-i+1 cc-i))
-                  (begin
-                    (string-set! s i (integer->char sv-i+1))
-                    (string-set! s (+ i 1) (integer->char sv-i))
-                    (loop (+ 1 i) #t))
-                  (loop (+ 1 i) swapped?)))))
-         (swapped? (repeat))
-         (else
- s))))))
+(define (decompose-room out n k)
+  (if (<= (+ n k) (string-length out))
+      out
+      (let ((out2 (make-string (* 2 (+ n k)))))
+        (decompose-copy! out2 0 out 0 n)
+        out2)))
+
+; string-copy!, which is faster as a loop for a few characters.
+
+(define (decompose-copy! to at from start end)
+  (if (< (- end start) 16)
+      (do ((i start (+ i 1))
+           (j at (+ j 1)))
+          ((= i end))
+        (string-set! to j (string-ref from i)))
+      (string-copy! to at from start end)))
+
+; Writes the decomposition of a Hangul syllable into out[n..] (which
+; has room for 3) and returns the index after it.
+
+(define (put-hangul-decomposition! out n sv)
+  (let* ((offset (- sv jamo-syllable-start))
+         (t (remainder offset jamo-trailing-consonant-count)))
+    (string-set! out n (integer->char
+                        (+ jamo-initial-consonant-start
+                           (quotient offset jamo-syllable-per-count))))
+    (string-set! out (+ n 1) (integer->char
+                              (+ jamo-vowel-start
+                                 (quotient
+                                  (remainder offset jamo-syllable-per-count)
+                                  jamo-trailing-consonant-count))))
+    (if (zero? t)
+        (+ n 2)
+        (begin (string-set! out (+ n 2) (integer->char
+                                         (+ jamo-trailing-consonant-start t)))
+               (+ n 3)))))
+
+; Sorts each run of characters with nonzero combining classes in
+; s[0..n) by combining class, stably (canonical ordering).  The runs
+; are almost always short and sorted already.
+
+(define (reorder-according-to-combining-class! s n)
+  (let loop ((i 0))
+    (if (< i n)
+        (let ((cc-i (sv-combining-class (char->integer (string-ref s i)))))
+          (if (zero? cc-i)
+              (loop (+ i 1))
+              (let run ((j (+ i 1)) (previous cc-i) (sorted? #t))
+                (let ((cc-j (if (< j n)
+                                (sv-combining-class
+                                 (char->integer (string-ref s j)))
+                                0)))
+                  (if (zero? cc-j)
+                      (begin (if (not sorted?)
+                                 (sort-by-combining-class! s i j))
+                             (loop (+ j 1)))
+                      (run (+ j 1) cc-j (and sorted? (<= previous cc-j)))))))))))
+
+; Insertion sort of s[i..j) by combining class.
+
+(define (sort-by-combining-class! s i j)
+  (define (cc k)
+    (sv-combining-class (char->integer (string-ref s k))))
+  (do ((k (+ i 1) (+ k 1)))
+      ((= k j))
+    (let* ((c (string-ref s k))
+           (cc-c (sv-combining-class (char->integer c))))
+      (let loop ((m k))
+        (if (and (> m i) (> (cc (- m 1)) cc-c))
+            (begin (string-set! s m (string-ref s (- m 1)))
+                   (loop (- m 1)))
+            (string-set! s m c))))))
+
+; Given a boolean to indicate whether compatibility decompositions
+; are to be used, and a scalar value, returns a string of the
+; characters to which the scalar value decomposes, fully, or #f if it
+; does not decompose.  The strings are made on first use, from
+; reverse-decomposition, and cached by the decomposition's index.
+
+(define canonical-decompositions #f)
+(define compatibility-decompositions #f)
+
+(define (full-decomposition compat? sv)
+  (let ((index-of-index (sv-decomposition-index-of-index sv)))
+    (and index-of-index
+         (or compat?
+             (< (bytevector-u8-ref decomposition-indexes index-of-index) 128))
+         (let ((cache (or (if compat?
+                              compatibility-decompositions
+                              canonical-decompositions)
+                          (let ((v (make-vector
+                                    (quotient (bytevector-length
+                                               decomposition-indexes)
+                                              2)
+                                    #f)))
+                            (if compat?
+                                (set! compatibility-decompositions v)
+                                (set! canonical-decompositions v))
+                            v)))
+               (k (quotient index-of-index 2)))
+           (or (vector-ref cache k)
+               (let ((d (list->string
+                         (reverse (reverse-decomposition compat? sv)))))
+                 (vector-set! cache k d)
+                 d))))))
 
 ; Given a normalizer that acts as the identity on Ascii strings,
 ; and a string,
@@ -323,23 +432,6 @@
   (and (>= sv  jamo-syllable-start)
        (< sv jamo-syllable-end)))
 
-(define (prepend-reverse-jamo-decomposition sv rev-chars)
-  (let* ((offset (- sv jamo-syllable-start))
-         (l (+ jamo-initial-consonant-start
-               (div offset jamo-syllable-per-count)))
-         (v (+ jamo-vowel-start
-               (div (mod offset jamo-syllable-per-count)
-                    jamo-trailing-consonant-count)))
-         (t (+ jamo-trailing-consonant-start
-               (mod offset jamo-trailing-consonant-count)))
-         (either-way
-          (cons (integer->char v)
-                (cons (integer->char l)
-                      rev-chars))))
-    (if (= t jamo-trailing-consonant-start)
-        either-way
-        (cons (integer->char t) either-way))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Copyright 2006 William D Clinger.
@@ -392,32 +484,35 @@
               (bytevector-u16-native-set! stage2 (* 2 j) (value i)))))
       (cons stage1 stage2))))
 
-(define (unicode:table-block table sv)
-  (* 256 (bytevector-u16-native-ref (car table)
-                                    (* 2 (fxrsha sv 8)))))
+; The index in stage 2 of a table's value for sv.  (A macro, so that
+; the lookups below, which normalization makes for nearly every
+; character, need no calls.)
 
-(define (unicode:table-u8 table sv)
-  (bytevector-u8-ref (cdr table)
-                     (+ (unicode:table-block table sv) (fxlogand sv 255))))
-
-(define (unicode:table-u16 table sv)
-  (bytevector-u16-native-ref
-   (cdr table)
-   (* 2 (+ (unicode:table-block table sv) (fxlogand sv 255)))))
+(define-syntax unicode:table-index
+  (syntax-rules ()
+   ((_ table sv)
+    (fx+ (fx* 256 (bytevector-u16-native-ref (car table)
+                                             (fx* 2 (fxrsha sv 8))))
+         (fxlogand sv 255)))))
 
 ; Given a Unicode scalar value, returns its combining class.
+; Characters below U+0300 have combining class 0.
 
 (define combining-class-table #f)
 
 (define (sv-combining-class s)
-  (if (not combining-class-table)
-      (set! combining-class-table
-            (unicode:make-table
-             1
-             (vector-length combining-class-is-nonzero)
-             (lambda (i) (vector-ref combining-class-is-nonzero i))
-             (lambda (i) (bytevector-u8-ref combining-class-values i)))))
-  (unicode:table-u8 combining-class-table s))
+  (if (< s #x300)
+      0
+      (begin
+       (if (not combining-class-table)
+           (set! combining-class-table
+                 (unicode:make-table
+                  1
+                  (vector-length combining-class-is-nonzero)
+                  (lambda (i) (vector-ref combining-class-is-nonzero i))
+                  (lambda (i) (bytevector-u8-ref combining-class-values i)))))
+       (bytevector-u8-ref (cdr combining-class-table)
+                          (unicode:table-index combining-class-table s)))))
 
 ; Given a Unicode scalar value, returns the index of the index
 ; of its decomposition sequence if it has one, else returns #f.
@@ -441,7 +536,9 @@
                                            (+ (* 2 i) 1)))
                      (vector-ref decomposition-chars-morebits (- i n16))))
                (lambda (i) (+ i 1))))))
-  (let ((v (unicode:table-u16 decomposition-table s)))
+  (let ((v (bytevector-u16-native-ref
+            (cdr decomposition-table)
+            (fx* 2 (unicode:table-index decomposition-table s)))))
     (if (zero? v)
         #f
         (* 2 (- v 1)))))
