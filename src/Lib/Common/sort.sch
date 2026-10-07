@@ -98,16 +98,11 @@
 
   (define (merge! lo mid hi)
     (let ((n (- mid lo)))
-      (do ((i 0 (+ i 1)))
-          ((= i n))
-        (vector-set! tmp i (vector-ref v (+ lo i))))
+      (vector-copy-into-down! v lo mid tmp 0)
       (let loop ((i 0) (j mid) (k lo))
         (cond ((= i n))                  ; the rest of the right half stays
               ((= j hi)
-               (do ((i i (+ i 1))
-                    (k k (+ k 1)))
-                   ((= i n))
-                 (vector-set! v k (vector-ref tmp i))))
+               (vector-copy-into-down! tmp i n v k))
               ((less? (vector-ref v j) (vector-ref tmp i))
                (vector-set! v k (vector-ref v j))
                (loop i (+ j 1) (+ k 1)))
