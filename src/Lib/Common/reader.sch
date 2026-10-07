@@ -1391,6 +1391,7 @@
           (set-port-switches input-port
                              port-folds-case! #f
                              io/port-allows-r6rs-weirdness!        #t
+                             io/port-allows-r5rs-weirdness!        #f
                              io/port-allows-r7rs-weirdness!        #f
                              io/port-allows-larceny-weirdness!     #f
                              io/port-allows-traditional-weirdness! #f
@@ -1712,6 +1713,10 @@
     (define (makeCodevector)
       (define (loop)
         (let ((c (scanChar)))
+          ; The end of input before the closing #\" is an error, not a
+          ; loop: consumeChar does not consume it.
+          (if (not (char? c))
+              (scannerError errIncompleteToken))
           ; The call to consumeChar puts the char in string_accumulator.
           (consumeChar)
           (case c

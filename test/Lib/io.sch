@@ -10,6 +10,7 @@
   (io-eol-tests)
   (io-input/output-tests)
   (io-string-port-tests)
+  (io-reader-tests)
   (if (and #f (null? rest)) ;FIXME
       (io-test-error)
       #t)
@@ -1270,4 +1271,33 @@
                    (eof-object? (get-line p)))))
          '(#t #t #t #t #t))
 
+   ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The reader: what #!r6rs disallows, and input that ends too soon.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (io-reader-tests)
+
+  (define (read-all s)
+    (let ((p (open-input-string s)))
+      (let loop ((l '()))
+        (let ((x (read p)))
+          (if (eof-object? x)
+              (reverse l)
+              (loop (cons x l)))))))
+
+  (allof "reader tests"
+   (mustfail "#!r6rs @" read-all "#!r6rs @")
+   (mustfail "#!r6rs @b" read-all "#!r6rs @b")
+   (mustfail "#!r6rs #\\null" read-all "#!r6rs #\\null")
+   (test "#!r6rs a@b" (read-all "#!r6rs a@b") '(a@b))
+   (test "#!r6rs #\\nul" (read-all "#!r6rs #\\nul") (list (integer->char 0)))
+
+   ; A codevector (fasl syntax) without its closing quote used to loop.
+   (mustfail "unterminated codevector"
+             read-all
+             (string-append "#!fasl\n#" (string (integer->char 2)) "\"ab"))
    ))
