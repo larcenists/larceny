@@ -227,6 +227,15 @@
      (mustfail "make-bytevector 256" make 2 256)
      (mustfail "make-bytevector symbol" make 2 'a))
 
+   (test "r7rs:bytevector-copy!"
+         (map (lambda (args)
+                (let ((d (make-bytevector 6 0)))
+                  (apply r7rs:bytevector-copy!
+                         d 1 (u8-list->bytevector '(1 2 3 4 5 6)) args)
+                  (bytevector->u8-list d)))
+              '(() (2) (2 4)))
+         '((0 1 2 3 4 5) (0 3 4 5 6 0) (0 3 4 0 0 0)))
+
    (let ((b (u8-list->bytevector '(1 2 3 4 5 6 7 8))))
      (r6rs:bytevector-copy! b 0 b 3 4)
 

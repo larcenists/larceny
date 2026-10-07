@@ -102,10 +102,10 @@
 (define (r7rs:bytevector-copy! dst at src . rest)
   (let* ((start (if (null? rest) 0 (car rest)))
          (rest (if (null? rest) rest (cdr rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
+         (end (if (null? rest)
                   (min (bytevector-length src)
                        (+ start (- (bytevector-length dst) at)))
-                  (cadr rest)))
+                  (car rest)))
          (kount (- end start)))
     (r6rs:bytevector-copy! src start dst at kount)))
 
