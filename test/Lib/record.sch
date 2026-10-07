@@ -9,7 +9,26 @@
   (record-test-r6rs-2)
   (record-test-r6rs-3)
   (record-test-err5rs-1)
-  (record-test-err5rs-2))
+  (record-test-err5rs-2)
+  (record-test-wrong-type))
+
+;;; Accessors and updaters applied to a record of another type, or to
+;;; something that is not a record, signal an error.
+
+(define (record-test-wrong-type)
+  (let* ((pt (make-record-type "pt" '(x y)))
+         (other (make-record-type "other" '(x y)))
+         (p ((record-constructor pt) 1 2))
+         (o ((record-constructor other) 1 2))
+         (get-x (record-accessor pt 'x))
+         (set-y! (record-updater pt 'y)))
+    (allof
+     (test "accessor of the right type" (get-x p) 1)
+     (mustfail "accessor of another type" get-x o)
+     (mustfail "accessor of a vector" get-x (vector pt 1 2))
+     (mustfail "accessor of a fixnum" get-x 5)
+     (mustfail "updater of another type" set-y! o 3)
+     (test "updater of the right type" (begin (set-y! p 3) p) p))))
 
 (define (record-test-0)
   (let* ((pt2 (make-record-type "pt2" '(x y)))

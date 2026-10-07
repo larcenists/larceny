@@ -173,6 +173,13 @@
          (eq? (.vector-ref:trusted (.vector-ref:trusted obj 0) depth)
               rtd))))
 
+; Called by record-ref:bummed and record-set!:bummed (common.imp.sch)
+; when obj is not a record of type rtd.
+
+(define (record:wrong-type obj rtd)
+  (assertion-violation #f (errmsg 'msg:notrecordoftype)
+                       obj (record-type-name rtd)))
+
 (define (make-bummed-record-accessor rtd hvec depth i)
   (lambda (obj)
     (record-ref:bummed obj rtd hvec depth i)))

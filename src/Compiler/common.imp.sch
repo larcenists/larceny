@@ -1781,7 +1781,10 @@
    ; FIXME: this isn't being inlined yet.
    ; FIXME: rtd is usually a lexical variable that isn't in a register,
    ; and fetching it as an argument to .check! interferes with peephole
-   ; optimization.  That's why this is written using if expressions.
+   ; optimization.  That's why this is written using if expressions,
+   ; and complains by calling record:wrong-type (Lib/Common/record.sch);
+   ; (.check! #f ...) would make Twobit warn of an assertion it can
+   ; prove false.
 
 `  ((_ larceny record-ref:bummed (record-ref:bummed obj0 rtd0 hvec0 depth0 i0))
     (let ((obj obj0)
@@ -1792,8 +1795,7 @@
       (define (record-ref)
         (.vector-ref:trusted obj i))
       (define (complain)
-        (.check! #f ,$ex.record obj rtd)
-        0)
+        (record:wrong-type obj rtd))
       (if (structure? obj)
           (let ((hvec2 (.vector-ref:trusted obj 0)))
             (if (eq? hvec hvec2)
@@ -1814,8 +1816,7 @@
       (define (record-set!)
         (.vector-set!:trusted obj i x))
       (define (complain)
-        (.check! #f ,$ex.record obj rtd)
-        0)
+        (record:wrong-type obj rtd))
       (if (structure? obj)
           (let ((hvec2 (.vector-ref:trusted obj 0)))
             (if (eq? hvec hvec2)
