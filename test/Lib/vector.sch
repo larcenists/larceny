@@ -119,6 +119,23 @@
                  sizes)
          #t)
 
+   (test "list->vector"
+         (every? (lambda (n)
+                   (let* ((v (iota-vector n))
+                          (l (vector->list v)))
+                     (and (same? (list->vector l) v)
+                          (same? (apply vector l) v))))
+                 sizes)
+         #t)
+
+   (test "list->vector, improper list"
+         (call-with-current-continuation
+          (lambda (k)
+            (call-with-error-handler
+             (lambda args (k 'error))
+             (lambda () (list->vector '(1 2 3 4 5 6 7 8 9 . 10))))))
+         'error)
+
    (test "vector-fill!, whole vector"
          (let ((v (make-vector 100 0)))
            (vector-fill! v 'a)
@@ -177,6 +194,18 @@
                            (check-fill old x half n)
                            (check copy k 0 half)))))))))
 
+  ; list->vector of young objects into a new large vector, which may
+  ; not be in the nursery.
+
+  (define (run-list->vector n rounds)
+    (let loop ((k 0) (ok #t))
+      (if (or (= k rounds) (not ok))
+          ok
+          (let ((v (list->vector (vector->list (fresh n k)))))
+            (churn)
+            (loop (+ k 1) (check v k 0 n))))))
+
   (allof "vector barrier tests"
    (test "copies and fills into an old vector" (run 1000 20) #t)
-   (test "copies and fills into an old large vector" (run 200000 5) #t)))
+   (test "copies and fills into an old large vector" (run 200000 5) #t)
+   (test "list->vector into a large vector" (run-list->vector 200000 5) #t)))

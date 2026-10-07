@@ -37,15 +37,21 @@
 ; all the time, and we can do this when we know that the vector is in
 ; the tenured area.
 
+; (sys$partial-list->vector l n) would allocate and fill the vector in
+; millicode, but it stores without the write barrier, which a vector
+; allocated outside the nursery needs.
+
 (define list->vector
   (lambda (l)
-;   (sys$partial-list->vector l (length l))
     (let* ((n (length l))
            (v (make-vector n)))
-      (do ((i 0 (+ i 1))
-           (l l (cdr l)))
-          ((= i n) v)
-        (vector-set! v i (car l))))))
+      (if (>= n sys$vector-like-move-threshold)
+          (begin (sys$vector-like-fill-from-list! v 0 n l)
+                 v)
+          (do ((i 0 (+ i 1))
+               (l l (cdr l)))
+              ((= i n) v)
+            (vector-set! v i (car l)))))))
 
 (define vector->list
   (case-lambda

@@ -656,6 +656,25 @@ void primitive_vector_like_fill( word w_dst, word w_to, word w_count,
   globals[ G_RESULT ] = UNSPECIFIED_CONST;
 }
 
+/* Stores the cars of the first w_count pairs of list w_list into the
+   w_count elements of vector-like w_dst starting at element w_to, which
+   are in bounds; the list has at least w_count pairs.
+   */
+
+void primitive_vector_like_fill_from_list( word w_dst, word w_to,
+                                           word w_count, word w_list )
+{
+  word *dst = ptrof( w_dst ) + VEC_HEADER_WORDS + nativeint( w_to );
+  word n = nativeint( w_count );
+  word i, l;
+
+  range_pre_barrier( w_dst, dst, n );
+  for ( i=0, l=w_list ; i < n ; i++, l=pair_cdr( l ) )
+    dst[i] = pair_car( l );
+  range_post_barrier( w_dst, dst, n );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
 /* Returns the current time, in seconds since the epoch, in the flonum
    provided.  With POSIX clocks, the time has a fractional part. */
 

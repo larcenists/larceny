@@ -107,6 +107,13 @@
 (define (sys$vector-like-fill! dst j count x)
   (%syscall syscall:vector-like-fill dst j count x))
 
+;; Stores the cars of the first count pairs of list l into count
+;; elements of vector-like dst starting at element j.  Trusts its
+;; caller: l must have at least count pairs.
+
+(define (sys$vector-like-fill-from-list! dst j count l)
+  (%syscall syscall:vector-like-fill-from-list dst j count l))
+
 (define sys$vector-like-move-threshold 8)
 
 (define (sys$codevector-iflush bv)
