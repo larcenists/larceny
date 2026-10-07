@@ -4,6 +4,21 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- Investigated, not done: restoring several frames per stack underflow
+  (an adaptive count, grown on each underflow and halved at each
+  collection, since frames restored but not returned into before the
+  next flush are the waste).  Returning through a flushed frame costs
+  two mispredicted branches (the return into the underflow frame, and
+  the handler's branch to the restored frame), about 5.7 ns per frame
+  at depth (Racket about 1, as Chez does not move frames); batching
+  would save only the second.  Locality is not a factor: the cost is
+  the same for frames interleaved with live data after a collection, or
+  out of cache at depth 10^6, because the collector copies the chain in
+  return order.  Counted on the R6RS benchmarks (an instrumented build):
+  at most about 2 million underflows a second (listsort; 0.2 to 19000
+  per collection across the suite), and fence_stack_underflow is 2.3%
+  of listsort's samples (about 8 ns an underflow) and less elsewhere,
+  so the upper bound is 2-3% on listsort and under 1% on the others.
 - call/cc, continued: a continuation called with one value makes no
   rest list (0e0bcb2c), and creg-set! reinstates it in assembly
   (7d77d125): a throw 28 ns -> 19.5; fibc 1.1x Racket's time, ctak 1.1x.

@@ -17,8 +17,9 @@ DONE.md (with the date and the commit, if any).
   - fibc 1.1x, ctak 1.1x (call/cc; 3.1x and 2.5x before cd5ef179,
     ac48c2a5, 0e0bcb2c, 7d77d125).  What is left: capture (creg_get:
     flush, then restore the top frame) switches to C, about a quarter
-    of fibc's time.  Per frame, returning through flushed frames costs
-    about 9 ns (Racket about 1).
+    of fibc's time; not worth moving to assembly for now.  Returning
+    through flushed frames: see DONE, 2026-10-07 (restoring several
+    frames per underflow measured, not worth it).
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
   - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
