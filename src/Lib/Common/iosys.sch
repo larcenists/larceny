@@ -2227,11 +2227,13 @@
     (cond ((or (fx= eolstyle eolstyle:none)
                (fx= eolstyle eolstyle:lf))
            #f)
+          ; (No lexical syntax for non-Ascii characters: the build may be
+          ; hosted by a Scheme that reads it differently.)
           ((fx= eolstyle eolstyle:cr)    "\r")
           ((fx= eolstyle eolstyle:crlf)  "\r\n")
-          ((fx= eolstyle eolstyle:nel)   "\x85;")
-          ((fx= eolstyle eolstyle:crnel) "\r\x85;")
-          ((fx= eolstyle eolstyle:ls)    "\x2028;")
+          ((fx= eolstyle eolstyle:nel)   (string (integer->char #x85)))
+          ((fx= eolstyle eolstyle:crnel) (string #\return (integer->char #x85)))
+          ((fx= eolstyle eolstyle:ls)    (string (integer->char #x2028)))
           (else
            (assertion-violation 'put-char "internal error" p)))))
 
