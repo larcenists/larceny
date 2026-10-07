@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- A heap build that fails leaves `larceny.heap` as it was (12921cfa):
+  the heap scripts used it as a temporary file and dumped into it, so a
+  failure left 29 bytes of date.  Each successful build keeps the
+  binary that dumped its heap (ad1f17ef): `larceny.bin.cur` with
+  `larceny.heap`, and `larceny.bin.prev` with `larceny.heap.prev`.
 - A nursery larger than 32MB (`-size0 256M`) overflowed the low-level
   allocator's initial page table, whose first allocation did not grow
   it; garbage generations then crashed the write barrier's remembered

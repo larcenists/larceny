@@ -143,10 +143,6 @@ DONE.md (with the date and the commit, if any).
     has not been seen to fire: no such heap can be built now.
   - `.lap` markers are written and compared by the build, but nothing
     loads `.lap` files outside it.
-- A heap build that fails leaves a 29-byte `larceny.heap`, so the
-  tree's `./larceny` cannot run, not even to host the next build: build
-  with another Larceny, defining in it (if need be) whatever the
-  compiler's new output calls that the host lacks.
 - `setup`'s `'clean` needs git to find the build products; it could fall
   back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).
