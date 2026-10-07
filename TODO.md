@@ -76,10 +76,16 @@ DONE.md (with the date and the commit, if any).
   a call or a temporary, keeps the previous iteration's object through
   the next collection, which promotes it (into a region under -rrof);
   300 iterations of `(f6 60 bv 0 (make-vector 100000 0) 0 0)` do 21
-  region collections instead of none.  Precise: a mask of live
-  registers per collection point (keyed by the return address), from
-  Twobit's register allocation.  Cheaper: keep large objects young for
-  one more collection.
+  region collections instead of none.  The retention is bounded (one
+  object per register, until the code writes that register again,
+  usually the next iteration) and no benchmark has shown it, so this
+  is low priority.  The fix: a mask of live registers per collection
+  point (keyed by the return address), from Twobit's register
+  allocation.  Not aging large objects (keeping them young for one more
+  collection): that guesses at lifetimes where the cause is liveness,
+  and it would make long-lived large objects cost an extra collection
+  each (a large pointer vector is scanned whole at every minor
+  collection).
 - Under `-rrof`, a code collection that does not follow a completed
   mark cycle (with two regions, or when no marking is in progress)
   still keeps code referenced only from garbage until the garbage's
