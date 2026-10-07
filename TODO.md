@@ -140,9 +140,6 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
-- `bootstrap.sh` says "Done" when the C runtime fails to compile: the
-  heap is built with the old `larceny.bin`.  It should check that the
-  binary is newer than the stamp too.
 - Smoke-test `--r6rs` mode routinely.  The test suites run their
   programs in `--r7rs` mode, so a library that strict R6RS syntax
   cannot read (rnrs control, 2a28596a until fixed) went unnoticed until

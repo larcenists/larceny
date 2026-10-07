@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- A runtime that fails to compile stops the build (36bf501c): build-runtime
+  ignored make's status, so the old larceny.bin was installed and
+  bootstrap.sh said "Done".
 - The collector clears the registers that the running code does not
   use (47c65bee): a dead value left in a register was a root until
   something overwrote it (an 80MB vector in REG13 survived 68
