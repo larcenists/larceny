@@ -308,9 +308,7 @@
                (%new-text (- end start) i+i0 chunks))
               (else
                (let* ((v (make-vector (+ 1 (- jend jstart)))))
-                 (do ((j jstart (+ j 1)))
-                     ((> j jend))
-                   (vector-set! v (- j jstart) (vector-ref chunks j)))
+                 (vector-copy-into-down! chunks jstart (+ jend 1) v 0)
                  (%new-text (- end start)
                             (remainder i+i0 larceny:text-N)
                             v))))
@@ -425,9 +423,7 @@
             (let* ((j (quotient len larceny:text-N))
                    (ti (* j larceny:text-N))
                    (chunks0 (larceny:text.chunks txt)))
-              (do ((i 0 (+ i 1)))
-                  ((= i j))
-                (vector-set! chunks i (vector-ref chunks0 i)))
+              (vector-copy-into-down! chunks0 0 j chunks 0)
               (%%text-concatenate-finish n 0 chunks j texts ti))
             (%%text-concatenate-finish n 0 chunks 0 texts 0)))))
 
@@ -457,9 +453,7 @@
 
     ;; copy extant chunks
 
-    (do ((i kchunks (+ i 1)))
-        ((= i nchunks))
-      (vector-set! chunks i (vector-ref chunks2 (- i kchunks))))
+    (vector-copy-into-down! chunks2 0 (- nchunks kchunks) chunks kchunks)
 
     (%%text-concatenate-finish n i0 chunks 0 texts 0)))
 
