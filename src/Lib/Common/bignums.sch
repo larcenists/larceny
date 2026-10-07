@@ -147,11 +147,8 @@
 ; the source or destination has been exhausted.
 
 (define (big-copy-into! from to)
-  (do ((i (- (min (bytevector-like-length from) (bytevector-like-length to))
-             1)
-          (- i 1)))
-      ((< i 0))
-    (bytevector-like-set! to i (bytevector-like-ref from i))))
+  (sys$bytevector-like-move!
+   from 0 to 0 (min (bytevector-like-length from) (bytevector-like-length to))))
 
 ; Is it a bignum?
 
@@ -1289,10 +1286,9 @@
          (z (bignum-alloc nbigits))
          (n (min (bytevector-like-length u)
                  (bytevector-like-length z))))
-    (do ((i 4 (+ i 1)))
-        ((>= i n)
-         (big-limited-normalize! z))
-      (bytevector-like-set! z i (bytevector-like-ref u i)))))
+    (if (> n 4)
+        (sys$bytevector-like-move! u 4 z 4 (- n 4)))
+    (big-limited-normalize! z)))
 
 ; Given a positive bignum, returns its most significant digits
 ; as a bignum.
