@@ -177,14 +177,18 @@
   (let ((herald-string
          (begin
 
-           ;; A "temporary" file (we know it is about to get overwritten).
+           ;; A temporary file, not petit-larceny.heap itself: if the build
+           ;; fails, the old heap must still work.
 
-           (system (string-append date-cmd "> petit-larceny.heap"))
-           (call-with-input-file "petit-larceny.heap"
-             (lambda (port)
-               (string-append 
-                "petit-larceny.heap, built on " 
-                (list->string (trim-spaces (file->char-list port)))))))))
+           (system (string-append date-cmd "> petit-larceny.heap.date"))
+           (let ((s (call-with-input-file "petit-larceny.heap.date"
+                      (lambda (port)
+                        (string-append
+                         "petit-larceny.heap, built on "
+                         (list->string
+                          (trim-spaces (file->char-list port))))))))
+             (delete-file "petit-larceny.heap.date")
+             s))))
     (herald herald-string)))
 
 "Redefine MACRO-EXPAND in the interaction environment."
@@ -349,19 +353,36 @@
 
 "Dump the heap"
 
-;(gctwa)
+; The new heap is made under another name and installed only when it is
+; complete, so that a build that fails leaves the old heap, which may
+; be needed to host the next build; the old heap is kept as
+; petit-larceny.heap.prev.
 
-(dump-interactive-heap "petit-larceny.heap")
+;(gctwa)
+(dump-interactive-heap "petit-larceny.heap.new")
+
+; (Defined after the dump, so that it is not in the heap.)
+
+(define (heap-build-step command)
+  (if (not (zero? (system command)))
+      (begin (display "Failed: ")
+             (display command)
+             (newline)
+             (exit 1))))
 
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))
 	  "Win32")
-  (system
-   ".\\petit-larceny.bin.exe -reorganize-and-dump -heap petit-larceny.heap")
-  (system "move petit-larceny.heap.split petit-larceny.heap"))
+  (heap-build-step ".\\petit-larceny.bin.exe -reorganize-and-dump -heap petit-larceny.heap.new")
+  (if (file-exists? "petit-larceny.heap")
+      (heap-build-step "move /y petit-larceny.heap petit-larceny.heap.prev"))
+  (heap-build-step "move /y petit-larceny.heap.new.split petit-larceny.heap")
+  (delete-file "petit-larceny.heap.new"))
  (else
-  (system
-   "./petit-larceny.bin -reorganize-and-dump -heap petit-larceny.heap")
-  (system "mv petit-larceny.heap.split petit-larceny.heap")))
+  (heap-build-step "./petit-larceny.bin -reorganize-and-dump -heap petit-larceny.heap.new")
+  (if (file-exists? "petit-larceny.heap")
+      (heap-build-step "mv -f petit-larceny.heap petit-larceny.heap.prev"))
+  (heap-build-step "mv petit-larceny.heap.new.split petit-larceny.heap")
+  (delete-file "petit-larceny.heap.new")))
 
 ; eof

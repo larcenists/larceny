@@ -187,14 +187,18 @@
   (let ((herald-string
          (begin
 
-           ;; A "temporary" file (we know it is about to get overwritten).
+           ;; A temporary file, not larceny.heap itself: if the build
+           ;; fails, the old heap must still work.
 
-           (system (string-append date-cmd "> larceny.heap"))
-           (call-with-input-file "larceny.heap"
-             (lambda (port)
-               (string-append 
-                "larceny.heap, built on " 
-                (list->string (trim-spaces (file->char-list port)))))))))
+           (system (string-append date-cmd "> larceny.heap.date"))
+           (let ((s (call-with-input-file "larceny.heap.date"
+                      (lambda (port)
+                        (string-append
+                         "larceny.heap, built on "
+                         (list->string
+                          (trim-spaces (file->char-list port))))))))
+             (delete-file "larceny.heap.date")
+             s))))
     (herald herald-string)))
 
 "Redefine MACRO-EXPAND in the interaction environment."
@@ -331,15 +335,36 @@
 
 "Dump the heap"
 
+; The new heap is made under another name and installed only when it is
+; complete, so that a build that fails leaves the old heap, which may
+; be needed to host the next build; the old heap is kept as
+; larceny.heap.prev.
+
 (gctwa)
-(dump-interactive-heap "larceny.heap")
+(dump-interactive-heap "larceny.heap.new")
+
+; (Defined after the dump, so that it is not in the heap.)
+
+(define (heap-build-step command)
+  (if (not (zero? (system command)))
+      (begin (display "Failed: ")
+             (display command)
+             (newline)
+             (exit 1))))
+
 (cond
  ((equal? (cdr (assq 'os-name (system-features)))
 	  "Win32")
-  (system ".\\larceny.bin.exe -reorganize-and-dump -heap larceny.heap")
-  (system "move larceny.heap.split larceny.heap"))
+  (heap-build-step ".\\larceny.bin.exe -reorganize-and-dump -heap larceny.heap.new")
+  (if (file-exists? "larceny.heap")
+      (heap-build-step "move /y larceny.heap larceny.heap.prev"))
+  (heap-build-step "move /y larceny.heap.new.split larceny.heap")
+  (delete-file "larceny.heap.new"))
  (else
-  (system "./larceny.bin -reorganize-and-dump -heap larceny.heap")
-  (system "/bin/mv larceny.heap.split larceny.heap")))
+  (heap-build-step "./larceny.bin -reorganize-and-dump -heap larceny.heap.new")
+  (if (file-exists? "larceny.heap")
+      (heap-build-step "/bin/mv -f larceny.heap larceny.heap.prev"))
+  (heap-build-step "/bin/mv larceny.heap.new.split larceny.heap")
+  (delete-file "larceny.heap.new")))
 
 ; eof
