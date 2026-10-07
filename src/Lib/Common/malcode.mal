@@ -182,6 +182,13 @@
 ; Call-with-current-continuation has to be written in mal to 
 ; make sure that the compiler does not mess with the stack frames;
 ; the creg/creg-set! primitives need predictable stack behavior.
+;
+; The continuation procedure holds the continuation structure (lexical
+; slot 2, procedure slot 4), the continuation marks *cms* (slot 3) and
+; the dynamic-wind state *here* (slot 4; see control.sch).  When it is
+; called, it reroots the dynamic-wind state (sys$reroot-after-throw!)
+; only if that has changed or a rerooting was abandoned, and returns a
+; single value without (apply values args).
 
 `((,$lambda ((,$.proc)
              (,$args=   1)
@@ -192,21 +199,72 @@
              (,$global *cms*)
              (,$setreg 3)
 
+             (,$global *here*)
+             (,$setreg 4)
+
              (,$lambda  ((,$.proc)
-                         (,$args>=  0)
-                         (,$movereg 1 2)
+                         (,$args>=  0)          ; REG1 = the values
 
-                         ;; Added for continuation-mark support
-                         (,$lexical 0 3)
+                         ;; Reroot only if needed.
+                         (,$global  *enable-interrupts-when-done*)
+                         (,$op1     not)
+                         (,$branchf 1001)       ; a rerooting was abandoned
+                         (,$global  *here*)
+                         (,$setreg  2)
+                         (,$lexical 0 4)
+                         (,$op2     eq? 2)
+                         (,$branchf 1001)       ; the state has changed
+                         (,$.label  1002)
+
+                         ;; One value: return it.
+                         (,$reg     1)
+                         (,$op1     pair?)
+                         (,$branchf 1004)
+                         (,$reg     1)
+                         (,$op1     cdr)
+                         (,$op1     null?)
+                         (,$branchf 1004)
+                         (,$reg     1)
+                         (,$op1     car)
+                         (,$setreg  2)
+                         (,$lexical 0 3)        ; continuation marks
                          (,$setglbl *cms*)
+                         (,$lexical 0 2)
+                         (,$op1     creg-set!)
+                         (,$reg     2)
+                         (,$return)
 
+                         ;; Any other number: (apply values args).
+                         (,$.label  1004)
+                         (,$movereg 1 2)
+                         (,$lexical 0 3)        ; continuation marks
+                         (,$setglbl *cms*)
                          (,$global  values)
                          (,$setreg  1)
                          (,$lexical 0 2)
                          (,$op1     creg-set!)
                          (,$global  apply)
-                         (,$invoke  2))        ; (apply values args)
-                        3 ;; changed from 2 for continuation-marks
+                         (,$invoke  2)          ; (apply values args)
+
+                         ;; (sys$reroot-after-throw! here), then go on.
+                         (,$.label  1001)
+                         (,$save    1)
+                         (,$store   0 0)
+                         (,$store   1 1)
+                         (,$lexical 0 4)
+                         (,$setreg  1)
+                         (,$global  sys$reroot-after-throw!)
+                         (,$setrtn  1003)
+                         (,$invoke  1)
+                         (,$.align  4)
+                         (,$.label  1003)
+                         (,$.cont)
+                         (,$load    0 0)
+                         (,$load    1 1)
+                         (,$pop     1)
+                         (,$const   #f)
+                         (,$branchf 1002))
+                        4 ;; proc, continuation, *cms*, *here*
                         #(#f #f 0.0 #f #f #f))
              (,$setreg  3)
              (,$reg     1)

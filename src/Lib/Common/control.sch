@@ -244,28 +244,19 @@
 (define *here* (list #f))
 (define *enable-interrupts-when-done* #f)
 
-(define call-with-current-continuation
-  (let ((call-with-current-continuation call-with-current-continuation))
-    (lambda (proc)
-      (let ((here *here*))
-        (call-with-current-continuation
-         (lambda (cont)
-           (proc (lambda results
+;; The continuation procedures made by call-with-current-continuation
+;; (malcode.mal) save *here* and call this when they are called, unless
+;; *here* is the same and no rerooting was in progress (so that there is
+;; nothing to do).
 
-                   ;; Any rerooting that was in progress will be
-                   ;; abandoned, so restore interrupt status.
+(define (sys$reroot-after-throw! here)
 
-                   (if *enable-interrupts-when-done*
-                       (enable-interrupts *enable-interrupts-when-done*))
+  ;; Any rerooting that was in progress will be abandoned, so restore
+  ;; interrupt status.
 
-                   (reroot! here)
-
-                   ;; Handle extremely common case.
-
-                   (if (and (pair? results)
-                            (null? (cdr results)))
-                       (cont (car results))
-                       (apply cont results))))))))))
+  (if *enable-interrupts-when-done*
+      (enable-interrupts *enable-interrupts-when-done*))
+  (reroot! here))
 
 (define call/cc call-with-current-continuation)
 
@@ -448,22 +439,13 @@
            (= 2 (vector-like-length cms))
            (eq? cms-tag (vector-like-ref cms 0)))))
 
-  ;; This code depends on one redefinition/rewrapping of the
-  ;; primitive malcode call-with-current-continuation.  In particular,
-  ;; the primitive call/cc stores the continuation's saved *cms* in
-  ;; lexical slot 3 (which is procedure slot 5).  However, when we
-  ;; define dynamic-wind, we redefine call/cc so that the continuation
-  ;; procedure gets wrapped with re-rooting code; thus we have to dig
-  ;; into _that_ procedure the find the actual continuation that has
-  ;; *cms* in one of its slots.  THUS, if anything changes, this
-  ;; probably breaks.
+  ;; The continuation procedure made by call-with-current-continuation
+  ;; (malcode.mal) stores the continuation's saved *cms* in lexical
+  ;; slot 3 (which is procedure slot 5).
 
   (set! continuation-marks
     (lambda (k)
-      (cms-box
-        (procedure-ref
-          (procedure-ref k 3)
-          5))))
+      (cms-box (procedure-ref k 5))))
 
   (set! current-continuation-marks
     (lambda ()
