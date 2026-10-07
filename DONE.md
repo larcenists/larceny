@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- call/cc, continued: a continuation called with one value makes no
+  rest list (0e0bcb2c), and creg-set! reinstates it in assembly
+  (7d77d125): a throw 28 ns -> 19.5; fibc 1.1x Racket's time, ctak 1.1x.
 - call/cc (fibc 3.1x Racket's time -> 1.4x, ctak 2.5x -> 1.5x):
   zero?, integer?, exact?, inexact? are in line for fixnums (cd5ef179;
   zero? was 18% of fibc), and a throw no longer goes through the

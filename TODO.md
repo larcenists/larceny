@@ -14,13 +14,11 @@ DONE.md (with the date and the commit, if any).
   very slow); Larceny faster on 42.  compiler 0.74x, equal 0.46x,
   string 0.99x.  Outliers to investigate, with guesses at causes that
   have not been checked:
-  - fibc 1.4x, ctak 1.5x (call/cc; 3.1x and 2.5x before cd5ef179 and
-    ac48c2a5).  What is left: capture (creg_get: flush, then restore
-    the top frame) and reinstating a continuation (creg_set, which
-    copies a frame back with stk_restore_frame) switch to C, and the
-    continuation's (lambda args ...) conses its values through
-    mc_restargs (in C).  Per frame, returning through flushed frames
-    costs about 9 ns (Racket about 1).
+  - fibc 1.1x, ctak 1.1x (call/cc; 3.1x and 2.5x before cd5ef179,
+    ac48c2a5, 0e0bcb2c, 7d77d125).  What is left: capture (creg_get:
+    flush, then restore the top frame) switches to C, about a quarter
+    of fibc's time.  Per frame, returning through flushed frames costs
+    about 9 ns (Racket about 1).
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
   - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
@@ -139,6 +137,14 @@ DONE.md (with the date and the commit, if any).
 - test/Lib's "Error case #24" (regression.sch, bug 105) fails under
   `-rrof -size0 64K` (before the dead-register work too): it compares
   the allocation and run times of two loops.
+- Regional collector: with two regions, a minor collection skips the
+  remembered set when data_definitely_stays_in_one_region (memmgr.c)
+  says the promoted data fits in the target region, and find_space_rgnl
+  then asserts scan_update_remset (memmgr.c:3507) when it did not fit.
+  Seen compiling a small R7RS program (the call/cc micro benchmarks)
+  under `-rrof -size0 64K` since ac48c2a5 (not 32K, 128K or 256K);
+  with the shortcut disabled the same run is correct.  The estimate is
+  wrong somewhere.
 - continuation-mark-set? (control.sch) is #f for every mark set:
   cms-box makes a structure of length 3, and the predicate wants 2.
   Writing a mark set fails too ("not a record of the correct type").
