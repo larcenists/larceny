@@ -792,6 +792,14 @@
       '#vu8(97 226 128 168 98 13 99 194 133 100 226 128 168
             101 13 226 128 168 102 13 194 133 103))
 
+   (test "write-u8 to the current output port"
+         (let ((p (open-output-bytevector)))
+           (parameterize ((current-output-port p))
+             (write-u8 65)
+             (write-u8 66 p))
+           (bytevector->u8-list (get-output-bytevector p)))
+         '(65 66))
+
    ; read-line ends a line at "\n", "\r\n" or "\r", even at the end.
 
    (test "read-line"

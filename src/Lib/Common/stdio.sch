@@ -210,7 +210,7 @@
     (io/u8-ready? p)))
 
 (define (write-u8 n . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
+  (let ((p (if (null? rest) (current-output-port) (car rest))))
     (put-u8 p n)))
 
 (define (read-bytevector k . rest)
