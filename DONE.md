@@ -4,6 +4,19 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- Regional collector: the two-region shortcut (no remembered set work
+  when the promoted data fits in the target region) did not leave room
+  for the chunk that expanding the region takes, so find_space_rgnl
+  asserted (memmgr.c:3507) under `-rrof -size0 64K` (de889429).
+- continuation-mark-set? was #f for every mark set, and printing one
+  failed in the record printer (5138ae17).
+- `bootstrap.sh --r7rs` ends by running an R6RS program in `--r6rs`
+  mode, which reads libraries with strict R6RS syntax (0d26cb8b).
+- `(require 'srfi-19)` works in R5RS mode (a107d295).
+- In R5RS mode, with-exception-handler and guard catch errors that
+  primitives signal, while handlers are installed (77437d03).
+- srfi-133-test reports its failures; its vector-cumulate test uses the
+  final argument order (4245785a).
 - Investigated, not done: restoring several frames per stack underflow
   (an adaptive count, grown on each underflow and halved at each
   collection, since frames restored but not returned into before the

@@ -40,10 +40,6 @@ DONE.md (with the date and the commit, if any).
 - In code that Petit interprets, case-lambda procedures are named
   case-lambda: .make-case-lambda finds the name in a compiled clause's
   constant vector, which interpreted procedures do not have.
-- In R5RS mode, with-exception-handler does not catch errors that
-  primitives signal (`(car 1)`, a failed inline check): the system
-  exception handler reports them and enters the debugger, though it
-  does catch `(error ...)`.  The R6RS and R7RS modes raise conditions.
 - Return prediction.  Calls use BL/BLR and returns RET, so the CPU's
   return-address stack predicts returns; it holds only a few dozen
   entries, and deeper recursion mispredicts most returns: 1e8 calls
@@ -138,34 +134,9 @@ DONE.md (with the date and the commit, if any).
 - test/Lib's "Error case #24" (regression.sch, bug 105) fails under
   `-rrof -size0 64K` (before the dead-register work too): it compares
   the allocation and run times of two loops.
-- Regional collector: with two regions, a minor collection skips the
-  remembered set when data_definitely_stays_in_one_region (memmgr.c)
-  says the promoted data fits in the target region, and find_space_rgnl
-  then asserts scan_update_remset (memmgr.c:3507) when it did not fit.
-  Seen compiling a small R7RS program (the call/cc micro benchmarks)
-  under `-rrof -size0 64K` since ac48c2a5 (not 32K, 128K or 256K);
-  with the shortcut disabled the same run is correct.  The estimate is
-  wrong somewhere.
-- continuation-mark-set? (control.sch) is #f for every mark set:
-  cms-box makes a structure of length 3, and the predicate wants 2.
-  Writing a mark set fails too ("not a record of the correct type").
-- lib/SRFI/test/srfi-133-test.sps7 exits with status 1 without saying
-  why: test-exit does not report failures.  The one failure is
-  vector-cumulate called as (vector-cumulate + vec 0), an argument
-  order from a draft of SRFI 133 (the final one is (f knil vec)).
-- `(require 'srfi-19)` in R5RS mode fails: `(cond-expand (srfi-6))`
-  (lib/SRFI/srfi-19.sch) reports `undefined global variable: srfi-6`.
-  `(import (srfi 19))` works.
 
 ## Build process footguns
 
-- Smoke-test `--r6rs` mode routinely.  The test suites run their
-  programs in `--r7rs` mode, so a library that strict R6RS syntax
-  cannot read (rnrs control, 2a28596a until fixed) went unnoticed until
-  a benchmark ran.  `MODE=--r6rs test/R7RS/Lib/testr6rs-larceny` runs
-  the R6RS suite in that mode; it could run by default (both modes),
-  or the build (`bootstrap.sh --r7rs`) could end by running a small
-  `--r6rs` program that imports `(rnrs)`.
 - Feature markers, follow-ups:
   - A system provides exactly the features its heap's code assumes; it
     could provide several target specs (say, an older calling-convention
