@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-06
 
+- Normalization: decompose writes into a string, from a cache of
+  flattened decompositions, and sorts only runs of combining marks
+  that are out of order (d20ae85b).  NFD of short strings 1.2-2x as
+  fast, of long ones 4.5x; the normalization benchmark 3.07 s -> 2.55
+  (50 iterations).
 - String ports read and write their string directly (2b50abc1): the
   port's buffer is the string, with its own port types (11 and 13)
   and in-line paths, instead of a UTF-8 byte buffer encoded into or

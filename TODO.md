@@ -23,18 +23,28 @@ DONE.md (with the date and the commit, if any).
   - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
   - normalization 1.7x (4.95 s; Racket 2.90): measured by parts
     (2026-09-30), normalizing takes 3.1 s (Racket 1.0), get-line 0.84
-    (1.08), and the benchmark's own parsing 0.8 (0.65).  In
-    normalizing, decompose is on the stack in 48% of samples (append
-    11%, table lookups 14%), compose! 13%, and
-    reorder-according-to-combining-class! 13%: see decompose below.
-- decompose (unicode4.sch) builds a reversed list of characters: a
-  fresh list per character (even unchanged ones) that append copies,
-  a recursive reverse-decomposition that appends each part, then
-  reverse and list->string.  Its slow path starts again at index 0
-  without an Ascii shortcut, and the reordering bubble-sorts the whole
-  string, looking up each combining class twice per pair per pass.
-  Write into a string instead, flatten decompositions once, and sort
-  only runs of non-starters.
+    (1.08), and the benchmark's own parsing 0.8 (0.65).  decompose
+    was rewritten (d20ae85b; 50 iterations 3.07 s -> 2.55); what is
+    left of normalizing is per-call and per-character overhead on
+    strings of a few characters, and compose-2 below.
+- compose-2 (unicode4.sch) finds a composition by two binary searches
+  (the second character, then the first); a table like those for
+  combining classes and decompositions would do it in a few loads.
+- case-lambda (Compiler/usual.sch) is a macro over (lambda args ...):
+  every call conses its arguments, and a clause of more than three
+  parameters is called through apply (a 5-argument clause costs about
+  31 ns a call, against 7 ns for a fixed-arity procedure).  Twobit
+  could compile it to one entry that branches on the argument count
+  (callers pass it already; entries check it with args= and args>=),
+  which needs a new MAL instruction in the back ends.  Short of that,
+  the macro could destructure as many arguments as its largest fixed
+  clause and never use apply.
+- string-copy! (and bytevector-copy!, string-copy, vector-copy!) take
+  their optional arguments as a rest list: a 2-character copy costs
+  12.3 ns, against 6.8 for the same checks with fixed arity, and
+  callers with short copies loop instead (decompose-copy! in
+  unicode4.sch).  A fast case-lambda would fix it; otherwise, compiler
+  macros for the usual arities.
 - Compiling src/Lib/Common/record.sch prints eight warnings
   `Assertion is false: (.check! #f 198 .obj .rtd)`: a record check
   that Twobit proves false, probably in dead code, as put-char's were
