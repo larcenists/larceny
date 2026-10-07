@@ -4,6 +4,21 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-06
 
+- Procedures with optional arguments use case-lambda (bc72898d):
+  display, write, newline, the port procedures of stdio.sch and
+  portio.sch, member, assoc, make-list, the string and vector
+  conversions and fills, string->utf8, utf8->string, number->string,
+  string->number, atan, log, vector-sort(!).  A call with optional
+  arguments conses nothing; write-u8 to a port 13 ns -> 7.  args>=
+  stores an empty rest list in line (7fb0f4ca): a rest-list procedure
+  called with only its required arguments 5.1 ns -> 1.7.
+- arity-dispatch left a false pointer in SECOND, which crashed the
+  collector when a clause allocated with a full nursery (5e7748d5).
+- write-u8 without a port wrote to the current input port (f05c1f12).
+- iosys.sch had non-Ascii string literals, which a Racket-hosted build
+  compiles wrongly (3d0cf6c3).
+- log with a non-numeric second argument referred to unbound
+  variables (in bc72898d).
 - case-lambda dispatches on the argument count without consing
   (2a28596a): a new MAL instruction, arity-dispatch (Fence and
   Petit), is the code of every case-lambda procedure, whose slots hold

@@ -30,11 +30,11 @@ DONE.md (with the date and the commit, if any).
 - compose-2 (unicode4.sch) finds a composition by two binary searches
   (the second character, then the first); a table like those for
   combining classes and decompositions would do it in a few loads.
-- Other procedures still take optional arguments as rest lists, now
-  that case-lambda is fast (2a28596a): vector-fill!, string-fill!,
-  vector->list, string->list, list->string and so on.  For copies of a
-  few characters a loop is still about twice as fast as string-copy!
-  (decompose-copy! in unicode4.sch).
+- Procedures still taking optional arguments as rest lists, which are
+  called rarely or are variadic by nature: the open-*-port procedures,
+  make-transcoder, make-hashtable, exit, the text procedures
+  (text2.sch).  For copies of a few characters a loop is still about
+  twice as fast as string-copy! (decompose-copy! in unicode4.sch).
 - In code that Petit interprets, case-lambda procedures are named
   case-lambda: .make-case-lambda finds the name in a compiled clause's
   constant vector, which interpreted procedures do not have.
@@ -115,6 +115,9 @@ DONE.md (with the date and the commit, if any).
 - Single objects are limited to 2^31 words (16GB) on 64-bit systems,
   because the collectors keep word counts and indices within an object
   in ints.
+- A nursery of 256MB or more (`-size0 256M`, also 512M, 1G) crashes
+  native Larceny (SIGBUS or SIGSEGV) when it loads a source file, such
+  as setup.sch, though not when it runs a short loop.
 - A large vector in the remembered set is rescanned whole at every
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take
