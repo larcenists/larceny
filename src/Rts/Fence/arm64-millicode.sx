@@ -138,7 +138,8 @@ EXTNAME(fence_dispatch_loop_return):
  * header back into the size, and turn the return offset back into an
  * address, relative to the code of the frame's procedure.  Only RESULT
  * is live at a return; this uses only the TMPs and x30.  When there is
- * no room, C does it (and may collect).
+ * no room, C does it (and may collect).  fmc_restore_continuation
+ * (below) makes the same copy.
  */
         .p2align 2
 EXTNAME(fence_stack_underflow):
@@ -183,6 +184,70 @@ EXTNAME(fence_stack_underflow):
         bl      EXTNAME(mem_stkuflow)    /* Changes globals[G_RETADDR] */
         LOAD_SCHEME_CONTEXT     /* Do not decode G_RETADDR, it is decoded already */
         br      x30
+
+/* creg-set!: reinstate the continuation in RESULT.  This is creg_set
+ * (nursery.c, sc-heap.c) without a context switch when there is room:
+ * empty the stack cache (stk_clear), make RESULT the continuation, and
+ * copy its top frame onto the stack as fence_stack_underflow does
+ * (above), then return to the caller.  When there is no room, C does
+ * it (mc_restore_continuation, which may collect).
+ *
+ * Copying the frame here, rather than leaving it to the underflow
+ * handler at the next return, keeps that return a single mispredicted
+ * branch.
+ *
+ * Destroys RESULT, SECOND and the TMPs.  SECOND is a root of the
+ * garbage collector, so it is left holding a fixnum.
+ */
+
+        .globl  EXTNAME(fmc_restore_continuation)
+        .p2align 2
+EXTNAME(fmc_restore_continuation):
+        ldr     STKP, [GLOBALS, #G_STKBOT]      /* stk_clear */
+        str     RESULT, [GLOBALS, #G_CONT]
+        sub     TMP0, RESULT, #VEC_TAG          /* the heap frame */
+        ldr     TMP1, [TMP0]                    /* its header */
+        lsr     TMP1, TMP1, #8                  /* size of the data */
+        add     TMP1, TMP1, #(8+15)             /* bytes to copy, */
+        and     TMP1, TMP1, #~15                /* header and padding */
+        sub     SECOND, STKP, TMP1              /* new stack top */
+        ldr     TMP2, [GLOBALS, #G_ETOP]
+        cmp     SECOND, TMP2
+        b.lo    9f                              /* no room: C */
+        mov     TMP2, SECOND
+1:      ldr     TMP1, [TMP0], #8                /* copy the frame */
+        str     TMP1, [TMP2], #8
+        cmp     TMP2, STKP
+        b.lo    1b
+        mov     STKP, SECOND
+        ldr     TMP1, [STKP, #16]               /* HC_DYNLINK */
+        str     TMP1, [GLOBALS, #G_CONT]
+        ldr     TMP1, [STKP, #HC_HEADER]
+        lsr     TMP1, TMP1, #8
+        ldr     TMP0, [STKP, #HC_RETOFFSET]
+        str     TMP1, [STKP, #STK_CONTSIZE]
+        ldr     TMP1, [STKP, #STK_REG0]         /* the procedure */
+        cbz     TMP1, 2f
+        ldur    TMP2, [TMP1, #(8-PROC_TAG)]     /* its code (PROC_CODEPTR) */
+        and     SECOND, TMP2, #7
+        cmp     SECOND, #BVEC_TAG
+        b.ne    2f
+        add     TMP2, TMP2, #(8-BVEC_TAG)       /* start of the code */
+        add     TMP0, TMP0, TMP2
+2:      str     TMP0, [STKP, #STK_RETADDR]
+        ldr     TMP1, [GLOBALS, #G_STKUFLOW]
+        add     TMP1, TMP1, #1
+        str     TMP1, [GLOBALS, #G_STKUFLOW]
+        mov     SECOND, #0                      /* a fixnum */
+        ret
+9:      mov     SECOND, #0                      /* a fixnum */
+        SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR
+        LOAD_C_CONTEXT
+        mov     x0, GLOBALS
+        mov     x1, #4
+        bl      EXTNAME(mc_restore_continuation)
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        ret
 
 /* A pointer to fence_return_from_scheme is installed as the return
  * address when millicode calls out to Scheme.  return_from_scheme
@@ -231,7 +296,6 @@ MILLIPROC1(fmc_alloc,mc_alloc)
 MILLIPROC1(fmc_alloci,mc_alloci)
 MILLIPROC1(fmc_alloc_bv,mc_alloc_bv)
 MILLIPROC1(fmc_capture_continuation,mc_capture_continuation)
-MILLIPROC1(fmc_restore_continuation,mc_restore_continuation)
 MILLIPROC1(fmc_full_barrier,mc_full_barrier)
 MILLIPROC1(fmc_compact_ssbs,mc_compact_ssbs)
 MILLIPROC1(fmc_compact_satb_ssb,mc_compact_satb_ssb)
