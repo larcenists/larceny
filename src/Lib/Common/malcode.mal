@@ -188,7 +188,10 @@
 ; the dynamic-wind state *here* (slot 4; see control.sch).  When it is
 ; called, it reroots the dynamic-wind state (sys$reroot-after-throw!)
 ; only if that has changed or a rerooting was abandoned, and returns a
-; single value without (apply values args).
+; single value without (apply values args).  Called with one argument
+; and nothing to reroot, it does not make a rest list either: the
+; argument count is kept in a frame while it is tested (the tests leave
+; their result in RESULT, where the count is).
 
 `((,$lambda ((,$.proc)
              (,$args=   1)
@@ -203,7 +206,47 @@
              (,$setreg 4)
 
              (,$lambda  ((,$.proc)
+                         (,$save    1)
+                         (,$store   0 0)
+                         (,$setstk  1)          ; the argument count
+                         (,$op2imm  eq? 1)
+                         (,$branchf 1005)
+                         (,$pop     1)
+
+                         ;; One value in REG1, and nothing to reroot:
+                         ;; return it.
+                         (,$global  *enable-interrupts-when-done*)
+                         (,$op1     not)
+                         (,$branchf 1007)
+                         (,$global  *here*)
+                         (,$setreg  2)
+                         (,$lexical 0 4)
+                         (,$op2     eq? 2)
+                         (,$branchf 1007)
+                         (,$lexical 0 3)        ; continuation marks
+                         (,$setglbl *cms*)
+                         (,$lexical 0 2)
+                         (,$op1     creg-set!)
+                         (,$reg     1)
+                         (,$return)
+
+                         ;; One value to reroot for: make the list, as
+                         ;; args>= would, and go on below.
+                         (,$.label  1007)
+                         (,$const   ())
+                         (,$setreg  2)
+                         (,$reg     1)
+                         (,$op2     cons 2)
+                         (,$setreg  1)
+                         (,$const   #f)
+                         (,$branchf 1006)
+
+                         ;; Any other number of values.
+                         (,$.label  1005)
+                         (,$stack   1)
+                         (,$pop     1)
                          (,$args>=  0)          ; REG1 = the values
+                         (,$.label  1006)
 
                          ;; Reroot only if needed.
                          (,$global  *enable-interrupts-when-done*)
