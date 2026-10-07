@@ -544,20 +544,21 @@
 ;;; For the write procedure, see print-shared.sch
 
 (define write-simple
-  (lambda (x . rest)
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (print x p #t)
-      (io/discretionary-flush p)
-      **nonprinting-value**)))
+  (case-lambda
+   ((x) (print:port x (current-output-port) #t))
+   ((x p) (print:port x p #t))))
+
+(define (print:port x p how)
+  (print x p how)
+  (io/discretionary-flush p)
+  **nonprinting-value**)
 
 ;;; For the display procedure, see print-shared.sch
 
 (define display-simple
-  (lambda (x . rest)
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (print x p #f)
-      (io/discretionary-flush p)
-      **nonprinting-value**)))
+  (case-lambda
+   ((x) (print:port x (current-output-port) #f))
+   ((x p) (print:port x p #f))))
 
 ;;; Printing fasl files with shared structures as below does work,
 ;;; but it doesn't appear to save enough space to justify the
@@ -572,17 +573,18 @@
 ;      **nonprinting-value**)))
 
 (define lowlevel-write
-  (lambda (x . rest)
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (print x p **lowlevel**)
-      (io/discretionary-flush p)
-      **nonprinting-value**)))
+  (case-lambda
+   ((x) (print:port x (current-output-port) **lowlevel**))
+   ((x p) (print:port x p **lowlevel**))))
 
 (define newline
-  (lambda rest
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (write-char #\newline p)
-      (io/discretionary-flush p)
-      **nonprinting-value**)))
+  (case-lambda
+   (() (newline:port (current-output-port)))
+   ((p) (newline:port p))))
+
+(define (newline:port p)
+  (write-char #\newline p)
+  (io/discretionary-flush p)
+  **nonprinting-value**)
 
 ; eof

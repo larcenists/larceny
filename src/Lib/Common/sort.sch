@@ -182,26 +182,32 @@
 
 ; R7RS adds optional start and end arguments.
 
-(define (vector-sort less? seq . rest)
-  (let ((v (cond ((null? rest)
-                  (vector-copy seq))
-                 ((null? (cdr rest))
-                  (vector-copy seq (car rest)))
-                 (else
-                  (vector-copy seq (car rest) (cadr rest))))))
-    (vector-sort:sort-range! less? v 0 (vector-length v))
-    v))
+(define vector-sort
+  (case-lambda
+   ((less? seq) (vector-sort:copy less? (vector-copy seq)))
+   ((less? seq start) (vector-sort:copy less? (vector-copy seq start)))
+   ((less? seq start end) (vector-sort:copy less? (vector-copy seq start end)))))
 
-(define (vector-sort! less? seq . rest)
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end   (if (or (null? rest) (null? (cdr rest)))
-                    (vector-length seq)
-                    (cadr rest))))
-    (if (not (and (vector? seq)
-                  (fixnum? start)
-                  (fixnum? end)
-                  (<= 0 start end (vector-length seq))))
-        (assertion-violation 'vector-sort! "illegal arguments" seq start end))
-    (vector-sort:sort-range! less? seq start end)))
+(define (vector-sort:copy less? v)
+  (vector-sort:sort-range! less? v 0 (vector-length v))
+  v)
+
+(define vector-sort!
+  (case-lambda
+   ((less? seq)
+    (vector-sort!:range less? seq 0 (if (vector? seq) (vector-length seq) 0)))
+   ((less? seq start)
+    (vector-sort!:range less? seq start
+                        (if (vector? seq) (vector-length seq) 0)))
+   ((less? seq start end)
+    (vector-sort!:range less? seq start end))))
+
+(define (vector-sort!:range less? seq start end)
+  (if (not (and (vector? seq)
+                (fixnum? start)
+                (fixnum? end)
+                (<= 0 start end (vector-length seq))))
+      (assertion-violation 'vector-sort! "illegal arguments" seq start end))
+  (vector-sort:sort-range! less? seq start end))
 
 ; eof

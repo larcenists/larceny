@@ -824,11 +824,14 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (string->utf8 string . rest)
-  (let* ((n (string-length string))
-         (start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
-         (k (do ((i start (+ i 1))
+(define string->utf8
+  (case-lambda
+   ((string) (string->utf8:range string 0 (string-length string)))
+   ((string start) (string->utf8:range string start (string-length string)))
+   ((string start end) (string->utf8:range string start end))))
+
+(define (string->utf8:range string start end)
+  (let* ((k (do ((i start (+ i 1))
                  (k 0 (+ k (let ((sv (char->integer (string-ref string i))))
                              (cond ((<= sv #x007f) 1)
                                    ((<= sv #x07ff) 2)
@@ -923,10 +926,14 @@
 ;
 ; q3 --- expecting three more bytes, the first in range lower..upper
 
-(define (utf8->string bv . rest)
+(define utf8->string
+  (case-lambda
+   ((bv) (utf8->string:range bv 0 (bytevector-length bv)))
+   ((bv start) (utf8->string:range bv start (bytevector-length bv)))
+   ((bv start end) (utf8->string:range bv start end))))
+
+(define (utf8->string:range bv start end)
   (let* ((n (bytevector-length bv))
-         (start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
          (replacement-character (integer->char #xfffd))
          (begins-with-bom?
           (and (<= 3 n)

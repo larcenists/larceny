@@ -236,12 +236,10 @@
         (error 'substring (errmsg 'msg:illegalargs) s m n))))
 
 (define string-fill!
-  (lambda (s c . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (string-length s)
-                    (cadr rest))))
-      (substring-fill! s start end c))))
+  (case-lambda
+   ((s c) (substring-fill! s 0 (string-length s) c))
+   ((s c start) (substring-fill! s start (string-length s) c))
+   ((s c start end) (substring-fill! s start end c))))
 
 (define substring-fill!
   (lambda (s start end c)
@@ -261,16 +259,18 @@
     (lambda (l)
       (loop (make-string (length l)) 0 l))))
 
-(define (string->list s . rest)
+(define string->list
+  (case-lambda
+   ((s) (string->list:range s 0 (string-length s)))
+   ((s start) (string->list:range s start (string-length s)))
+   ((s start end) (string->list:range s start end))))
+
+(define (string->list:range s start end)
   (define (loop s start i chars)
     (if (< i start)
         chars
         (loop s start (- i 1) (cons (string-ref s i) chars))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (string-length s)
-                  (cadr rest))))
-    (loop s start (- end 1) '())))
+  (loop s start (- end 1) '()))
 
 ;;; FIXME:  This code must be kept in sync with the definition of
 ;;; twobit-symbol-hash in Compiler/pass2if.sch.

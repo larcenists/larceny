@@ -47,42 +47,46 @@
           ((= i n) v)
         (vector-set! v i (car l))))))
 
-(define (vector->list v . rest)
+(define vector->list
+  (case-lambda
+   ((v) (vector->list:range v 0 (vector-length v)))
+   ((v start) (vector->list:range v start (vector-length v)))
+   ((v start end) (vector->list:range v start end))))
+
+(define (vector->list:range v start end)
   (define (loop v start i xs)
     (if (< i start)
         xs
         (loop v start (- i 1) (cons (vector-ref v i) xs))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (vector-length v)
-                  (cadr rest))))
-    (loop v start (- end 1) '())))
+  (loop v start (- end 1) '()))
 
-(define (vector->string v . rest)
+(define vector->string
+  (case-lambda
+   ((v) (vector->string:range v 0 (vector-length v)))
+   ((v start) (vector->string:range v start (vector-length v)))
+   ((v start end) (vector->string:range v start end))))
+
+(define (vector->string:range v start end)
   (define (loop v i end s j)
     (if (>= i end)
         s
         (begin (string-set! s j (vector-ref v i))
                (loop v (+ i 1) end s (+ j 1)))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (vector-length v)
-                  (cadr rest)))
-         (s (make-string (- end start))))
-    (loop v start end s 0)))
+  (loop v start end (make-string (- end start)) 0))
 
-(define (string->vector s . rest)
+(define string->vector
+  (case-lambda
+   ((s) (string->vector:range s 0 (string-length s)))
+   ((s start) (string->vector:range s start (string-length s)))
+   ((s start end) (string->vector:range s start end))))
+
+(define (string->vector:range s start end)
   (define (loop s i end v j)
     (if (>= i end)
         v
         (begin (vector-set! v j (string-ref s i))
                (loop s (+ i 1) end v (+ j 1)))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (string-length s)
-                  (cadr rest)))
-         (v (make-vector (- end start))))
-    (loop s start end v 0)))
+  (loop s start end (make-vector (- end start)) 0))
 
 ; Copies src[i..j] into dst starting at k.
 ; Used only within this file.
@@ -177,12 +181,10 @@
          (vector-copy-into-up! src start end dst at))))
 
 (define vector-fill!
-  (lambda (v x . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (vector-length v)
-                    (cadr rest))))
-      (subvector-fill! v start end x))))
+  (case-lambda
+   ((v x) (subvector-fill! v 0 (vector-length v) x))
+   ((v x start) (subvector-fill! v start (vector-length v) x))
+   ((v x start end) (subvector-fill! v start end x))))
 
 (define subvector-fill!
   (lambda (v start end x)

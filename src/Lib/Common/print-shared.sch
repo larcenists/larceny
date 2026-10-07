@@ -181,26 +181,32 @@
 ;;; An R7RS-conforming write-shared procedure.
 
 (define write-shared
-  (lambda (x . rest)
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (print-with-shared-structure x p write-simple))))
+  (case-lambda
+   ((x) (print-with-shared-structure x (current-output-port) write-simple))
+   ((x p) (print-with-shared-structure x p write-simple))))
 
 ;;; An R7RS-conforming write procedure.
 
 (define write
-  (lambda (x . rest)
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (if (object-is-circular? x)
-          (print-with-shared-structure x p write-simple)
-          (write-simple x p)))))
+  (case-lambda
+   ((x) (write:port x (current-output-port)))
+   ((x p) (write:port x p))))
+
+(define (write:port x p)
+  (if (object-is-circular? x)
+      (print-with-shared-structure x p write-simple)
+      (write-simple x p)))
 
 ;;; An R7RS-conforming display procedure.
 
 (define display
-  (lambda (x . rest)
-    (let ((p (if (pair? rest) (car rest) (current-output-port))))
-      (if (object-is-circular? x)
-          (print-with-shared-structure x p display-simple)
-          (display-simple x p)))))
+  (case-lambda
+   ((x) (display:port x (current-output-port)))
+   ((x p) (display:port x p))))
+
+(define (display:port x p)
+  (if (object-is-circular? x)
+      (print-with-shared-structure x p display-simple)
+      (display-simple x p)))
 
 ; eof

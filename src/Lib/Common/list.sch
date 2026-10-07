@@ -40,15 +40,19 @@
 
 (define (list . x) x)
 
-(define (make-list k . rest)
+(define make-list
+  (case-lambda
+   ((k) (make-list:fill k (unspecified)))
+   ((k fill) (make-list:fill k fill))))
+
+(define (make-list:fill k fill)
   (if (not (and (fixnum? k)
                 (<= 0 k)))
       (assertion-violation 'make-list (errmsg 'msg:notindex) k))
-  (let ((fill (if (null? rest) (unspecified) (car rest))))
-    (do ((k k (- k 1))
-         (x '() (cons fill x)))
-        ((<= k 0)
-         x))))
+  (do ((k k (- k 1))
+       (x '() (cons fill x)))
+      ((<= k 0)
+       x)))
 
 ;; (list* a b c tail) => (cons a (cons b (cons c tail)))
 ;; Note that (list* x) = x
@@ -571,24 +575,23 @@
   (list-copy l))
 
 (define member
-  (lambda (item list0 . rest)
-    (define (member3 item list equal?)
-      (cond ((pair? list) (if (equal? item (car list))
-                              list
-                              (member3 item (cdr list) equal?)))
-            ((null? list) #f)
-            (else (error 'member (errmsg 'msg:notlist) list0))))
-    (cond ((pair? rest)
-           (let ((comp (car rest)))
-             (if (and (procedure? comp)
-                      (null? (cdr rest)))
-                 (member3 item list0 comp)
-                 (error 'member (errmsg 'msg:illegalargs)
-                                (cons item (cons list0 rest))))))
-          ((symbol? item) (memq item list0))
+  (case-lambda
+   ((item list0)
+    (cond ((symbol? item) (memq item list0))
           ((number? item) (memv item list0))
           ((char? item) (memv item list0))
-          (else (member3 item list0 equal?)))))
+          (else (member:loop item list0 equal? list0))))
+   ((item list0 comp)
+    (if (procedure? comp)
+        (member:loop item list0 comp list0)
+        (error 'member (errmsg 'msg:illegalargs) (list item list0 comp))))))
+
+(define (member:loop item list equal? list0)
+  (cond ((pair? list) (if (equal? item (car list))
+                          list
+                          (member:loop item (cdr list) equal? list0)))
+        ((null? list) #f)
+        (else (error 'member (errmsg 'msg:notlist) list0))))
 
 (define (memv item list)
   (define (memv item list)
@@ -674,31 +677,32 @@
   (assp pred list0))
 
 (define assoc
-  (lambda (key list0 . rest)
-    (define (assoc3 key list equal?)
-      (cond ((pair? list)
-             (cond ((not (pair? (car list)))
-                    (error 'assoc
-                           (errmsg 'msg:notpair)
-                           (car list)
-                           (cons key (cons list0 rest))))
-                   ((equal? key (caar list))
-                    (car list))
-                   (else
-                    (assoc3 key (cdr list) equal?))))
-            ((null? list) #f)
-            (else (error 'assoc (errmsg 'msg:notlist) list0))))
-    (cond ((pair? rest)
-           (let ((comp (car rest)))
-             (if (and (procedure? comp)
-                      (null? (cdr rest)))
-                 (assoc3 key list0 comp)
-                 (error 'assoc (errmsg 'msg:illegalargs)
-                               (cons key (cons list0 rest))))))
-          ((symbol? key) (assq key list0))
+  (case-lambda
+   ((key list0)
+    (cond ((symbol? key) (assq key list0))
           ((number? key) (assv key list0))
           ((char? key) (assv key list0))
-          (else (assoc3 key list0 equal?)))))
+          (else (assoc:loop key list0 equal? list0 #f))))
+   ((key list0 comp)
+    (if (procedure? comp)
+        (assoc:loop key list0 comp list0 comp)
+        (error 'assoc (errmsg 'msg:illegalargs) (list key list0 comp))))))
+
+; comp is assoc's third argument, or #f if none, for error messages.
+
+(define (assoc:loop key list equal? list0 comp)
+  (cond ((pair? list)
+         (cond ((not (pair? (car list)))
+                (error 'assoc
+                       (errmsg 'msg:notpair)
+                       (car list)
+                       (cons key (cons list0 (if comp (list comp) '())))))
+               ((equal? key (caar list))
+                (car list))
+               (else
+                (assoc:loop key (cdr list) equal? list0 comp))))
+        ((null? list) #f)
+        (else (error 'assoc (errmsg 'msg:notlist) list0))))
 
 (define (assv key list)
   (define (assv key list)

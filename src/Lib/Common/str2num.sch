@@ -77,13 +77,16 @@
 ; Parse-number takes a list of characters to be parsed.
 ; Its output is a number, or #f.
 
-(define (string->number s . rest)
+(define string->number
+  (case-lambda
+   ((s) (string->number:radix s #f))
+   ((s radix) (string->number:radix s radix))))
+
+; radix is #f if string->number was given none.
+
+(define (string->number:radix s radix0)
   
-  (let ((radix (cond ((null? rest) #f)
-                     ((null? (cdr rest)) (car rest))
-                     (else (assertion-violation 'string->number
-                                                "too many arguments"
-                                                (cons s rest)))))
+  (let ((radix radix0)
         (n (string-length s)))
 
     ;; This is a procedure because at the time we wish to call make-flonum,

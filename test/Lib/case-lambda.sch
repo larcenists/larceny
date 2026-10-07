@@ -198,6 +198,120 @@
                       (let ((d (b)))
                         (r7rs:bytevector-copy! d 1 (b) 3 4)
                         d))))
-         '((2 3 4 5) (2 3) (0 0 1 2 3 4) (0 3 4 5 4 5) (0 3 2 3 4 5)))))
+         '((2 3 4 5) (2 3) (0 0 1 2 3 4) (0 3 4 5 4 5) (0 3 2 3 4 5)))
+
+   (test "output procedures with and without a port"
+         (let* ((q (open-output-string))
+                (r (open-output-string))
+                (out (lambda (p)
+                       (display "d" p) (write "w" p) (newline p)
+                       (write-string "abcdef" p 2) (write-string "abcdef" p 1 3)
+                       (write-shared '(1) p) (write-simple 'x p)
+                       (display-simple #\c p) (flush-output-port p)))
+                (out0 (lambda ()
+                        (display "d") (write "w") (newline)
+                        (write-string "abcdef") (write-shared '(1))
+                        (write-simple 'x) (display-simple #\c)
+                        (flush-output-port))))
+           (out q)
+           (parameterize ((current-output-port r)) (out0))
+           (list (get-output-string q) (get-output-string r)))
+         '("d\"w\"\ncdefbc(1)xc" "d\"w\"\nabcdef(1)xc"))
+
+   (test "input procedures with and without a port"
+         (let ((p (open-input-string "ab\ncdefg"))
+               (q (open-input-string "xy\nz")))
+           (list (peek-char p) (char-ready? p) (read-line p)
+                 (read-string 2 p)
+                 (parameterize ((current-input-port q))
+                   (list (peek-char) (char-ready?) (read-line)
+                         (read-string 1)))))
+         '(#\a #t "ab" "cd" (#\x #t "xy" "z")))
+
+   (test "binary port procedures with and without a port"
+         (let ((in (lambda ()
+                     (open-input-bytevector (u8-list->bytevector
+                                             '(1 2 3 4 5 6 7 8)))))
+               (b (make-bytevector 4 0))
+               (out (open-output-bytevector)))
+           (list (let ((p (in)))
+                   (list (read-u8 p) (peek-u8 p) (u8-ready? p)
+                         (bytevector->u8-list (read-bytevector 2 p))
+                         (read-bytevector! b p 1 3)
+                         (bytevector->u8-list b)
+                         (read-bytevector! b p)
+                         (bytevector->u8-list b)))
+                 (parameterize ((current-input-port (in)))
+                   (list (read-u8) (peek-u8) (u8-ready?)
+                         (bytevector->u8-list (read-bytevector 1))
+                         (read-bytevector! b)))
+                 (begin
+                   (write-u8 9 out)
+                   (write-bytevector (u8-list->bytevector '(1 2 3)) out 1)
+                   (write-bytevector (u8-list->bytevector '(1 2 3)) out 0 1)
+                   (parameterize ((current-output-port out))
+                     (write-u8 7)
+                     (write-bytevector (u8-list->bytevector '(5))))
+                   (bytevector->u8-list (get-output-bytevector out)))))
+         '((1 2 #t (2 3) 2 (0 4 5 0) 3 (6 7 8 0))
+           (1 2 #t (2) 4)
+           (9 2 3 1 7 5)))
+
+   (test "put-string, put-bytevector"
+         (list (call-with-string-output-port
+                (lambda (p)
+                  (put-string p "abcdef")
+                  (put-string p "abcdef" 4)
+                  (put-string p "abcdef" 1 2)))
+               (call-with-values
+                (lambda () (open-bytevector-output-port))
+                (lambda (p get)
+                  (let ((b (u8-list->bytevector '(1 2 3 4))))
+                    (put-bytevector p b)
+                    (put-bytevector p b 3)
+                    (put-bytevector p b 1 2)
+                    (bytevector->u8-list (get))))))
+         '("abcdefefbc" (1 2 3 4 4 2 3)))
+
+   (test "list procedures"
+         (list (make-list 2 'x) (length (make-list 3))
+               (member 2.0 '(1 2 3) =) (member "b" '("a" "b"))
+               (assoc 2.0 '((1 . a) (2 . b)) =) (assoc "b" '(("b" . 1))))
+         '((x x) 3 (2 3) ("b") (2 . b) ("b" . 1)))
+
+   (test "string and vector conversions"
+         (list (vector->list '#(a b c d)) (vector->list '#(a b c d) 2)
+               (vector->list '#(a b c d) 1 3)
+               (vector->string '#(#\a #\b #\c) 1)
+               (string->vector "abc" 1 2)
+               (string->list "abcd" 2) (string->list "abcd" 1 2)
+               (let ((v (make-vector 4 0))) (vector-fill! v 1 2) v)
+               (let ((v (make-vector 4 0))) (vector-fill! v 1 1 3) v)
+               (let ((s (make-string 4 #\-))) (string-fill! s #\x 3) s)
+               (let ((s (make-string 4 #\-))) (string-fill! s #\x) s))
+         '((a b c d) (c d) (b c) "bc" #(#\b) (#\c #\d) (#\b)
+           #(0 0 1 1) #(0 1 1 0) "---x" "xxxx"))
+
+   (test "string->utf8, utf8->string"
+         (list (bytevector->u8-list (string->utf8 "abc" 1))
+               (bytevector->u8-list (string->utf8 "abc" 1 2))
+               (utf8->string (string->utf8 "abc") 1)
+               (utf8->string (string->utf8 "abc") 0 2))
+         '((98 99) (98) "bc" "ab"))
+
+   (test "number procedures"
+         (list (number->string 255 16) (number->string 7)
+               (string->number "ff" 16) (string->number "17")
+               (atan 1 1) (atan 0)
+               (log 8 2) (wrong-number? (lambda () (log 8 'x))))
+         (list "ff" "7" 255 17 (atan 1.0 1.0) 0.0 (/ (log 8) (log 2)) #t))
+
+   (test "vector-sort, vector-sort!"
+         (list (vector-sort < '#(3 1 2)) (vector-sort < '#(3 1 2 0) 1)
+               (vector-sort < '#(3 1 2 0) 1 3)
+               (let ((v (vector 3 1 2 0))) (vector-sort! < v) v)
+               (let ((v (vector 3 1 2 0))) (vector-sort! < v 1) v)
+               (let ((v (vector 3 1 2 0))) (vector-sort! < v 0 2) v))
+         '(#(1 2 3) #(0 1 2) #(1 2) #(0 1 2 3) #(3 0 1 2) #(1 3 2 0)))))
 
 ; eof
