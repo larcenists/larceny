@@ -148,7 +148,8 @@
 
 (define-instruction $.proc
   (lambda (instruction as)
-    (list-instruction ".proc" instruction)))
+    (list-instruction ".proc" instruction)
+    (fence.note-entry! as)))
 
 (define-instruction $.proc-doc
   (lambda (instruction as)
@@ -171,7 +172,121 @@
 (define-instruction $.end
   (lambda (instruction as)
     (fence.emit-deferred! as)
-    (cant.end as)))
+    (cant.end as)
+    (if fence.records-registers?
+        (fence.store-register-mask! as))
+    (set! fence.registers-used (make-vector *nregs* #f))
+    (set! fence.seen-entry? #f)))
+
+; The garbage collector treats the registers as roots, and a register
+; keeps a dead value until something overwrites it, possibly long after
+; the procedure that put it there has returned.  So the documentation of
+; a code vector (constant 0, see src/Lib/Common/procinfo.sch) records
+; the set of registers that its code uses, as a bit mask, and when a
+; collection starts in that code (REG0's), the collector clears the
+; others (before_collection in src/Rts/Sys/memmgr.c).  A set, not the
+; highest register: Twobit allocates temporaries from the top.  A back
+; end whose register mapping calls fence.note-register! for every MAL
+; register sets fence.records-registers?; a code vector without the
+; mask keeps all registers.  Too many registers is safe; too few clears
+; a live one.  Code that leaves millicode to read registers that it
+; does not name itself (rest arguments, syscall) notes all of them.
+;
+; Nested lambdas are assembled after their parent's $.end, one code
+; vector at a time; a retry (long addresses) only adds registers.
+
+(define fence.records-registers? #f)
+
+(define fence.registers-used (make-vector *nregs* #f))
+
+(define (fence.note-register! r)
+  (if (< r *nregs*)
+      (vector-set! fence.registers-used r #t)))
+
+(define (fence.note-all-registers!)
+  (vector-fill! fence.registers-used #t))
+
+; Registers 1 through n hold n arguments (or values); with n or more
+; than *lastreg*, the last holds a list of the rest.
+
+(define (fence.note-argument-registers! n)
+  (if (>= n *lastreg*)
+      (fence.note-all-registers!)
+      (do ((r 1 (+ r 1)))
+          ((> r n))
+        (fence.note-register! r))))
+
+; Registers can also be live without the code naming them: arguments
+; that it passes on in the registers they came in.  They come in at the
+; entries of procedures (and at return points with args= or args>=,
+; which note their registers): the first .proc is the code vector's
+; procedure, documented by constant 0, and an internal procedure (which
+; an inner lambda may reach with jump) is documented by the .proc-doc
+; that follows its .proc.  Each notes the registers of its arguments,
+; or all of them when its arity is not a known fixnum.
+
+(define fence.seen-entry? #f)
+
+(define (fence.note-entry! as)
+
+  (define (doc-arity doc)
+    (and (vector? doc)
+         (> (vector-length doc) 2)
+         (fixnum? (vector-ref doc 2))
+         (vector-ref doc 2)))
+
+  (let* ((next (as-source as))
+         (doc (cond ((and (pair? next)
+                          (= (operand0 (car next)) $.proc-doc))
+                     (operand1 (car next)))
+                    ((not fence.seen-entry?)
+                     (let ((constant0 (car (as-constants as))))
+                       (and (pair? constant0)
+                            (eq? (car constant0) 'data)
+                            (cadr constant0))))
+                    (else #f)))
+         (n (doc-arity doc)))
+    (set! fence.seen-entry? #t)
+    (if n
+        (fence.note-argument-registers! n)
+        (fence.note-all-registers!))))
+
+(define doc.registers 6)                ; see procinfo.sch
+
+; The mask has bit r for register r, and bit 16 set to mark it as a
+; mask (the collector ignores other values).
+
+(define (fence.store-register-mask! as)
+
+  (define n
+    (do ((r (- *nregs* 1) (- r 1))
+         (mask 1 (+ (* 2 mask)
+                    (if (vector-ref fence.registers-used r) 1 0))))
+        ((< r 0) mask)))
+
+  ; A code vector without documentation gets no mask: its constant 0
+  ; might be shared with an equal literal (emit-constant), so it is not
+  ; replaced.
+
+  (define (add-mask doc)
+    (cond ((vector? doc)
+           (let ((new (make-vector (max (+ doc.registers 1)
+                                        (vector-length doc))
+                                   #f)))
+             (do ((i 0 (+ i 1)))
+                 ((= i (vector-length doc)))
+               (vector-set! new i (vector-ref doc i)))
+             (vector-set! new doc.registers n)
+             new))
+          ((and (pair? doc) (pair? (car doc)) (vector? (cdar doc)))
+           (map (lambda (entry)
+                  (cons (car entry) (add-mask (cdr entry))))
+                doc))
+          (else doc)))                  ; unknown: no mask, all live
+
+  (let ((constant0 (car (as-constants as))))
+    (if (and (pair? constant0) (eq? (car constant0) 'data))
+        (set-constant! as 0 (add-mask (cadr constant0))))))
 
 ; Code that is rarely executed (slow paths) can be deferred to the end
 ; of the code vector, out of the way of the code around it.  A deferred
@@ -327,6 +442,7 @@
   (lambda (instruction as)
     (list-instruction "args=" instruction)
     (let ((n  (fence.native->fixnum (operand1 instruction))))
+      (fence.note-argument-registers! (operand1 instruction))
       (emit-check-branch
        as
        (lambda (L) (cant.bcci as 'not-equal $r.result n L))
@@ -343,6 +459,7 @@
     (list-instruction "args>=" instruction)
     (let* ((k  (operand1 instruction))
            (n  (fence.native->fixnum k)))
+      (fence.note-all-registers!)         ; mc_restargs reads them all
       (cant.movi as n $r.second)
       (if (runtime-safety-checking)
           (emit-check-branch
@@ -1511,6 +1628,7 @@
     ;; Miscellaneous operations that call millicode.  In all cases
     ;; these are allowed to destroy RESULT and SECOND.
     ((syscall)
+     (fence.note-all-registers!)        ; primitives read the registers
      (trap1 $m.syscall))
     ((creg)
      (trap0 $m.creg))

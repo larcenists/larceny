@@ -62,6 +62,7 @@ struct opt {
   bool       supremely_annoying;        /* print massively many msgs */
   bool       flush;                     /* force icache flushing */
   bool       noflush;                   /* disable icache flushing */
+  bool       keepregs;                  /* GC: keep registers past REG0's count */
   bool       reorganize_and_dump;       /* split text and data and dump */
   bool       nobanner;          /* disable printing of (secondary) banner */
   bool       unsafe;            /* cheat ad libitum */
@@ -99,6 +100,7 @@ extern opt_t command_line_options;
 extern int  panic_exit( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
 extern int  panic_abort( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
 extern void annoyingmsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern bool gc_keep_dead_registers;     /* Sys/memmgr.c */
 extern void supremely_annoyingmsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
 extern void consolemsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
 extern void hardconsolemsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );

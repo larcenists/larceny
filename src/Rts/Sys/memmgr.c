@@ -29,6 +29,11 @@ const char *larceny_gc_technology = "precise";
 #include "heapio.h"
 #include "barrier.h"
 #include "stack.h"
+#if defined PETIT_LARCENY || defined X86_NASM
+# include "petit-machine.h"            /* For LASTREG */
+#else
+# include "regs.ch"                    /* For LASTREG */
+#endif
 #include "msgc-core.h"
 #include "region_group_t.h"
 #include "smircy.h"
@@ -2500,9 +2505,58 @@ static void collect_code_by_scanning( gc_t *gc, smircy_context_t *marks )
 }
 #endif
 
+/* The registers are roots, and a register keeps a dead value until it
+   is overwritten, possibly long after the procedure that set it has
+   returned.  The assembler records in the documentation of a code
+   vector (constant 0) the set of registers that its code uses or
+   receives arguments in, as a bit mask (see fence.store-register-mask!
+   in Asm/Fence/pass5p2.sch and Lib/Common/procinfo.sch); the others
+   cannot hold anything the code in REG0 needs (Twobit keeps a caller's
+   values in its frame, and restores REG0 right after every return), so
+   they are cleared before a collection.  Without a mask all registers
+   are kept, and with -keepregs (gc_keep_dead_registers) too, for
+   debugging.
+   */
+
+#define DOC_REGISTERS 6                 /* doc.registers in procinfo.sch */
+
+bool gc_keep_dead_registers = 0;
+
+static void clear_dead_registers( word *globals )
+{
+  word p, cv, doc, n, mask;
+  int i;
+
+  if (gc_keep_dead_registers)
+    return;
+  p = globals[ G_REG0 ];
+  if (tagof( p ) != PROC_TAG)
+    return;
+  cv = procedure_ref( p, IDX_PROC_CONST );
+  if (tagof( cv ) != VEC_TAG || vector_length( cv ) < 1)
+    return;
+  doc = vector_ref( cv, 0 );
+  if (tagof( doc ) == PAIR_TAG &&       /* ((offset . doc) ...) */
+      tagof( pair_car( doc ) ) == PAIR_TAG)
+    doc = pair_cdr( pair_car( doc ) );
+  if (tagof( doc ) != VEC_TAG ||
+      typetag( *ptrof( doc ) ) != typetag( VECTOR_HDR ) ||
+      vector_length( doc ) <= DOC_REGISTERS)
+    return;
+  n = vector_ref( doc, DOC_REGISTERS );
+  if (!is_fixnum( n ) || (s_word)n < 0 || (nativeuint( n ) >> 16) != 1)
+    return;                             /* not a mask: bit 16 marks one */
+  mask = nativeuint( n );
+  for ( i = 1 ; i <= LASTREG ; i++ )
+    if ((mask & ((word)1 << i)) == 0)
+      globals[ G_REG0+i ] = FALSE_CONST;
+}
+
 static void before_collection( gc_t *gc )
 {
   int e;
+
+  clear_dead_registers( DATA(gc)->globals );
 
   gc->stat_last_ms_gc_cheney_pause = 0;
   gc->stat_last_ms_gc_cheney_pause_cpu = 0;

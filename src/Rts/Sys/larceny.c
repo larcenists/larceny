@@ -229,6 +229,7 @@ int main( int argc, char **os_argv )
   }
 
   quiet = command_line_options.quiet;
+  gc_keep_dead_registers = command_line_options.keepregs;
   annoying = command_line_options.annoying;
   supremely_annoying = command_line_options.supremely_annoying;
 
@@ -728,6 +729,8 @@ parse_options( int argc, char **argv, opt_t *o )
       o->flush = 1;
     else if (hstrcmp( *argv, "-noflush" ) == 0)
       o->noflush = 1;
+    else if (hstrcmp( *argv, "-keepregs" ) == 0)
+      o->keepregs = 1;
     else if (hstrcmp( *argv, "-reorganize-and-dump" ) == 0)
       o->reorganize_and_dump = 1;
     else if (hstrcmp( *argv, "-heap" ) == 0) {
@@ -1589,6 +1592,9 @@ static char *wizardhelptext[] = {
   "     Set the initial countdown timer interval value.",
   "  -nobreak",
   "     Disable breakpoints." ,
+  "  -keepregs",
+  "     Let the garbage collector keep the registers that the code it",
+  "     interrupted does not use, as roots, instead of clearing them.",
   "  -step",
   "     Enable MAL-level single-stepping." ,
 #if !defined(BDW_GC)

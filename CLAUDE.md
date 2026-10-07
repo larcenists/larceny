@@ -66,6 +66,12 @@ Environment variables read when the compiler is loaded, for testing:
 
 Set them when building (`bootstrap.sh`) to affect the heap.
 
+The collector clears the registers that the running code does not use
+(a mask in each code vector's documentation, made by the assembler; see
+`fence.store-register-mask!` in `src/Asm/Fence/pass5p2.sch`).  The
+runtime option `-keepregs` keeps them, for debugging and to tell
+whether a bug comes from a mask that leaves out a live register.
+
 ## Feature markers
 
 Compiled files begin with `#lap(...)` or `#lop(...)` (after `#!fasl` in

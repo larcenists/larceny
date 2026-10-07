@@ -408,7 +408,10 @@
     (do ((i 0 (+ i 1)))
         ((= i *nregs*))
       (vector-set! v (+ offset i $r.reg0) (vector-ref regs i)))
+    (set! fence.records-registers? #t)
     (lambda (r)
+      (if (>= r $r.reg0)
+          (fence.note-register! (- r $r.reg0)))
       (vector-ref v (+ r offset)))))
 
 ; Floating registers F0..F3 are d8..d11.
