@@ -10,6 +10,10 @@ SRC="./tests/r6rs/run"
 
 LARCENY=${LARCENY:-"../../../larceny"}
 
+# MODE=--r6rs runs the programs in R6RS mode, which reads libraries
+# with the strict R6RS lexical syntax.
+MODE=${MODE:-"--r7rs"}
+
 TESTS="                            \
     arithmetic/fixnums.sps         \
     base.sps                       \
@@ -36,7 +40,7 @@ runtest ()
     sleep 1
     {
         echo "${SRC}/$1"
-        time ${LARCENY} --path "$R7PATH" --r7rs --program "${SRC}/$1"
+        time ${LARCENY} --path "$R7PATH" ${MODE} --program "${SRC}/$1"
     } 2>&1 | tee -a testresults
 }
 

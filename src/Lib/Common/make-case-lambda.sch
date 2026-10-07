@@ -94,4 +94,9 @@
                     (else
                      (loop (cdr fs) (cdr cs))))))))))
 
+;; The name of .make-case-lambda in R6RS libraries, where identifiers
+;; cannot begin with a dot (see lib/R6RS/rnrs/control.sls).
+
+(define case-lambda:make .make-case-lambda)
+
 ; eof

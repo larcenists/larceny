@@ -85,7 +85,9 @@ generation, keep them true:
 - `test/Lib`: `(load "load-all-tests.sch") (run-all-tests)` in a copy of
   the directory.
 - Compiler: `test/Compiler`, `(load "run-tests.sch") (run-compiler-tests sanity-switches)`.
-- R7RS/R6RS suites: `test/R7RS/Lib/testall` and `testr6rs-larceny`.
+- R7RS/R6RS suites: `test/R7RS/Lib/testall` and `testr6rs-larceny`
+  (also `MODE=--r6rs ./testr6rs-larceny`, after changing an R6RS
+  library: R6RS mode reads libraries with strict R6RS syntax).
 - Test the default collector, `-stopcopy`, and `-rrof` (the regional
   collector; its concurrent marking relies on the SATB pre-barrier).
 - When piping input into `./larceny` from an interactive shell, note that

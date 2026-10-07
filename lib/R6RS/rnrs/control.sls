@@ -5,7 +5,7 @@
           (for (core with-syntax)  expand)
           (for (core syntax-rules) expand)
           (for (only (core derived) case else) run)
-          (for (primitives not map .make-case-lambda)
+          (for (primitives not map case-lambda:make)
             expand run) )
   
   (define-syntax when
@@ -46,13 +46,16 @@
   ;; dispatches on the number of arguments to one of the clauses,
   ;; which are ordinary procedures, without consing (see
   ;; .make-case-lambda in src/Lib/Common/make-case-lambda.sch).
+  ;; (case-lambda:make is .make-case-lambda: an identifier cannot
+  ;; begin with a dot in R6RS, whose reader reads this file to find
+  ;; the library in it.)
 
   (define-syntax case-lambda
     (syntax-rules ()
       ((_ (fmls b1 b2 ...))
        (lambda fmls b1 b2 ...))
       ((_ (fmls b1 b2 ...) ...)
-       (.make-case-lambda '(fmls ...) (lambda fmls b1 b2 ...) ...))))
+       (case-lambda:make '(fmls ...) (lambda fmls b1 b2 ...) ...))))
   
   ) ; rnrs control                                      
 
