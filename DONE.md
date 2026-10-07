@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- call/cc (fibc 3.1x Racket's time -> 1.4x, ctak 2.5x -> 1.5x):
+  zero?, integer?, exact?, inexact? are in line for fixnums (cd5ef179;
+  zero? was 18% of fibc), and a throw no longer goes through the
+  dynamic-wind wrapper's rest list and reroot! (two calls into C) when
+  nothing needs rerooting, nor through (apply values args) for one value
+  (ac48c2a5): a throw 48 ns -> 28.
 - A runtime that fails to compile stops the build (36bf501c): build-runtime
   ignored make's status, so the old larceny.bin was installed and
   bootstrap.sh said "Done".

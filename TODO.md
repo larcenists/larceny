@@ -14,10 +14,13 @@ DONE.md (with the date and the commit, if any).
   very slow); Larceny faster on 42.  compiler 0.74x, equal 0.46x,
   string 0.99x.  Outliers to investigate, with guesses at causes that
   have not been checked:
-  - fibc 3.1x, ctak 2.5x (call/cc): capture (creg_get: flush, then
-    restore the top frame) and reinstating a continuation (creg_set)
-    switch to C; the returns through the flushed frames no longer do
-    (930bfa49), which gained only 1-4%.  In-line capture next?
+  - fibc 1.4x, ctak 1.5x (call/cc; 3.1x and 2.5x before cd5ef179 and
+    ac48c2a5).  What is left: capture (creg_get: flush, then restore
+    the top frame) and reinstating a continuation (creg_set, which
+    copies a frame back with stk_restore_frame) switch to C, and the
+    continuation's (lambda args ...) conses its values through
+    mc_restargs (in C).  Per frame, returning through flushed frames
+    costs about 9 ns (Racket about 1).
   - ack 3.0x, divrec 2.9x, deriv 2.3x: deep recursion (see the
     return-prediction item below; not the stack cache or the GC);
   - vecsort 1.4x (2.2x before fxarithmetic-shift-right was in line);
@@ -136,6 +139,9 @@ DONE.md (with the date and the commit, if any).
 - test/Lib's "Error case #24" (regression.sch, bug 105) fails under
   `-rrof -size0 64K` (before the dead-register work too): it compares
   the allocation and run times of two loops.
+- continuation-mark-set? (control.sch) is #f for every mark set:
+  cms-box makes a structure of length 3, and the predicate wants 2.
+  Writing a mark set fails too ("not a record of the correct type").
 - lib/SRFI/test/srfi-133-test.sps7 exits with status 1 without saying
   why: test-exit does not report failures.  The one failure is
   vector-cumulate called as (vector-cumulate + vec 0), an argument
