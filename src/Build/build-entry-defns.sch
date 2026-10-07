@@ -100,8 +100,13 @@
                (param-filename 'rts make-target))
     ;; petit-win32.sch actually doesn't pass an arg to make... 
     ;; should I do same? 
-    (execute-in-directory (nbuild-parameter 'rts)
-                          (string-append (make-command) " " make-target))))
+    ;; A failed make must stop the build: the rest would go on with
+    ;; the old runtime (build-executable installs whatever is there).
+    (let ((status (execute-in-directory
+                   (nbuild-parameter 'rts)
+                   (string-append (make-command) " " make-target))))
+      (if (not (and (number? status) (zero? status)))
+          (error 'build-runtime "make failed with status" status)))))
 
 (define build-runtime-system build-runtime)  ; Old name
 

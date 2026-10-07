@@ -61,8 +61,12 @@ cat > "$script" <<EOS
 EOS
 
 if [ -n "$TARGET" ]; then heap=larceny.heap; else heap=petit-larceny.heap; fi
+if [ -n "$TARGET" ]; then bin=larceny.bin; else bin=petit-larceny.bin; fi
 # The heap is not removed first: the host may be this tree's own Larceny.
-# The build succeeded if it wrote a heap newer than the stamp.
+# The build succeeded if it wrote a heap newer than the stamp.  (When
+# make fails, build-runtime stops the build, so no heap is written; the
+# installed binary is a fresh copy in any case, so its time says
+# nothing.)
 sleep 1
 
 echo "Building (log: bootstrap.log)..."
@@ -71,9 +75,10 @@ case $HOST in
   larceny) "$HOST_CMD" -- "$script" > bootstrap.log 2>&1 < /dev/null ;;
 esac || true
 
-if [ ! -f $heap ] || [ ! $heap -nt "$stamp" ]; then
+if [ ! -f $heap ] || [ ! $heap -nt "$stamp" ] || [ ! -f $bin ]; then
   grep -A3 "set up for another\|unknown configuration" bootstrap.log >&2 ||
-    echo "$0: failed; see bootstrap.log" >&2
+    grep "error:" bootstrap.log >&2
+  echo "$0: failed; see bootstrap.log" >&2
   exit 1
 fi
 
