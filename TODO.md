@@ -134,6 +134,13 @@ DONE.md (with the date and the commit, if any).
 
 - `bootstrap.sh --r7rs` reports success when compiling the libraries
   fails; it should check `bootstrap-r7rs.log` for errors.
+- Smoke-test `--r6rs` mode routinely.  The test suites run their
+  programs in `--r7rs` mode, so a library that strict R6RS syntax
+  cannot read (rnrs control, 2a28596a until fixed) went unnoticed until
+  a benchmark ran.  `MODE=--r6rs test/R7RS/Lib/testr6rs-larceny` runs
+  the R6RS suite in that mode; it could run by default (both modes),
+  or the build (`bootstrap.sh --r7rs`) could end by running a small
+  `--r6rs` program that imports `(rnrs)`.
 - Feature markers, follow-ups:
   - A system provides exactly the features its heap's code assumes; it
     could provide several target specs (say, an older calling-convention
