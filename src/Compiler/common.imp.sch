@@ -641,7 +641,7 @@
       (.check! (.>=:fix:fix i 0) ,$ex.bvset bv i x)
       (.check! (.fixnum? x) ,$ex.bvset bv i x)
       (.check! (.<:fix:fix x 256) ,$ex.bvset bv i x)
-      (.check! (.>=:fix:fix x -128) ,$ex.bvset bv i x)
+      (.check! (.>=:fix:fix x 0) ,$ex.bvset bv i x)     ; an octet
       (.bytevector-like-set!:trusted bv i x)))
 
 `  ((_ larceny bytevector-like-length (bytevector-like-length bv0))
@@ -673,18 +673,8 @@
 `  ((_ larceny bytevector-u8-ref (bytevector-u8-ref x y))
     (bytevector-ref x y))
 
-`  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x0 y0 z0))
-    (let ((x x0)
-          (y y0)
-          (z z0))
-#;    (if (not (fx<=? 0 z 255))
-          (begin (write (list 'bytevector-u8-set! x y z))
-                 (newline)
-                 (larceny-break)))
-      (.check! (.fixnum? z) ,$ex.bvset x y z)
-      (.check! (.<:fix:fix z 256) ,$ex.bvset x y z)
-      (.check! (.>=:fix:fix z -128) ,$ex.bvset x y z)
-      (bytevector-set! x y z)))
+`  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
+    (bytevector-set! x y z))
 
 `  ((_ larceny bytevector-u16-ref (bytevector-u16-ref bv0 i0 which0))
     (let ((bv bv0)

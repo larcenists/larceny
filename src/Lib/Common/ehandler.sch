@@ -297,8 +297,8 @@
   (define (not-a-port name obj)
     (error name (errmsg 'msg:notport) (list obj)))
 
-  (define (byte? x)
-    (and (integer? x) (exact? x) (<= -128 x 255)))
+  (define (byte? x)                    ; what bytevector-set! stores
+    (and (integer? x) (exact? x) (<= 0 x 255)))
 
   (cond ;; Interrupt flag manipulation
 

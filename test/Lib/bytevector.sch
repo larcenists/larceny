@@ -227,6 +227,23 @@
      (mustfail "make-bytevector 256" make 2 256)
      (mustfail "make-bytevector symbol" make 2 'a))
 
+   ; bytevector-set! and bytevector-u8-set! store octets, 0 through
+   ; 255; bytevector-s8-set! stores -128 through 127.
+
+   (let ((set (lambda (b i x) (bytevector-set! b i x) (bytevector->u8-list b)))
+         (u8 (lambda (b i x) (bytevector-u8-set! b i x) (bytevector->u8-list b)))
+         (s8 (lambda (b i x) (bytevector-s8-set! b i x) (bytevector->u8-list b))))
+     (test "bytevector-set! 255" (set (make-bytevector 2 0) 1 255) '(0 255))
+     (test "bytevector-u8-set! 0" (u8 (make-bytevector 2 1) 0 0) '(0 1))
+     (test "bytevector-s8-set! -1" (s8 (make-bytevector 2 0) 0 -1) '(255 0))
+     (mustfail "bytevector-set! -1" set (make-bytevector 2 0) 0 -1)
+     (mustfail "bytevector-set! 256" set (make-bytevector 2 0) 0 256)
+     (mustfail "bytevector-u8-set! -1" u8 (make-bytevector 2 0) 0 -1)
+     (mustfail "bytevector-u8-set! -128" u8 (make-bytevector 2 0) 0 -128)
+     (mustfail "bytevector-u8-set! 256" u8 (make-bytevector 2 0) 0 256)
+     (mustfail "bytevector-s8-set! 128" s8 (make-bytevector 2 0) 0 128)
+     (mustfail "bytevector-s8-set! -129" s8 (make-bytevector 2 0) 0 -129))
+
    (test "r7rs:bytevector-copy!"
          (map (lambda (args)
                 (let ((d (make-bytevector 6 0)))

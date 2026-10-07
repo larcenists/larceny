@@ -277,8 +277,7 @@
 
 ; These are inlined by common.imp.sch:
 ;
-;          bytevector-u8-ref bytevector-s8-ref
-;          bytevector-u8-set! bytevector-s8-set!
+;          bytevector-u8-ref bytevector-u8-set!
 
 (define (bytevector-u8-ref bv i) (bytevector-ref bv i))
 
@@ -288,7 +287,10 @@
   (u8->s8 (bytevector-u8-ref b k)))
 
 (define (bytevector-s8-set! b k val)
-  (bytevector-u8-set! b k (s8->u8 val)))
+  (if (and (fixnum? val) (<= -128 val 127))
+      (bytevector-u8-set! b k (s8->u8 val))
+      (assertion-violation 'bytevector-s8-set! (errmsg 'msg:illegalarg3)
+                           b k val)))
 
 (define (bytevector-uint-ref bytevector index endness size)
   (case endness
