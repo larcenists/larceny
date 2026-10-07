@@ -1707,14 +1707,18 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
     oh_synchronize( DATA(gc)->ephemeral_area[ to_idx ] );
 
     rgn_allocated = (DATA(gc)->ephemeral_area[ to_idx ]->allocated 
-                     + los_bytes_used( gc->los, to_idx+1 ));
+                     + los_bytes_used_include_marklists( gc->los, to_idx+1 ));
     rgn_avail = (DATA(gc)->ephemeral_area[ to_idx ]->maximum
                  - rgn_allocated);
     max_num_gc_chunks = quotient2( rgn_avail, GC_CHUNK_SIZE )+1;
     fragmentation_allowance = max_num_gc_chunks * GC_LARGE_OBJECT_LIMIT;
-    nursery_alloc_roundup = 
-      (quotient2( nursery_allocated + fragmentation_allowance, 
-                  GC_CHUNK_SIZE )) * GC_CHUNK_SIZE;
+    /* find_space_rgnl expands the region by at least a chunk, and only
+       if the data already in it plus that chunk fits: the region must
+       have room for all of the promoted data plus a whole chunk, not
+       just for the promoted data rounded up to chunks (that misjudged
+       a 64KB nursery promoted into an almost full region).  */
+    nursery_alloc_roundup =
+      nursery_allocated + fragmentation_allowance + GC_CHUNK_SIZE;
     data_stays_in_one_region
       =  ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
           && 
