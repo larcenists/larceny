@@ -69,14 +69,17 @@ DONE.md (with the date and the commit, if any).
   syscall); 1000 elements take 2.2 us.  A stack underflow copies the
   frame a word at a time (fence_stack_underflow, stk_restore_frame),
   but frames are short.
-- Under -rrof, a syscall whose argument is a freshly allocated large
-  object (a 100000-element vector) makes the following collections
-  promote it into a region, and region collections follow: 300 copies
-  with vector-copy take 1 ms of GC per copy instead of none.  Any
-  syscall does it (the bytevector move with a count of 0 too), an
-  ordinary procedure call does not.  Probably the saved registers in
-  globals[] (SAVE_SCHEME_CONTEXT in the millicode) keep the object
-  reachable until they are overwritten.
+- Dead values in the registers of the running procedure are still
+  roots: the collector clears only registers that the code in REG0
+  does not use at all (see DONE, 2026-10-07).  A loop that leaves a
+  large object in a register it uses, such as an argument register of
+  a call or a temporary, keeps the previous iteration's object through
+  the next collection, which promotes it (into a region under -rrof);
+  300 iterations of `(f6 60 bv 0 (make-vector 100000 0) 0 0)` do 21
+  region collections instead of none.  Precise: a mask of live
+  registers per collection point (keyed by the return address), from
+  Twobit's register allocation.  Cheaper: keep large objects young for
+  one more collection.
 - Under `-rrof`, a code collection that does not follow a completed
   mark cycle (with two regions, or when no marking is in progress)
   still keeps code referenced only from garbage until the garbage's
@@ -124,6 +127,9 @@ DONE.md (with the date and the commit, if any).
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take
   about 100 ms.  Card marking for large objects?
+- test/Lib's "Error case #24" (regression.sch, bug 105) fails under
+  `-rrof -size0 64K` (before the dead-register work too): it compares
+  the allocation and run times of two loops.
 - lib/SRFI/test/srfi-133-test.sps7 exits with status 1 without saying
   why: test-exit does not report failures.  The one failure is
   vector-cumulate called as (vector-cumulate + vec 0), an argument
@@ -134,6 +140,9 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
+- `bootstrap.sh` says "Done" when the C runtime fails to compile: the
+  heap is built with the old `larceny.bin`.  It should check that the
+  binary is newer than the stamp too.
 - Smoke-test `--r6rs` mode routinely.  The test suites run their
   programs in `--r7rs` mode, so a library that strict R6RS syntax
   cannot read (rnrs control, 2a28596a until fixed) went unnoticed until

@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- The collector clears the registers that the running code does not
+  use (47c65bee): a dead value left in a register was a root until
+  something overwrote it (an 80MB vector in REG13 survived 68
+  collections).  The native assembler records a mask of the registers
+  each code vector uses or receives arguments in; `-keepregs` keeps all
+  registers.  Test: test/GC/dead-registers.sch.
 - Bulk copies and fills (TODO: "vector-copy ... move an element per
   iteration").  Vectors: two syscalls copy (memmove) and fill vector-like
   objects, doing the barriers' work per slot in C, the SATB logging
