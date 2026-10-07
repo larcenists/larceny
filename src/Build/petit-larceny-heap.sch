@@ -355,8 +355,12 @@
 
 ; The new heap is made under another name and installed only when it is
 ; complete, so that a build that fails leaves the old heap, which may
-; be needed to host the next build; the old heap is kept as
-; petit-larceny.heap.prev.
+; be needed to host the next build.  The old heap is kept as
+; petit-larceny.heap.prev.  A heap may need the binary that dumped it, which
+; the build may already have replaced, so the binary that dumped the
+; new heap is kept as petit-larceny.bin.cur, and the one before as
+; petit-larceny.bin.prev: petit-larceny.bin.cur with petit-larceny.heap, and petit-larceny.bin.prev
+; with petit-larceny.heap.prev, are the last two heaps that were built.
 
 ;(gctwa)
 (dump-interactive-heap "petit-larceny.heap.new")
@@ -377,12 +381,18 @@
   (if (file-exists? "petit-larceny.heap")
       (heap-build-step "move /y petit-larceny.heap petit-larceny.heap.prev"))
   (heap-build-step "move /y petit-larceny.heap.new.split petit-larceny.heap")
+  (if (file-exists? "petit-larceny.bin.exe.cur")
+      (heap-build-step "move /y petit-larceny.bin.exe.cur petit-larceny.bin.exe.prev"))
+  (heap-build-step "copy /y petit-larceny.bin.exe petit-larceny.bin.exe.cur")
   (delete-file "petit-larceny.heap.new"))
  (else
   (heap-build-step "./petit-larceny.bin -reorganize-and-dump -heap petit-larceny.heap.new")
   (if (file-exists? "petit-larceny.heap")
       (heap-build-step "mv -f petit-larceny.heap petit-larceny.heap.prev"))
   (heap-build-step "mv petit-larceny.heap.new.split petit-larceny.heap")
+  (if (file-exists? "petit-larceny.bin.cur")
+      (heap-build-step "mv -f petit-larceny.bin.cur petit-larceny.bin.prev"))
+  (heap-build-step "cp petit-larceny.bin petit-larceny.bin.cur")
   (delete-file "petit-larceny.heap.new")))
 
 ; eof

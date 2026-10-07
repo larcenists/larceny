@@ -79,15 +79,19 @@ lib/SRFI/test/*.log
 /petit-larceny.bin.c
 /petit-larceny.heap
 /petit-larceny.heap.split
-# The heap scripts' temporary files, and the heap before the last build.
+# The heap scripts' temporary files, and the binaries and heaps they keep.
 /larceny.heap.new
 /larceny.heap.new.split
 /larceny.heap.date
 /larceny.heap.prev
+/larceny.bin.cur
+/larceny.bin.prev
 /petit-larceny.heap.new
 /petit-larceny.heap.new.split
 /petit-larceny.heap.date
 /petit-larceny.heap.prev
+/petit-larceny.bin.cur
+/petit-larceny.bin.prev
 /lib/R6RS/*.c
 /lib/R7RS/*.c
 /src/Compat/Racket/compiled/

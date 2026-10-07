@@ -45,12 +45,14 @@ one.  Add new ideas to `TODO.md` as they come up.
   it first, or copy to a new file and `mv` it into place.
 - `make clean` in `src/Rts` deletes the generated `Shared/arithmetic.c`;
   rerun `build-config-files` afterwards.
-- A heap build that fails leaves `larceny.heap` as it was; the heap
-  before the last successful build is kept as `larceny.heap.prev`
-  (likewise `petit-larceny.heap`).  If the tree's Larceny is broken in
-  a way that keeps it from hosting a build, host it with another
-  Larceny (`larceny.bin -heap larceny.heap.prev`, in a copy of the
-  tree) or with Racket.
+- A heap build that fails leaves `larceny.heap` as it was.  A heap may
+  need the binary that dumped it (Petit's always do), and the build
+  replaces `larceny.bin` before it builds the heap, so each successful
+  heap build keeps its binary: `larceny.bin.cur` with `larceny.heap` is
+  the last heap built, and `larceny.bin.prev` with `larceny.heap.prev`
+  the one before (likewise `petit-larceny.*`).  If the tree's Larceny
+  cannot host a build, host it with one of those pairs (a script that
+  runs `larceny.bin.prev -heap larceny.heap.prev "$@"`) or with Racket.
 
 ## Code generation switches (AArch64)
 
