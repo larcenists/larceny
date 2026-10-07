@@ -46,7 +46,7 @@ fi
 
 script=`mktemp -t larceny-bootstrap`
 stamp=`mktemp -t larceny-bootstrap-stamp`
-trap 'rm -f "$script" "$stamp" "$stamp.r7rs"' EXIT
+trap 'rm -f "$script" "$stamp" "$stamp.r7rs" "$stamp.sps"' EXIT
 cat > "$script" <<EOS
 (load "setup.sch")
 (setup 'scheme: '$HOST 'host: 'macosx-arm64 $TARGET $CLEAN)
@@ -98,6 +98,29 @@ EOS
   if ! ./larceny -- "$stamp.r7rs" > bootstrap-r7rs.log 2>&1 < /dev/null; then
     grep -A10 "^Error" bootstrap-r7rs.log >&2
     echo "$0: compiling the libraries failed; see bootstrap-r7rs.log" >&2
+    exit 1
+  fi
+
+  # A smoke test of --r6rs mode, which reads libraries with strict R6RS
+  # syntax (the test suites run in --r7rs mode).
+  echo "Checking --r6rs mode..."
+  cat > "$stamp.sps" <<'EOS'
+(import (rnrs)
+        (rnrs eval)
+        (rnrs mutable-pairs)
+        (rnrs mutable-strings)
+        (rnrs r5rs))
+(define f
+  (case-lambda
+   ((x) (list 'one x))
+   ((x . rest) (list 'more x rest))))
+(display (list (f 1) (f 1 2) (eval '(+ 1 2) (environment '(rnrs)))))
+(newline)
+EOS
+  r6=`./larceny --r6rs --program "$stamp.sps" < /dev/null 2>&1`
+  if [ "`echo "$r6" | tail -1`" != "((one 1) (more 1 (2)) 3)" ]; then
+    echo "$r6" | tail -20 >&2
+    echo "$0: an R6RS program failed in --r6rs mode" >&2
     exit 1
   fi
 fi
