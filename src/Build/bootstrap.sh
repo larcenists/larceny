@@ -46,7 +46,7 @@ fi
 
 script=`mktemp -t larceny-bootstrap`
 stamp=`mktemp -t larceny-bootstrap-stamp`
-trap 'rm -f "$script" "$stamp"' EXIT
+trap 'rm -f "$script" "$stamp" "$stamp.r7rs"' EXIT
 cat > "$script" <<EOS
 (load "setup.sch")
 (setup 'scheme: '$HOST 'host: 'macosx-arm64 $TARGET $CLEAN)
@@ -79,7 +79,21 @@ fi
 
 if [ -n "$R7RS" ]; then
   echo "Compiling the R7RS/R6RS/SRFI libraries (log: bootstrap-r7rs.log)..."
-  printf "(require 'r7rsmode)\n(larceny:compile-r7rs-runtime)\n(exit)\n" |
-    ./larceny > bootstrap-r7rs.log 2>&1
+  # An error exits with status 1: the debugger would read its commands
+  # from the terminal.
+  cat > "$stamp.r7rs" <<'EOS'
+(require 'r7rsmode)
+(call-with-error-handler
+ (lambda args
+   (decode-error args)
+   (exit 1))
+ larceny:compile-r7rs-runtime)
+(exit)
+EOS
+  if ! ./larceny -- "$stamp.r7rs" > bootstrap-r7rs.log 2>&1 < /dev/null; then
+    grep -A10 "^Error" bootstrap-r7rs.log >&2
+    echo "$0: compiling the libraries failed; see bootstrap-r7rs.log" >&2
+    exit 1
+  fi
 fi
 echo "Done.  Run ./larceny"
