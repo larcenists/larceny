@@ -1530,9 +1530,7 @@
                          (else
                           (scannerError errLongToken))))
              (new (make-string newn)))
-        (do ((i 0 (+ i 1)))
-            ((= i n))
-          (string-set! new i (string-ref string_accumulator i)))
+        (string-copy-into-down! string_accumulator 0 n new 0)
         (set! string_accumulator new)))
 
     (define (record-source-location x start)

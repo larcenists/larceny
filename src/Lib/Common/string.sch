@@ -241,11 +241,28 @@
    ((s c start) (substring-fill! s start (string-length s) c))
    ((s c start end) (substring-fill! s start end c))))
 
+; Fills the first characters one at a time, then doubles the filled
+; part with string-copy-into-down! (memmove) until the range is full.
+
 (define substring-fill!
   (lambda (s start end c)
-    (do ((i start (+ i 1)))
-        ((>= i end) s)
-        (string-set! s i c))))
+    (if (not (and (string? s)
+                  (fixnum? start)
+                  (fixnum? end)
+                  (<= 0 start end (string-length s))
+                  (char? c)))
+        (error 'string-fill! (errmsg 'msg:illegalargs) s c start end))
+    (let ((k (min end (+ start string-copy:move-threshold))))
+      (do ((i start (+ i 1)))
+          ((>= i k))
+        (string-set! s i c))
+      (let loop ((filled (- k start)))
+        (let ((m (min filled (- end start filled))))
+          (if (> m 0)
+              (begin (string-copy-into-down! s start (+ start m)
+                                             s (+ start filled))
+                     (loop (+ filled m)))
+              s))))))
 
 ; Make-string is now a primitive; see primops.sch.
 

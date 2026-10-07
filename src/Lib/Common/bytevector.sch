@@ -384,15 +384,13 @@
                               (bytevector-u8-ref b2 i))))
                   (= i n1)))))))
 
-; FIXME: should use word-at-a-time when possible
+; The primitive (memset in millicode) checks that b is bytevector-like
+; and fill is in -128..255; bytevector-length checks that b is a
+; bytevector.
 
 (define (bytevector-fill! b fill)
-  (if (<= -128 fill -1)
-      (bytevector-fill! b (+ fill 256))
-      (let ((n (bytevector-length b)))
-        (do ((i 0 (+ i 1)))
-            ((= i n))
-          (bytevector-u8-set! b i fill)))))
+  (bytevector-length b)
+  (sys$bytevector-fill! b fill))
 
 (define (r6rs:bytevector-copy! source source-start target target-start count)
   (if (not (and (bytevector? source)

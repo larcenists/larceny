@@ -8,6 +8,39 @@
 ; Copies of all sizes (long ones use memmove), overlapping in both
 ; directions, against copies made through lists.
 
+; Fills of all sizes and ranges (long ones double the filled part with
+; memmove), against fills one character at a time.
+
+(define (string-fill-tests)
+
+  (define (reference-fill n c start end)
+    (let ((s (make-string n #\-)))
+      (do ((i start (+ i 1)))
+          ((= i end) s)
+        (string-set! s i c))))
+
+  (define (fill n c . range)
+    (let ((s (make-string n #\-)))
+      (apply string-fill! s c range)
+      s))
+
+  (allof "string fills"
+   (allof-map "string-fill!"
+    (lambda (n)
+      (test (string-append "string-fill! " (number->string n))
+            (fill n #\x3bb)
+            (reference-fill n #\x3bb 0 n))
+      (test (string-append "string-fill! from 3 " (number->string n))
+            (fill (+ n 5) #\x 3)
+            (reference-fill (+ n 5) #\x 3 (+ n 5)))
+      (test (string-append "string-fill! 3 to n+3 " (number->string n))
+            (fill (+ n 5) #\x 3 (+ n 3))
+            (reference-fill (+ n 5) #\x 3 (+ n 3))))
+    '(0 1 2 5 6 7 11 12 13 24 25 100 1000))
+   (mustfail "string-fill! end too large" fill 10 #\x 2 11)
+   (mustfail "string-fill! start > end" fill 10 #\x 5 4)
+   (mustfail "string-fill! not a char" fill 10 65 2 4)))
+
 (define (string-copy-tests)
 
   (define s
@@ -49,6 +82,7 @@
   (display "String") (newline)
   (string-predicate-test)
   (string-copy-tests)
+  (string-fill-tests)
   (string-for-each-test)
   (vector-for-each-test)            ; FIXME: belongs in some other file
   ;(string-simple-comparisons)

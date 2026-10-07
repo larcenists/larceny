@@ -89,6 +89,12 @@
 
 (define sys$bytevector-like-move-threshold 8)
 
+;; The bytevector-fill! primitive, inline (Twobit does not inline it in
+;; bytevector.sch, which defines bytevector-fill!).
+
+(define (sys$bytevector-fill! b fill)
+  (bytevector-fill! b fill))
+
 ;; Copies count elements of vector-like src, starting at element i, to
 ;; vector-like dst, starting at element j, with memmove (the ranges may
 ;; overlap), doing the write barrier's work for each slot.  Stores x

@@ -227,6 +227,17 @@
      (mustfail "make-bytevector 256" make 2 256)
      (mustfail "make-bytevector symbol" make 2 'a))
 
+   ; The same through the procedure, not the inline primitive.
+
+   (let ((fill (lambda (b x) (apply bytevector-fill! b (list x))
+                             (bytevector->u8-list b))))
+     (test "procedure fill! -1" (fill (make-bytevector 3 0) -1) '(255 255 255))
+     (test "procedure fill! 7" (fill (make-bytevector 100 0) 7)
+           (vector->list (make-vector 100 7)))
+     (test "procedure fill! empty" (fill (make-bytevector 0) 7) '())
+     (mustfail "procedure fill! 256" fill (make-bytevector 2 0) 256)
+     (mustfail "procedure fill! string" fill (make-string 2 #\a) 65))
+
    ; bytevector-set! and bytevector-u8-set! store octets, 0 through
    ; 255; bytevector-s8-set! stores -128 through 127.
 
