@@ -115,9 +115,13 @@ DONE.md (with the date and the commit, if any).
 - Single objects are limited to 2^31 words (16GB) on 64-bit systems,
   because the collectors keep word counts and indices within an object
   in ints.
-- A nursery of 256MB or more (`-size0 256M`, also 512M, 1G) crashes
-  native Larceny (SIGBUS or SIGSEGV) when it loads a source file, such
-  as setup.sch, though not when it runs a short loop.
+- The copying collector caches the page table's address for a whole
+  collection (`e->gclib_desc_g` in cheney.c, and copies of it in local
+  variables) and never refreshes it.  If allocating to-space during a
+  collection grows the table (grow_table frees the old one), the
+  collector would read freed memory.  Not seen to happen; check whether
+  it can (the table doubles when it grows), and refresh the cache or
+  defer freeing the old table until the collection ends.
 - A large vector in the remembered set is rescanned whole at every
   minor collection (the remset records objects, not slots): a young
   object stored into a 4.8GB vector makes each minor collection take

@@ -2,6 +2,14 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-07
+
+- A nursery larger than 32MB (`-size0 256M`) overflowed the low-level
+  allocator's initial page table, whose first allocation did not grow
+  it; garbage generations then crashed the write barrier's remembered
+  set processing (fe80ba24).  An assertion now checks that the table
+  covers each allocation.  Test: `test/GC/large-nursery.sch`.
+
 ## 2026-10-06
 
 - Procedures with optional arguments use case-lambda (bc72898d):
