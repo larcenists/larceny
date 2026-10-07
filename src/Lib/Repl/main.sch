@@ -211,6 +211,8 @@
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
+      (if (eq? emode 'r5rs)
+          (error-handler (r5rs-error-handler (error-handler))))
       (if (not clr?)                                ; FIXME (ticket #547)
           (begin (failsafe-load-init-files)
                  (failsafe-process-arguments)))
@@ -244,7 +246,7 @@
             (original-handler (error-handler)))
         (parameterize ((error-handler
                         (case emode
-                         ((r5rs) original-handler)
+                         ((r5rs) original-handler)      ; see above
                          (else
                           (lambda the-error
                             (parameterize ((error-handler original-handler))
@@ -312,6 +314,19 @@
       (newline)
       (exit 1)))))
 
+
+; In R5RS mode, an error goes to the R6RS/R7RS exception handlers only if
+; some are installed (with-exception-handler, guard), as error does
+; (use-r7rs-mechanism? in error.sch); otherwise the previous handler
+; reports it as it always has (and enters the debugger).  Installed before
+; the init files and the files named on the command line are loaded.
+
+(define (r5rs-error-handler previous)
+  (lambda the-error
+    (if (custom-exception-handlers?)
+        (parameterize ((error-handler previous))
+          (decode-and-raise-r6rs-exception the-error))
+        (apply previous the-error))))
 
 ; Entry point for R5RS and ERR5RS execution modes.
 ; Called only by interactive-entry-point, above.

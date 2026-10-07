@@ -4,7 +4,41 @@
 ;;; FIXME: currently limited to R5RS procedures.
 
 (define (run-exception-tests)
-  (run-r5rs-exception-tests))
+  (run-r5rs-exception-tests)
+  (run-handler-tests))
+
+; with-exception-handler catches the errors that primitives signal, as
+; well as those raised by error (in R5RS mode too), and a handler
+; installed by call-with-error-handler inside it still takes precedence.
+
+(define (run-handler-tests)
+
+  (define (catch thunk)
+    (call-with-current-continuation
+     (lambda (k)
+       (with-exception-handler
+        (lambda (e) (k (list 'caught (condition? e))))
+        thunk))))
+
+  (define v (vector 1 2 3))
+  (define (vref i) (vector-ref v i))    ; an inline check
+
+  (allof "with-exception-handler"
+   (test "error" (catch (lambda () (error 'who "boom" 1))) '(caught #t))
+   (test "car of a non-pair" (catch (lambda () (car 1))) '(caught #t))
+   (test "vector-ref out of range" (catch (lambda () (vref 5))) '(caught #t))
+   (test "undefined global"
+         (catch (lambda () (an-undefined-global-variable-for-a-test)))
+         '(caught #t))
+   (test "call-with-error-handler inside"
+         (catch (lambda ()
+                  (call-with-current-continuation
+                   (lambda (k)
+                     (call-with-error-handler
+                      (lambda args (k 'error-handler))
+                      (lambda () (car 1)))))))
+         'error-handler)
+   (test "no error" (catch (lambda () 'fine)) 'fine)))
 
 (define (arithmetic-exceptions name f)
   (allof name
