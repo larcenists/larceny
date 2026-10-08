@@ -64,6 +64,7 @@ young_heap_t *create_young_heap_t(
   heap->stack_underflow = stack_underflow;
   heap->stack_overflow = stack_overflow;
   heap->is_address_mapped = is_address_mapped;
+  heap->words_allocated_pending = 0;
   heap->data = data;
 
   return heap;

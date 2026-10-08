@@ -70,7 +70,7 @@ typedef struct {
   s_word         upper_limit;      /* 0 or upper bound on area (bytes) */
 
   /* Statistics */
-  s_word         used_after_last_gc;  /* Bytes */
+  s_word         used_after_last_gc;  /* Bytes, not counting the stack */
   gen_stats_t gen_stats;        /* Local statistics */
   gc_stats_t  gc_stats;         /* Global statistics */
 } sc_data_t;
@@ -91,6 +91,7 @@ static s_word  used_stack_space( young_heap_t *heap );
 static s_word  used_space( young_heap_t *heap );
 static s_word  static_used( young_heap_t *heap );
 static s_word  free_space( young_heap_t *heap );
+static word    words_allocated_pending( young_heap_t *heap );
 
 young_heap_t*
 create_sc_heap( int gen_no, 
@@ -176,7 +177,7 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
 {
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
-  s_word total_bytes, stack, used_before, used_after;
+  s_word total_bytes, stack, used_before, used_after, heap_before;
   stats_id_t timer1, timer2;
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
@@ -219,6 +220,7 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
 #endif
 
   used_before = used_space( heap );
+  heap_before = used_before - used_stack_space( heap );
   annoyingmsg( "Stop-and-copy heap: Garbage collection." );
   annoyingmsg( "  Avail=%" PRIdWORD ",  Used=%" PRIdWORD, free_space( heap ), used_before );
   
@@ -257,13 +259,13 @@ static void collect( young_heap_t *heap, s_word request_bytes, int request )
   /* Statistics */
   used_after = used_space( heap );
   data->gc_stats.allocated += 
-    bytes2words( used_before - data->used_after_last_gc );
+    bytes2words( heap_before - data->used_after_last_gc );
   data->gc_stats.reclaimed += bytes2words( used_before - used_after );
   data->gc_stats.words_copied += bytes2words( data->current_space->used );
   data->gc_stats.words_moved += 
     bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
   data->gen_stats.collections += 1;
-  data->used_after_last_gc = used_after;
+  data->used_after_last_gc = used_after - used_stack_space( heap );
 
   /* POLICY */
   data->target_size =
@@ -557,6 +559,20 @@ static s_word used_stack_space( young_heap_t *heap )
   return (s_word)((word)ss->chunks[ss->current].lim - globals[ G_STKP ]);
 }
 
+/* What a collection now would add to the words allocated (collect()):
+   the growth of the used space since the last one, not counting the
+   stack, which grows when frames are restored from the heap.  (A
+   collection first flushes the stack into the heap, and those frames
+   are counted too.)  */
+
+static word words_allocated_pending( young_heap_t *heap )
+{
+  s_word used = used_space( heap ) - used_stack_space( heap );
+  s_word last = DATA(heap)->used_after_last_gc;
+
+  return (used > last ? bytes2words( used - last ) : 0);
+}
+
 static s_word used_space( young_heap_t *heap )
 {
   semispace_t *ss = DATA(heap)->current_space;
@@ -601,11 +617,13 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
                               is_address_mapped,
                               data );
   heap->collector = gc;
+  heap->words_allocated_pending = words_allocated_pending;
 
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
   memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
+  data->used_after_last_gc = 0;
 
   return heap;
 }

@@ -349,6 +349,19 @@ static bool is_address_mapped( young_heap_t *h, word *addr )
   return ((DATA(h)->heapbot <= addr) && (addr < DATA(h)->heaplim));
 }
 
+/* What stats() will add for the allocation so far: the nursery's
+   objects and its large objects.  (A collection first flushes the
+   stack into the nursery, and those frames are counted too.)  */
+
+static word words_allocated_pending( young_heap_t *heap )
+{
+  young_data_t *data = DATA(heap);
+  word *globals = data->globals;
+
+  return bytes2words( globals[G_ETOP] - globals[G_EBOT] )
+    + bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
+}
+
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 {
   young_data_t *data;
@@ -377,6 +390,7 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 			      is_address_mapped,
 			      data );
   heap->collector = gc;
+  heap->words_allocated_pending = words_allocated_pending;
 
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;

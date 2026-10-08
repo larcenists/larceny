@@ -148,6 +148,14 @@ struct young_heap {
   bool (*is_address_mapped)( young_heap_t *heap, word *addr );
      /* Returns true iff 'addr' is an object in 'heap'. 
         */
+
+  word (*words_allocated_pending)( young_heap_t *heap );
+     /* The number of words allocated in the heap that its stats method
+        has not yet added to the words allocated (it adds them when the
+        heap is collected), so that the statistics can count them
+        (stats_fillvector).  May be NULL; it is not set by
+        create_young_heap_t.
+        */
 };
 
 
@@ -198,6 +206,8 @@ young_heap_t *create_young_heap_t(
 #define yh_stack_underflow( h )    ((h)->stack_underflow( (h) ))
 #define yh_stack_overflow( h )     ((h)->stack_overflow( (h) ))
 #define yh_is_address_mapped(h,a)  ((h)->is_address_mapped( (h), (a) ))
+#define yh_words_allocated_pending( h ) \
+  ((h)->words_allocated_pending ? (h)->words_allocated_pending( (h) ) : 0)
 
 #endif   /* INCLUDED_YOUNG_HEAP_T_H */
 
