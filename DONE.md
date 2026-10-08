@@ -4,6 +4,11 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- test/Lib's "Error case #24" (bug 105) failed under small nurseries
+  (`-size0 64K`, with or without `-rrof`): memstats counts allocation
+  only at collections, so a collection during one of its two
+  measurements made them differ by a nursery.  Each measurement now
+  starts after a collection (185ff58f).
 - Card marking for large objects (8c14a60a generational, 67d0187b
   regional): a remembered large object (64KB or more) has a bitmap of
   512-byte cards, marked from the slot offsets that the write barrier
