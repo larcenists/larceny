@@ -113,10 +113,17 @@
    ; difference on _identical_ binary code running in the _same_ process,
    ; where the only difference between the two was where in memory the
    ; code was located.
+   ; memstats counts the nursery's allocation only when it is collected,
+   ; so each measurement starts with an empty nursery: a collection
+   ; during one measurement but not the other would make their
+   ; allocation differ by a nursery's worth.
    (test "Error case #24"               ; Bug 105
-         (let* ((t0 (memstats))
+         (let* ((c0 (collect))
+                (t0 (memstats))
                 (d0 (bug-105-test1))
                 (t1 (memstats))
+                (c1 (collect))
+                (t1b (memstats))
                 (d1 (bug-105-test2))
                 (t2 (memstats)))
            (let ((alloc 0)              ; words allocated
@@ -125,9 +132,9 @@
              ; ratio is within reason.
              (cons 
               (= (- (vector-ref t1 alloc) (vector-ref t0 alloc))
-                 (- (vector-ref t2 alloc) (vector-ref t1 alloc)))
+                 (- (vector-ref t2 alloc) (vector-ref t1b alloc)))
               (let ((time1 (- (vector-ref t1 user) (vector-ref t0 user)))
-                    (time2 (- (vector-ref t2 user) (vector-ref t1 user))))
+                    (time2 (- (vector-ref t2 user) (vector-ref t1b user))))
                 (if (> time1 time2)
                     (or (>= (/ time2 time1) 0.7) (/ time2 time1))
                     (or (>= (/ time1 time2) 0.7) (/ time1 time2)))))))
