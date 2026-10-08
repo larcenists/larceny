@@ -2,6 +2,14 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-08
+
+- memstats' words allocated counts the young heap's allocation since its
+  last collection (c3a5d108); it had counted it only at collections, so
+  `time` reported "Words allocated: 0" for 100000 conses.  Now within
+  0.25% even with a 32KB nursery (a collection also counts the stack
+  frames it flushes).
+
 ## 2026-10-07
 
 - test/Lib's "Error case #24" (bug 105) failed under small nurseries

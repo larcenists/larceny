@@ -193,12 +193,6 @@ DONE.md (with the date and the commit, if any).
   asserts) and on an assertion that every SSB is empty
   (summ_matrix.c), though summarization also runs between collections
   (`incremental_rgnl`), when they need not be.
-- memstats' words allocated counts a nursery's allocation only when it
-  is collected (stats_add_gc_stats from nursery.c and sc-heap.c), so
-  differences of it are whole nurseries, and `time`'s "Words allocated"
-  is off by up to a nursery.  Counting the nursery's current contents
-  at the snapshot would make it nearly exact (a collection also counts
-  the stack frames it flushes into the heap).
 
 ## Build process footguns
 
