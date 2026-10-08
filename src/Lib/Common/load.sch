@@ -149,11 +149,20 @@
                          #f)))))
              (unspecified))
             (else
+             ;; The source positions are dropped at the end of the file
+             ;; (see read-source-code), and also when the load exits
+             ;; early, so that code compiled afterwards is not given
+             ;; positions in this file.
              (parameterize ((current-source-file filename))
-               (call-with-port
-                (open-input-file filename)
-                (lambda (p)
-                  (load-from-port p get-environment read-source-code)))))))
+               (dynamic-wind
+                (lambda () #t)
+                (lambda ()
+                  (call-with-port
+                   (open-input-file filename)
+                   (lambda (p)
+                     (load-from-port p get-environment read-source-code))))
+                (lambda ()
+                  ((source-location-recorder) #f)))))))
 
     ;; The linker is implicit in the loader (as the #^G thing) and uses
     ;; global-name-resolver as the linker.  The following hack makes

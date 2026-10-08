@@ -44,6 +44,14 @@
 (define (interactive-entry-point0 argv)
   (command-line-arguments argv)
 
+  ;; A heap is usually dumped by a script that is being loaded, which
+  ;; leaves that script as the current source file (and its last
+  ;; datum's source positions): code compiled in this session would
+  ;; be said to come from it.
+
+  (current-source-file #f)
+  ((source-location-recorder) #f)
+
   ;; The heap's own code must guarantee what the collector requires,
   ;; such as the SATB pre-barrier of the regional collector.
 
