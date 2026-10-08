@@ -58,6 +58,23 @@ DONE.md (with the date and the commit, if any).
   with B (no push) and that returns with BR, and an external entry
   that reaches it with B through one extra frame and returns with RET.
   Expect fib (shallow recursion) to lose about 10% even so.
+  Prototyped 2026-10-07 and set aside (not committed): in the assembler,
+  for an internal procedure (.proc entered at a label) that calls
+  itself non-tail and makes no tail call out: its self-calls ADR/store/
+  B, its returns BR, and every other entry (setrtn/branch, branch, and
+  jump or setrtn/jump from nested lambdas, found through a MAL label
+  number derived from the entry's) goes through a stub: a frame whose
+  return point does the pop and RET.  (Top-level defines of an R6RS
+  program are such internal procedures of the program's code vector,
+  and the benchmark harness reaches them with setrtn/jump.)  Results on
+  the R6RS benchmarks: ack 1.95 s -> 0.58 (0.30), divrec 3.38 -> 1.41
+  (0.42), primes 0.53 -> 0.28, conform/paraffins/graphs 0.88-0.93;
+  geometric mean 0.95 over 52; but shallow recursion loses, the RET it
+  replaced being perfectly predicted: tak 1.16, fib 1.09, triangl 1.09,
+  takl 1.08, ntakl 1.07, gcbench 1.04.  Whether recursion is deep is
+  not known statically; revisit with some way to predict it (types or
+  size prediction), or as an opt-in compiler switch.  (A mismatched
+  push or pop costs only a misprediction: RET goes to its register.)
 - Bulk copies, what is left (see f97a0cf2 and the commits after it):
   SRFI 13's `%string-copy!` (lib/SRFI/srfi-13.sch, srfi/%3a13.sls) and
   SRFI 132's `vector-portion-copy!` still copy an element at a time,
