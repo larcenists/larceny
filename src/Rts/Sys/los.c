@@ -11,12 +11,15 @@
  * list of objects is doubly linked, circular, with a header node.
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include "larceny.h"
 #include "los_t.h"
 #include "gclib.h"
+#include "card.h"
 
 #define HEADER_WORDS     4	/* Number of header words */
-#define HEADER_UNUSED    -4     /* Unused field (could be mark?) */
+#define HEADER_CARDS     -4     /* Card table or 0 (card.h) */
 #define HEADER_SIZE      -3     /* Offset of size field */
 #define HEADER_NEXTP     -2	/* Offset of 'next' pointer */
 #define HEADER_PREVP     -1	/* Offset of 'previous' pointer */
@@ -160,6 +163,7 @@ word *los_allocate( los_t *los, s_word nbytes, int gen_no )
 
   w += HEADER_WORDS;
   set_size( w, size );
+  w[ HEADER_CARDS ] = 0;
   insert_at_end( w, los->object_lists[ gen_no ] );
 
   supremely_annoyingmsg( "{LOS} Allocating large object size %" PRIdWORD " at %p", 
@@ -219,6 +223,7 @@ void los_sweep( los_t *los, int gen_no )
     n = next( p );
     remove( p );
     nbytes = size( p );
+    card_table_free( p );
     gclib_free( p - HEADER_WORDS, nbytes );
     supremely_annoyingmsg( "{LOS} Freeing large object %" PRIdWORD " bytes at %p",
 			   nbytes, (void*)p );
@@ -490,6 +495,72 @@ bool los_is_address_mapped( los_t *los, word *addr, bool noisy )
     } while (cursor != NULL);
   }
   return ret;
+}
+
+/* Card tables (card.h).  p is the address of the object's header. */
+
+card_table_t *card_table_of( word *p )
+{
+  return (card_table_t*)p[ HEADER_CARDS ];
+}
+
+bool card_eligible( word obj )
+{
+  return tagof( obj ) == VEC_TAG
+    && (attr_of( obj ) & MB_LARGE_OBJECT)
+    && sizefield( *ptrof( obj ) ) >= CARD_MIN_OBJECT_BYTES;
+}
+
+card_table_t *card_table_get( word obj, bool all_marked )
+{
+  word *p = ptrof( obj );
+  card_table_t *ct = card_table_of( p );
+
+  if (ct == 0) {
+    word cards = (sizefield( *p ) + CARD_BYTES - 1) / CARD_BYTES;
+    word nwords = (cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+
+    ct = (card_table_t*)must_malloc( sizeof( card_table_t ) +
+                                     (nwords-1)*sizeof( word ) );
+    ct->cards = cards;
+    memset( ct->bits, (all_marked ? 0xFF : 0), nwords*sizeof( word ) );
+    p[ HEADER_CARDS ] = (word)ct;
+  }
+  else if (all_marked)
+    card_mark_all( ct );
+  return ct;
+}
+
+void card_mark( card_table_t *ct, word offset )
+{
+  word card;
+
+  if (offset < sizeof( word )) {        /* not a slot: be safe */
+    card_mark_all( ct );
+    return;
+  }
+  card = (offset - sizeof( word )) / CARD_BYTES;
+  if (card >= ct->cards) {
+    card_mark_all( ct );
+    return;
+  }
+  ct->bits[ card / CARD_BITS_PER_WORD ] |= (word)1 << (card % CARD_BITS_PER_WORD);
+}
+
+void card_mark_all( card_table_t *ct )
+{
+  word nwords = (ct->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+  memset( ct->bits, 0xFF, nwords*sizeof( word ) );
+}
+
+void card_table_free( word *p )
+{
+  card_table_t *ct = card_table_of( p );
+
+  if (ct != 0) {
+    free( ct );
+    p[ HEADER_CARDS ] = 0;
+  }
 }
 
 /* eof */

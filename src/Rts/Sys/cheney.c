@@ -37,6 +37,7 @@
 #include "code-space.h"
 #include "remset_t.h"
 #include "seqbuf_t.h"
+#include "card.h"
 #include "msgc-core.h"
 #include "smircy.h"
 #include "smircy_internal.h"
@@ -792,16 +793,58 @@ static bool remset_scanner_oflo( word object, void *data )
   word         *dest = e->dest;
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
+  card_table_t *ct;
 
   objects_scanned++;
   assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
-  remset_scanner_core( e, object, loc, 
-                       forw_oflo_record_track_old2young 
-                                       ( loc, forward_nursery_and, forw_gset,
-                                         dest, lim,
-                                         has_intergen_ptr, old_obj_gen, e, 
-                                         check_space_expand ) );
+
+  if (card_eligible( object ) &&
+      (ct = card_table_of( ptrof( object ) )) != 0) {
+    /* A large object with a card table: scan the marked cards only,
+       and unmark those that no longer point into a younger
+       generation (card.h).  */
+    word *slots = ptrof( object ) + 1;
+    word *end = slots + sizefield( *ptrof( object ) ) / sizeof( word );
+    word nwords = (ct->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+    word i, b;
+
+    for ( i = 0 ; i < nwords ; i++ ) {
+      word bits = ct->bits[i];
+      if (bits == 0) continue;
+      for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
+        word card = i*CARD_BITS_PER_WORD + b;
+        word *from, *to;
+        bool card_has_intergen_ptr = 0;
+
+        if ((bits & ((word)1 << b)) == 0) continue;
+        if (card >= ct->cards) {          /* bits past the last card */
+          ct->bits[i] &= ~((word)1 << b);
+          continue;
+        }
+        from = slots + card*CARD_WORDS;
+        to = from + CARD_WORDS;
+        if (to > end) to = end;
+        for ( loc = from ; loc < to ; loc++ )
+          forw_oflo_record_track_old2young( loc, forward_nursery_and,
+                                            forw_gset, dest, lim,
+                                            card_has_intergen_ptr,
+                                            old_obj_gen, e,
+                                            check_space_expand );
+        if (card_has_intergen_ptr)
+          has_intergen_ptr = 1;
+        else
+          ct->bits[i] &= ~((word)1 << b);
+      }
+    }
+  }
+  else
+    remset_scanner_core( e, object, loc, 
+                         forw_oflo_record_track_old2young 
+                                         ( loc, forward_nursery_and, forw_gset,
+                                           dest, lim,
+                                           has_intergen_ptr, old_obj_gen, e, 
+                                           check_space_expand ) );
 
   e->dest = dest;
   e->lim = lim;
