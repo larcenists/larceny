@@ -55,6 +55,7 @@
 #include "static_heap_t.h"
 #include "summary_t.h"
 #include "uremset_t.h"
+#include "card.h"
 
 #define DEFAULT_OBJS_POOL_SIZE 2048 /* 2K elements = 8KB */
 #define DEFAULT_LOCS_POOL_SIZE 2048 /* 2K elements = 8KB */
@@ -2156,6 +2157,43 @@ static void bump_incoming_words( summ_matrix_t *summ, int gen )
 }
 
 
+/* Summarizes the slot of the vector or procedure ptr (in mygen) at
+   loc, offset bytes from its header; returns whether it points into
+   another generation.  */
+static bool summarize_slot( remset_summary_data_t *remsum, word ptr, int mygen,
+                            word *loc, s_word offset, bool *do_enqueue,
+                            bool *keep_in_remembered_set )
+{
+  static const bool instrumented = FALSE;
+
+  if (isptr(*loc)) {
+    int gen = gen_of(*loc);
+    assert2( gen >= 0 );
+    if (instrumented) 
+      annoyingmsg("scan_object_for_remset_summary "
+                  "vecproc 0x%08" PRIxWORD " (%d) : 0x%08" PRIxWORD " (%d)", 
+                  ptr, gen_of(ptr), *loc, gen);
+    if (mygen != gen) {
+#if SUMMARIZE_KILLS_RS_ENTRIES
+      if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
+        *keep_in_remembered_set = TRUE;
+      }
+#endif
+      if ( gc_region_group_for_gno( remsum->summ->collector, gen )
+           == region_group_summzing ) {
+        loc_t loc;
+        *do_enqueue = TRUE;
+        loc = make_loc( ptr, offset );
+        add_loc_to_sum_array( remsum->summ, 
+                              gen, loc, mygen, incr_ctxt_sm );
+      }
+      bump_incoming_words( remsum->summ, gen );
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 static bool scan_object_for_remset_summary( word ptr, void *data )
 {
   word *loc = ptrof(ptr);
@@ -2163,9 +2201,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
   bool do_enqueue = FALSE;
   remset_summary_data_t *remsum = (remset_summary_data_t*)data;
   int mygen = gen_of(ptr); 
-#if SUMMARIZE_KILLS_RS_ENTRIES
   bool keep_in_remembered_set = FALSE;
-#endif
+  card_table_t *ct;
   /* XXX fixme: the way remset's are scanned, we should not need to reextract this */
 
   static const bool instrumented = FALSE;
@@ -2233,6 +2270,64 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
       }
     }
     scanned = 2;
+  } else if (card_eligible( ptr ) && (ct = card_table_of( loc )) != 0) {
+    /* A large vector with a card table: only the cards with their
+       across bits set can point into other generations (card.h).
+       Scan those and clear the bits of the ones that do not.  */
+    word *slots = loc + 1;
+    word words = sizefield( *loc ) / sizeof(word);
+    word nwords = card_nwords( ct );
+    word *across = card_across_bits( ct );
+    word i, b, j;
+#if CARD_CHECK_ACROSS
+    { /* Summarization also runs between collections (from
+         incremental_rgnl), when the SSBs may hold writes to ptr whose
+         cards are not yet marked; count those cards as marked.  */
+      gc_t *gc = remsum->summ->collector;
+      word *expected = (word*)must_malloc( nwords*sizeof( word ) );
+      int g;
+      word *q;
+
+      memcpy( expected, across, nwords*sizeof( word ) );
+      for ( g = 0 ; g < gc->gno_count ; g++ )
+        for ( q = *gc->ssb[g]->bot ; q+1 < *gc->ssb[g]->top ; q += 2 )
+          if (*q == ptr) {
+            word c = (*(q+1) - sizeof(word)) / CARD_BYTES;
+            if (*(q+1) < sizeof(word) || c >= ct->cards)
+              memset( expected, 0xFF, nwords*sizeof( word ) );
+            else
+              expected[ c / CARD_BITS_PER_WORD ]
+                |= (word)1 << (c % CARD_BITS_PER_WORD);
+          }
+      card_check_across( ptr, ct, expected,
+                         (gc->static_area
+                          ? gc->static_area->data_area->gen_no : -1),
+                         "summarization" );
+      free( expected );
+    }
+#endif
+
+    for ( i = 0 ; i < nwords ; i++ ) {
+      word bits = across[i];
+      if (bits == 0) continue;
+      for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
+        word card = i*CARD_BITS_PER_WORD + b;
+        word lim;
+        bool points_across = FALSE;
+
+        if ((bits & ((word)1 << b)) == 0 || card >= ct->cards) continue;
+        lim = (card+1)*CARD_WORDS;
+        if (lim > words) lim = words;
+        for ( j = card*CARD_WORDS ; j < lim ; j++ )
+          if (summarize_slot( remsum, ptr, mygen, slots+j,
+                              (j+1)*sizeof(word),
+                              &do_enqueue, &keep_in_remembered_set ))
+            points_across = TRUE;
+        if (! points_across)
+          across[i] &= ~((word)1 << b);
+        scanned += lim - card*CARD_WORDS;
+      }
+    }
   } else { /* vector or procedure */
     word words;
     s_word offset;
@@ -2243,30 +2338,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
     while (words--) {
       ++loc;
       offset += sizeof(word);
-      if (isptr(*loc)) {
-        int gen = gen_of(*loc);
-        assert2( gen >= 0 );
-        if (instrumented) 
-          annoyingmsg("scan_object_for_remset_summary "
-                      "vecproc 0x%08" PRIxWORD " (%d) : 0x%08" PRIxWORD " (%d)", 
-                      ptr, gen_of(ptr), *loc, gen);
-        if (mygen != gen) {
-#if SUMMARIZE_KILLS_RS_ENTRIES
-          if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
-            keep_in_remembered_set = TRUE;
-          }
-#endif
-          if ( gc_region_group_for_gno( remsum->summ->collector, gen )
-               == region_group_summzing ) {
-            loc_t loc;
-            do_enqueue = TRUE;
-            loc = make_loc( ptr, offset );
-            add_loc_to_sum_array( remsum->summ, 
-                                  gen, loc, mygen, incr_ctxt_sm );
-          }
-          bump_incoming_words( remsum->summ, gen );
-        }
-      }
+      summarize_slot( remsum, ptr, mygen, loc, offset,
+                      &do_enqueue, &keep_in_remembered_set );
     }
   }
   

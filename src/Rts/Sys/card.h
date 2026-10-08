@@ -23,8 +23,22 @@
  * cards are those written since the last minor collection, the only
  * ones that can point into the nursery; a minor collection scans and
  * unmarks them, keeping the object remembered for the other regions
- * (remset_scanner_oflo_update_rs in cheney.c).  Major collections and
- * summarization scan the object whole, as before.
+ * (remset_scanner_oflo_update_rs in cheney.c).
+ *
+ * For its other collections and for summarization, the regional
+ * collector keeps a second bitmap, the across bits: every card that
+ * holds a pointer into another region (or the nursery) has its across
+ * bit set, whether or not the object is remembered.  A new table has
+ * all its across bits set; a write sets the card's across bit with its
+ * other bit, and a collection that finds a pointer across in an object
+ * it has moved sets that card's (points_across_callback in memmgr.c).
+ * A scan of a card clears its across bit when the card points nowhere
+ * else (remset_scanner_oflo_update_rs, scan_object_for_remset_summary
+ * in summ_matrix.c).  Pointers into the static area, which the write
+ * barrier does not record, are not covered.  Summarization also runs
+ * between collections, when the SSBs may hold writes whose cards are
+ * not yet marked; processing those entries marks the cards and adds
+ * the locations to the summaries, as a whole scan would have.
  *
  * The table hangs off the unused word of the large object's pre-header
  * (los.c); the large object space frees it with the object.
@@ -40,7 +54,8 @@
 typedef struct card_table card_table_t;
 struct card_table {
   word cards;                   /* number of cards */
-  word bits[1];                 /* roundup(cards, bits per word)/bits per word */
+  word bits[1];                 /* the marked bits, then the across bits;
+                                   card_nwords( ct ) words each */
 };
 
 /* The card table of the object at p (an untagged pointer), or 0; and
@@ -52,14 +67,28 @@ bool card_eligible( word obj );
    marked or none.  */
 card_table_t *card_table_get( word obj, bool all_marked );
 
-/* Mark the card of the slot at byte offset (from the header) or all.  */
+/* Mark the card of the slot at byte offset (from the header) or all,
+   and set its across bit.  */
 void card_mark( card_table_t *ct, word offset );
 void card_mark_all( card_table_t *ct );
+
+/* Set the across bit of the card of the slot at byte offset.  */
+void card_mark_across( card_table_t *ct, word offset );
 
 /* Called by the large object space when the object at p is freed.  */
 void card_table_free( word *p );
 
+/* With CARD_CHECK_ACROSS, the scans check (card_check_across) that no
+   card whose bit in across is clear points into another generation
+   than static_gen and the object's own.  */
+#define CARD_CHECK_ACROSS 0
+void card_check_across( word obj, card_table_t *ct, word *across,
+                        int static_gen, const char *who );
+
 #define CARD_BITS_PER_WORD (8*sizeof(word))
+#define card_nwords( ct ) \
+  (((ct)->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD)
+#define card_across_bits( ct ) ((ct)->bits + card_nwords( ct ))
 
 #endif
 

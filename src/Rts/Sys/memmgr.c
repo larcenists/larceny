@@ -51,6 +51,7 @@ const char *larceny_gc_technology = "precise";
 #include "memmgr_vfy.h"
 #include "memmgr_internal.h"
 #include "code-space.h"
+#include "card.h"
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
 static word *load_text_or_data( gc_t *gc, s_word size_bytes, int load_text );
@@ -4309,6 +4310,12 @@ static void points_across_callback( gc_t *gc, word lhs, s_word offset, word rhs 
   int g_lhs = gen_of(lhs);
   int g_rhs = gen_of(rhs);
   assert2( g_lhs != 0 ); /* gf_filter_remset_lhs == 0 */
+  if (card_eligible( lhs )) {
+    /* The slot points into another region (card.h).  */
+    card_table_t *ct = card_table_of( ptrof( lhs ) );
+    if (ct != 0)
+      card_mark_across( ct, offset );
+  }
   if (! gc_is_nonmoving( gc, g_rhs )) {
     {
       assert2(g_lhs > 0);

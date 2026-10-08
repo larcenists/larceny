@@ -867,27 +867,38 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
   assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
 
-  if (forw_gset.tag == gs_singleton && forw_gset.g1 == 0 &&
-      card_eligible( object ) &&
+  if (card_eligible( object ) &&
       (ct = card_table_of( ptrof( object ) )) != 0) {
-    /* A minor collection of the regional collector, and a large object
-       with a card table: its marked cards are those written since the
-       last minor collection (uremset_extbmp.c), and only they can
-       point into the nursery.  Scan them and unmark them.  The object
-       stays remembered: the other cards may point into other regions,
-       and major collections and summarization scan it whole.  */
+    /* A large object with a card table (card.h).  In a minor
+       collection, its marked cards are those written since the last
+       minor collection (uremset_extbmp.c), and only they can point
+       into the nursery; the object stays remembered, as the other
+       cards may point into other regions.  Otherwise the cards with
+       their across bits set are those that can point into other
+       regions.  Scan those cards, clear the across bits of the ones
+       that point nowhere else, and unmark the cards once the nursery
+       has been collected.  */
+    bool minor = (forw_gset.tag == gs_singleton && forw_gset.g1 == 0);
     word *slots = ptrof( object ) + 1;
     word *end = slots + sizefield( *ptrof( object ) ) / sizeof( word );
-    word nwords = (ct->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+    word nwords = card_nwords( ct );
+    word *across = card_across_bits( ct );
+    word *scan = (minor ? ct->bits : across);
     word i, b;
+#if CARD_CHECK_ACROSS
+    card_check_across( object, ct, across,
+                       (e->gc->static_area
+                        ? e->gc->static_area->data_area->gen_no : -1),
+                       (minor ? "minor" : "major") );
+#endif
 
     for ( i = 0 ; i < nwords ; i++ ) {
-      word bits = ct->bits[i];
+      word bits = scan[i];
       if (bits == 0) continue;
-      ct->bits[i] = 0;
       for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
         word card = i*CARD_BITS_PER_WORD + b;
         word *from, *to;
+        bool card_has_intergen_ptr = 0;
 
         if ((bits & ((word)1 << b)) == 0 || card >= ct->cards) continue;
         from = slots + card*CARD_WORDS;
@@ -896,11 +907,19 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
         for ( loc = from ; loc < to ; loc++ )
           forw_oflo_record_track_any2other( loc, forward_nursery_and,
                                             forw_gset, dest, lim,
-                                            has_intergen_ptr, old_obj_gen,
+                                            card_has_intergen_ptr,
+                                            old_obj_gen,
                                             e, check_space_expand );
+        if (card_has_intergen_ptr)
+          has_intergen_ptr = 1;
+        else
+          across[i] &= ~((word)1 << b);
       }
     }
-    has_intergen_ptr = 1;
+    if (gset_memberp( 0, forw_gset ))
+      memset( ct->bits, 0, nwords*sizeof( word ) );
+    if (minor)
+      has_intergen_ptr = 1;
   }
   else
     remset_scanner_update_rs

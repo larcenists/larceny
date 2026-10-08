@@ -507,8 +507,8 @@ card_table_t *card_table_of( word *p )
 bool card_eligible( word obj )
 {
   return tagof( obj ) == VEC_TAG
-    && (attr_of( obj ) & MB_LARGE_OBJECT)
-    && sizefield( *ptrof( obj ) ) >= CARD_MIN_OBJECT_BYTES;
+    && sizefield( *ptrof( obj ) ) >= CARD_MIN_OBJECT_BYTES
+    && (attr_of( obj ) & MB_LARGE_OBJECT);
 }
 
 card_table_t *card_table_get( word obj, bool all_marked )
@@ -521,9 +521,11 @@ card_table_t *card_table_get( word obj, bool all_marked )
     word nwords = (cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
 
     ct = (card_table_t*)must_malloc( sizeof( card_table_t ) +
-                                     (nwords-1)*sizeof( word ) );
+                                     (2*nwords-1)*sizeof( word ) );
     ct->cards = cards;
     memset( ct->bits, (all_marked ? 0xFF : 0), nwords*sizeof( word ) );
+    /* Nothing is known of where the object points.  */
+    memset( card_across_bits( ct ), 0xFF, nwords*sizeof( word ) );
     p[ HEADER_CARDS ] = (word)ct;
   }
   else if (all_marked)
@@ -533,7 +535,7 @@ card_table_t *card_table_get( word obj, bool all_marked )
 
 void card_mark( card_table_t *ct, word offset )
 {
-  word card;
+  word card, i, bit;
 
   if (offset < sizeof( word )) {        /* not a slot: be safe */
     card_mark_all( ct );
@@ -544,13 +546,52 @@ void card_mark( card_table_t *ct, word offset )
     card_mark_all( ct );
     return;
   }
-  ct->bits[ card / CARD_BITS_PER_WORD ] |= (word)1 << (card % CARD_BITS_PER_WORD);
+  i = card / CARD_BITS_PER_WORD;
+  bit = (word)1 << (card % CARD_BITS_PER_WORD);
+  ct->bits[ i ] |= bit;
+  card_across_bits( ct )[ i ] |= bit;
 }
 
 void card_mark_all( card_table_t *ct )
 {
-  word nwords = (ct->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
-  memset( ct->bits, 0xFF, nwords*sizeof( word ) );
+  memset( ct->bits, 0xFF, 2*card_nwords( ct )*sizeof( word ) );
+}
+
+void card_mark_across( card_table_t *ct, word offset )
+{
+  word card;
+
+  if (offset < sizeof( word )
+      || (card = (offset - sizeof( word )) / CARD_BYTES) >= ct->cards) {
+    memset( card_across_bits( ct ), 0xFF, card_nwords( ct )*sizeof( word ) );
+    return;
+  }
+  card_across_bits( ct )[ card / CARD_BITS_PER_WORD ]
+    |= (word)1 << (card % CARD_BITS_PER_WORD);
+}
+
+void card_check_across( word obj, card_table_t *ct, word *across,
+                        int static_gen, const char *who )
+{
+  word *slots = ptrof( obj ) + 1;
+  word words = sizefield( *ptrof( obj ) ) / sizeof( word );
+  int gen = gen_of( obj );
+  word j;
+
+  for ( j = 0 ; j < words ; j++ ) {
+    word card = j / CARD_WORDS;
+    if ((across[ card / CARD_BITS_PER_WORD ]
+         & ((word)1 << (card % CARD_BITS_PER_WORD))) == 0
+        && isptr( slots[j] )
+        && gen_of( slots[j] ) != gen
+        && gen_of( slots[j] ) != static_gen)
+      panic_abort( "card_check_across (%s): object %p (gen %d) slot %" PRIdWORD
+                   " card %" PRIdWORD " points into gen %d (%p); marked %d",
+                   who, (void*)obj, gen, j, card, gen_of( slots[j] ),
+                   (void*)slots[j],
+                   (int)((ct->bits[ card / CARD_BITS_PER_WORD ]
+                          >> (card % CARD_BITS_PER_WORD)) & 1) );
+  }
 }
 
 void card_table_free( word *p )
