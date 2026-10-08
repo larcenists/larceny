@@ -194,6 +194,16 @@ DONE.md (with the date and the commit, if any).
   (summ_matrix.c), though summarization also runs between collections
   (`incremental_rgnl`), when they need not be.
 
+## Debugger
+
+- Petit's heap does not load the debugger (lib/Debugger): the load in
+  src/Build/petit-larceny-heap.sch is quoted out ("FIXME: this stuff is
+  commented out as well", from upstream), so an error there returns to
+  the REPL.  Find out why it was left out, and whether it works now.
+- Native: `i @` prints a compiled procedure's machine code as a long
+  bytevector; at a breakpoint the current frame is
+  debug/enter-debugger's, not the procedure's (FIXME in debug.sch).
+
 ## Build process footguns
 
 - Feature markers, follow-ups:

@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-08
 
+- The debugger's backtrace and procedure-source-file said that code
+  compiled at the REPL came from the heap build script: the heap is
+  dumped during the script's load, which left it the current source
+  file, along with its last datum's source positions.  A load or
+  compile-file that stopped on an error also left its positions to
+  later REPL code.  Both are cleared now (f49bb530).
 - memstats' words allocated counts the young heap's allocation since its
   last collection (c3a5d108); it had counted it only at collections, so
   `time` reported "Words allocated: 0" for 100000 conses.  Now within
