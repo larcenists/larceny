@@ -168,10 +168,18 @@ DONE.md (with the date and the commit, if any).
 - Single objects are limited to 2^31 words (16GB) on 64-bit systems,
   because the collectors keep word counts and indices within an object
   in ints.
-- Card marking (see DONE, 2026-10-07) covers minor collections; the
-  regional collector's major collections and summarization still scan a
-  remembered large object whole, and its remembered set keeps it until
-  a major collection or refinement drops it.
+- Card marking (see DONE, 2026-10-07): what still scans a large
+  vector whole is the collection of its own region (it is forwarded,
+  so every slot is scanned; 26 ms for a 50-million-word vector),
+  concurrent marking, and the first scan after its card table is made
+  (all across bits set).  Per-card "points into its own region" bits
+  could cover the first.
+- The regional collector's summary oracle (`USE_ORACLE_TO_VERIFY_SUMMARIES`
+  in memmgr.c, run with `-oracle_countdown 1`) has rotted: it fails
+  without card marking too, on `loc_to_obj` (summary_t.h, which
+  asserts) and on an assertion that every SSB is empty
+  (summ_matrix.c), though summarization also runs between collections
+  (`incremental_rgnl`), when they need not be.
 - test/Lib's "Error case #24" (regression.sch, bug 105) fails under
   `-rrof -size0 64K` (before the dead-register work too): it compares
   the allocation and run times of two loops.

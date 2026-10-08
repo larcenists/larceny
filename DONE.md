@@ -10,6 +10,11 @@ Finished items, moved here from TODO.md.  Newest first.
   logs, and minor collections scan only the marked cards.  A young
   pointer stored into an old 50-million-word vector cost 12 ms per minor
   collection; now nothing measurable.  Test: test/GC/card-marking.sch.
+- The regional collector's major collections and summarization scan
+  only the cards that may point into other regions, a second bitmap
+  (30d6aa9b): summarization in the test 107 ms -> 23 ms, its longest
+  step 13 -> 4 ms.  `CARD_CHECK_ACROSS` (card.h) checks the bits at
+  each scan.
 - Regional collector: the two-region shortcut (no remembered set work
   when the promoted data fits in the target region) did not leave room
   for the chunk that expanding the region takes, so find_space_rgnl
