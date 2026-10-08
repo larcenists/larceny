@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-07
 
+- Card marking for large objects (8c14a60a generational, 67d0187b
+  regional): a remembered large object (64KB or more) has a bitmap of
+  512-byte cards, marked from the slot offsets that the write barrier
+  logs, and minor collections scan only the marked cards.  A young
+  pointer stored into an old 50-million-word vector cost 12 ms per minor
+  collection; now nothing measurable.  Test: test/GC/card-marking.sch.
 - Regional collector: the two-region shortcut (no remembered set work
   when the promoted data fits in the target region) did not leave room
   for the chunk that expanding the region takes, so find_space_rgnl

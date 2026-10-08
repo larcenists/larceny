@@ -168,10 +168,10 @@ DONE.md (with the date and the commit, if any).
 - Single objects are limited to 2^31 words (16GB) on 64-bit systems,
   because the collectors keep word counts and indices within an object
   in ints.
-- A large vector in the remembered set is rescanned whole at every
-  minor collection (the remset records objects, not slots): a young
-  object stored into a 4.8GB vector makes each minor collection take
-  about 100 ms.  Card marking for large objects?
+- Card marking (see DONE, 2026-10-07) covers minor collections; the
+  regional collector's major collections and summarization still scan a
+  remembered large object whole, and its remembered set keeps it until
+  a major collection or refinement drops it.
 - test/Lib's "Error case #24" (regression.sch, bug 105) fails under
   `-rrof -size0 64K` (before the dead-register work too): it compares
   the allocation and run times of two loops.
