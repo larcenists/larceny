@@ -861,16 +861,55 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
+  card_table_t *ct;
+
   objects_scanned++;
   assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
-  remset_scanner_update_rs
-    ( e, object, loc, 
-      forw_oflo_record_track_any2other( loc, 
-                        forward_nursery_and, forw_gset, dest, lim,
-                        has_intergen_ptr, old_obj_gen, e, 
-                        check_space_expand ),
-      update_remset );
+
+  if (forw_gset.tag == gs_singleton && forw_gset.g1 == 0 &&
+      card_eligible( object ) &&
+      (ct = card_table_of( ptrof( object ) )) != 0) {
+    /* A minor collection of the regional collector, and a large object
+       with a card table: its marked cards are those written since the
+       last minor collection (uremset_extbmp.c), and only they can
+       point into the nursery.  Scan them and unmark them.  The object
+       stays remembered: the other cards may point into other regions,
+       and major collections and summarization scan it whole.  */
+    word *slots = ptrof( object ) + 1;
+    word *end = slots + sizefield( *ptrof( object ) ) / sizeof( word );
+    word nwords = (ct->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+    word i, b;
+
+    for ( i = 0 ; i < nwords ; i++ ) {
+      word bits = ct->bits[i];
+      if (bits == 0) continue;
+      ct->bits[i] = 0;
+      for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
+        word card = i*CARD_BITS_PER_WORD + b;
+        word *from, *to;
+
+        if ((bits & ((word)1 << b)) == 0 || card >= ct->cards) continue;
+        from = slots + card*CARD_WORDS;
+        to = from + CARD_WORDS;
+        if (to > end) to = end;
+        for ( loc = from ; loc < to ; loc++ )
+          forw_oflo_record_track_any2other( loc, forward_nursery_and,
+                                            forw_gset, dest, lim,
+                                            has_intergen_ptr, old_obj_gen,
+                                            e, check_space_expand );
+      }
+    }
+    has_intergen_ptr = 1;
+  }
+  else
+    remset_scanner_update_rs
+      ( e, object, loc, 
+        forw_oflo_record_track_any2other( loc, 
+                          forward_nursery_and, forw_gset, dest, lim,
+                          has_intergen_ptr, old_obj_gen, e, 
+                          check_space_expand ),
+        update_remset );
 
   e->dest = dest;
   e->lim = lim;

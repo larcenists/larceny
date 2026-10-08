@@ -18,6 +18,14 @@
  * card that holds a pointer into a younger generation is marked.  An
  * object that is remembered without an offset has all its cards marked.
  *
+ * The regional collector (-rrof) marks cards when it adds objects to its
+ * minor remembered set (add_elems in uremset_extbmp.c), so its marked
+ * cards are those written since the last minor collection, the only
+ * ones that can point into the nursery; a minor collection scans and
+ * unmarks them, keeping the object remembered for the other regions
+ * (remset_scanner_oflo_update_rs in cheney.c).  Major collections and
+ * summarization scan the object whole, as before.
+ *
  * The table hangs off the unused word of the large object's pre-header
  * (los.c); the large object space frees it with the object.
  */

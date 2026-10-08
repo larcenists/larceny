@@ -11,6 +11,7 @@
 #include "gc_t.h"
 #include "remset_t.h"
 #include "uremset_t.h"
+#include "card.h"
 
 typedef struct uremset_extbmp_data uremset_extbmp_data_t;
 
@@ -87,13 +88,21 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
 {
   word *p, *q, w;
   bool already_present;
+  word offset = 0;
+  bool have_offset = FALSE;
   p = bot;
   q = top;
+  /* Going down, the slot's offset (a fixnum) comes before its object.
+     A large object's card of the slot is marked: its marked cards are
+     those written since the last minor collection, which scans and
+     unmarks them (remset_scanner_oflo_update_rs in cheney.c, card.h).  */
   while (q > p) {
     q--;
     w = *q;
     if ( is_fixnum(w) ) { 
-      /* skip fixnums in SSB log */ 
+      /* the offset of the slot written to */
+      offset = w;
+      have_offset = TRUE;
     } else {
 #if 0
       consolemsg("uremset_extbmp add_elems add w=0x%08x", w );
@@ -102,6 +111,16 @@ static bool          add_elems( uremset_t *urs, word *bot, word *top )
         extbmp_add_elem( DATA(urs)->minor_remset, strip_tag(w) );
       if (! already_present)
         DATA(urs)->live_count[ gen_of(w) ] += 1;
+      if (card_eligible( w )) {
+        card_table_t *ct = card_table_of( ptrof( w ) );
+        if (ct == 0)
+          ct = card_table_get( w, already_present );
+        if (have_offset)
+          card_mark( ct, offset );
+        else
+          card_mark_all( ct );
+      }
+      have_offset = FALSE;
     }
   }
   return FALSE; /* extbmp does not tell us whether it overflowed. */
