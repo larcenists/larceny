@@ -141,7 +141,20 @@ DONE.md (with the date and the commit, if any).
     handler could store into the vector).  Payoff limited to a few
     numeric benchmarks (pnpoly, simplex, nucleic, fft).
   - The timer check is four instructions per iteration (load, test,
-    decrement, store the countdown in globals).
+    decrement, store the countdown in globals).  Measured 2026-10-07
+    (R6RS benchmarks with ticks left out, upper bounds): all ticks 3.2%
+    (geometric mean of 52), backward-branch ticks 2.0% (array1 23%,
+    ntakl/takl 15%, puzzle 10%), call ticks 1.5% (fib 16%, tak 9%).
+    Tried and not committed: keeping the timer in x24 inside loops that
+    make no calls (an assembler pre-pass over the MAL: load at the loop's
+    label, back-edges to a label after the load, store at returns, at
+    exits through trampolines, and around millicode calls but the write
+    barriers; no runtime change).  It works, but gains nothing: best of
+    10, a counting loop 656 ms -> 695 (no tick: 602), a vector sum 672
+    -> 658 (no tick: 554).  The load and store cost little on this core
+    (store-to-load forwarding); the compare-and-branch is the cost, so a
+    gain needs fewer checks (unrolled loops ticking once per several
+    iterations, say), not cheaper ones.
   - Inlining the generational write barrier's generation test would
     save little: its fast path costs about 0.45 ns per pointer store
     (1e8 stores: 66 ms for fixnums, 110 ms for pointers within a
