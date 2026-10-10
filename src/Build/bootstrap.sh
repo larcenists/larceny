@@ -1,7 +1,6 @@
 #!/bin/sh
-# Build Larceny from source on macOS/arm64 (Apple Silicon) or, Petit
-# Larceny only, on x86-64 Linux, hosted by Racket or by an existing
-# Larceny.  Run it from the root of a Larceny
+# Build Larceny from source on macOS/arm64 (Apple Silicon) or on
+# x86-64 Linux, hosted by Racket or by an existing Larceny.  Run it from the root of a Larceny
 # tree; see doc/HOWTO-BUILD.
 #
 #   src/Build/bootstrap.sh [--native | --petit] [--racket [PLT-R5RS]]
