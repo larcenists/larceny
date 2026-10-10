@@ -127,6 +127,25 @@ created.)  Heap images keep code in their text segment.  The code
 space's address space can be set with LARCENY_CODE_GB (default 1 GB).
 
 
+BUILDING 64-BIT PETIT LARCENY ON x86-64 LINUX
+
+Petit Larceny builds on x86-64 Linux as on Apple Silicon (same 64-bit
+representations), with gcc, and Racket's plt-r5rs (v8 or later) or an
+existing Larceny as the host.  There is no native x86-64 back end.
+
+        % src/Build/bootstrap.sh --petit --r7rs
+
+or by hand as in steps 1 to 3 of the macOS section, with
+
+        > (setup 'scheme: 'racket 'host: 'linux-x86-64)
+
+The runtime is compiled with -std=gnu17: gcc 15 defaults to C23, in
+which bool is a keyword, but the runtime defines its own int-sized
+bool.  On a small machine (one CPU, 1.6 GB of memory, some swap) the
+Racket-hosted build takes about nine minutes, and compiling the
+R7RS/R6RS libraries about as long; neither ran short of memory.
+
+
 BUILD CONFIGURATIONS
 
 Build products are written into the source tree, and must not be mixed
