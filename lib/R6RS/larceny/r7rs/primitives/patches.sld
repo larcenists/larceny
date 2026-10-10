@@ -22,7 +22,7 @@
    ;; FIXME: add other systems where we can trust the FFI.
 
    (define *trusted-os* '("SunOS" "Linux"))
-   (define *trusted-arch* '("SPARC" "IAssassin" "Standard-C"))
+   (define *trusted-arch* '("SPARC" "IAssassin" "Standard-C" "X86-64"))
 
    ;; The only systems with 64-bit words on MacOS are arm64 ones:
    ;; native (ARM) and Petit (Standard-C).  See lib/Ffi/ffi-load.sch.
