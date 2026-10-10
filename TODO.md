@@ -176,6 +176,33 @@ DONE.md (with the date and the commit, if any).
   time) and unboxed flonums (mbrot 5.0x, mbrotZ 4.4x, fft 1.9x), unless
   some very local analysis (a flonum loop's variables, say) would do.
 
+## x86-64 Linux
+
+- Native x86-64 Larceny, as a Cant target of the Fence back end (planned,
+  2026-10-10).  Of the options, extending Sassy and IAssassin (32-bit
+  only throughout: no REX, r8-r15, or RIP-relative addressing in Sassy;
+  e?x registers, esp as CONT, and 4-byte scaling in IAssassin; none of
+  this fork's register masks, code space, or feature markers) or a new
+  SPARC-style back end (duplicating pass5p2.sch's barriers, allocation,
+  deferral, masks, and call/cc), Fence shares the most with AArch64:
+  a target supplies the `cant.*` primitives (see pass5p2-arm64.sch), a
+  register cfg, an encoder (REX/ModRM/SIB), millicode glue, and its
+  feature markers.  Estimated 1.5-2k lines of Scheme and 500 of
+  assembly.  Notes: rel32 branches throughout (no long-branch mode);
+  15 usable registers leave LASTREG=7, as on ARM-32; return points
+  4-aligned (padding); no xmm register is callee-saved in the SysV
+  ABI, so the glue saves F0-F3; STKP in an ordinary register at first
+  (return addresses by lea [rip+L]), rsp later perhaps; macOS Intel
+  needs no MAP_JIT toggling.  Peepholes using memory operands after the
+  test suites pass.
+- gcc warns (-Wformat) about debugging messages that print words and
+  pointers with %x in Sys/extbmp.c and Sys/uremset_array.c (dead
+  dbmsg calls, mostly); use PRIxWORD and %p.
+- C23: the runtime's bool is an int-sized enum, so 64-bit builds pass
+  -std=gnu17 (gcc 15 defaults to C23, where bool is a keyword).
+  Building as C23 would need the functions that return other integers
+  as bool to be found first.
+
 ## Runtime
 
 - Single objects are limited to 2^31 words (16GB) on 64-bit systems,
