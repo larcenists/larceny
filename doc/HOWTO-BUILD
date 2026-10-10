@@ -78,9 +78,9 @@ is allocated from a reserved region of virtual address space (64 GB by
 default; set LARCENY_ARENA_GB to change it).  Petit Larceny's write
 barrier now follows the same protocol as native Larceny's, so the
 regional collector (-rrof) works.  Code compiled by earlier versions
-of Petit Larceny must be recompiled.  Known limitations, shared with
-the 32-bit Petit Larceny: the FFI is not available, and the
-non-predictive collector (-np) is not implemented.
+of Petit Larceny must be recompiled.  The FFI supports callouts (made
+from C, in src/Rts/Sys/ffi.c, on arm64 and x86-64) but not callbacks.
+The non-predictive collector (-np) is not implemented.
 
 
 BUILDING NATIVE LARCENY ON APPLE SILICON (macOS/arm64)

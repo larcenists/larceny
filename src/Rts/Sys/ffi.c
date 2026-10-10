@@ -98,54 +98,77 @@ static int ffi_magnitude( word w, unsigned long long *m, int *neg )
     return 0;
 }
 
-#if defined(__aarch64__)
-/* On AArch64 there is no trampoline code: the "trampoline" bytevector
- * holds the address of the foreign function, and the call is made here,
- * through a prototype that passes every argument register and some
- * stack.  (Generated code would have to live in executable memory,
- * which MacOS keeps apart from the heap.)
+#if defined(__aarch64__) || defined(__x86_64__)
+#define FFI_C_CALL 1
+/* On AArch64 and x86-64 there is no trampoline code: the "trampoline"
+ * bytevector holds the address of the foreign function, and the call
+ * is made here, through a prototype that passes every argument
+ * register and some stack.  (Generated code would have to live in
+ * executable memory, which MacOS keeps apart from the heap, and a C
+ * call works for Petit Larceny too.)
  *
- * Integer and pointer arguments go in x0-x7, floating-point arguments
- * in v0-v7 (a float in the low 32 bits), and the rest on the stack.
- * On MacOS a stack argument takes its natural size and alignment; in
- * the standard AAPCS64 each takes 8 bytes.  Callees ignore the
- * register and stack arguments they do not use.  Variadic functions
- * are not supported: MacOS passes their variadic arguments on the
- * stack.
+ * Integer and pointer arguments go in the integer argument registers
+ * (x0-x7 on AArch64; rdi, rsi, rdx, rcx, r8, r9 on x86-64), floating-
+ * point arguments in v0-v7 or xmm0-xmm7 (a float in the low 32 bits),
+ * and the rest on the stack.  On MacOS/AArch64 a stack argument takes
+ * its natural size and alignment; in the standard AAPCS64 and in the
+ * System V x86-64 ABI each takes 8 bytes.  Callees ignore the register
+ * and stack arguments they do not use.
+ *
+ * Variadic functions are not supported on AArch64 (MacOS passes their
+ * variadic arguments on the stack).  On x86-64 the prototype is itself
+ * variadic, so that the caller sets %al to the number of vector
+ * registers used, as a variadic callee requires; the arguments are
+ * assigned to registers and stack as for a prototyped call.
  */
 
-#define FFI_AARCH64_STACK_WORDS 16
+#define FFI_C_STACK_WORDS 16
 
 typedef unsigned long long ffi_gp;
 
-#define FFI_AARCH64_PARAMS \
+#define FFI_C_STACK_ARGS \
+  st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7], \
+  st[8], st[9], st[10], st[11], st[12], st[13], st[14], st[15]
+
+#if defined(__aarch64__)
+#define FFI_C_GP_REGS 8
+
+#define FFI_C_PARAMS \
   ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, \
   double, double, double, double, double, double, double, double, \
   ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, \
   ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp, ffi_gp
 
-#define FFI_AARCH64_ARGS \
+#define FFI_C_ARGS \
   gp[0], gp[1], gp[2], gp[3], gp[4], gp[5], gp[6], gp[7], \
   fp[0], fp[1], fp[2], fp[3], fp[4], fp[5], fp[6], fp[7], \
-  st[0], st[1], st[2], st[3], st[4], st[5], st[6], st[7], \
-  st[8], st[9], st[10], st[11], st[12], st[13], st[14], st[15]
+  FFI_C_STACK_ARGS
+#else /* __x86_64__ */
+#define FFI_C_GP_REGS 6
 
-typedef ffi_gp (*ffi_gp_fn)( FFI_AARCH64_PARAMS );
-typedef double (*ffi_double_fn)( FFI_AARCH64_PARAMS );
-typedef float  (*ffi_float_fn)( FFI_AARCH64_PARAMS );
+#define FFI_C_PARAMS ffi_gp, ...
+
+#define FFI_C_ARGS \
+  gp[0], gp[1], gp[2], gp[3], gp[4], gp[5], \
+  fp[0], fp[1], fp[2], fp[3], fp[4], fp[5], fp[6], fp[7], \
+  FFI_C_STACK_ARGS
+#endif
+
+typedef ffi_gp (*ffi_gp_fn)( FFI_C_PARAMS );
+typedef double (*ffi_double_fn)( FFI_C_PARAMS );
+typedef float  (*ffi_float_fn)( FFI_C_PARAMS );
 
 /* Places an argument of the given size on the stack; returns 0 if the
  * stack area is full. */
-static int ffi_aarch64_push( byte *stack, int *offset, const void *p,
-                             int size )
+static int ffi_c_push( byte *stack, int *offset, const void *p, int size )
 {
-#if defined(__APPLE__)
+#if defined(__aarch64__) && defined(__APPLE__)
   int align = size;
 #else
   int align = 8;
 #endif
   int at = (*offset + align - 1) & ~(align - 1);
-  if (at + size > FFI_AARCH64_STACK_WORDS*8)
+  if (at + size > FFI_C_STACK_WORDS*8)
     return 0;
   memcpy( stack + at, p, size );
   *offset = at + (size < align ? align : size);
@@ -155,11 +178,11 @@ static int ffi_aarch64_push( byte *stack, int *offset, const void *p,
 /* Calls fn with the converted arguments, and leaves the result in the
  * result location for its return descriptor.  Returns 0 if the
  * arguments do not fit. */
-static int ffi_aarch64_call( void *fn, byte *adesc, int argc, ffi_arg *args,
-                             int rdesc, ffi_gp *gp_result,
-                             double *d_result, float *f_result )
+static int ffi_c_call( void *fn, byte *adesc, int argc, ffi_arg *args,
+                       int rdesc, ffi_gp *gp_result,
+                       double *d_result, float *f_result )
 {
-  ffi_gp gp[8] = { 0 }, st[FFI_AARCH64_STACK_WORDS] = { 0 };
+  ffi_gp gp[FFI_C_GP_REGS] = { 0 }, st[FFI_C_STACK_WORDS] = { 0 };
   double fp[8] = { 0 };
   int ngp = 0, nfp = 0, offset = 0, i;
 
@@ -169,14 +192,14 @@ static int ffi_aarch64_call( void *fn, byte *adesc, int argc, ffi_arg *args,
     uint32_t u32;
     switch (adesc[i]) {
     case 0 : /* signed32 */
-      if (ngp < 8) gp[ngp++] = (ffi_gp)(long long)args[i].signed32;
+      if (ngp < FFI_C_GP_REGS) gp[ngp++] = (ffi_gp)(long long)args[i].signed32;
       else { i32 = args[i].signed32;
-             if (!ffi_aarch64_push( (byte*)st, &offset, &i32, 4 )) return 0; }
+             if (!ffi_c_push( (byte*)st, &offset, &i32, 4 )) return 0; }
       break;
     case 1 : /* unsigned32 */
-      if (ngp < 8) gp[ngp++] = (ffi_gp)args[i].unsigned32;
+      if (ngp < FFI_C_GP_REGS) gp[ngp++] = (ffi_gp)args[i].unsigned32;
       else { u32 = args[i].unsigned32;
-             if (!ffi_aarch64_push( (byte*)st, &offset, &u32, 4 )) return 0; }
+             if (!ffi_c_push( (byte*)st, &offset, &u32, 4 )) return 0; }
       break;
     case 2 : /* ieee32 */
       if (nfp < 8) {
@@ -186,20 +209,20 @@ static int ffi_aarch64_call( void *fn, byte *adesc, int argc, ffi_arg *args,
         u.bits = fbits;                 /* the float in the low 32 bits */
         fp[nfp++] = u.d;
       }
-      else if (!ffi_aarch64_push( (byte*)st, &offset, &args[i].ieee32, 4 ))
+      else if (!ffi_c_push( (byte*)st, &offset, &args[i].ieee32, 4 ))
         return 0;
       break;
     case 3 : /* ieee64 */
       if (nfp < 8) fp[nfp++] = args[i].ieee64;
-      else if (!ffi_aarch64_push( (byte*)st, &offset, &args[i].ieee64, 8 ))
+      else if (!ffi_c_push( (byte*)st, &offset, &args[i].ieee64, 8 ))
         return 0;
       break;
     case 4 : /* pointer */
     case 5 : /* signed64 */
     case 6 : /* unsigned64 */
       g = (adesc[i] == 4 ? (ffi_gp)args[i].pointer : args[i].unsigned64);
-      if (ngp < 8) gp[ngp++] = g;
-      else if (!ffi_aarch64_push( (byte*)st, &offset, &g, 8 )) return 0;
+      if (ngp < FFI_C_GP_REGS) gp[ngp++] = g;
+      else if (!ffi_c_push( (byte*)st, &offset, &g, 8 )) return 0;
       break;
     default :
       return 0;
@@ -207,13 +230,13 @@ static int ffi_aarch64_call( void *fn, byte *adesc, int argc, ffi_arg *args,
   }
 
   switch (rdesc) {
-  case 2 : *d_result = ((ffi_double_fn)fn)( FFI_AARCH64_ARGS ); break;
-  case 3 : *f_result = ((ffi_float_fn)fn)( FFI_AARCH64_ARGS ); break;
-  default: *gp_result = ((ffi_gp_fn)fn)( FFI_AARCH64_ARGS ); break;
+  case 2 : *d_result = ((ffi_double_fn)fn)( FFI_C_ARGS ); break;
+  case 3 : *f_result = ((ffi_float_fn)fn)( FFI_C_ARGS ); break;
+  default: *gp_result = ((ffi_gp_fn)fn)( FFI_C_ARGS ); break;
   }
   return 1;
 }
-#endif /* __aarch64__ */
+#endif /* __aarch64__ || __x86_64__ */
 
 void
 larceny_C_ffi_apply( word trampoline_bytevector,
@@ -398,7 +421,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
     actuals = pair_cdr( actuals );
   }
   argc = i;
-#if !defined(__aarch64__)
+#if !FFI_C_CALL
   FIXME_UNUSED_VARIABLE(argc);
 #endif
 
@@ -409,7 +432,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
   }
     
   /* Phase 3: Invoke the function, then convert result and return. */
-#if defined(__aarch64__)
+#if FFI_C_CALL
   {
     void *fn;
     ffi_gp g = 0;
@@ -424,7 +447,7 @@ larceny_C_ffi_apply( word trampoline_bytevector,
       hardconsolemsg( "FFICALL failed: bad return descriptor %d", rdesc );
       goto failed;
     }
-    if (!ffi_aarch64_call( fn, (byte*)(ptrof(argument_descriptor)+1),
+    if (!ffi_c_call( fn, (byte*)(ptrof(argument_descriptor)+1),
                            argc, args, rdesc, &g, &d_result, &f_result )) {
       hardconsolemsg( "FFICALL failed: too many arguments on the stack" );
       goto failed;

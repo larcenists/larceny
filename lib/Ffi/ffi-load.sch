@@ -33,6 +33,11 @@
 		  (string=? ar "ARM"))
 	     'arm-linux)
 	    ((and (string=? os "Linux")
+		  (= bits 64)
+		  (zero?
+		   (system "test \"`uname -m`\" = x86_64")))
+	     'x86-64-linux)
+	    ((and (string=? os "Linux")
 		  (zero?
 		   (system "test \"`uname -m | grep 'i.86'`x\" != \"x\"")))
 	     'i386-linux)
@@ -101,6 +106,14 @@
      (values architecture
              ffi/arm64-macosx-C-callout-stdabi
              ffi/arm64-macosx-C-callback-stdabi
+             #f
+             #f))
+    ((x86-64-linux)
+     (require "ffi-arm64")
+     (require "ffi-x86-64")
+     (values architecture
+             ffi/x86-64-linux-C-callout-stdabi
+             ffi/x86-64-linux-C-callback-stdabi
              #f
              #f))
     ((arm-linux)
