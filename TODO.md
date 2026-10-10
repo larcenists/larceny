@@ -195,6 +195,19 @@ DONE.md (with the date and the commit, if any).
   (return addresses by lea [rip+L]), rsp later perhaps; macOS Intel
   needs no MAP_JIT toggling.  Peepholes using memory operands after the
   test suites pass.
+  Instruction sizes: Fence's generic code is size-agnostic (byte
+  location counter, $.align pads with cant.nop, labels used only to
+  tell backward from forward branches), but the shared assembler
+  (Asm/Shared/pass5p1.sch) is one-pass with no branch relaxation, so a
+  forward branch's size is chosen before its target is known: rel32
+  (6-byte jcc) for every forward branch, including those to the
+  deferred slow paths at the end of the code vector; rel8 only
+  backward.  Sassy relaxed branches over several passes, the one thing
+  IAssassin had that this lacks.  Later, perhaps: assemble forward
+  branches short and reassemble a code vector with the overflowing
+  labels marked long (fits the one-pass assembler), or relax within
+  the target (alignment and the return-point asserts read `here`
+  eagerly, so they would have to become symbolic).
 - gcc warns (-Wformat) about debugging messages that print words and
   pointers with %x in Sys/extbmp.c and Sys/uremset_array.c (dead
   dbmsg calls, mostly); use PRIxWORD and %p.
