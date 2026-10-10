@@ -242,6 +242,11 @@ DONE.md (with the date and the commit, if any).
     has not been seen to fire: no such heap can be built now.
   - `.lap` markers are written and compared by the build, but nothing
     loads `.lap` files outside it.
+- The first Larceny-hosted build after a Racket-hosted one recompiles
+  every library (seen on x86-64 Linux, Petit, 2026-10-10: 183 files,
+  9 minutes, with nothing changed); a second Larceny-hosted build
+  compiles nothing.  Find out which staleness check fires (tool file
+  times or feature markers written by the Racket host).
 - `setup`'s `'clean` needs git to find the build products; it could fall
   back to a list of generated file types in a tree without git.
 - Out-of-tree builds (a directory per configuration).

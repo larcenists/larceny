@@ -2,6 +2,19 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-10
+
+- Petit Larceny builds on x86-64 Linux (Ubuntu, gcc 15.2, Racket 8.18
+  as the host): a linux-x86-64 configuration (0afb5ef5); 64-bit code is
+  compiled as gnu17, since in C23 bool is a keyword.  test/Lib passes
+  with the default collector, -stopcopy, and -rrof; the compiler tests
+  (sanity-switches), the R7RS suite (also with -rrof), and the R6RS
+  suite (--r7rs and --r6rs) pass.
+- FFI callouts on x86-64 Linux (3a44cf01), made from C like those on
+  AArch64; it had used the 32-bit i386 ABI, so (scheme time)'s
+  current-jiffy failed.  std-ffi narrows char and short results, whose
+  upper bits the System V ABI leaves undefined (abfdff3f).
+
 ## 2026-10-08
 
 - The debugger's backtrace and procedure-source-file said that code
