@@ -416,6 +416,24 @@
     "USE_CACHED_STATE"
     ))
 
+(define features-petit-linux-x86-64	; x86-64 GNU/Linux, gcc, 64-bit words
+  '("PETIT_LARCENY"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "EXPLICIT_DIVZ_CHECK"                ; x/0 is undefined in C
+    "LINUX"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "USE_CACHED_STATE"
+    ))
+
 (define features-arm64-macosx		; Native: Apple Silicon, clang, 64-bit words
   '("ARM"
     "BITS_64"

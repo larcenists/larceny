@@ -269,7 +269,7 @@
                          (else 'gcc))))
 
   (case *host:os*
-    ((unix cygwin macosx linux-el)
+    ((unix cygwin macosx linux-el linux-x86-64)
      (let ((os-name (cdr (assq 'os-name (system-features)))))
        (set! unix/petit-lib-library-platform 
              (cond ((string=? os-name "MacOS X") '())

@@ -121,6 +121,10 @@
      . ,(lambda ()
 	  (values make-template-petit-macosx-arm64-clang
 		  make-template-target-petit-macosx-static)))
+    (petit-linux-x86-64-static-gcc
+     . ,(lambda ()
+	  (values make-template-petit-linux-x86-64-gcc
+		  make-template-target-petit-unix-static)))
     (petit-win32-static-mingw-v3
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc-v3
@@ -223,6 +227,20 @@ WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wformat
 # Floating-point contraction (fused multiply-add) changes results.
 CFLAGS+=-c -fno-common -ffp-contract=off -I$(INC_ROOT)/Standard-C $(WARNINGS)
 LIBS=-lm"))
+
+; Petit Larceny: x86-64 GNU/Linux (64-bit words): gcc
+(define make-template-petit-linux-x86-64-gcc
+  (template-common
+"O=o
+CC=gcc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wno-parentheses -Wno-unused-value -Wformat -Wno-format-zero-length
+# Floating-point contraction (fused multiply-add) changes results.
+# The runtime's bool is int-sized; C23 (gcc 15's default) makes bool a
+# keyword.
+CFLAGS+=-c -std=gnu17 -fno-common -ffp-contract=off -I$(INC_ROOT)/Standard-C $(WARNINGS)
+LIBS=-ldl -lm"))
 
 ; Native Larceny with Sassy back-end: Unix: NASM macro assembler for Rts
 (define make-template-sassy-unix-gcc

@@ -212,6 +212,11 @@
                 (cdr (assq 'arch-endianness (system-features)))))
            (cond 
 
+            ((and (equal? os-name "Linux") (eq? arch-endianness 'little)
+                  (eqv? 64 (cdr (assq 'arch-word-size (system-features))))
+                  (not (equal? arch-name "ARM")))
+             (set! host: 'linux-x86-64))
+
             ((and (equal? os-name "Linux") (eq? arch-endianness 'little)) 
              (if (equal? arch-name "ARM")
                  (set! host: 'linux-arm-el)
@@ -393,13 +398,13 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris clr-be)                  'big)
-      ((macosx-el macosx-arm64 linux-el linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
+      ((macosx-el macosx-arm64 linux-el linux-x86-64 linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
                   cygwin win32 clr-el)
        'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx macosx-el macosx-arm64 solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp
+      ((macosx macosx-el macosx-arm64 solaris linux-el linux-x86-64 cygwin linux-arm-el linux-arm-el-hardfp
                linux-arm-el-hardfp0)
        'unix)
       ((win32) 'win32)
@@ -466,6 +471,9 @@
                                 (nasm      'features-x86-nasm-linux)
                                 (native    'features-x86-nasm-linux)
                                 (else      'features-petit-linux)))
+          ((linux-x86-64) (cond (native
+                                 (error 'setup.sch "Only Petit Larceny is supported on x86-64 Linux"))
+                                (else   'features-petit-linux-x86-64)))
           ((cygwin)       'features-petit-cygwin)
           ((win32)        (cond (sassy  'features-x86-sassy-win32)
                                 (nasm   'features-x86-nasm-win32)
@@ -494,13 +502,13 @@
             macosx-arm64) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
-          ((linux-el linux-arm-el-hardfp linux-arm-el-hardfp0)
+          ((linux-el linux-x86-64 linux-arm-el-hardfp linux-arm-el-hardfp0)
            "petitdebianlinux")
           ((clr-be clr-le) "common")))        ; FIXME
 
   (set! *target:word-size*
         (case target-arch
-          ((macosx-arm64) 64)
+          ((macosx-arm64 linux-x86-64) 64)
           (else 32)))
 
   (set! *host:endianness* (platform->endianness host-arch))

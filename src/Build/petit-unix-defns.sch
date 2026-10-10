@@ -17,7 +17,7 @@
 
 (define (unix-&-win32-initialize)
   (load (case *host:os*
-          ((unix macosx macosx-el macosx-arm64 solaris linux-el linux-arm-el)
+          ((unix macosx macosx-el macosx-arm64 solaris linux-el linux-x86-64 linux-arm-el)
            "src/Build/sysdep-unix.sch")
           ((cygwin win32)
            "src/Build/sysdep-win32.sch")
@@ -135,6 +135,7 @@
      features-petit-macosx              ; gcc and GNU libc
      features-petit-macosx-el           ; gcc and GNU libc
      features-petit-macosx-arm64        ; clang, 64-bit
+     features-petit-linux-x86-64        ; gcc, 64-bit
      features-petit-win32               ; works for Mingw; believed to work
      features-petit-linux               ; Debian GNU/Linux 3.0 (woody), x86
      features-petit-cygwin              ; Tested with cygwin 1.5.10 (May 2004)

@@ -72,11 +72,13 @@
 ; Compiler definitions
 
 ; Word-size-specific flags: 32-bit targets are compiled with -m32,
-; 64-bit targets use the compiler's native (64-bit) mode.
+; 64-bit targets use the compiler's native (64-bit) mode.  The runtime's
+; bool is int-sized, so the C dialect must predate C23 (the default of
+; gcc 15), in which bool is a keyword.
 
 (define (unix/petit-arch-flags)
   (if (= 64 (nbuild-parameter 'word-size))
-      "-fno-common -ffp-contract=off"   ; fused multiply-add changes results
+      "-std=gnu17 -fno-common -ffp-contract=off" ; fused multiply-add changes results
       "-m32"))
 
 ; Clang (e.g. Apple's) does not support -gstabs+.
@@ -101,7 +103,7 @@
     c-name)))
 
 (define (c-library-linker:gcc-unix output-name object-files libs)
-  (if (= 64 (nbuild-parameter 'word-size))
+  (if (eq? (classify-unix-system) 'macosx)
       ; Apple's linker requires 8-byte aligned archive members, which
       ; Apple's libtool guarantees but ar does not.
       (begin
@@ -210,8 +212,11 @@
 			       (else     c-so-linker:gcc-unix)))
       (append-files       . ,append-file-shell-command-unix)
       (make-configuration . ,(cond 
-			      ((= 64 (nbuild-parameter 'word-size))
+			      ((and (= 64 (nbuild-parameter 'word-size))
+				    (eq? host-os 'macosx))
 			       'petit-macosx-arm64-static-clang)
+			      ((= 64 (nbuild-parameter 'word-size))
+			       'petit-linux-x86-64-static-gcc)
 			      ((match-gcc-version? " 3.")
 			       'petit-unix-static-gcc-v3)
 			      ((match-gcc-version? " 4.")

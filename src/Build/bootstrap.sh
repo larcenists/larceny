@@ -1,15 +1,17 @@
 #!/bin/sh
-# Build Larceny from source on macOS/arm64 (Apple Silicon), hosted by
-# Racket or by an existing Larceny.  Run it from the root of a Larceny
+# Build Larceny from source on macOS/arm64 (Apple Silicon) or, Petit
+# Larceny only, on x86-64 Linux, hosted by Racket or by an existing
+# Larceny.  Run it from the root of a Larceny
 # tree; see doc/HOWTO-BUILD.
 #
 #   src/Build/bootstrap.sh [--native | --petit] [--racket [PLT-R5RS]]
 #                          [--larceny LARCENY] [--clean] [--r7rs]
 #
-#   --native   build native Larceny (the default)
-#   --petit    build Petit Larceny
+#   --native   build native Larceny (the default on macOS)
+#   --petit    build Petit Larceny (the default on Linux)
 #   --racket   host the build with Racket's plt-r5rs (the default);
 #              the path defaults to $PLT_R5RS, or the Racket v9.3 install
+#              on macOS, or plt-r5rs in the PATH elsewhere
 #   --larceny  host the build with the given larceny script, such as
 #              ../other-tree/larceny
 #   --clean    remove the build products of another configuration first
@@ -19,9 +21,21 @@
 
 set -e
 
-TARGET="'native"
+case `uname -s`-`uname -m` in
+  Darwin-arm64)
+    PLATFORM=macosx-arm64
+    TARGET="'native"
+    DEFAULT_PLT_R5RS="/Applications/Racket v9.3/bin/plt-r5rs" ;;
+  Linux-x86_64)
+    PLATFORM=linux-x86-64
+    TARGET=
+    DEFAULT_PLT_R5RS=plt-r5rs ;;
+  *)
+    echo "$0: unsupported system: `uname -s` `uname -m`" >&2
+    exit 1 ;;
+esac
 HOST=racket
-HOST_CMD=${PLT_R5RS:-"/Applications/Racket v9.3/bin/plt-r5rs"}
+HOST_CMD=${PLT_R5RS:-$DEFAULT_PLT_R5RS}
 CLEAN=
 R7RS=
 
@@ -44,12 +58,12 @@ if [ ! -f setup.sch ]; then
   exit 1
 fi
 
-script=`mktemp -t larceny-bootstrap`
-stamp=`mktemp -t larceny-bootstrap-stamp`
+script=`mktemp "${TMPDIR:-/tmp}/larceny-bootstrap.XXXXXX"`
+stamp=`mktemp "${TMPDIR:-/tmp}/larceny-bootstrap-stamp.XXXXXX"`
 trap 'rm -f "$script" "$stamp" "$stamp.r7rs" "$stamp.sps"' EXIT
 cat > "$script" <<EOS
 (load "setup.sch")
-(setup 'scheme: '$HOST 'host: 'macosx-arm64 $TARGET $CLEAN)
+(setup 'scheme: '$HOST 'host: '$PLATFORM $TARGET $CLEAN)
 (build-config-files)
 (load-compiler)
 (build-heap)
