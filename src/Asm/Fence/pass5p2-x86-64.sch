@@ -48,11 +48,18 @@
 
 ; Assumes that exceptions are non-continuable, as does the AArch64 back
 ; end.  An additional code is always passed to millicode in TMP0.
+;
+; The return address of the call is a return point too: millicode saves
+; it (relative to the start of the code) in globals[G_RETADDR], which
+; the garbage collector scans, so it must be aligned like the return
+; points of Scheme calls.
 
 (define (cant.trap as code name . rest)
   (if (not (null? rest))
       (x86-64.mov-ri as x86-64.TMP0 (car rest)))
-  (x86-64.call-m as (x86-64.m x86-64.GLOBALS code)))
+  (let ((call (x86-64.call-m-bytes (x86-64.m x86-64.GLOBALS code))))
+    (x86-64.alignment as $bytewidth.code-align (length call))
+    (x86-64.emit as call)))
 
 (define (cant.nop as)
   (x86-64.NOP as))
@@ -896,8 +903,8 @@
 (define (x86-64.jmp-m as m)
   (x86-64.emit as (x86-64.encode '() #f '() '(#xFF) 4 m '())))
 
-(define (x86-64.call-m as m)
-  (x86-64.emit as (x86-64.encode '() #f '() '(#xFF) 2 m '())))
+(define (x86-64.call-m-bytes m)
+  (x86-64.encode '() #f '() '(#xFF) 2 m '()))
 
 ; Branches to label L.  The short form (8-bit displacement) is used
 ; when L is known and near, else the long form (32-bit displacement).

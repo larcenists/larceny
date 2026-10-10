@@ -25,6 +25,7 @@
 (define *nregs* 8)
 (define *lastreg* 7)
 (define $bytewidth.wordsize 8)
+(define $bytewidth.code-align 4)
 (define $tag.bytevector-tag 5)
 (define $p.codevector 1)
 (define $imm.true 6)
@@ -157,7 +158,7 @@
    ;; Returns, millicode calls, jumps.
    (list "jmp QWORD PTR [rbp+8]"
          (lambda (as L) (cant.ldrtn/return as 8)))
-   (list "call QWORD PTR [rbx+1024]"
+   (list "nop\nnop\ncall QWORD PTR [rbx+1024]"
          (lambda (as L) (cant.trap as 1024 'foo)))
    (list "mov ecx, 13\ncall QWORD PTR [rbx+64]"
          (lambda (as L) (cant.trap as 64 'foo 13)))
