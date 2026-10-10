@@ -245,6 +245,27 @@
     
     (define (id x name) x)
 
+    ;; A C function's char or short result is returned in a 32-bit
+    ;; register whose upper bits the x86-64 System V ABI leaves
+    ;; undefined (MacOS/AArch64 has the callee extend it), so results
+    ;; of narrow types are narrowed here.
+
+    (define (narrow-signed bits)
+      (let ((m (expt 2 bits))
+            (h (expt 2 (- bits 1))))
+        (lambda (x name)
+          (let ((v (modulo x m)))
+            (if (>= v h) (- v m) v)))))
+
+    (define (narrow-unsigned bits)
+      (let ((m (expt 2 bits)))
+        (lambda (x name)
+          (modulo x m))))
+
+    (define (narrowed narrow convert)
+      (lambda (x name)
+        (convert (narrow x name) name)))
+
     (define (object->bool x name)
       (if x 1 0))
 
@@ -279,14 +300,16 @@
 	  #f
           (%peek-string x)))
 
-    `((byte     signed32   ,integer-check           ,id)
+    `((byte     signed32   ,integer-check           ,(narrow-signed 8))
       (int      signed32   ,integer-check           ,id)
-      (short    signed32   ,integer-check           ,id)
-      (char     signed32   ,character->char         ,char->character)
+      (short    signed32   ,integer-check           ,(narrow-signed 16))
+      (char     signed32   ,character->char
+                ,(narrowed (narrow-signed 8) char->character))
       (unsigned unsigned32 ,unsigned-integer-check  ,id) ; avoid
       (uint     unsigned32 ,unsigned-integer-check  ,id)
-      (ushort   unsigned32 ,unsigned-integer-check  ,id)
-      (uchar    unsigned32 ,character->uchar        ,uchar->character)
+      (ushort   unsigned32 ,unsigned-integer-check  ,(narrow-unsigned 16))
+      (uchar    unsigned32 ,character->uchar
+                ,(narrowed (narrow-unsigned 8) uchar->character))
       (long     ,(if ffi:64-bit? 'signed64 'signed32)
                 ,(if ffi:64-bit? longlong-check integer-check)
                 ,id)
