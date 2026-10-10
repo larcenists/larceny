@@ -4,6 +4,21 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-10
 
+- Native Larceny for x86-64 Linux (branch x86-64-native): an x86-64 back
+  end for the Fence assembler (e0e489d0, daa7117d), the runtime glue and
+  build configuration (672fdfb1), microsecond jiffies (2df69c27).
+  Bootstraps with Racket in about 4 minutes; test/Lib passes with the
+  default collector, -stopcopy, and -rrof; the compiler tests, the
+  R7RS suite and the R6RS suite (--r7rs and --r6rs modes) pass with all
+  three collectors; test/FFI's ABI and std-ffi tests pass.  Decisions
+  made along the way are in CLAUDES_DECISIONS.md.
+- Twobit: a conditional in tail position whose arms shared the current
+  frame could give the then arm's own conditionals frames of their own,
+  which nested inside the shared frame when the else arm used it, so a
+  tail call left the outer frame on the stack (18f057b8).  Showed up with
+  8 registers (native x86-64), in get-line on UTF-8 ports.  Petit passes
+  test/Lib and the compiler tests with it (on x86-64-linux as 99ab870e).
+
 - Petit Larceny builds on x86-64 Linux (Ubuntu, gcc 15.2, Racket 8.18
   as the host): a linux-x86-64 configuration (0afb5ef5); 64-bit code is
   compiled as gnu17, since in C23 bool is a keyword.  test/Lib passes
