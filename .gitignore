@@ -25,6 +25,7 @@ twobit.heap
 sasstrap.heap
 arm.heap
 arm64.heap
+x86-64.heap
 bootstrap.log
 bootstrap-r7rs.log
 build-configuration

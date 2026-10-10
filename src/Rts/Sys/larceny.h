@@ -206,7 +206,7 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
-#ifdef ARM
+#if defined(ARM) || defined(X86_64)   /* Fence/Cant */
 extern void localdebugger_step( word* globals );
 #endif
 extern void debugvsm( void );

@@ -63,3 +63,54 @@ here (or move the outcome into the code, docs, or DONE.md).
   expected text (assembled by as) and of the encoder's bytes, case by
   case, each case in a section of its own.  Forward branches in the
   expected text use {disp32}.
+
+### 2026-10-10: Names in the build
+
+- Question: what do the build, the runtime, and Scheme call the new
+  system?
+- Decision: target machine `x86-64` (beside `arm`; machine source
+  "Fence"), runtime and heap type `x86-64-native`, makefile
+  configuration `x86-64-linux-gcc`, feature set
+  `features-x86-64-linux` with a new architecture feature `X86_64`,
+  heap `x86-64.heap`, heap scripts `src/Build/x86-64-linux-*-heap.sch`
+  (copies of the arm64 ones), architecture name "X86-64" (code 6 in
+  primitive.c's arch-name; R7RS cond-expand feature `x86-64`).  The
+  arm64 heap project in Lib/makefile.sch became `fence64-heap-project`,
+  shared by both.  The few runtime tests of `ARM` that mean "Fence"
+  became `ARM || X86_64` rather than introducing a FENCE feature.
+- Why: follows the arm64 port's shape, so the two can be compared and
+  merged later; a FENCE feature would touch the ARM builds too.
+
+### 2026-10-10: Code space on Linux
+
+- Decision: use CODE_SPACE (as arm64 does), mapped read-write-execute
+  (no MAP_JIT on Linux); bootstrap heaps are split heaps.
+- Why: it is the tested path of the 64-bit native system; keeping code
+  in the data heap would need the old executable-heap path, untested
+  on 64 bits.
+
+### 2026-10-10: Millicode return addresses must be aligned too
+
+- Found: the address after CALL to millicode is saved (relative to the
+  code) in G_RETADDR, which the collector scans as a root, so it must
+  look like a fixnum: cant.trap pads with NOPs so the call ends on a
+  4-byte boundary (on AArch64 every instruction is 4 bytes, so this
+  never came up).
+
+### 2026-10-10: A Twobit bug exposed by 8 registers
+
+- Found: in a conditional in tail position whose arms share the current
+  frame (Twobit gives the arms frames of their own only when that frame
+  is unused), the then arm's own conditionals could get frames of their
+  own, and the else arm then use the shared frame: the inner save
+  instructions nested inside it, and a tail call (pop of the inner frame
+  only) left the outer frame on the stack, so a later return jumped to
+  its zero return address (get-line on a UTF-8 port, in
+  io/get-line-maybe's scan).  With 16 or 32 registers the frame is used
+  less often, so the case had not come up.
+- Decision: fixed in Twobit (cg-if-result, pass4p1.sch): no own frames
+  for the arms while the current frame is shared with an arm yet to be
+  compiled.  Compiling iosys.sch, 122 of 124 such frames remain.
+- Note: this changes code generation for every target (only where the
+  bug could arise); tested on native x86-64 (and Petit, see the commit).
+  Not retested on macOS/arm64.

@@ -14,6 +14,9 @@ char *larceny_architecture = "ARM";
 #elif defined(ARM)
 char *larceny_heap_name = "arm.heap";
 char *larceny_architecture = "ARM";
+#elif defined(X86_64)
+char *larceny_heap_name = "x86-64.heap";
+char *larceny_architecture = "X86-64";
 #else
 #error "Unknown Fence/Cant architecture"
 #endif

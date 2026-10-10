@@ -358,10 +358,11 @@
     (make:make arm-heap-project "arm.heap" 
                (lambda (tgt) (error 'make-arm-heap tgt)))))
 
-; The AArch64 heap is built from the same files as the ARM heap.
+; The heaps of the 64-bit Fence/Cant systems (AArch64 and x86-64) are
+; built from the same files as the ARM heap.
 
-(define arm64-heap-project
-  (let ((arm64-heap-files
+(define (fence64-heap-project heap-name)
+  (let ((heap-files
          (objects (nbuild-parameter 'common-source)
                   ".lop"
                   common-heap-files
@@ -372,25 +373,31 @@
                     (osdep . ,(common-relative "sys-unix.lop"))
                     (case-lambda . ,(common-relative "case-lambda.lop"))
                     (extra . #f))))
-        (arm64-eval-files
+        (eval-files
          (objects "" ".lop" eval-files)))
-    (make:project "arm64.heap"
+    (make:project heap-name
       `(rules
         (".lop" ".mal" ,make-assemble)
         (".lop" ".lap" ,make-assemble)
         (".lap" ".sch" ,make-compile))
       `(targets
-        ("arm64.heap" ,make-dumpheap))
+        (,heap-name ,make-dumpheap))
       `(dependencies                    ; Order matters.  [Why??!]
-        ("arm64.heap" ,arm64-heap-files)
-        ("arm64.heap" ,arm64-eval-files)))))
+        (,heap-name ,heap-files)
+        (,heap-name ,eval-files)))))
 
-(define (make-arm64-heap . rest)
+(define (make-fence64-heap heap-name rest)
   (make:pretend (not (null? rest)))
   (parameterize ((integrate-procedures 'larceny)
                  (compat:read-case-sensitive? #t))
-    (make:make arm64-heap-project "arm64.heap"
-               (lambda (tgt) (error 'make-arm64-heap tgt)))))
+    (make:make (fence64-heap-project heap-name) heap-name
+               (lambda (tgt) (error 'make-fence64-heap tgt)))))
+
+(define (make-arm64-heap . rest)
+  (make-fence64-heap "arm64.heap" rest))
+
+(define (make-x86-64-heap . rest)
+  (make-fence64-heap "x86-64.heap" rest))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

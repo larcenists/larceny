@@ -471,8 +471,7 @@
                                 (nasm      'features-x86-nasm-linux)
                                 (native    'features-x86-nasm-linux)
                                 (else      'features-petit-linux)))
-          ((linux-x86-64) (cond (native
-                                 (error 'setup.sch "Only Petit Larceny is supported on x86-64 Linux"))
+          ((linux-x86-64) (cond (native 'features-x86-64-linux)
                                 (else   'features-petit-linux-x86-64)))
           ((cygwin)       'features-petit-cygwin)
           ((win32)        (cond (sassy  'features-x86-sassy-win32)
@@ -559,6 +558,13 @@
             (set! *heap-type* 'arm64-native)
             (set! *runtime-type* 'arm64-native))
 
+           ((linux-x86-64)
+            (set! *target:machine* 'x86-64)
+            (set! *target:machine-source* "Fence")
+            (set! *makefile-configuration* 'x86-64-linux-gcc)
+            (set! *heap-type* 'x86-64-native)
+            (set! *runtime-type* 'x86-64-native))
+
            ((linux-arm-el-hardfp0)
             (set! *target:machine* 'arm)
             (set! *target:machine-source* "Fence")
@@ -633,7 +639,7 @@
           (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
 
-  (if (eq? *target:machine* 'arm)
+  (if (memq *target:machine* '(arm x86-64))
       (set! *globals-table* "globals-fence.cfg"))
 
   ;; A Larceny host loads compiled (.fasl) versions of the build files
@@ -659,6 +665,7 @@
                  (case *target:machine*
                    ((standard-c) "Standard-C")
                    ((arm) "ARM")
+                   ((x86-64) "X86-64")
                    ((sparc) "SPARC")
                    ((x86-sass) "IAssassin")
                    ((x86-nasm) "X86-NASM")

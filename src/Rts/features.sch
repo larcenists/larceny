@@ -25,6 +25,7 @@
  "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
  "ARM"				; Native: ARMv7-A or AArch64 (with BITS_64)
 				; using Fence/Cant assembler
+ "X86_64"			; Native: x86-64 using Fence/Cant assembler
  "PPC_GAS"                      ; Native: PowerPC using GNU 'as'
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
 
@@ -434,6 +435,23 @@
     "USE_CACHED_STATE"
     ))
 
+(define features-x86-64-linux		; Native: x86-64 GNU/Linux, gcc, 64-bit words
+  '("X86_64"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "LINUX"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "CODE_SPACE"
+    ))
+
 (define features-arm64-macosx		; Native: Apple Silicon, clang, 64-bit words
   '("ARM"
     "BITS_64"
@@ -808,8 +826,9 @@
 (define (feature-sanity-checks fs)
   (if (and (member "BITS_64" fs)
            (not (member "PETIT_LARCENY" fs))
-           (not (member "ARM" fs)))
-      (error "Only Petit Larceny and ARM (AArch64) can handle 64-bit systems."))
+           (not (member "ARM" fs))
+           (not (member "X86_64" fs)))
+      (error "Only Petit Larceny, ARM (AArch64), and X86_64 can handle 64-bit systems."))
 
   (if (and (member "CODE_SPACE" fs)
            (member "PETIT_LARCENY" fs))

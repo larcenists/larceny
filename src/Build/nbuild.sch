@@ -130,7 +130,7 @@
 (initialize-help (nbuild-parameter 'compiler) 
                  'full
                  (case (nbuild-parameter 'target-machine)
-                   ((sparc x86-sass arm) 'native)
+                   ((sparc x86-sass arm x86-64) 'native)
                    (else 'petit)))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)

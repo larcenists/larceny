@@ -153,6 +153,9 @@
           ((clr)
            (string=? (larceny:get-feature 'arch-name)
                      "CLR"))
+          ((x86-64)
+           (string=? (larceny:get-feature 'arch-name)
+                     "X86-64"))
           ((llvm lp64 ilp64)
            ;; Sadly.
            #f)

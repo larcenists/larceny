@@ -215,6 +215,7 @@
          ((3) "IAssassin")
          ((4) "CLR")
 	 ((5) "ARM")
+	 ((6) "X86-64")
          (else "Unknown"))))
     ((endian)
      (let ((end (get-feature feature$endianness)))

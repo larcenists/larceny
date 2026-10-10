@@ -148,7 +148,7 @@
 ; bit set (see Rts/Sys/heapio.c).
 
 (define (heap.split-code?)
-  (and (eq? 'arm (nbuild-parameter 'target-machine))
+  (and (memq (nbuild-parameter 'target-machine) '(arm x86-64))
        (= 64 (nbuild-parameter 'word-size))))
 
 (define heap.split-type 1)               ; heap type for split heaps
@@ -414,7 +414,7 @@
 
 (define dump-char!
   (case (nbuild-parameter 'target-machine)
-    ((sparc x86-sass x86-nasm standard-c arm)
+    ((sparc x86-sass x86-nasm standard-c arm x86-64)
      (lambda (h c)
        (+ (* (char->integer c) twofiftysix) $imm.character)))
     ((**no-known-target-machines**)

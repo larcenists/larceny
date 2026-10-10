@@ -137,6 +137,10 @@
              (if (= 64 (nbuild-parameter 'word-size)) arm64-table arm-table))
        (set! asm-comment-template "/* ~a */")
        (set! asm-define-template  "#define ~a ~a~%"))
+      ((x86-64)
+       (set! asm-table-generator x86-64-table)
+       (set! asm-comment-template "/* ~a */")
+       (set! asm-define-template  "#define ~a ~a~%"))
       ((x86-nasm x86-sass)
        (set! asm-table-generator x86-nasm-table)
        (set! asm-comment-template "; ~a")
@@ -532,6 +536,41 @@
       1)
 
     (define (table-footer) #f)
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
+  ;; x86-64 (ELF) globals table.  Millicode entries are pointers to the
+  ;; millicode procedures, called with CALL through the table.
+
+  (define (x86-64-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '(#\tab ".data" #\newline
+	      #\tab ".globl globals" #\newline
+	      #\tab ".p2align 4" #\newline
+	      "globals:" #\newline)))
+
+    (define (table-word value comment)
+      (show `(#\tab ".quad" #\tab ,value #\tab "/* "
+		    ,(or comment "padding") " */"
+		    #\newline)))
+
+    (define (table-branch name)
+      (show `(#\tab ".quad" #\tab ,name #\newline))
+      1)
+
+    (define (table-footer)
+      (show '(#\tab ".section .note.GNU-stack,\"\",@progbits" #\newline)))
 
     (case op
       ((heading) table-heading)

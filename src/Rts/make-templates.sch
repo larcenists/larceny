@@ -149,6 +149,10 @@
      . ,(lambda ()
           (values make-template-arm64-macosx-clang
                   make-template-target-arm64-macosx)))
+    (x86-64-linux-gcc
+     . ,(lambda ()
+          (values make-template-x86-64-linux-gcc
+                  make-template-target-x86-64-linux)))
     (x86-win32-static-visualc-nasm
      . ,(lambda ()
 	  (values make-template-petit-win32-visualc
@@ -338,6 +342,22 @@ LIBS=-lm
 # clang does not recognize .sx as assembler source to be preprocessed
 AS=$(CC) -x assembler-with-cpp"))
 
+; Native Larceny: x86-64 GNU/Linux: gcc
+(define make-template-x86-64-linux-gcc
+  (template-common
+"O=o
+CC=gcc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wno-parentheses -Wno-unused-value -Wformat -Wno-format-zero-length
+# Floating-point contraction (fused multiply-add) changes results.
+# The runtime's bool is int-sized; C23 (gcc 15's default) makes bool a
+# keyword.
+CFLAGS+=-c -std=gnu17 -fno-common -ffp-contract=off -IBuild $(WARNINGS)
+ASFLAGS+=-c
+LIBS=-ldl -lm
+AS=$(CC) -x assembler-with-cpp"))
+
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
   (template-common
@@ -466,6 +486,16 @@ kill_version_o:
 	/bin/rm -f Sys/version.o
 larceny.bin: kill_version_o $(ARM64_MACOSX_LARCENY_OBJECTS)
 	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(ARM64_MACOSX_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	/bin/rm -f Sys/version.o")
+
+; x86-64 Linux
+(define make-template-target-x86-64-linux
+"default_target: larceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+larceny.bin: kill_version_o $(X86_64_LINUX_LARCENY_OBJECTS)
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(X86_64_LINUX_LARCENY_OBJECTS) \\
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
 
@@ -637,6 +667,18 @@ ARM64_MACOSX_LARCENY_OBJECTS=\\
 	$(COMMON_RTS_OBJECTS)\\
 	$(PRECISE_GC_OBJECTS)\\
 	$(ARM64_MACOSX_OBJECTS)
+
+X86_64_LINUX_OBJECTS=\\
+	Shared/arithmetic.$(O) Shared/multiply.$(O) \\
+	Fence/fence-driver.$(O) Fence/fence-millicode.$(O) Fence/fence-syscall2.$(O) \\
+	Fence/fence-config.$(O) Fence/x86-64-millicode.$(O) \\
+	fence-table.$(O) 
+
+X86_64_LINUX_LARCENY_OBJECTS=\\
+	Sys/larceny.$(O)\\
+	$(COMMON_RTS_OBJECTS)\\
+	$(PRECISE_GC_OBJECTS)\\
+	$(X86_64_LINUX_OBJECTS)
 
 X86_SASSY_LARCENY_OBJECTS=\\
 	Sys/larceny.$(O)\\

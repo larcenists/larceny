@@ -12,7 +12,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef ARM
+#if defined(ARM) || defined(X86_64)
 #include <stdint.h>
 #endif
 #include "larceny.h"
@@ -36,7 +36,7 @@ static unsigned int getuint( char **, int* );
 static int tracing = 0;
 static char tracing_until[100] = { 0 };
 
-#ifdef ARM
+#if defined(ARM) || defined(X86_64)   /* Fence/Cant */
 void localdebugger_step(word* globals)
 {
   char buf[ 300 ];
@@ -397,13 +397,13 @@ static void examine( char *cmdl )
         putchar( '\n' );
       }
       else if (tag == USTR_SUBTAG) {
-#ifdef ARM
+#if defined(ARM) || defined(X86_64)
 	uint32_t* up;
 #else
         unsigned int *up;   /* FIXME: must be 32 bits */
 #endif
 	printf( "String (flat4), length %d\n", len/4 );
-#ifdef ARM
+#if defined(ARM) || defined(X86_64)
 	for ( up = ((uint32_t*)ptrof(loc))+1 ; len ; up++, len-=4 )
 	  putchar( ((*up) >> 8) & 255 ); /* FIXME - would want to do better when we can */
 #else
