@@ -1,0 +1,21 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/sorting/0.0.0/r6rs-sorting-0.0.0.tgz")
+  (size 12288)
+  (updated "2015-05-06T16:34:12+00:00")
+  (created "2015-05-06T16:34:12+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "4e6e846ed4db3b7065f1ba5e78999896211617db148e8527302c816824b56394"))
+  (authors "Taylan Bayırlı")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs sorting))
+    (path "r6rs/sorting.sld")
+    (depends
+      (scheme base)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs sorting) to R7RS.")
+  (installed-files "lib/Snow/r6rs/sorting.sld" "lib/Snow/r6rs/sorting.body.scm"))

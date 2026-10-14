@@ -1,0 +1,21 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/exceptions/0.0.0/r6rs-exceptions-0.0.0.tgz")
+  (size 8192)
+  (updated "2015-05-06T16:35:15+00:00")
+  (created "2015-05-06T16:35:15+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "9b191f6503fe59a0fcd04868ac74bb2536f6688383a0a2bcbf45e6156c0667b4"))
+  (authors "Taylan Bayırlı")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs exceptions))
+    (path "r6rs/exceptions.sld")
+    (depends
+      (scheme base)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs exceptions) to R7RS.")
+  (installed-files "lib/Snow/r6rs/exceptions.sld"))

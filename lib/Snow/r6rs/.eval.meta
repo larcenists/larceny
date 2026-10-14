@@ -1,0 +1,21 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/eval/0.0.0/r6rs-eval-0.0.0.tgz")
+  (size 8192)
+  (updated "2015-05-06T16:25:11+00:00")
+  (created "2015-05-06T16:25:11+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "b51131f259e0616c8b8d8d07ee2ab3368063b2ca8bad791aa18c02c54e60e0fe"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs eval))
+    (path "r6rs/eval.sld")
+    (depends
+      (scheme eval)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs eval) to R7RS.")
+  (installed-files "lib/Snow/r6rs/eval.sld"))

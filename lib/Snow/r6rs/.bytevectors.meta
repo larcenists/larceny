@@ -1,0 +1,22 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/bytevectors/0.0.0/r6rs-bytevectors-0.0.0.tgz")
+  (size 51712)
+  (updated "2015-05-06T16:39:06+00:00")
+  (created "2015-05-06T16:39:06+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "b28413f08fb572d92310807cf3d4fa02b00c1583653d67d7446de679d864a661"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs bytevectors))
+    (path "r6rs/bytevectors.sld")
+    (depends
+      (scheme base)
+      (scheme inexact)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs bytevectors) to R7RS.")
+  (installed-files "lib/Snow/r6rs/bytevectors.sld" "lib/Snow/r6rs/bytevectors.body.scm"))

@@ -1,0 +1,22 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/lists/0.0.0/r6rs-lists-0.0.0.tgz")
+  (size 13824)
+  (updated "2015-05-06T16:37:22+00:00")
+  (created "2015-05-06T16:37:22+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "d1192a6bc3996cabc8303d1b579a5211b8225c765e6fcb6d4d23747802d98b14"))
+  (authors "Taylan Bayırlı")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs lists))
+    (path "r6rs/lists.sld")
+    (depends
+      (scheme base)
+      (scheme case-lambda)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs lists) to R7RS.")
+  (installed-files "lib/Snow/r6rs/lists.sld" "lib/Snow/r6rs/lists.body.scm"))

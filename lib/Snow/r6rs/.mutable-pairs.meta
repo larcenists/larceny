@@ -1,0 +1,20 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/mutable-pairs/0.0.0/r6rs-mutable-pairs-0.0.0.tgz")
+  (size 4096)
+  (updated "2015-05-06T15:00:21+00:00")
+  (created "2015-05-06T15:00:21+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "eb59dc9788a40faec6fc60d49936f4061cd5c7d7d7749e82e5ffc244f319cc6e"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs mutable-pairs))
+    (path "r6rs/mutable-pairs.sld")
+    (depends
+      (scheme base)))
+  (description "Port of (rnrs mutable-pairs) to R7RS")
+  (installed-files "lib/Snow/r6rs/mutable-pairs.sld"))
