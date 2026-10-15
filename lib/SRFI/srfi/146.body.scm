@@ -40,12 +40,12 @@
 (define (mapping comparator . args)
   (assume (comparator? comparator))
   (mapping-unfold null?
-	      (lambda (args)
-		(values (car args)
-			(cadr args)))
-	      cddr
-	      args
-	      comparator))
+              (lambda (args)
+                (values (car args)
+                        (cadr args)))
+              cddr
+              args
+              comparator))
 
 (define (mapping-unfold stop? mapper successor seed comparator)
   (assume (procedure? stop?))
@@ -53,13 +53,13 @@
   (assume (procedure? successor))
   (assume (comparator? comparator))
   (let loop ((mapping (make-empty-mapping comparator))
-	     (seed seed))
+             (seed seed))
     (if (stop? seed)
-	mapping
-	(receive (key value)
-	    (mapper seed)
-	  (loop (mapping-set mapping key value)
-		(successor seed))))))
+        mapping
+        (receive (key value)
+            (mapper seed)
+          (loop (mapping-set mapping key value)
+                (successor seed))))))
 
 ;; Predicates
 
@@ -72,11 +72,11 @@
   (call/cc
    (lambda (return)
      (mapping-search mapping
-		 key
-		 (lambda (insert ignore)
-		   (return #f))
-		 (lambda (key value update remove)
-		   (return #t))))))
+                 key
+                 (lambda (insert ignore)
+                   (return #f))
+                 (lambda (key value update remove)
+                   (return #t))))))
 
 (define (mapping-disjoint? mapping1 mapping2)
   (assume (mapping? mapping1))
@@ -84,9 +84,9 @@
   (call/cc
    (lambda (return)
      (mapping-for-each (lambda (key value)
-		     (when (mapping-contains? mapping2 key)
-		       (return #f)))
-		   mapping1)
+                     (when (mapping-contains? mapping2 key)
+                       (return #f)))
+                   mapping1)
      #t)))
 
 ;; Accessors
@@ -95,25 +95,28 @@
   (case-lambda
     ((mapping key)
      (assume (mapping? mapping))
-     (mapping-ref mapping key (lambda ()
-			(error "mapping-ref: key not in mapping" key))))
+     (mapping-ref mapping
+                  key
+                  (lambda ()
+                    (error "mapping-ref: key not in mapping"
+                           key))))
     ((mapping key failure)
      (assume (mapping? mapping))
      (assume (procedure? failure))
-     (mapping-ref mapping key failure (lambda (value)
-				value)))
+     (mapping-ref mapping key failure (lambda (value) value)))
     ((mapping key failure success)
      (assume (mapping? mapping))
      (assume (procedure? failure))
      (assume (procedure? success))
      ((call/cc
        (lambda (return-thunk)
-	 (mapping-search mapping
-			 key
-			 (lambda (insert ignore)
-			   (return-thunk failure))
-			 (lambda (key value update remove)
-			   (return-thunk (lambda () (success value)))))))))))
+         (mapping-search mapping
+                         key
+                         (lambda (insert ignore)
+                           (return-thunk failure))
+                         (lambda (key value update remove)
+                           (return-thunk
+                            (lambda () (success value)))))))))))
 
 (define (mapping-ref/default mapping key default)
   (assume (mapping? mapping))
@@ -124,13 +127,16 @@
 (define (mapping-set mapping . args)
   (assume (mapping? mapping))
   (let loop ((args args)
-	     (mapping mapping))
+             (mapping mapping))
     (if (null? args)
-	mapping
-	(receive (mapping)
-	    (mapping-update mapping (car args) (lambda (value) (cadr args)) (lambda () #f))	
-	  (loop (cddr args)
-		mapping)))))
+        mapping
+        (receive (mapping)
+            (mapping-update mapping
+                            (car args)
+                            (lambda (value) (cadr args))
+                            (lambda () #f))        
+          (loop (cddr args)
+                mapping)))))
 
 (define mapping-set! mapping-set)
 
@@ -138,11 +144,11 @@
   (assume (mapping? mapping))
   (receive (mapping obj)
       (mapping-search mapping
-		  key
-		  (lambda (insert ignore)
-		    (ignore #f))
-		  (lambda (old-key old-value update remove)
-		    (update key value #f)))
+                  key
+                  (lambda (insert ignore)
+                    (ignore #f))
+                  (lambda (old-key old-value update remove)
+                    (update key value #f)))
     mapping))
 
 (define mapping-replace! mapping-replace)
@@ -157,15 +163,15 @@
   (assume (mapping? mapping))
   (assume (list? keys))
   (fold (lambda (key mapping)
-	  (receive (mapping obj)
-	      (mapping-search mapping
-			  key
-			  (lambda (insert ignore)
-			    (ignore #f))
-			  (lambda (old-key old-value update remove)
-			    (remove #f)))
-	    mapping))
-	mapping keys))
+          (receive (mapping obj)
+              (mapping-search mapping
+                          key
+                          (lambda (insert ignore)
+                            (ignore #f))
+                          (lambda (old-key old-value update remove)
+                            (remove #f)))
+            mapping))
+        mapping keys))
 
 (define mapping-delete-all! mapping-delete-all)
 
@@ -175,36 +181,41 @@
   (call/cc
    (lambda (return)
      (mapping-search mapping
-		 key
-		 (lambda (insert ignore)
-		   (receive (value)
-		       (failure)
-		     (insert value value)))
-		 (lambda (old-key old-value update remove)
-		   (return mapping old-value))))))
+                 key
+                 (lambda (insert ignore)
+                   (receive (value)
+                       (failure)
+                     (insert value value)))
+                 (lambda (old-key old-value update remove)
+                   (return mapping old-value))))))
 
 (define mapping-intern! mapping-intern)
 
 (define mapping-update 
   (case-lambda
    ((mapping key updater)
-    (mapping-update mapping key updater (lambda ()
-				  (error "mapping-update: key not found in mapping" key))))
+    (mapping-update
+     mapping
+     key
+     updater
+     (lambda ()
+       (error "mapping-update: key not found in mapping" key))))
    ((mapping key updater failure)
     (mapping-update mapping key updater failure (lambda (value)
-					  value)))
+                                          value)))
    ((mapping key updater failure success)
     (assume (mapping? mapping))
     (assume (procedure? updater))
     (assume (procedure? failure))
     (assume (procedure? success))
     (receive (mapping obj)
-	(mapping-search mapping
-		    key
-		    (lambda (insert ignore)
-		      (insert (updater (failure)) #f))
-		    (lambda (old-key old-value update remove)
-		      (update key (updater (success old-value)) #f)))
+        (mapping-search
+         mapping
+         key
+         (lambda (insert ignore)
+           (insert (updater (failure)) #f))
+         (lambda (old-key old-value update remove)
+           (update key (updater (success old-value)) #f)))
       mapping))))
 
 (define mapping-update! mapping-update)
@@ -221,20 +232,20 @@
   (call/cc
    (lambda (return)
      (let*-values
-	 (((comparator)
-	   (mapping-key-comparator mapping))
-	  ((tree obj)
-	   (tree-search comparator
-			(mapping-tree mapping)
-			key
-			(lambda (insert ignore)
-			  (failure (lambda (value obj)
-				     (insert key value obj))
-				   (lambda (obj)
-				     (return mapping obj))))
-			success)))
+         (((comparator)
+           (mapping-key-comparator mapping))
+          ((tree obj)
+           (tree-search comparator
+                        (mapping-tree mapping)
+                        key
+                        (lambda (insert ignore)
+                          (failure (lambda (value obj)
+                                     (insert key value obj))
+                                   (lambda (obj)
+                                     (return mapping obj))))
+                        success)))
        (values (%make-mapping comparator tree)
-	       obj)))))
+               obj)))))
 
 (define mapping-search! mapping-search)
 
@@ -243,8 +254,8 @@
 (define (mapping-size mapping)
   (assume (mapping? mapping))
   (mapping-count (lambda (key value)
-	       #t)
-	     mapping))
+               #t)
+             mapping))
 
 (define (mapping-find predicate mapping failure)
   (assume (procedure? predicate))
@@ -253,19 +264,19 @@
   (call/cc
    (lambda (return)
      (mapping-for-each (lambda (key value)
-		     (when (predicate key value)
-		       (return key value)))
-		   mapping)
+                     (when (predicate key value)
+                       (return key value)))
+                   mapping)
      (failure))))
 
 (define (mapping-count predicate mapping)
   (assume (procedure? predicate))
   (assume (mapping? mapping))
   (mapping-fold (lambda (key value count)
-	      (if (predicate key value)
-		  (+ 1 count)
-		  count))
-	    0 mapping))
+              (if (predicate key value)
+                  (+ 1 count)
+                  count))
+            0 mapping))
 
 (define (mapping-any? predicate mapping)
   (assume (procedure? predicate))
@@ -273,34 +284,34 @@
   (call/cc
    (lambda (return)
      (mapping-for-each (lambda (key value)
-		     (when (predicate key value)
-		       (return #t)))
-		   mapping)
+                     (when (predicate key value)
+                       (return #t)))
+                   mapping)
      #f)))
 
 (define (mapping-every? predicate mapping)
   (assume (procedure? predicate))
   (assume (mapping? mapping))
   (not (mapping-any? (lambda (key value)
-		   (not (predicate key value)))
-		 mapping)))
+                   (not (predicate key value)))
+                 mapping)))
 
 (define (mapping-keys mapping)
   (assume (mapping? mapping))
   (mapping-fold/reverse (lambda (key value keys)
-			  (cons key keys))
-			'() mapping))
+                          (cons key keys))
+                        '() mapping))
 
 (define (mapping-values mapping)
   (assume (mapping? mapping))
   (mapping-fold/reverse (lambda (key value values)
-			  (cons value values))
-			'() mapping))
+                          (cons value values))
+                        '() mapping))
 
 (define (mapping-entries mapping)
   (assume (mapping? mapping))
   (values (mapping-keys mapping)
-	  (mapping-values mapping)))
+          (mapping-values mapping)))
 
 ;; Mapping and folding
 
@@ -309,11 +320,11 @@
   (assume (comparator? comparator))
   (assume (mapping? mapping))
   (mapping-fold (lambda (key value mapping)
-	      (receive (key value)
-		  (proc key value)
-		(mapping-set mapping key value)))
-	    (make-empty-mapping comparator)
-	    mapping))
+              (receive (key value)
+                  (proc key value)
+                (mapping-set mapping key value)))
+            (make-empty-mapping comparator)
+            mapping))
 
 (define (mapping-for-each proc mapping)
   (assume (procedure? proc))
@@ -329,19 +340,19 @@
   (assume (procedure? proc))
   (assume (mapping? mapping))
   (mapping-fold/reverse (lambda (key value lst)
-			  (cons (proc key value) lst))
-			'()
-			mapping))
+                          (cons (proc key value) lst))
+                        '()
+                        mapping))
 
 (define (mapping-filter predicate mapping)
   (assume (procedure? predicate))
   (assume (mapping? mapping))
   (mapping-fold (lambda (key value mapping)
-	      (if (predicate key value)
-		  (mapping-set mapping key value)
-		  mapping))
-	    (make-empty-mapping (mapping-key-comparator mapping))
-	    mapping))
+              (if (predicate key value)
+                  (mapping-set mapping key value)
+                  mapping))
+            (make-empty-mapping (mapping-key-comparator mapping))
+            mapping))
 
 (define mapping-filter! mapping-filter)
 
@@ -349,8 +360,8 @@
   (assume (procedure? predicate))
   (assume (mapping? mapping))
   (mapping-filter (lambda (key value)
-		(not (predicate key value)))
-	      mapping))
+                (not (predicate key value)))
+              mapping))
 
 (define mapping-remove! mapping-remove)
 
@@ -358,7 +369,7 @@
   (assume (procedure? predicate))
   (assume (mapping? mapping))
   (values (mapping-filter predicate mapping)
-	  (mapping-remove predicate mapping)))
+          (mapping-remove predicate mapping)))
 
 (define mapping-partition! mapping-partition)
 
@@ -372,30 +383,30 @@
   (assume (mapping? mapping))
   (reverse
    (mapping-fold (lambda (key value alist)
-		   (cons (cons key value) alist))
-		 '() mapping)))
+                   (cons (cons key value) alist))
+                 '() mapping)))
 
 (define (alist->mapping comparator alist)
   (assume (comparator? comparator))
   (assume (list? alist))
   (mapping-unfold null?
-	      (lambda (alist)
-		(let ((key (caar alist))
-		      (value (cdar alist)))
-		  (values key value)))
-	      cdr
-	      alist
-	      comparator))
+              (lambda (alist)
+                (let ((key (caar alist))
+                      (value (cdar alist)))
+                  (values key value)))
+              cdr
+              alist
+              comparator))
 
 (define (alist->mapping! mapping alist)
   (assume (mapping? mapping))
   (assume (list? alist))
   (fold (lambda (association mapping)
-	  (let ((key (car association))
-		(value (cdr association)))
-	    (mapping-set mapping key value)))
-	mapping
-	alist))
+          (let ((key (car association))
+                (value (cdr association)))
+            (mapping-set mapping key value)))
+        mapping
+        alist))
 
 ;; Submappings
 
@@ -404,7 +415,8 @@
     ((comparator mapping)
      (assume (mapping? mapping))
      #t)
-    ((comparator mapping1 mapping2) (%mapping=? comparator mapping1 mapping2))
+    ((comparator mapping1 mapping2)
+     (%mapping=? comparator mapping1 mapping2))
     ((comparator mapping1 mapping2 . mappings)
      (and (%mapping=? comparator mapping1 mapping2)
           (apply mapping=? comparator mapping2 mappings)))))
@@ -433,29 +445,31 @@
   (assume (comparator? comparator))
   (assume (mapping? mapping1))
   (assume (mapping? mapping2))
-  (let ((less? (comparator-ordering-predicate (mapping-key-comparator mapping1)))
-	(equality-predicate (comparator-equality-predicate comparator))
-	(gen1 (tree-generator (mapping-tree mapping1)))
-	(gen2 (tree-generator (mapping-tree mapping2))))    
+  (let ((less? (comparator-ordering-predicate
+                (mapping-key-comparator mapping1)))
+        (equality-predicate
+         (comparator-equality-predicate comparator))
+        (gen1 (tree-generator (mapping-tree mapping1)))
+        (gen2 (tree-generator (mapping-tree mapping2))))    
     (let loop ((item1 (gen1))
-	       (item2 (gen2)))
+               (item2 (gen2)))
       (cond
        ((eof-object? item1)
-	#t)
+        #t)
        ((eof-object? item2)
-	#f)
+        #f)
        (else
-	(let ((key1 (car item1)) (value1 (cadr item1))
-	      (key2 (car item2)) (value2 (cadr item2)))
-	  (cond
-	   ((less? key1 key2)
-	    #f)
-	   ((less? key2 key1)
-	    (loop item1 (gen2)))
-	   ((equality-predicate value1 value2)
-	    (loop (gen1) (gen2)))
-	   (else
-	    #f))))))))
+        (let ((key1 (car item1)) (value1 (cadr item1))
+              (key2 (car item2)) (value2 (cadr item2)))
+          (cond
+           ((less? key1 key2)
+            #f)
+           ((less? key2 key1)
+            (loop item1 (gen2)))
+           ((equality-predicate value1 value2)
+            (loop (gen1) (gen2)))
+           (else
+            #f))))))))
 
 (define mapping>?
   (case-lambda
@@ -530,44 +544,45 @@
 
 (define (%mapping-union mapping1 mapping2)
   (mapping-fold (lambda (key2 value2 mapping)
-		  (receive (mapping obj)
-		      (mapping-search mapping
-				      key2
-				      (lambda (insert ignore)
-					(insert value2 #f))
-				      (lambda (key1 value1 update remove)
-					(update key1 value1 #f)))
-		    mapping))
-		mapping1 mapping2))
+                  (receive (mapping obj)
+                      (mapping-search
+                       mapping
+                       key2
+                       (lambda (insert ignore)
+                         (insert value2 #f))
+                       (lambda (key1 value1 update remove)
+                         (update key1 value1 #f)))
+                    mapping))
+                mapping1 mapping2))
 
 (define (%mapping-intersection mapping1 mapping2)
   (mapping-filter (lambda (key1 value1)
-		(mapping-contains? mapping2 key1))
-	      mapping1))
+                (mapping-contains? mapping2 key1))
+              mapping1))
 
 (define (%mapping-difference mapping1 mapping2)
   (mapping-fold (lambda (key2 value2 mapping)
-	      (receive (mapping obj)
-		  (mapping-search mapping
-			      key2
-			      (lambda (insert ignore)
-				(ignore #f))
-			      (lambda (key1 value1 update remove)
-				(remove #f)))
-		mapping))
-	    mapping1 mapping2))
+              (receive (mapping obj)
+                  (mapping-search mapping
+                              key2
+                              (lambda (insert ignore)
+                                (ignore #f))
+                              (lambda (key1 value1 update remove)
+                                (remove #f)))
+                mapping))
+            mapping1 mapping2))
 
 (define (%mapping-xor mapping1 mapping2)
   (mapping-fold (lambda (key2 value2 mapping)
-	      (receive (mapping obj)
-		  (mapping-search mapping
-			      key2
-			      (lambda (insert ignore)
-				(insert value2 #f))
-			      (lambda (key1 value1 update remove)
-				(remove #f)))
-		mapping))
-	    mapping1 mapping2))
+              (receive (mapping obj)
+                  (mapping-search mapping
+                              key2
+                              (lambda (insert ignore)
+                                (insert value2 #f))
+                              (lambda (key1 value1 update remove)
+                                (remove #f)))
+                mapping))
+            mapping1 mapping2))
 
 (define mapping-union
   (case-lambda
@@ -581,7 +596,9 @@
     ((mapping1 mapping2 . mappings)
      (assume (mapping? mapping1))
      (assume (mapping? mapping2))
-     (apply mapping-union (%mapping-union mapping1 mapping2) mappings))))
+     (apply mapping-union
+            (%mapping-union mapping1 mapping2)
+            mappings))))
 (define mapping-union! mapping-union)
 
 (define mapping-intersection
@@ -596,7 +613,9 @@
     ((mapping1 mapping2 . mappings)
      (assume (mapping? mapping1))
      (assume (mapping? mapping2))
-     (apply mapping-intersection (%mapping-intersection mapping1 mapping2) mappings))))
+     (apply mapping-intersection
+            (%mapping-intersection mapping1 mapping2)
+            mappings))))
 (define mapping-intersection! mapping-intersection)
 
 (define mapping-difference
@@ -611,7 +630,9 @@
     ((mapping1 mapping2 . mappings)
      (assume (mapping? mapping1))
      (assume (mapping? mapping2))
-     (apply mapping-difference (%mapping-difference mapping1 mapping2) mappings))))
+     (apply mapping-difference
+            (%mapping-difference mapping1 mapping2)
+            mappings))))
 (define mapping-difference! mapping-difference)
 
 (define mapping-xor
@@ -626,7 +647,9 @@
     ((mapping1 mapping2 . mappings)
      (assume (mapping? mapping1))
      (assume (mapping? mapping2))
-     (apply mapping-xor (%mapping-xor mapping1 mapping2) mappings))))
+     (apply mapping-xor
+            (%mapping-xor mapping1 mapping2)
+            mappings))))
 (define mapping-xor! mapping-xor)
 
 ;; Additional procedures for mappings with ordererd keys
@@ -636,8 +659,8 @@
   (call/cc
    (lambda (return)
      (mapping-fold (lambda (key value acc)
-		     (return key))
-		   #f mapping)
+                     (return key))
+                   #f mapping)
      (error "mapping-min-key: empty map"))))
 
 (define (mapping-max-key mapping)
@@ -645,8 +668,8 @@
   (call/cc
    (lambda (return)
      (mapping-fold/reverse (lambda (key value acc)
-			     (return key))
-			   #f mapping)
+                             (return key))
+                           #f mapping)
      (error "mapping-max-key: empty map"))))
 
 (define (mapping-min-value mapping)
@@ -654,8 +677,8 @@
   (call/cc
    (lambda (return)
      (mapping-fold (lambda (key value acc)
-		     (return value))
-		   #f mapping)
+                     (return value))
+                   #f mapping)
      (error "mapping-min-value: empty map"))))
 
 (define (mapping-max-value mapping)
@@ -663,46 +686,52 @@
   (call/cc
    (lambda (return)
      (mapping-fold/reverse (lambda (key value acc)
-			     (return value))
-			   #f mapping)
+                             (return value))
+                           #f mapping)
      (error "mapping-max-value: empty map"))))
 
 (define (mapping-key-predecessor mapping obj failure)
   (assume (mapping? mapping))
   (assume (procedure? failure))
-  (tree-key-predecessor (mapping-key-comparator mapping) (mapping-tree mapping) obj failure))
+  (tree-key-predecessor (mapping-key-comparator mapping)
+                        (mapping-tree mapping)
+                        obj
+                        failure))
 
 (define (mapping-key-successor mapping obj failure)
   (assume (mapping? mapping))
   (assume (procedure? failure))
-  (tree-key-successor (mapping-key-comparator mapping) (mapping-tree mapping) obj failure))
+  (tree-key-successor (mapping-key-comparator mapping)
+                      (mapping-tree mapping)
+                      obj
+                      failure))
 
 (define (mapping-range= mapping obj)
   (assume (mapping? mapping))
   (let ((comparator (mapping-key-comparator mapping)))
     (receive (tree< tree<= tree= tree>= tree>)
-	(tree-split comparator (mapping-tree mapping) obj)
+        (tree-split comparator (mapping-tree mapping) obj)
       (%make-mapping comparator tree=))))
 
 (define (mapping-range< mapping obj)
   (assume (mapping? mapping))
   (let ((comparator (mapping-key-comparator mapping)))
     (receive (tree< tree<= tree= tree>= tree>)
-	(tree-split comparator (mapping-tree mapping) obj)
+        (tree-split comparator (mapping-tree mapping) obj)
       (%make-mapping comparator tree<))))
 
 (define (mapping-range<= mapping obj)
   (assume (mapping? mapping))
   (let ((comparator (mapping-key-comparator mapping)))
     (receive (tree< tree<= tree= tree>= tree>)
-	(tree-split comparator (mapping-tree mapping) obj)
+        (tree-split comparator (mapping-tree mapping) obj)
       (%make-mapping comparator tree<=))))
 
 (define (mapping-range> mapping obj)
   (assume (mapping? mapping))
   (let ((comparator (mapping-key-comparator mapping)))
     (receive (tree< tree<= tree= tree>= tree>)
-	(tree-split comparator (mapping-tree mapping) obj)
+        (tree-split comparator (mapping-tree mapping) obj)
       (%make-mapping comparator tree>))))
 
 (define (mapping-range>= mapping obj)
@@ -710,7 +739,7 @@
   (assume (mapping? mapping))
   (let ((comparator (mapping-key-comparator mapping)))
     (receive (tree< tree<= tree= tree>= tree>)
-	(tree-split comparator (mapping-tree mapping) obj)
+        (tree-split comparator (mapping-tree mapping) obj)
       (%make-mapping comparator tree>=))))
 
 (define mapping-range=! mapping-range=)
@@ -723,21 +752,23 @@
   (assume (mapping? mapping))
   (let ((comparator (mapping-key-comparator mapping)))
     (receive (tree< tree<= tree= tree>= tree>)
-	(tree-split comparator (mapping-tree mapping) obj)
+        (tree-split comparator (mapping-tree mapping) obj)
       (values (%make-mapping comparator tree<)
-	      (%make-mapping comparator tree<=)
-	      (%make-mapping comparator tree=)
-	      (%make-mapping comparator tree>=)
-	      (%make-mapping comparator tree>)))))
+              (%make-mapping comparator tree<=)
+              (%make-mapping comparator tree=)
+              (%make-mapping comparator tree>=)
+              (%make-mapping comparator tree>)))))
 
-(define (mapping-catenate comparator mapping1 pivot-key pivot-value mapping2)
+(define (mapping-catenate comparator
+                          mapping1 pivot-key pivot-value mapping2)
   (assume (comparator? comparator))
   (assume (mapping? mapping1))
   (assume (mapping? mapping2))
-  (%make-mapping comparator (tree-catenate (mapping-tree mapping1)
-					   pivot-key
-					   pivot-value
-					   (mapping-tree mapping2))))
+  (%make-mapping comparator
+                 (tree-catenate (mapping-tree mapping1)
+                                pivot-key
+                                pivot-value
+                                (mapping-tree mapping2))))
 
 (define mapping-catenate! mapping-catenate)
 
@@ -745,7 +776,8 @@
   (assume (procedure? proc))
   (assume (comparator? comparator))
   (assume (mapping? mapping))
-  (%make-mapping comparator (tree-map proc (mapping-tree mapping))))
+  (%make-mapping comparator
+                 (tree-map proc (mapping-tree mapping))))
 
 (define mapping-map/monotone! mapping-map/monotone)
 
@@ -763,36 +795,44 @@
 
 (define (mapping-ordering comparator)
   (assume (comparator? comparator))
-  (let ((value-equality (comparator-equality-predicate comparator))
-	(value-ordering (comparator-ordering-predicate comparator)))
+  (let ((value-equality
+         (comparator-equality-predicate comparator))
+        (value-ordering
+         (comparator-ordering-predicate comparator)))
     (lambda (mapping1 mapping2)
       (let* ((key-comparator (mapping-key-comparator mapping1))
-	     (equality (comparator-equality-predicate key-comparator))
-	     (ordering (comparator-ordering-predicate key-comparator))
-	     (gen1 (tree-generator (mapping-tree mapping1)))
-	     (gen2 (tree-generator (mapping-tree mapping2))))
-	(let loop ()
-	  (let ((item1 (gen1)) (item2 (gen2)))
-	    (cond
-	     ((eof-object? item1)
-	      (not (eof-object? item2)))
-	     ((eof-object? item2)
-	      #f)
-	     (else
-	      (let ((key1 (car item1)) (value1 (cadr item1))
-		    (key2 (car item2)) (value2 (cadr item2)))
-		(cond
-		 ((equality key1 key2)
-		  (if (value-equality value1 value2)
-		      (loop)
-		      (value-ordering value1 value2)))
-		 (else
-		  (ordering key1 key2))))))))))))
+             (equality
+              (comparator-equality-predicate key-comparator))
+             (ordering
+              (comparator-ordering-predicate key-comparator))
+             (gen1 (tree-generator (mapping-tree mapping1)))
+             (gen2 (tree-generator (mapping-tree mapping2))))
+        (let loop ()
+          (let ((item1 (gen1)) (item2 (gen2)))
+            (cond
+             ((eof-object? item1)
+              (not (eof-object? item2)))
+             ((eof-object? item2)
+              #f)
+             (else
+              (let ((key1 (car item1)) (value1 (cadr item1))
+                    (key2 (car item2)) (value2 (cadr item2)))
+                (cond
+                 ((equality key1 key2)
+                  (if (value-equality value1 value2)
+                      (loop)
+                      (value-ordering value1 value2)))
+                 (else
+                  (ordering key1 key2))))))))))))
 
 (define (make-mapping-comparator comparator)
-  (make-comparator mapping? (mapping-equality comparator) (mapping-ordering comparator) #f))
+  (make-comparator mapping?
+                   (mapping-equality comparator)
+                   (mapping-ordering comparator)
+                   #f))
 
-(define mapping-comparator (make-mapping-comparator (make-default-comparator)))
+(define mapping-comparator
+  (make-mapping-comparator (make-default-comparator)))
 
 (comparator-register-default! mapping-comparator)
 
@@ -804,29 +844,37 @@
 (define (mapping-adjoin mapping . args)
   (assume (mapping? mapping))
   (let loop ((args args)
-	     (mapping mapping))
+             (mapping mapping))
     (if (null? args)
-	mapping
-	(receive (mapping value)
-	    (mapping-intern mapping (car args) (lambda () (cadr args)))
-	  (loop (cddr args) mapping)))))
+        mapping
+        (receive (mapping value)
+            (mapping-intern mapping
+                            (car args)
+                            (lambda () (cadr args)))
+          (loop (cddr args) mapping)))))
 
 (define mapping-adjoin! mapping-adjoin)
 
 (define mapping-pop
   (case-lambda
     ((mapping)
-     (mapping-pop mapping (lambda ()
-			    (error "mapping-pop: mapping has no association"))))
+     (mapping-pop
+      mapping
+      (lambda ()
+        (error "mapping-pop: mapping has no association"))))
     ((mapping failure)
      (assume (mapping? mapping))
      (assume (procedure? failure))
      ((call/cc
        (lambda (return-thunk)
-	 (receive (key value)
-	     (mapping-find (lambda (key value) #t) mapping (lambda () (return-thunk failure)))
-	   (lambda ()
-	     (values (mapping-delete mapping key) key value)))))))))
+         (receive (key value)
+             (mapping-find (lambda (key value) #t)
+                           mapping
+                           (lambda () (return-thunk failure)))
+           (lambda ()
+             (values (mapping-delete mapping key)
+                     key
+                     value)))))))))
 
 (define mapping-pop! mapping-pop)
 
