@@ -795,3 +795,40 @@
 (define mapping-comparator (make-mapping-comparator (make-default-comparator)))
 
 (comparator-register-default! mapping-comparator)
+
+;;; added in Larceny v1.4
+
+(define mapping/ordered mapping)
+(define mapping-unfold/ordered mapping-unfold)
+
+(define (mapping-adjoin mapping . args)
+  (assume (mapping? mapping))
+  (let loop ((args args)
+	     (mapping mapping))
+    (if (null? args)
+	mapping
+	(receive (mapping value)
+	    (mapping-intern mapping (car args) (lambda () (cadr args)))
+	  (loop (cddr args) mapping)))))
+
+(define mapping-adjoin! mapping-adjoin)
+
+(define mapping-pop
+  (case-lambda
+    ((mapping)
+     (mapping-pop mapping (lambda ()
+			    (error "mapping-pop: mapping has no association"))))
+    ((mapping failure)
+     (assume (mapping? mapping))
+     (assume (procedure? failure))
+     ((call/cc
+       (lambda (return-thunk)
+	 (receive (key value)
+	     (mapping-find (lambda (key value) #t) mapping (lambda () (return-thunk failure)))
+	   (lambda ()
+	     (values (mapping-delete mapping key) key value)))))))))
+
+(define mapping-pop! mapping-pop)
+
+(define alist->mapping/ordered alist->mapping)
+(define alist->mapping/ordered! alist->mapping!)
