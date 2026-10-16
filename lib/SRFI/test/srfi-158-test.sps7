@@ -4,9 +4,9 @@
         (scheme list)
         (srfi 8 receive)
         (srfi 64 testing)
-        (srfi 128)   ; one of the comparator SRFIs
-        (srfi 146)   ; (scheme mapping)
-        (srfi 158)   ; generators and accumulators
+        (srfi 128)           ; one of the comparator SRFIs
+        (srfi 146)           ; (scheme mapping)
+        (scheme generator)   ; same as (srfi 158)
         (scheme read)
         (scheme write)
         (scheme file)
