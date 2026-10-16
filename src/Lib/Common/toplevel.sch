@@ -843,6 +843,56 @@
   (environment-set! larc 'bytevector-like-equal? bytevector-like-equal?)
   (environment-set! larc 'bytevector-like-copy bytevector-like-copy)
 
+  ;; numeric vectors
+  ;; The read procedure could get by with just make-numvec.
+  ;; The others are for SRFI 160, SRFI 4, and (scheme vector @).
+
+  (environment-set! larc 'make-numvec make-numvec) ; for read procedure
+
+  (environment-set! larc 'new-numvec new-numvec)
+  (environment-set! larc 'numeric-vector? numeric-vector?)
+  (environment-set! larc 'larceny:numvec.hashcode larceny:numvec.hashcode)
+  (environment-set! larc 'larceny:numvec.bv larceny:numvec.bv)
+
+  (environment-set! larc 'larceny:numvec-getter larceny:numvec-getter)
+  (environment-set! larc 'larceny:numvec-setter larceny:numvec-setter)
+  (environment-set! larc 'larceny:numvec-predicate larceny:numvec-predicate)
+
+  (environment-set! larc 'larceny:numvec->list larceny:numvec->list)
+
+  (environment-set! larc 'bytevector-c64-native-ref
+		    bytevector-c64-native-ref)
+  (environment-set! larc 'bytevector-c64-native-set!
+		    bytevector-c64-native-set!)
+  (environment-set! larc 'bytevector-c128-native-ref
+		    bytevector-c128-native-ref)
+  (environment-set! larc 'bytevector-c128-native-set!
+		    bytevector-c128-native-set!)
+
+  (environment-set! larc 'u8? u8?)
+  (environment-set! larc 's8? s8?)
+  (environment-set! larc 'u16? u16?)
+  (environment-set! larc 's16? s16?)
+  (environment-set! larc 'u32? u32?)
+  (environment-set! larc 's32? s32?)
+  (environment-set! larc 'u64? u64?)
+  (environment-set! larc 's64? s64?)
+  (environment-set! larc 'f32? f32?)
+  (environment-set! larc 'f64? f64?)
+  (environment-set! larc 'c64? c64?)
+  (environment-set! larc 'c128? c128?)  
+
+  (environment-set! larc 'larceny:numvec-hashcode->element-width
+		    larceny:numvec-hashcode->element-width)
+  (environment-set! larc 'larceny:numvec-hashcode->int-tag
+		    larceny:numvec-hashcode->int-tag)
+  (environment-set! larc 'larceny:numvec-hashcode->symbol-tag
+		    larceny:numvec-hashcode->symbol-tag)
+  (environment-set! larc 'larceny:numvec-symtag->int-tag
+		    larceny:numvec-symtag->int-tag)
+  (environment-set! larc 'larceny:numvec-symtag->width
+		    larceny:numvec-symtag->width)
+
   ;; strings
 
   (environment-set! larc 'string-copy! string-copy!)

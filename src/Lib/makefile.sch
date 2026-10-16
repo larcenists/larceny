@@ -190,6 +190,7 @@
     "unicode4"          ; four string-normalize-* procedures
     "text"              ; immutable texts, kernel8
     "text2"             ; immutable texts
+    "numvec"            ; homogeneous numeric vectors
     "require"           ; rudimentary library system
 
     ; New I/O subsystem

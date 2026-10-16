@@ -116,13 +116,13 @@
   (define srfi-4-getters-table (alist->hashtable srfi-4-getters))
   (define srfi-4-setters-table (alist->hashtable srfi-4-setters))
   (define (bytevector-ref bytevector index)
-    (let* ((type (find (lambda (pred) (pred bytevector))) srfi-4-types)
+    (let* ((type (find (lambda (pred) (pred bytevector)) srfi-4-types))
            (getter (if type
                        (ref srfi-4-getters-table type)
                        bytevector-u8-ref)))
       (getter bytevector index)))
   (define (bytevector-set! bytevector index value)
-    (let* ((type (find (lambda (pred) (pred bytevector))) srfi-4-types)
+    (let* ((type (find (lambda (pred) (pred bytevector)) srfi-4-types))
            (setter (if type
                        (ref srfi-4-setters-table type)
                        bytevector-u8-set!)))

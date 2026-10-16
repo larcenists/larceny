@@ -282,6 +282,7 @@
          (errBug 12)           ; bug in reader, shouldn't happen
          (errLexGenBug 13)                        ; can't happen
          (errIllegalText 14)         ; disallowed immutable text
+	 (errIllegalNumvec 15)         ; disallowed #s8(...) etc
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -1191,6 +1192,8 @@
                "square brackets are disabled (as in strict R7RS mode)")
               ((= msg errLexGenBug)
                "bug in lexical analyzer (generated)")
+              ((= msg errIllegalNumvec)
+               "illegal value in numeric vector")
               (else "bug in lexical analyzer")))
       (let* ((c (scanChar))
              (next (if (char? c) (string c) ""))
