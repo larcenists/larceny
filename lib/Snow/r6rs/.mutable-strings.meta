@@ -1,0 +1,21 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/mutable-strings/0.0.0/r6rs-mutable-strings-0.0.0.tgz")
+  (size 8192)
+  (updated "2015-05-06T16:23:46+00:00")
+  (created "2015-05-06T16:23:46+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "4cd5ab115154c97a15d03c78e0433d7ee57bfe1c0530ccfe54d8169cb0925578"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs mutable-strings))
+    (path "r6rs/mutable-strings.sld")
+    (depends
+      (scheme base)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs mutable-strings) to R7RS.")
+  (installed-files "lib/Snow/r6rs/mutable-strings.sld"))

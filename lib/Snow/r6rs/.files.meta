@@ -1,0 +1,21 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/files/0.0.0/r6rs-files-0.0.0.tgz")
+  (size 8192)
+  (updated "2015-05-06T16:30:53+00:00")
+  (created "2015-05-06T16:30:53+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "8fc2ea499289550d1c34eaf0b67329288d042947fb29ba0dadf5364595cc99e3"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs files))
+    (path "r6rs/files.sld")
+    (depends
+      (scheme file)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs files) to R7RS.")
+  (installed-files "lib/Snow/r6rs/files.sld"))

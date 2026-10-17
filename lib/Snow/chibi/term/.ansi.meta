@@ -1,0 +1,35 @@
+(package
+  (url "/s/gmail.com/alexshinn/chibi/term/ansi/0.7.3/chibi-term-ansi-0.7.3.tgz")
+  (size 53248)
+  (updated "2015-05-10T14:29:00+00:00")
+  (created "2015-05-10T14:29:00+00:00")
+  (signature
+    (email "alexshinn@gmail.com")
+    (digest sha-256)
+    (sha-256 "2a7225a1d584838dcefc9cda48dd4fc70c01838c71446981802af4ff98ce61ed")
+    (rsa "8e81afa23bb71f342444cd606ccdfbcb6537c3682565356deb6b41c4ce13eb1106c21d686325096b3a86fd93ad010b2cb82b15da1025bae192a278457d8b27e322d8e774c3a5959c1823ce9f9ecd761423c494752540964b89a8f88dadec78424ef5db4a7f17a8f1f81109193fde8d528eb4e97d36d02fb03709df6d2a0e658f22112e6478604a030fb9e524d3167f4587742d0ed06bc0e0ca4cae02a089ace5bb9ee3060e4ed438cd4dea1d6213a2c767cb4d301cc872a47b066edb445dc77c2903b024de2765d942dca25e57f10362c68720c2271d1a4e32ad60de13ad4f311275617a04c86a8b576a1c2bc0e75a1af0a70a59c7e5102caf7e85775209b74b"))
+  (maintainers "Alex Shinn <alexshinn@gmail.com>")
+  (authors "Alex Shinn <alexshinn@gmail.com>")
+  (version "0.7.3")
+  (license bsd)
+  (library
+    (name
+      (chibi term ansi))
+    (path "chibi/term/ansi.sld")
+    (depends
+      (scheme base)
+      (scheme write)
+      (scheme process-context)))
+  (library
+    (name
+      (chibi term ansi-test))
+    (path "chibi/term/ansi-test.sld")
+    (depends
+      (scheme base)
+      (chibi test)
+      (chibi term ansi))
+    (use-for test))
+  (manual "chibi/term/ansi.html")
+  (description "A library to use ANSI escape codes to format text and background color, font weigh, and underlining.")
+  (test "run-tests.scm")
+  (installed-files "lib/Snow/chibi/term/ansi.sld" "lib/Snow/chibi/term/ansi.scm"))

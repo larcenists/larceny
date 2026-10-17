@@ -4,7 +4,7 @@ set -o errexit
 
 ################################################################
 #
-#    Uploads (r6rs *) libraries to snow-fort.org
+#    Uploads (in-progress *) libraries to snow-fort.org
 #
 #    See also make-snow.
 #

@@ -1,0 +1,34 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/base/0.0.0/r6rs-base-0.0.0.tgz")
+  (size 17920)
+  (updated "2015-05-06T16:40:08+00:00")
+  (created "2015-05-06T16:40:08+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "79633e9c29653a6455bae255e26d0bda12fa5755a622bec10def4dcb877d6695"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs base))
+    (path "r6rs/base.sld")
+    (cond-expand
+      ((library (scheme inexact))
+        (depends
+          (scheme inexact)))
+      (else
+        (depends)))
+    (cond-expand
+      ((library (scheme complex))
+        (depends
+          (scheme complex)))
+      (else
+        (depends)))
+    (depends
+      (scheme base)
+      (scheme cxr)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs base) to R7RS.")
+  (installed-files "lib/Snow/r6rs/base.sld" "lib/Snow/r6rs/base.body.scm"))

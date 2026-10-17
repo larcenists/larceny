@@ -1,0 +1,60 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/hashtables/0.0.1/r6rs-hashtables-0.0.1.tgz")
+  (size 35328)
+  (updated "2015-05-09T13:10:04+00:00")
+  (created "2015-05-09T13:10:04+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "af57748c25b59dab75f5a29995a5a2e3763f934d08613e80611f20093fd5f035"))
+  (maintainers "William D Cinger <will@ccs.neu.edu>")
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.1")
+  (license mit)
+  (library
+    (name
+      (r6rs hashtables))
+    (path "r6rs/hashtables.sld")
+    (cond-expand
+      ((library (rnrs hashtables))
+        (depends))
+      ((library (scheme inexact))
+        (depends
+          (scheme inexact)))
+      (else
+        (depends)))
+    (cond-expand
+      ((and (library (rnrs hashtables)) (not (library (r6rs no-rnrs))))
+        (depends))
+      ((library (scheme complex))
+        (depends
+          (scheme complex)))
+      (else
+        (depends)))
+    (cond-expand
+      ((and (library (rnrs hashtables)) (not (library (r6rs no-rnrs))))
+        (depends
+          (rnrs hashtables)))
+      ((library (srfi 69 basic-hash-tables))
+        (depends
+          (srfi 69 basic-hash-tables)))
+      ((library (srfi 69))
+        (depends
+          (srfi 69)))
+      ((library (srfi :69 basic-hash-tables))
+        (depends
+          (srfi :69 basic-hash-tables)))
+      ((library (srfi :69))
+        (depends
+          (srfi :69)))
+      ((library (scheme char))
+        (depends
+          (scheme char)))
+      (else
+        (depends)))
+    (depends
+      (scheme base)
+      (scheme cxr)))
+  (manual "r6rsDoc.html")
+  (description "Port of (rnrs hashtables) to R7RS.")
+  (installed-files "lib/Snow/r6rs/hashtables.sld" "lib/Snow/r6rs/hashtables.atop69.scm"))

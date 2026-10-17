@@ -10,7 +10,7 @@ set -o errexit
 #
 ################################################################
 
-VERSION=0.0.1
+VERSION=0.0.2
 
 upload_snowball ()
 {
@@ -18,19 +18,20 @@ upload_snowball ()
   snow-chibi upload $1-${VERSION}.tgz
 }
 
-upload_snowball r6rs-base
-upload_snowball r6rs-bytevectors
-upload_snowball r6rs-control
-upload_snowball r6rs-enums
-upload_snowball r6rs-eval
-upload_snowball r6rs-exceptions
-upload_snowball r6rs-files
-upload_snowball r6rs-hashtables
-upload_snowball r6rs-io-simple
-upload_snowball r6rs-lists
-upload_snowball r6rs-mutable-pairs
-upload_snowball r6rs-mutable-strings
-upload_snowball r6rs-programs
-upload_snowball r6rs-r5rs
-upload_snowball r6rs-sorting
+# upload_snowball r6rs-base
+# upload_snowball r6rs-arithmetic-fixnums
+# upload_snowball r6rs-bytevectors
+# upload_snowball r6rs-control
+# upload_snowball r6rs-enums
+# upload_snowball r6rs-eval
+# upload_snowball r6rs-exceptions
+# upload_snowball r6rs-files
+# upload_snowball r6rs-hashtables
+# upload_snowball r6rs-io-simple
+# upload_snowball r6rs-lists
+# upload_snowball r6rs-mutable-pairs
+# upload_snowball r6rs-mutable-strings
+# upload_snowball r6rs-programs
+# upload_snowball r6rs-r5rs
+# upload_snowball r6rs-sorting
 upload_snowball r6rs-unicode

@@ -1,0 +1,34 @@
+(package
+  (url "/s/ccs.neu.edu/will/r6rs/unicode/0.0.0/r6rs-unicode-0.0.0.tgz")
+  (size 11264)
+  (updated "2015-05-06T16:39:41+00:00")
+  (created "2015-05-06T16:39:41+00:00")
+  (signature
+    (email "will@ccs.neu.edu")
+    (digest sha-256)
+    (sha-256 "4708f34cc67f4d2ddd50ae87b6efbc5140e1f7a229bb11f7a9c9cf41c0bcac58"))
+  (authors "William D Cinger <will@ccs.neu.edu>")
+  (version "0.0.0")
+  (license mit)
+  (library
+    (name
+      (r6rs unicode))
+    (path "r6rs/unicode.sld")
+    (cond-expand
+      ((library (scheme char))
+        (depends
+          (scheme char)
+          (r6rs unicode-reference unicode1)
+          (r6rs unicode-reference unicode3)
+          (r6rs unicode-reference unicode4)))
+      (else
+        (depends
+          (r6rs unicode-reference unicode1)
+          (r6rs unicode-reference unicode3)
+          (r6rs unicode-reference unicode4))))
+    (depends
+      (scheme base)
+      (scheme write)))
+  (manual "r6rslinks.html")
+  (description "Port of (rnrs unicode) to R7RS.")
+  (installed-files "lib/Snow/r6rs/unicode.sld"))

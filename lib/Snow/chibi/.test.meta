@@ -1,0 +1,34 @@
+(package
+  (url "/s/gmail.com/alexshinn/chibi/test/0.7.3/chibi-test-0.7.3.tgz")
+  (size 40448)
+  (updated "2015-05-10T14:29:00+00:00")
+  (created "2015-05-10T14:29:00+00:00")
+  (signature
+    (email "alexshinn@gmail.com")
+    (digest sha-256)
+    (sha-256 "124738d58df2bbc3e16590ecc54294ccd7e9e118cf972b1861caec4c48ec39c0")
+    (rsa "3e88bfef168117c491ca04e7895e0246217c329d44d85447fd7b95c52c0ef3d535e9323130d30ffd5fc72f00ed73c40f993b8e4c22b2bf66cf5de38497f5e6ca077e14652f8536c964f2725c10e4ca1c490c6d09a2747520008ef8703aac268d8fddd4d36148ac3f1314ad495fd5334953e28d2132909c0b7bc1ccc3e553c64a762896a48dab721757178da066678f46dde5fd480e79824543ea784761784b41d225056df04c4cff584958af22e6d9b329925e05ea87ae65b1b0f6c9efa03155cfa7dc9901963d01f5a03f4c6d96d38dbd3214e51e311f76600c9df670ce23b041af4d42fa0759d120d34568d4ca5912c50642321ccea2f79bdf283eff973e2b"))
+  (maintainers "Alex Shinn <alexshinn@gmail.com>")
+  (authors "Alex Shinn <alexshinn@gmail.com>")
+  (version "0.7.3")
+  (license bsd)
+  (library
+    (name
+      (chibi test))
+    (path "chibi/test.sld")
+    (cond-expand
+      (chibi
+        (depends
+          (chibi)))
+      (else
+        (depends)))
+    (depends
+      (scheme base)
+      (scheme write)
+      (scheme complex)
+      (scheme process-context)
+      (scheme time)
+      (chibi term ansi)))
+  (manual "chibi/test.html")
+  (description "Simple testing framework adapted from the Chicken test module.")
+  (installed-files "lib/Snow/chibi/test.sld" "lib/Snow/chibi/test.scm"))

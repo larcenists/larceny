@@ -20,6 +20,9 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
+;; SRFI 146 was revised after Larceny v1.3 was released,
+;; and now exports nine more identifiers.
+
 (define-library (srfi 146)
   (export mapping mapping-unfold
 	  mapping? mapping-contains? mapping-empty? mapping-disjoint?
@@ -50,7 +53,20 @@
 	  mapping-split
 	  mapping-catenate mapping-catenate!
 	  mapping-map/monotone mapping-map/monotone!
-	  mapping-fold/reverse)
+	  mapping-fold/reverse
+
+	  ;; added in Larceny v1.4
+
+	  mapping/ordered
+          mapping-unfold/ordered
+          mapping-adjoin
+          mapping-adjoin!
+          mapping-pop
+          mapping-pop!
+          alist->mapping/ordered
+          alist->mapping/ordered!
+          comparator?)
+
   (import (scheme base)
 	  (scheme case-lambda)
 	  (srfi 1)

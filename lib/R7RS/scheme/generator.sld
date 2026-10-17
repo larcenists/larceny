@@ -1,19 +1,46 @@
 ;;; (scheme generator)
 ;;;
-;;; R7RS Red Edition
+;;; R7RS Red Edition (same as SRFI 121)
+;;; R7RS Tangerine Edition (same as SRFI 158,
+;;;     which supersedes and is upwardly compatible with SRFI 121)
 
 (define-library (scheme generator)
-  (export generator make-iota-generator make-range-generator 
+
+;; Bindings exported by (srfi 121).
+;;
+;;(export generator make-iota-generator make-range-generator 
+;;        make-coroutine-generator list->generator vector->generator
+;;        reverse-vector->generator string->generator
+;;        bytevector->generator
+;;        make-for-each-generator make-unfold-generator
+;;        gcons* gappend gcombine gfilter gremove 
+;;        gtake gdrop gtake-while gdrop-while
+;;        gdelete gdelete-neighbor-dups gindex gselect
+;;        generator->list generator->reverse-list
+;;        generator->vector generator->vector!  generator->string
+;;        generator-fold generator-for-each generator-find
+;;        generator-count generator-any generator-every generator-unfold
+;;        )
+  
+  (export generator circular-generator make-iota-generator make-range-generator
           make-coroutine-generator list->generator vector->generator
           reverse-vector->generator string->generator
           bytevector->generator
-          make-for-each-generator make-unfold-generator
-          gcons* gappend gcombine gfilter gremove 
+          make-for-each-generator make-unfold-generator)
+  (export gcons* gappend gcombine gfilter gremove
           gtake gdrop gtake-while gdrop-while
-          gdelete gdelete-neighbor-dups gindex gselect
-          generator->list generator->reverse-list
+          gflatten ggroup gmerge gmap gstate-filter
+          gdelete gdelete-neighbor-dups gindex gselect)
+  (export generator->list generator->reverse-list
           generator->vector generator->vector!  generator->string
-          generator-fold generator-for-each generator-find
-          generator-count generator-any generator-every generator-unfold
-          )
-  (import (srfi 121)))
+          generator-fold generator-map->list generator-for-each generator-find
+          generator-count generator-any generator-every generator-unfold)
+  (export make-accumulator count-accumulator list-accumulator
+          reverse-list-accumulator vector-accumulator
+          reverse-vector-accumulator vector-accumulator!
+          string-accumulator bytevector-accumulator bytevector-accumulator!
+          sum-accumulator product-accumulator)
+
+;;(import (srfi 121))
+
+  (import (srfi 158)))
