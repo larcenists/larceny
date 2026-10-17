@@ -37,6 +37,8 @@
    u8? s8? u16? s16? u32? s32? u64? s64?
    f32? f64? c64? c128?
 
+   ;; FIXME: Why are these exported?
+
    larceny:numvec-hashcode->element-width
    larceny:numvec-hashcode->int-tag
    larceny:numvec-hashcode->symbol-tag

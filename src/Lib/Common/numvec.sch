@@ -147,20 +147,45 @@
 
 (rtd-printer-set! larceny:numvec-rtd larceny:numvec-write)
 
-(define (larceny:numvec->list numvec)
+(define (larceny:numvec->list numvec . rest)
   (let* ((hashcode (larceny:numvec.hashcode numvec))
          (sym (larceny:numvec-hashcode->symbol-tag hashcode))
          (width (larceny:numvec-hashcode->element-width hashcode))
          (getter (larceny:numvec-getter sym))
-	 (bv (larceny:numvec.bv numvec)))
+	 (bv (larceny:numvec.bv numvec))
+	 (n (bytevector-length bv)))
+
+    ;; lo and i are bytevector indexes
     
-    (define (loop i vals)
-      (if (< i 0)
+    (define (loop lo i vals)
+      (if (< i lo)
 	  vals
-	  (loop (- i width)
+	  (loop lo
+		(- i width)
 		(cons (getter bv i) vals))))
 
-    (loop (- (bytevector-length bv) width) '())))
+    (if (null? rest)
+	(loop 0 (- n width) '())        ; fast path
+	
+	;; Note that start and end are element indexes,
+	;; but the loop works with bytevector indexes.
+	;; FIXME: That's because this code started out
+	;; without any rest argument, to be used only
+	;; for writing numeric vectors, but it has been
+	;; generalized for use by SRFI 160.
+
+	(let* ((k (quotient n width))
+	       (start (if (null? rest) 0 (car rest)))
+	       (end (if (or (null? rest) (null? (cdr rest)))
+			k
+			(cadr rest))))
+	  (if (and (fixnum? start)
+		   (fixnum? end)
+		   (<= 0 start end k))
+	      (loop (* width start)
+		    (- (* width end) width)
+		    '())
+	      (error "arguments out of range: " numvec start end))))))
 
 ;;; The getter and setter procedures for a numeric vector.
 

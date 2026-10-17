@@ -103,11 +103,11 @@
 
 (define (larceny-specific->list symtag)
   (let* ((int-tag (larceny:numvec-symtag->int-tag symtag)))
-    (lambda (v)
+    (lambda (v . rest)
       (if (and (numeric-vector? v)
                (eq? int-tag
                     (fxlogand int-tag-mask (larceny:numvec.hashcode v))))
-          (larceny:numvec->list v)
+          (apply larceny:numvec->list v rest)
           (vector-error symtag v)))))
 
 ;;; Main constructor
