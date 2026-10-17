@@ -10,6 +10,7 @@
 (define max-random (expt 2 20)) ; 20 bits of hash code
 (define int-tag-size 8)         ; 8 bits of an integer type subtag
 (define int-tag-mask (- (expt 2 int-tag-size) 1))
+(define width-mask #x1f)
 
 (define (fill! bv val width size setter!)
   (define (loop i)
@@ -26,11 +27,11 @@
   (error "not a numeric vector of the required subtype: " symtag val))
 
 (define (index-error v i)
-  (error "index out of range: " v i))     ; FIXME: Larceny has standard range errors
+  (error "index out of range: " v i)) ; FIXME: should use standard range error
 
 (define (larceny-maker symtag)
   (let* ((int-tag (larceny:numvec-symtag->int-tag symtag))
-         (width (fxlogand int-tag int-tag-mask))
+         (width (fxlogand int-tag width-mask))
          (ok? (larceny:numvec-predicate symtag))
          (setter! (larceny:numvec-setter symtag)))
     (lambda (size . maybe-value)
@@ -51,14 +52,16 @@
   (let ((int-tag (larceny:numvec-symtag->int-tag symtag)))
     (lambda (obj)
       (and (numeric-vector? obj)
-           (eq? int-tag (fxlogand int-tag-mask (larceny:numvec.hashcode obj)))))))
+           (eq? int-tag
+                (fxlogand int-tag-mask (larceny:numvec.hashcode obj)))))))
 
 (define (larceny-specific-vector-length symtag)
   (let* ((int-tag (larceny:numvec-symtag->int-tag symtag))
          (width (larceny:numvec-symtag->width symtag)))
     (lambda (obj)
       (if (and (numeric-vector? obj)
-               (eq? int-tag (fxlogand int-tag-mask (larceny:numvec.hashcode obj))))
+               (eq? int-tag
+                    (fxlogand int-tag-mask (larceny:numvec.hashcode obj))))
           (/ (bytevector-length (larceny:numvec.bv obj)) width)
           (vector-error symtag obj)))))
 
@@ -68,7 +71,8 @@
          (getter (larceny:numvec-getter symtag)))
     (lambda (v i)
       (if (and (numeric-vector? v)
-               (eq? int-tag (fxlogand int-tag-mask (larceny:numvec.hashcode v))))
+               (eq? int-tag
+                    (fxlogand int-tag-mask (larceny:numvec.hashcode v))))
           (let* ((bv (larceny:numvec.bv v))
                  (n (- (bytevector-length bv) 1))
                  (j (* width i)))
@@ -84,7 +88,8 @@
          (ok? (larceny:numvec-predicate symtag)))
     (lambda (v i x)
       (if (and (numeric-vector? v)
-               (eq? int-tag (fxlogand int-tag-mask (larceny:numvec.hashcode v)))
+               (eq? int-tag
+                    (fxlogand int-tag-mask (larceny:numvec.hashcode v)))
                (ok? x))
           (let* ((bv (larceny:numvec.bv v))
                  (n (- (bytevector-length bv) 1))
@@ -100,7 +105,8 @@
   (let* ((int-tag (larceny:numvec-symtag->int-tag symtag)))
     (lambda (v)
       (if (and (numeric-vector? v)
-               (eq? int-tag (fxlogand int-tag-mask (larceny:numvec.hashcode v))))
+               (eq? int-tag
+                    (fxlogand int-tag-mask (larceny:numvec.hashcode v))))
           (larceny:numvec->list v)
           (vector-error symtag v)))))
 
@@ -149,8 +155,8 @@
 (define s64vector?  (larceny-specific-vector-predicate 's64))
 (define f32vector?  (larceny-specific-vector-predicate 'f32))
 (define f64vector?  (larceny-specific-vector-predicate 'f64))
-(define c64vector?  (larceny-specific-vector-predicate 'c64))    ; not part of (srfi 4)
-(define c128vector? (larceny-specific-vector-predicate 'c128))   ; not part of (srfi 4)
+(define c64vector?  (larceny-specific-vector-predicate 'c64))  ; not (srfi 4)
+(define c128vector? (larceny-specific-vector-predicate 'c128)) ; not (srfi 4)
 
 ;; Length
 
@@ -165,8 +171,8 @@
 (define s64vector-length  (larceny-specific-vector-length 's64))
 (define f32vector-length  (larceny-specific-vector-length 'f32))
 (define f64vector-length  (larceny-specific-vector-length 'f64))
-(define c64vector-length  (larceny-specific-vector-length 'c64))    ; not part of (srfi 4)
-(define c128vector-length (larceny-specific-vector-length 'c128))   ; not part of (srfi 4)
+(define c64vector-length  (larceny-specific-vector-length 'c64)) ; not (srfi 4)
+(define c128vector-length (larceny-specific-vector-length 'c128)); not (srfi 4)
 
 ;; Get element
 
@@ -181,8 +187,8 @@
 (define s64vector-ref  (larceny-specific-vector-ref 's64))
 (define f32vector-ref  (larceny-specific-vector-ref 'f32))
 (define f64vector-ref  (larceny-specific-vector-ref 'f64))
-(define c64vector-ref  (larceny-specific-vector-ref 'c64))    ; not part of (srfi 4)
-(define c128vector-ref (larceny-specific-vector-ref 'c128))   ; not part of (srfi 4)
+(define c64vector-ref  (larceny-specific-vector-ref 'c64)) ; not (srfi 4)
+(define c128vector-ref (larceny-specific-vector-ref 'c128)); not (srfi 4)
 
 ;; Set element
 
@@ -197,14 +203,14 @@
 (define s64vector-set!  (larceny-specific-vector-set! 's64))
 (define f32vector-set!  (larceny-specific-vector-set! 'f32))
 (define f64vector-set!  (larceny-specific-vector-set! 'f64))
-(define c64vector-set!  (larceny-specific-vector-set! 'c64))    ; not part of (srfi 4)
-(define c128vector-set! (larceny-specific-vector-set! 'c128))   ; not part of (srfi 4)
+(define c64vector-set!  (larceny-specific-vector-set! 'c64))  ; not (srfi 4)
+(define c128vector-set! (larceny-specific-vector-set! 'c128)) ; not (srfi 4)
 
 ;; Vec to list
 
 (define (u8vector->list vec)
   (if (u8vector? vec)
-      (larceny:numvec->list vec)
+      (bytevector->list vec)
       (vector-error 'u8 vec)))
 
 (define s8vector->list   (larceny-specific->list 's8))
@@ -216,8 +222,8 @@
 (define s64vector->list  (larceny-specific->list 's64))
 (define f32vector->list  (larceny-specific->list 'f32))
 (define f64vector->list  (larceny-specific->list 'f64))
-(define c64vector->list  (larceny-specific->list 'c64))    ; not part of (srfi 4)
-(define c128vector->list (larceny-specific->list 'c128))   ; not part of (srfi 4)
+(define c64vector->list  (larceny-specific->list 'c64))    ; not (srfi 4)
+(define c128vector->list (larceny-specific->list 'c128))   ; not (srfi 4)
 
 ;; List to vec
 
