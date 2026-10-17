@@ -29,6 +29,7 @@ lbracket
 rbracket
 vecstart
 bvecstart
+nvecstart
 quote
 backquote
 comma
@@ -74,6 +75,7 @@ xstring
 <structured>      ::=  <list>                                   #identity
                   ::=  <vector>                                 #identity
                   ::=  <bytevector>                             #identity
+                  ::=  <numvector>                              #identity
 <symbol>          ::=  id                                       #makeSym
 <list>            ::=  lparen <list2>                           #identity
                   ::=  lbracket <blst2>                         #identity
@@ -102,6 +104,8 @@ xstring
 <vector>          ::=  vecstart <data> rparen             #list2vector
 <bytevector>      ::=  bvecstart <octets> rparen          #list2bytevector
                   ::=  xfaslb                             #makeCodevector
+<numvector>       ::=  <symtag> <data> rparen             #makeNumvec
+<symtag>          ::=  nvecstart                          #makeSymtag
 
 <data>            ::=                                           #emptyList
                   ::=  <datum> <data>                           #cons
