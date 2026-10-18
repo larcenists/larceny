@@ -97,6 +97,8 @@
 
 #define bounded_decrement( x, y ) if (x > 0) x = max( 0, x - (y) );
 
+#include <limits.h>
+
 #include "larceny.h"
 #include "gc_t.h"
 #include "gclib.h"
@@ -420,10 +422,15 @@ static int expand_bitmap_core( smircy_context_t *context,
          lowest_heap_address_new, highest_heap_address_new,
          lowest_heap_address_old, highest_heap_address_old );
 
+  /* Cover the old range, the requested one, and the memory gclib knows
+     (memory_range); the requested range may hold memory that gclib's
+     range does not (the code space, for example). */
   words_in_bitmap_new = 
     allocate_bitmap_expanding_from( context /* (mutates context) */ ,
-                                    lowest_heap_address_old, 
-                                    highest_heap_address_old);
+                                    min( lowest_heap_address_old,
+                                         lowest_heap_address_new ),
+                                    max( highest_heap_address_old,
+                                         highest_heap_address_new ));
 
   bitmap_new = context->bitmap;
 
@@ -556,16 +563,21 @@ static word *allocate_new_bitmap( char **lowest_inout, char **highest_inout,
                                   int *words_in_bitmap_recv ) {
   char *lowest, *highest;
   char *highest_adjusted;
-  int max_obj_count;
-  int words_in_bitmap; 
+  word max_obj_count;
+  word words_in_bitmap; 
   word *bitmap;
 
   memory_range( lowest_inout, highest_inout );
   lowest = *lowest_inout;
   highest = *highest_inout;
-  /* Upper bound on number of objects that fit in memory range. */
-  max_obj_count = CEILDIV(highest-lowest,MIN_BYTES_PER_OBJECT);
+  /* Upper bound on number of objects that fit in memory range.  (In
+     words: the range may span more than 2^31 objects, 32GB, on a 64-bit
+     system, beyond what the int fields can describe.) */
+  max_obj_count = CEILDIV((word)(highest-lowest),MIN_BYTES_PER_OBJECT);
   words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
+  if (words_in_bitmap > INT_MAX/sizeof(word))
+    panic_exit( "smircy: the heap spans too many addresses for the mark bitmap"
+                " (%p to %p)", (void*)lowest, (void*)highest );
 
 #if 1
   /* (allocated to page boundary; utilize (expectedly small) space) */
@@ -592,8 +604,8 @@ static word *allocate_new_bitmap( char **lowest_inout, char **highest_inout,
 static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_old, int words_in_old, 
                            word *bitmap_new, word *lo_addr_new, word *hi_addr_new, int words_in_new ) {
   int i;
-  int offset_bit_idx = ((char*)lo_addr_old - (char*)lo_addr_new) >> BIT_IDX_SHIFT;
-  int offset_word_idx = offset_bit_idx >> BIT_IDX_TO_WORD_IDX;
+  word offset_bit_idx = ((char*)lo_addr_old - (char*)lo_addr_new) >> BIT_IDX_SHIFT;
+  int offset_word_idx = (int)(offset_bit_idx >> BIT_IDX_TO_WORD_IDX);
   word testobj;
   assert( words_in_old > 0 );
   assert( offset_word_idx+words_in_old <= words_in_new );
