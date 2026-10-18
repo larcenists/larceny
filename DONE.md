@@ -18,6 +18,14 @@ here; see CLAUDES_CHOICES.md for the triage of its list.
 - Petit: implicit continuation ids collided with Twobit's labels in a
   segment with over a thousand lambdas, so gcc rejected the C
   (9989faac).
+- The regional collector, from safehouse's hunt for a rare -rrof
+  crash (ported without reproducing them): a generation read before a
+  forward that adds a region (d71f4b3d), extbmp's tree walk in 32-bit
+  arithmetic (17822b42), smircy's expanded mark bitmap too small
+  (dbac36ef), extbmp membership truncated to an int-sized bool
+  (e65fecc7), the startup SSBs all tagged as the nursery's (f15afda8),
+  and -rhashrep skipping the static area's minor remembered set
+  (7dd8f116).
 
 ## 2026-10-10
 

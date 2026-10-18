@@ -17,26 +17,54 @@ while doing that without the user at hand.
 - Already here: 2.1-2.7, 2.8 (first half, b35db420), 2.9-2.11, 3.1,
   3.2, 3.5, 3.6, 4.2-4.5, 5.  Not examined further.
 - Not here: 1.1-1.7, 2.8 (second half, 9d8c338d), 3.3, 3.4, 4.1 (and
-  543e91ec, listed under 4.1).
+  543e91ec, listed under 4.1).  All ported except 1.6 and 543e91ec;
+  see below.
 - To fetch safehouse's commits, accomplice has a remote
   `safehouse-local` pointing at ~/Dev/LangPlay/safehouse.  It can be
   removed with `git remote remove safehouse-local`.
 
-## Section 1 (the regional collector and base.sps): skipped
+## Section 1 (the regional collector and base.sps)
 
 - I started a stress run of base.sps under -rrof here (384 runs), and
   the user then said that the base.sps -rrof crash may be a hardware
   fault of this machine that shows only under high load, and not to
-  try to reproduce or fix it.  I stopped the run (no results kept)
-  and left all of section 1 alone, since all of its entries came from
-  the hunt for that crash.
-- For the record, some of them are plain code defects that do not
-  depend on the crash, and could be taken separately if wanted.  The
-  defective lines are all still in accomplice: 1.2 (extbmp.c's
-  `unsigned int delta` and `>` for a half-open range), 1.4
-  (extbmp.c's `return bitmap_word & bit` as an int-sized `bool`), 1.5
-  (memmgr.c's SSBs all created with data 0), 1.1 (cheney.c/cheney.h
-  reading `gen_of` once before forwarding).
+  try to reproduce or fix it.  I stopped the run (no results kept).
+- The user then clarified: fix and document the obvious code errors,
+  but run no tests that put the machine under load.  So section 1's
+  fixes were ported without reproducing them (each needs many runs
+  under load, or rr), after checking that the defective code here was
+  the same as safehouse's before its fix.  One commit each:
+  - 1.1, a generation read before a forward that adds a region
+    (d71f4b3d);
+  - 1.2, extbmp's tree walk in 32-bit arithmetic (17822b42);
+  - 1.3, smircy's expanded mark bitmap too small (dbac36ef);
+  - 1.4, extbmp membership truncated to an int-sized bool (e65fecc7);
+  - 1.5, the startup SSBs all tagged with the nursery's number
+    (f15afda8);
+  - 1.7, -rhashrep skipping the static area's minor remembered set
+    (7dd8f116).
+- Not ported: 1.6 (clearing a slot whose location the snapshot filter
+  drops, a8a7d1dc) and the oracle changes that came with it
+  (f1aeb0c3).  1.6 is not an obvious code error but a change to how
+  refinement and the summary filters work together; safehouse
+  justified it with an argument about the snapshot and confirmed it
+  only by oracle runs on base.sps.  Also not ported: safehouse's
+  debugging tools for that hunt (perf clock, quarantine, poisoning,
+  oracle pacing).
+- FIXED.md suggests searching the runtime for the 1.4 pattern
+  (returning or assigning `x & mask` as a bool).  A grep of
+  src/Rts/Sys, Shared and Fence found no other instance.
+- Tests (ordinary runs, a few processes at a time): after each commit,
+  test/Lib under the default collector, -stopcopy and -rrof (and
+  -rrof -rhashrep for 1.7); after all six, the full suites (test/Lib
+  x3, compiler, R7RS 39 passed, R6RS 15 passed) and test/GC's
+  vector-move, card-marking, scan-after-large-objects, big-objects,
+  large-nursery and dead-registers under the default collector,
+  -rrof, -rrof -size1 2M, -rrof -rhashrep and -stopcopy.  All pass
+  except dead-registers, which says "kept" except under -stopcopy;
+  the binary from before these commits does the same.  That is the
+  register masks not applying on x86-64, which safehouse lists among
+  the bugs not inherited from upstream; not taken up here.
 
 ## Entries
 
