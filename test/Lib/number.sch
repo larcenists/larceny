@@ -42,7 +42,9 @@
   (test-sundry-arithmetic)
   (test-in-out-conversion)
   (test-trancendental-functions)
-  (test-inline-predicates))
+  (test-inline-predicates)
+  (if (environment-variable? (interaction-environment) 'fl=)
+      (test-larceny-flonum-procedures)))
 
 ; zero?, integer?, exact? and inexact? are in line for fixnums, millicode
 ; otherwise, and zero? also as a branch.  The arguments come from a list
@@ -1200,5 +1202,40 @@
      (test "(atan  0.75)"  (atan  0.75)  0.6435011087932844))
 
    ))
+
+; Larceny's fl=, fl<, fl<=, fl>, fl>= and fl-- (native Larceny only;
+; not R6RS's fl=? and the like): primitives in line, procedures as
+; values or with more than two arguments, and errors for non-flonums.
+; They once called themselves forever.
+
+(define (test-larceny-flonum-procedures)
+  (let* ((args (list 1. 2. 2. (/ 0. 0.) 0.))
+         (one (car args))
+         (two (cadr args))
+         (nan (cadddr args))
+         (zero (car (cddddr args)))
+         (procs (list fl= fl< fl<= fl> fl>=)))
+    (allof "Larceny's flonum procedures"
+     (test "in line"
+           (list (fl= one two) (fl< one two) (fl<= two two)
+                 (fl> one two) (fl>= two one))
+           '(#f #t #t #f #t))
+     (test "as values"
+           (map (lambda (p) (p one two)) procs)
+           '(#f #t #t #f #f))
+     (test "more arguments"
+           (list (fl< one two 3.) (fl< one 3. two) (apply fl= args)
+                 (apply fl<= (list one two 2.)))
+           '(#t #f #f #t))
+     (test "NaN"
+           (map (lambda (p) (p nan nan)) procs)
+           '(#f #f #f #f #f))
+     (test "fl--"
+           (list (fl-- one) (eqv? (fl-- zero) -0.) (eqv? (fl-- -0.) 0.))
+           '(-1. #t #t))
+     (mustfail "fl= of a fixnum" fl= 1 two)
+     (mustfail "fl< of a symbol" fl< one 'x)
+     (mustfail "fl>= of a fixnum, more arguments" fl>= two one 0)
+     (mustfail "fl-- of a fixnum" fl-- 3))))
 
 ; eof

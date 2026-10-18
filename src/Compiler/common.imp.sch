@@ -377,7 +377,8 @@
   '(make-vector make-bytevector make-string make-ustring
     = < > <= >=
     + * - /
-    char=? char<? char>? char<=? char>=?))
+    char=? char<? char>? char<=? char>=?
+    fl= fl< fl> fl<= fl>=))
 
 ; The list of compiler macros has been rewritten to avoid the
 ; use of quasiquote on large structures.  Larceny's quasiquote

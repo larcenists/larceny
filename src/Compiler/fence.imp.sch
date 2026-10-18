@@ -518,16 +518,20 @@
     (fxzero?      1 fxzero?      #f            211 ,:immortal ,:none #f)
     (fxpositive?  1 fxpositive?  #f            212 ,:immortal ,:none #f)
     (fxnegative?  1 fxnegative?  #f            213 ,:immortal ,:none #f)
+
+    ; Larceny's flonum procedures (not R6RS's fl=? and the like, which
+    ; are compiler macros in common.imp.sch): they check that their
+    ; arguments are flonums.  fl-- negates with millicode.
+    (fl--         1 fl--         #f            302 ,:immortal ,:none #t)
+    (fl=          2 fl=          #f            304 ,:immortal ,:none #f)
+    (fl<          2 fl<          #f            305 ,:immortal ,:none #f)
+    (fl<=         2 fl<=         #f            306 ,:immortal ,:none #f)
+    (fl>          2 fl>          #f            307 ,:immortal ,:none #f)
+    (fl>=         2 fl>=         #f            308 ,:immortal ,:none #f)
 ; FIXME: not implemented
 ;    (fl+          2 +            #f            300 ,:immortal ,:none #f)
 ;    (fl-          2 -            #f            301 ,:immortal ,:none #f)
-;    (fl--         1 --           #f            302 ,:immortal ,:none #f)
 ;    (fl*          2 *            #f            303 ,:immortal ,:none #f)
-;    (fl=          2 =            #f            304 ,:immortal ,:none #f)
-;    (fl<          2 <            #f            305 ,:immortal ,:none #f)
-;    (fl<=         2 <=           #f            306 ,:immortal ,:none #f)
-;    (fl>          2 >            #f            307 ,:immortal ,:none #f)
-;    (fl>=         2 >=           #f            308 ,:immortal ,:none #f)
 
     ; Temporary because they are used for bootstrapping
 

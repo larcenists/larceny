@@ -1612,6 +1612,9 @@
          (begin
            (cant.movi as 0 $r.tmp)
            (cant.sub  as $r.tmp rs rd))))
+    ((fl--)
+     (emit-check-flonum as rs $ex.fl--)
+     (trap1 $m.negate))
     ((fxzero?)
      (emit-check-fixnum as rs $ex.fxzero?)
      (cant.setcci as 'equal rs 0 rd))
@@ -2122,6 +2125,21 @@
      (cant.andni    as rd 3 rd))
     ((rot)
      (error "ROT is not implemented, was it ever?"))
+    ((fl=)
+     (emit-check-flonums as rs1 rs2 $ex.fl=)
+     (flonum-compare 'equal))
+    ((fl<)
+     (emit-check-flonums as rs1 rs2 $ex.fl<)
+     (flonum-compare 'less))
+    ((fl<=)
+     (emit-check-flonums as rs1 rs2 $ex.fl<=)
+     (flonum-compare 'less-or-equal))
+    ((fl>)
+     (emit-check-flonums as rs1 rs2 $ex.fl>)
+     (flonum-compare 'greater))
+    ((fl>=)
+     (emit-check-flonums as rs1 rs2 $ex.fl>=)
+     (flonum-compare 'greater-or-equal))
     ((+:flo:flo)
      (flonum-math cant.fadd))
     ((-:flo:flo)
@@ -2726,6 +2744,22 @@
        as
        (lambda (L) (cant.bcci as 'low2-not-equal reg 0 L))
        (lambda () (emit-exception as exn reg)))))
+
+(define (emit-check-flonum as reg exn)
+  (if (runtime-safety-checking)
+      (emit-check-branch
+       as
+       (lambda (L) (emit-branch-unless-flonum as reg L))
+       (lambda () (emit-exception as exn reg)))))
+
+(define (emit-check-flonums as reg1 reg2 exn)
+  (if (runtime-safety-checking)
+      (emit-check-branch
+       as
+       (lambda (L)
+         (emit-branch-unless-flonum as reg1 L)
+         (emit-branch-unless-flonum as reg2 L))
+       (lambda () (emit-exception as exn reg1 reg2)))))
 
 (define (emit-check-positive-fixnum as reg exn)
   (if (runtime-safety-checking)
