@@ -2,6 +2,23 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-18
+
+Bugs found by safehouse (another port of Larceny) and reproduced
+here; see CLAUDES_CHOICES.md for the triage of its list.
+
+- Stop-and-copy: a stack overflow with a frame larger than STACK_ROOM
+  could loop forever (a 12KB frame hung -stopcopy) (b3c7e9a3).
+- Fence: fl=, fl<, fl<=, fl>, fl>= and fl-- called themselves forever;
+  they are now primitives (4dedad64).  Tested in test/Lib/number.sch.
+- References to undefined names on error paths: bitwise-not of a
+  non-integer returned a symbol, the R6RS record mutator's range error
+  and the reader's undefined SRFI 38 label reported undefined globals,
+  and several latent ones (b9eca68c).  Tested in test/Lib/except.sch.
+- Petit: implicit continuation ids collided with Twobit's labels in a
+  segment with over a thousand lambdas, so gcc rejected the C
+  (9989faac).
+
 ## 2026-10-10
 
 - Native Larceny for x86-64 Linux (branch x86-64-native): an x86-64 back
