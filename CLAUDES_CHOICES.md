@@ -65,6 +65,11 @@ while doing that without the user at hand.
   the binary from before these commits does the same.  That is the
   register masks not applying on x86-64, which safehouse lists among
   the bugs not inherited from upstream; not taken up here.
+- Petit, rebuilt at 7862210f: the full suites, and vector-move,
+  card-marking and scan-after-large-objects under the default
+  collector, -rrof, -rrof -rhashrep and -stopcopy, all pass.
+  (card-marking under -rrof -rhashrep takes about 7 minutes on Petit,
+  before these commits too.)
 
 ## Entries
 
@@ -157,7 +162,6 @@ while doing that without the user at hand.
   test/Compiler, test/R7RS/Lib's testall (39 passed) and
   testr6rs-larceny (15 passed), all in copies of the test directories.
 - Petit x86-64: the same suites in ~/Dev/LangPlay/accomplice-petit,
-  rebuilt with all four fixes.  That worktree is detached at b9eca68c
-  with the Petit fix as an uncommitted change (identical to 9989faac);
-  remove it with `git worktree remove --force ../accomplice-petit`
+  rebuilt at 7862210f (all the fixes).  That worktree is detached
+  there; remove it with `git worktree remove --force ../accomplice-petit`
   when it is not wanted.
