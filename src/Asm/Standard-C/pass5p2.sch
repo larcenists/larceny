@@ -31,6 +31,7 @@
 (define (assembly-start as)
   (let ((u (as-user as)))
     (user-data.proc-counter! u 0)
+    (user-data.label-range! u (label-range (as-source as)))
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
   (let ((e (new-proc-id as)))
     (as-source! as (cons (list $.entry e #t) (as-source as)))))
@@ -55,17 +56,43 @@
 	      '("#define INLINE_ASSIGNMENT")
 	      '())))
 
-; User-data structure has two fields:
+; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
+;  label-range          (min . max) of the segment's MAL labels, or #f
 
-(define (make-user-data) (list 0 0))
+(define (make-user-data) (list 0 0 #f))
 
 (define (user-data.toplevel-counter u) (car u))
 (define (user-data.proc-counter u) (cadr u))
+(define (user-data.label-range u) (car (cddr u)))
 
 (define (user-data.toplevel-counter! u x) (set-car! u x))
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
+(define (user-data.label-range! u x) (set-car! (cddr u) x))
+
+; The least and greatest labels of the MAL source, including its nested
+; lambda expressions, or #f if it has none.
+
+(define (label-range source)
+  (let loop ((source source) (range #f))
+    (if (null? source)
+        range
+        (let ((instruction (car source)))
+          (loop (cdr source)
+                (cond ((eqv? (car instruction) $.label)
+                       (let ((n (cadr instruction)))
+                         (if range
+                             (cons (min n (car range)) (max n (cdr range)))
+                             (cons n n))))
+                      ((eqv? (car instruction) $lambda)
+                       (let ((nested (loop (operand1 instruction) #f)))
+                         (cond ((not nested) range)
+                               ((not range) nested)
+                               (else
+                                (cons (min (car nested) (car range))
+                                      (max (cdr nested) (cdr range)))))))
+                      (else range)))))))
 
 
 ; Assembly listing.
@@ -737,9 +764,17 @@
         ((char? x)                (char->immediate x))
 	(else ???)))
 
+; The ids number the implicit continuations (compiled_temp_x_y) too,
+; and both they and the labels are case values in the procedure that
+; holds them, so the ids skip the labels' range.
+
 (define (new-proc-id as)
   (let* ((u (as-user as))
-	 (x (user-data.proc-counter u)))
+         (range (user-data.label-range u))
+	 (x (user-data.proc-counter u))
+         (x (if (and range (<= (car range) x (cdr range)))
+                (+ 1 (cdr range))
+                x)))
     (user-data.proc-counter! u (+ 1 x))
     x))
 
