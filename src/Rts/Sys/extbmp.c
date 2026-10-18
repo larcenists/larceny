@@ -660,7 +660,9 @@ bool extbmp_add_elem( extbmp_t *ebmp, word untagged_w )
 #endif
 
   entry_word = leaf->bitmap[ word_idx ];
-  retval = entry_word & bit_in_word;
+  /* bool is an int-sized enum: test the bit, or a bit past the 32nd
+     of a 64-bit word would read as FALSE. */
+  retval = ((entry_word & bit_in_word) != 0);
   entry_word |= bit_in_word;
   leaf->bitmap[ word_idx ] = entry_word;
 
@@ -731,7 +733,7 @@ bool extbmp_is_member( extbmp_t *ebmp, word untagged_w )
   word_idx    = bit_idx >> BIT_IDX_TO_WORDADDR;
   bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
 
-  return (leaf->bitmap[ word_idx ] & bit_in_word);
+  return ((leaf->bitmap[ word_idx ] & bit_in_word) != 0);   /* see extbmp_add_elem */
 }
 
 static void kill_member( extbmp_t *ebmp, word untagged_w ) 
