@@ -784,11 +784,21 @@ static void root_scanner_oflo( word *ptr, void *data )
              e->dest, e->lim, e, check_space_expand );
 }
 
+/* The generation of the object being scanned, read each time: a
+   forward can add a region (expand_space, find_space_rgnl), which
+   renumbers the static area (expand_static_area_gnos) and gives the new
+   region the static area's old number.  With the number read on entry,
+   a static object's slot that now points into the new region looks like
+   it points into its own generation, and the object leaves the
+   remembered set though it points into a region; that region's
+   summary then misses the slot, and collecting the region frees a live
+   object. */
+#define OBJ_GEN gen_of( object )
+
 static bool remset_scanner_oflo( word object, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   gset_t       forw_gset = e->forw_gset;
-  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
   word         *lim = e->lim;
@@ -829,7 +839,7 @@ static bool remset_scanner_oflo( word object, void *data )
           forw_oflo_record_track_old2young( loc, forward_nursery_and,
                                             forw_gset, dest, lim,
                                             card_has_intergen_ptr,
-                                            old_obj_gen, e,
+                                            OBJ_GEN, e,
                                             check_space_expand );
         if (card_has_intergen_ptr)
           has_intergen_ptr = 1;
@@ -843,7 +853,7 @@ static bool remset_scanner_oflo( word object, void *data )
                          forw_oflo_record_track_old2young 
                                          ( loc, forward_nursery_and, forw_gset,
                                            dest, lim,
-                                           has_intergen_ptr, old_obj_gen, e, 
+                                           has_intergen_ptr, OBJ_GEN, e, 
                                            check_space_expand ) );
 
   e->dest = dest;
@@ -855,7 +865,6 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   gset_t       forw_gset = e->forw_gset;
-  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
   word         *lim = e->lim;
@@ -908,7 +917,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
           forw_oflo_record_track_any2other( loc, forward_nursery_and,
                                             forw_gset, dest, lim,
                                             card_has_intergen_ptr,
-                                            old_obj_gen,
+                                            OBJ_GEN,
                                             e, check_space_expand );
         if (card_has_intergen_ptr)
           has_intergen_ptr = 1;
@@ -926,7 +935,7 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
       ( e, object, loc, 
         forw_oflo_record_track_any2other( loc, 
                           forward_nursery_and, forw_gset, dest, lim,
-                          has_intergen_ptr, old_obj_gen, e, 
+                          has_intergen_ptr, OBJ_GEN, e, 
                           check_space_expand ),
         update_remset );
 
@@ -934,6 +943,8 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
   e->lim = lim;
   return has_intergen_ptr;
 }
+
+#undef OBJ_GEN
 
 /* The scan is done when it has reached dest in the chunk that dest
  * points into.  Comparing the pointers alone is not enough: when

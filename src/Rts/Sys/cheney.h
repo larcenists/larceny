@@ -271,12 +271,13 @@ static void stop( void )
     }                                                                         \
   } while (0)
 
+/* The object's generation is read after each FORW, not once: a forward
+   can add a region, which renumbers the static area and gives the new
+   region the static area's old number (see OBJ_GEN in cheney.c).  */
 #define scan_update_rs( e, ptr, iflush, FORW, UPDATE_REMSET )                 \
   do {                                                                        \
     word *scan_core_old_ptr = ptr, T_w = *ptr;                                \
-    int g_lhs, g_rhs;                                                         \
     assert2( T_w != FORWARD_HDR);                                             \
-    g_lhs = gen_of(ptr);                                                      \
     if (ishdr( T_w )) {                                                       \
       word T_h = header( T_w );                                               \
       if (T_h == BV_HDR) {                                                    \
@@ -301,7 +302,7 @@ static void stop( void )
           T_words--;                                                          \
           FORW;                                                               \
           updated =                                                           \
-            UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                       \
+            UPDATE_REMSET( e, scan_core_old_ptr, gen_of( scan_core_old_ptr ),                       \
                            ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG),               \
                            ((byte*)ptr - (byte*)scan_core_old_ptr),           \
                            *ptr );                                            \
@@ -318,14 +319,14 @@ static void stop( void )
     else {                                                                    \
       bool upd;                                                               \
       FORW;                                                                   \
-      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,             \
+      upd = UPDATE_REMSET( e, scan_core_old_ptr, gen_of( scan_core_old_ptr ), PAIR_TAG,             \
                            ((byte*)ptr - (byte*)scan_core_old_ptr),           \
                            *ptr );                                            \
       ptr++;                                                                  \
       FORW;                                                                   \
       if (!upd)                                                               \
         upd =                                                                 \
-          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,               \
+          UPDATE_REMSET( e, scan_core_old_ptr, gen_of( scan_core_old_ptr ), PAIR_TAG,               \
                          ((byte*)ptr - (byte*)scan_core_old_ptr),             \
                          *ptr );                                              \
       ptr++;                                                                  \
