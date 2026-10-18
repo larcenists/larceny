@@ -4256,11 +4256,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
     DATA(gc)->ssb_entry_count = info->ssb;
     for ( i = 0; i < gc->gno_count ; i++ ) {
-      /* nursery has one too! */
+      /* nursery has one too!  Its data is its region's number, which
+         ssb_process_rrof adds the entries to the summary of; until
+         expand_remset_gnos renumbers them, when the first region is
+         added, that was 0 for every SSB, and entries flushed into a
+         summarized region were left out of its summary. */
       gc->ssb[i] = 
         create_seqbuf( DATA(gc)->ssb_entry_count, 
                        &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
-                       ssb_process_rrof, 0 );
+                       ssb_process_rrof, (void*)(intptr_t) i );
     }
     gc->satb_ssb = create_seqbuf( DATA(gc)->ssb_entry_count, 
                                   &data->satb_ssb_bot, 
