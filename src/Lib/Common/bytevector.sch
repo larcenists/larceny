@@ -462,7 +462,7 @@
       (bytevector-u8-set! b i (car vals)))
     b))
 
-(define (s8-list->bytevector l)
+(define (s8-list->bytevector vals)
   (let* ((n (length vals))
          (b (make-bytevector n)))
     (do ((vals vals (cdr vals))

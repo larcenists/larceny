@@ -5,7 +5,8 @@
 
 (define (run-exception-tests)
   (run-r5rs-exception-tests)
-  (run-handler-tests))
+  (run-handler-tests)
+  (run-error-path-tests))
 
 ; with-exception-handler catches the errors that primitives signal, as
 ; well as those raised by error (in R5RS mode too), and a handler
@@ -39,6 +40,50 @@
                       (lambda () (car 1)))))))
          'error-handler)
    (test "no error" (catch (lambda () 'fine)) 'fine)))
+
+;;; Error paths that once referred to names nothing defines, so that
+;;; they returned a symbol or reported an undefined global instead of
+;;; the error.
+
+(define (run-error-path-tests)
+
+  (define (message-of thunk)            ; the error's message, or #f
+    (call-with-current-continuation
+     (lambda (k)
+       (with-exception-handler
+        (lambda (e)
+          (k (if (and (condition? e) (message-condition? e))
+                 (condition-message e)
+                 "")))
+        (lambda () (thunk) #f)))))
+
+  (define (contains? s sub)
+    (let ((n (string-length s)) (m (string-length sub)))
+      (let loop ((i 0))
+        (cond ((> (+ i m) n) #f)
+              ((string=? (substring s i (+ i m)) sub) #t)
+              (else (loop (+ i 1)))))))
+
+  (define (reports? thunk sub)
+    (let ((msg (message-of thunk)))
+      (and (string? msg) (contains? msg sub))))
+
+  (allof "error paths"
+   (test "bitwise-not of a symbol"
+         (string? (message-of (lambda () (bitwise-not 'a))))
+         #t)
+   (test "R6RS record mutator, index out of range"
+         (reports? (lambda ()
+                     (record-mutator
+                      (make-record-type-descriptor
+                       'pt #f #f #f #f '#((mutable x)))
+                      5))
+                   "out of range")
+         #t)
+   (test "undefined SRFI 38 label"
+         (reports? (lambda () (read (open-input-string "#1#")))
+                   "SRFI 38")
+         #t)))
 
 (define (arithmetic-exceptions name f)
   (allof name

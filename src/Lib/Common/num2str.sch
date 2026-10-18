@@ -104,7 +104,8 @@
     (define two^n-1 4503599627370496)
     
     (define (integer->string n radix)
-      (cond ((not (integer? n)) ???number2string)
+      (cond ((not (integer? n))
+             (assertion-violation 'number->string "not an integer" n))
             ((not (exact? n))
              (string-append "#i" (integer->string (inexact->exact n) radix)))
             ((not (fixnum? n)) (bignum->string n radix))

@@ -102,7 +102,8 @@
                 1.0)
                ((nan? ratnum)
                 ratnum)
-               (else (complain))))
+               (else
+                (error "denominator: not a rational" ratnum))))
 	(else
 	 (error "denominator: not a rational" ratnum)
 	 #t)))

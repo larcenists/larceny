@@ -445,7 +445,7 @@
             (slow-loop (- i 1)))))
 
     (cond ((< k 0)
-           (assertion-violation 'bignum-shift-left! (errmsg msg:notindex) k))
+           (assertion-violation 'bignum-shift-left! (errmsg 'msg:notindex) k))
           ((= 0 k32bits)
            (fast-loop (fxlsh n 2)))
           ((= 0 k8bits)
@@ -541,7 +541,7 @@
             (slow-loop (+ i 1)))))
 
     (cond ((< k 0)
-           (assertion-violation 'bignum-shift-right! (errmsg msg:notindex) k))
+           (assertion-violation 'bignum-shift-right! (errmsg 'msg:notindex) k))
           ((= 0 k32bits)
            (fast-loop (+ 4 (* 4 k32))))
           ((= 0 k8bits)

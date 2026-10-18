@@ -40,7 +40,7 @@
 			    ((address) 0)
 			    ((address-shifted-1) 1)
 			    ((address-shifted-2) 2)
-			    (else (error "loadable.sch: Bad codevector representation": cvr)))))))
+			    (else (error "loadable.sch: Bad codevector representation: " cvr)))))))
       (let ((bv (make-bytevector word-size)))
 	(syscall syscall:peek-bytes (+ table (* idx word-size)) bv word-size)
 	(let ((x (let loop ((i 0) (x 0))

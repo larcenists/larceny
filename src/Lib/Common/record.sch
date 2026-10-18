@@ -831,7 +831,7 @@
                         (lambda (obj val)
                           (assert-record-of-type obj rtd)
                           (vector-like-set! obj i val))))
-                 (assertion-violaton
+                 (assertion-violation
                  'r6rs-record-mutator
                  "record index out of range: " rtd k))))
 

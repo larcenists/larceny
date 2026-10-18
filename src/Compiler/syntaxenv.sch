@@ -233,7 +233,7 @@
            (eq? (identifier-name d1)
                 (identifier-name d2)))
       (and (javadot-denotation? d1)
-           (javadot-denotation d2)
+           (javadot-denotation? d2)
            (eq? (javadot-name d1)
                 (javadot-name d2)))))
 

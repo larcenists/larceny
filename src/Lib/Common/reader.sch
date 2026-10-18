@@ -283,6 +283,7 @@
          (errLexGenBug 13)                        ; can't happen
          (errIllegalText 14)         ; disallowed immutable text
 	 (errIllegalNumvec 15)         ; disallowed #s8(...) etc
+         (errSRFI38 16)            ; undefined SRFI 38 label (#n#)
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -1238,6 +1239,8 @@
                "bug in lexical analyzer (generated)")
               ((= msg errIllegalNumvec)
                "illegal value in numeric vector")
+              ((= msg errSRFI38)
+               "undefined SRFI 38 label")
               (else "bug in lexical analyzer")))
       (let* ((c (scanChar))
              (next (if (char? c) (string c) ""))
@@ -2223,12 +2226,14 @@
           (parse-error '<datum> datum-starters)))
 
     ; Oh, dear.  There's no excuse, but see lib/Standard/box.sch
+    ; (it called (bound? box), but nothing defines bound?).
 
     (define (symBox)
-      (if (and (traditional-weirdness?)
-               (bound? box))
-          (box (parse-datum))
-          (parse-error '<datum> datum-starters)))
+      (let ((env (interaction-environment)))
+        (if (and (traditional-weirdness?)
+                 (environment-variable? env 'box))
+            ((environment-get env 'box) (parse-datum))
+            (parse-error '<datum> datum-starters))))
   
     (define (symBackquote) 'quasiquote)
     (define (symQuasisyntax) 'quasisyntax)

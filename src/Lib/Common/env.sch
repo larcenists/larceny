@@ -192,7 +192,7 @@
          #t)
         ((environment-macro? target-env target-name)
          (syntactic-environment-remove! (environment-syntax-environment target-env)
-                                        name)
+                                        target-name)
          (environment-link-variables! target-env target-name source-env source-name))
 
         (else
