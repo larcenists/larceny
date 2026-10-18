@@ -382,17 +382,23 @@ static word *data_load_area( young_heap_t *heap, s_word nbytes )
    underflow, creg-set), the room must hold that frame: asking only for
    STACK_ROOM looped forever when the free space was more than STACK_ROOM
    (so no chunk was allocated) but less than the frame.  On a real
-   overflow the size of the new frame is not known; STACK_ROOM must then
-   exceed the largest frame that is allocated.
+   overflow the size of the new frame is not known, but it is more than
+   the free space: when that is at least STACK_ROOM, the room asked for
+   is more than the free space (twice it), so that a frame of any size
+   fits after enough overflows.  (Asking only for STACK_ROOM looped
+   forever on a frame larger than STACK_ROOM.)
    */
 static void stack_overflow( young_heap_t *heap )
 {
   word *globals = DATA(heap)->globals;
   s_word room = STACK_ROOM;
+  s_word free = free_current_chunk( heap );
 
   annoyingmsg("Stack overflow");
   if (globals[ G_STKP ] == globals[ G_STKBOT ])   /* restoring a frame */
     room = max( room, stk_size_for_top_stack_frame( globals ) );
+  else if (free >= room)
+    room = 2*free + STACK_ROOM;
   if (!collect_if_no_room( heap, room ))
     make_space_for( heap, room, 1 );
 }
