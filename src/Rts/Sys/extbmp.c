@@ -1054,7 +1054,8 @@ static bool tnode_enumerate( extbmp_t *ebmp,
       long long limit = 
         ((long long)first_addr_for_node
          + sizeof(word)*(long long)inode->address_range_in_words);
-      cmpresult = ((long long)first_enum_addr > limit);
+      /* [first_addr_for_node, limit) is half open. */
+      cmpresult = ((long long)first_enum_addr >= limit);
 
 #if 0
       if (1 || cmpresult)
@@ -1073,8 +1074,10 @@ static bool tnode_enumerate( extbmp_t *ebmp,
 
     if (first_enum_addr > first_addr_for_node) {
       /* skipping words before enum start addr */
-      unsigned int delta = (first_enum_addr - first_addr_for_node) / sizeof(word);
-      unsigned int newidx = (delta / inode->address_words_per_child);
+      /* In words, which on 64-bit systems may not fit in an int: a
+         node near the root covers far more than 2^32 words. */
+      word delta = (first_enum_addr - first_addr_for_node) / sizeof(word);
+      int newidx = (int)(delta / inode->address_words_per_child);
       if (newidx > 0)
         found_nonempty_tree = TRUE; /* be conservative since we're skipping words. */
       idx_start = newidx;
@@ -1084,8 +1087,8 @@ static bool tnode_enumerate( extbmp_t *ebmp,
     assert( idx_start >= 0 && idx_start < entries );
 
     if (limit_enum_addr < limit_addr_for_node) {
-      unsigned int delta = (limit_addr_for_node - limit_enum_addr) / sizeof(word);
-      unsigned int newidx = entries - (delta / inode->address_words_per_child);
+      word delta = (limit_addr_for_node - limit_enum_addr) / sizeof(word);
+      int newidx = entries - (int)(delta / inode->address_words_per_child);
       /* skipping words after enum limit addr */
       if (newidx < entries)
         found_nonempty_tree = TRUE; /* be conservative since we're skipping words */
