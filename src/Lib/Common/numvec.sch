@@ -312,7 +312,7 @@
   (and (integer? n)
        (exact? n)
        (<= 0 n)
-       (or (<= n (greatest-fixnum))
+       (or (<= n (greatest-fixnum))   ; FIXME: assumes 30-bit fixnums
            (<= n #xffffffff))))
 
 (define (s32? n)
@@ -320,22 +320,22 @@
        (exact? n)
        (or (<= (least-fixnum) n)
            (<= #x-80000000 n))
-       (or (<= n (greatest-fixnum))
+       (or (<= n (greatest-fixnum))   ; FIXME: assumes 30-bit fixnums
            (<= n #x7fffffff))))
 
 (define (u64? n)
   (and (integer? n)
        (exact? n)
        (<= 0 n)
-       (or (<= n (greatest-fixnum))
+       (or (<= n (greatest-fixnum))   ; FIXME: assumes fixnums <= 64 bits
            (<= n #xffffffffffffffff))))
 
 (define (s64? n)
   (and (integer? n)
        (exact? n)
        (or (<= (least-fixnum) n)
-           (<= #x-80000000000000000 n))
-       (or (<= n (greatest-fixnum))
+           (<= #x-8000000000000000 n))
+       (or (<= n (greatest-fixnum))   ; FIXME: assumes fixnums <= 64 bits
            (<= n #x7fffffffffffffff))))
 
 (define (f32? x)
@@ -345,7 +345,9 @@
   (flonum? x))
 
 (define (c64? z)
-  (complex? z))
+  (and (complex? z)
+       (inexact? z)))
 
 (define (c128? z)
-  (complex? z))
+  (and (complex? z)
+       (inexact? z)))
