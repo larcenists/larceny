@@ -233,9 +233,10 @@
                            #f))))
            (vector-set! g i (vector i type size params))))
        (cons (case gc-type
-               ((0) 'stop+copy)
+               ((0) 'stop-and-copy)
                ((1) 'generational)
                ((2) 'conservative)
+	       ((3) 'regional)
                (else 'unknown))
              g)))
     ((stats-generations)

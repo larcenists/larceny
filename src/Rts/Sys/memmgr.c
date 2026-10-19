@@ -229,8 +229,11 @@ void gc_parameters( gc_t *gc, int op, int *ans )
   assert( op >= 0 && op <= data->generations );
 
   if (op == 0) {
-    ans[0] = data->is_partitioned_system;
+    ans[0] = data->is_partitioned_system;       // generational?
     ans[1] = data->generations;
+    if (ans[0] && data->remset_undirected) {    // FIXME: 3 means regional
+      ans[0] = 3;                               // see system-interface.sch
+    }
   }
   else {
     /* info about generation op-1
