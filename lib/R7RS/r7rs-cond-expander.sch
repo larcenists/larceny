@@ -124,8 +124,8 @@
            ;; Larceny can always represent every Unicode character,
            ;; but Unicode strings are a different story.
            (eq? (larceny:get-feature 'string-representation) 'flat4))
-	  ((stop-and-copy generational regional)
-	   (eq? feature (larceny:get-feature 'gc-technology)))
+          ((stop-and-copy generational regional)
+           (eq? feature (larceny:get-feature 'gc-technology)))
           ((posix)
            (boolean (member (larceny:get-feature 'os-name)
                             '("SunOS"
