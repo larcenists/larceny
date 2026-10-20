@@ -90,11 +90,11 @@ as 2.0) for "X.Y":
 
         unzip larceny-X.Y-bin-native-x86-linux.zip
         unzip larceny-X.Y-bin-native-ARM-macos.zip
-	unzip larceny-X.Y-bin-petit-stdc-linux.zip
+        unzip larceny-X.Y-bin-petit-stdc-linux.zip
         tar -xzf larceny-X.Y-bin-native-x86-linux.tgz
         tar -xzf larceny-X.Y-bin-native-ARM-macos.tgz
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
-	unzip larceny-X.Y-src.zip
+        unzip larceny-X.Y-src.zip
 
 That will create a directory with a similar name (but without
 the `.zip` or `.tar.gz` suffix) in your current working directory.

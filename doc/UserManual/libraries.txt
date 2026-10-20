@@ -17,7 +17,8 @@ Interactive computing
 
 Larceny's `-r7` command-line option automatically imports the
 `(scheme base)` library.  The `-r7r6` command-line option imports
-all of the R7RS, Red Edition, Tangerine, and R6RS standard libraries,
+all of the R7RS, Red Edition, Tangerine Edition,
+and R6RS standard libraries,
 including those deprecated by Larceny.
 
 
