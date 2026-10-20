@@ -88,8 +88,52 @@ Unicode
 All of Larceny's modes support all features of the `(rnrs unicode)`
 library.
 
-Larceny v1.3 conforms to
-<<Standards, The Unicode Standard>>, Version 7.0.
+==== The Unicode Standard changes every year
+
+Starting with Larceny v1.3, Larceny conforms to Version 7.0 of
+<<Standards, The Unicode Standard>>.
+
+==== Performance
+
+R6RS Section 11.12 says the `string-ref` procedure should run
+in constant time, and R6RS Standard Libraries Chapter 18 says
+the `string-set!` procedure should also run in constant time.
+
+In Larceny, those procedures do run in constant time.
+Larceny accomplishes that by using a representation for
+Unicode strings that is closely related to
+(but not exactly the same as) UTF-32.
+The obvious disadvantage of that representation is that
+it allocates 32 bits to each character.
+
+[WARNING]
+================================================================
+The R6RS does not actually require `string-ref` and `string-set!`
+to run in constant time, and the R7RS explicitly states there is
+no such requirement.
+At this time, there are several implementations of the R7RS, and
+possibly a few implementations of the R6RS, that have chosen to
+use a UTF-8 or UTF-16 representation for strings.
+Those representations are more compact than UTF-32, but they
+force `string-ref` and `string-set!` to take time proportional
+to the length of the string.
+================================================================
+
+[TIP]
+================================================================
+The R7RS Red Edition's `(scheme text)` library defines a data
+type of immutable Unicode texts that, as implemented by Larceny,
+are almost as compact as UTF-8 while allowing the `textual-ref`
+procedure (analogous to `string-ref`) to run in constant time.
+
+In Larceny, you get the traditional constant-time performance
+for basic operations on mutable strings.  When you don't need
+mutability, you can conserve space by using immutable texts.
+Furthermore, you can expect immutable texts to be efficient in
+both time and space, no matter what implementation of R7RS
+Scheme you're using.
+================================================================
+
 
 
 [[BytevectorsLibrary]]
@@ -277,8 +321,12 @@ Although Larceny supports the UTF-16 codec, it is not
 really useful on Windows machines (where it should be
 most useful) because Larceny's low-level file system
 mimics a byte-oriented Unix file system even on
-Windows.  This problem should be addressed in some
+Windows.
+
+////////////////////////////////////////////////////////////////
+This problem should be addressed in some
 future version of Larceny.
+////////////////////////////////////////////////////////////////
 
 The most up-to-date list of known deviations from R6RS
 io semantics can be found on the web page

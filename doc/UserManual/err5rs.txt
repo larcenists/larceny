@@ -3,8 +3,12 @@
 ERR5RS Standard Libraries
 -------------------------
 
-<<Standards,ERR5RS>> has been superseded by the R7RS, so the
+<<Standards,ERR5RS>> has been superseded by the R7RS, so
+all of the
 libraries described below are now deprecated.
+Some of these libraries influenced the design
+of R7RS standards, and are documented here to
+record that history.
 
 
 [[Err5rsLoadSection]]

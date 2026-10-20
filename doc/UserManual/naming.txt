@@ -22,6 +22,12 @@ defined by the R7RS `define-library` syntax.
 is the preferred suffix for files that contain libraries
 defined by the R6RS `library` syntax.
 
+`.sps7`::
+is the preferred suffix for files that contain R7RS
+top-level programs, especially if they rely on features
+that are forbidden or otherwise unavailable to R6RS
+programs.
+
 `.sps`::
 is the preferred suffix for files that contain R7RS/R6RS
 top-level programs (which consist of an `import` declaration
@@ -66,16 +72,16 @@ are mostly interchangeable.  The `define-library` syntax is more
 versatile because of its `include` and `cond-expand` features,
 and because it allows the name of the library being defined to
 contain exact integers as well as identifiers.
-For new code, we recommend the R7RS `define-library` syntax.
+For new code, we strongly recommend the R7RS `define-library` syntax.
 ================================================================
 
 [NOTE]
 ================================================================
 Although the R7RS `define-library` syntax allows `export` and
 `import` declarations to be placed anywhere at the top level of
-the syntax, it is standard practice to use only one `export`
+the syntax, we recommend using only one `export`
 declaration per library, placed immediately following the name
-of the library, and to use only one `import` declaration per
+of the library, and using only one `import` declaration per
 library, placed immediately following the `export` declaration.
 ================================================================
 
@@ -198,7 +204,7 @@ the mapping from the name of a library to its location in the
 file system.
 ________________________________________________________________
 
-Fortunately, _de facto_ standards have been emerging.
+Fortunately, _de facto_ standards have emerged.
 Larceny supports those _de facto_ standards by providing these
 Larceny-specific mechanisms:
 

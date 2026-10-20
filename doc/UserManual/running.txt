@@ -102,8 +102,8 @@ For example:
               (scheme load))
 ----------------------------------------------------------------
 
-If you'd rather have Larceny import all of the standard R7RS Red
-Edition and
+If you'd rather have Larceny import all of the standard R7RS,
+Red Edition, Tangerine Edition, and
 R6RS libraries at startup, along with a few Larceny-specific
 procedures, you can use the `-r7r6` option instead of `r7`:
 
@@ -397,32 +397,6 @@ Troubleshooting
 
 ==== Errors when starting Larceny
 
-Although Larceny runs on x86-64 machines, it requires 32-bit
-libraries that are not always installed on Linux and macOS
-machines.  If those libraries are absent, the operating system
-will probably give you a mysterious or misleading error message
-when you try to run Larceny.  For example, the operating system's
-loader may tell you "larceny.bin not found" even though it's
-perfectly obvious that `larceny.bin` is present within Larceny's
-root directory.  To install the necessary 32-bit libraries on
-Linux machines with x86-compatible processors, someone with
-superuser privileges must incant
-
-----------------------------------------------------------------
-    sudo apt-get install lib32z1
-    sudo apt-get install libc6-i386
-----------------------------------------------------------------
-
-[WARNING]
-================================================================
-The names of those 32-bit packages have changed over time, and
-may change again.
-================================================================
-
-For Macintosh machines, someone with administrative privileges
-must install the
-https://developer.apple.com/opensource/[Apple Developer Command Line Tools].
-
 When attempting to run an R7RS/R6RS program, you may see
 a warning about "`loading source in favor of stale
 fasl file`",
@@ -445,8 +419,54 @@ incompatible with very old or with very new versions of
 the processor or operating system.  If that appears to be
 the case, you should see whether a newer version of Larceny
 fixes the problem.  If not, please report the problem
-to us at `larceny@ccs.neu.edu`.
+to us at
+https://github.com/larcenists/larceny[Larceny's GitHub site].
+
+////////////////////////////////////////////////////////////////
 Please report success stories as well.
+////////////////////////////////////////////////////////////////
+
+==== Errors when starting a 32-bit version of Larceny
+
+The world has moved on to 64-bit processors, but many of
+those 64-bit processors still support a 32-bit instruction
+set.
+
+Larceny 2.0 is the first 64-bit version of Larceny.
+Older versions of Larceny, such as Larceny v1.4,
+generate code for the older 32-bit instruction sets,
+which means they must be linked with 32-bit versions
+of various standard libraries.
+Those libraries are not always installed on Linux machines,
+and are not available at all for current macOS machines.
+
+If you try to run a 32-bit version of Larceny on an x86-64
+machine, and those 32-bit libraries are absent, the
+operating system
+will probably give you a mysterious or misleading error message
+when you try to run Larceny.  For example, the operating system's
+loader may tell you "larceny.bin not found" even though it's
+perfectly obvious that `larceny.bin` is present within Larceny's
+root directory.  To install the necessary 32-bit libraries on
+Linux machines with x86-compatible processors, someone with
+superuser privileges must incant
+
+----------------------------------------------------------------
+    sudo apt-get install lib32z1
+    sudo apt-get install libc6-i386
+----------------------------------------------------------------
+
+[WARNING]
+================================================================
+The names of those 32-bit packages have changed over time, and
+may change again.
+================================================================
+
+////////////////////////////////////////////////////////////////
+For Macintosh machines, someone with administrative privileges
+must install the
+https://developer.apple.com/opensource/[Apple Developer Command Line Tools].
+////////////////////////////////////////////////////////////////
 
 
 ==== Errors when compiling the R7RS runtime
@@ -502,17 +522,101 @@ consistent with their dependencies.
 ==== Crashes
 
 Please report all crashes with as much information is possible;
-a backtrace from a debugger or a core dump is ideal (but please
-do not mail the core dump without contacting us first).
+a backtrace from a debugger is ideal; please
+do not send us a core dump without contacting us first.
 Larceny's run-time system is compiled with full debugging
 information by default and a debugger like GDB should be able
 to provide at least some clues.
 
 
-[[PerformanceSection]]
+[[PerformanceChapter]]
 
 Performance
-~~~~~~~~~~~
+-----------
+
+[[GarbageCollection]]
+
+Garbage Collection
+~~~~~~~~~~~~~~~~~~
+
+Storage occupied by objects that become unreachable will
+eventually be recycled by an automatic mechanism known as
+garbage collection.
+
+Larceny v2.0 provides three interchangeable garbage collectors.
+When Larceny is started, the garbage collector it uses can be
+selected by specifying one of these three command-line options:
+
+    -stopcopy         non-generational stop-and-copy collector
+    -gen              conventional generational collector
+    -regional         unconventional generational collector
+
+If none of those options are specified, all current versions
+of Larceny default to the conventional generational collector.
+
+When it becomes necessary to recycle some storage,
+the stop-and-copy collector pauses the running program
+and recycles the storage occupied by all objects that
+have become unreachable.
+That process, which is known as a major collection,
+takes time proportional to the storage occupied by
+reachable objects.
+Major collections can take so much time that the
+temporary stoppage of the running program becomes
+noticeable.
+
+The generational collector performs fewer major collections
+because it is able to perform minor collections that
+examine only a small fraction of the program's reachable
+objects.
+
+In theory, the regional collector never performs any major
+collections.  As implemented by Larceny, however, the
+regional collector is capable of performing a major collection,
+and may do so under rare circumstances, especially for programs
+that allocate many unusually large objects.
+
+If you want to minimize noticeable pauses due to garbage collection,
+you should consider using the regional collector.
+
+For most programs, the generational collector is likely to
+deliver slightly better throughput than the regional collector,
+because the regional collector has more overhead and is likely
+to run more often than the generational collector.
+
+For most programs, the stop-and-copy collector is likely to have
+the worst throughput and the most annoying pause times.
+For some programs, however, the stop-and-copy collector will
+deliver the best throughput of the three; this happens most
+often for programs whose object lifetimes are more queue-like
+than stack-like.
+
+[NOTE]
+================================================================
+Larceny began its life as a vehicle for conducting experimental
+research concerning the performance of various garbage collectors.
+That research eventually led to the design of Larceny's regional
+collector.
+
+At one time, Larceny implemented quite a few interchangeable
+garbage collectors.  Larceny no longer supports the garbage
+collectors that we found to perform relatively poorly.
+================================================================
+
+[WARNING]
+================================================================
+Larceny's regional collector is, by far, the most advanced and
+most complicated of the three.  Larceny's implementation of it
+does not yet achieve the full performance of which the regional
+algorithm is theoretically capable.  For those reasons, we still
+regard the regional collector as experimental.
+================================================================
+
+
+[[CompilerSwitchesSection]]
+
+Compiler Switches
+~~~~~~~~~~~~~~~~~
 
 By default, Larceny's Twobit compiler performs several optimizations
 that are fully compatible with the R7RS but may not be fully compatible

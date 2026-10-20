@@ -46,6 +46,14 @@ can call the C function `jn` as shown:
 (newline)
 ----------------------------------------------------------------
 
+[TIP]
+================================================================
+Now that Larceny supports the R7RS Tangerine Edition, it would
+make more sense to use the `flfirst-bessel` procedure defined
+by `(scheme flonums)`, but the code shown above continues to
+illustrate use of the FFI.
+================================================================
+
 An R7RS program can call the C function `gettimeofday` as shown:
 
 ----------------------------------------------------------------

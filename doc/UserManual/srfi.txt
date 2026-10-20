@@ -22,6 +22,17 @@ convention in which a colon precedes the number:
         (srfi :27))
 ----------------------------------------------------------------
 
+[WARNING]
+================================================================
+R6RS's prohibition on library names that contain integers was
+always pretty silly, fully deserving of a silly workaround such
+as SRFI 97.
+
+Larceny has given up on giving R6RS-compatible SRFI 97 names to
+SRFI libraries. When Larceny supports a new SRFI library, its
+name will not contain colons.
+================================================================
+
 To test whether particular SRFIs are available, use the R7RS
 `cond-expand` feature:
 
@@ -34,7 +45,18 @@ To test whether particular SRFIs are available, use the R7RS
  (else ...))
 ----------------------------------------------------------------
 
-`cond-expand` is not available to R6RS libraries or programs.
+[NOTE]
+================================================================
+`cond-expand` is a feature of the R7RS standard, and cannot be
+used by R6RS libraries or programs.
+================================================================
+
+[TIP]
+================================================================
+Calling the R7RS `features` procedure with no arguments will
+return a list of all features that would be recognized by
+`cond-expand` in that session of Larceny.
+================================================================
 
 ==== Using SRFIs in R5RS mode
 

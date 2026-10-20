@@ -12,8 +12,8 @@ There are two main varieties of Larceny.
 
 Native Larceny is the fastest and most convenient variety
 of Larceny.  It compiles directly to native machine code
-for Intel x86 or ARMv7 microprocessors running Linux and
-for x86 machines running Apple's macOS or Microsoft Windows.
+for AArch64 (aka ARM64) microprocessors running macOS
+and for Intel x86 machines running Linux.
 
 Petit Larceny compiles to C instead of machine code.  It
 can be made to run on most Unix machines.
@@ -30,31 +30,26 @@ to the .NET libraries from Scheme.
 System requirements
 ~~~~~~~~~~~~~~~~~~~
 
-Binary distributions of native Larceny are available for
-just about any Intel x86-compatible microprocessor
-running a Linux, macOS, or Windows operating system,
-and for ARMv7 microprocessors running Linux.
-Although Larceny still uses 32-bit pointers, it will run
-on 64-bit machines provided the appropriate 32-bit
-libraries have been installed.
+Prepackaged binary distributions of native Larceny are available
+for x86 Linux machines and for Apple computers running macOS on
+current Apple silicon (AArch64).
 
-Binary distributions of Petit Larceny are available for
-x86 machines running Linux.  Petit Larceny requires the `gcc`
-compiler as well as the appropriate 32-bit libraries.
+Prepackaged distributions of Petit Larceny may also be made
+available for those machines.
 
-Unless you intend to modify Larceny yourself, you do not
-need its source code, which is available at
+To install a prepackaged distribution, please see
+https://github.com/larcenists/larceny/blob/master/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].
+
+Both native Larceny and Petit Larceny can be built from the
+source code available at
 https://github.com/larcenists/larceny[Larceny's GitHub site].
+To build Larceny or Petit Larceny from source code, see
+https://github.com/larcenists/larceny/blob/master/doc/HOWTO-BUILD[`doc/HOWTO-BUILD`].
 
 ////////////////////////////////////////////////////////////////
 To use some features of the FFI, you'll need the appropriate
 C compiler (`gcc` except on Windows) and 32-bit libraries.
 ////////////////////////////////////////////////////////////////
-
-For more details, see
-https://github.com/larcenists/larceny/blob/master/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].
-If you want to build Larceny or Petit Larceny from source code, see
-http://larceny.ccs.neu.edu/doc/HOWTO-BUILD[`doc/HOWTO-BUILD`].
 
 ////////////////////////////////////////////////////////////////
 To build Larceny or Petit Larceny from source code, you
@@ -89,21 +84,20 @@ need to download the source code.
 Installing the programs
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Unpack the distribution files with an appropriate command such
+Unpack the distribution file with an appropriate command such
 as one of the following, substituting the version number (such
-as 1.3) for "X.Y":
+as 2.0) for "X.Y":
 
-
+        unzip larceny-X.Y-bin-native-x86-linux.zip
+        unzip larceny-X.Y-bin-native-ARM-macos.zip
+	unzip larceny-X.Y-bin-petit-stdc-linux.zip
+        tar -xzf larceny-X.Y-bin-native-x86-linux.tgz
+        tar -xzf larceny-X.Y-bin-native-ARM-macos.tgz
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
-        tar -xzf larceny-X.Y-bin-native-ia32-macosx.tar.gz
-        tar -xzf larceny-X.Y-bin-native-ia32-win32.tar.gz
-        tar -xzf larceny-X.Y-bin-native-armv7l-linux.tar.gz
-        tar -xzf larceny-X.Y-bin-petit-stdc-linux86.tar.gz
-        tar -xzf larceny-X.Y-src.tar.gz
-    
+	unzip larceny-X.Y-src.zip
 
 That will create a directory with a similar name (but without
-the `.tar.gz` suffix) in your current working directory.
+the `.zip` or `.tar.gz` suffix) in your current working directory.
 That is the Larceny root directory, which you may rename
 to something shorter, such as `larceny`; the rest of this
 section will refer to it by that name.
@@ -124,10 +118,16 @@ macOS, the `larceny` directory will contain the following files:
 If you unpacked a binary distribution, then you should be able to
 run it immediately by making the `larceny` directory your current
 working directory and invoking `./larceny`.
-(If that does not work, you may need to install some 32-bit libraries
-on your machine.  See
-http://larceny.ccs.neu.edu/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].)
 
+We recommend the 64-bit versions of Larceny (version 2.0 or later),
+but we are still distributing a 32-bit version, Larceny v1.4,
+that runs on x86 machines under Linux.
+If you have downloaded a 32-bit version of Larceny, as indicated
+by the `ia32`, you may need to install some 32-bit libraries
+on your machine.  See
+https://github.com/larcenists/larceny/blob/master/doc/HOWTO-INSTALL[`doc/HOWTO-INSTALL`].
+
+////////////////////////////////////////////////////////////////
 Binary distributions for Windows will include a `larceny.bat` file
 in addition to the files listed above, so you can run Larceny by
 invoking `larceny`.
@@ -135,6 +135,7 @@ invoking `larceny`.
 http://www.thewindowsclub.com/turn-off-data-execution-prevention-dep[DEP
  feature]
 to let Larceny opt out.)
+////////////////////////////////////////////////////////////////
 
 If you unpacked the source code there will be many other files and
 directories, but `larceny.bin` and `larceny.heap` will not be present.
@@ -142,7 +143,8 @@ directories, but `larceny.bin` and `larceny.heap` will not be present.
 [TIP]
 ================================================================
 You can reconstruct the `larceny.bin` and `larceny.heap` files from their
-source code, but that process requires a working version of Larceny.
+source code, but that process requires a working version of Larceny
+or some other implementation of the R5RS, such as Racket's `plt-r5rs`.
 Unless you're porting Larceny or Petit Larceny to a
 brand new target architecture, it's easier to obtain those
 files from a binary distribution of Larceny.
@@ -197,7 +199,7 @@ accomplished as follows:
 
 ----------------------------------------------------------------
     $ ./larceny
-    Larceny v0.98 "General Ripper" (...)
+    Larceny vX.Y "<version_name>" (MMM DD YYYY HH:MM:SS, ...)
     > (require 'r7rsmode)
     > (larceny:compile-r7rs-runtime)
     > (exit)

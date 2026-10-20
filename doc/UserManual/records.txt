@@ -20,12 +20,11 @@ procedures from
     (rnrs records procedural)
     (rnrs records inspection)
 
-We recommend that Larceny programmers use the SRFI 99 or 131 APIs instead
-of the R6RS APIs.  This should entail no loss of portability, since
-the standard reference implementations of SRFI 99 and SRFI 131 records
-should run
-efficiently in any implementation of the R7RS/R6RS that permits new
-libraries to defined at all.
+We recommend that Larceny programmers define records using the
+`(scheme base)`, SRFI 99, or SRFI 131 libraries instead
+of the R6RS libraries.  This should entail no loss of portability,
+since the standard reference implementations of SRFI 99 and SRFI 131
+records should run efficiently in any implementation of the R7RS/R6RS.
 
 Larceny now has two kinds of records: old-style and R7RS/R6RS/SRFI99/ERR5RS.
 Old-style records cannot be created in R6RS-conforming mode, so
@@ -167,5 +166,5 @@ records being slower than syntactic records, but this is not
 true of Larceny's records, and is unlikely to be true of other
 implementations either.
 Larceny's procedural records are fairly efficient already,
-and will become even more efficient in future versions as
+and may become even more efficient in future versions as
 interlibrary optimizations are added.

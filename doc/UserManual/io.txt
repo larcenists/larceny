@@ -120,7 +120,7 @@ proc:open-output-string[args="",result="output-port"]
 
 Creates an output port where any output is written to a string. The
 accumulated string can be retrieved with
-<<get-output-string>> at any time.
+`get-output-string` at any time.
 
 proc:port?[args="object",result="boolean"]
 

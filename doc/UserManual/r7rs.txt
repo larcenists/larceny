@@ -6,13 +6,16 @@ R7RS Standard Libraries
 The R7RS standard libraries are described by the
 <<Standards, R7RS (small)>> standard approved in 2013
 and by the
-<<Standards, R7RS Red Edition>> standard approved in 2016.
+<<Standards, R7RS Red Edition>>
+and
+<<Standards, R7RS Tangerine Edition>>
+standards approved in 2016 and 2021.
 The
 <<R7rsPreDefinedSection,Predefined libraries>> section
 of this manual lists the names of those libraries.
 
 Larceny provides all of the R7RS standard libraries
-(including the Red Edition libraries),
+(including the Red and Tangerine Edition libraries),
 supports the full numeric tower, and can represent all
 Unicode characters.
 
@@ -117,6 +120,8 @@ allowing its compiled form to interoperate with libraries and
 programs that use extensions disabled by `-r7strict`.
 ================================================================
 
+[[AlternativeInterpretationsSubsection]]
+
 ==== Closure properties for arithmetic representation types
 
 To simplify interoperability with R6RS libraries and
@@ -145,8 +150,10 @@ are incompatible with the R6RS.
 Unfortunately, it is possible to argue that both the list of
 incompatibilities and the example are less authoritative than
 the prose that omits the condition illustrated by the example.
-At least one editor of the R7RS (small) standard has been
-making that argument.
+This matter is discussed further within this manual's
+description of how
+<<NumbersSection, numbers>>
+are represented in Larceny.
 
 No one has yet come up with a real-world example of portable
 R7RS code that fails to work with the R6RS semantics.  The
@@ -186,7 +193,7 @@ the R6RS semantics.
 
 [NOTE]
 ================================================================
-All of the R7RS Red Edition libraries are tested nightly using
+All of the R7RS Red Edition libraries have been tested using
 `-r7strict` mode.  That testing discovered several non-portable
 tests, which had made assumptions about inexact arithmetic that
 cannot be supported by citing the R7RS standard unless numerical
@@ -203,7 +210,7 @@ uses R6RS lexical syntax, and SRFI 48, which imports SRFI 38,
 all of the SRFIs currently supported
 by Larceny seem to work when their compiled forms are imported
 by programs running in `-r7strict` mode.  Even if they work,
-they might not behave as some programmers expect.
+however, they might not behave as some programmers expect.
 ================================================================
 
 [NOTE]

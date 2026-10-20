@@ -17,12 +17,21 @@ allocated and time taken during evaluation of
 _expression_.
 
 ----------------------------------------------------------------
-    > (time (fib 30))
+    > (import (larceny benchmarking))
+
+    > (time (features))        ; finds and reads all available libraries
+    Words allocated: 20969536
+    Elapsed time...: 286 ms (User: 276 ms; System: 9 ms)
+    Elapsed GC time: 5 ms (CPU: 6 in 20 collections (20 minor).)
+    (r7rs r6rs 
+          larceny
+          larceny-1.3
+          [lists 400+ libraries])
+
+    > (time (features))        ; faster because the result was cached
     Words allocated: 0
-    Words reclaimed: 0
-    Elapsed time...: 49 ms (User: 48 ms; System: 0 ms)
-    Elapsed GC time: 0 ms (CPU: 0 in 0 collections.)
-    832040
+    Elapsed time...: 1 ms (User: 1 ms; System: 0 ms)
+    Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
 ----------------------------------------------------------------
 
 proc:run-benchmark[args="name iterations thunk predicate"]
@@ -36,15 +45,13 @@ allocated and time taken by _iterations_ calls
 to _thunk_.
 
 ----------------------------------------------------------------
-    > (run-benchmark "fib30"
-                     100
+    > (run-benchmark "fib 30"
+                     1000
                      (lambda () (fib 30))
                      (lambda (x) (= x 832040)))
 
-    --------------------------------------------------------
-    fib30
+    fib 30
     Words allocated: 0
-    Words reclaimed: 0
-    Elapsed time...: 4828 ms (User: 4824 ms; System: 4 ms)
-    Elapsed GC time: 0 ms (CPU: 0 in 0 collections.)
+    Elapsed time...: 11261 ms (User: 11255 ms; System: 0 ms)
+    Elapsed GC time: 0 ms (CPU: 0 in 0 collections (0 minor).)
 ----------------------------------------------------------------

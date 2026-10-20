@@ -4,6 +4,20 @@ Vectors
 The `(scheme vector)` library now
 provides a set of procedures that may supersede some
 of the procedures described below.
+
+[WARNING]
+================================================================
+The `(scheme vector)` library has almost nothing to do with the
+13 libraries whose names are of the form `(scheme vector @)`,
+where `@` is one of
+`base`, `u8`, `s8`, `u16`, `s16`, `u32`, `s32`, `u64`, `s64`,
+`f32`, `f64`, `c64`, or `c128`.
+Those libraries provide support for homogeneous numeric vectors,
+which are more space-efficient than using Scheme's more general
+vector type to represent a sequence of numbers that all have the
+same bit-level representation.
+================================================================
+
 If one of Larceny's procedures duplicates the semantics of
 an R7RS procedure whose name is different, then Larceny's
 name is deprecated.

@@ -46,29 +46,36 @@ Larceny
 implements the Scheme programming language
 as defined by
 the
-<<Standards, Red Edition>> of
-the
 <<Standards, Revised^7^ Report>>,
-while continuing to support
-the
 <<Standards, Revised^6^ Report>>,
-the
 <<Standards, Revised^5^ Report>>,
 and
 <<Standards, IEEE Standard 1178-1990>>.
 Those language standards serve as Larceny's primary documentation.
 
+Larceny provides all standard libraries described by the
+<<Standards, Revised^7^ Report>>
+and
+<<Standards, Revised^6^ Report>>,
+along with all of the newer R7RS standard libraries defined by the
+<<Standards, Red Edition>>
+and
+<<Standards, Tangerine Edition>>
+of the ever-evolving R7RS language.
+
+Larceny provides many SRFI libraries as well.
+
 This manual describes aspects of Larceny that are not specified
 by those standards.
-For the most current version of this manual, please see
-http://www.cesura17.net/~larcenists/Nightly/doc/[Larceny's
-online documentation page].
-For links to the Common Larceny User Manual and the Larceny
-mailing list, please visit
+For the most current version of this manual,
+please visit
 http://www.larcenists.org/[Larceny's main web page].
 
-To report bugs, please send email to the Larceny
-developers at `<larceny@ccs.neu.edu>`, or submit a
+////////////////////////////////////////////////////////////////
+or the Common Larceny User Manual,
+////////////////////////////////////////////////////////////////
+
+To report bugs, please submit a
 bug ticket at Larceny's
 https://github.com/larcenists/larceny[GitHub site].
 
@@ -94,16 +101,17 @@ include::r6rs.txt[]
 Larceny's R7RS/R6RS Libraries
 -------------------------------
 
-Larceny provides libraries for compiling
-R7RS/R6RS libraries and for timing benchmarks.
-
-include::load.txt[]
-
-include::compiler.txt[]
+Larceny provides libraries for timing benchmarks,
+customizing the external appearance of record objects
+and for loading and compiling R7RS/R6RS libraries.
 
 include::benchmarking.txt[]
 
 include::recprinter.txt[]
+
+include::load.txt[]
+
+include::compiler.txt[]
 
 include::err5rs.txt[]
 
