@@ -46,11 +46,4 @@
 	  make-hashmap-comparator
 	  hashmap-comparator
 	  comparator?)
-  (import (scheme base)
-	  (scheme case-lambda)
-	  (srfi 1)
-	  (srfi 8)
-	  (srfi 128)
-	  (srfi 145)
-	  (srfi 158)
-	  (srfi 146 hash)))
+  (import (srfi 146 hash)))
