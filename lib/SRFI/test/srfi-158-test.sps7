@@ -678,4 +678,6 @@
 
  ) ; end "accumulators"
 
+(report-test-results)
+
 ;;;(test-exit)
