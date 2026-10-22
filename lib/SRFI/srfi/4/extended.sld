@@ -24,7 +24,7 @@
                       ;; These will not be exported
 
                       list->bytevector bytevector->list
-                      fxlogand fxlsh
+                      fixnum? fxlogand fxlsh
                       random))
 
   (export

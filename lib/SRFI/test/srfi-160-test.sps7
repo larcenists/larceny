@@ -352,10 +352,22 @@
     ((_ expr)
      (test-assert 'anonymous expr))))
 
+;;; FIXME
+
+'
 (define-syntax test-error
   (syntax-rules ()
     ((_ name expr)
      (test/exn expr &condition))
+    ((_ expr)
+     (test-error 'anonymous expr))))
+
+(define-syntax test-error
+  (syntax-rules ()
+    ((_ name expr)
+     (test name
+	   #t
+	   (err? (catch-exns (lambda () expr)))))
     ((_ expr)
      (test-error 'anonymous expr))))
 
@@ -888,5 +900,9 @@
 
  ) ; end s16vector
 ;(test-exit)
+
+;;; Regression tests.
+
+(test-error (make-u8vector 10 -1))
 
 (report-test-results)

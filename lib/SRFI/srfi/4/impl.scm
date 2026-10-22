@@ -112,7 +112,14 @@
 
 ;;; Main constructor
 
-(define make-u8vector make-bytevector)
+(define (make-u8vector n . rest) ; make-bytevector)
+  (if (null? rest)
+      (make-bytevector n)
+      (let ((fill (car rest)))
+	(if (and (fixnum? fill)
+		 (<= 0 fill 255))
+	    (make-bytevector n fill)
+	    (element-error 'u8 fill)))))
 
 (define make-s8vector   (larceny-maker 's8))
 (define make-u16vector  (larceny-maker 'u16))
