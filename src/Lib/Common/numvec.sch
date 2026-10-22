@@ -147,6 +147,23 @@
 
 (rtd-printer-set! larceny:numvec-rtd larceny:numvec-write)
 
+;;; make-nary-comparison is defined in src/Lib/Arch/*/primops.sch
+;;; It's used by src/Lib/Common/string.sch, so using it again here
+;;; shouldn't create any new problems.
+
+(define numeric-vector=?
+  (make-nary-comparison 'numeric-vector=?
+                        (lambda (a b)
+                          (and (numeric-vector? a)
+                               (numeric-vector? b)
+                               (= (larceny:numvec-hashcode->int-tag
+                                   (larceny:numvec.hashcode a))
+                                  (larceny:numvec-hashcode->int-tag
+                                   (larceny:numvec.hashcode b)))
+                               (bytevector=?
+                                (larceny:numvec.bv a)
+                                (larceny:numvec.bv b))))))
+
 (define (larceny:numvec->list numvec . rest)
   (let* ((hashcode (larceny:numvec.hashcode numvec))
          (sym (larceny:numvec-hashcode->symbol-tag hashcode))
@@ -242,22 +259,30 @@
          (y (bytevector-ieee-single-native-ref bv (+ k 4))))
     (make-compnum x y)))
 
+;;; According to SRFI 160, c64? and c128? are true iff their argument is
+;;; an inexact complex number.  Which means z might be a flonum, whose
+;;; imaginary part is an exact 0.
+
 (define (bytevector-c64-native-set! bv k z)
   (let* ((x (real-part z))
          (y (imag-part z)))
     (bytevector-ieee-single-native-set! bv k x)
-    (bytevector-ieee-single-native-set! bv (+ k 4) y)))
+    (bytevector-ieee-single-native-set! bv (+ k 4) (inexact y))))
 
 (define (bytevector-c128-native-ref bv k)
   (let* ((x (bytevector-ieee-double-native-ref bv k))
          (y (bytevector-ieee-double-native-ref bv (+ k 8))))
     (make-compnum x y)))
 
+;;; According to SRFI 160, c64? and c128? are true iff their argument is
+;;; an inexact complex number.  Which means z might be a flonum, whose
+;;; imaginary part is an exact 0.
+
 (define (bytevector-c128-native-set! bv k z)
   (let* ((x (real-part z))
          (y (imag-part z)))
     (bytevector-ieee-double-native-set! bv k x)
-    (bytevector-ieee-double-native-set! bv (+ k 8) y)))
+    (bytevector-ieee-double-native-set! bv (+ k 8) (inexact y))))
 
 (define (larceny:init-numvec bv width ok? vals setter!)
   (define (loop i vals)

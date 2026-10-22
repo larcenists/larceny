@@ -136,6 +136,8 @@
            (if (string=? x y) bound #f))
           ((and (text? x) (text? y))
            (if (textual=? x y) bound #f))
+          ((and (numeric-vector? x) (numeric-vector? y))
+           (if (numeric-vector=? x y) bound #f))
           ((eqv? x y)
            bound)
           (else #f)))
