@@ -215,6 +215,20 @@ DONE.md (with the date and the commit, if any).
   `(= 0.0 0)` are #f, and 0.0 prints as 1e-999 (`(exact 0.0)` is
   1/10^999); in --r7rs mode all is well.  Repro: a program importing
   (scheme base) (scheme write) that writes `(- 1.5 1.5)`.
+- SRFI 4 (from upstream, lib/SRFI/srfi/4/impl.scm; found 2026-10-17 on
+  native x86-64): `u8vector->list` calls `larceny:numvec->list` on
+  the bytevector that `make-u8vector` (= `make-bytevector`) makes, so
+  `(u8vector->list (make-u8vector 2 0))` fails with "not a record of
+  the correct type" (`bytevector->u8-list` would do).  And
+  `(make-u8vector 1 -1)` is accepted (make-bytevector's R6RS fill
+  range is -128..255).
+- An error in a `--program` program says "Error while loading
+  src/Build/<platform>-larceny-heap.sch" instead of naming the
+  program (the heap was dumped while loading that file); old heaps do
+  the same.
+- lib/SRFI/test/srfi-158-test.sps7 prints nothing: it has no
+  test-begin/test-end, so SRFI 64 reports no summary.  With them
+  around the test groups it reports 80 passed.
 
 ## Runtime
 
