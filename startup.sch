@@ -17,4 +17,6 @@
         "lib/Standard"
         "lib"
 	"lib/Debugger"
-        "lib/SLIB"))
+        "lib/SLIB"
+	;; lib/Snow makes (chibi test) available
+	"lib/Snow"))
