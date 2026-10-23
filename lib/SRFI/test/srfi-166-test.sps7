@@ -3,16 +3,39 @@
 (define-library (srfi 166 test)
   (export run-tests)
   (import (scheme base) (scheme char) (scheme read) (scheme file)
+          (scheme write) ;; added for Larceny
           (only (srfi 1) circular-list)
           (chibi test)
           (srfi 166))
   (begin
+
+    ;; Why all the print statements?
+
+    ;;(define (print x) (display x) (newline))
+
+    (define (print x) #t)
+
+    ;; Prints a period for each passed test, which is annoying.
+
+    (define original-test-handler
+      (current-test-handler))
+
+    (current-test-handler
+     (lambda (status info)
+       (if (eq? status 'PASS)
+           #t
+           (original-test-handler status info))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
     (define-syntax test-pretty
       (syntax-rules ()
         ((test-pretty str)
          (let ((sexp (read (open-input-string str))))
            (test str (show #f (pretty sexp)))))))
     (define (run-tests)
+
       (test-begin "show")
 
       ;; basic data types
@@ -74,7 +97,9 @@
       (test "0.000004" (show #f (with ((precision 6)) 0.000004)))
       (test "0.0000040" (show #f (with ((precision 7)) 0.000004)))
       (test "0.00000400" (show #f (with ((precision 8)) 0.000004)))
-      (test "-6.0371e-06" (show #f (with ((precision 4)) -6.0371e-06)))
+      ;; Chibi-dependent test: Chibi prints 1e-6 as 1e-06.
+      ;;(test "-6.0371e-06" (show #f (with ((precision 4)) -6.0371e-06)))
+      (test "-6.0371e-6" (show #f (with ((precision 4)) -6.0371e-06)))
       (test "1.00" (show #f (with ((precision 2)) .997554209949891)))
       (test "1.00" (show #f (with ((precision 2)) .99755420)))
       (test "1.00" (show #f (with ((precision 2)) .99755)))
@@ -823,7 +848,15 @@ def | 6
          (show #f (columnar 4 'right 'infinite (line-numbers) " " (from-file tmp-file))))
         (delete-file tmp-file))
 
-      (test-end))))
+      (test-end)
+
+;;; Larceny style.
+
+      (if (zero? (test-failure-count))
+          (display "\nDone.\n")
+          (begin (display "\nFailed ")
+                 (write (test-failure-count))
+                 (display " tests.\n"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

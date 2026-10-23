@@ -4,6 +4,29 @@
 
 ;(include "srfi/4/shared-tests.scm")
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Added for Larceny.
+
+(define-record-type err
+  (make-err err-c)
+  err?
+  (err-c err-err-c))
+
+(define (catch-exns thunk)
+  (guard (c (#t (make-err c)))
+         (thunk)))
+
+(define-syntax test-error
+  (syntax-rules ()
+    ((_ name expr)
+     (is-same? (err? (catch-exns (lambda () expr)))
+               #t))
+    ((_ expr)
+     (test-error 'anonymous expr))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;;; Shared tests
 ;;; Hvector = homogeneous vector
 
@@ -31,33 +54,46 @@
     (else
      #f)))
 
+;;; Displaying a "Try" line for every test just clutters the output.
+
+(cond-expand
+ (larceny (define display-every-test? #f))
+ (else    (define display-every-test? #t)))
+
+(define (maybe-display x . rest)
+  (if display-every-test?
+      (apply display x rest)))
+
+(define (maybe-newline . rest)
+  (if display-every-test?
+      (apply newline rest)))
+
 (define-syntax is-same?
   (syntax-rules ()
-    ((what result expected)
+    ((is-same? result expected)
      (begin
-       (display "Try ")
-       (display 'result)
-       (display " is same as ")
-       (display 'expected)
-       (display "? ")
+       (maybe-display "Try ")
+       (maybe-display 'result)
+       (maybe-display " is same as ")
+       (maybe-display 'expected)
+       (maybe-display "? ")
        (if (same? result expected)
-         (display "OK")
-         (begin
-           (display result)
-           (display " ")
-           (display expected)
-           (display " FAIL")))
-       (newline)))))
+           (maybe-display "OK\n")
+           (begin
+             (display result)
+             (display " ")
+             (display expected)
+             (display " FAIL\n")))))))
 
 (define (create label value)
   value)
 
 (define (test tag make-Hvector Hvector Hvector? Hvector-length
               Hvector-ref Hvector-set! Hvector->list list->Hvector low high)
-  (display "STARTING ")
-  (display tag)
-  (display "vector TESTS:")
-  (newline)
+  (maybe-display "STARTING ")
+  (maybe-display tag)
+  (maybe-display "vector TESTS:")
+  (maybe-newline)
 
   ;; The original version of this file passed exact arguments
   ;; to make-f32vector and other procedures that expect inexact
@@ -65,8 +101,8 @@
   ;; The i procedure patches that problem.
 
   (let* ((float (or (eq? tag 'f32) (eq? tag 'f64)))
-	 (i (if float inexact exact))
-	 (vec0 (create "make" (make-Hvector 3)))
+         (i (if float inexact exact))
+         (vec0 (create "make" (make-Hvector 3)))
          (vec1 (create "make-fill" (make-Hvector 3 (i 3))))
          (vec2 (create "vec" (Hvector (i 1) (i 2) (i 3))))
          (vec3 (create "from list" (list->Hvector (map i '(3 2 1)))))
@@ -139,3 +175,10 @@
       f64vector-ref f64vector-set! f64vector->list list->f64vector
       -1e308 1e308)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Regression tests.
+
+(test-error (make-u8vector 10 -1))
+
+(display "Done.\n")

@@ -161,5 +161,5 @@
 
 (run-tests)
 
-(system "fgrep \"result-kind:\" SRFI-123.log")
+(system "fgrep \"result-kind: fail\" SRFI-123.log")
 (display "Done.\n")
