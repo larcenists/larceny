@@ -515,16 +515,23 @@
               (else
                (out-of-line #t signed? size order)))))
 
+    ; The length right after the type check, whose header load it can
+    ; share (see the peephole optimizer of Fence).
+
     (define (index-checks size native? ex args)
       `((.check! (.fixnum? i) ,ex ,@args)
         (.check! (bytevector? bv) ,ex ,@args)
-        (.check! (.>=:fix:fix i 0) ,ex ,@args)
-        ,@(if native?
-              `((.check! (.=:fix:fix (.fxlogand i ,(- size 1)) 0) ,ex ,@args))
-              '())
         (.check! (.<:fix:fix i (.-:idx:idx (.bytevector-like-length:bvl bv)
                                             ,(- size 1)))
-                 ,ex ,@args)))
+                 ,ex ,@args)
+        (.check! (.>=:fix:fix i 0) ,ex ,@args)
+        ,@(cond ((not native?)
+                 '())
+                (word-ops?
+                 `((.check! (.fxaligned?:fix i ,size) ,ex ,@args)))
+                (else
+                 `((.check! (.=:fix:fix (.fxlogand i ,(- size 1)) 0)
+                            ,ex ,@args))))))
 
     (define (value-checks size signed? args)
       (let ((lo (lo size signed?))

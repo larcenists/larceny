@@ -469,7 +469,9 @@
 
 (define (peep-reg/op2imm/branchf as op rs imm l tail)
   (if (case op
-        ((eq? < <= = > >= <:fix:fix <=:fix:fix =:fix:fix >:fix:fix >=:fix:fix) #t)
+        ((eq? < <= = > >= <:fix:fix <=:fix:fix =:fix:fix >:fix:fix >=:fix:fix
+          fxaligned?:fix)
+         #t)
         (else #f))
       (as-source! as
                   (cons (list $reg/op2imm/branchf op rs imm l)
@@ -493,10 +495,11 @@
 ;   op1      vector-length:vec
 ;   setreg   rd                   (optional; rd is RESULT without it)
 ; => reg/op1/check/length  vector?,rs,L,(k1 k2 k3),rd
-; The check loads the header, which gives the length.
+; The check loads the header, which gives the length.  Likewise for
+; bytevector? and bytevector-like-length:bvl.
 
 (define (reg-op1-check-reg-op1-setreg as op rs l liveregs tail)
-  (and (eq? op 'vector?)
+  (and (memq op '(vector? bytevector?))
        (pair? tail)
        (pair? (cdr tail))
        (let ((i:reg (car tail))
@@ -505,7 +508,10 @@
          (and (= (car i:reg) $reg)
               (= (operand1 i:reg) rs)
               (= (car i:op1) $op1)
-              (eq? (operand1 i:op1) 'vector-length:vec)
+              (eq? (operand1 i:op1)
+                   (if (eq? op 'vector?)
+                       'vector-length:vec
+                       'bytevector-like-length:bvl))
               (let* ((setreg? (and (pair? tail)
                                    (= (car (car tail)) $setreg)))
                      (rd (if setreg? (operand1 (car tail)) $r.result))
@@ -581,7 +587,7 @@
 
 (define (peep-reg/op2imm/check as op rs1 rs2 l1 liveregs tail)
   (if (case op
-        ((=:fix:fix <:fix:fix <=:fix:fix >=:fix:fix >:fix:fix) #t)
+        ((=:fix:fix <:fix:fix <=:fix:fix >=:fix:fix >:fix:fix fxaligned?:fix) #t)
         (else #f))
       (as-source! as
                   (cons (list $reg/op2imm/check op rs1 rs2 l1 liveregs)

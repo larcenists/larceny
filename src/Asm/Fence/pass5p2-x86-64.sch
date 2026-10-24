@@ -569,8 +569,10 @@
 
 (define (x86-64.condition-code condition)
   (case condition
-    ((equal low1-equal low2-equal low3-equal low8-equal) x86-64.cc.E)
-    ((not-equal low1-not-equal low2-not-equal low3-not-equal low8-not-equal) x86-64.cc.NE)
+    ((equal low1-equal low2-equal low3-equal low4-equal low5-equal
+      low8-equal) x86-64.cc.E)
+    ((not-equal low1-not-equal low2-not-equal low3-not-equal low4-not-equal
+      low5-not-equal low8-not-equal) x86-64.cc.NE)
     ((less) x86-64.cc.L)
     ((greater) x86-64.cc.G)
     ((less-or-equal) x86-64.cc.LE)
@@ -584,6 +586,8 @@
                 ((low1-equal low1-not-equal) 1)
                 ((low2-equal low2-not-equal) 3)
                 ((low3-equal low3-not-equal) 7)
+                ((low4-equal low4-not-equal) 15)
+                ((low5-equal low5-not-equal) 31)
                 ((low8-equal low8-not-equal) 255)
                 (else #f))))
     (cond ((and mask src2-imm? (= src2 0))

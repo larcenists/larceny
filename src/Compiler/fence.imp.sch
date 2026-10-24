@@ -114,6 +114,13 @@
 (define (fence-imm? x)
   (smallint? x))
 
+; The alignment of .fxaligned?:fix (64-bit systems, where its fused
+; tests exist).
+
+(define (fence-alignment-imm? x)
+  (and (memv x '(2 4 8))
+       (fixnum? (expt 2 32))))
+
 ; A constant shift count for fxrsha and .fxlsh: 0 <= x < the fixnum width.
 
 (define (fence-shift-imm? x)
@@ -228,6 +235,7 @@
     ; systems (see bytevector-accessor-rules in common.imp.sch).  The
     ; 64-bit loads return #f for values that are not fixnums.
 
+    (.fxaligned?:fix  2 fxaligned?:fix   ,fence-alignment-imm? -1 ,:immortal ,:none #f)
     (.bytevector-like-ref32u:trusted
                       2 bytevector-like-ref32u:trusted #f -1 ,:string ,:none #f)
     (.bytevector-like-ref32s:trusted

@@ -1771,6 +1771,12 @@
          (begin (emit-op1-check as name rs label)
                 (cant.shri as $r.tmp fence.header-length-shift rd))
          (emit-op1 as 'vector-length:vec rs rd)))
+    ((bytevector?)
+     (if (runtime-safety-checking)
+         (begin (emit-op1-check as name rs label)
+                (cant.shri  as $r.tmp 6 rd)
+                (cant.andni as rd 3 rd))
+         (emit-op1 as 'bytevector-like-length:bvl rs rd)))
     (else
      (error "Unknown op1-check/length primitive: " name))))
 
@@ -2141,6 +2147,10 @@
     ((fxlogand)
      (emit-check-fixnums as rs1 rs2 $ex.logand)
      (cant.and      as rs1 rs2 rd))
+    ((fxaligned?:fix)                   ; rs2 is 2, 4 or 8, as a fixnum
+     (cant.subi  as rs2 4 $r.tmp)       ; the mask, as a fixnum
+     (cant.and   as rs1 $r.tmp $r.tmp)
+     (cant.setcci as 'equal $r.tmp 0 rd))
     ((fxlogior)
      (emit-check-fixnums as rs1 rs2 $ex.logior)
      (cant.or      as rs1 rs2 rd))
@@ -2345,6 +2355,8 @@
      (cant.movi as (char-representation imm) $r.second)
      (emit-check-character as rs $ex.char>=?)
      (cant.setcc as 'greater-or-equal rs $r.second rd))
+    ((fxaligned?:fix)
+     (cant.setcci as (fence.aligned-condition imm #t) rs 0 rd))
     ((fxrsha)                           ; 0 <= imm < fixnum width
      (if (runtime-safety-checking)
          (emit-check-branch
@@ -2520,10 +2532,22 @@
          (else
           (error 'op2imm "Unknown operation: " name)))))))
 
+; .fxaligned?:fix: is the fixnum rs a multiple of imm (2, 4 or 8), that
+; is, are the low 3, 4 or 5 bits of its representation zero?
+
+(define (fence.aligned-condition imm equal?)
+  (case imm
+    ((2) (if equal? 'low3-equal 'low3-not-equal))
+    ((4) (if equal? 'low4-equal 'low4-not-equal))
+    ((8) (if equal? 'low5-equal 'low5-not-equal))
+    (else (error 'fence.aligned-condition "Bad alignment: " imm))))
+
 (define (emit-op2imm-branchf as name rs imm label)
   (if (label-value as label)
       (emit-timer-tick as))
   (case name
+    ((fxaligned?:fix)
+     (cant.bcci as (fence.aligned-condition imm #f) rs 0 label))
     ((eq?)
      (cond ((eq? imm #t)
             (cant.bcci as 'not-equal rs $imm.true label))
@@ -2590,21 +2614,24 @@
           (error 'emit-op2imm-branchf "Unknown: " name)))))))
      
 (define (emit-op2imm-check as name rs imm label)
-  (if (runtime-safety-checking)
-      (let ((imm (fence.native->fixnum imm)))
-        (case name
-          ((<:fix:fix)
-           (cant.bcci as 'greater-or-equal rs imm label))
-          ((<=:fix:fix)
-           (cant.bcci as 'greater rs imm label))
-          ((=:fix:fix)
-           (cant.bcci as 'not-equal rs imm label))
-          ((>:fix:fix)
-           (cant.bcci as 'less-or-equal rs imm label))
-          ((>=:fix:fix)
-           (cant.bcci as 'less rs imm label))
-          (else
-           (error 'emit-op2imm-check "Unknown: " name))))))
+  (cond ((not (runtime-safety-checking)))
+        ((eq? name 'fxaligned?:fix)
+         (cant.bcci as (fence.aligned-condition imm #f) rs 0 label))
+        (else
+         (let ((imm (fence.native->fixnum imm)))
+           (case name
+             ((<:fix:fix)
+              (cant.bcci as 'greater-or-equal rs imm label))
+             ((<=:fix:fix)
+              (cant.bcci as 'greater rs imm label))
+             ((=:fix:fix)
+              (cant.bcci as 'not-equal rs imm label))
+             ((>:fix:fix)
+              (cant.bcci as 'less-or-equal rs imm label))
+             ((>=:fix:fix)
+              (cant.bcci as 'less rs imm label))
+             (else
+              (error 'emit-op2imm-check "Unknown: " name)))))))
 
 (define (emit-op3 as name rs1 rs2 rs3)
   (assert (not (= rs1 $r.second)))
@@ -3153,6 +3180,10 @@
 ;  - low2-not-equal
 ;  - low3-equal
 ;  - low3-not-equal
+;  - low4-equal          (64-bit targets only, for now)
+;  - low4-not-equal
+;  - low5-equal
+;  - low5-not-equal
 ;  - low8-equal
 ;  - low8-not-equal
 ;

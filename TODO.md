@@ -205,13 +205,18 @@ DONE.md (with the date and the commit, if any).
   lockpick's LARCENY-NOTES.md item 1), follow-ups:
   - With Fence on 64-bit targets, 32- and 64-bit values in the native
     byte order are loaded and stored whole
-    (.bytevector-like-ref32u:trusted and friends).  Summing 10^7
-    elements with the index stepped by the size: u32-native-ref 0.027 s
-    and u64-native-ref 0.038 s against vector-ref's 0.022 s;
-    u32-native-set! 0.025 s against vector-set!'s 0.020 s.  What is
-    left is mostly the checks: the alignment check loads its mask into
-    a register (.fxlogand has no immediate form), and the 64-bit loads
-    test whether the value is a fixnum.
+    (.bytevector-like-ref32u:trusted and friends), the alignment check
+    is one test (.fxaligned?:fix) and the bounds check shares the type
+    check's header load.  Summing 10^7 elements with the index stepped
+    by the size: u32-native-ref 0.023 s and u64-native-ref 0.033 s
+    against vector-ref's 0.021 s; u32-native-set! 0.020 s, as
+    vector-set!.  What a u32 read does beyond vector-ref: untag the
+    index and add it (x86 has no scale of 1/4), tag the value, and
+    subtract size-1 from the length.  A u64 read also tests whether the
+    value is a fixnum, and then the macro tests the primop's result for
+    #f again; fusing the two (a peephole of the primop, setreg, reg and
+    branchf, whose slow path clears the register of raw bits) would save
+    two instructions.
   - 16-bit values, and values in the other byte order, are still made
     from byte loads (u16-native-ref: about 2x vector-ref); Fence has no
     16-bit load or byte swap.  Elsewhere (Petit) all of them are.
