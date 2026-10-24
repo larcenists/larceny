@@ -10,10 +10,13 @@
    ((1)
     (lambda () (- (current-seconds) arbitrary-baseline)))
    ((1000000)
+    ;; jiffies-per-second is 1000000 only where current-second has
+    ;; better than microsecond resolution (clock_gettime): a double
+    ;; holds today's time to about a quarter of a microsecond.  And
+    ;; current-utc-time loads the FFI on its first call, which took a
+    ;; third of a second (lockpick's LARCENY-NOTES.md, item 11).
     (lambda ()
-      (call-with-values
-       current-utc-time
-       current-utc-time-continuation-microseconds)))
+      (exact (round (* 1000000 (- (current-second) arbitrary-baseline))))))
    (else
     (lambda ()
       (call-with-values
@@ -47,6 +50,9 @@
 ;;; Bottom line:  We *might* be able to make (current-jiffy) faster
 ;;; and more useful for timing small intervals by making it a syscall
 ;;; instead of going through the FFI.  Not worth the trouble.
+;;;
+;;; Since 2026-10-24 the microsecond case uses current-second, which is
+;;; a primitive (clock_gettime): the first call no longer loads the FFI.
 
 (define (current-utc-time-continuation-microseconds secs usecs)
   (+ (* 1000000 (- secs arbitrary-baseline))
