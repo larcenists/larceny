@@ -981,7 +981,8 @@
   '(set-car! set-cdr! cell-set! cell-set!:nwb
     vector-set! vector-set!:trusted vector-set!:trusted:nwb vector-like-set!
     procedure-set! bytevector-set! bytevector-like-set!
-    bytevector-like-set!:trusted bytevector-fill! string-set!
+    bytevector-like-set!:trusted bytevector-like-set32!:trusted
+    bytevector-like-set64!:trusted bytevector-fill! string-set!
     ustring-set! ustring-set!:trusted typetag-set! creg-set!))
 
 (define (emit-mutator-result as name rd)
@@ -1933,6 +1934,43 @@
      (cant.add   as rs1 $r.tmp rd)
      (cant.ldbiz as rd (- $bytewidth.wordsize $tag.bytevector-tag) rd)
      (cant.shli  as rd 2 rd))
+    ; Multi-byte loads (64-bit systems), in the native byte order, for
+    ; the compiler macros of bytevector-u32-ref and friends; the index
+    ; (a byte index) has been checked.  The 64-bit ones leave #f in rd
+    ; if the value is not a fixnum.
+    ((bytevector-like-ref32u:trusted bytevector-like-ref32s:trusted
+      bytevector-like-ref64u:trusted bytevector-like-ref64s:trusted)
+     (let ((offset (- $bytewidth.wordsize $tag.bytevector-tag)))
+       (cant.shri as rs2 2 $r.tmp)
+       (cant.add  as rs1 $r.tmp $r.tmp)
+       (case name
+         ((bytevector-like-ref32u:trusted)
+          (cant.ldwiz as $r.tmp offset rd)
+          (cant.shli  as rd 2 rd))
+         ((bytevector-like-ref32s:trusted)
+          (cant.ldwiz as $r.tmp offset rd)
+          (cant.shli  as rd 32 rd)
+          (cant.shrai as rd 30 rd))
+         (else
+          (let ((Lnot (fence.make-label as))
+                (Ldone (fence.make-label as)))
+            (cant.ldi as $r.tmp offset rd)
+            ; A fixnum if the top three bits are all 0 (or, if signed,
+            ; all 1).
+            (if (eq? name 'bytevector-like-ref64u:trusted)
+                (cant.shri as rd 61 $r.tmp)
+                (begin (cant.shrai as rd 61 $r.tmp)    ; 0 or -1
+                       (cant.addi  as $r.tmp 1 $r.tmp) ; 1 or 0
+                       (cant.shri  as $r.tmp 1 $r.tmp)))
+            (cant.bcci as 'not-equal $r.tmp 0 Lnot)
+            (cant.shli as rd 2 rd)
+            (fence.defer! as
+                          (lambda ()
+                            (fence.label as Lnot)
+                            (cant.movi as $imm.false rd)
+                            (cant.ba   as Ldone))
+                          'check)
+            (fence.label as Ldone))))))
     ((bytevector-ref)
      (emit-check-tags as rs1 $tag.bytevector-tag $hdr.bytevector $ex.bvref)
      (emit-check-fixnum as rs2 $ex.bvref)
@@ -2595,6 +2633,18 @@
      (cant.shri as rs3 2 $r.result)      ; Byte value in RESULT, rs3 is free (note RESULT may be rs1, rs2, or rs3 but that's OK)
      (cant.stbi as $r.result $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag))
      (cant.movi as 0 $r.result))         ; clear untagged value
+    ; Stores of the low 32 bits or of all of a fixnum (64-bit systems),
+    ; for the compiler macros of bytevector-u32-set! and friends; the
+    ; index and value have been checked.
+    ((bytevector-like-set32!:trusted bytevector-like-set64!:trusted)
+     (let ((offset (- $bytewidth.wordsize $tag.bytevector-tag)))
+       (cant.shri  as rs2 2 $r.tmp)
+       (cant.add   as rs1 $r.tmp $r.tmp)
+       (cant.shrai as rs3 2 $r.result)   ; untagged value in RESULT
+       (if (eq? name 'bytevector-like-set32!:trusted)
+           (cant.stwi as $r.result $r.tmp offset)
+           (cant.sti  as $r.result $r.tmp offset))
+       (cant.movi  as 0 $r.result)))     ; clear untagged value
     ((bytevector-set!)
      (emit-check-tags       as rs1 $tag.bytevector-tag $hdr.bytevector $ex.bvset)
      (emit-check-fixnums    as rs2 rs3 $ex.bvset)

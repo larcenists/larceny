@@ -294,6 +294,8 @@
      (make-bytevector   (object object)             (bytevector))
      (.bytevector-like-length:bvl (bytevector)      (index))
      (.bytevector-like-ref:trusted (bytevector fixnum) (index))
+     (.bytevector-like-ref32u:trusted (bytevector fixnum) (fixnum))
+     (.bytevector-like-ref32s:trusted (bytevector fixnum) (fixnum))
 
      (make-string       (object object)             (string))
      (.string-length:str (string)                   (index))

@@ -386,8 +386,11 @@
 ; (or split into) its bytes with fixnum shifts, in the target's byte
 ; order for the native accessors; other values go to the out-of-line
 ; bytevector-uint-ref and friends.  So with 64-bit words, the 16- and
-; 32-bit accessors and most uses of the 64-bit ones are open-coded.
-; The procedures themselves (bytevector.sch) are calls of these.
+; 32-bit accessors and most uses of the 64-bit ones are open-coded;
+; with Fence there, 32- and 64-bit values in the native byte order are
+; loaded and stored whole (.bytevector-like-ref32u:trusted and friends,
+; fence.imp.sch).  The procedures themselves (bytevector.sch) are calls
+; of these.
 
 (define bytevector-accessor-names
   (let loop ((sizes '(16 32 64)) (names '()))
@@ -413,7 +416,10 @@
 (define bytevector-accessor-rules
   (let* ((width (- (nbuild-parameter 'word-size) 2))   ; of a fixnum
          (native larceny:endianness)
-         (other (if (eq? native 'big) 'little 'big)))
+         (other (if (eq? native 'big) 'little 'big))
+         (word-ops? (and (= width 62)
+                         (memq (nbuild-parameter 'target-machine)
+                               '(arm x86-64)))))
 
     ; The byte of significance j (0 the least) of a size-byte value at i.
 
@@ -451,7 +457,18 @@
         bv i ,@(if set? '(n) '()) ',order ,size))
 
     (define (ref-expr size signed? order)
-      (cond ((fixnum-range? size signed?)
+      (cond ((and word-ops? (eq? order native) (= size 4))
+             `(,(if signed?
+                    '.bytevector-like-ref32s:trusted
+                    '.bytevector-like-ref32u:trusted)
+               bv i))
+            ((and word-ops? (eq? order native) (= size 8))
+             `(let ((x (,(if signed?
+                             '.bytevector-like-ref64s:trusted
+                             '.bytevector-like-ref64u:trusted)
+                        bv i)))
+                (if x x ,(out-of-line #f signed? size order))))
+            ((fixnum-range? size signed?)
              (if signed?
                  (let ((k (- width (* 8 size))))
                    `(.fxrsha (.fxlsh ,(compose size size order) ,k) ,k))
@@ -485,7 +502,13 @@
                                          255))
                             es)))
                  ((< j 0) `(begin ,@es)))))
-        (cond ((fixnum-range? size signed?)
+        (cond ((and word-ops? (eq? order native) (= size 4))
+               '(.bytevector-like-set32!:trusted bv i n))
+              ((and word-ops? (eq? order native) (= size 8))
+               `(if (.fixnum? n)
+                    (.bytevector-like-set64!:trusted bv i n)
+                    ,(out-of-line #t signed? size order)))
+              ((fixnum-range? size signed?)
                stores)
               ((> width (* 8 (- size 1)))
                `(if (.fixnum? n) ,stores ,(out-of-line #t signed? size order)))

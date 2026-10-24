@@ -203,13 +203,18 @@ DONE.md (with the date and the commit, if any).
 - The 16/32/64-bit bytevector accessors are open-coded as byte loads
   and shifts (bytevector-accessor-rules, Compiler/common.imp.sch;
   lockpick's LARCENY-NOTES.md item 1), follow-ups:
-  - Summing 10^7 elements, bytevector-u32-native-ref takes 0.059 s
-    against vector-ref's 0.020 s (it was 0.24 s): four byte loads, three
-    shifts and three ors, each with its fixnum check.  A primop for an
-    aligned 16/32-bit load (and a 64-bit one that falls back when the
-    value is not a fixnum), in Fence for both targets, would close the
-    gap; so would dropping the fixnum checks of .fxlogior and .fxlsh
-    when representation inference has proved their operands fixnums.
+  - With Fence on 64-bit targets, 32- and 64-bit values in the native
+    byte order are loaded and stored whole
+    (.bytevector-like-ref32u:trusted and friends).  Summing 10^7
+    elements with the index stepped by the size: u32-native-ref 0.027 s
+    and u64-native-ref 0.038 s against vector-ref's 0.022 s;
+    u32-native-set! 0.025 s against vector-set!'s 0.020 s.  What is
+    left is mostly the checks: the alignment check loads its mask into
+    a register (.fxlogand has no immediate form), and the 64-bit loads
+    test whether the value is a fixnum.
+  - 16-bit values, and values in the other byte order, are still made
+    from byte loads (u16-native-ref: about 2x vector-ref); Fence has no
+    16-bit load or byte swap.  Elsewhere (Petit) all of them are.
   - Not yet tested on AArch64 (native or Petit), nor on a 32-bit
     target, where the 32- and 64-bit accessors only check their
     arguments and call bytevector-uint-ref and friends.

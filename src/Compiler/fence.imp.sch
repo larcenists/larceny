@@ -223,6 +223,24 @@
     (.bytevector-like-set!:trusted
                       3 bytevector-like-set!:trusted #f -1 ,:dead  ,:string #f)
 
+    ; Multi-byte loads and stores in the native byte order, used by the
+    ; compiler macros of bytevector-u32-ref and friends on 64-bit
+    ; systems (see bytevector-accessor-rules in common.imp.sch).  The
+    ; 64-bit loads return #f for values that are not fixnums.
+
+    (.bytevector-like-ref32u:trusted
+                      2 bytevector-like-ref32u:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-ref32s:trusted
+                      2 bytevector-like-ref32s:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-ref64u:trusted
+                      2 bytevector-like-ref64u:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-ref64s:trusted
+                      2 bytevector-like-ref64s:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-set32!:trusted
+                      3 bytevector-like-set32!:trusted #f -1 ,:dead ,:string #f)
+    (.bytevector-like-set64!:trusted
+                      3 bytevector-like-set64!:trusted #f -1 ,:dead ,:string #f)
+
     (.car:pair        1 car:pair         #f           404 ,:car      ,:none #f)
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
 
