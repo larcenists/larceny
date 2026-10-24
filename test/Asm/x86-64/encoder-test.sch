@@ -303,8 +303,11 @@
          (lambda (as L) (cant.shl as $r.result $r.second 0)))
    (list "mov rax, rcx\nmov rdx, rsi\nxchg rcx, rdx\nshr rax, cl\nxchg rcx, rdx\nmov rcx, rax"
          (lambda (as L) (cant.shr as $r.tmp $r.result $r.tmp)))
-   (list "mov rax, rsi\nmov rdx, rcx\nxchg rcx, rdx\nsar rax, cl\nxchg rcx, rdx\nmov rsi, rax"
+   ;; A count already in rcx (TMP0) needs no exchange.
+   (list "sar rsi, cl"
          (lambda (as L) (cant.shra as $r.result $r.tmp $r.result)))
+   (list "mov rax, rsi\nshl rax, cl\nmov rdi, rax"
+         (lambda (as L) (cant.shl as $r.result $r.tmp $r.second)))
    (list "mov rdi, rsi\nnot rdi"
          (lambda (as L) (cant.not as $r.result $r.second)))
 

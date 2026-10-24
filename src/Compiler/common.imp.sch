@@ -736,7 +736,7 @@
               fxmin fxmax
               fx+ fx- fx*
               fxnot fxand fxior fxxor fxif
-              fxarithmetic-shift-right
+              fxarithmetic-shift-left fxarithmetic-shift-right
               fxeven? fxodd?
               fl=? fl<? fl>? fl<=? fl>=?
               flzero? flpositive? flnegative?
@@ -1442,13 +1442,25 @@
 `  ((_ larceny fxarithmetic-shift-right (fxarithmetic-shift-right ?x ?y))
     (let ((x ?x)
           (y ?y))
-      (.check! (if (fixnum? y)
-                   (if (.<=:fix:fix 0 y)
-                       (.<:fix:fix y ,(- (nbuild-parameter 'word-size) 2))
-                       #f)
-                   #f)
+      (.check! (.fixnum? y) ,$ex.rsha x y)
+      (.check! (.>=:fix:fix y 0) ,$ex.rsha x y)
+      (.check! (.<:fix:fix y ,(- (nbuild-parameter 'word-size) 2))
                ,$ex.rsha x y)
       (.fxrsha x y)))
+
+; Likewise; the result must be a fixnum, which it is if shifting it
+; back gives x.  The handler of $ex.lsh tells the two errors apart.
+
+`  ((_ larceny fxarithmetic-shift-left (fxarithmetic-shift-left ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? y) ,$ex.lsh x y)
+      (.check! (.>=:fix:fix y 0) ,$ex.lsh x y)
+      (.check! (.<:fix:fix y ,(- (nbuild-parameter 'word-size) 2))
+               ,$ex.lsh x y)
+      (let ((r (.fxlsh x y)))
+        (.check! (.=:fix:fix (.fxrsha r y) x) ,$ex.lsh x y)
+        r)))
 
 `  ((_ larceny fxeven? (fxeven? ?x))
     (fxzero? (fxand ?x 1)))

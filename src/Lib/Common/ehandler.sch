@@ -384,9 +384,27 @@
        ((= code $ex.lognot)
         (not-a-fix "fxlognot" arg1))
        ((= code $ex.lsh)
-        (fix-binop "fxlsh" arg1 arg2))
+        ; Also signalled by the compiler macro of fxarithmetic-shift-left
+        ; (Compiler/common.imp.sch), for a shift out of range or a result
+        ; that is not a fixnum.
+        (cond ((not (and (fixnum? arg1) (fixnum? arg2)))
+               (fix-binop "fxlsh" arg1 arg2))
+              ((not (and (<= 0 arg2) (< arg2 (fixnum-width))))
+               (assertion-violation 'fxarithmetic-shift-left
+                                    (errmsg 'msg:fixnumshift) arg2))
+              (else
+               (raise-r6rs-exception
+                (make-implementation-restriction-violation)
+                'fxarithmetic-shift-left
+                (errmsg 'msg:fixnumrange)
+                (list arg1 arg2)))))
        ((= code $ex.rsha)
-        (fix-binop "fxrsha" arg1 arg2))
+        ; Also signalled by the compiler macro of fxarithmetic-shift-right,
+        ; for a shift out of range.
+        (if (and (fixnum? arg1) (fixnum? arg2))
+            (assertion-violation 'fxarithmetic-shift-right
+                                 (errmsg 'msg:fixnumshift) arg2)
+            (fix-binop "fxrsha" arg1 arg2)))
        ((= code $ex.rshl)
         (fix-binop "fxrshl" arg1 arg2))
        ((= code $ex.fx+)

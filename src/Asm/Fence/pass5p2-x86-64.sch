@@ -339,7 +339,9 @@
 
 ; Shifts by a register count take the count in cl, which is TMP0.  The
 ; value is shifted in TMP1, and TMP0 is restored, so any of the
-; operands may be TMP0.
+; operands may be TMP0.  A count already in TMP0 (as Fence's fixnum
+; shifts leave it) needs no exchange, and a value shifted in place no
+; copies.
 
 (define (cant.shl as rs1 rs2 rd)
   (x86-64.shiftv as x86-64.shift.shl rs1 rs2 rd))
@@ -351,12 +353,22 @@
   (x86-64.shiftv as x86-64.shift.sar rs1 rs2 rd))
 
 (define (x86-64.shiftv as kind rs1 rs2 rd)
-  (x86-64.mov-rr    as x86-64.TMP1 (x86-64.reg rs1))
-  (x86-64.mov-rr    as x86-64.TMP2 (x86-64.reg rs2))
-  (x86-64.xchg      as x86-64.TMP0 x86-64.TMP2)
-  (x86-64.shift-cl  as kind x86-64.TMP1)
-  (x86-64.xchg      as x86-64.TMP0 x86-64.TMP2)
-  (x86-64.mov-rr    as (x86-64.reg rd) x86-64.TMP1))
+  (let ((r1 (x86-64.reg rs1))
+        (r2 (x86-64.reg rs2))
+        (d  (x86-64.reg rd)))
+    (cond ((and (= r2 x86-64.TMP0) (= r1 d) (not (= d x86-64.TMP0)))
+           (x86-64.shift-cl  as kind d))
+          ((= r2 x86-64.TMP0)
+           (x86-64.mov-rr    as x86-64.TMP1 r1)
+           (x86-64.shift-cl  as kind x86-64.TMP1)
+           (x86-64.mov-rr    as d x86-64.TMP1))
+          (else
+           (x86-64.mov-rr    as x86-64.TMP1 r1)
+           (x86-64.mov-rr    as x86-64.TMP2 r2)
+           (x86-64.xchg      as x86-64.TMP0 x86-64.TMP2)
+           (x86-64.shift-cl  as kind x86-64.TMP1)
+           (x86-64.xchg      as x86-64.TMP0 x86-64.TMP2)
+           (x86-64.mov-rr    as d x86-64.TMP1)))))
 
 (define (cant.not as rs rd)
   (let ((rs (x86-64.reg rs))

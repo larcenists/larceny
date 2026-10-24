@@ -9,6 +9,7 @@
   (fixnum-test-functionality)
   (quotient-remainder-tests)
   (fxarithmetic-shift-right-tests)
+  (fxarithmetic-shift-left-tests)
   (if (null? rest)
       (fixnum-test-error)
       #t)
@@ -45,6 +46,56 @@
      (mustfail "not a fixnum" shift (+ mpf 1) 2)
      (mustfail "not a fixnum, constant count"
                (lambda (x) (fxarithmetic-shift-right x 2)) 2.5))))
+
+; fxarithmetic-shift-left, compiled in line, against multiplication by
+; powers of 2: a result that is not a fixnum raises an implementation
+; restriction, a count out of range or an operand that is not a fixnum
+; an assertion violation.
+
+(define (fxarithmetic-shift-left-tests)
+  (let* ((mpf (most-positive-fixnum))
+         (mnf (most-negative-fixnum))
+         (width (fixnum-width))
+         (values (list 0 1 -1 5 -5 1000003 -1000003 mpf mnf
+                       (quotient mpf 2) (quotient mnf 2)
+                       (+ (quotient mpf 2) 1) (- (quotient mnf 2) 1))))
+    (define (shift x k) (fxarithmetic-shift-left x k))    ; variable count
+    (define (expected x k)
+      (let ((r (* x (expt 2 k))))
+        (if (and (<= mnf r) (<= r mpf)) r 'restriction)))
+    (define (kind thunk)
+      (guard (c ((implementation-restriction-violation? c) 'restriction)
+                ((assertion-violation? c) 'assertion)
+                (else 'other))
+        (thunk)))
+    (allof "fxarithmetic-shift-left"
+     (allof-map "variable counts"
+      (lambda (x)
+        (do ((k 0 (+ k 1)))
+            ((= k width))
+          (test (string-append (number->string x) " by " (number->string k))
+                (kind (lambda () (shift x k)))
+                (expected x k))))
+      values)
+     (allof-map "constant counts"
+      (lambda (x)
+        (test "by 0" (kind (lambda () (fxarithmetic-shift-left x 0)))
+              (expected x 0))
+        (test "by 1" (kind (lambda () (fxarithmetic-shift-left x 1)))
+              (expected x 1))
+        (test "by 7" (kind (lambda () (fxarithmetic-shift-left x 7)))
+              (expected x 7))
+        (test "by 61" (kind (lambda () (fxarithmetic-shift-left x 61)))
+              (expected x 61)))
+      values)
+     (test "count = width" (kind (lambda () (shift 5 width))) 'assertion)
+     (test "count < 0" (kind (lambda () (shift 5 -1))) 'assertion)
+     (test "count not a fixnum" (kind (lambda () (shift 5 (+ mpf 1))))
+           'assertion)
+     (test "not a fixnum" (kind (lambda () (shift (+ mpf 1) 2))) 'assertion)
+     (test "not a fixnum, constant count"
+           (kind (lambda () (fxarithmetic-shift-left 2.5 2)))
+           'assertion))))
 
 ; Generic quotient and remainder, compiled in line for two fixnums on
 ; some targets: signs, small divisors, the ends of the fixnum range
