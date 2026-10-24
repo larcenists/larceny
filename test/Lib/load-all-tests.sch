@@ -11,6 +11,7 @@
 (compile-file "string.sch")
 (compile-file "normalization.sch")
 (compile-file "bytevector.sch")
+(compile-file "bytevector-accessors.sch")
 (compile-file "vector.sch")
 (compile-file "sort.sch")
 (compile-file "io.sch")
@@ -40,6 +41,7 @@
 (load "string.fasl")			; Strings
 (load "normalization.fasl")		; String normalization
 (load "bytevector.fasl")                ; Bytevectors
+(load "bytevector-accessors.fasl")      ; 16/32/64-bit accessors
 (load "vector.fasl")                    ; Vector copies and fills
 (load "sort.fasl")                      ; Sorting
 (load "io.fasl")                        ; Input and output
@@ -75,6 +77,7 @@
         (run-normalization-tests)))
 
   (run-bytevector-tests)
+  (run-bytevector-accessor-tests)
   (run-vector-tests)
   (run-sort-tests)
   (run-io-tests)
