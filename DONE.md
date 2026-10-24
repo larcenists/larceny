@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- current-jiffy no longer loads the FFI (c2b42415; lockpick's LARCENY-NOTES.md
+  item 11): its first call took 0.3 s, now about 1 us (later calls 30 us
+  to 0.18 us).
 - x86-64: a timer tick is subq $1 of the timer in memory and a jb (ec0308e1;
   lockpick's LARCENY-NOTES.md item 12), not a load, test, decrement and
   store through a register: 3.4 instructions fewer per loop iteration,
