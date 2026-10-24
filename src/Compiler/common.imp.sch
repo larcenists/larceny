@@ -736,7 +736,7 @@
               fxmin fxmax
               fx+ fx- fx*
               fxnot fxand fxior fxxor fxif
-              fxarithmetic-shift-left fxarithmetic-shift-right
+              fxarithmetic-shift fxarithmetic-shift-left fxarithmetic-shift-right
               fxeven? fxodd?
               fl=? fl<? fl>? fl<=? fl>=?
               flzero? flpositive? flnegative?
@@ -1461,6 +1461,18 @@
       (let ((r (.fxlsh x y)))
         (.check! (.=:fix:fix (.fxrsha r y) x) ,$ex.lsh x y)
         r)))
+
+; A negative count shifts right; with a constant count only one of the
+; arms is left.  (The negation of the most negative fixnum is not a
+; fixnum, which the right shift's check rejects.)
+
+`  ((_ larceny fxarithmetic-shift (fxarithmetic-shift ?x ?y))
+    (let ((x ?x)
+          (y ?y))
+      (.check! (.fixnum? y) ,$ex.lsh x y)
+      (if (.>=:fix:fix y 0)
+          (fxarithmetic-shift-left x y)
+          (fxarithmetic-shift-right x (.-:fix:fix 0 y)))))
 
 `  ((_ larceny fxeven? (fxeven? ?x))
     (fxzero? (fxand ?x 1)))

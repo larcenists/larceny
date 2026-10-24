@@ -10,6 +10,7 @@
   (quotient-remainder-tests)
   (fxarithmetic-shift-right-tests)
   (fxarithmetic-shift-left-tests)
+  (fxarithmetic-shift-tests)
   (if (null? rest)
       (fixnum-test-error)
       #t)
@@ -96,6 +97,50 @@
      (test "not a fixnum, constant count"
            (kind (lambda () (fxarithmetic-shift-left 2.5 2)))
            'assertion))))
+
+; fxarithmetic-shift, compiled in line: left for counts >= 0, right
+; for negative ones.
+
+(define (fxarithmetic-shift-tests)
+  (let* ((mpf (most-positive-fixnum))
+         (mnf (most-negative-fixnum))
+         (width (fixnum-width))
+         (values (list 0 1 -1 5 -5 1000003 -1000003 mpf mnf
+                       (quotient mpf 2) (quotient mnf 2))))
+    (define (shift x k) (fxarithmetic-shift x k))         ; variable count
+    (define (expected x k)
+      (let ((r (if (>= k 0) (* x (expt 2 k)) (floor (/ x (expt 2 (- k)))))))
+        (if (and (<= mnf r) (<= r mpf)) r 'restriction)))
+    (define (kind thunk)
+      (guard (c ((implementation-restriction-violation? c) 'restriction)
+                ((assertion-violation? c) 'assertion)
+                (else 'other))
+        (thunk)))
+    (define (error? thunk)
+      (if (memq (kind thunk) '(restriction assertion)) #t #f))
+    (allof "fxarithmetic-shift"
+     (allof-map "variable counts"
+      (lambda (x)
+        (do ((k (- 1 width) (+ k 1)))
+            ((= k width))
+          (test (string-append (number->string x) " by " (number->string k))
+                (kind (lambda () (shift x k)))
+                (expected x k))))
+      values)
+     (allof-map "constant counts"
+      (lambda (x)
+        (test "by 3" (kind (lambda () (fxarithmetic-shift x 3)))
+              (expected x 3))
+        (test "by -3" (kind (lambda () (fxarithmetic-shift x -3)))
+              (expected x -3)))
+      values)
+     (test "count = width" (error? (lambda () (shift 5 width))) #t)
+     (test "count = -width" (error? (lambda () (shift 5 (- width)))) #t)
+     (test "count = most negative fixnum" (error? (lambda () (shift 5 mnf)))
+           #t)
+     (test "count not a fixnum" (error? (lambda () (shift 5 (+ mpf 1)))) #t)
+     (test "not a fixnum" (error? (lambda () (shift 2.5 2))) #t)
+     (test "not a fixnum, right" (error? (lambda () (shift 2.5 -2))) #t))))
 
 ; Generic quotient and remainder, compiled in line for two fixnums on
 ; some targets: signs, small divisors, the ends of the fixnum range
