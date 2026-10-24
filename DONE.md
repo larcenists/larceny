@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- x86-64: a timer tick is subq $1 of the timer in memory and a jb (ec0308e1;
+  lockpick's LARCENY-NOTES.md item 12), not a load, test, decrement and
+  store through a register: 3.4 instructions fewer per loop iteration,
+  11% fewer cycles in a loop summing vector elements.  Keeping the timer
+  in a register, as lockpick suggested, would need a register x86-64
+  does not have free.
 - Accessors and mutators of R7RS define-record-type types without a
   parent are open-coded, in any library (0735da4c; lockpick's LARCENY-NOTES.md
   item 15): 10^8 accessor calls 0.44 s to 0.32 s, unsafe 0.13 s.
