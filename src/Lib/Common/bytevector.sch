@@ -161,36 +161,6 @@
           (+ val 256)
           val)))))
 
-(define (make-uint-ref size)
-  (lambda (bytevector k endianness)
-    (bytevector-uint-ref bytevector k endianness size)))
-
-(define (make-sint-ref size)
-  (lambda (bytevector k endianness)
-    (bytevector-sint-ref bytevector k endianness size)))
-
-(define (make-uint-set! size)
-  (lambda (bytevector k n endianness)
-    (bytevector-uint-set! bytevector k n endianness size)))
-
-(define (make-sint-set! size)
-  (lambda (bytevector k n endianness)
-    (bytevector-sint-set! bytevector k n endianness size)))
-
-(define (make-ref/native base base-ref)
-  (lambda (bytevector index)
-    (ensure-aligned index base)
-    (base-ref bytevector index (native-endianness))))
-
-(define (make-set!/native base base-set!)
-  (lambda (bytevector index val)
-    (ensure-aligned index base)
-    (base-set! bytevector index val (native-endianness))))
-
-(define (ensure-aligned index base)
-  (if (not (zero? (bytevector:mod index base)))
-      (error "non-aligned bytevector access" index base)))
-
 (define (make-bytevector->int-list bytevector-ref)
   (lambda (b endness size)
     (let ((ref (lambda (i) (bytevector-ref b i endness size)))
@@ -344,32 +314,62 @@
                   val)))
     (bytevector-uint-set! bytevector index uval endness size)))
   
-(define bytevector-u16-ref (make-uint-ref 2))
-(define bytevector-u16-set! (make-uint-set! 2))
-(define bytevector-s16-ref (make-sint-ref 2))
-(define bytevector-s16-set! (make-sint-set! 2))
-(define bytevector-u16-native-ref (make-ref/native 2 bytevector-u16-ref))
-(define bytevector-u16-native-set! (make-set!/native 2 bytevector-u16-set!))
-(define bytevector-s16-native-ref (make-ref/native 2 bytevector-s16-ref))
-(define bytevector-s16-native-set! (make-set!/native 2 bytevector-s16-set!))
+; The 16-, 32- and 64-bit accessors are open-coded by compiler macros
+; (bytevector-accessor-rules in Compiler/common.imp.sch), which these
+; definitions use: compiled without them (integrate-procedures 'none),
+; each would call itself forever.  (With (define (f ...) ...), benchmark
+; mode would make the call a local one, which the macros do not see.)
 
-(define bytevector-u32-ref (make-uint-ref 4))
-(define bytevector-u32-set! (make-uint-set! 4))
-(define bytevector-s32-ref (make-sint-ref 4))
-(define bytevector-s32-set! (make-sint-set! 4))
-(define bytevector-u32-native-ref (make-ref/native 4 bytevector-u32-ref))
-(define bytevector-u32-native-set! (make-set!/native 4 bytevector-u32-set!))
-(define bytevector-s32-native-ref (make-ref/native 4 bytevector-s32-ref))
-(define bytevector-s32-native-set! (make-set!/native 4 bytevector-s32-set!))
+(define bytevector-u16-ref
+  (lambda (b k e) (bytevector-u16-ref b k e)))
+(define bytevector-u16-set!
+  (lambda (b k n e) (bytevector-u16-set! b k n e)))
+(define bytevector-s16-ref
+  (lambda (b k e) (bytevector-s16-ref b k e)))
+(define bytevector-s16-set!
+  (lambda (b k n e) (bytevector-s16-set! b k n e)))
+(define bytevector-u16-native-ref
+  (lambda (b k) (bytevector-u16-native-ref b k)))
+(define bytevector-u16-native-set!
+  (lambda (b k n) (bytevector-u16-native-set! b k n)))
+(define bytevector-s16-native-ref
+  (lambda (b k) (bytevector-s16-native-ref b k)))
+(define bytevector-s16-native-set!
+  (lambda (b k n) (bytevector-s16-native-set! b k n)))
 
-(define bytevector-u64-ref (make-uint-ref 8))
-(define bytevector-u64-set! (make-uint-set! 8))
-(define bytevector-s64-ref (make-sint-ref 8))
-(define bytevector-s64-set! (make-sint-set! 8))
-(define bytevector-u64-native-ref (make-ref/native 8 bytevector-u64-ref))
-(define bytevector-u64-native-set! (make-set!/native 8 bytevector-u64-set!))
-(define bytevector-s64-native-ref (make-ref/native 8 bytevector-s64-ref))
-(define bytevector-s64-native-set! (make-set!/native 8 bytevector-s64-set!))
+(define bytevector-u32-ref
+  (lambda (b k e) (bytevector-u32-ref b k e)))
+(define bytevector-u32-set!
+  (lambda (b k n e) (bytevector-u32-set! b k n e)))
+(define bytevector-s32-ref
+  (lambda (b k e) (bytevector-s32-ref b k e)))
+(define bytevector-s32-set!
+  (lambda (b k n e) (bytevector-s32-set! b k n e)))
+(define bytevector-u32-native-ref
+  (lambda (b k) (bytevector-u32-native-ref b k)))
+(define bytevector-u32-native-set!
+  (lambda (b k n) (bytevector-u32-native-set! b k n)))
+(define bytevector-s32-native-ref
+  (lambda (b k) (bytevector-s32-native-ref b k)))
+(define bytevector-s32-native-set!
+  (lambda (b k n) (bytevector-s32-native-set! b k n)))
+
+(define bytevector-u64-ref
+  (lambda (b k e) (bytevector-u64-ref b k e)))
+(define bytevector-u64-set!
+  (lambda (b k n e) (bytevector-u64-set! b k n e)))
+(define bytevector-s64-ref
+  (lambda (b k e) (bytevector-s64-ref b k e)))
+(define bytevector-s64-set!
+  (lambda (b k n e) (bytevector-s64-set! b k n e)))
+(define bytevector-u64-native-ref
+  (lambda (b k) (bytevector-u64-native-ref b k)))
+(define bytevector-u64-native-set!
+  (lambda (b k n) (bytevector-u64-native-set! b k n)))
+(define bytevector-s64-native-ref
+  (lambda (b k) (bytevector-s64-native-ref b k)))
+(define bytevector-s64-native-set!
+  (lambda (b k n) (bytevector-s64-native-set! b k n)))
 
 (define (bytevector=? b1 b2)
   (if (or (not (bytevector? b1))

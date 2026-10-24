@@ -380,6 +380,184 @@
     char=? char<? char>? char<=? char>=?
     fl= fl< fl> fl<= fl>=))
 
+; Rules of the .CALL macro for the 16-, 32- and 64-bit bytevector
+; accessors (bytevector-u32-ref, bytevector-s64-native-set!, ...): the
+; arguments are checked once, and a value that is a fixnum is made from
+; (or split into) its bytes with fixnum shifts, in the target's byte
+; order for the native accessors; other values go to the out-of-line
+; bytevector-uint-ref and friends.  So with 64-bit words, the 16- and
+; 32-bit accessors and most uses of the 64-bit ones are open-coded.
+; The procedures themselves (bytevector.sch) are calls of these.
+
+(define bytevector-accessor-names
+  (let loop ((sizes '(16 32 64)) (names '()))
+    (if (null? sizes)
+        (reverse names)
+        (let ((b "bytevector-")
+              (n (number->string (car sizes))))
+          (loop (cdr sizes)
+                (append
+                 (reverse
+                  (map (lambda (s)
+                         (string->symbol (string-append b s)))
+                       (list (string-append "u" n "-ref")
+                             (string-append "u" n "-set!")
+                             (string-append "s" n "-ref")
+                             (string-append "s" n "-set!")
+                             (string-append "u" n "-native-ref")
+                             (string-append "u" n "-native-set!")
+                             (string-append "s" n "-native-ref")
+                             (string-append "s" n "-native-set!"))))
+                 names))))))
+
+(define bytevector-accessor-rules
+  (let* ((width (- (nbuild-parameter 'word-size) 2))   ; of a fixnum
+         (native larceny:endianness)
+         (other (if (eq? native 'big) 'little 'big)))
+
+    ; The byte of significance j (0 the least) of a size-byte value at i.
+
+    (define (offset size j order)
+      (let ((k (if (eq? order 'little) j (- size 1 j))))
+        (if (= k 0) 'i `(.+:idx:idx i ,k))))
+
+    (define (byte size j order)
+      `(.bytevector-like-ref:trusted bv ,(offset size j order)))
+
+    ; The unsigned value of the count least significant bytes.
+
+    (define (compose size count order)
+      (do ((j 1 (+ j 1))
+           (e (byte size 0 order)
+              `(.fxlogior ,e (.fxlsh ,(byte size j order) ,(* 8 j)))))
+          ((= j count) e)))
+
+    ; The range of a size-byte value: [lo, hi).
+
+    (define (lo size signed?)
+      (if signed? (- (expt 2 (- (* 8 size) 1))) 0))
+
+    (define (hi size signed?)
+      (expt 2 (- (* 8 size) (if signed? 1 0))))
+
+    (define (fixnum-range? size signed?)
+      (and (>= (lo size signed?) (- (expt 2 (- width 1))))
+           (<= (hi size signed?) (expt 2 (- width 1)))))
+
+    (define (out-of-line set? signed? size order)
+      `(,(if set?
+             (if signed? 'bytevector-sint-set! 'bytevector-uint-set!)
+             (if signed? 'bytevector-sint-ref 'bytevector-uint-ref))
+        bv i ,@(if set? '(n) '()) ',order ,size))
+
+    (define (ref-expr size signed? order)
+      (cond ((fixnum-range? size signed?)
+             (if signed?
+                 (let ((k (- width (* 8 size))))
+                   `(.fxrsha (.fxlsh ,(compose size size order) ,k) ,k))
+                 (compose size size order)))
+            ((> width (* 8 (- size 1)))
+             ; The value is a fixnum if the top byte's bits from the
+             ; fixnum's sign bit up are all zero (or, if signed, all one).
+             (let* ((s (* 8 (- size 1)))
+                    (limit (expt 2 (- width s 1))))
+               `(let ((lo ,(compose size (- size 1) order))
+                      (hi ,(byte size (- size 1) order)))
+                  (if ,(if signed?
+                           `(if (.<:fix:fix hi ,limit)
+                                #t
+                                (.>=:fix:fix hi ,(- 256 limit)))
+                           `(.<:fix:fix hi ,limit))
+                      (.fxlogior (.fxlsh hi ,s) lo)
+                      ,(out-of-line #f signed? size order)))))
+            (else
+             (out-of-line #f signed? size order))))
+
+    ; After value-checks: n is in range.
+
+    (define (set-expr size signed? order)
+      (let ((stores
+             (do ((j (- size 1) (- j 1))
+                  (es '()
+                      (cons `(.bytevector-like-set!:trusted
+                              bv ,(offset size j order)
+                              (.fxlogand ,(if (= j 0) 'n `(.fxrsha n ,(* 8 j)))
+                                         255))
+                            es)))
+                 ((< j 0) `(begin ,@es)))))
+        (cond ((fixnum-range? size signed?)
+               stores)
+              ((> width (* 8 (- size 1)))
+               `(if (.fixnum? n) ,stores ,(out-of-line #t signed? size order)))
+              (else
+               (out-of-line #t signed? size order)))))
+
+    (define (index-checks size native? ex args)
+      `((.check! (.fixnum? i) ,ex ,@args)
+        (.check! (bytevector? bv) ,ex ,@args)
+        (.check! (.>=:fix:fix i 0) ,ex ,@args)
+        ,@(if native?
+              `((.check! (.=:fix:fix (.fxlogand i ,(- size 1)) 0) ,ex ,@args))
+              '())
+        (.check! (.<:fix:fix i (.-:idx:idx (.bytevector-like-length:bvl bv)
+                                            ,(- size 1)))
+                 ,ex ,@args)))
+
+    (define (value-checks size signed? args)
+      (let ((lo (lo size signed?))
+            (hi (hi size signed?)))
+        (if (fixnum-range? size signed?)
+            `((.check! (.fixnum? n) ,$ex.bvset ,@args)
+              (.check! (.>=:fix:fix n ,lo) ,$ex.bvset ,@args)
+              (.check! (.<:fix:fix n ,hi) ,$ex.bvset ,@args))
+            `((.check! (if (.fixnum? n)
+                           ,(if signed? #t '(.>=:fix:fix n 0))
+                           (if (exact-integer? n)
+                               (if (<= ,lo n) (< n ,hi) #f)
+                               #f))
+                       ,$ex.bvset ,@args)))))
+
+    ; The explicit endianness may be any symbol: all but big and
+    ; little mean the native one.
+
+    (define (by-endianness native? make)
+      (if native?
+          (make native)
+          `(if (eq? which ',other) ,(make other) ,(make native))))
+
+    (define (rule size signed? set? native?)
+      (let* ((name (string->symbol
+                    (string-append "bytevector-"
+                                   (if signed? "s" "u")
+                                   (number->string (* 8 size))
+                                   (if native? "-native" "")
+                                   (if set? "-set!" "-ref"))))
+             (vars `((bv bv0) (i i0)
+                     ,@(if set? '((n n0)) '())
+                     ,@(if native? '() '((which which0)))))
+             (args (if set? '(bv i n) '(bv i))))
+        `((_ larceny ,name (,name ,@(map cadr vars)))
+          (let ,vars
+            ,@(index-checks size native? (if set? $ex.bvset $ex.bvref) args)
+            ,@(if set? (value-checks size signed? args) '())
+            ,(by-endianness native?
+                            (lambda (order)
+                              (if set?
+                                  (set-expr size signed? order)
+                                  (ref-expr size signed? order))))))))
+
+    (apply append
+           (map (lambda (size)
+                  (apply append
+                         (map (lambda (signed?)
+                                (apply append
+                                       (map (lambda (set?)
+                                              (list (rule size signed? set? #f)
+                                                    (rule size signed? set? #t)))
+                                            '(#f #t))))
+                              '(#f #t))))
+                '(2 4 8)))))
+
 ; The list of compiler macros has been rewritten to avoid the
 ; use of quasiquote on large structures.  Larceny's quasiquote
 ; apparently takes quadratic time, so this rewrite improved
@@ -502,16 +680,14 @@
            exp)))))
 
 (list 'define-syntax name:CALL
-      (list 'syntax-rules
-            '(r4rs r5rs larceny quote lambda
+      (apply list 'syntax-rules
+            (append bytevector-accessor-names '(r4rs r5rs larceny quote lambda
               boolean?
               car cdr
               vector-length vector-ref vector-set!
               bytevector-length bytevector-ref bytevector-set!
               bytevector-like-length bytevector-like-ref bytevector-like-set!
               bytevector-u8-ref bytevector-u8-set!
-              bytevector-u16-ref bytevector-u16-set!
-              bytevector-u16-native-ref bytevector-u16-native-set!
               bignum-length bignum-ref bignum-set!                      ; FIXME
               string-length string-ref string-set!
               make-ustring ustring-length ustring-ref ustring-set!
@@ -552,7 +728,7 @@
               %text-length
               text-ref
               %text-ref
-              )
+              ))
 
    ; FIXME: Eliminating these next two should fix ticket #37.
 
@@ -676,64 +852,6 @@
 
 `  ((_ larceny bytevector-u8-set! (bytevector-u8-set! x y z))
     (bytevector-set! x y z))
-
-`  ((_ larceny bytevector-u16-ref (bytevector-u16-ref bv0 i0 which0))
-    (let ((bv bv0)
-          (i i0)
-          (which which0))
-      (.check! (.fixnum? i) ,$ex.bvref bv i)
-      (.check! (bytevector? bv) ,$ex.bvref bv i)
-      (.check! (.>=:fix:fix i 0) ,$ex.bvref bv i)
-      (let ((i+1 (.+:idx:idx i 1)))
-        (.check! (.<:fix:fix i+1 (.bytevector-like-length:bvl bv))
-                 ,$ex.bvref bv i)
-        (let ((b1 (.bytevector-like-ref:trusted bv i+1))
-              (b0 (.bytevector-like-ref:trusted bv i))
-              (which (cond ((eq? which 'big) which)
-                           ((eq? which 'little) which)
-                           (else (native-endianness)))))
-          (if (eq? which 'big)
-              (.+:idx:idx (.fxlsh b0 8) b1)
-              (.+:idx:idx (.fxlsh b1 8) b0))))))
-
-`  ((_ larceny bytevector-u16-set! (bytevector-u16-set! bv0 i0 n0 which0))
-    (let ((bv bv0)
-          (i i0)
-          (n n0)
-          (which which0))
-      (.check! (.fixnum? i) ,$ex.bvset bv i)
-      (.check! (bytevector? bv) ,$ex.bvset bv i)
-      (.check! (.>=:fix:fix i 0) ,$ex.bvset bv i)
-      (let ((i+1 (.+:idx:idx i 1)))
-        (.check! (.<:fix:fix i+1 (.bytevector-like-length:bvl bv))
-                 ,$ex.bvset bv i)
-        (.check! (.<:fix:fix n 65536) ,$ex.bvset bv i n)
-        (.check! (.>=:fix:fix n 0) ,$ex.bvset bv i n)
-        (let ((lo (.fxlogand n #x00ff))
-              (hi (.fxrsha n 8))
-              (which (cond ((eq? which 'big) which)
-                           ((eq? which 'little) which)
-                           (else (native-endianness)))))
-          (if (eq? which 'big)
-              (begin (.bytevector-like-set!:trusted bv i hi)
-                     (.bytevector-like-set!:trusted bv i+1 lo))
-              (begin (.bytevector-like-set!:trusted bv i lo)
-                     (.bytevector-like-set!:trusted bv i+1 hi)))))))
-
-`  ((_ larceny bytevector-u16-native-ref (bytevector-u16-native-ref bv0 i0))
-    (let ((bv bv0)
-          (i i0))
-      (.check! (.fixnum? i) ,$ex.bvref bv i)
-      (.check! (.=:fix:fix (.fxlogand i 1) 0) ,$ex.bvref bv i)
-      (bytevector-u16-ref bv i (native-endianness))))
-
-`  ((_ larceny bytevector-u16-native-set! (bytevector-u16-set! bv0 i0 n0))
-    (let ((bv bv0)
-          (i i0)
-          (n n0))
-      (.check! (.fixnum? i) ,$ex.bvset bv i n)
-      (.check! (.=:fix:fix (.fxlogand i 1) 0) ,$ex.bvset bv i n)
-      (bytevector-u16-set! bv i n (native-endianness))))
 
 ;;; FIXME: temporary hack
 
@@ -1892,10 +2010,12 @@
 
    ; Default case: expand into the original expression.
 
+(append bytevector-accessor-rules
+            (list
 `  ((_ ?anything ?proc ?exp)
     ?exp)
 
-   ))
+   ))))
 
 ))
 

@@ -200,6 +200,25 @@ DONE.md (with the date and the commit, if any).
   - No disassembler for x86-64 code in the debugger (`i @`).
   - macOS on Intel: the back end should work; the millicode uses ELF
     names (no leading underscore) and the code space needs no MAP_JIT.
+- The 16/32/64-bit bytevector accessors are open-coded as byte loads
+  and shifts (bytevector-accessor-rules, Compiler/common.imp.sch;
+  lockpick's LARCENY-NOTES.md item 1), follow-ups:
+  - Summing 10^7 elements, bytevector-u32-native-ref takes 0.059 s
+    against vector-ref's 0.020 s (it was 0.24 s): four byte loads, three
+    shifts and three ors, each with its fixnum check.  A primop for an
+    aligned 16/32-bit load (and a 64-bit one that falls back when the
+    value is not a fixnum), in Fence for both targets, would close the
+    gap; so would dropping the fixnum checks of .fxlogior and .fxlsh
+    when representation inference has proved their operands fixnums.
+  - Not yet tested on AArch64 (native or Petit), nor on a 32-bit
+    target, where the 32- and 64-bit accessors only check their
+    arguments and call bytevector-uint-ref and friends.
+  - bytevector-uint-set! and bytevector-sint-set!, called directly,
+    still do not check that the value fits in the given size (they
+    store its low bytes); the accessors check before calling them.
+  - bytevector-ieee-double-native-ref and -set! are out-of-line calls
+    that copy the eight bytes one at a time (into a new flonum, for
+    the ref); not measured.
 - gcc warns (-Wformat) about debugging messages that print words and
   pointers with %x in Sys/extbmp.c and Sys/uremset_array.c (dead
   dbmsg calls, mostly); use PRIxWORD and %p.
