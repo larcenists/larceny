@@ -4,6 +4,13 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- An interactive heap dumped from an R7RS session (`--r7rs`) could not
+  start, from dump-interactive-heap as from scheme-dump-interactive-heap:
+  it kept the session's load evaluator (aeryn-evaluator, which
+  evaluates in the R7RS top level), so loading startup.sch failed.  The
+  REPL now loads the init files with the load evaluator the heap was
+  built with (96373491).  Heaps dumped from R7RS sessions before then
+  still fail.
 - Heap dumping under any collector, in Scheme with no runtime changes:
   `scheme-dump-heap` and `scheme-dump-interactive-heap` in
   `lib/Experimental/scheme-dump-heap.sch` (7247d26e), native 64-bit

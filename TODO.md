@@ -265,13 +265,6 @@ DONE.md (with the date and the commit, if any).
     can `(import (larceny dump-heap))`, lib/R6RS/larceny/dump-heap.sld),
     and document it in the user manual; or replace the runtime's stub
     with it.
-- An interactive heap dumped from an R7RS session (`--r7rs`) cannot
-  start, with dump-interactive-heap under -stopcopy as with
-  scheme-dump-interactive-heap: the interaction environment is then
-  the R7RS one, so loading startup.sch fails (`current-require-path`
-  undefined) and the debugger reads the rest of the input.  Heaps
-  dumped with a startup procedure of their own, or from R5RS sessions,
-  are not affected.
 
 ## Debugger
 
