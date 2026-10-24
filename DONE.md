@@ -14,8 +14,11 @@ Finished items, moved here from TODO.md.  Newest first.
   out-of-range values without an error.  Then (8a784063) 32- and 64-bit values
   in the native byte order are loaded and stored whole on 64-bit Fence
   targets: with the index stepped by the size, u32-native-ref 0.027 s
-  and u64-native-ref 0.038 s against vector-ref's 0.022 s.  What is left
-  is in TODO.md.
+  and u64-native-ref 0.038 s against vector-ref's 0.022 s.  Then (eef4e099)
+  the alignment check is one test and the bounds check shares the type
+  check's header load: u32-native-ref 0.023 s, u64-native-ref 0.033 s,
+  u32-native-set! 0.020 s (vector-ref, vector-set!: 0.021 s).  What is
+  left is in TODO.md.
 - An interactive heap dumped from an R7RS session (`--r7rs`) could not
   start, from dump-interactive-heap as from scheme-dump-interactive-heap:
   it kept the session's load evaluator (aeryn-evaluator, which
