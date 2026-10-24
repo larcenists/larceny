@@ -1141,6 +1141,13 @@
 
   (environment-set! larc 'record-indexer record-indexer) ; MzScheme
 
+  ;; For the open-coded accessors of define-record-type (record.sch).
+
+  (environment-set! larc 'record-ref:bummed record-ref:bummed)
+  (environment-set! larc 'record-set!:bummed record-set!:bummed)
+  (environment-set! larc 'record:inline-hierarchy-vector
+                    record:inline-hierarchy-vector)
+
   ;; record printers
 
   (environment-set! larc 'rtd-printer rtd-printer)

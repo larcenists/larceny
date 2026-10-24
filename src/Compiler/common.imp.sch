@@ -1958,30 +1958,35 @@
    ; and complains by calling record:wrong-type (Lib/Common/record.sch);
    ; (.check! #f ...) would make Twobit warn of an assertion it can
    ; prove false.
+   ; rtd0 must be a variable: it is evaluated only when the hierarchy
+   ; vector is not hvec (a subtype, or not a record), so the common case
+   ; does not fetch it.  Compiled unsafe, there is no check.
 
 `  ((_ larceny record-ref:bummed (record-ref:bummed obj0 rtd0 hvec0 depth0 i0))
     (let ((obj obj0)
-          (rtd rtd0)
           (hvec hvec0)
           (depth depth0)
           (i i0))
       (define (record-ref)
         (.vector-ref:trusted obj i))
       (define (complain)
-        (record:wrong-type obj rtd))
-      (if (structure? obj)
-          (let ((hvec2 (.vector-ref:trusted obj 0)))
-            (if (eq? hvec hvec2)
-                (record-ref)
-                (if (eq? rtd (.vector-ref:trusted hvec2 depth))
-                    (record-ref)
-                    (complain))))
-          (complain))))
+        (record:wrong-type obj rtd0))
+      (.case:safety record-ref:bummed
+       ((0)
+        (record-ref))
+       (#t
+        (if (structure? obj)
+            (let ((hvec2 (.vector-ref:trusted obj 0)))
+              (if (eq? hvec hvec2)
+                  (record-ref)
+                  (if (eq? rtd0 (.vector-ref:trusted hvec2 depth))
+                      (record-ref)
+                      (complain))))
+            (complain))))))
 
 `  ((_ larceny record-set!:bummed
                (record-set!:bummed obj0 rtd0 hvec0 depth0 i0 x0))
     (let ((obj obj0)
-          (rtd rtd0)
           (hvec hvec0)
           (depth depth0)
           (i i0)
@@ -1989,15 +1994,19 @@
       (define (record-set!)
         (.vector-set!:trusted obj i x))
       (define (complain)
-        (record:wrong-type obj rtd))
-      (if (structure? obj)
-          (let ((hvec2 (.vector-ref:trusted obj 0)))
-            (if (eq? hvec hvec2)
-                (record-set!)
-                (if (eq? rtd (.vector-ref:trusted hvec2 depth))
-                    (record-set!)
-                    (complain))))
-          (complain))))
+        (record:wrong-type obj rtd0))
+      (.case:safety record-set!:bummed
+       ((0)
+        (record-set!))
+       (#t
+        (if (structure? obj)
+            (let ((hvec2 (.vector-ref:trusted obj 0)))
+              (if (eq? hvec hvec2)
+                  (record-set!)
+                  (if (eq? rtd0 (.vector-ref:trusted hvec2 depth))
+                      (record-set!)
+                      (complain))))
+            (complain))))))
 
    ; The 128 is the value of larceny:text-N.
    ; The slots of a text record are
