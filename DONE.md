@@ -11,7 +11,11 @@ Finished items, moved here from TODO.md.  Newest first.
   with bytevector-u32-native-ref went from 0.244 s to 0.059 s (vector-ref:
   0.020 s), u64 from 0.357 s to 0.099 s.  Fixed with it: an out-of-bounds
   read by bytevector-u16-ref at the greatest fixnum index, and stores of
-  out-of-range values without an error.  What is left is in TODO.md.
+  out-of-range values without an error.  Then (8a784063) 32- and 64-bit values
+  in the native byte order are loaded and stored whole on 64-bit Fence
+  targets: with the index stepped by the size, u32-native-ref 0.027 s
+  and u64-native-ref 0.038 s against vector-ref's 0.022 s.  What is left
+  is in TODO.md.
 - An interactive heap dumped from an R7RS session (`--r7rs`) could not
   start, from dump-interactive-heap as from scheme-dump-interactive-heap:
   it kept the session's load evaluator (aeryn-evaluator, which
