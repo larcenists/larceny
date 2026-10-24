@@ -114,7 +114,7 @@
 (define (fence-imm? x)
   (smallint? x))
 
-; A constant shift count for fxrsha: 0 <= x < the fixnum width.
+; A constant shift count for fxrsha and .fxlsh: 0 <= x < the fixnum width.
 
 (define (fence-shift-imm? x)
   (and (fixnum? x)
@@ -241,7 +241,7 @@
     (.fxlogand        2 fxlogand         #f            71 ,:immortal ,:none #f)
     (.fxlogior        2 fxlogior         #f            72 ,:immortal ,:none #f)
     (.fxlogxor        2 fxlogxor         #f            73 ,:immortal ,:none #f)
-    (.fxlsh           2 fxlsh            #f            74 ,:immortal ,:none #f)
+    (.fxlsh           2 fxlsh            ,fence-shift-imm? 74 ,:immortal ,:none #f)
     (.fxrsha          2 fxrsha           ,fence-shift-imm? 75 ,:immortal ,:none #f)
     (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none #f)
 
