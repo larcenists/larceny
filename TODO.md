@@ -217,7 +217,8 @@ DONE.md (with the date and the commit, if any).
     16-bit load or byte swap.  Elsewhere (Petit) all of them are.
   - Not yet tested on AArch64 (native or Petit), nor on a 32-bit
     target, where the 32- and 64-bit accessors only check their
-    arguments and call bytevector-uint-ref and friends.
+    arguments and call bytevector-uint-ref and friends; test/Lib's
+    bytevector-accessors.sch covers them.
   - bytevector-uint-set! and bytevector-sint-set!, called directly,
     still do not check that the value fits in the given size (they
     store its low bytes); the accessors check before calling them.
