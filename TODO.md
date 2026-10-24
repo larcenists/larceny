@@ -307,6 +307,19 @@ DONE.md (with the date and the commit, if any).
 - Native: `i @` prints a compiled procedure's machine code as a long
   bytevector; at a breakpoint the current frame is
   debug/enter-debugger's, not the procedure's (FIXME in debug.sch).
+- A `readify-lop` for the output of `assemble`, as `readify-lap`
+  (Compiler/printlap.sch) is for that of `compile`: the segments'
+  machine code disassembled, with the constant vectors shown, nested
+  code vectors included.  Needs a disassembler for x86-64 and AArch64
+  (Fence has only Asm/Fence/arm-disassembler.sch, for 32-bit ARM;
+  `disassemble-codevector` is unbound on x86-64); objdump of the code
+  vector's bytes has done meanwhile.  Also: `readify-file` and
+  `disassemble-file` (Compiler/driver-common.sch) fail on the
+  `#lap(...)`/`#lop(...)` feature header at the start of the files
+  (lockpick's LARCENY-NOTES.md item 8), and the default heap has none
+  of `compile`, `assemble`, `readify-lap` and `disassemble-file`
+  (checked 2026-10-24), so using them takes `(load-compiler)` from a
+  source tree.
 
 ## Build process footguns
 

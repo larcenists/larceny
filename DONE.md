@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- Lambda lifting no longer makes a procedure take more arguments than
+  fit in registers (e49e8c10; lockpick's LARCENY-NOTES.md item 10): on
+  x86-64 a named let with free variables consed the arguments beyond 5
+  on every iteration.  Lockpick's case went from 40 million words
+  allocated over 10^7 iterations to none, and 109 ms to 83 ms.  Calls
+  written with more than 5 arguments still cons.
 - The x86-64 work merged on 2026-10-23 and 2026-10-24, tested on
   native AArch64 macOS (none of it needed changes there):
   - fl=, fl<, fl<=, fl>, fl>= and fl-- as primitives (4dedad64): in
