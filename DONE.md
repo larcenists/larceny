@@ -4,6 +4,12 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- fxarithmetic-shift-left and fxarithmetic-shift are open-coded (60f8c39a,
+  7a3691ac; lockpick's LARCENY-NOTES.md item 4), with errors of the kinds R6RS
+  asks for, and the count checks of the fixnum shifts no longer make
+  booleans; on x86-64, shifts by a count in rcx no longer exchange
+  registers.  (fxarithmetic-shift-left 1 k) went from 0.142 s to 0.023 s
+  over 10^7 iterations, as fast as lockpick's vector of powers.
 - The 16-, 32- and 64-bit bytevector accessors are open-coded by
   compiler macros (bytevector-accessor-rules in Compiler/common.imp.sch;
   b1a2dd94, with .fxlsh taking an immediate shift count, eb1c9144), for
