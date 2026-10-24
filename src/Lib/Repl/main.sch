@@ -377,9 +377,17 @@
 
 
 ; Init file loading.
+;
+; The init files are R5RS code.  A heap dumped from an R7RS session
+; (dump-interactive-heap) keeps that session's load evaluator, which
+; evaluates in the R7RS top level, so they are loaded with the one the
+; heap was built with.
+
+(define r5rs-load-evaluator (load-evaluator))
 
 (define (failsafe-load-init-files)
-  (map failsafe-load-file (osdep/find-init-files)))
+  (parameterize ((load-evaluator r5rs-load-evaluator))
+    (map failsafe-load-file (osdep/find-init-files))))
 
 ;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
 ;;; It now parses past -- only in R5RS mode.  Even then it parses past
