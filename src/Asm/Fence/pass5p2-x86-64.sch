@@ -472,6 +472,30 @@
           (cant.nop as)
           (loop)))))
 
+; The timer tick (at every loop back edge, among others), in place of
+; that of pass5p2.sch (load, test, decrement, store): subtract 1 from
+; the timer in memory, which borrows only if it was 0, as the test was;
+; a load and store through a register on every iteration made a
+; dependence chain through memory (lockpick's LARCENY-NOTES.md, item
+; 12).  The trap's path puts the 0 back, as the millicode expects to
+; find it (the timer exception does not always set the timer).
+
+(define (emit-timer-tick as)
+  (let ((L1 (fence.make-label as))
+        (L2 (fence.make-label as))
+        (timer (x86-64.m x86-64.GLOBALS $g.timer)))
+    (x86-64.emit as (x86-64.encode '() #t '() '(#x83) x86-64.op.sub timer
+                                   (x86-64.le-bytes 1 1)))
+    (x86-64.jcc-label as x86-64.cc.B L1)
+    (fence.defer!
+     as
+     (lambda ()
+       (fence.label as L1)
+       (x86-64.store-imm as timer 0)
+       (cant.trap   as $m.timer-exception '*timer-exception) ; Kills $r.tmp
+       (cant.ba     as L2)) 'timer)
+    (fence.label as L2)))
+
 ; Map a MAL register to an x86-64 hardware register.
 
 (define x86-64.reg
