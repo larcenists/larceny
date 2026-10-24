@@ -747,8 +747,30 @@
                (>= +inf.0 #e1e1000)
                (>= #e1e500 #e1e1000))
          '(#f #f #f #f #f #f #f #t #f))
+
+   ; With 8 registers (x86-64), lambda lifting made the loop below take
+   ; 8 arguments, so each iteration consed the 2 that did not fit in
+   ; registers (lockpick's LARCENY-NOTES.md, item 10).  The loop must
+   ; not allocate.
+   (test "A named let with free variables does not allocate"
+         (begin (collect)
+                (let ((before (memstats-allocated (memstats))))
+                  (lifted-loop-test (make-vector 8 1) 1 2 3 4)
+                  (collect)
+                  (< (- (memstats-allocated (memstats)) before) 20000)))
+         #t)
    ))
 
+
+; Five free variables (the most the old policy lifted) and three
+; arguments of its own.
+
+(define (lifted-loop-test a b c d e)
+  (let loop ((i 0) (j 0) (s 0))
+    (if (= i 100000)
+        s
+        (loop (+ i 1) (+ j 2)
+              (+ s (vector-ref a (remainder i 8)) b c d e)))))
 
 (define (bug-105-test1)
   (do ((i 0 (+ i 1))

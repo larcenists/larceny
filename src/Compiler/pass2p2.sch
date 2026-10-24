@@ -481,9 +481,22 @@
 ;   It is better not to lift if the body contains a lambda
 ;     expression that has to be closed anyway.
 
+; A call with more than *nregs* - 3 arguments passes the rest in a
+; list it conses (cg-big-call), on every call: so with only 8 registers
+; (x86-64), lifting a loop with a few free variables would make each
+; iteration cons.  A procedure is lifted only if its arguments, with
+; the added ones, still fit in registers.
+
 (define (POLICY:LIFT? L2 L args-to-add)
   (and (lambda-optimizations)
        (not (lambda? (lambda.body L2)))
-       (every? (lambda (addlist)
-                 (< (length addlist) 6))
-               args-to-add)))
+       (let loop ((defs (lambda.defs L2))
+                  (args-to-add args-to-add))
+         (or (null? defs)
+             (let ((nadded (length (car args-to-add)))
+                   (nargs (length (make-null-terminated
+                                   (lambda.args (def.rhs (car defs)))))))
+               (and (< nadded 6)
+                    (or (zero? nadded)
+                        (<= (+ nadded nargs) (- *nregs* 3)))
+                    (loop (cdr defs) (cdr args-to-add))))))))
