@@ -247,58 +247,18 @@ DONE.md (with the date and the commit, if any).
   asserts) and on an assertion that every SSB is empty
   (summ_matrix.c), though summarization also runs between collections
   (`incremental_rgnl`), when they need not be.
-- Heap dumping under collectors other than stop-and-copy, written in
-  Scheme with no runtime changes; native only (Petit stores code slots
-  relative to `&larceny_main`, heapio.c, which Scheme cannot find
-  reliably; Petit keeps dumping under stop-and-copy).  memmgr.c's
-  `dump_generational_system` is a stub.  The output is a split heap in
-  the format `dump_stopcopy_system` writes, which every collector
-  loads (text goes to the code space, gc.c); of the roots only
-  `G_STARTUP` and `G_CALLOUTS` survive a load, so the image is what
-  the startup closure reaches.  Code vectors can be copied byte for
-  byte (`cs_install` copies them and `cs_forward` moves them without
-  patching).
-  - Not an eq? hashtable from object to offset: Larceny's rehash after
-    collections (nursery buckets after any, tenured ones after major
-    ones), so the cost would differ by collector and depend on tuning
-    such as the nursery size.
-  - Instead a walk that allocates nothing, so that no collection can
-    happen and addresses stay fixed:
-    1. Make the startup closure, then `(sro -1 -1 -1)` for the count
-       and total size of the live objects (it traces in C and
-       allocates its result without collecting); drop the vector.
-    2. Allocate up front: data and text bytevectors for the image, an
-       open-addressing table from address to offset holding only
-       fixnums, and a queue vector with a slot per live object.
-    3. With interrupts off (`call-without-interrupts`), walk Cheney
-       style from the closure: scan the object at the head of the
-       queue, look each child up by `.internal:machine-address` (in
-       line, a fixnum; the `object->address` syscall boxes its
-       result), give a new one the next offset in its segment and
-       queue it, and write the object's words with pointers turned
-       into offsets (high bit for the text segment).
-    4. Then write the header and the two bytevectors to the file;
-       this may allocate and collect freely.
-  - Check: if `(gc-counter)` changed during step 3, the walker
-    allocated, which is a bug in it: report an error, do not retry.
-    Confirm first that every collector increments `$g.gccnt`,
-    including the regional one's region collections.
-  - The walker must not allocate: no closures in the walk, no deep
-    recursion (stack overflow copies frames into the heap; the queue
-    is the stack), fixnum arithmetic only (a word with the high bit
-    set is not a fixnum on 64-bit: write words as 32-bit halves), no
-    I/O, display or error mid-walk (set a flag, stop, report after).
-  - Barriers: the table holds only fixnums and bytevector stores have
-    none, so only the queue's stores go through the write barrier; a
-    full SSB is processed in C, which should not collect (the check
-    above would catch it).  Nothing moves code during the walk (the
-    code space is collected only when code is installed), and the
-    regional collector's marking advances only in collections.
-  - Peak memory about three to four times the live heap (image, table,
-    queue).  Test: dump under the default collector and `-rrof`,
-    reload under the default collector, `-stopcopy` and `-rrof`;
-    x86-64 first, then AArch64.  Not dumpable, as with stop-and-copy:
-    open OS ports and FFI pointers.
+- `lib/Experimental/scheme-dump-heap.sch` (see DONE, 2026-10-24):
+  - Test it on AArch64 macOS.
+  - Code vectors that no procedure points to yet are found by a
+    pattern in constant vectors (a bytevector followed by a vector), so
+    a bytevector literal followed by a vector literal goes to the text
+    segment too, and cannot be changed after the heap is loaded.  Being
+    exact needs to know which pages are code, which only the runtime
+    does (`is_code_page`).
+  - Under `-rrof` the image's one large bytevector prints "allocate:
+    holy cow"; allocating it in pieces would not.
+  - Make it loadable with `require`, and document it in the user
+    manual; or replace the runtime's stub with it.
 
 ## Debugger
 

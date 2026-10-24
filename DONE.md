@@ -2,6 +2,25 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-24
+
+- Heap dumping under any collector, in Scheme with no runtime changes:
+  `scheme-dump-heap` and `scheme-dump-interactive-heap` in
+  `lib/Experimental/scheme-dump-heap.sch` (7247d26e), native 64-bit
+  only.  As designed (220bb044), sized by sro, with a walk that
+  allocates nothing (gc-counter checked) and a table from address to
+  index of fixnums.  What changed from the design: objects are read by
+  address with peek-bytes, never held as Scheme values, so the queue
+  holds fixnums and the walk stores no pointers at all; peek-bytes is
+  called through `%syscall`, since `syscall` conses a rest list (the
+  check caught it); code vectors of nested lambdas, which only constant
+  vectors point to, are found in a pass of their own; and G_CALLOUTS
+  (the cell of millicode-support) is a root, which arithmetic
+  millicode needs.  Dumping takes about a second on x86-64 Linux.
+  Tested: heaps dumped under the default collector and -rrof load and
+  run under the default collector, -stopcopy and -rrof, and test/Lib
+  gives the same output from a dumped heap as from larceny.heap.
+
 ## 2026-10-18
 
 Bugs found by safehouse (another port of Larceny) and reproduced
