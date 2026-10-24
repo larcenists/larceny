@@ -323,6 +323,14 @@ DONE.md (with the date and the commit, if any).
 
 ## Build process footguns
 
+- `(build-larceny-heap)` loads `src/Lib/Common/toplevel.fasl` (and
+  the target's `toplevel-target.fasl`) whether or not it is older than
+  its source: the heap script names the `.fasl`, so `compat:load`
+  compares it with itself.  After a change to `toplevel.sch`, run
+  `(build-larceny-files)` before `(build-larceny-heap)`, or the heap
+  silently has the old environment (found 2026-10-24: new names were
+  unbound).  The compiler's files are named by their sources and are
+  loaded from them when newer.
 - Feature markers, follow-ups:
   - A system provides exactly the features its heap's code assumes; it
     could provide several target specs (say, an older calling-convention

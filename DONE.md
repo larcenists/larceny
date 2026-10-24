@@ -4,6 +4,9 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- Accessors and mutators of R7RS define-record-type types without a
+  parent are open-coded, in any library (0735da4c; lockpick's LARCENY-NOTES.md
+  item 15): 10^8 accessor calls 0.44 s to 0.32 s, unsafe 0.13 s.
 - Lambda lifting no longer makes a procedure take more arguments than
   fit in registers (e49e8c10; lockpick's LARCENY-NOTES.md item 10): on
   x86-64 a named let with free variables consed the arguments beyond 5
