@@ -249,12 +249,16 @@ DONE.md (with the date and the commit, if any).
   (`incremental_rgnl`), when they need not be.
 - `lib/Experimental/scheme-dump-heap.sch` (see DONE, 2026-10-24):
   - Test it on AArch64 macOS.
-  - Code vectors that no procedure points to yet are found by a
-    pattern in constant vectors (a bytevector followed by a vector), so
-    a bytevector literal followed by a vector literal goes to the text
-    segment too, and cannot be changed after the heap is loaded.  Being
-    exact needs to know which pages are code, which only the runtime
-    does (`is_code_page`).
+  - Which bytevectors are code is decided by address (the code arena
+    is below the data arena, osdep-generic.c), and where the address
+    cannot tell, by a pattern in constant vectors (a bytevector followed
+    by a vector), which a bytevector literal followed by a vector
+    literal also matches.  Such a literal in the text segment can still
+    be changed on Linux (the code space is RWX), but on MacOS (MAP_JIT)
+    a write to it from Scheme would most likely fault.  The exact fix
+    is a runtime query: a syscall answering whether an object is on a
+    code page (`is_code_page`), used by the dumper when the runtime has
+    it.
   - Under `-rrof` the image's one large bytevector prints "allocate:
     holy cow"; allocating it in pieces would not.
   - Make it loadable with `require`, and document it in the user

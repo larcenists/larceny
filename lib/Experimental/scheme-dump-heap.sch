@@ -28,8 +28,8 @@
 ;
 ;   1. Find them, breadth first.  Each gets an index, in a table from
 ;      address to index (open addressing, of fixnums only).
-;   1b. Find the code vectors that no procedure points to yet: those
-;      of nested lambdas, in constant vectors (see sdh:pass-code).
+;   1b. Find the code vectors that no procedure points to yet, such as
+;      those of nested lambdas (see sdh:pass-code and sdh:classify).
 ;   2. Give each an offset in its segment.
 ;   3. Copy each into the image, with pointers turned into offsets.
 ;
@@ -65,13 +65,16 @@
 (define-syntax sdh:gccount  (syntax-rules () ((_ st) (vector-ref st 12))))
 (define-syntax sdh:dbytes   (syntax-rules () ((_ st) (vector-ref st 13))))
 (define-syntax sdh:tbytes   (syntax-rules () ((_ st) (vector-ref st 14))))
-(define sdh:state-size 15)
+(define-syntax sdh:max-code (syntax-rules () ((_ st) (vector-ref st 15))))
+(define-syntax sdh:min-data (syntax-rules () ((_ st) (vector-ref st 16))))
+(define sdh:state-size 17)
 
 ; Flags of an object.
 
 (define sdh:flag-code 1)        ; A code vector, in the text segment
 (define sdh:flag-consts 2)      ; A constant vector
 (define sdh:flag-done 4)        ; A constant vector looked at by pass 1b
+(define sdh:flag-pattern 8)     ; Code by the pattern of pass 1b
 
 (define (sdh:flag? st i bit)
   (not (zero? (fxlogand (bytevector-ref (sdh:flags st) i) bit))))
@@ -157,6 +160,8 @@
     (vector-set! st 7 (make-bytevector
                        (+ (* 8 (cadr counts)) (* 2 sdh:pagesize)) 0))
     (vector-set! st 9 (- m 1))
+    (vector-set! st 15 -1)
+    (vector-set! st 16 (expt 2 60))
     (call-without-interrupts
      (lambda ()
        (sdh:walk st
@@ -217,6 +222,7 @@
   (sdh:intern! st callouts)
   (sdh:pass1 st 0)
   (if (zero? (sdh:error st)) (sdh:pass-code st))
+  (if (zero? (sdh:error st)) (sdh:classify st 0))
   (if (zero? (sdh:error st)) (sdh:pass2 st))
   (if (zero? (sdh:error st)) (sdh:pass3 st 0))
   (if (not (= (gc-counter) (sdh:gccount st)))
@@ -317,6 +323,8 @@
           (else
            (vector-set! (sdh:sizes st) i
                         (if (= tag 1) 2 (fxlogand (+ n 2) -2)))
+           (if (and (not (= tag 5)) (< addr (sdh:min-data st)))
+               (vector-set! st 16 addr))
            (cond ((= tag 1)
                   (sdh:scan-chunks st addr 0 2 #f))
                  ((not (= tag 5))
@@ -341,7 +349,9 @@
                    (x (sdh:intern! st q)))
               (cond ((or (not proc?) (< x 0)))
                     ((and (= j 0) (= (fxlogand q 7) 5))
-                     (sdh:flag! st x sdh:flag-code))
+                     (sdh:flag! st x sdh:flag-code)
+                     (if (> (- q 5) (sdh:max-code st))
+                         (vector-set! st 15 (- q 5))))
                     ((and (= j 1) (= (fxlogand q 7) 3))
                      (sdh:flag! st x sdh:flag-consts)))))
         (sdh:scan-words st (+ j 1) k proc?))))
@@ -349,11 +359,11 @@
 ; Pass 1b.  A nested lambda's code vector is in the constant vector of
 ; the procedure that makes it, followed by the lambda's constant
 ; vector ($lambda in src/Asm/Fence/pass5p2.sch).  So a bytevector
-; (subtag 0) followed by a vector in a constant vector is taken for a
-; code vector, and the vector for a constant vector; repeated until
-; nothing changes, since constant vectors nest.  (A bytevector literal
-; followed by a vector literal is taken for code too, and so cannot be
-; changed after the heap is loaded.)
+; (subtag 0) followed by a vector in a constant vector matches the
+; pattern of a code vector, and the vector is taken for a constant
+; vector; repeated until nothing changes, since constant vectors nest.
+; A bytevector literal followed by a vector literal matches too, so the
+; pattern decides only where the address cannot (sdh:classify).
 
 (define (sdh:pass-code st)
   (if (sdh:pass-code1 st 0 #f)
@@ -390,9 +400,34 @@
                 (sdh:peek-bytes (- pa 5) scratch 8)   ; The header of a
                 (if (and (>= xa 0) (>= xb 0)
                          (= (fxlogand (sdh:u32 scratch 0) #xff) #xc2))
-                    (begin (sdh:flag! st xa sdh:flag-code)
+                    (begin (sdh:flag! st xa sdh:flag-pattern)
                            (sdh:flag! st xb sdh:flag-consts))))))
         (sdh:scan-consts st addr (+ k 1) n))))
+
+; Which bytevectors are code, by address.  The code space is an arena
+; of its own, normally just below the data arena (arena_init in
+; src/Rts/Sys/osdep-generic.c).  So if the highest code vector that a
+; procedure points to is below the lowest pair, vector or procedure, a
+; bytevector at or below the former is code and one at or above the
+; latter is data; for those in between, and if the arenas are not laid
+; out that way, the pattern of pass 1b decides.  (Only the runtime knows
+; exactly: is_code_page.)
+
+(define (sdh:classify st i)
+  (if (< i (sdh:count st))
+      (let ((p (vector-ref (sdh:queue st) i)))
+        (if (and (= (fxlogand p 7) 5)
+                 (not (sdh:flag? st i sdh:flag-code))
+                 (let ((addr (- p 5))
+                       (max-code (sdh:max-code st))
+                       (min-data (sdh:min-data st)))
+                   (cond ((not (< -1 max-code min-data))
+                          (sdh:flag? st i sdh:flag-pattern))
+                         ((<= addr max-code) #t)
+                         ((>= addr min-data) #f)
+                         (else (sdh:flag? st i sdh:flag-pattern)))))
+            (sdh:flag! st i sdh:flag-code))
+        (sdh:classify st (+ i 1)))))
 
 ; Pass 2.  Segments are padded to whole pages, as the runtime does.
 
