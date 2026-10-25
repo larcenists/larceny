@@ -220,10 +220,11 @@ DONE.md (with the date and the commit, if any).
   - 16-bit values, and values in the other byte order, are still made
     from byte loads (u16-native-ref: about 2x vector-ref); Fence has no
     16-bit load or byte swap.  Elsewhere (Petit) all of them are.
-  - Not yet tested on AArch64 (native or Petit), nor on a 32-bit
-    target, where the 32- and 64-bit accessors only check their
-    arguments and call bytevector-uint-ref and friends; test/Lib's
-    bytevector-accessors.sch covers them.
+  - Not yet tested on AArch64 Petit, nor on a 32-bit target, where
+    the 32- and 64-bit accessors only check their arguments and call
+    bytevector-uint-ref and friends; test/Lib's
+    bytevector-accessors.sch covers them.  (Native AArch64 passes it;
+    see DONE, 2026-10-24.)
   - bytevector-uint-set! and bytevector-sint-set!, called directly,
     still do not check that the value fits in the given size (they
     store its low bytes); the accessors check before calling them.
@@ -277,8 +278,9 @@ DONE.md (with the date and the commit, if any).
   asserts) and on an assertion that every SSB is empty
   (summ_matrix.c), though summarization also runs between collections
   (`incremental_rgnl`), when they need not be.
+- The error for `(fl-- 3)` says "fl-: not a flonum" (ehandler.sch
+  passes "fl-" for `$ex.fl--`, since 2008); it should name fl--.
 - `lib/Experimental/scheme-dump-heap.sch` (see DONE, 2026-10-24):
-  - Test it on AArch64 macOS.
   - Which bytevectors are code is decided by address (the code arena
     is below the data arena, osdep-generic.c), and where the address
     cannot tell, by a pattern in constant vectors (a bytevector followed

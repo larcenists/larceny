@@ -4,6 +4,28 @@ Finished items, moved here from TODO.md.  Newest first.
 
 ## 2026-10-24
 
+- The x86-64 work merged on 2026-10-23 and 2026-10-24, tested on
+  native AArch64 macOS (none of it needed changes there):
+  - fl=, fl<, fl<=, fl>, fl>= and fl-- as primitives (4dedad64): in
+    line, as values, with three arguments, -0., and errors for
+    non-flonums.
+  - The open-coded bytevector accessors, with whole-word loads and
+    stores and the one-test alignment check (b1a2dd94, 8a784063,
+    eef4e099): the unaligned byte offsets use LDUR/STUR, and low4 and
+    low5 are TST masks 15 and 31.  test/Lib's bytevector-accessors.sch
+    passes.
+  - The open-coded fixnum shifts (eb1c9144, 60f8c39a, 7a3691ac):
+    test/Lib's fixnums.sch passes.
+  - scheme-dump-heap.sch (7247d26e, 8f5d3509, 2f856cbf, 96373491):
+    interactive heaps dumped under the default collector, -stopcopy and
+    -rrof start and run under all three (globals, eq? hashtables across
+    collections, closures, bignums, call/cc, eval, errors); a heap
+    dumped from an R7RS session with (larceny dump-heap) keeps its
+    libraries' state.
+  - At 94674ce0: test/Lib, test/Compiler (sanity switches), R7RS
+    testall (8782 passed) and testr6rs-larceny under --r7rs and --r6rs
+    (6260 passed each) pass under the default collector, -stopcopy and
+    -rrof.
 - fxarithmetic-shift-left and fxarithmetic-shift are open-coded (60f8c39a,
   7a3691ac; lockpick's LARCENY-NOTES.md item 4), with errors of the kinds R6RS
   asks for, and the count checks of the fixnum shifts no longer make
