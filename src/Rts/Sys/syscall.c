@@ -80,6 +80,7 @@ static struct {
 		      { (fptr)primitive_vector_like_move, 5, 0 },
 		      { (fptr)primitive_vector_like_fill, 4, 0 },
 		      { (fptr)primitive_vector_like_fill_from_list, 4, 0 },
+		      { (fptr)primitive_monotonic_ns, 0, 0 },
 		    };
 
 void larceny_syscall( int nargs, int nproc, word *args )

@@ -15,7 +15,8 @@
           (only (larceny r7rs primitives lowlevel)
                 current-seconds
                 current-utc-time
-                jiffies-per-second))
+                jiffies-per-second
+                larceny:monotonic-nanoseconds))
 
   (include "time.body.scm"))
 

@@ -72,5 +72,6 @@
 (define syscall:vector-like-move 61)
 (define syscall:vector-like-fill 62)
 (define syscall:vector-like-fill-from-list 63)
+(define syscall:monotonic-ns 64)
 
 ; eof

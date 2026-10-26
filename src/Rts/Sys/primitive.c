@@ -696,4 +696,21 @@ void primitive_time( word w_result )
   globals[ G_RESULT ] = w_result;
 }
 
+/* Returns the monotonic clock's time in nanoseconds (since boot, on
+   Linux and macOS) as a fixnum, or #f where that does not fit in a
+   fixnum or there is no such clock.  A 64-bit fixnum holds 73 years of
+   nanoseconds.  It is current-jiffy where jiffies-per-second is 10^9. */
+
+void primitive_monotonic_ns( void )
+{
+#if defined(POSIX_UNIX) && defined(BITS_64)
+  struct timespec ts;
+  clock_gettime( CLOCK_MONOTONIC, &ts );
+  globals[ G_RESULT ] =
+    fixnum( (s_word)ts.tv_sec * 1000000000 + (s_word)ts.tv_nsec );
+#else
+  globals[ G_RESULT ] = FALSE_CONST;
+#endif
+}
+
 /* eof */

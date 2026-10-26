@@ -1971,6 +1971,8 @@
 
   (environment-set! larc 'current-second current-second)
   (environment-set! larc 'current-seconds current-seconds)
+  (environment-set! larc 'larceny:monotonic-nanoseconds
+                    larceny:monotonic-nanoseconds)
   (environment-set! larc 'twobit-timer-hook twobit-timer-hook)
 
 

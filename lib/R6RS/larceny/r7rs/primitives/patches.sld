@@ -8,14 +8,16 @@
   (export
 
    jiffies-per-second
-   larceny:current-utc-time)
+   larceny:current-utc-time
+   larceny:monotonic-nanoseconds)
 
   (import (rnrs base)
           (rnrs lists)
           (primitives r5rs:require
                       current-utc-time
                       system-features
-                      current-seconds))
+                      current-seconds
+                      larceny:monotonic-nanoseconds))
 
   (begin
 
@@ -56,7 +58,15 @@
            (current-utc-time))
          (lambda () (values (current-seconds) 0))))
 
+   ;; Jiffies are nanoseconds of the monotonic clock where that is a
+   ;; fixnum (64-bit Unix systems; see primitive_monotonic_ns in
+   ;; src/Rts/Sys/primitive.c), else microseconds or seconds of the
+   ;; time of day.
+
    (define jiffies-per-second
-     (if can-use:current-utc-time
-         (lambda () 1000000)
-         (lambda () 1)))))
+     (cond ((larceny:monotonic-nanoseconds)
+            (lambda () 1000000000))
+           (can-use:current-utc-time
+            (lambda () 1000000))
+           (else
+            (lambda () 1))))))

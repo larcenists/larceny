@@ -1,18 +1,24 @@
-;;; Jiffies have one-second resolution or better, and are reckoned with
-;;; zero jiffies corresponding to the approximate time this library was
-;;; loaded.
+;;; Jiffies are nanoseconds of the monotonic clock where that is a
+;;; fixnum (see jiffies-per-second in (larceny r7rs primitives patches)),
+;;; reckoned from the clock's own epoch (boot, on Linux and macOS).
+;;; Otherwise they have one-second resolution or better, and are
+;;; reckoned with zero jiffies corresponding to the approximate time
+;;; this library was loaded.
 
 (define arbitrary-baseline              ; (current-utc-time) may load the FFI
   (exact (floor (current-second))))
 
 (define current-jiffy
   (case (jiffies-per-second)
+   ((1000000000)
+    larceny:monotonic-nanoseconds)
    ((1)
     (lambda () (- (current-seconds) arbitrary-baseline)))
    ((1000000)
     ;; jiffies-per-second is 1000000 only where current-second has
-    ;; better than microsecond resolution (clock_gettime): a double
-    ;; holds today's time to about a quarter of a microsecond.  And
+    ;; better than microsecond resolution (clock_gettime) but there is
+    ;; no fixnum of nanoseconds: a double holds today's time to about a
+    ;; quarter of a microsecond.  And
     ;; current-utc-time loads the FFI on its first call, which took a
     ;; third of a second (lockpick's LARCENY-NOTES.md, item 11).
     (lambda ()
@@ -53,6 +59,9 @@
 ;;;
 ;;; Since 2026-10-24 the microsecond case uses current-second, which is
 ;;; a primitive (clock_gettime): the first call no longer loads the FFI.
+;;; Since 2026-10-25 64-bit Unix systems use a syscall that returns the
+;;; monotonic clock (clock_gettime) as a fixnum of nanoseconds: it does
+;;; not allocate, and does not jump when the time of day is set.
 
 (define (current-utc-time-continuation-microseconds secs usecs)
   (+ (* 1000000 (- secs arbitrary-baseline))

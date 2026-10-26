@@ -10,6 +10,7 @@
    ex:interaction-environment
    jiffies-per-second
    larceny:features
+   larceny:monotonic-nanoseconds
    larceny:use-r7rs-semantics!
    r7rs:bytevector-copy!
    )

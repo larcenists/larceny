@@ -196,6 +196,7 @@ extern void primitive_exit( word );
 extern void primitive_errno( void );
 extern void primitive_seterrno( word );
 extern void primitive_time( word );
+extern void primitive_monotonic_ns( void );
 #endif
 
 
