@@ -2,6 +2,19 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-26
+
+- Libraries compiled in different runs of a dumped heap can be imported
+  together (d5e2abdb; shakedown's LARCENY-NOTES.md item 9): the
+  expander's token for generated names was taken once, when it was
+  loaded, so every run of a heap dumped after that (shakedown's
+  vendored Larceny) made the same names of saved environments, and an
+  importer of two such libraries failed with "No binding available
+  for <record type> in library ...", since the open-coded accessors
+  look up the record type in the exporter's environment.  The token is
+  now microseconds, made again when a dumped heap starts.  New test:
+  test/R7RS/Separate/run-separate-test.sh.
+
 ## 2026-10-25
 
 - current-jiffy is nanoseconds of the monotonic clock on 64-bit Unix
