@@ -107,6 +107,9 @@ generation, keep them true:
 - R7RS/R6RS suites: `test/R7RS/Lib/testall` and `testr6rs-larceny`
   (also `MODE=--r6rs ./testr6rs-larceny`, after changing an R6RS
   library: R6RS mode reads libraries with strict R6RS syntax).
+- Libraries compiled in separate runs, plain and from a dumped heap:
+  `test/R7RS/Separate/run-separate-test.sh` (after changing the
+  expander or how libraries are compiled).
 - Test the default collector, `-stopcopy`, and `-rrof` (the regional
   collector; its concurrent marking relies on the SATB pre-barrier).
 - When piping input into `./larceny` from an interactive shell, note that

@@ -490,15 +490,14 @@
     ;; Uniqueness is important for incremental and separate expansion.
 
     (define generate-guid
-      (let ((token (ex:unique-token))
-            (ticks 0))
+      (let ((ticks 0))
         (lambda (symbol)
           (set! ticks (+ ticks 1))
           (string->symbol
            (string-append ex:guid-prefix
                           (symbol->string symbol)
                           "~"
-                          token
+                          (ex:unique-token)
                           "~"
                           (number->string ticks))))))
 
