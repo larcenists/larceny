@@ -119,13 +119,20 @@ option and then importing the `(larceny r7r6)` library.
 ================================================================
 Several name conflicts could not be resolved by adding R7RS extensions
 to the conflicting R6RS procedure or syntax.  When the `-r7r6`
-option is used, the `bytevector-copy!` and `remove` procedures are
-imported with R7RS semantics, and the R6RS versions of those
-procedures are renamed to `r6rs:bytevector-copy!` and
-`r6rs:remove`; the `let-syntax` and `letrec-syntax` macros are
+option is used,
+the `let-syntax` and `letrec-syntax` macros are
 imported with R6RS splicing semantics, as with the `-r7` option,
 but non-splicing versions of those macros are imported with the
 names `r7rs:let-syntax` and `r7rs:letrec-syntax`.
+
+When the `-r7r6` option is used, the
+`bytevector-copy`, `bytevector-copy!`, `remove`,
+`fxcopy-bit`, and `fxbit-set?`
+procedures are
+imported with R7RS semantics, and the R6RS versions of those
+procedures are renamed to
+`r6rs:bytevector-copy`, `r6rs:bytevector-copy!`, `r6rs:remove`,
+`r6rs:fxcopy-bit`, and `r6rs:fxbit-set?`.
 ================================================================
 
 [NOTE]
