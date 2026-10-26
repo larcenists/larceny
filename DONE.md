@@ -7,7 +7,13 @@ Finished items, moved here from TODO.md.  Newest first.
 - current-jiffy is nanoseconds of the monotonic clock on 64-bit Unix
   systems (6db40b83), a fixnum from a new syscall, not microseconds of the
   time of day: no allocation, no jumps when the clock is set, and a call
-  0.18 us -> 32 ns (x86-64 Linux).
+  0.18 us -> 32 ns (x86-64 Linux).  Petit on x86-64 Linux also passes
+  R7RS testall and testr6rs-larceny (--r7rs and --r6rs), with 10^9
+  jiffies per second and a call about 300 ns.
+- current-jiffy's microsecond jiffies (32-bit systems) use
+  current-utc-time (the FFI) again ({h}): from current-second they
+  advanced once a second where that is time() (LINUX or SUNOS5 without
+  POSIX_UNIX).
 
 ## 2026-10-24
 
