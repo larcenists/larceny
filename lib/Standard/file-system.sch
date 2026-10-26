@@ -35,7 +35,7 @@
           (include<> "windows.h")
           (sizeof find-data-size "WIN32_FIND_DATA")
           (const  invalid-handle ulong "INVALID_HANDLE_VALUE")
-	  (const  file-attribute-directory ulong "FILE_ATTRIBUTE_DIRECTORY")
+          (const  file-attribute-directory ulong "FILE_ATTRIBUTE_DIRECTORY")
           (fields "WIN32_FIND_DATA"
                   (find-data-name "cFileName")))
 
@@ -62,17 +62,17 @@
                              'int
                              'stdcall))
 
-	(define get-file-attributes 
-	  (foreign-procedure "GetFileAttributesA"
-			     '(string)
-			     'long
-			     'stdcall))
-	  
+        (define get-file-attributes 
+          (foreign-procedure "GetFileAttributesA"
+                             '(string)
+                             'long
+                             'stdcall))
+          
 
         (define (find-data->filename find-data)
           (%peek-string (+ find-data-name find-data)))
 
-	(define (list-directory path)
+        (define (list-directory path)
           (let* ((mask      (string-append path "/*"))
                  (find-data (malloc find-data-size))
                  (handle    (find-first-file mask find-data)))
@@ -92,14 +92,14 @@
               (lambda ()
                 (find-close handle)
                 (free find-data)))))
-	
-	(define (file-directory? filename)
-	  (let ((attrs (get-file-attributes filename)))
-	    (cond ((< attrs 0)
-		   (error 'file-directory? ": " filename " does not exist.")))
-	    (not (zero? (fxlogand file-attribute-directory attrs)))))
-	
-	(values list-directory file-directory? get-file-attributes))))
+        
+        (define (file-directory? filename)
+          (let ((attrs (get-file-attributes filename)))
+            (cond ((< attrs 0)
+                   (error 'file-directory? ": " filename " does not exist.")))
+            (not (zero? (fxlogand file-attribute-directory attrs)))))
+        
+        (values list-directory file-directory? get-file-attributes))))
 
   (else
     ;;; XXX not thread-safe!  Consider using the _r variants where
@@ -163,7 +163,7 @@
                   (*st_ctime_offs* "st_ctime") 
                   (*st_blksize_offs* "st_blksize") ;XXX
                   (*st_blocks*     "st_blocks") ;XXX
-	)
+        )
           (const s_ifmt  uint "S_IFMT")
           (const s_ifblk uint "S_IFBLK")
           (const s_ifchr uint "S_IFCHR")
@@ -184,10 +184,10 @@
           (const s_ixoth uint "S_IXOTH")
           )
 
-	;; Bit rot: Linux's sys/stat.h no longer defines _STAT_VER
+        ;; Bit rot: Linux's sys/stat.h no longer defines _STAT_VER
         ;; FIXME: Why were we using _STAT_VER here?
-	;; Temporary fix: disabled using cond-expand.
-	
+        ;; Temporary fix: disabled using cond-expand.
+        
         (define stat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
            (linux-FIXME
