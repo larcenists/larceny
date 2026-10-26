@@ -15,14 +15,14 @@
    ((1)
     (lambda () (- (current-seconds) arbitrary-baseline)))
    ((1000000)
-    ;; jiffies-per-second is 1000000 only where current-second has
-    ;; better than microsecond resolution (clock_gettime) but there is
-    ;; no fixnum of nanoseconds: a double holds today's time to about a
-    ;; quarter of a microsecond.  And
-    ;; current-utc-time loads the FFI on its first call, which took a
-    ;; third of a second (lockpick's LARCENY-NOTES.md, item 11).
+    ;; Not current-second: where there is no fixnum of nanoseconds
+    ;; (32-bit systems), current-second may be time(), whole seconds
+    ;; (primitive_time without POSIX_UNIX).  current-utc-time loads the
+    ;; FFI on its first call, which takes a third of a second.
     (lambda ()
-      (exact (round (* 1000000 (- (current-second) arbitrary-baseline))))))
+      (call-with-values
+       current-utc-time
+       current-utc-time-continuation-microseconds)))
    (else
     (lambda ()
       (call-with-values
@@ -57,8 +57,6 @@
 ;;; and more useful for timing small intervals by making it a syscall
 ;;; instead of going through the FFI.  Not worth the trouble.
 ;;;
-;;; Since 2026-10-24 the microsecond case uses current-second, which is
-;;; a primitive (clock_gettime): the first call no longer loads the FFI.
 ;;; Since 2026-10-25 64-bit Unix systems use a syscall that returns the
 ;;; monotonic clock (clock_gettime) as a fixnum of nanoseconds: it does
 ;;; not allocate, and does not jump when the time of day is set.
