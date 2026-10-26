@@ -90,11 +90,11 @@ as 2.0) for "X.Y":
 
         unzip larceny-X.Y-bin-native-x86-linux.zip
         unzip larceny-X.Y-bin-native-ARM-macos.zip
-        unzip larceny-X.Y-bin-petit-stdc-linux.zip
+	unzip larceny-X.Y-bin-petit-stdc-linux.zip
         tar -xzf larceny-X.Y-bin-native-x86-linux.tgz
         tar -xzf larceny-X.Y-bin-native-ARM-macos.tgz
         tar -xzf larceny-X.Y-bin-native-ia32-linux86.tar.gz
-        unzip larceny-X.Y-src.zip
+	unzip larceny-X.Y-src.zip
 
 That will create a directory with a similar name (but without
 the `.zip` or `.tar.gz` suffix) in your current working directory.
@@ -120,7 +120,7 @@ run it immediately by making the `larceny` directory your current
 working directory and invoking `./larceny`.
 
 We recommend the 64-bit versions of Larceny (version 2.0 or later),
-but we are still distributing a 32-bit version, Larceny v1.4,
+but we are still distributing a 32-bit version, Larceny v1.5,
 that runs on x86 machines under Linux.
 If you have downloaded a 32-bit version of Larceny, as indicated
 by the `ia32`, you may need to install some 32-bit libraries

@@ -433,7 +433,7 @@ those 64-bit processors still support a 32-bit instruction
 set.
 
 Larceny 2.0 is the first 64-bit version of Larceny.
-Older versions of Larceny, such as Larceny v1.4,
+Older versions of Larceny, such as Larceny v1.3,
 generate code for the older 32-bit instruction sets,
 which means they must be linked with 32-bit versions
 of various standard libraries.

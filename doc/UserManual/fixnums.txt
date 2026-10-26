@@ -23,7 +23,7 @@ name is deprecated within R7RS/R6RS code.
 Current versions of Larceny represent fixnums in a two's complement
 format whose range depends upon which version of Larceny you are
 using.
-At the moment, 64-bit versions of Larceny, such as Larceny v4.0,
+At the moment, 64-bit versions of Larceny, such as Larceny v2.0,
 use a 62-bit two's complement representation for fixnums, while
 32-bit versions, such as Larceny v1.3, use 30-bit two's complement.
 

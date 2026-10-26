@@ -134,7 +134,7 @@ Composite library:
 
     (larceny r7r6)                         ; all R7RS/R6RS standard libraries
 
-link:../r7rs.pdf[R7RS (small)] standard libraries:
+link:https://standards.scheme.org/official/r7rs.pdf[R7RS (small)] standard libraries:
 
     (scheme base)
     (scheme case-lambda)

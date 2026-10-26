@@ -83,7 +83,7 @@ Some implementations of the R7RS may therefore contend that the
 result of an arithmetic operation on inexact complex numbers
 that have nonzero imaginary parts should answer in the affirmative
 when the `real?` procedure is used to ask whether it is a real
-numbers. The inherent inefficiency of that semantics hardly
+number. The inherent inefficiency of that semantics hardly
 matters for interpreted implementations of Scheme, but it does
 matter for implementations (such as Larceny) that care enough
 about performance to take the trouble to compile to native code.
