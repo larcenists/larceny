@@ -183,9 +183,14 @@
           (const s_iwoth uint "S_IWOTH")
           (const s_ixoth uint "S_IXOTH")
           )
+
+	;; Bit rot: Linux's sys/stat.h no longer defines _STAT_VER
+        ;; FIXME: Why were we using _STAT_VER here?
+	;; Temporary fix: disabled using cond-expand.
+	
         (define stat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
-           (linux 
+           (linux-FIXME
             (let ((xstat (foreign-procedure "__xstat" '(int string boxed) 'int)))
               (define-c-info (include<> "sys/stat.h") 
                 (const stat_ver int "_STAT_VER"))
@@ -194,7 +199,7 @@
             (foreign-procedure "stat" '(string boxed) 'int))))
         (define fstat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
-           (linux 
+           (linux-FIXME
             (let ((xstat (foreign-procedure "__fxstat" '(int string boxed) 'int)))
               (define-c-info (include<> "sys/stat.h") 
                 (const stat_ver int "_STAT_VER"))
@@ -203,7 +208,7 @@
             (foreign-procedure "fstat" '(string boxed) 'int))))
         (define lstat ;; XXX consider grabbing the impl from unix.sch
           (cond-expand 
-           (linux 
+           (linux-FIXME
             (let ((xstat (foreign-procedure "__lxstat" '(int string boxed) 'int)))
               (define-c-info (include<> "sys/stat.h") 
                 (const stat_ver int "_STAT_VER"))
