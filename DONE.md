@@ -2,6 +2,13 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-10-25
+
+- current-jiffy is nanoseconds of the monotonic clock on 64-bit Unix
+  systems (6db40b83), a fixnum from a new syscall, not microseconds of the
+  time of day: no allocation, no jumps when the clock is set, and a call
+  0.18 us -> 32 ns (x86-64 Linux).
+
 ## 2026-10-24
 
 - current-jiffy no longer loads the FFI (c2b42415; lockpick's LARCENY-NOTES.md
