@@ -115,11 +115,13 @@ setup ()
   CHICKEN_CSC=${CHICKEN_CSC:-"csc"}
   CYCLONE=${CYCLONE:-"cyclone"}
   FOMENT=${FOMENT:-"foment"}
+  GAMBIT=${GAMBIT:-"gsc"}
   GAUCHE=${GAUCHE:-"gosh"}
   HUSKI=${HUSKI:-"huski"}
   KAWA=${KAWA:-"kawa"}
   MOSH=${MOSH:-"mosh"}
   PICRIN=${PICRIN:-"picrin"}
+  RACKET=${RACKET:-"racket"}
   SAGITTARIUS=${SAGITTARIUS:-"sagittarius"}
  
 }
@@ -140,6 +142,7 @@ Usage: bench [-r runs] <system> <benchmark>
   chicken          for Chicken
   cyclone          for Cyclone
   foment           for Foment
+  gambit           for Gambit
   gauche           for Gauche
   husk             for Husk
   kawa             for Kawa
@@ -147,6 +150,7 @@ Usage: bench [-r runs] <system> <benchmark>
   mosh             for Mosh
   picrin           for Picrin
   petit            for Petit Larceny
+  racket           for Racket with the lexi-lambda R7RS extension
   sagittarius      for Sagittarius
   all              for all of the above
 
@@ -197,7 +201,7 @@ evaluate ()
     while [ "$i" -lt "$NB_RUNS" ]
     do
       echo Running...
-      ulimit -t ${CPU_LIMIT}
+#     ulimit -t ${CPU_LIMIT}
       $EXEC "${TEMP}/$1.${EXTENSIONCOMP}" "${INPUTS}/$1.input"
       i=`expr $i + 1`
     done
@@ -224,7 +228,7 @@ larceny_comp ()
 
 larceny_exec ()
 {
-  time "${LARCENY}" --nocontract --r7rs --program "$1" < "$2"
+  time "${LARCENY}" ${OPTS} --nocontract --r7rs --program "$1" < "$2"
 }
 
 petit_comp ()
@@ -273,7 +277,7 @@ chibi_exec ()
 chicken_comp ()
 {
   OPTS="-optimize-leaf-routines -block -inline -inline-global -specialize"
-  ${CHICKEN_CSC} -extend r7rs -require-extension r7rs ${OPTS} $1 -o $2
+  ${CHICKEN_CSC} ${OPTS} $1 -o $2
 }
 
 chicken_exec ()
@@ -305,6 +309,23 @@ foment_comp ()
 foment_exec ()
 {
   time "${FOMENT}" "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Gambit
+
+# FIXME: Neither of these work.
+# Upon seeing the import of (scheme time),
+# Gambit thinks time is a macro being used as a variable.
+
+gambit_comp ()
+{
+  ${GAMBIT_GSC} ${COMPOPTS} $1 -o $2
+}
+
+gambit_exec ()
+{
+  time "$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -385,6 +406,33 @@ picrin_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Racket
+
+# Racket doesn't support R7RS directly, but there is an extension
+# (documented at https://github.com/lexi-lambda/racket-r7rs )
+# that can be installed locally via
+#
+#         raco pkg install r7rs
+#
+# Racket will not use that extension unless the source file begins with
+#
+# #lang r7rs
+
+racket_comp ()
+{
+    echo '#lang r7rs' > "${TEMP}/racket.nonsense"
+    cat "${TEMP}/racket.nonsense" "$1" > "${TEMP}/racket.nonsense2"
+    mv "${TEMP}/racket.nonsense2" "$1"
+    rm "${TEMP}/racket.nonsense"
+}
+
+racket_exec ()
+{
+  time "${RACKET}" "$1" < "$2"
+}
+
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Sagittarius
 
 sagittarius_comp ()
@@ -451,6 +499,17 @@ for system in $systems ; do
             EXECCOMMANDS=""
             ;;
 
+   larcenyRegional) NAME='LarcenyRegional'
+            COMP=larceny_comp
+            EXEC=larceny_exec
+            COMPOPTS=""
+            OPTS="--regional"
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
+            ;;
+
      petit) NAME='Petit'
             COMP=petit_comp
             EXEC=petit_exec
@@ -491,7 +550,7 @@ for system in $systems ; do
             EXECCOMMANDS=""
             ;;
 
-      cyclone) NAME='Cyclone'
+   cyclone) NAME='Cyclone'
             COMP=cyclone_comp
             EXEC=cyclone_exec
             COMPOPTS=""
@@ -507,6 +566,16 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="scm"
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
+            ;;
+
+    gambit) NAME='Gambit'
+            COMP=gambit_comp
+            EXEC=gambit_exec
+            COMPOPTS="-exe -nopreload"
+            EXTENSION="scm"
+            EXTENSIONCOMP="gambit"
             COMPCOMMANDS=""
             EXECCOMMANDS=""
             ;;
@@ -561,6 +630,16 @@ for system in $systems ; do
             EXECCOMMANDS=""
             ;;
 
+    racket) NAME='Racket'
+            COMP=racket_comp
+            EXEC=racket_exec
+            COMPOPTS=""
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
+            ;;
+
   sagittarius) NAME='Sagittarius'
             COMP=sagittarius_comp
             EXEC=sagittarius_exec
@@ -571,6 +650,9 @@ for system in $systems ; do
             EXECCOMMANDS=""
             ;;
 
+  *)        echo "Unrecognized implementation: $system"
+            exit 255
+            ;;
    esac
 
    {
