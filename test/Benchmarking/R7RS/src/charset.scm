@@ -1,6 +1,6 @@
 ;;; CHARSET benchmark
 ;;;
-;;; Uses character sets to to parse the KVJ into tokens
+;;; Uses character sets to parse the KVJ into tokens
 ;;; represented as short strings, and then repeatedly parses
 ;;; those tokens to categorize them as identifiers or numbers.
 ;;; Basically a test of the char-set-contains? procedure and
