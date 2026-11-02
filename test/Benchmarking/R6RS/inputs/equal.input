@@ -1,7 +1,19 @@
-100
-100
-8
-1000
-2000
-5000
+100   ; n iterations on circular list of length n
+100   ; n iterations on a DAG of size n^2 but only (approx) n objects
+9     ; n iterations on a very large tree (worse than exponential in n)
+2000  ; n iterations on flat vectors of length n
+5000  ; n iterations on lists of length n, with small trees as elements
+10000 ; n iterations on lists of depth n
 #t
+
+
+;; the old inputs for this benchmark were
+
+100   ; n iterations on circular list of length n
+100   ; n iterations on a DAG of size n^2 but only (approx) n objects
+8     ; n iterations on a tree with (approx) 2^n unshared nodes
+1000  ; n iterations on flat vectors of length n
+2000  ; n iterations on lists of length n, with small trees as elements
+5000  ; n iterations on lists of depth n
+#t
+

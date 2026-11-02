@@ -1,4 +1,4 @@
-10
+100 ; was 25
 "inputs/bib"
 "outputs/tail.output"
 ignored
