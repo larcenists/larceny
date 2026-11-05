@@ -68,6 +68,7 @@ typedef struct {
   double      load_factor;      /* Really the inverse load, L */
   s_word         lower_limit;      /* 0 or lower bound on area (bytes) */
   s_word         upper_limit;      /* 0 or upper bound on area (bytes) */
+  s_word         max_dynamic_size; /* Greatest M so far (-nocontract) */
 
   /* Statistics */
   s_word         used_after_last_gc;  /* Bytes, not counting the stack */
@@ -115,6 +116,7 @@ create_sc_heap( int gen_no,
   data->load_factor = info->load_factor;
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
+  data->max_dynamic_size = 0;
   data->target_size =
     compute_target_size( heap, (s_word)(info->size_bytes/data->load_factor), 0 );
 
@@ -318,7 +320,8 @@ static s_word compute_target_size( young_heap_t *heap, s_word D, s_word Q )
                                Q,
                                DATA(heap)->load_factor,
                                DATA(heap)->lower_limit,
-                               DATA(heap)->upper_limit );
+                               DATA(heap)->upper_limit,
+                               &DATA(heap)->max_dynamic_size );
   /* gc_compute_dynamic_size() may return with no room for allocation */
   if (s - D < 65536)
     s += 65536;

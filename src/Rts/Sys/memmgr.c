@@ -174,6 +174,13 @@ void gc_dump_mmu_data( gc_t *gc, FILE *f )
 
    Taking lower_limit into account: pin M as max( M, lower_limit ).
 
+   With -nocontract, pin M as max( M, *max_M ), where *max_M is the
+   greatest M computed before for the same area (0 at first), and
+   update *max_M.  It is not the peak of all the memory allocated to
+   the heap, which includes what each M brings with it (the copy
+   reserve, other areas): the heap allocated would then exceed the
+   peak after each collection, and M would grow at every collection.
+
    Taking upper_limit into account: first pin M as min( M, upper_limit ).
    If M - current_live - live_at_next_gc is negative, then there is
    negative space available for allocation, which is absurd, hence the
@@ -191,7 +198,8 @@ void gc_dump_mmu_data( gc_t *gc, FILE *f )
    load factor for control.
    */
 s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L, 
-                             s_word lower_limit, s_word upper_limit )
+                             s_word lower_limit, s_word upper_limit,
+                             s_word *max_M )
 {
   s_word live = D+S+Q;
   s_word M = (s_word)(L*live);
@@ -212,11 +220,9 @@ s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L
   }
   
   if (!DATA(gc)->shrink_heap) {
-    gclib_stats_t stats;
-
-    gclib_stats( &stats );
-    /* use no less than before (the statistics are in words) */
-    M = umax( M, words2bytes( stats.heap_allocated_max ) );
+    /* use no less than before for this area (see above) */
+    M = umax( M, *max_M );
+    *max_M = M;
   }
 
   if (upper_limit > 0) {
