@@ -95,6 +95,10 @@
 
   (cond-expand (else)) ; keeps this library from showing up in (features)
 
+  (cond-expand
+   (larceny
+    (import (primitives issue-deprecated-warnings?))))
+
   (export regexp regexp? valid-sre? rx regexp->sre char-set->sre
           regexp-matches regexp-matches? regexp-search
           regexp-replace regexp-replace-all
@@ -183,7 +187,8 @@
       (define (string-concatenate-reverse ls)
         (string-concatenate (reverse ls))))))
 
-  (include "115.body.scm"))
+  (include "115.body.scm")
+  )
 
 
 (define-library (srfi 115 regexp)

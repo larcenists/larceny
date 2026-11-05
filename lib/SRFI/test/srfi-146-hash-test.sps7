@@ -1,0 +1,1043 @@
+;;; SPDX-FileCopyrightText: 2021 Arthur A. Gleckler
+;;; SPDX-License-Identifier: MIT
+
+;;; Test of (srfi 146 hash), constructed by collecting
+;;; four of Arthur A. Gleckler's test programs into a
+;;; single test program, preceded by a fake (chibi test)
+;;; library.
+
+;;; Modified from chicken-test.scm
+
+(define-library (chibi test) ; FAKE!
+
+(export test test-group)
+
+(import (scheme base)
+        (scheme list)
+        (srfi 8 receive)
+        (except (srfi 64 testing) test-group)
+        (srfi 128)           ; one of the comparator SRFIs
+        (srfi 146)           ; (scheme mapping)
+        (scheme generator)   ; same as (srfi 158)
+        (scheme read)
+        (scheme write)
+        (scheme file)
+        (scheme inexact)
+        (scheme complex)
+        (scheme process-context))
+
+(begin
+
+'
+(cond-expand
+ (gauche) ;; use gauche-test instead of directly load this file
+ (else
+  (use test)
+  (use srfi-158)
+  (use (only srfi-1 unfold))
+  (use srfi-4)
+  (include "r7rs-shim.scm")))
+
+;;; Uses "the Chicken test egg, which is provided on Chibi as
+;;; the (chibi test) library."  So we have to fake that here.
+;;;
+;;; The Chicken test egg appears to be documented at
+;;; http://wiki.call-cc.org/eggref/4/test
+
+#|
+(use test)
+(use sets)
+(use comparators)
+|#
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Miscellaneous non-R7RS stuff used by the test programming
+;;; without definitions.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (with-input-from-string s thunk)
+  (parameterize ((current-input-port (open-input-string s)))
+    (thunk)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; This stuff was copied from test/R7RS/Lib/tests/scheme/test.sld
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Good enough for this file.
+
+(define (for-all f xs . others)
+  (cond ((null? xs)
+         #t)
+        ((apply f (car xs) (map car others))
+         (apply for-all f (cdr xs) (map cdr others)))
+        (else
+         #f)))
+
+(define (exists f xs . others)
+  (cond ((null? xs)
+         #f)
+        ((apply f (car xs) (map car others))
+         #t)
+        (else
+         (apply exists f (cdr xs) (map cdr others)))))
+
+(define (get-string-n p n)
+  (let loop ((chars '())
+             (i 0))
+    (if (= i n)
+        (list->string (reverse chars))
+        (let ((c (read-char p)))
+          (if (char? c)
+              (loop (cons c chars)
+                    (+ i 1))
+              (loop chars n))))))
+
+(define-record-type err
+  (make-err err-c)
+  err?
+  (err-c err-err-c))
+
+(define-record-type expected-exception
+  (make-expected-exception)
+  expected-exception?)
+
+(define-record-type multiple-results
+  (make-multiple-results values)
+  multiple-results?
+  (values multiple-results-values))
+
+(define-record-type approx
+  (make-approx value)
+  approx?
+  (value approx-value))
+
+(define-record-type alts (make-alts values) alts?
+                    (values alts-values))
+
+(define-syntax larceny:test    ; FIXME: renamed
+  (syntax-rules ()
+    ((_ expr expected)
+     (begin
+       ;; (write 'expr) (newline)
+       (run-test 'expr
+                 (catch-exns (lambda () expr))
+                 expected)))))
+
+(define (catch-exns thunk)
+  (guard (c (#t (make-err c)))
+         (call-with-values thunk
+           (lambda x
+             (if (= 1 (length x))
+                 (car x)
+                 (make-multiple-results x))))))
+
+(define-syntax test/approx
+  (syntax-rules ()
+    ((_ expr expected)
+     (run-test 'expr
+               (make-approx expr)
+               (make-approx expected)))))
+
+(define-syntax test/alts
+  (syntax-rules ()
+    ((_ expr expected0 expected ...)
+     (run-test 'expr
+               expr
+               (make-alts (list expected0 expected ...))))))
+
+(define (good-enough? x y)
+  ;; relative error should be with 0.1%, but greater
+  ;; relative error is allowed when the expected value
+  ;; is near zero.
+  (cond ((not (number? x)) #f)
+        ((not (number? y)) #f)
+        ((or (not (real? x))
+             (not (real? y)))
+         (and (good-enough? (real-part x) (real-part y))
+              (good-enough? (imag-part x) (imag-part y))))
+        ((infinite? x)
+         (= x (* 2.0 y)))
+        ((infinite? y)
+         (= (* 2.0 x) y))
+        ((nan? y)
+         (nan? x))
+        ((> (magnitude y) 1e-6)
+         (< (/ (magnitude (- x y))
+               (magnitude y))
+            1e-3))
+        (else
+         (< (magnitude (- x y)) 1e-6))))
+
+;; FIXME
+
+(define-syntax test/exn
+  (syntax-rules ()
+    ((_ expr condition)
+     (test (guard (c (((condition-predicate
+                        (record-type-descriptor condition)) c)
+                      (make-expected-exception)))
+                  expr)
+           (make-expected-exception)))))
+
+(define-syntax test/values
+  (syntax-rules ()
+    ((_ expr val ...)
+     (run-test 'expr
+               (catch-exns (lambda () expr))
+               (make-multiple-results (list val ...))))))
+
+(define-syntax test/output
+  (syntax-rules ()
+    ((_ expr expected str)
+     (run-test 'expr
+               (capture-output
+                (lambda ()
+                  (run-test 'expr
+                            (guard (c (#t (make-err c)))
+                                   expr)
+                            expected)))
+               str))))
+
+(define-syntax test/unspec
+  (syntax-rules ()
+    ((_ expr)
+     (test (begin expr 'unspec) 'unspec))))
+
+;; FIXME
+
+(define-syntax test/unspec-or-exn
+  (syntax-rules ()
+    ((_ expr condition)
+     (test (guard (c (((condition-predicate
+                        (record-type-descriptor condition)) c)
+                      'unspec))
+                  (begin expr 'unspec))
+           'unspec))))
+
+;; FIXME
+
+(define-syntax test/unspec-flonum-or-exn
+  (syntax-rules ()
+    ((_ expr condition)
+     (test (guard (c (((condition-predicate
+                        (record-type-descriptor condition)) c)
+                      'unspec-or-flonum))
+                  (let ((v expr))
+                    (if (flonum? v)
+                        'unspec-or-flonum
+                        (if (eq? v 'unspec-or-flonum)
+                            (list v)
+                            v))))
+           'unspec-or-flonum))))
+
+(define-syntax test/output/unspec
+  (syntax-rules ()
+    ((_ expr str)
+     (test/output (begin expr 'unspec) 'unspec str))))
+
+(define checked 0)
+(define failures '())
+
+(define (capture-output thunk)
+  (if (file-exists? "srfi-158-tmp-catch-out")
+      (delete-file "srfi-158-tmp-catch-out"))
+  (dynamic-wind
+      (lambda () 'nothing)
+      (lambda ()
+        (with-output-to-file "srfi-158-tmp-catch-out"
+          thunk)
+        (call-with-input-file "srfi-158-tmp-catch-out"
+          (lambda (p)
+            (get-string-n p 1024))))
+      (lambda ()
+        (if (file-exists? "srfi-158-tmp-catch-out")
+            (delete-file "srfi-158-tmp-catch-out")))))
+
+(define (same-result? got expected)
+  (cond
+   ((and (real? expected) (nan? expected))
+    (and (real? got) (nan? got)))
+   ((expected-exception? expected)
+    (expected-exception? got))
+   ((approx? expected)
+    (and (approx? got)
+         (good-enough? (approx-value expected)
+                       (approx-value got))))
+   ((multiple-results? expected)
+    (and (multiple-results? got)
+         (= (length (multiple-results-values expected))
+            (length (multiple-results-values got)))
+         (for-all same-result?
+                  (multiple-results-values expected)
+                  (multiple-results-values got))))
+   ((alts? expected)
+    (exists (lambda (e) (same-result? got e))
+            (alts-values expected)))
+   (else
+                                        ;(equal? got expected))))
+    ((current-test-comparator)
+     got expected))))
+
+(define (run-test expr got expected)
+  (set! checked (+ 1 checked))
+  (unless (same-result? got expected)
+    (set! failures
+          (cons (list expr got expected)
+                failures))))
+
+(define (write-result prefix v)
+  (cond
+   ((multiple-results? v)
+    (for-each (lambda (v)
+                (write-result prefix v))
+              (multiple-results-values v)))
+   ((approx? v)
+    (display prefix)
+    (display "approximately ")
+    (write (approx-value v)))
+   ((alts? v)
+    (write-result (string-append prefix "   ")
+                  (car (alts-values v)))
+    (for-each (lambda (v)
+                (write-result (string-append prefix "OR ")
+                              v))
+              (cdr (alts-values v))))
+   (else
+    (display prefix)
+    (write v))))
+
+(define (report-test-results)
+  (if (null? failures)
+      (begin
+        (display checked)
+        (display " tests passed\n"))
+      (begin
+        (display (length failures))
+        (display " tests failed:\n\n")
+        (for-each (lambda (t)
+                    (display "Expression:\n ")
+                    (write (car t))
+                    (display "\nResult:")
+                    (write-result "\n " (cadr t))
+                    (display "\nExpected:")
+                    (write-result "\n " (caddr t))
+                    (display "\n\n"))
+                  (reverse failures))
+        (display (length failures))
+        (display " of ")
+        (display checked)
+        (display " tests failed.\n"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; End of stuff copied from test/R7RS/Lib/tests/scheme/test.sld
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Definitions that fake part of the Chicken test egg.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax test-group
+  (syntax-rules ()
+   ((_ name expr)
+    expr)
+   ((_ name expr-or-defn stuff ...)
+    (let ()
+      expr-or-defn
+      (test-group name stuff ...)))))
+
+(define-syntax test
+  (syntax-rules ()
+    ((_ name expected actual)
+     (begin
+       ;; (write 'actual) (newline)
+       (run-test '(begin name actual)
+                 (catch-exns (lambda () actual))
+                 expected)))
+    ((_ expected actual)
+     (test 'anonymous expected actual))))
+
+(define-syntax test-assert
+  (syntax-rules ()
+    ((_ name expr)
+     (parameterize ((current-test-comparator equal?))
+       (test name #t (and expr #t))))
+    ((_ expr)
+     (test-assert 'anonymous expr))))
+
+(define-syntax test-error
+  (syntax-rules ()
+    ((_ name expr)
+     (test/exn expr &condition))
+    ((_ expr)
+     (test-error 'anonymous expr))))
+
+(define-syntax test-end
+  (syntax-rules ()
+    ((_ name)
+     (begin (report-test-results)
+            (display "Done.")
+            (newline)))
+    ((_)
+     (test-end 'anonymous))))
+
+(define (test-exit . rest)
+  (let ((error-status (if (null? rest) 1 (car rest))))
+    (if (null? failures)
+        (exit)
+        (exit error-status))))        
+
+(define current-test-comparator
+  (make-parameter equal?))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; End of definitions faking part of the Chicken test egg.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-library (gleckler hamt-test)
+  (import (scheme base)
+	  (chibi test)
+	  (except (srfi 64) test-group)
+	  (only (srfi 146 gleckler hamt) fragment->mask))
+  (export run-hamt-core-tests)
+; (include "hamt-test.scm")
+
+;;;; HAMT Core Tests
+
+;;; SPDX-FileCopyrightText: 2015 Arthur A. Gleckler
+;;; SPDX-License-Identifier: MIT
+
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+;; HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+;; DEALINGS IN THE SOFTWARE.
+
+;;; HAMT Core Tests
+
+(begin
+
+(define (run-hamt-core-tests)
+  (test-begin "hamt-core")
+
+  (test-group "(hash-array-mapped-trie fragment->mask)"
+    (test-equal = 0 (fragment->mask 0))
+    (test-equal = 1 (fragment->mask 1))
+    (test-equal = 3 (fragment->mask 2))
+    (test-equal = 7 (fragment->mask 3)))
+
+  (test-end))
+
+)
+
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-library (gleckler hamt-misc-test)
+  (import (scheme base)
+          (chibi test)
+	  (except (srfi 64) test-group)
+	  (srfi 146 gleckler hamt-misc))
+  (export run-hamt-misc-tests)
+; (include "hamt-misc-test.scm")
+
+;;;; Tests of utilities used by HAMT
+
+;;; SPDX-FileCopyrightText: 2004 Arthur A. Gleckler
+;;; SPDX-License-Identifier: MIT
+
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+;; HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+;; DEALINGS IN THE SOFTWARE.
+
+(begin
+
+(define (run-hamt-misc-tests)
+  (test-begin "hamt-misc")
+
+  (test-group "(do-list)"
+    (let ((index-accumulator '())
+	  (value-accumulator '())
+	  (all-values '(1 2 3 4 5)))
+      (do-list (value all-values)
+	(set! value-accumulator (cons value value-accumulator)))
+      (test all-values (reverse value-accumulator))
+      (do-list (value index all-values)
+	(set! index-accumulator (cons index index-accumulator)))
+      (test '(4 3 2 1 0) index-accumulator)))
+
+  (test-end))
+
+)
+
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-library (gleckler hamt-map-test)
+  (import (scheme base)
+	  (chibi test)
+	  (except (srfi 64) test-group)
+	  (srfi 146 gleckler hamt)
+	  (srfi 146 gleckler hamt-map)
+	  (srfi 146 gleckler hamt-misc)
+	  (only (srfi 1) alist-delete fold)
+	  (only (srfi 27) random-integer)
+	  (only (srfi 113)
+                set
+		set-adjoin!
+		set-delete!
+		set-for-each)
+	  (only (srfi 125)
+		hash-table->alist
+		hash-table-keys
+		hash-table-delete!
+		hash-table-for-each
+		hash-table-set!
+		hash-table-size
+		string-hash)
+          (only (srfi 128) make-comparator)
+	  (only (srfi 132) list-sort)
+	  (only (srfi 151) bit-count))
+  (export run-hamt-map-tests)
+; (include "hamt-map-test.scm")
+
+;;;; HAMT Map Tests
+
+;;; SPDX-FileCopyrightText: 2015 Arthur A. Gleckler
+;;; SPDX-License-Identifier: MIT
+
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+;; HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+;; DEALINGS IN THE SOFTWARE.
+
+(begin
+
+(define (make-string-set)
+  (set (make-comparator string? string=? string<? string-hash)))
+
+
+(define (run-hamt-map-tests)
+
+  (define (assert-phm= phm alist)
+    (test-equal = (length alist) (phm/count phm))
+    (do-list (a alist)
+      (test-assert (phm/contains? phm (car a)))
+      (test-assert (= (cdr a) (phm/get phm (car a) #f)))))
+
+  (define (phm-random-test put remove transform)
+    (define (sort-alist alist)
+      (list-sort (lambda (a1 a2) (string<? (car a1) (car a2))) alist))
+    (let ((contents (make-string-hash-table))
+	  (deleted-keys (make-string-set))
+	  (deletion-odds 5)
+	  (max-key-length 5)
+	  (operations 100))
+      (define (random-key)
+	(let ((size (+ (random-integer max-key-length) 1)))
+	  (with-output-to-string
+	    (lambda ()
+	      (do ((i 0 (+ i 1)))
+		  ((= i size))
+		(write-char (integer->char (+ 97 (random-integer 26)))))))))
+      (define (fill-phm i phm)
+	(let ((size (hash-table-size contents)))
+	  (cond ((zero? i) phm)
+		((and (not (zero? size))
+		      (zero? (random-integer deletion-odds)))
+		 (let ((key (list-ref (hash-table-keys contents)
+				      (random-integer size))))
+		   (set-adjoin! deleted-keys key)
+		   (hash-table-delete! contents key)
+		   (fill-phm (- i 1)
+			     (remove phm key))))
+		(else (let* ((key (random-key))
+			     (datum (random-integer 1000)))
+			(set-delete! deleted-keys key)
+			(hash-table-set! contents key datum)
+			(fill-phm (- i 1)
+				  (put phm key datum)))))))
+      (let ((phm (fill-phm operations
+			   (transform (make-phm string-hash string=?)))))
+	(test-assert (= (phm/count phm) (hash-table-size contents)))
+	(hash-table-for-each (lambda (key datum)
+			       (test-assert (= datum (phm/get phm key -1)))
+			       (test-assert (phm/contains? phm key)))
+			     contents)
+	(set-for-each (lambda (key)
+			(test-assert (= -1 (phm/get phm key -1)))
+			(test-assert (not (phm/contains? phm key))))
+		      deleted-keys)
+	(let ((ht-alist (hash-table->alist contents))
+	      (phm-alist (phm->alist phm)))
+	  (test-assert (equal? (sort-alist ht-alist)
+			       (sort-alist phm-alist)))))))
+
+  (define (phm-remove-non-existent-test remove transform)
+    (define (terrible-hash string) 0)
+    (let ((phm (remove (transform (make-phm string-hash string=?))
+		       "not-present")))
+      (test-assert (zero? (phm/count phm)))
+      (test-assert (not (phm/contains? phm "not-present")))
+      (test-assert (not (phm/get phm "not-present" #f))))
+    (let ((phm (remove (transform (phm/put (make-phm terrible-hash string=?)
+					   "foo"
+					   1))
+		       "not-present")))
+      (test-assert (= 1 (phm/count phm)))
+      (test-assert (phm/contains? phm "foo"))
+      (test-assert (not (phm/contains? phm "not-present")))))
+
+  (define (phm-collision-test put remove transform)
+    (define (sort-alist alist)
+      (list-sort (lambda (a1 a2) (string<? (car a1) (car a2))) alist))
+    (define (terrible-hash string)
+      (cond ((string=? string "foo") 0)
+	    ((string=? string "bar") 1)
+	    (else 2)))
+    (let* ((alist '(("foo" . 1) ("bar" . 2) ("baz" . 3) ("bat" . 4)
+		    ("quux" . 5)))
+	   (phm-1 (fold (lambda (a phm) (put phm (car a) (cdr a)))
+			(transform (make-phm terrible-hash string=?))
+			alist))
+	   (phm (put phm-1 "baz" 3)))
+      (assert-phm= phm alist)
+      (let ((phm-alist (phm->alist phm)))
+	(test-assert (equal? (sort-alist alist)
+			     (sort-alist phm-alist))))
+      (let ((alist-minus-baz (alist-delete "baz" alist string=?))
+	    (phm-minus-baz (remove (transform phm) "baz")))
+	(assert-phm= phm-minus-baz alist-minus-baz)
+	(let ((phm-minus-nonexistent (remove phm-minus-baz "not-present")))
+	  (test-equal = (phm/count phm-minus-nonexistent) (- (length alist) 1))
+	  (let ((alist-minus-bat (alist-delete "bat" alist-minus-baz string=?))
+		(phm-minus-bat (remove phm-minus-nonexistent "bat")))
+	    (assert-phm= phm-minus-bat alist-minus-bat))))))
+
+  (define (persistent-hash-map replace transform)
+    (define (sort-alist alist)
+      (list-sort (lambda (a1 a2) (string<? (car a1) (car a2))) alist))
+    (let* ((alist-1 '(("a" . 1) ("b" . 2) ("c" . 3)))
+	   (alist-2 '(("a" . 1) ("b" . 4) ("c" . 3)))
+	   (alist-3 '(("a" . 1) ("b" . 4)))
+	   (phm (replace (transform (make-phm string-hash string=? alist-1))
+			 "b"
+			 (lambda (x) 4))))
+      (test-assert (equal? alist-2 (sort-alist (phm->alist phm))))
+      (test-assert (equal? alist-3
+			   (sort-alist
+			    (phm->alist
+			     (replace phm "c" (lambda (x) hamt-null))))))))
+
+  (define (hamt-max-depth hamt)
+    "Return maximum depth of `hamt'.  For testing."
+    (let descend ((n (hamt/root hamt)))
+      (cond ((collision? n) 1)
+	    ((narrow? n)
+	     (let* ((array (narrow/array n))
+		    (stride (leaf-stride (hamt/payload? hamt)))
+		    (start (* stride (bit-count (narrow/leaves n))))
+		    (end (vector-length array)))
+	       (do ((i start (+ i 1))
+		    (high 0 (max high (descend (vector-ref array i)))))
+		   ((= i end) (+ high 1)))))
+	    ((wide? n)
+	     (let ((array (wide/array n))
+		   (c (wide/children n)))
+	       (let next-child ((high 0)
+				(i 0))
+		 (cond ((next-set-bit c i hamt-bucket-size)
+			=> (lambda (j)
+			     (next-child (max high
+					      (descend (vector-ref array j)))
+					 (+ j 1))))
+		       (else (+ high 1))))))
+	    (else (error "Invalid type of node." n)))))
+
+  (test-begin "hamt-map")
+
+  (test-group "(persistent-hash-map make-phm alist)"
+    (let* ((alist '(("a" . 1) ("b" . 2)))
+	   (phm (make-phm string-hash string=? alist)))
+      (test-assert (not (hamt/mutable? phm)))
+      (assert-phm= phm alist)))
+
+  (test-group "(persistent-hash-map make-phm phm/count)"
+    (let ((phm (make-phm string-hash string=? '(("a". 1) ("b" . 2)))))
+      (test-assert (= 2 (phm/count phm)))))
+
+  (test-group "(persistent-hash-map phm/empty?)"
+    (test-assert (phm/empty? (make-phm string-hash string=?)))
+    (test-assert (not (phm/empty? (make-phm string-hash string=? '(("a")))))))
+
+  (test-group "(persistent-hash-map random pure)"
+    (phm-random-test phm/put phm/remove (lambda (m) m)))
+
+  (test-group "(persistent-hash-map random mutate)"
+    (phm-random-test phm/put! phm/remove! phm/mutable))
+
+  (test-group "(persistent-hash-map random mixed)"
+    (define (flip mutate? phm)
+      ((if mutate? phm/mutable phm/immutable) phm))
+    (phm-random-test (let ((mutate? #t))
+		       (lambda (phm key datum)
+			 (set! mutate? (not mutate?))
+			 ((if mutate? phm/put! phm/put)
+			  (flip mutate? phm)
+			  key
+			  datum)))
+		     (let ((count 0))
+		       (lambda (phm key)
+			 (set! count (remainder (+ count 1) 3))
+			 (let ((mutate? (zero? count)))
+			   ((if mutate? phm/remove! phm/remove)
+			    (flip mutate? phm)
+			    key))))
+		     (lambda (m) m)))
+
+  (test-group "(persistent-hash-map remove-non-existent pure)"
+    (phm-remove-non-existent-test phm/remove (lambda (m) m)))
+
+  (test-group "(persistent-hash-map remove-non-existent mutate)"
+    (phm-remove-non-existent-test phm/remove! phm/mutable))
+
+  (test-group "(persistent-hash-map phm/add-alist)"
+    (let* ((alist '(("foo" . 1) ("bar" . 2) ("baz" . 3)))
+	   (phm (phm/add-alist (make-phm string-hash string=?) alist)))
+      (assert-phm= phm alist)))
+
+  (test-group "(persistent-hash-map phm/add-alist!)"
+    (let* ((alist '(("foo" . 1) ("bar" . 2) ("baz" . 3)))
+	   (phm (phm/mutable (make-phm string-hash string=?))))
+      (phm/add-alist! phm alist)
+      (assert-phm= phm alist)))
+
+  (test-group "(persistent-hash-map collisions pure)"
+    (phm-collision-test phm/put phm/remove (lambda (m) m)))
+
+  (test-group "(persistent-hash-map collisions mutate)"
+    (phm-collision-test phm/put! phm/remove! phm/mutable))
+
+  (test-group "(persistent-hash-map big-hash)"
+    "Test that hashes that differ only above `hamt-hash-size' still work."
+    (define big-hash
+      (let* ((big-1 (expt 2 hamt-hash-size))
+	     (big-2 (* 2 big-1)))
+	(lambda (string)
+	  (cond ((string=? string "foo") big-1)
+		(else big-2)))))
+    (let* ((alist '(("foo" . 1) ("bar" . 2) ("baz" . 3) ("bat" . 4)
+		    ("quux" . 5)))
+	   (phm (phm/add-alist (make-phm big-hash string=?) alist)))
+      (assert-phm= phm alist)))
+
+  (test-group "(persistent-hash-map same-first-fragment)"
+    (define (same-first-fragment string)
+      (* hamt-bucket-size (string-hash string)))
+    (let* ((alist '(("foo" . 1) ("bar" . 2) ("baz" . 3) ("bat" . 4)
+		    ("quux" . 5)))
+	   (phm (phm/add-alist (make-phm same-first-fragment string=?) alist)))
+      (assert-phm= phm alist)
+      (let ((phm-minus-baz (phm/remove phm "baz")))
+	(assert-phm= phm-minus-baz (alist-delete "baz" alist string=?)))
+      (let ((phm-minus-nonexistent (phm/remove phm "not-present")))
+	(test-assert (= (phm/count phm-minus-nonexistent) (length alist))))))
+
+  (test-group "(persistent-hash-map pure-mutate-interference)"
+    "Test that mutating and pure operations interact with each other
+correctly."
+    (define (alist-replace alist key datum)
+      (cons (cons key datum) (alist-delete key alist string=?)))
+    (let* ((m0 (make-phm string-hash string=?))
+	   (a1 '(("foo" . 1) ("bar" . 2) ("baz" . 3)))
+	   (m1 (phm/add-alist m0 a1))
+	   (a4 (alist-replace a1 "foo" 4))
+	   (m2 (phm/put m1 "foo" 4))
+	   (a5 (alist-replace a1 "foo" 5))
+	   (m3 (phm/mutable m2))
+	   (m4 (phm/put! m3 "foo" 5))
+	   (a6 (alist-replace a1 "foo" 6))
+	   (m5 (phm/immutable m4))
+	   (m6 (phm/mutable m5))
+	   (m7 (phm/put! m6 "foo" 6))
+	   (a7 (alist-replace a1 "foo" 7))
+	   (a8 (alist-replace a1 "foo" 8))
+	   (m8 (phm/put! m6 "foo" 7)))
+      (phm/put! m4 "foo" 8)
+      (assert-phm= m0 '())
+      (assert-phm= m1 a1)
+      (assert-phm= m2 a4)
+      (assert-phm= m3 a8)
+      (assert-phm= m4 a8)
+      (assert-phm= m5 a5)
+      (assert-phm= m6 a7)
+      (assert-phm= m7 a7)
+      (assert-phm= m8 a7)
+      (let ((a (alist-delete "foo" a1 string=?))
+	    (m9 (phm/remove! m4 "foo")))
+	(assert-phm= m4 a)
+	(assert-phm= m9 a))))
+
+  (test-group "(persistent-hash-map phm/data)"
+    (let* ((alist '(("a" . 1) ("b" . 2) ("c" . 3)))
+	   (data (phm/data (make-phm string-hash string=? alist))))
+      (test-assert (equal? (map cdr alist)
+			   (list-sort < data)))))
+
+  (test-group "(persistent-hash-map phm/keys)"
+    (let* ((alist '(("a" . 1) ("b" . 2) ("c" . 3)))
+	   (keys (phm/keys (make-phm string-hash string=? alist))))
+      (test-assert (equal? (map car alist)
+			   (list-sort string<? keys)))))
+
+  (test-group "(persistent-hash-map phm/for-each)"
+    (define (sort-alist alist)
+      (list-sort (lambda (a1 a2) (string<? (car a1) (car a2))) alist))
+    (let* ((alist '(("a" . 1) ("b" . 2) ("c" . 3)))
+	   (phm (make-phm string-hash string=? alist))
+	   (accumulator '()))
+      (phm/for-each (lambda (k d) (set! accumulator
+				   (cons (cons k d) accumulator)))
+		    phm)
+      (test-assert (equal? alist (sort-alist accumulator)))))
+
+  (test-group "(persistent-hash-map phm/replace)"
+    (persistent-hash-map phm/replace (lambda (m) m)))
+
+  (test-group "(persistent-hash-map phm/replace!)"
+    (persistent-hash-map phm/replace! phm/mutable))
+
+  (test-group "(persistent-hash-map immutable-replace)"
+    (define (sort-alist alist)
+      (list-sort (lambda (a1 a2) (string<? (car a1) (car a2))) alist))
+    (let* ((alist-1 '(("a" . 1) ("b" . 2) ("c" . 3)))
+	   (alist-2 '(("a" . 1) ("b" . 5) ("c" . 3)))
+	   (phm-1 (phm/mutable (make-phm string-hash string=? alist-1))))
+      (phm/put! phm-1 "b" 4)
+      (let ((phm-2 (phm/immutable phm-1
+				  (lambda (k d) (if (string=? k "b") (+ d 1) d)))))
+	(test-assert (equal? alist-2 (sort-alist (phm->alist phm-2)))))))
+
+  (test-group "(persistent-hash-map phm/mutable?)"
+    (let ((phm (make-phm string-hash string=?)))
+      (test-assert (not (phm/mutable? phm)))
+      (test-assert (phm/mutable? (phm/mutable phm)))
+      (test-assert (not (phm/mutable? (phm/immutable (phm/mutable phm)))))))
+
+  (test-group "(persistent-hash-map modify-collision add-different-hash)"
+    (define (terrible-hash string)
+      (cond ((string=? string "foo") 0)
+	    ((string=? string "bar") 0)
+	    (else hamt-bucket-size)))	; same as 0 in bottom 5 bits
+    (let* ((alist '(("foo" . 1) ("bar" . 2)))
+	   (phm-1 (make-phm terrible-hash string=? alist))
+	   (phm-2 (phm/put phm-1 "baz" 3)))
+      (assert-phm= phm-2 '(("foo" . 1) ("bar" . 2) ("baz" . 3)))))
+
+  (test-group "(persistent-hash-map lower-collision)"
+    (define same-bottom-three-fragments (expt hamt-bucket-size 3))
+    (define (terrible-hash string)
+      (if (or (string=? string "foo")
+	      (string=? string "bar"))
+	  same-bottom-three-fragments
+	  (* 2 same-bottom-three-fragments)))
+    (let* ((alist '(("foo" . 1) ("bar" . 2)))
+	   (phm-1 (make-phm terrible-hash string=? alist))
+	   (phm-2 (phm/put phm-1 "baz" 3))
+	   (phm-3 (phm/remove phm-2 "foo"))
+	   (phm-4 (phm/remove phm-3 "bar"))
+	   (phm-5 (phm/remove phm-4 "baz")))
+      (assert-phm= phm-2 '(("foo" . 1) ("bar" . 2) ("baz" . 3)))
+      (assert-phm= phm-3 '(("bar" . 2) ("baz" . 3)))
+      (assert-phm= phm-4 '(("baz" . 3)))
+      (assert-phm= phm-5 '())
+      (test-assert (= 5 (hamt-max-depth phm-2)))
+      (test-assert (= 4 (hamt-max-depth phm-3)))
+      (test-assert (= 1 (hamt-max-depth phm-4)))
+      (test-assert (= 1 (hamt-max-depth phm-5)))))
+  (test-end))
+
+)
+
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-library (gleckler vector-edit-test)
+  (import (scheme base)
+          (chibi test)
+	  (except (srfi 64) test-group)
+	  (srfi 146 gleckler vector-edit))
+  (export run-vector-edit-tests)
+; (include "vector-edit-test.scm")
+
+;;;; `vector-edit' tests
+
+;;; SPDX-FileCopyrightText: 2004 Arthur A. Gleckler
+;;; SPDX-License-Identifier: MIT
+
+;; Permission is hereby granted, free of charge, to any person
+;; obtaining a copy of this software and associated documentation
+;; files (the "Software"), to deal in the Software without
+;; restriction, including without limitation the rights to use, copy,
+;; modify, merge, publish, distribute, sublicense, and/or sell copies
+;; of the Software, and to permit persons to whom the Software is
+;; furnished to do so, subject to the following conditions:
+
+;; The above copyright notice and this permission notice shall be
+;; included in all copies or substantial portions of the Software.
+
+;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;; NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+;; HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+;; WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+;; DEALINGS IN THE SOFTWARE.
+
+(begin
+
+(define (run-vector-edit-tests)
+  (test-begin "vector-edit")
+
+  (test-group "(vector-without)"
+    (define (check expected start end)
+      (let ((v #(0 1 2 3 4)))
+	(test expected (vector-without v start end))))
+    (check #(0 1 2 3 4) 0 0)
+    (check #() 0 5)
+    (check #(1 2 3 4) 0 1)
+    (check #(2 3 4) 0 2)
+    (check #(0 2 3 4) 1 2)
+    (check #(0 3 4) 1 3)
+    (check #(0 1 4) 2 4)
+    (check #(0 1 2 3) 4 5)
+    (check #(0 1 2) 3 5))
+
+  (test-group "(vector-edit empty)"
+    (let ((array (vector 0 1 2)))
+      (test #(0 1 2) (vector-edit array))))
+
+  (test-group "(vector-edit adjacent-adds)"
+    (let ((array (vector 0 1 2)))
+      (test #(0 1 2 3 4)
+	    (vector-edit array
+			 (add 3 3)
+			 (add 3 4)))))
+
+  (test-group "(vector-edit adjacent-drops)"
+    (let ((array (vector 0 1 2 3 4 5)))
+      (test #(0 1 2)
+	    (vector-edit array
+			 (drop 3 1)
+			 (drop 4 2)))))
+
+  (test-group "(vector-edit alternating-add-drop)"
+    (let ((array (vector 0 1 2 2 2 3 4 6 6 6 6 7 9)))
+      (test #(0 1 2 3 4 5 6 7 8 9)
+	    (vector-edit array
+			 (drop 3 2)
+			 (add 7 5)
+			 (drop 8 3)
+			 (add 12 8)))))
+
+  (test-end))
+
+)
+
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; SPDX-FileCopyrightText: 2025 Arthur A. Gleckler
+;;; SPDX-License-Identifier: MIT
+
+(import (gleckler hamt-test)
+	(gleckler hamt-misc-test)
+	(gleckler hamt-map-test)
+	(gleckler vector-edit-test))
+
+(import (scheme base) (scheme file))
+
+(run-hamt-core-tests)
+(run-hamt-misc-tests)
+(run-hamt-map-tests)
+
+(run-vector-edit-tests)
+
+(for-each delete-file
+          '("hamt-core.log"
+	    "hamt-map.log"
+	    "hamt-misc.log"
+	    "vector-edit.log"))

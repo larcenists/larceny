@@ -9,7 +9,7 @@
                       larceny:numvec.hashcode larceny:numvec.bv
                       larceny:numvec-getter larceny:numvec-setter
                       larceny:numvec-predicate
-		      larceny:numvec->list
+                      larceny:numvec->list
                       bytevector-c64-native-ref bytevector-c64-native-set!
                       bytevector-c128-native-ref bytevector-c128-native-set!
                       u8? s8? u16? s16? u32? s32? u64? s64?
@@ -23,8 +23,9 @@
 
                       ;; These will not be exported
 
-		      list->bytevector fxlogand fxlsh
-		      random))
+                      list->bytevector bytevector->list
+                      fixnum? fxlogand fxlsh
+                      random))
 
   (export
    make-numvec new-numvec numeric-vector?
@@ -35,6 +36,8 @@
    bytevector-c128-native-ref bytevector-c128-native-set!
    u8? s8? u16? s16? u32? s32? u64? s64?
    f32? f64? c64? c128?
+
+   ;; FIXME: Why are these exported?
 
    larceny:numvec-hashcode->element-width
    larceny:numvec-hashcode->int-tag

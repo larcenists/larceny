@@ -257,7 +257,7 @@
 
 ;;; The following is added for Larceny.
 
-(system "fgrep \"result-kind:\" SRFI-126.log")
+(system "fgrep \"result-kind: fail\" SRFI-126.log")
 (display "Done.\n")
 
 ;; Local Variables:

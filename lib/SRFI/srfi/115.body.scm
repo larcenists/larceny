@@ -2,6 +2,13 @@
 ;; Copyright (c) 2013 Alex Shinn.  All rights reserved.
 ;; BSD-style license: http://synthcode.com/license.txt
 
+;;; Suppresses warnings in Larceny.
+
+(cond-expand
+ (larceny
+  (define original:issue-deprecated-warnings?
+    (issue-deprecated-warnings?))
+  (issue-deprecated-warnings? #f)))
 
 ;;; An rx represents a start state and meta-info such as the number
 ;;; and names of submatches.
@@ -1068,3 +1075,9 @@
       (lp (cdr ls) (cons (car ls) res))))))
 
 (define re:grapheme (regexp 'grapheme))
+
+;;; Restores original parameterization.
+
+(cond-expand
+ (larceny
+  (issue-deprecated-warnings? original:issue-deprecated-warnings?)))
