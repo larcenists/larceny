@@ -92,8 +92,6 @@
 ;; changed 10000 to nsec/msec and defined nsec/msec as 1000000.
 ;; Will Clinger 8 March 2009.
 
-(require 'srfi-0)                             ; cond-expand
-
 (cond-expand (srfi-6))                        ; string ports
 (cond-expand (srfi-8))                        ; RECEIVE
 (cond-expand (srfi-9))                        ; records

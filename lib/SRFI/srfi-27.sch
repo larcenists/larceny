@@ -134,11 +134,8 @@
 (define (mrg32k3a-unpack-state state)
   (list->vector (map inexact->exact (vector->list state))))
 
-; Larceny: the range must not exceed m1 (the modulus of the generator);
-; on 64-bit systems the fixnums are larger than m1.
-
 (define (mrg32k3a-random-range)
-  (min (most-positive-fixnum) 4294967087))
+  (most-positive-fixnum))
 
 (define (mrg32k3a-random-integer state range) ; from Brad Lucier
   (let* ((n (exact->inexact range))
