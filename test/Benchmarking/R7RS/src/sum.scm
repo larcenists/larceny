@@ -1,4 +1,4 @@
-;;; SUM -- Compute sum of integers from 0 to 10000
+;;; SUM -- Compute sum of integers from 0 to n
 
 (import (scheme base)
         (scheme read)

@@ -730,8 +730,10 @@
 ; dynamic-parse-file
 
 (define (dynamic-parse-file file-name)
-  (let ((input-port (open-input-file file-name)))
-    (dynamic-parse-from-port input-port)))
+  (let* ((input-port (open-input-file file-name))
+         (parsed-input (dynamic-parse-from-port input-port)))
+    (close-input-port input-port)
+    parsed-input))
 ;----------------------------------------------------------------------------
 ; Implementation of Union/find data structure in Scheme
 ;----------------------------------------------------------------------------

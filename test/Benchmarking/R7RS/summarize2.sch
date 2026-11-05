@@ -96,6 +96,7 @@
 
 (define graph-system:classes
   '(("Larceny"       "larceny")
+    ("LarcenyRegional" "larceny")
     ("Petit"         "petit")
     ("Bigloo"        "bigloo")
     ("Chez"          "chez")
@@ -121,10 +122,16 @@
 
 (define (system-class system)
   (let ((probe (assoc system graph-system:classes)))
-    (if probe (cadr probe) (symbol->string system))))
+    (cond (probe (cadr probe))
+	  ((string? system)
+	   system)
+	  ((symbol? system)
+	   (symbol->string system))
+	  (else "anonymous"))))
 
 (define graph-system:names
-  '(("Larceny"       "Larceny")
+  '(("Larceny"       "Larceny2.0")
+    ("LarcenyRegional" "Larceny2.0regional")
     ("Petit"         "Petit Larceny")
     ("Bigloo"        "Bigloo")
     ("Chez"          "Chez")
@@ -150,7 +157,12 @@
 
 (define (system-name system)
   (let ((probe (assoc system graph-system:names)))
-    (if probe (cadr probe) (symbol->string system))))
+    (cond (probe (cadr probe))
+	  ((string? system)
+	   system)
+	  ((symbol? system)
+	   (symbol->string system))
+	  (else "anonymous"))))
 
 (define (graph-system system timing best out)
   (if (and (number? timing)
