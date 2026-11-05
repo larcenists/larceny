@@ -780,7 +780,15 @@
 
 ;;; Comparison
 
-(define (make-nary-comparison name binop0)
+;;; make-nary-comparison is defined in src/Lib/Arch/*/primops.sch,
+;;; and is used by both
+;;; src/Lib/Common/string.sch and
+;;; src/Lib/Common/numvec.sch.
+;;;
+;;; Redefining it here created a load order dependency.
+;;; Better just to give it a different name here.
+
+(define (make-textual-comparison name binop0)
   (let ((binop (lambda (a b)
                  (let ((a (%textual->text a name a b))
                        (b (%textual->text b name a b)))
@@ -799,54 +807,54 @@
                  (loop b rest)))))))
 
 (define textual=?
-  (make-nary-comparison 'textual=?
-                        (lambda (a b)
-                          (%text-compare a b =))))
+  (make-textual-comparison 'textual=?
+                           (lambda (a b)
+                             (%text-compare a b =))))
 
 (define textual<?
-  (make-nary-comparison 'textual<?
-                        (lambda (a b)
-                          (%text-compare a b <))))
+  (make-textual-comparison 'textual<?
+                           (lambda (a b)
+                             (%text-compare a b <))))
 
 (define textual<=?
-  (make-nary-comparison 'textual<=?
-                        (lambda (a b)
-                          (%text-compare a b <=))))
+  (make-textual-comparison 'textual<=?
+                           (lambda (a b)
+                             (%text-compare a b <=))))
 
 (define textual>?
-  (make-nary-comparison 'textual>?
-                        (lambda (a b)
-                          (%text-compare a b >))))
+  (make-textual-comparison 'textual>?
+                           (lambda (a b)
+                             (%text-compare a b >))))
 
 (define textual>=?
-  (make-nary-comparison 'textual>=?
-                        (lambda (a b)
-                          (%text-compare a b >=))))
+  (make-textual-comparison 'textual>=?
+                           (lambda (a b)
+                             (%text-compare a b >=))))
 
 (define textual-ci=?
-  (make-nary-comparison 'textual-ci=?
-                        (lambda (a b)
-                          (%text-compare-ci a b = string-ci=?))))
+  (make-textual-comparison 'textual-ci=?
+                           (lambda (a b)
+                             (%text-compare-ci a b = string-ci=?))))
 
 (define textual-ci<?
-  (make-nary-comparison 'textual-ci<?
-                        (lambda (a b)
-                          (%text-compare-ci a b < string-ci<?))))
+  (make-textual-comparison 'textual-ci<?
+                           (lambda (a b)
+                             (%text-compare-ci a b < string-ci<?))))
 
 (define textual-ci<=?
-  (make-nary-comparison 'textual-ci<=?
-                        (lambda (a b)
-                          (%text-compare-ci a b <= string-ci<=?))))
+  (make-textual-comparison 'textual-ci<=?
+                           (lambda (a b)
+                             (%text-compare-ci a b <= string-ci<=?))))
 
 (define textual-ci>?
-  (make-nary-comparison 'textual-ci>?
-                        (lambda (a b)
-                          (%text-compare-ci a b > string-ci>?))))
+  (make-textual-comparison 'textual-ci>?
+                           (lambda (a b)
+                             (%text-compare-ci a b > string-ci>?))))
 
 (define textual-ci>=?
-  (make-nary-comparison 'textual-ci>=?
-                        (lambda (a b)
-                          (%text-compare-ci a b >= string-ci>=?))))
+  (make-textual-comparison 'textual-ci>=?
+                           (lambda (a b)
+                             (%text-compare-ci a b >= string-ci>=?))))
 
 ;;; Compares texts a and b.
 ;;; Determines whether a is less than b (-1), equal (0), or
