@@ -1,8 +1,12 @@
 ; The traditional parameters for this benchmark are 10:9:2:1,
 ; but that's too small for modern computers.
 ;
-; The new parameters for this benchmark are 20:10:2:1.
-;                                            M: N:K:L
+; For a while, the parameters for this benchmark were 20:10:2:1.
+;                                                      M: N:K:L
+; Those parameters are now                            30:10:4:1
+;
+; With those parameters, Larceny and Racket both top out at
+; about 2.5 gigabytes of storage.
 ;
 ; N=10 means the benchmark starts by generating a list of all
 ; 10! = 3628800 permutations of the first 10 integers, allocating
@@ -23,6 +27,11 @@
 ; of the peak storage becomes garbage.  Object lifetimes (measured
 ; in bytes or pairs allocated) are distributed uniformly between
 ; L/K times the peak storage and the peak storage itself.
+
+30            ; M (number of iterations)
+10            ; N (length of each permutation)
+4             ; K (size of queue)
+1             ; L (number of old copies removed when queue is filled)
 
 20            ; M (number of iterations)
 10            ; N (length of each permutation)

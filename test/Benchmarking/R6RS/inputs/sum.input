@@ -1,3 +1,8 @@
-100000
-10000
-50005000
+5000000
+1000 ; small enough to avoid bignum arithmetic even with small fixnums
+500500
+
+
+;; FIXME: should have versions of this that
+;;     would force 32-bit systems to use bignums
+;;     would force 64-bit systems to use bignums

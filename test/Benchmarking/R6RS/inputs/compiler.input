@@ -1,4 +1,4 @@
-1000
+10000 ; was 2000
 
 (begin
   (declare (standard-bindings) (fixnum) (not safe) (block))
