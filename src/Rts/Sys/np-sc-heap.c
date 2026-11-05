@@ -85,6 +85,7 @@ struct npsc_data {
   int         remset_limit;     /* 0..INT_MAX, the NP remset limit (entries) */
   s_word         lower_limit;      /* 0 or lower limit on the area (bytes) */
   s_word         upper_limit;      /* 0 or upper limit on the area (bytes) */
+  s_word         max_dynamic_size; /* Greatest M so far (-nocontract) */
   double      phase_detection;  /* -1.0 or 0.0..1.0, remset growth factor */
   int         phase_idx;        /* Next index in phase_buf */
   phase_t     phase_buf[ PHASE_BUFSIZ ];  /* Phase detection data */
@@ -135,6 +136,7 @@ create_np_dynamic_area( int gen_no, int *gen_allocd, gc_t *gc, np_info_t *info)
   data->load_factor     = info->load_factor;
   data->lower_limit     = info->dynamic_min;
   data->upper_limit     = info->dynamic_max;
+  data->max_dynamic_size = 0;
   data->remset_limit    = info->extra_remset_limit;
   data->luck            = info->luck;
   data->phase_detection = info->phase_detection;
@@ -843,7 +845,8 @@ static s_word compute_dynamic_size( old_heap_t *heap, s_word D, s_word Q )
   s_word lower_limit = DATA(heap)->lower_limit;
 
   return gc_compute_dynamic_size( heap->collector,
-                                  D, S, Q, L, lower_limit, upper_limit );
+                                  D, S, Q, L, lower_limit, upper_limit,
+                                  &DATA(heap)->max_dynamic_size );
 }
 
 static old_heap_t *allocate_heap( int gen_no, gc_t *gc )

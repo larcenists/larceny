@@ -42,7 +42,8 @@
 /* In memmgr.c */
 
 s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L, 
-			     s_word lower_limit, s_word upper_limit );
+			     s_word lower_limit, s_word upper_limit,
+			     s_word *max_M );
 
 void gc_signal_moving_collection( gc_t *gc );
   /* Increment the moving gc counters

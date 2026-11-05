@@ -56,6 +56,7 @@ struct old_data {
   s_word         upper_limit;	  /* 0 or upper limit on expandable area */
   s_word         target_size;        /* Current size */
   double      load_factor;        /* That's the L from the formula above */
+  s_word         max_dynamic_size;   /* Greatest M so far (-nocontract) */
   bool        must_clear_area;    /* Clear area after collection */
   bool        must_clear_remset;  /* Clear remset after collection */
 
@@ -121,6 +122,7 @@ clone_sc_area( old_heap_t *src_heap, int tgt_gen_no )
     tgt_data->load_factor = src_data->load_factor;
     tgt_data->lower_limit = src_data->lower_limit;
     tgt_data->upper_limit = src_data->upper_limit;
+    tgt_data->max_dynamic_size = src_data->max_dynamic_size;
     tgt_data->target_size = src_data->target_size;
     break;
   case OHTYPE_EPHEMERAL:
@@ -642,7 +644,8 @@ static s_word compute_dynamic_size( old_heap_t *heap, s_word D, s_word Q )
   s_word lower_limit = DATA(heap)->lower_limit;
 
   return gc_compute_dynamic_size( heap->collector,
-				  D, S, Q, L, lower_limit, upper_limit );
+				  D, S, Q, L, lower_limit, upper_limit,
+				  &DATA(heap)->max_dynamic_size );
 }
 
 
@@ -792,6 +795,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   data->promoted_last_gc = 0;
   data->oh_type = oh_type;
   data->load_factor = 0.0;
+  data->max_dynamic_size = 0;
   data->target_size = 0;
   data->must_clear_area = 0;
   data->must_clear_remset = 0;
