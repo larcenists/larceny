@@ -147,20 +147,62 @@
 
 (rtd-printer-set! larceny:numvec-rtd larceny:numvec-write)
 
-(define (larceny:numvec->list numvec)
+;;; make-nary-comparison is defined in src/Lib/Arch/*/primops.sch
+;;; It's used by src/Lib/Common/string.sch, so using it again here
+;;; shouldn't create any new problems.
+
+(define numeric-vector=?
+  (make-nary-comparison 'numeric-vector=?
+                        (lambda (a b)
+                          (and (numeric-vector? a)
+                               (numeric-vector? b)
+                               (= (larceny:numvec-hashcode->int-tag
+                                   (larceny:numvec.hashcode a))
+                                  (larceny:numvec-hashcode->int-tag
+                                   (larceny:numvec.hashcode b)))
+                               (bytevector=?
+                                (larceny:numvec.bv a)
+                                (larceny:numvec.bv b))))))
+
+(define (larceny:numvec->list numvec . rest)
   (let* ((hashcode (larceny:numvec.hashcode numvec))
          (sym (larceny:numvec-hashcode->symbol-tag hashcode))
          (width (larceny:numvec-hashcode->element-width hashcode))
          (getter (larceny:numvec-getter sym))
-	 (bv (larceny:numvec.bv numvec)))
-    
-    (define (loop i vals)
-      (if (< i 0)
-	  vals
-	  (loop (- i width)
-		(cons (getter bv i) vals))))
+         (bv (larceny:numvec.bv numvec))
+         (n (bytevector-length bv)))
 
-    (loop (- (bytevector-length bv) width) '())))
+    ;; lo and i are bytevector indexes
+    
+    (define (loop lo i vals)
+      (if (< i lo)
+          vals
+          (loop lo
+                (- i width)
+                (cons (getter bv i) vals))))
+
+    (if (null? rest)
+        (loop 0 (- n width) '())        ; fast path
+        
+        ;; Note that start and end are element indexes,
+        ;; but the loop works with bytevector indexes.
+        ;; FIXME: That's because this code started out
+        ;; without any rest argument, to be used only
+        ;; for writing numeric vectors, but it has been
+        ;; generalized for use by SRFI 160.
+
+        (let* ((k (quotient n width))
+               (start (if (null? rest) 0 (car rest)))
+               (end (if (or (null? rest) (null? (cdr rest)))
+                        k
+                        (cadr rest))))
+          (if (and (fixnum? start)
+                   (fixnum? end)
+                   (<= 0 start end k))
+              (loop (* width start)
+                    (- (* width end) width)
+                    '())
+              (error "arguments out of range: " numvec start end))))))
 
 ;;; The getter and setter procedures for a numeric vector.
 
@@ -217,22 +259,30 @@
          (y (bytevector-ieee-single-native-ref bv (+ k 4))))
     (make-compnum x y)))
 
+;;; According to SRFI 160, c64? and c128? are true iff their argument is
+;;; an inexact complex number.  Which means z might be a flonum, whose
+;;; imaginary part is an exact 0.
+
 (define (bytevector-c64-native-set! bv k z)
   (let* ((x (real-part z))
          (y (imag-part z)))
     (bytevector-ieee-single-native-set! bv k x)
-    (bytevector-ieee-single-native-set! bv (+ k 4) y)))
+    (bytevector-ieee-single-native-set! bv (+ k 4) (inexact y))))
 
 (define (bytevector-c128-native-ref bv k)
   (let* ((x (bytevector-ieee-double-native-ref bv k))
          (y (bytevector-ieee-double-native-ref bv (+ k 8))))
     (make-compnum x y)))
 
+;;; According to SRFI 160, c64? and c128? are true iff their argument is
+;;; an inexact complex number.  Which means z might be a flonum, whose
+;;; imaginary part is an exact 0.
+
 (define (bytevector-c128-native-set! bv k z)
   (let* ((x (real-part z))
          (y (imag-part z)))
     (bytevector-ieee-double-native-set! bv k x)
-    (bytevector-ieee-double-native-set! bv (+ k 8) y)))
+    (bytevector-ieee-double-native-set! bv (+ k 8) (inexact y))))
 
 (define (larceny:init-numvec bv width ok? vals setter!)
   (define (loop i vals)

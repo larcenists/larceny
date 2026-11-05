@@ -102,7 +102,8 @@
           (begin (vector-set! rx 0 ry)
                  #f))))
 
-  ; Compares x and y with budget k: fast mode while k > 0, slow mode
+
+					; Compares x and y with budget k: fast mode while k > 0, slow mode
   ; for k from 0 down to (- equal:slow-nodes).  Returns #f if they
   ; differ, and otherwise the budget left.  In slow mode, a pair or
   ; vector already equated to the other succeeds at once, and the
@@ -135,6 +136,8 @@
            (and (string=? x y) k))
           ((and (text? x) (text? y))
            (and (textual=? x y) k))
+          ((and (numeric-vector? x) (numeric-vector? y))
+           (and (numeric-vector=? x y) k))
           ((eqv? x y)
            k)
           (else #f)))
