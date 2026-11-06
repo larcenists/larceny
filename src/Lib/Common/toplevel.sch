@@ -1145,6 +1145,7 @@
 
   (environment-set! larc 'record-ref:bummed record-ref:bummed)
   (environment-set! larc 'record-set!:bummed record-set!:bummed)
+  (environment-set! larc 'record:wrong-type record:wrong-type)
   (environment-set! larc 'record:inline-hierarchy-vector
                     record:inline-hierarchy-vector)
 
