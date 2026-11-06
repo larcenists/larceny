@@ -151,11 +151,35 @@
             (sob-increment! result (mapper seed) 1)
             (loop (successor seed)))))))
 
-(define (set-unfold continue? mapper successor seed comparator)
-  (sob-unfold continue? mapper successor seed comparator #f))
+;; SRFI 113 says the order of arguments is
+;;
+;;     (set-unfold comparator stop? mapper successor seed)
+;;
+;; but a post-finalization note says it should be changed to
+;;
+;;     (set-unfold stop? mapper successor seed comparator)
+;;
+;; for consistency with SRFI 125's hash-table-unfold.
+;;
+;; This hack arranges to work with either.
 
-(define (bag-unfold continue? mapper successor seed comparator)
-  (sob-unfold continue? mapper successor seed comparator #t))
+(define (set-unfold arg1 arg2 arg3 arg4 arg5)
+  (if (comparator? arg1)
+      (set-unfold-original arg1 arg2 arg3 arg4 arg5)
+      (set-unfold-original arg5 arg1 arg2 arg3 arg4)))
+
+(define (set-unfold-original comparator stop? mapper successor seed)
+  (sob-unfold stop? mapper successor seed comparator #f))
+
+;; A similar hack for bag-unfold.
+
+(define (bag-unfold arg1 arg2 arg3 arg4 arg5)
+  (if (comparator? arg1)
+      (bag-unfold-original arg1 arg2 arg3 arg4 arg5)
+      (bag-unfold-original arg5 arg1 arg2 arg3 arg4)))
+
+(define (bag-unfold-original comparator stop? mapper successor seed)
+  (sob-unfold stop? mapper successor seed comparator #t))
 
 ;;; Predicates
 
@@ -608,13 +632,35 @@
       (sob-hash-table sob))
     result))
 
-(define (set-map comparator proc set)
-  (check-set set)
-  (sob-map comparator proc set))
+;; SRFI 113 says the order of arguments is
+;;
+;;     (set-map comparator proc set)
+;;
+;; but a post-finalization note says it should be changed to
+;;
+;;     (set-map proc comparator set)
+;;
+;; for consistency with SRFI 125's hash-table-map.
+;;
+;; This hack arranges to work with either.
 
-(define (bag-map comparator proc bag)
+(define (set-map arg1 arg2 set)
+  (if (comparator? arg1)
+      (set-map-original arg1 arg2 set)
+      (set-map-original arg2 arg1 set)))
+
+(define (set-map-original comparator proc set)
+  (check-set set)
+  (sob-map proc comparator set))
+
+(define (bag-map arg1 arg2 arg3)
+  (if (comparator? arg1)
+      (bag-map-original arg1 arg2 arg3)
+      (bag-map-original arg2 arg1 arg3)))
+
+(define (bag-map-original comparator proc bag)
   (check-bag bag)
-  (sob-map comparator proc bag))
+  (sob-map proc comparator bag))
 
 ;; The fundamental deconstructor.  Note that there are no left vs. right
 ;; folds because there is no order.  Each element in a bag is fed into

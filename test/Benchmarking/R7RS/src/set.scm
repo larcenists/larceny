@@ -53,18 +53,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; SRFI 113 now includes a post-finalization note that says
-;;; the order of arguments to set-unfold should be as used here.
+;;; the order of arguments to set-unfold should be
+;;;
+;;;     (set-unfold stop? mapper successor seed comparator)
+;;;
+;;; but WG2 says that change has not yet been made.
 
 (define (symbols n)
-  (set-unfold (lambda (i) (= i n))
+  (set-unfold symbol-comparator
+              (lambda (i) (= i n))
               (lambda (i)
                 (string->symbol (string-append "x" (number->string i))))
               (lambda (i) (+ i 1))
-              0
-              symbol-comparator))
+              0))
 
 ;;; SRFI 113 now includes a post-finalization note that says
-;;; the order of arguments to set-map should be as used here.
+;;; the order of arguments to set-map should be
+;;;
+;;;    (set-map proc comparator hash-table)
+;;;
+;;; but WG2 says that change has not yet been made.
 
 (define (powerset universe)
   (if (set-empty? universe)
@@ -73,14 +81,17 @@
              (u2 (set-remove (lambda (y) (eq? x y)) universe))
              (pu2 (powerset u2)))
         (set-union pu2
-                   (set-map (lambda (y)
+                   (set-map set-comparator
+                            (lambda (y)
                               (set-adjoin y x))
-                            set-comparator
                             pu2)))))
 
 ;;; SRFI 113 now includes a post-finalization note that says
 ;;; the order of arguments to set-map and set-unfold should be
-;;; as used here.
+;;;
+;;;    (set-map proc comparator hash-table)
+;;;
+;;; but WG2 says that change has not yet been made.
 
 (define (permutations universe)
   (if (set-empty? universe)
@@ -89,15 +100,15 @@
              (u2 (set-remove (lambda (y) (equal? x y)) universe))
              (perms2 (permutations u2)))
         (big-set-union
-         (set-map (lambda (perm)
-                    (set-map (lambda (i)
+         (set-map set-comparator
+                  (lambda (perm)
+                    (set-map permutation-comparator
+                             (lambda (i)
                                (append (take perm i)
                                        (cons x (drop perm i))))
-                             permutation-comparator
                              (list->set
                               (make-default-comparator)
                               (iota (+ 1 (length perm))))))
-                  set-comparator
                   perms2)))))
 
 (define (go n)
