@@ -320,12 +320,12 @@ foment_exec ()
 
 gambit_comp ()
 {
-  ${GAMBIT_GSC} ${COMPOPTS} $1 -o $2
+  ${GAMBIT} ${COMPOPTS} $1
 }
 
 gambit_exec ()
 {
-  time "$1" < "$2"
+  time "${1%.*}" < $2
 }
 
 # -----------------------------------------------------------------------------
@@ -573,9 +573,9 @@ for system in $systems ; do
     gambit) NAME='Gambit'
             COMP=gambit_comp
             EXEC=gambit_exec
-            COMPOPTS="-exe -nopreload"
+            COMPOPTS="-exe"
             EXTENSION="scm"
-            EXTENSIONCOMP="gambit"
+            EXTENSIONCOMP="gambit"    # will be stripped by gambit_exec
             COMPCOMMANDS=""
             EXECCOMMANDS=""
             ;;
