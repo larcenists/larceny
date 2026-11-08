@@ -102,8 +102,11 @@
 
 (define graph-system:colors
   '(("Larceny"       "800000")
+    ("LarcenyRegional" "800030")
+    ("Petit"         "a00000")
     ("PetitLarceny"  "a00000")
     ("Bigloo"        "000080")
+    ("Capy"          "802060")
     ("Chez"          "004040")
     ("Chicken"       "a06000")
     ("Gambit"        "400060")
@@ -114,6 +117,8 @@
     ("MzScheme"      "408020")
     ("PLT"           "408020")
     ("Petite"        "004080")
+    ("Racket"        "406040")
+    ("Sagittarius"   "206040")
     ("Scheme48"      "602040")
     ("Ypsilon"       "604080")))
 
@@ -128,8 +133,10 @@
     
 (define graph-system:classes
   '(("Larceny"       "larceny")
+    ("LarcenyRegional" "larceny")
     ("PetitLarceny"  "petit")
     ("Bigloo"        "bigloo")
+    ("Capy"          "capy")
     ("Chez"          "chez")
     ("Chicken"       "chicken")
     ("Gambit"        "gambit")
@@ -141,6 +148,7 @@
     ("PLT"           "plt")
     ("Petite"        "petite")
     ("Racket"        "racket")
+    ("Sagittarius"   "sagittarius")
     ("Scheme48"      "scheme48")
     ("Vicare"        "vicare")
     ("Ypsilon"       "ypsilon")))
@@ -151,8 +159,10 @@
 
 (define graph-system:names
   '(("Larceny"       "Larceny")
+    ("LarcenyRegional" "LarcenyRegional")
     ("PetitLarceny"  "Petit Larceny")
     ("Bigloo"        "Bigloo")
+    ("Capy"          "Capy")
     ("Chez"          "Chez")
     ("Chicken"       "Chicken")
     ("Gambit"        "Gambit")
@@ -164,6 +174,7 @@
     ("PLT"           "PLT")
     ("Petite"        "Petite Chez")
     ("Racket"        "Racket")
+    ("Sagittarius"   "Sagittarius")
     ("Scheme48"      "Scheme 48")
     ("Vicare"        "Vicare")
     ("Ypsilon"       "Ypsilon")))

@@ -12,11 +12,11 @@
   (list "lib/R7RS"
         "lib/R6RS"
         "lib/SRFI"
-	"lib/Ffi"
-	"lib/Base"
+        "lib/Ffi"
+        "lib/Base"
         "lib/Standard"
         "lib"
-	"lib/Debugger"
+        "lib/Debugger"
         "lib/SLIB"
-	;; lib/Snow makes (chibi test) available
-	"lib/Snow"))
+        ;; lib/Snow makes (chibi test) available
+        "lib/Snow"))

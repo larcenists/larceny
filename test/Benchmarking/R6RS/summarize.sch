@@ -312,6 +312,9 @@
 (define (larceny-results lines out)
   (generic2-results "Larceny" lines out))
 
+(define (larceny-regional-results lines out)
+  (generic2-results "LarcenyRegional" lines out))
+
 (define (petit-larceny-results lines out)
   (generic2-results "PetitLarceny" lines out))
 
@@ -319,6 +322,16 @@
 
 (define (mosh-results lines out)
   (generic2-results "Mosh" lines out))
+
+; Capy
+
+(define (capy-results lines out)
+  (generic2-results "Capy" lines out))
+
+; Chez
+
+(define (chez-results lines out)
+  (generic2-results "Chez" lines out))
 
 ; Petite Chez
 
@@ -334,6 +347,11 @@
 
 (define (racket-results lines out)
   (generic2-results "Racket" lines out))
+
+; Sagittarius
+
+(define (sagittarius-results lines out)
+  (generic2-results "Sagittarius" lines out))
 
 ; Vicare
 

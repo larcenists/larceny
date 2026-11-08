@@ -93,10 +93,12 @@ setup ()
 
   LARCENY=${LARCENY:-"../../../larceny"}
   PETIT=${PETIT:-"../../../petit-larceny"}
+  CAPY=${CAPY:-"capy"}
   PLTR6RS=${PLTR6RS:-"plt-r6rs"}
   RACKET=${RACKET:-"plt-r6rs"}
   YPSILON=${YPSILON:-"ypsilon"}
   MOSH=${MOSH:-"mosh"}
+  CHEZ=${CHEZ:-"scheme"}
   PETITE=${PETITE:-"petite"}
   SAGITTARIUS=${SAGITTARIUS:-"sagittarius"}
   VICARE=${VICARE:-"vicare"}
@@ -119,6 +121,8 @@ Usage: bench [-r runs] <system> <benchmark>
   larceny          for Larceny
   mosh             for Mosh
   petit            for Petit Larceny
+  capy             for Capy
+  chez             for Chez Scheme
   petite           for Petite Chez
   plt              for PLT Scheme
   racket           for Racket
@@ -206,6 +210,11 @@ larceny_exec ()
 
 petit_comp ()
 {
+  rm "`dirname "$1"`"/*.slfasl
+  rm "`dirname "$1"`"/*.slfasl.c
+  rm "`dirname "$1"`"/*.slfasl.o
+  rm "`dirname "$1"`"/*.slfasl.so
+  rm "`dirname "$1"`"/*.slfasl.*.so
   echo "(import (larceny compiler)) (compile-file \"$1\")" \
   | time "${PETIT}" -err5rs -- -e "(repl-prompt values)"
 }
@@ -224,6 +233,19 @@ henchman_comp ()
 henchman_exec ()
 {
   time "${HENCHMAN}" --nocontract --r6rs --program "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Capy
+
+capy_comp ()
+{
+  :
+}
+
+capy_exec ()
+{
+  time "${CAPY}" --r6rs --load="$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -289,6 +311,19 @@ mosh_comp ()
 mosh_exec ()
 {
   time "${MOSH}" "$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
+# Definitions specific to Chez Scheme
+
+chez_comp ()
+{
+  :
+}
+
+chez_exec ()
+{
+  time "${CHEZ}" --optimize-level 2 --program "$1" < "$2"
 }
 
 # -----------------------------------------------------------------------------
@@ -384,6 +419,17 @@ for system in $systems ; do
 	    EXECCOMMANDS=""
             ;;
 
+   larcenyRegional) NAME='LarcenyRegional'
+            COMP=larceny_comp
+            EXEC=larceny_exec
+            COMPOPTS=""
+            OPTS="--regional"
+            EXTENSION="scm"
+            EXTENSIONCOMP="scm"
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
+            ;;
+
      petit) NAME='PetitLarceny'
             COMP=petit_comp
             EXEC=petit_exec
@@ -407,6 +453,16 @@ for system in $systems ; do
     ikarus) NAME='Ikarus'
             COMP=ikarus_comp
             EXEC=ikarus_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
+      capy) NAME='Capy'
+            COMP=capy_comp
+            EXEC=capy_exec
             COMPOPTS=""
             EXTENSION="sch"
             EXTENSIONCOMP="sch"
@@ -454,6 +510,16 @@ for system in $systems ; do
 	    EXECCOMMANDS=""
             ;;
 
+      chez) NAME='Chez'
+            COMP=chez_comp
+            EXEC=chez_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
+	    COMPCOMMANDS=""
+	    EXECCOMMANDS=""
+            ;;
+
     petite) NAME='Petite'
             COMP=petite_comp
             EXEC=petite_exec
@@ -482,6 +548,10 @@ for system in $systems ; do
             EXTENSIONCOMP="sch"
 	    COMPCOMMANDS=""
 	    EXECCOMMANDS=""
+            ;;
+
+  *)        echo "Unrecognized implementation: $system"
+            exit 255
             ;;
 
    esac
