@@ -111,6 +111,7 @@ setup ()
 
   LARCENY=${LARCENY:-"../../../larceny"}
   PETIT=${PETIT:-"../../../../PetitGit/larceny"}
+  CAPY=${CAPY:-"capy"}
   CHIBI=${CHIBI:-"chibi-scheme"}
   CHICKEN_CSC=${CHICKEN_CSC:-"csc"}
   CYCLONE=${CYCLONE:-"cyclone"}
@@ -138,6 +139,7 @@ Usage: bench [-r runs] <system> <benchmark>
 
 <system> is the abbreviated name of the implementation to benchmark:
 
+  capy             for Capy
   chibi            for Chibi
   chicken          for Chicken
   cyclone          for Cyclone
@@ -259,6 +261,19 @@ henchman_exec ()
 }
 
 # -----------------------------------------------------------------------------
+# Definitions specific to Capy
+
+capy_comp ()
+{
+  :
+}
+
+capy_exec ()
+{
+  time "${CAPY}" --r6rs --load="$1" < "$2"
+}
+
+# -----------------------------------------------------------------------------
 # Definitions specific to Chibi
 
 chibi_comp ()
@@ -313,10 +328,6 @@ foment_exec ()
 
 # -----------------------------------------------------------------------------
 # Definitions specific to Gambit
-
-# FIXME: Neither of these work.
-# Upon seeing the import of (scheme time),
-# Gambit thinks time is a macro being used as a variable.
 
 gambit_comp ()
 {
@@ -526,6 +537,16 @@ for system in $systems ; do
             COMPOPTS=""
             EXTENSION="scm"
             EXTENSIONCOMP="slfasl"
+            COMPCOMMANDS=""
+            EXECCOMMANDS=""
+            ;;
+
+      capy) NAME='Capy'
+            COMP=capy_comp
+            EXEC=capy_exec
+            COMPOPTS=""
+            EXTENSION="sch"
+            EXTENSIONCOMP="sch"
             COMPCOMMANDS=""
             EXECCOMMANDS=""
             ;;
