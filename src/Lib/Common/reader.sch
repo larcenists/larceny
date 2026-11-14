@@ -282,8 +282,8 @@
          (errBug 12)           ; bug in reader, shouldn't happen
          (errLexGenBug 13)                        ; can't happen
          (errIllegalText 14)         ; disallowed immutable text
-	 (errIllegalNumvec 15)         ; disallowed #s8(...) etc
-         (errSRFI38 16)            ; undefined SRFI 38 label (#n#)
+         (errIllegalNumvec 15)         ; disallowed #s8(...) etc
+         (errSRFI38 16)          ; undefined SRFI 38 label (#n#)
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -362,6 +362,7 @@
        vecstart
        xfaslb
        bvecstart
+       nvecstart
        miscflag
        id
        xstring
@@ -392,6 +393,7 @@
           lparen
           miscflag
           number
+          nvecstart
           quasisyntax
           quote
           sharingdef
@@ -431,6 +433,7 @@
        xstring
        id
        miscflag
+       nvecstart
        bvecstart
        xfaslb
        vecstart
@@ -466,6 +469,7 @@
           lparen
           miscflag
           number
+          nvecstart
           quasisyntax
           quote
           sharingdef
@@ -526,7 +530,8 @@
            lparen
            vecstart
            xfaslb
-           bvecstart)
+           bvecstart
+           nvecstart)
      (let ((ast1 (parse-location)))
        (let ((ast2 (parse-structured)))
          (makeStructured ast1 ast2))))
@@ -556,6 +561,7 @@
           lparen
           miscflag
           number
+          nvecstart
           quasisyntax
           quote
           splicing
@@ -576,6 +582,8 @@
 
 (define (parse-structured)
   (case (next-token)
+    ((nvecstart)
+     (let ((ast1 (parse-numvector))) (identity ast1)))
     ((bvecstart xfaslb)
      (let ((ast1 (parse-bytevector))) (identity ast1)))
     ((vecstart)
@@ -600,6 +608,7 @@
           comma
           lbracket
           lparen
+          nvecstart
           quasisyntax
           quote
           splicing
@@ -671,6 +680,7 @@
        vecstart
        xfaslb
        bvecstart
+       nvecstart
        miscflag
        id
        xstring
@@ -701,6 +711,7 @@
           lparen
           miscflag
           number
+          nvecstart
           quasisyntax
           quote
           rparen
@@ -738,6 +749,7 @@
        xstring
        id
        miscflag
+       nvecstart
        bvecstart
        xfaslb
        vecstart
@@ -775,6 +787,7 @@
           lparen
           miscflag
           number
+          nvecstart
           period
           quasisyntax
           quote
@@ -830,6 +843,7 @@
        vecstart
        xfaslb
        bvecstart
+       nvecstart
        miscflag
        id
        xstring
@@ -860,6 +874,7 @@
           lparen
           miscflag
           number
+          nvecstart
           quasisyntax
           quote
           rbracket
@@ -897,6 +912,7 @@
        xstring
        id
        miscflag
+       nvecstart
        bvecstart
        xfaslb
        vecstart
@@ -934,6 +950,7 @@
           lparen
           miscflag
           number
+          nvecstart
           period
           quasisyntax
           quote
@@ -1047,6 +1064,22 @@
     (else
      (parse-error '<bytevector> '(bvecstart xfaslb)))))
 
+(define (parse-numvector)
+  (case (next-token)
+    ((nvecstart)
+     (let ((ast1 (parse-symtag)))
+       (let ((ast2 (parse-data)))
+         (if (eq? (next-token) 'rparen)
+             (begin (consume-token!) (makeNumvec ast1 ast2))
+             (parse-error '<numvector> '(rparen))))))
+    (else (parse-error '<numvector> '(nvecstart)))))
+
+(define (parse-symtag)
+  (case (next-token)
+    ((nvecstart)
+     (begin (consume-token!) (makeSymtag)))
+    (else (parse-error '<symtag> '(nvecstart)))))
+
 (define (parse-data)
   (case (next-token)
     ((lopstart
@@ -1068,6 +1101,7 @@
        vecstart
        xfaslb
        bvecstart
+       nvecstart
        miscflag
        id
        xstring
@@ -1098,6 +1132,7 @@
           lparen
           miscflag
           number
+          nvecstart
           period
           quasisyntax
           quote
@@ -1148,7 +1183,8 @@
            lparen
            vecstart
            xfaslb
-           bvecstart)
+           bvecstart
+           nvecstart)
      (sourceLocation))
     (else
      (parse-error
@@ -1158,6 +1194,7 @@
           comma
           lbracket
           lparen
+          nvecstart
           quasisyntax
           quote
           splicing
@@ -1299,6 +1336,22 @@
                  (not (larceny-weirdness?))
                  (not (traditional-weirdness?)))
             (scannerError errIllegalBytevector)
+            (begin (set! kindOfNextToken t)
+                   (set! nextTokenIsReady #t)
+                   t)))
+
+       ;; R6RS forbids #u16(...) et cetera
+
+       ((nvecstart)
+
+        (set! tokenValue
+              (substring string_accumulator
+                         0 string_accumulator_length))
+
+        (if (and (not (r7rs-weirdness?))
+                 (not (larceny-weirdness?))
+                 (not (traditional-weirdness?)))
+            (scannerError errIllegalNumvec)
             (begin (set! kindOfNextToken t)
                    (set! nextTokenIsReady #t)
                    t)))
@@ -1536,6 +1589,10 @@
                          (else
                           (scannerError errLongToken))))
              (new (make-string newn)))
+        ;;(do ((i 0 (+ i 1)))
+        ;;    ((= i n))
+        ;;  (string-set! new i (string-ref string_accumulator i)))
+        ;; FIXMEv2.0: replace that do loop by this:
         (string-copy-into-down! string_accumulator 0 n new 0)
         (set! string_accumulator new)))
 
@@ -1625,9 +1682,14 @@
           (parse-error '<datum> datum-starters)))
 
     (define (list2vector vals) (list->vector vals))
+  
+    ;; #lap(...) and #lop(...) are the feature markers that begin
+    ;; compiled files; see Lib/Common/code-features.sch.
 
-    ; #lap(...) and #lop(...) are the feature markers that begin
-    ; compiled files; see Lib/Common/code-features.sch.
+    ;; FIXMEv2.0: delete this when Lib/Common/code-features.sch is available.
+
+    ;;(define (list->code-features kind clauses)    ; FIXMEv2.0: delete me!
+    ;;  (parse-error '<datum> datum-starters))
 
     (define (makeLapFeatures vals)
       (if (larceny-weirdness?)
@@ -1743,10 +1805,19 @@
             (if (char=? c #\")
                 (begin (consumeChar)
                        (set! string_accumulator_length 0)
-                       (sys$codevector-install (loop)))
+                       ;; FIXMEv2.0: replace the let by
+                       (sys$codevector-install (loop))
+                       ;;(let ((bv (loop)))
+                       ;;  (sys$codevector-iflush bv)
+                       ;;  bv)
+                       )
                 (parse-error '<datum> datum-starters)))
           (parse-error '<datum> datum-starters)))
   
+    ;; FIXMEv2.0: delete this definition,
+    ;; which is specific to 32-bit systems.
+    ;; (define flonum:o 4)
+
     ; #^Cxxxxxxxxxxxxxxxx
     ; Coding bits as characters is inherently evil.
     ; It forces .fasl files to be encoded as Latin-1.
@@ -1836,7 +1907,10 @@
                  (record-source-location x locationStart)))
               (else (accept 'number)
                     (parse-error '<number> '(number))))))
-  
+
+    (define (makeNumvec symtag data)
+      (make-numvec symtag data))
+
     (define (makeOctet)
       (let ((n (string->number tokenValue)))
         (if (and (exact? n) (integer? n) (<= 0 n 255))
@@ -2183,6 +2257,11 @@
                       (else (slow-loop (+ i 1) (cons c chars) fold-case?))))))
 
         (identifier-prefix)))
+
+    (define (makeSymtag)
+      (let* ((s tokenValue)
+             (s (substring s 1 (- (string-length s) 1))))
+        (string->symbol s)))
 
     (define (makeText)
       (if (r7rs-weirdness?)

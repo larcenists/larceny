@@ -29,6 +29,7 @@ lbracket
 rbracket
 vecstart
 bvecstart
+nvecstart
 lapstart
 lopstart
 quote
@@ -73,11 +74,12 @@ xstring
                   ::=  xfaslg <symbol>                          #sym2global
                   ::=  xfaslp <datum>                           #list2proc
                   ::=  xsharpdot <datum>                        #sharpDot
-                  ::=  lapstart <data> rparen                   #makeLapFeatures
-                  ::=  lopstart <data> rparen                   #makeLopFeatures
+                  ::=  lapstart <data> rparen                  #makeLapFeatures
+                  ::=  lopstart <data> rparen                  #makeLopFeatures
 <structured>      ::=  <list>                                   #identity
                   ::=  <vector>                                 #identity
                   ::=  <bytevector>                             #identity
+                  ::=  <numvector>                              #identity
 <symbol>          ::=  id                                       #makeSym
 <list>            ::=  lparen <list2>                           #identity
                   ::=  lbracket <blst2>                         #identity
@@ -106,6 +108,8 @@ xstring
 <vector>          ::=  vecstart <data> rparen             #list2vector
 <bytevector>      ::=  bvecstart <octets> rparen          #list2bytevector
                   ::=  xfaslb                             #makeCodevector
+<numvector>       ::=  <symtag> <data> rparen             #makeNumvec
+<symtag>          ::=  nvecstart                          #makeSymtag
 
 <data>            ::=                                           #emptyList
                   ::=  <datum> <data>                           #cons

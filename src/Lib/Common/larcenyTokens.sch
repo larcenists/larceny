@@ -448,8 +448,19 @@
      (vecstart (#\# #\())
      (bvecstart (! (#\# #\v #\u #\8 #\()                      ; R6RS only
                    (#\# #\u #\8 #\()))                        ; R7RS only
-     (lapstart (#\# #\l #\a #\p #\())                          ; Larceny only
-     (lopstart (#\# #\l #\o #\p #\())                          ; Larceny only
+     (nvecstart (! (#\# #\s #\8 #\()                          ; R7RS only
+                   (#\# #\u #\1 #\6 #\()                      ; R7RS only
+                   (#\# #\s #\1 #\6 #\()                      ; R7RS only
+                   (#\# #\u #\3 #\2 #\()                      ; R7RS only
+                   (#\# #\s #\3 #\2 #\()                      ; R7RS only
+                   (#\# #\u #\6 #\4 #\()                      ; R7RS only
+                   (#\# #\s #\6 #\4 #\()                      ; R7RS only
+                   (#\# #\f #\3 #\2 #\()                      ; R7RS only
+                   (#\# #\f #\6 #\4 #\()                      ; R7RS only
+                   (#\# #\c #\6 #\4 #\()                      ; R7RS only
+                   (#\# #\c #\1 #\2 #\8 #\()))                ; R7RS only
+     (lapstart (#\# #\l #\a #\p #\())                         ; Larceny only
+     (lopstart (#\# #\l #\o #\p #\())                         ; Larceny only
      (quote #\')
      (backquote #\`)
      (comma #\,)
