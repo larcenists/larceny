@@ -47,10 +47,10 @@ an inexact zero were considered to be a real number, as though
 its imaginary part were known to be an exact zero, then the
 result of an arithmetic operation on inexact numbers that have
 a nonzero imaginary part might just happen to have an imaginary
-part that approximates zero so closely that it would be
-unreasonable to represent that result as though its inexact
-imaginary part were exactly zero. In other words, it would be
-unreasonable to represent that result as a real number.
+part that approximates zero, but is not actually zero.
+It would be unreasonable to represent that approximate result
+as a real number, which is why doing so is forbidden by the
+R6RS standard.
 
 Furthermore, it would be inefficient to check the result of every
 arithmetic operation on inexact complex numbers to see whether the

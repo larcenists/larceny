@@ -165,6 +165,15 @@ and invokes the executable code of all imported libraries before
 the program itself executes its first command or definition.
 ================================================================
 
+[TIP]
+================================================================
+We recommend using only one `import` declaration per library or
+top-level program.
+The advantages of that convention are explained in the section
+of this manual that describes Larceny's
+<<SuffixSection,file naming conventions>>.
+================================================================
+
 The `features` procedure will return a list of all `cond-expand`
 features, including the names of
 <<R7rsPreDefinedSection,libraries currently available>>

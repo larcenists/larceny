@@ -40,11 +40,11 @@ that do not import `(scheme base)`.
 Known deviations from the R7RS standard
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As of Larceny v1.3, the known deviations from the R7RS (small)
+As of Larceny v2.0, the known deviations from the R7RS (small)
 standard are:
 
 - Libraries with names of the form `(primitives x ...)` cannot be imported.
-(Larceny v1.3 reserves <<R7rsPrimitivesSection,primitives>>
+(Larceny reserves <<R7rsPrimitivesSection,primitives>>
 as a keyword for importing identifiers from the R5RS global
 environment.)
 

@@ -176,7 +176,7 @@ https://github.com/johnwcowan/r7rs-work/blob/master/RedEdition.md[R7RS Red Editi
     (scheme text)                          ; SRFI 135
     (scheme vector)                        ; SRFI 133
 
-https://github.com/johnwcowan/r7rs-work/blob/master/TangerineEdition.md[R7RS Tangerine Edition] libraries:
+https://deepwiki.com/johnwcowan/r7rs-work/2.2-red-and-tangerine-dockets[R7RS Tangerine Edition] libraries:
 
     (scheme bitwise)                       ; SRFI 151
     (scheme bytevector)                    ; (rnrs bytevectors)

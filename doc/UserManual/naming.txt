@@ -92,6 +92,24 @@ described within the note above, and may not work if that
 convention is not followed.
 ================================================================
 
+[WARNING]
+================================================================
+Another reason to use only one `import` declaration per library
+is that Larceny will detect name conflicts between the names
+exported by the libraries being imported.  If the libraries that
+export conflicting names are imported by separate `import`
+declarations, the names exported by the library imported last
+will silently override the same names that were exported by
+libraries imported by previous `import` declarations.
+================================================================
+
+[TIP]
+================================================================
+To resolve name conflicts, you should add `rename` clauses to
+your import declaration so everyone who reads your code can see
+how you want those conflicts to be resolved.
+================================================================
+
 [TIP]
 ================================================================
 An R7RS library definition may be split into two or more files,

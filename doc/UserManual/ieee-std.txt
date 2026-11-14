@@ -34,7 +34,7 @@ on the Algorithmic Language Scheme], 2013.
 (This standard was approved by 86% of 63 votes.)
 
 John Cowan [editor].
-https://github.com/johnwcowan/r7rs-work/blob/master/RedEdition.md[R7RS Red Edition], last updated 2021.
+https://deepwiki.com/johnwcowan/r7rs-work/2.2-red-and-tangerine-dockets[R7RS Red and Tangerine Dockets].
 
 The Red and Tangerine Editions are summarized by
 https://docs.scheme.org/guide/r7rs-portable/[R7RS: Portable Guide].
