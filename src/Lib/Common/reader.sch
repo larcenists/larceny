@@ -282,7 +282,8 @@
          (errBug 12)           ; bug in reader, shouldn't happen
          (errLexGenBug 13)                        ; can't happen
          (errIllegalText 14)         ; disallowed immutable text
-	 (errIllegalNumvec 15)         ; disallowed #s8(...) etc
+         (errIllegalNumvec 15)         ; disallowed #s8(...) etc
+         (errSRFI38 16)          ; undefined SRFI 38 label (#n#)
 
          ; Named characters that MzScheme doesn't yet recognize.
 
@@ -342,7 +343,9 @@
   
 (define (parse-outermost-datum)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -384,7 +387,9 @@
           comma
           eofobj
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -445,7 +450,9 @@
        xbox
        xfaslg
        xfaslp
-       xsharpdot)
+       xsharpdot
+       lapstart
+       lopstart)
      (let ((ast1 (parse-udatum))) (identity ast1)))
     (else
      (parse-error
@@ -456,7 +463,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -483,6 +492,20 @@
 
 (define (parse-udatum)
   (case (next-token)
+    ((lopstart)
+     (begin
+       (consume-token!)
+       (let ((ast1 (parse-data)))
+         (if (eq? (next-token) 'rparen)
+             (begin (consume-token!) (makeLopFeatures ast1))
+             (parse-error '<udatum> '(rparen))))))
+    ((lapstart)
+     (begin
+       (consume-token!)
+       (let ((ast1 (parse-data)))
+         (if (eq? (next-token) 'rparen)
+             (begin (consume-token!) (makeLapFeatures ast1))
+             (parse-error '<udatum> '(rparen))))))
     ((xsharpdot)
      (begin
        (consume-token!)
@@ -532,7 +555,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -636,7 +661,9 @@
 
 (define (parse-list2)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -678,7 +705,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -737,7 +766,9 @@
        xbox
        xfaslg
        xfaslp
-       xsharpdot)
+       xsharpdot
+       lapstart
+       lopstart)
      (let ((ast1 (parse-data)))
        (let ((ast2 (parse-list4)))
          (pseudoAppend ast1 ast2))))
@@ -750,7 +781,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -791,7 +824,9 @@
 
 (define (parse-blst2)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -833,7 +868,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -892,7 +929,9 @@
        xbox
        xfaslg
        xfaslp
-       xsharpdot)
+       xsharpdot
+       lapstart
+       lopstart)
      (let ((ast1 (parse-data)))
        (let ((ast2 (parse-blst4)))
          (pseudoAppend ast1 ast2))))
@@ -905,7 +944,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -1041,7 +1082,9 @@
 
 (define (parse-data)
   (case (next-token)
-    ((xsharpdot
+    ((lopstart
+       lapstart
+       xsharpdot
        xfaslp
        xfaslg
        xbox
@@ -1083,7 +1126,9 @@
           character
           comma
           id
+          lapstart
           lbracket
+          lopstart
           lparen
           miscflag
           number
@@ -1231,6 +1276,8 @@
                "bug in lexical analyzer (generated)")
               ((= msg errIllegalNumvec)
                "illegal value in numeric vector")
+              ((= msg errSRFI38)
+               "undefined SRFI 38 label")
               (else "bug in lexical analyzer")))
       (let* ((c (scanChar))
              (next (if (char? c) (string c) ""))
@@ -1403,6 +1450,7 @@
           (set-port-switches input-port
                              port-folds-case! #f
                              io/port-allows-r6rs-weirdness!        #t
+                             io/port-allows-r5rs-weirdness!        #f
                              io/port-allows-r7rs-weirdness!        #f
                              io/port-allows-larceny-weirdness!     #f
                              io/port-allows-traditional-weirdness! #f
@@ -1504,6 +1552,27 @@
                        (+ string_accumulator_length 1)))))
           (begin (expand-accumulator) (consumeChar))))
 
+    ; Consumes the current character of a token for the state machine.
+    ; Where a token can contain any character (a string, for example),
+    ; the state machine consumes the end of input as well, so the end
+    ; of input within a token is an error instead of a loop.  (At the
+    ; start of a token, with nothing accumulated, the state machine
+    ; consumes the end of input before accepting it as eofobj.)
+
+    (define (consumeTokenChar)
+      (if (< string_accumulator_length (string-length string_accumulator))
+          (let ((c (read-char input-port)))
+            (if (char? c)
+                (begin
+                 (string-set! string_accumulator
+                              string_accumulator_length
+                              c)
+                 (set! string_accumulator_length
+                       (+ string_accumulator_length 1)))
+                (if (> string_accumulator_length 0)
+                    (scannerError errIncompleteToken))))
+          (begin (expand-accumulator) (consumeTokenChar))))
+
     ; Doubles the size of string_accumulator while
     ; preserving its contents.
     ;
@@ -1523,6 +1592,8 @@
         (do ((i 0 (+ i 1)))
             ((= i n))
           (string-set! new i (string-ref string_accumulator i)))
+        ;; FIXMEv2.0: replace that do loop by this:
+        ;; (string-copy-into-down! string_accumulator 0 n new 0)
         (set! string_accumulator new)))
 
     (define (record-source-location x start)
@@ -1612,6 +1683,24 @@
 
     (define (list2vector vals) (list->vector vals))
   
+    ;; #lap(...) and #lop(...) are the feature markers that begin
+    ;; compiled files; see Lib/Common/code-features.sch.
+
+    ;; FIXMEv2.0: delete this when Lib/Common/code-features.sch is available.
+
+    (define (list->code-features kind clauses)    ; FIXMEv2.0: delete me!
+      (parse-error '<datum> datum-starters))
+
+    (define (makeLapFeatures vals)
+      (if (larceny-weirdness?)
+          (list->code-features 'lap vals)
+          (parse-error '<datum> datum-starters)))
+
+    (define (makeLopFeatures vals)
+      (if (larceny-weirdness?)
+          (list->code-features 'lop vals)
+          (parse-error '<datum> datum-starters)))
+  
     (define (makeBool)
       (let ((x (case (string-ref tokenValue 1)
                 ((#\t #\T) #t)
@@ -1690,6 +1779,10 @@
     (define (makeCodevector)
       (define (loop)
         (let ((c (scanChar)))
+          ; The end of input before the closing #\" is an error, not a
+          ; loop: consumeChar does not consume it.
+          (if (not (char? c))
+              (scannerError errIncompleteToken))
           ; The call to consumeChar puts the char in string_accumulator.
           (consumeChar)
           (case c
@@ -1712,12 +1805,18 @@
             (if (char=? c #\")
                 (begin (consumeChar)
                        (set! string_accumulator_length 0)
+                       ;; FIXMEv2.0: replace the let by
+                       ;; (sys$codevector-install (loop))
                        (let ((bv (loop)))
-			 (sys$codevector-iflush bv)
-			 bv))
+                         (sys$codevector-iflush bv)
+                         bv))
                 (parse-error '<datum> datum-starters)))
           (parse-error '<datum> datum-starters)))
   
+    ;; FIXMEv2.0: delete this definition,
+    ;; which is specific to 32-bit systems.
+    (define flonum:o 4)
+
     ; #^Cxxxxxxxxxxxxxxxx
     ; Coding bits as characters is inherently evil.
     ; It forces .fasl files to be encoded as Latin-1.
@@ -1731,8 +1830,9 @@
               (bytevector-set! bv i b)
               (loop bv (+ i 1) n))))
       (if (larceny-weirdness?)
-          (let ((z (make-bytevector 20)))
-            (loop z 4 20)
+          (let* ((o flonum:o)
+                 (z (make-bytevector (+ o 16))))
+            (loop z o (+ o 16))
             (typetag-set! z sys$tag.compnum-typetag)
             z)
           (parse-error '<datum> datum-starters)))
@@ -1788,8 +1888,9 @@
               (bytevector-set! bv i b)
               (loop bv (+ i 1) n))))
       (if (larceny-weirdness?)
-          (let ((x (make-bytevector 12)))
-            (loop x 4 12)
+          (let* ((o flonum:o)
+                 (x (make-bytevector (+ o 8))))
+            (loop x o (+ o 8))
             (typetag-set! x sys$tag.flonum-typetag)
             x)
           (parse-error '<datum> datum-starters)))
@@ -2158,8 +2259,8 @@
 
     (define (makeSymtag)
       (let* ((s tokenValue)
-	     (s (substring s 1 (- (string-length s) 1))))
-	(string->symbol s)))
+             (s (substring s 1 (- (string-length s) 1))))
+        (string->symbol s)))
 
     (define (makeText)
       (if (r7rs-weirdness?)
@@ -2203,12 +2304,14 @@
           (parse-error '<datum> datum-starters)))
 
     ; Oh, dear.  There's no excuse, but see lib/Standard/box.sch
+    ; (it called (bound? box), but nothing defines bound?).
 
     (define (symBox)
-      (if (and (traditional-weirdness?)
-               (bound? box))
-          (box (parse-datum))
-          (parse-error '<datum> datum-starters)))
+      (let ((env (interaction-environment)))
+        (if (and (traditional-weirdness?)
+                 (environment-variable? env 'box))
+            ((environment-get env 'box) (parse-datum))
+            (parse-error '<datum> datum-starters))))
   
     (define (symBackquote) 'quasiquote)
     (define (symQuasisyntax) 'quasisyntax)
@@ -2433,7 +2536,7 @@
     (define state0
       (make-state-machine (lambda () (set! string_accumulator_length 0))
                           (lambda () (scanChar))
-                          (lambda () (consumeChar))
+                          (lambda () (consumeTokenChar))
                           (lambda (t) (accept t))
                           (lambda (m) (scannerError m))
                           errIncompleteToken))

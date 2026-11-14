@@ -459,6 +459,8 @@
                    (#\# #\f #\6 #\4 #\()                      ; R7RS only
                    (#\# #\c #\6 #\4 #\()                      ; R7RS only
                    (#\# #\c #\1 #\2 #\8 #\()))                ; R7RS only
+     (lapstart (#\# #\l #\a #\p #\())                         ; Larceny only
+     (lopstart (#\# #\l #\o #\p #\())                         ; Larceny only
      (quote #\')
      (backquote #\`)
      (comma #\,)
