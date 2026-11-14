@@ -1589,10 +1589,6 @@
                          (else
                           (scannerError errLongToken))))
              (new (make-string newn)))
-        ;;(do ((i 0 (+ i 1)))
-        ;;    ((= i n))
-        ;;  (string-set! new i (string-ref string_accumulator i)))
-        ;; FIXMEv2.0: replace that do loop by this:
         (string-copy-into-down! string_accumulator 0 n new 0)
         (set! string_accumulator new)))
 
@@ -1685,11 +1681,6 @@
   
     ;; #lap(...) and #lop(...) are the feature markers that begin
     ;; compiled files; see Lib/Common/code-features.sch.
-
-    ;; FIXMEv2.0: delete this when Lib/Common/code-features.sch is available.
-
-    ;;(define (list->code-features kind clauses)    ; FIXMEv2.0: delete me!
-    ;;  (parse-error '<datum> datum-starters))
 
     (define (makeLapFeatures vals)
       (if (larceny-weirdness?)
@@ -1805,19 +1796,10 @@
             (if (char=? c #\")
                 (begin (consumeChar)
                        (set! string_accumulator_length 0)
-                       ;; FIXMEv2.0: replace the let by
-                       (sys$codevector-install (loop))
-                       ;;(let ((bv (loop)))
-                       ;;  (sys$codevector-iflush bv)
-                       ;;  bv)
-                       )
+                       (sys$codevector-install (loop)))
                 (parse-error '<datum> datum-starters)))
           (parse-error '<datum> datum-starters)))
   
-    ;; FIXMEv2.0: delete this definition,
-    ;; which is specific to 32-bit systems.
-    ;; (define flonum:o 4)
-
     ; #^Cxxxxxxxxxxxxxxxx
     ; Coding bits as characters is inherently evil.
     ; It forces .fasl files to be encoded as Latin-1.
