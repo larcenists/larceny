@@ -11,12 +11,28 @@ on fixnums can sometimes be substantially faster than generic
 operations, and the following primitives are provided for use in those
 programs that need especially good performance.
 
-The `(rnrs arithmetic fixnums)` library now
-provides a large set of procedures, some of them similar to
+The `(scheme fixnum)` and `(rnrs arithmetic fixnums)` libraries now
+provide a large set of procedures, some of them similar to
 the procedures described below.
 If one of Larceny's procedures duplicates the semantics of
 an R6RS procedure whose name is different, then Larceny's
 name is deprecated within R7RS/R6RS code.
+
+[TIP]
+================================================================
+Current versions of Larceny represent fixnums in a two's complement
+format whose range depends upon which version of Larceny you are
+using.
+At the moment, 64-bit versions of Larceny, such as Larceny v2.0,
+use a 62-bit two's complement representation for fixnums, while
+32-bit versions, such as Larceny v1.3, use 30-bit two's complement.
+
+R7RS/R6RS programs can determine the fixnum range at run time by
+consulting the `fx-greatest` and `fx-least` constants defined by
+the `(scheme fixnum)` library, or by calling the
+`greatest-fixnum` and `least-fixnum` procedures of
+the `(rnrs arithmetic fixnums)` library with no arguments.
+================================================================
 
 All arguments to the following procedures must be fixnums.
 

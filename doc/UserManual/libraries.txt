@@ -17,8 +17,8 @@ Interactive computing
 
 Larceny's `-r7` command-line option automatically imports the
 `(scheme base)` library.  The `-r7r6` command-line option imports
-all of the R7RS Red Edition and R6RS standard libraries, including
-those deprecated by Larceny.
+all of the R7RS, Red Edition, Tangerine, and R6RS standard libraries,
+including those deprecated by Larceny.
 
 
 [[R7rsAutomaticLoadingSection]]
@@ -106,6 +106,11 @@ may have to load all of the nonstandard libraries that will
 be imported by a top-level program or library before you
 load that top-level program or library.
 
+We are happy to report that more and more R7RS systems have
+adopted an autoloading feature similar to Larceny's.
+This has greatly improved the real-world portability of
+R7RS programs and libraries.
+
 ////////////////////////////////////////////////////////////////
 You do not have to import those libraries into the R7RS
 top level, however, unless you want to use the variables
@@ -129,7 +134,7 @@ Composite library:
 
     (larceny r7r6)                         ; all R7RS/R6RS standard libraries
 
-link:../r7rs.pdf[R7RS (small)] standard libraries:
+link:https://standards.scheme.org/official/r7rs.pdf[R7RS (small)] standard libraries:
 
     (scheme base)
     (scheme case-lambda)
@@ -148,10 +153,13 @@ link:../r7rs.pdf[R7RS (small)] standard libraries:
     (scheme time)
     (scheme write)
 
-http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition] libraries:
+https://github.com/johnwcowan/r7rs-work/blob/master/RedEdition.md[R7RS Red Edition] libraries:
 
     (scheme box)                           ; SRFI 111
     (scheme charset)                       ; SRFI 14
+    (scheme charset unicode)               ;   for all Unicode characters
+    (scheme charset bmp)                   ;   for the Basic Multilingual Plane
+    (scheme charset latin-1)               ;   for ISO 8859-1 (Latin-1)
     (scheme comparator)                    ; SRFI 128
     (scheme ephemeron)                     ; SRFI 124
     (scheme generator)                     ; SRFI 121
@@ -167,6 +175,32 @@ http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition] libraries:
     (scheme stream)                        ; SRFI 41
     (scheme text)                          ; SRFI 135
     (scheme vector)                        ; SRFI 133
+
+https://deepwiki.com/johnwcowan/r7rs-work/2.2-red-and-tangerine-dockets[R7RS Tangerine Edition] libraries:
+
+    (scheme bitwise)                       ; SRFI 151
+    (scheme bytevector)                    ; (rnrs bytevectors)
+    (scheme division)                      ; SRFI 141
+    (scheme generator)                     ; SRFI 158
+    (scheme fixnum)                        ; SRFI 143
+    (scheme flonum)                        ; SRFI 144
+    (scheme mapping)                       ; SRFI 146
+    (scheme mapping hash)
+    (scheme regex)                         ; SRFI 115
+    (scheme show)                          ; SRFI 159, SRFI 166
+    (scheme vector base)                   ; SRFI 160
+    (scheme vector u8)
+    (scheme vector s8)
+    (scheme vector u16)
+    (scheme vector s16)
+    (scheme vector u32)
+    (scheme vector s32)
+    (scheme vector u64)
+    (scheme vector s64)
+    (scheme vector f32)
+    (scheme vector f64)
+    (scheme vector c64)
+    (scheme vector c128)
 
 http://www.r6rs.org/[R6RS] standard libraries:
 
@@ -204,7 +238,8 @@ facilities:
 
 http://srfi.schemers.org/[SRFI] libraries:
 
-    (srfi 1 lists)                         ; list library
+    (srfi 0)                               ; (scheme base)
+    (srfi 1 lists)                         ; (scheme list)
     (srfi 2 and-let*)                      ; extended `and` and `let*`
     (srfi 5 let)                           ; extended version of `let`
     (srfi 6 basic-string-ports)            ; basic string ports
@@ -212,7 +247,7 @@ http://srfi.schemers.org/[SRFI] libraries:
     (srfi 9 records)                       ; defining record types
     (srfi 11 let-values)                   ; syntax for multiple values
     (srfi 13 strings)                      ; string libraries
-    (srfi 14 char-sets)                    ; character-set library (default)
+    (srfi 14 char-sets)                    ; (scheme charset)
     (srfi 14 unicode)                      ;   for all Unicode characters
     (srfi 14 bmp)                          ;   for the Basic Multilingual Plane
     (srfi 14 latin-1)                      ;   for ISO 8859-1 (Latin-1)
@@ -225,52 +260,90 @@ http://srfi.schemers.org/[SRFI] libraries:
     (srfi 27 random-bits)                  ; sources of random bits
     (srfi 28 basic-format-strings)         ; basic format strings
     (srfi 29 localization)                 ; localization
+    (srfi 30)                              ; nested multi-line comments (#| |#)
     (srfi 31 rec)                          ; `rec` syntax
+    (srfi 34)                              ; (scheme base)
     (srfi 37)                              ; program argument processor
     (srfi 38 with-shared-structure)        ; i/o for data with shared structure
     (srfi 39 parameters)                   ; parameter objects
-    (srfi 41 streams)                      ; streams
+    (srfi 41 streams)                      ; (scheme stream)
     (srfi 42 eager-comprehensions)         ; eager comprehensions
+    (srfi 43 vectors)                      ; (scheme vector)
     (srfi 45 lazy)                         ; iterative lazy algorithms
     (srfi 48 intermediate-format-strings)  ; format
     (srfi 51 rest-values)                  ; rest values hackery
     (srfi 54 cat)                          ; still more formatting
+    (srfi 55)                              ; require-extension (import)
     (srfi 59 vicinities)                   ; vicinity
+    (srfi 60 integer-bits)                 ; (rnrs arithmetic bitwise)
     (srfi 61 cond)                         ; a more general cond clause
+    (srfi 62)                              ; S-expression comments ( #; )
     (srfi 63 arrays)                       ; homogeneous, heterogeneous arrays
     (srfi 64 testing)                      ; an API for test suites
+    (srfi 66 octet-vectors)                ; (scheme base)
     (srfi 67 compare-procedures)           ; three-way comparison procedures
+    (srfi 69 basic-hash-tables)            ; (scheme hash-table), (srfi 126)
+    (srfi 71 let)                          ; extensions of let, let*, letrec
+    (srfi 74 blobs)                        ; (rnrs bytevectors)
     (srfi 78 lightweight-testing)          ; lightweight testing
     (srfi 87 case)                         ; a more general case clause
+    (srfi 95 sorting-and-merging)          ; (scheme sorting)
     (srfi 98 os-environment-variables)     ; environment variables
     (srfi 99 records)                      ; (composite library)
     (srfi 99 records procedural)           ; (procedural API)
     (srfi 99 records inspection)           ; (inspection API)
     (srfi 99 records syntactic)            ; (syntactic API)
-    (srfi 101 random-access-lists)         ; fast and purely functional lists
-    (srfi 111 boxes)                       ; boxes
+    (srfi 101 random-access-lists)         ; (scheme rlist)
+    (srfi 111)                             ; (scheme box)
     (srfi 112)                             ; environment inquiry
-    (srfi 113 sets)                        ; sets and bags
-    (srfi 115 regexp)                      ; regular expressions
-    (srfi 116 ilists)                      ; immutable lists
-    (srfi 117)                             ; queues based on lists
-    (srfi 121)                             ; generators
+    (srfi 113 sets)                        ; (scheme set)
+    (srfi 114 comparators)                 ; (scheme comparator)
+    (srfi 115 regexp)                      ; (scheme regex)
+    (srfi 116 ilists)                      ; (scheme ilist)
+    (srfi 117)                             ; (scheme list-queue)
+    (srfi 121)                             ; (scheme generator)
+    (srfi 122)                             ; intervals and generalized arrays
     (srfi 123)                             ; generic accessor/modifier operators
-    (srfi 124)                             ; ephemerons
+    (srfi 124)                             ; (scheme ephemeron)
+    (srfi 125)                             ; (scheme hash-table)
     (srfi 126)                             ; R6RS-based hashtables
-    (srfi 127)                             ; lazy sequences
-    (srfi 128)                             ; comparators (reduced)
+    (srfi 127)                             ; (scheme lseq)
+    (srfi 128)                             ; (scheme comparator)
     (srfi 129)                             ; titlecase procedures
+    (srfi 130)                             ; (scheme text)
     (srfi 131)                             ; ERR5RS record syntax (reduced)
-    (srfi 134)                             ; immutable deques
+    (srfi 132)                             ; (scheme sort)
+    (srfi 133)                             ; (scheme vector)
+    (srfi 134)                             ; (scheme ideque)
+    (srfi 135)                             ; (scheme text)
+    (srfi 136)                             ; record types (srfi 99), (srfi 131)
+    (srfi 137)                             ; unique types (srfi 99), (srfi 131)
     (srfi 138)                             ; compiling top-level programs
-    (srfi 141)                             ; integer division
-    (srfi 143)                             ; fixnums
-    (srfi 144)                             ; flonums
+    (srfi 141)                             ; (scheme division)
+    (srfi 142)                             ; (scheme base), (srfi 151)
+    (srfi 143)                             ; (scheme fixnum)
+    (srfi 144)                             ; (scheme flonum)
     (srfi 145)                             ; assumptions
-    (srfi 146)                             ; mappings
-    (srfi 151)                             ; bitwise operations
+    (srfi 146)                             ; (scheme mapping)
+    (srfi 147)                             ; macro transformers (scheme base)
+    (srfi 151)                             ; (scheme bitwise)
     (srfi 152)                             ; string library (reduced)
+    (srfi 158)                             ; (scheme generator)
+    (srfi 159)                             ; (scheme show), (srfi 166)
+    (srfi 160 base)                        ; (scheme vector base)
+    (srfi 160 u8) ; etc                    ; (scheme vector u8) ; etc
+    (srfi 165)                             ; environment monad
+    (srfi 166)                             ; (scheme show)
+
+[TIP]
+================================================================
+As noted in the comments,
+many of those SRFI libraries have now been given R7RS Red or
+Tangerine Edition library names.
+Thus `(scheme show)` is just another name for `(srfi 166)`.
+In a few cases, however, the library named in the comments
+improves upon the numbered SRFI library.
+================================================================
 
 [NOTE]
 ================================================================
@@ -284,33 +357,6 @@ Larceny has extended the R6RS `library` syntax to allow R6RS libraries
 to import R7RS libraries that follow the R7RS naming convention shown
 in the list above.
 ================================================================
-
-SRFI libraries that are autoloadable but deprecated in Larceny,
-usually because they have been superseded in whole or in part by
-R7RS or R6RS or other SRFI libraries or syntax (shown in parentheses):
-
-    (srfi 0)                               ; cond-expand (scheme base)
-    (srfi 30)                              ; nested multi-line comments (#| |#)
-    (srfi 34)                              ; exception handling (scheme base)
-    (srfi 43 vectors)                      ; vector library (scheme vector)
-    (srfi 55)                              ; require-extension (import)
-    (srfi 60 integer-bits)                 ; (rnrs arithmetic bitwise)
-    (srfi 62)                              ; S-expression comments ( #; )
-    (srfi 66 octet-vectors)                ; (scheme base)
-    (srfi 69 basic-hash-tables)            ; (scheme hash-table), (srfi 126)
-    (srfi 71 let)                          ; extensions of let, let*, letrec
-    (srfi 74 blobs)                        ; (rnrs bytevectors)
-    (srfi 95 sorting-and-merging)          ; (scheme sorting)
-    (srfi 114 comparators)                 ; (scheme comparator)
-    (srfi 125)                             ; (scheme hash-table)
-    (srfi 130)                             ; (scheme text)
-    (srfi 132)                             ; (scheme sorting)
-    (srfi 133)                             ; (scheme vector)
-    (srfi 135)                             ; (scheme text)
-    (srfi 136)                             ; record types (srfi 99), (srfi 131)
-    (srfi 137)                             ; unique types (srfi 99), (srfi 131)
-    (srfi 142)                             ; bitwise operations (srfi 151)
-    (srfi 147)                             ; macro transformers (scheme base)
 
 ERR5RS libraries that are autoloadable but deprecated in Larceny
 because they have been superseded by the R7RS, SRFI 99, and SRFI 131
@@ -354,7 +400,7 @@ is initialized by the `startup.sch` file in Larceny's root
 directory.
 
 <<R7rsLibraryPathSection, Larceny's `-I` and `-A` command-line options>>
-adds one or more directories to the directories in the
+add one or more directories to the directories in the
 <<current-require-path,`current-require-path`>>.
 The `-I` option specifies directories to be searched before the
 standard directories; the `-A` option specifies directories to

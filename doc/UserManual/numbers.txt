@@ -1,16 +1,14 @@
+[[NumbersSection]]
+
 Numbers
 ~~~~~~~
 
 Larceny has six representations for numbers: _fixnums_ are small,
 exact integers; _bignums_ are unlimited-precision exact integers;
 _ratnums_ are exact rationals; _flonums_ are inexact rationals;
-_rectnums_ are exact complexes; and _compnums_ are inexact complexes.
-
-////////////////////////////////////////////////////////////////
-FIXME
-You can read more about the number representations
-<<LarcenyNoteRepr,here>>.
-////////////////////////////////////////////////////////////////
+_rectnums_ are exact complex numbers whose imaginary part is
+nonzero; and _compnums_ are inexact complex numbers whose imaginary
+part is inexact (and may or may not be zero).
 
 _Number-representation predicates_
 
@@ -24,7 +22,91 @@ proctempl:compnum?[args="obj",result="boolean"]
 These predicates test whether an object is a number of a particular
 representation and return `#t` if so, `#f` if not.
 
+[NOTE]
+================================================================
+In Larceny, there is no such thing as a real number whose
+imaginary part is inexact.
+In particular, a number whose imaginary part is an inexact zero
+is not considered to be a real number.
+
+The philosophical/mathematical/engineering reason for this
+is that Scheme's inexact numbers are considered to be approximations.
+In particular,
+if the imaginary part of a complex number is inexact, then its
+value is considered to be an approximation.
+In mathematics and in engineering, you can't be sure whether
+a complex number whose imaginary part is approximately zero
+is real or non-real, so the only safe thing to do is to proceed
+as though the complex number is not real.
+
+The more specifically mathematical reason for this semantics
+is that it allows the inexact non-real complex numbers to be
+closed under the usual operations of arithmetic.
+If an inexact complex number whose imaginary part happens to be
+an inexact zero were considered to be a real number, as though
+its imaginary part were known to be an exact zero, then the
+result of an arithmetic operation on inexact numbers that have
+a nonzero imaginary part might just happen to have an imaginary
+part that approximates zero, but is not actually zero.
+It would be unreasonable to represent that approximate result
+as a real number, which is why doing so is forbidden by the
+R6RS standard.
+
+Furthermore, it would be inefficient to check the result of every
+arithmetic operation on inexact complex numbers to see whether the
+imaginary part of the result happens to be such a close
+approximation to zero that it has become an inexact zero when
+represented as (for example) an IEEE double precision number.
+
+For all of the reasons stated above, the R6RS standard requires
+arithmetic operations on non-real inexact numbers to yield a
+non-real inexact result.
+Larceny implements that R6RS semantics.
+================================================================
+
+[WARNING]
+================================================================
+As has already been discussed at some length in
+<<AlternativeInterpretationsSubsection, an earlier section>>
+of this manual,
+whether the R7RS (small) standard's semantics for arithmetic on
+inexact complex numbers is compatible with the R6RS semantics
+has been a matter of some controversy.
+
+The R7RS (small) document contains an example that was specifically
+designed to illustrate the R6RS semantics.
+Some implementors of the R7RS (small) language believe that
+example was just a mistake that made its way into the R7RS
+(small) standard when someone copied it out of the R6RS standard.
+
+Some implementations of the R7RS may therefore contend that the
+result of an arithmetic operation on inexact complex numbers
+that have nonzero imaginary parts should answer in the affirmative
+when the `real?` procedure is used to ask whether it is a real
+number. The inherent inefficiency of that semantics hardly
+matters for interpreted implementations of Scheme, but it does
+matter for implementations (such as Larceny) that care enough
+about performance to take the trouble to compile to native code.
+
+Although contrived test cases can illustrate the difference
+between R6RS semantics and the behavior of some implementations
+of the R7RS, it is hard to imagine real-world computations for
+which that difference is likely to matter.
+Larceny therefore supports the more carefully thought-out R6RS
+semantics rather than using an interpretation of the R7RS that
+would break both portability and interoperability between R6RS
+and R7RS libraries and programs, and would also be considerably
+less efficient.
+================================================================
+
+////////////////////////////////////////////////////////////////
+FIXME
+You can read more about the number representations
+<<LarcenyNoteRepr,here>>.
+////////////////////////////////////////////////////////////////
+
 proc:random[args="limit",result="exact integer"]
 
 Returns a pseudorandom nonnegative exact integer in the range 0
 through _limit_-1.
+

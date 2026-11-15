@@ -1,3 +1,5 @@
+[[SystemControlSection]]
+
 System Control and Performance Measurement
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -59,6 +61,7 @@ after a garbage collection that relocates objects.
 ================================================================
 
 
+////////////////////////////////////////////////////////////////
 proc:gcctl[args="heap-number operation operand",result="unspecified"]
 
 _[GCCTL is largely obsolete in the new garbage collector but may be
@@ -110,6 +113,7 @@ selects the default policy settings.
   standard stop-and-copy "old" heap (old-heap.c) are supported, but
   not the standard "young" heap (young-heap.c), nor the stop-and-copy
   collector (sc-heap.c).
+////////////////////////////////////////////////////////////////
 
 proc:sro[args="pointer-tag type-tag limit",result="vector"]
 

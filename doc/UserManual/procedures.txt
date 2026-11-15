@@ -33,8 +33,10 @@ purposes.
 ================================================================
 The following
 text is copied from a straw proposal authored by Will Clinger and sent
-to rrr-authors on 09 May 1996. The text has been edited lightly. See
-the end for notes about the Larceny implementation.
+to rrr-authors on 09 May 1996. The text has been edited lightly.
+Larceny's compilers may not yet record enough information
+to support all of these procedures, so some of them may always
+return `#f`.
 ================================================================
 
 The procedures that extract heuristic information from procedures are
@@ -97,8 +99,3 @@ proc:procedure-environment[args="proc"]
 Returns information about the environment of _proc_. If the result is
 `#f`, then no information is available. In any case the result may be
 passed to any of the <<SectionEnvironments,environment inquiry functions>>.
-
-**Notes on the Larceny implementation**
-
-Twobit does not yet produce data for all of these functions, so some
-of them always return `#f`.

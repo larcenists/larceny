@@ -34,7 +34,10 @@ on the Algorithmic Language Scheme], 2013.
 (This standard was approved by 86% of 63 votes.)
 
 John Cowan [editor].
-http://trac.sacrideo.us/wg/wiki/RedEdition[R7RS Red Edition], 2016.
+https://deepwiki.com/johnwcowan/r7rs-work/2.2-red-and-tangerine-dockets[R7RS Red and Tangerine Dockets].
+
+The Red and Tangerine Editions are summarized by
+https://docs.scheme.org/guide/r7rs-portable/[R7RS: Portable Guide].
 
 
 Other relevant standards
@@ -67,8 +70,13 @@ consensus has been obtained], and the consensus draft was
 submitted to IEEE-SA RevCom.
 IEEE-754-2008 was approved on 12 June 2008.)
 
-The Unicode Consortium.
-http://www.unicode.org/[The Unicode Standard].
+The Unicode standard is now updated yearly.
+Larceny implements
+https://www.unicode.org/versions/Unicode7.0.0/[Unicode 7.0.0],
+released in 2014.
+Larceny can represent all characters and strings of the more
+recent Unicode standards, but the more esoteric procedures
+(such as `string-normalize-nfd`) still operate as in Unicode 7.0.0.
 
 ////////////////////////////////////////////////////////////////
 [1]: mailto:larceny@ccs.neu.edu
