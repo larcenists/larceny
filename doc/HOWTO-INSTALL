@@ -21,17 +21,29 @@ If that doesn't work, keep reading.
 
 System requirements:
 
-To build Larceny from source code, see HOWTO-BUILD.  Prebuilt
-binary distributions of Larceny are available for machines with
-ARMv7 or Intel IA32 and compatible (i386 or x86-32) processors
-running the following operating systems:
+To build Larceny from source code, see HOWTO-BUILD.
+
+Prebuilt distributions of Larceny v2.0 are available for:
+
+    macOS machines with Apple Silicon (AArch)
+    Linux machines with x86-64 processors
+
+Larceny 2.0 is a 64-bit implementation of Scheme.
+
+
+System requirements for 32-bit Larceny (v1.5 or older):
+
+Prebuilt binary distributions of 32-bit Larceny (v1.5 or older)
+are still available for machines with ARMv7 or Intel IA32 and
+compatible (i386 or x86-32) processors running the following
+operating systems:
 
     Linux
-    MacOS X
+    MacOS X (but no later than version 10.14)
     Windows XP or later
 
-Although Larceny still uses 32-bit pointers, it will run on
-64-bit machines provided the necessary 32-bit compatibility
+Although Larceny v1.5 still uses 32-bit pointers, it will run
+on 64-bit machines provided the necessary 32-bit compatibility
 libraries have been installed.
 
 On Linux machines, the 32-bit libraries can be installed by
@@ -45,9 +57,13 @@ should be installed automatically when lib32z1 is installed.)
 To build Larceny from source, you would also need to install
 libc6-dev-i386.
 
-On Macintoshes with Intel processors, the 32-bit libraries
-should already be installed.  If they aren't, installing the
-Apple Developer command-line tools should fix the problem.
+Apple dropped support for 32-bit applications on its Intel
+machines somewhere around version 10.14 of its operating
+system.  On older Macintoshes with Intel processors, whose
+operating system has not been updated past 10.14, the 32-bit
+libraries may already be installed.  If they aren't, then
+installing the Apple Developer command-line tools might fix
+the problem.
 
 On Windows, the DEP feature must be told to allow Larceny to
 opt-out.  (See below.)

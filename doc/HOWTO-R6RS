@@ -2,16 +2,22 @@ Although Larceny continues to support the R6RS standard, parts
 of that standard (notably lexical syntax) have been superseded
 by the R7RS (small) standard [3].  See HOWTO-R7RS.
 
+As implemented by Larceny, the language described by the R6RS
+serves as a batch-only, restricted subset of the R7RS and its
+libraries.  Larceny extends the R6RS language as necessary to
+allow R6RS libraries and programs to interoperate smoothly with
+R7RS libraries and programs.
+
 
 ABOUT R6RS
 
 In August 2007, the R6RS standard for the Scheme programming
 language was ratified by 65.7% of the voters, which exceeded the
-required 60% supermajority [1].  Most of the R6RS standard has
-been superseded by the R7RS-small standard, which was ratified
-in 2013 by 85.7% of the voters [3].  The R7RS-large standard,
-which is being developed by Scheme Working Group 2, is expected
-to replace the R6RS standard in its entirety.
+required 60% supermajority [1].  Most of the R6RS standard was
+superseded by the R7RS-small standard, which was ratified in
+2013 by 85.7% of the voters [3].  The R7RS-large standard,
+which is being developed by Scheme Working Group 2, may replace
+the R6RS standard in its entirety.
 
 The most important thing to know about the R6RS is that it was a
 supplement to the R5RS, not a replacement.  The R6RS had nothing
@@ -50,9 +56,9 @@ toto, although some intended to implement selected features
 of the R6RS.
 
 As of March 2015, eleven implementations of the R6RS or a subset
-have been released.  Eleven implementations of the R7RS or a
-subset have also been released.  Larceny is one of at least
-three implementations of the R7RS that continue to support the
+had been released.  Eleven implementations of the R7RS or a
+subset had also been released.  Larceny is one of at least
+three implementations of the R7RS that continued to support the
 older R6RS standard.
 
 
@@ -203,4 +209,4 @@ R6RS implementations you wish to use.
 [1] http://www.r6rs.org/
 [2] http://www.schemers.org/Documents/Standards/R5RS/
 [3] http://www.scheme-reports.org/
-[4] http://larceny.ccs.neu.edu/doc/
+[4] http://larcenists.org/Documentation/

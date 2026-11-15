@@ -45,6 +45,8 @@ RUNNING AN R7RS PROGRAM
 To execute an R7RS program that is contained within a file named
 pgm, type:
 
+    larceny pgm
+or
     larceny -r7rs -program pgm
 or
     larceny -r7r6 -program pgm
@@ -56,6 +58,8 @@ To execute an R7RS program that is contained within a file named
 pgm and uses libraries defined within other files in the current
 directory, type:
 
+    larceny -path . pgm
+or
     larceny -r7rs -path . -program pgm
 or
     larceny -r7r6 -path . -program pgm
@@ -107,10 +111,9 @@ Larceny's standard naming conventions for R7RS/R6RS library
 files.  These naming conventions are described in Larceny's
 user manual [4].
 
-Several other implementations of R7 Scheme provide a similar
-feature, but some apparently do not.  Some implementations may
-provide a similar feature but use a mapping from library names
-to file names that differs from Larceny's mapping.
+Most implementations of R7 Scheme now provide a similar
+feature, and most use file naming conventions similar to
+Larceny's.
 
 
 LIBRARY PATH ENVIRONMENT VARIABLE
@@ -127,9 +130,14 @@ variety of other libraries that R7RS programs and libraries can
 import.  For a partial list of these predefined libraries, see
 Larceny's user manual [4].
 
+The cond-expand feature of the R7RS can be used to test to see
+whether specific libraries are available.  As implemented by
+Larceny, the (features) procedure lists all libraries that
+cond-expand would recognize as present.
+
 --------
 
 [1] http://www.scheme-reports.org/
 [2] http://www.schemers.org/Documents/Standards/
 [3] http://www.r6rs.org/
-[4] http://larceny.ccs.neu.edu/doc/
+[4] http://larcenists.org/Documentation/
