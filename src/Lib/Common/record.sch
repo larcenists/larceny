@@ -101,6 +101,13 @@
 
 (define make-record-constructor-descriptor)
 
+; For define-record-type (lib/R6RS/err5rs/records/syntactic/original.sls),
+; which open-codes the accessors and mutators of a record type without a
+; parent: given the rtd, a field name, and the depth and index the
+; expansion assumes, checks them and returns the hierarchy vector.
+
+(define record:inline-hierarchy-vector)
+
 ; The performance of records is mostly determined by these procedures.
 ; FIXME: all of them could be made faster, mostly by inlining them.
 
@@ -172,6 +179,25 @@
     (and (structure? obj)
          (eq? (.vector-ref:trusted (.vector-ref:trusted obj 0) depth)
               rtd))))
+
+; Called by record-ref:bummed and record-set!:bummed (common.imp.sch)
+; when obj is not a record of type rtd.
+
+(define (record:wrong-type obj rtd)
+  (assertion-violation #f (errmsg 'msg:notrecordoftype)
+                       obj (record-type-name rtd)))
+
+; The procedures of record-ref:bummed and record-set!:bummed, for code
+; compiled without integrating procedures (compiled with them, as here,
+; the calls are open-coded).
+
+(define record-ref:bummed
+  (lambda (obj rtd hvec depth i)
+    (record-ref:bummed obj rtd hvec depth i)))
+
+(define record-set!:bummed
+  (lambda (obj rtd hvec depth i x)
+    (record-set!:bummed obj rtd hvec depth i x)))
 
 (define (make-bummed-record-accessor rtd hvec depth i)
   (lambda (obj)
@@ -824,7 +850,7 @@
                         (lambda (obj val)
                           (assert-record-of-type obj rtd)
                           (vector-like-set! obj i val))))
-                 (assertion-violaton
+                 (assertion-violation
                  'r6rs-record-mutator
                  "record index out of range: " rtd k))))
 
@@ -908,6 +934,15 @@
           (lambda (name parent uid sealed? opaque? fields)
             (make-record-type-descriptor
              name parent uid sealed? opaque? fields))
+          (lambda (rtd field-name depth i)
+            (assert-rtd rtd)
+            (if (and record:bummed?
+                     (= depth (+ (rtd-hierarchy-depth rtd) 1))
+                     (< depth record:hierarchy:min)
+                     (= i (rtd-field-offset rtd field-name)))
+                (rtd-hierarchy-vector rtd)
+                (error "record:inline-hierarchy-vector: "
+                       rtd field-name depth i)))
 ))))
 
   (set! make-record-type (list-ref interface 0))
@@ -931,6 +966,7 @@
   (set! record-type-opaque? (list-ref interface 16))
   (set! record-field-mutable? (list-ref interface 17))
   (set! make-record-type-descriptor (list-ref interface 18))
+  (set! record:inline-hierarchy-vector (list-ref interface 19))
   'records)
 
 ; Table of nongenerative record type descriptors.
@@ -1036,14 +1072,16 @@
      (display ">" port)))
 
   ; Record printer: if the record's rtd has a printer, call it.  Otherwise
-  ; print #<record name>.
+  ; print #<record name>.  Other structures (continuation mark sets, which
+  ; look like records with a fake hierarchy) go to the previous printer.
 
   (let ((previous-printer (structure-printer))
         (get-printer (rtd-printer rtdtd)))
     (structure-printer
      (lambda (obj port quote?)
        (assert (structure? obj))
-       (cond ((rtd-printer (vector-ref (vector-like-ref obj 0) 0))
+       (cond ((and (record? obj)
+                   (rtd-printer (vector-ref (vector-like-ref obj 0) 0)))
               =>
               (lambda (printer)
                 (printer obj port)))
