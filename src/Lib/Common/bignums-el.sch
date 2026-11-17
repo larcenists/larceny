@@ -123,8 +123,10 @@
 (define bits-per-bigit    16)           ; number of bits in a bigit
 (define bigit-shift       16)           ; another name for it
 (define bigit-half-shift  8)            ; to shift off the low-order half
-(define bigits-per-fixnum 2)            ; how many bigits to we need to
-                                        ;   hold the value of a fixnum?
+(define bigits-per-fixnum               ; how many bigits to we need to
+  (if (= 0 (fxrsha (most-positive-fixnum) 30)) ;   hold the value of a fixnum?
+      2                                 ; 32-bit words (30-bit fixnums)
+      4))                               ; 64-bit words (62-bit fixnums)
 
 ; Procedures, assigned below
 
@@ -213,26 +215,32 @@
 ;  (and (bignum>? b largest-negative-bignum)
 ;       (bignum<? b smallest-positive-bignum)))
 
-; A bignum fits in fixnum if it has zero 32-bit bigits or
-; exactly 1 32-bit bigit and its magnitude is less than 2^29
-; or exactly 1 32-bit bigit and its magnitude is exactly 2^29.
+; Number of 32-bit bigits needed to hold the magnitude of a fixnum.
+
+(define bigits32-per-fixnum (fxrshl bigits-per-fixnum 1))
+
+; A bignum fits in fixnum if it has fewer 32-bit bigits than a fixnum,
+; or exactly as many 32-bit bigits as a fixnum and its magnitude is
+; less than 2^29 (32-bit) or 2^61 (64-bit), or exactly as many and its
+; magnitude is exactly that power of two and its sign is negative.
 
 (define-trusted:fixnums (big-fits-in-fix? b)
-  (let ((b0 (bytevector-like-ref b 0)))
-    (cond ((= 1 b0)
-           (and (= 0 (bytevector-like-ref b 1))
-                (= 0 (bytevector-like-ref b 2))
-                (let* ((hi8 (bytevector-like-ref b 7))
-                       (hi3 (fxlogand #xe0 hi8)))
-                  (or (= 0 hi3)
-                      (and (= negative-sign (bytevector-like-ref b 3))
-                           (= #b00100000 hi8)                       ; FIXME
-                           (= 0 (bytevector-like-ref b 6))
-                           (= 0 (bytevector-like-ref b 5))
-                           (= 0 (bytevector-like-ref b 4)))))))
-          ((= 0 b0)
-           (and (= 0 (bytevector-like-ref b 1))
-                (= 0 (bytevector-like-ref b 2))))
+  (let ((n (bignum-length32 b))
+        (k bigits32-per-fixnum))
+    (cond ((< n k)
+           #t)
+          ((= n k)
+           (let* ((top (+ (* 4 k) 3))                ; most significant byte
+                  (hi8 (bytevector-like-ref b top))
+                  (hi3 (fxlogand #xe0 hi8)))
+             (or (= 0 hi3)
+                 (and (= negative-sign (bytevector-like-ref b 3))
+                      (= #b00100000 hi8)
+                      (let loop ((i (- top 1)))
+                        (cond ((< i 4) #t)
+                              ((= 0 (bytevector-like-ref b i))
+                               (loop (- i 1)))
+                              (else #f)))))))
           (else
            #f))))
 
@@ -264,7 +272,7 @@
              (loop (- i 4)))))
     (define (finish i)
       (bignum-length32-set! b (fxrshl i 2))
-      (if (and (= 4 i)
+      (if (and (<= i (* 4 bigits32-per-fixnum))
                (big-fits-in-fix? b))
           (bignum->fixnum b)
           b))
@@ -437,7 +445,7 @@
             (slow-loop (- i 1)))))
 
     (cond ((< k 0)
-           (assertion-violation 'bignum-shift-left! (errmsg msg:notindex) k))
+           (assertion-violation 'bignum-shift-left! (errmsg 'msg:notindex) k))
           ((= 0 k32bits)
            (fast-loop (fxlsh n 2)))
           ((= 0 k8bits)
@@ -533,7 +541,7 @@
             (slow-loop (+ i 1)))))
 
     (cond ((< k 0)
-           (assertion-violation 'bignum-shift-right! (errmsg msg:notindex) k))
+           (assertion-violation 'bignum-shift-right! (errmsg 'msg:notindex) k))
           ((= 0 k32bits)
            (fast-loop (+ 4 (* 4 k32))))
           ((= 0 k8bits)
