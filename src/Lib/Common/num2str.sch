@@ -10,15 +10,23 @@
   
   (let ()
     
-    (define (number->string x . radix)
-      (cond ((null? radix)
-             (number2string x 10))
-            (else (let ((radix (car radix)))
-                    (if (and (< 1 radix 37)
-                             (exact? radix)
-                             (integer? radix))
-                        (number2string x radix)
-                        (begin (error "Bad radix" radix) #t))))))
+    ; R6RS allows a precision, which is ignored.
+
+    (define number->string
+      (case-lambda
+       ((x)
+        (number2string x 10))
+       ((x radix)
+        (number->string:radix x radix))
+       ((x radix precision)
+        (number->string:radix x radix))))
+
+    (define (number->string:radix x radix)
+      (if (and (< 1 radix 37)
+               (exact? radix)
+               (integer? radix))
+          (number2string x radix)
+          (begin (error "Bad radix" radix) #t)))
     
     (define (number2string x radix)
       (cond ((fixnum? x)
@@ -96,7 +104,8 @@
     (define two^n-1 4503599627370496)
     
     (define (integer->string n radix)
-      (cond ((not (integer? n)) ???number2string)
+      (cond ((not (integer? n))
+             (assertion-violation 'number->string "not an integer" n))
             ((not (exact? n))
              (string-append "#i" (integer->string (inexact->exact n) radix)))
             ((not (fixnum? n)) (bignum->string n radix))
