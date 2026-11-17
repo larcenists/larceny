@@ -18,7 +18,7 @@
           (utf16/make-write-method p))
          (get-position-method
           (if (port-has-port-position? p)
-              (lambda () (get-port-position p))
+              (lambda () (port-position p))
               #f))
          (set-position-method
           (if (port-has-set-port-position!? p)
