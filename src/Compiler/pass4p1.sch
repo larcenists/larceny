@@ -95,6 +95,7 @@
 (define (pass4 exp integrable)
   (init-labels)
   (init-temps)
+  (set! cg-if-pending-frames '())
   (let ((output (make-assembly-stream))
         (frame (cgframe-initial))
         (regs (cgreg-initial))
@@ -469,6 +470,18 @@
        (cg-if-result output exp target regs frame env tail?))))
 
 ; The test expression has already been evaluated into the result register.
+;
+; The arms of a conditional in tail position get frames of their own
+; if the frame that is current at the conditional has not been used,
+; and its save instruction will then be eliminated.  When the arms
+; share the current frame instead, the else arm is compiled after the
+; then arm and may use the frame, so the then arm must not give its own
+; conditionals frames of their own: their save instructions would
+; nest inside the shared frame, which would then not be popped before
+; their tail calls.  cg-if-pending-frames holds the size cells of the
+; frames shared with an arm yet to be compiled.
+
+(define cg-if-pending-frames '())
 
 (define (cg-if-result output exp target regs frame env tail?)
   (let ((L1 (make-label))
@@ -479,6 +492,8 @@
     (let* ((regs2 (cgreg-copy regs))
            (frame1 (if (and tail?
                             (negative? (cgframe-size frame))
+                            (not (memq (cgframe-size-cell frame)
+                                       cg-if-pending-frames))
 
                             ; Are all live variables that were stored by
                             ; a phantom store still in registers?
@@ -505,7 +520,13 @@
             (cgframe-livevars-set! frame2 live)
             (gen-save! output frame1 t0)
             (cg-saveregs output regs frame1)))
-      (let ((r (cg0 output exp1 target regs frame1 env tail?)))
+      (let ((r (let ((pending cg-if-pending-frames))
+                 (if (eq? frame frame1)
+                     (set! cg-if-pending-frames
+                           (cons (cgframe-size-cell frame) pending)))
+                 (let ((r (cg0 output exp1 target regs frame1 env tail?)))
+                   (set! cg-if-pending-frames pending)
+                   r))))
         (if (not tail?)
             (gen! output $skip L2 (cgreg-live regs r)))
         (gen! output $.label L1)
