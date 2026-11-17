@@ -47,7 +47,7 @@
          (fxnot x))
         ((bignum? x)
          (- (- x) 1))
-        (else bitwise:complain x 'bitwise-not)))
+        (else (bitwise-complain x 'bitwise-not))))
 
 (define (bitwise-and . args)
   (define (bitwise-and2 x y)
