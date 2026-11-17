@@ -30,7 +30,7 @@
  *                              0.98         7 Mar 2015     60876f5
  *  Goldie                      0.99        25 May 2016     4671a1f
  *  Grain Alcohol and Rainwater 1.3          6 Aug 2017     567b862
- *  Group Commander Mandrake    1.4
+ *  Group Commander Mandrake    1.4         16 Nov 2026     2077092
  *  Hair Mussed                 1.5
  *  Hi There!                   2.0
  *  Horsing Around
@@ -70,8 +70,8 @@
 #include "config.h"
 
 int  larceny_major_version = 1;
-int  larceny_minor_version = 4;
-char *larceny_version_qualifier = " \"Group Commander Mandrake\"";
+int  larceny_minor_version = 5;
+char *larceny_version_qualifier = " \"Hair Mussed\"";
 /* char *larceny_version_qualifier = ".3a1"; */
 
 char *date = DATE " " TIME;
