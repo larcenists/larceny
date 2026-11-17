@@ -332,27 +332,31 @@
        (<= #x-8000 n #x7fff)))
 
 ;;; These procedures try to avoid comparing a fixnum to a bignum.
+;;;
+;;; With 64-bit words the 32-bit limits are fixnums, and a fixnum
+;;; can lie outside them, so u32? and s32? take the fixnum shortcut
+;;; only when the limit is not a fixnum.
 
 (define (u32? n)
   (and (integer? n)
        (exact? n)
        (<= 0 n)
-       (or (<= n (greatest-fixnum))   ; FIXME: assumes 30-bit fixnums
+       (or (and (fixnum? n) (not (fixnum? #xffffffff)))
            (<= n #xffffffff))))
 
 (define (s32? n)
   (and (integer? n)
        (exact? n)
-       (or (<= (least-fixnum) n)
+       (or (and (fixnum? n) (not (fixnum? #x-80000000)))
            (<= #x-80000000 n))
-       (or (<= n (greatest-fixnum))   ; FIXME: assumes 30-bit fixnums
+       (or (and (fixnum? n) (not (fixnum? #x7fffffff)))
            (<= n #x7fffffff))))
 
 (define (u64? n)
   (and (integer? n)
        (exact? n)
        (<= 0 n)
-       (or (<= n (greatest-fixnum))   ; FIXME: assumes fixnums <= 64 bits
+       (or (<= n (greatest-fixnum))
            (<= n #xffffffffffffffff))))
 
 (define (s64? n)
@@ -360,7 +364,7 @@
        (exact? n)
        (or (<= (least-fixnum) n)
            (<= #x-8000000000000000 n))
-       (or (<= n (greatest-fixnum))   ; FIXME: assumes fixnums <= 64 bits
+       (or (<= n (greatest-fixnum))
            (<= n #x7fffffffffffffff))))
 
 (define (f32? x)
@@ -370,9 +374,7 @@
   (flonum? x))
 
 (define (c64? z)
-  (and (complex? z)
-       (inexact? z)))
+  (complex? z))
 
 (define (c128? z)
-  (and (complex? z)
-       (inexact? z)))
+  (complex? z))
