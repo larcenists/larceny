@@ -9,8 +9,9 @@
 <center><h2>
 Larceny Note #2: Data Representations
 </h2>
-Lars T Hansen / June 27, 1997
-William D Clinger / March 20, 2007 (Unicode, multiple targets)
+Lars T Hansen / June 27, 1997 <br />
+William D Clinger / March 20, 2007 (Unicode, multiple targets) <br />
+William D Clinger / November 20, 2026 (64 bits)
 </center>
 
 <p>
@@ -24,20 +25,19 @@ William D Clinger / March 20, 2007 (Unicode, multiple targets)
 <a href="#extensions">7. Extensions</a><br>
 
 
-<h3>1. Overview</h3>
+<h3><br />1. Overview</h3>
 
 <p>
-This note describes the representations used in 32-bit mode
+For historical reasons,
+this note mostly describes the representations used in 32-bit mode
 by Larceny/Sparc, Larceny/x86, and Petit Larceny.
+<!--
 (Common Larceny's representations are rather different because
 the Common Language System cannot express a union of reference
 and value types.)
-</p>
-
-<p>
-Extensions of the layouts described here are reasonable also
-in a 64-bit setting, but Larceny does not yet run in 64-bit
-mode.
+-->
+The representations used in 64-bit mode are similar.
+This note will mention the most important differences.
 </p>
 
 <p>
@@ -55,7 +55,7 @@ of pointer types, heap-allocated memory.
 
 <a name="tagged-words">
 
-<h3>2. Tagged Words</h3>
+<h3><br />2. Tagged Words</h3>
 
 <p>
 A tagged word has a 2 or 3 bit type tag in the low order bits:
@@ -68,6 +68,11 @@ A tagged word has a 2 or 3 bit type tag in the low order bits:
   pppp pppp  pppp pppp  pppp pppp  pppp p101   pointer to bytevector struct
   pppp pppp  pppp pppp  pppp pppp  pppp p111   pointer to procedure struct
 </pre>
+<p>
+The 64-bit representations are essentially the same,
+adding 32 more <code>x</code> or <code>p</code> bits
+at the left.
+</p>
 
 <p>
 Immediates are further distinguished by more bits in the low-order byte;
@@ -97,8 +102,14 @@ can be manipulated with the <code>typetag</code> and
 <p>
 The bits marked <code>s</code> in a header contain the size of the data
 structure in bytes, not including the header word, and not including 
-any padding.  For vector-like structures and procedures, the two low
-bits of the length field will be 0.
+any padding.
+In 32-bit mode, the size field contains 23 bits.
+In 64-bit mode, the size field contains 56 bits.
+</p>
+
+<p>
+For vector-like structures and procedures, the two (32-bit)
+or three (64-bit) low order bits of the size field will be 0.
 </p>
 
 <p>
@@ -113,7 +124,7 @@ by 256, with the character tag in the low-order byte.
 
 <a name="structures">
 
-<h3>3. Basic Structure Layouts</h3>
+<h3><br />3. Basic Structure Layouts</h3>
 
 <p>
 The structure layouts are listed below.  When it is stated that a
@@ -155,10 +166,13 @@ pair, vector-like structure, or procedure structure.
 
 <a name="numbers">
 
-<h3>4. Numbers</h3>
+<h3><br />4. Numbers</h3>
+
+<h4><br />Fixnums</h4>
 
 <p>
 Fixnums (small exact integers) are unboxed and kept in the high 30
+or 62
 bits of a word, with the two low bits always 0 (figure 1).
 </p>
 
@@ -171,6 +185,7 @@ bits of a word, with the two low bits always 0 (figure 1).
 Figure 1: fixnum.
 </p>
 
+<h4><br />Bignums</h4>
 
 <p>
 Bignums (large exact integers) are bytevector-like with the sign in
@@ -229,6 +244,7 @@ bignums of value 0.
 Figure 3: Bignum with 16-bit bigits.
 </p>
 
+<h4><br />Ratnums</h4>
 
 <p>
 Ratnums (exact rationals), shown in figure 4, are vector-like, with
@@ -250,6 +266,7 @@ than 1), also a Scheme object.
 Figure 4: ratnum.
 </p>
 
+<h4><br />Rectnums</h4>
 
 <p>
 Rectnums (exact complexes), shown in figure 5, look like ratnums,
@@ -271,9 +288,15 @@ reals, and the imaginary part is nonzero.
 Figure 5: Rectnum.
 </p>
 
+<h4><br />Flonums</h4>
 
 <p>
-Flonums (inexact reals) are bytevector-like. The first word is unused,
+Flonums (inexact reals) are bytevector-like.
+</p>
+
+<p>
+In 32-bit Larceny,
+the first word is unused,
 and the two next words contain the double in IEEE double precision
 format. The rationale for the unused word is this: since everything in
 the system is aligned on an 8-byte boundary, one word will be wasted
@@ -297,9 +320,23 @@ Figure 6: Flonum.
 </p>
 
 <p>
-Compnums (inexact complexes) are bytevector-like. The first word is
-unused (see the description of the flonum for a rationale).  The two
-next words contain the real part. The two last words contain the
+In 64-bit Larceny, a flonum consists of two words:
+the bytevector-like header
+followed by the IEEE double precision representation
+of the flonum's value.
+</p>
+
+<h4><br />Compnums</h4>
+
+<p>
+Compnums (inexact complexes) are bytevector-like.
+</p>
+
+<p>
+In 32-bit Larceny, the first word is
+unused (for the rationale, see the above description of flonums).
+The next two
+words contain the real part. The two last words contain the
 imaginary part. (Figure 7.) Both parts are IEEE double precision
 numbers.
 </p>
@@ -321,25 +358,34 @@ numbers.
 Figure 8: Compnum.
 </p>
 
+<p>
+In 64-bit Larceny, a compnum consists of three words:
+the bytevector-like header is
+followed by the IEEE double precision representations
+of the real and imaginary parts.
+</p>
+
 
 <a name="strings">
 
-<h3>5. Strings</h3>
+<h3><br />5. Strings</h3>
 
 <p>
-In Larceny v0.93, strings are bytevector-like
-and contain Latin-1 characters encodings.
-In some future version of Larceny, strings will be bytevector-like
+Strings are bytevector-like,
 with 4 bytes per character.  Each 4-byte character is fully boxed,
 so Larceny's strings are not in UTF-32 format.
-When Unicode conversion is complete, the header tag for old-style
-Latin-1 strings will be recycled as the header tag for immutable
-Unicode strings.
+</p>
+
+<p>
+(It is possible to build 32-bit versions of Larceny
+that use only one byte per Latin-1 character,
+but the default is 4 bytes per Unicode character
+even for 32-bit Larceny.)
 </p>
 
 <a name="procedures">
 
-<h3>6. Procedures, code, and constants</h3>
+<h3><br />6. Procedures, code, and constants</h3>
 
 <p>
 As stated earlier, a procedure holds tagged words.  Larceny's
@@ -357,6 +403,15 @@ saved register values in slots 3 and up.
 <p>
 A code vector is a plain byte vector; there is no way to distinguish the
 two without context.
+(Some operating systems insist that executable code be confined
+to certain areas of memory.
+In such systems,
+Larceny's native code generators use whatever mechanism the OS
+provides for use by JIT compilers.
+Petit Larceny compiles to C, using the same dynamic linking
+as compiled C code;
+for Scheme source code that is loaded dynamically or typed interactively,
+Petit Larceny uses an interpreter.)
 </p>
 
 <p>
@@ -370,19 +425,22 @@ second element optionally holds some documentation about the variable
 </p>
 
 
+<!--
 <a name="extensions">
 
-<h3>7. Extensions</h3>
+<h3><br />7. Extensions</h3>
 
 <p>
 Larceny provides one new data type.  A <em>bytevector</em> is vector
 that holds bytes: exact integers in the range 0..255.
 </p>
+-->
 
-
+<!--
 <p><hr>
 <em>$Id: note2-repr.html 87 1998-11-25 14:38:41Z lth $</em><br>
-<A href="mailto:larceny@ccs.neu.edu">larceny@ccs.neu.edu</A><BR>
+</p>
+-->
 
 </body>
 </html>
