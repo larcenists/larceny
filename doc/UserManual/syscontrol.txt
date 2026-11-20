@@ -131,7 +131,7 @@ heap that satisfy the constraints imposed by its parameters:
     type-tag; otherwise, only objects with a matching type-tag are
     selected (after selection by pointer tag). Pairs don't have
     type-tags, but other objects do. You can read all about type-tags
-    <<LarcenyNoteRepr,here>>.
+    https://github.com/larcenists/larceny/blob/master/doc/LarcenyNotes/note2-repr.html[here].
 
   * _Limit_ constrains the selected objects by the number of
     references. If _limit_ is -1, then no constraints are imposed;

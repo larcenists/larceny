@@ -5,7 +5,7 @@ Foreign-Function Interface to C
 
 Larceny provides a general foreign-function interface (FFI) substrate
 on which other FFIs can be built; see 
-link:LarcenyNotes/note7-ffi.html[Larceny Note #7]. 
+https://github.com/larcenists/larceny/blob/master/doc/LarcenyNotes/note7-ffi.html[Larceny Note #7]. 
 The FFI described in this chapter is a simple example of
 a derived FFI.
 It is not yet fully evolved, but it is useful.
