@@ -38,7 +38,7 @@
           string-filter string-remove
           string-replicate string-segment string-split)
 
-  (import (scheme base)
+  (import (except (scheme base) string-map)
           (scheme cxr)
           (scheme char)
           (scheme case-lambda)

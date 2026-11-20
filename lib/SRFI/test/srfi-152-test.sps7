@@ -1,17 +1,17 @@
-(import (scheme base)
-	(scheme cxr)
-	(scheme char)
-	(scheme inexact)
-	(scheme complex)
-	(scheme write)
-	(scheme file)
-	(scheme process-context)
-	#;(chibi test)
-	(rnrs conditions)
-	(rnrs records procedural)
-	(rnrs records inspection)
-	(rnrs records syntactic)
-	(srfi 152))
+(import (except (scheme base) string-map)
+        (scheme cxr)
+        (scheme char)
+        (scheme inexact)
+        (scheme complex)
+        (scheme write)
+        (scheme file)
+        (scheme process-context)
+        #;(chibi test)
+        (rnrs conditions)
+        (rnrs records procedural)
+        (rnrs records inspection)
+        (rnrs records syntactic)
+        (srfi 152))
 
 ;;; Uses "the Chicken test egg, which is provided on Chibi as
 ;;; the (chibi test) library."  So we have to fake that here.
@@ -1845,5 +1845,83 @@
       abc))
 )
 )
+
+;;; The procedural argument to string-map must accept multiple
+;;; arguments and may return a string instead of a character.
+
+(test-group "srfi-152:string-map"
+  (test "aabba" (string-map (lambda (x y z)
+                              (cond ((and (char<? x y)
+                                          (char<? x z))
+                                     x)
+                                    ((char<? y z)
+                                     y)
+                                    (else z)))
+                            "abcde"
+                            "fghba"
+                            "cabrq"))
+  (test "cabba" (string-map (lambda (x y z)
+                              (cond ((and (char<? x y)
+                                          (char<? x z))
+                                     x)
+                                    ((char<? y z)
+                                     y)
+                                    (else z)))
+                            "zabcde"
+                            "fghba"
+                            "cabrqued"))
+  (test "cabba" (string-map (lambda (x y z)
+                              (cond ((and (char<? x y)
+                                          (char<? x z))
+                                     x)
+                                    ((char<? y z)
+                                     y)
+                                    (else z)))
+                            "fghba"
+                            "zabcde"
+                            "cabrqued"))
+  (test "cabba" (string-map (lambda (x y z)
+                              (cond ((and (char<? x y)
+                                          (char<? x z))
+                                     x)
+                                    ((char<? y z)
+                                     y)
+                                    (else z)))
+                            "cabrqued"
+                            "fghba"
+                            "zabcde"))
+  (test "wwhhay,t ebveecr afuoser!?"
+        (string-map (lambda (x y)
+                      (if (char<? x y)
+                          (string x y)
+                          (string y x)))
+                    "whatever for?"
+                    "why, because!"))
+  (test ""
+        (string-map (lambda (x) "")
+                    "whatever for?"))
+  (test "whay, bec afuose!"
+        (string-map (lambda (x y)
+                      (if (char<? x y)
+                          (string x y)
+                          y))
+                    "whatever for?"
+                    "why, because!"))
+  (test "ahq bir cjs dkt elu fmv "
+        (string-map (lambda (x y z)
+                      (string x y z #\space))
+                    "abcdefg"
+                    "hijklmnop"
+                    "qrstuv"))
+  (test "ahhqwwo biirxxo cjjsyye dkktzze "
+        (string-map (lambda (u v x y z)
+                      (string u v v x y y z #\space))
+                    "abcdefg"
+                    "hijklmnop"
+                    "qrstuv"
+                    "wxyz"
+                    "ooeeooahah"))
+)
+
 (report-test-results)
 (test-exit)

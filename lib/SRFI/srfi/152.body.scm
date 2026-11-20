@@ -157,3 +157,127 @@
       (error 'string-segment
              (errmsg 'msg:illegalargs)
              s k)))
+
+;;; FIXME: string-map of (scheme base) incompatible with (srfi 152).
+;;;
+;;; The R7RS says "it is an error" if the first argument to
+;;; string-map returns a string instead of a single character.
+;;; SRFI 152 says the first argument to string-map is allowed
+;;; to return strings as well as characters.
+;;; WG2 appears to be leaning toward the status quo, meaning
+;;; (scheme base) exports a string-map for which it is an error,
+;;; (srfi 152) exports a different string-map as in SRFI 152, and
+;;; we don't yet know which version (scheme string) will export.
+;;;
+;;; For the time being, in Larceny, the string-map exported by
+;;; (scheme base) will be incompatible with the string-map
+;;; exported by (srfi 152).
+;;;
+;;; WG2 has not as yet decided what to do about (scheme string),
+;;; or perhaps even whether there will be a standard library
+;;; of that name, so Larceny doesn't have to worry about that.
+;;; For now.
+
+(define string-map
+  (let ()
+
+    (define (string-map1 f x)
+      (let ((k (string-length x)))
+	(let loop ((i 0) ; index into the strings
+		   (m 0) ; length of chars
+		   (chars '()))
+	  (if (< i k)
+	      (let ((result (f (string-ref x i))))
+		(cond ((char? result)
+   		       (loop (+ i 1)
+			     (+ m 1)
+			     (cons result chars)))
+		      ((string? result)
+		       (loop (+ i 1)
+			     (+ m (string-length result))
+			     (append (reverse (string->list result)) chars)))
+		      (else
+		       (complain:result result))))
+	      (finish m chars)))))
+
+    (define (string-map2 f x y)
+      (let ((k (min (string-length x) (string-length y))))
+	(let loop ((i 0) ; index into the strings
+		   (m 0) ; length of chars
+		   (chars '()))
+	  (if (< i k)
+	      (let ((result (f (string-ref x i)
+			       (string-ref y i))))
+		(cond ((char? result)
+   		       (loop (+ i 1)
+			     (+ m 1)
+			     (cons result chars)))
+		      ((string? result)
+		       (loop (+ i 1)
+			     (+ m (string-length result))
+			     (append (reverse (string->list result)) chars)))
+		      (else
+		       (complain:result result))))
+	      (finish m chars)))))
+
+    (define (string-map3 f x y z)
+      (let ((k (min (string-length x) (string-length y) (string-length z))))
+	(let loop ((i 0) ; index into the strings
+		   (m 0) ; length of chars
+		   (chars '()))
+	  (if (< i k)
+	      (let ((result (f (string-ref x i)
+			       (string-ref y i)
+			       (string-ref z i))))
+		(cond ((char? result)
+   		       (loop (+ i 1)
+			     (+ m 1)
+			     (cons result chars)))
+		      ((string? result)
+		       (loop (+ i 1)
+			     (+ m (string-length result))
+			     (append (reverse (string->list result)) chars)))
+		      (else
+		       (complain:result result))))
+	      (finish m chars)))))
+
+    (define (string-mapN k g)
+      (let loop ((i 0) ; index into the strings
+		 (m 0) ; length of chars
+		 (chars '()))
+	(if (< i k)
+	    (let ((result (g i)))
+	      (cond ((char? result)
+   		     (loop (+ i 1)
+			   (+ m 1)
+			   (cons result chars)))
+		    ((string? result)
+		     (loop (+ i 1)
+			   (+ m (string-length result))
+			   (append (reverse (string->list result)) chars)))
+		    (else
+		     (complain:result result))))
+	    (finish m chars))))
+
+    (define (finish m chars)
+      ;;(list->string (reverse chars)))    ; equivalent, but slower
+      (let ((s (make-string m)))
+	(do ((i (- m 1) (- i 1))
+	     (chars chars (cdr chars)))
+	    ((< i 0) s)
+	  (string-set! s i (car chars)))))
+
+    (define (complain:result result)
+      (error 'string-map "neither character nor string: " result))
+		  
+    (case-lambda
+     ((f x)     (string-map1 f x))
+     ((f x y)   (string-map2 f x y))
+     ((f x y z) (string-map3 f x y z))
+     ((f . strings)
+      (let ((k (apply min (map string-length strings))))
+	(string-mapN k
+		     (lambda (i)
+		       (apply f
+			      (map (lambda (s) (string-ref s i))
+				   strings)))))))))
