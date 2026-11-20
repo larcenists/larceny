@@ -86,6 +86,42 @@
 
 (load "src/Asm/Fence/pass5p2-arm64.sch")
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; FIXME: Without this patch, the encoder test fails because
+;;; fence.note-register! is undefined.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Map a MAL register to an AArch64 hardware register.
+
+(define arm64.reg
+  (let* ((offset (abs (min $r.tmp $r.globals $r.stkp $r.second $r.result)))
+         (v      (make-vector (+ *nregs* offset) -1))
+         (regs   (vector arm64.REG0 arm64.REG1 arm64.REG2 arm64.REG3
+                         arm64.REG4 arm64.REG5 arm64.REG6 arm64.REG7
+                         arm64.REG8 arm64.REG9 arm64.REG10 arm64.REG11
+                         arm64.REG12 arm64.REG13 arm64.REG14 arm64.REG15)))
+    (vector-set! v (+ offset $r.tmp) arm64.TMP0)
+    (vector-set! v (+ offset $r.globals) arm64.GLOBALS)
+    (vector-set! v (+ offset $r.stkp) arm64.STKP)
+    (vector-set! v (+ offset $r.second) arm64.SECOND)
+    (vector-set! v (+ offset $r.result) arm64.RESULT)
+    (do ((i 0 (+ i 1)))
+        ((= i *nregs*))
+      (vector-set! v (+ offset i $r.reg0) (vector-ref regs i)))
+    (set! fence.records-registers? #t)
+    (lambda (r)
+#;    (if (>= r $r.reg0)
+          (fence.note-register! (- r $r.reg0)))
+      (vector-ref v (+ r offset)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; End of patch.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; Each test is a procedure of one argument (the assembler) and the
 ; expected assembly text; multiple instructions are separated by ";".
 ; Branch targets are written as .+n or .-n, relative to the branch.
