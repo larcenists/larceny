@@ -25,6 +25,17 @@
   (system (string-append "cp " (make-filename source-path pat)
 			 "   " target-path)))
 
+; Install an executable as a new file, read-only, by renaming a fresh
+; copy into place.  Copying over the old file would modify it in place,
+; which on MacOS gets the new program killed when it is started (the
+; kernel keeps the old code signature), and changes a running program.
+
+(define (install-executable source-path name target-path)
+  (let ((target (make-filename target-path name)))
+    (system (string-append "cp " (make-filename source-path name)
+                           " " target ".new && chmod 555 " target ".new"
+                           " && mv -f " target ".new " target))))
+
 ; TODO doc
 
 (define (delete-file/regexp target-path pat)

@@ -45,11 +45,19 @@ arm_linux_icache_flush(unsigned char* begin, unsigned char *end)
 #endif
 #endif /* ARM && LINUX */
 
+#if defined ARM && defined MACOS_X
+#include <libkern/OSCacheControl.h>    /* sys_icache_invalidate */
+#endif
+
 extern word globals[];          /* FIXME: Should not need this */
 
 void cache_setup( void )
 {
-#if defined ARM
+#if CODE_SPACE
+  /* Code is flushed when it is written into the code space, so the
+     collector need not flush bytevectors in the data heap. */
+  globals[G_CACHE_FLUSH] = 0;
+#elif defined ARM
   globals[G_CACHE_FLUSH] = 1;
 #endif
 }
@@ -62,6 +70,9 @@ void mem_icache_flush( void *lo, void *limit )
 #if defined LINUX
   flushes++;
   arm_linux_icache_flush((unsigned char*)lo, (unsigned char*)limit);
+#elif defined MACOS_X
+  flushes++;
+  sys_icache_invalidate( lo, (size_t)((char*)limit - (char*)lo) );
 #else
   #error "ARM requires an OS-dependent icache flushing mechanism"
 #endif
@@ -134,7 +145,7 @@ void stk_initialize_underflow_frame( word *stkp )
 {
   /* Double check that the function is aligned to 4-byte boundary, so
    * that it will be treated as a tagged-fixnum. */
-  assert( (((int)fence_stack_underflow) & 3) == 0);
+  assert( (((word)fence_stack_underflow) & 3) == 0);
   stkp[ STK_RETADDR ] = (word)fence_stack_underflow;
   stkp[ STK_REG0 ] = 0;
 }

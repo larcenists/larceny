@@ -10,14 +10,11 @@
 #define MORECORE_ALWAYS_COLLECTS 0
 
 #define SSB_ENQUEUE_LOUDLY 0
-#define SSB_ENQUEUE_OFFSET_AS_FIXNUM 0 
-
-/* TODO: This may only make sense once the code generator calls
- * mc_full_barrier for the write barrier.
+/* The code generator passes the address of the assigned slot to the
+ * write barrier in THIRD, so the barrier can log the offset of the slot
+ * along with the object, as native Larceny on the x86 does.
  */
-#if SSB_ENQUEUE_OFFSET_AS_FIXNUM
-  #error "SSB_ENQUEUE_OFFSET_AS_FIXNUM cannot be enabled yet"
-#endif
+#define SSB_ENQUEUE_OFFSET_AS_FIXNUM 1
 
 #include "larceny.h"            /* Includes config.h also */
 #include "gc.h"
@@ -47,7 +44,7 @@
 
 static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, int preserve );
-static void setup_timer( word *globals, int timer, cont_t k );
+static void setup_timer( word *globals, word timer, cont_t k );
 static void check_signals( word *globals, cont_t k );
 
 extern void fence_return_from_scheme();
@@ -93,11 +90,11 @@ void EXPORT mc_alloc_bv( word *globals )
   word *elim;
   word *p;
   
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
 
 #if defined( BDW_GC )
 #error "This must be changed because RESULT is size in bytes"
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
 
   nwords = roundup_walign( nwords );
   p = GC_malloc_atomic( nwords*sizeof(word) );
@@ -117,7 +114,9 @@ void EXPORT mc_alloc_bv( word *globals )
     assert( (globals[ G_ETOP ] & 0xF) == 0x0 );
   }
 
-  globals[ G_RESULT ] = roundup4( globals[ G_RESULT ] >> 2 );
+  /* Convert fixnum number of bytes to fixnum number of words */
+  globals[ G_RESULT ] =
+    fixnum( roundup_word( nativeuint( globals[ G_RESULT ] ) ) / sizeof(word) );
   mc_alloc( globals );
 #endif
 }
@@ -125,10 +124,10 @@ void EXPORT mc_alloc_bv( word *globals )
 void EXPORT mc_alloc( word *globals )
 {
 #if defined( BDW_GC )
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
 
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
 
   nwords = roundup_walign( nwords );
   if ( nwords*sizeof(word) > LARGEST_OBJECT )
@@ -138,12 +137,12 @@ void EXPORT mc_alloc( word *globals )
   assert (p != 0);
   globals[ G_RESULT ] = (word)p;
 #else
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *etop = (word*)globals[ G_ETOP ];
   word *elim = (word*)globals[ G_STKP ] - SCE_BUFFER;
   word *p;
 
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
   assert2(((word)etop & 7) == 0);
   assert2(((word)elim & 7) == 0);
 
@@ -169,11 +168,11 @@ void EXPORT mc_alloc( word *globals )
 
 void EXPORT mc_alloci( word *globals )
 {
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
   word init;
 
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
 
   mc_alloc( globals );
   p = (word*)globals[ G_RESULT ];
@@ -235,7 +234,7 @@ void EXPORT mc_enable_interrupts( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
 
-  if (is_fixnum( x ) && (int)x > 0) {
+  if (is_fixnum( x ) && (s_word)x > 0) {
     globals[ G_TIMER_ENABLE ] = TRUE_CONST;
     setup_timer( globals, nativeuint( x ), k ); /* Checks signals */
   }
@@ -525,9 +524,12 @@ void EXPORT mc_typetag_set( word *globals )
   signal_exception( globals, EX_TYPETAGSET, 0, 0 );
 }
 
-#define compnum_real( x )  (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
-#define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
-#define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
+#define compnum_real( x ) \
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
+#define compnum_imag( x ) \
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)+sizeof(double)))
+#define flonum_val( x ) \
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
 
 /* returns true iff x and y have the same bit-level representation. */
 
@@ -629,7 +631,7 @@ void EXPORT mc_bytevector_like_fill( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   unsigned char c = (globals[ G_SECOND ] >> 2) & 255;
-  int length = sizefield( *x );
+  word length = sizefield( *x );
 
   memset( x+BVEC_HEADER_WORDS, c, length );
 }
@@ -638,7 +640,8 @@ void EXPORT mc_bytevector_like_compare( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   word *y = ptrof( globals[ G_SECOND ] ); /* assume: bytevector-like */
-  int lx, ly, n;
+  s_word lx, ly;
+  int n;
 
   lx = sizefield( *x );
   ly = sizefield( *y );
@@ -668,11 +671,12 @@ void EXPORT mc_compact_ssbs( word *globals ) /* Used by inline barrier */
 
 void EXPORT mc_partial_barrier( word *globals )
 {
-  unsigned *genv, gl, gr;
+  gclib_desc_t *genv;
+  word gl, gr;
   word **ssbtopv, **ssblimv;
   word lhs, rhs;
 
-  genv = (unsigned*)globals[ G_GENV ];
+  genv = (gclib_desc_t*)globals[ G_GENV ];
   if (genv == 0) return;        /* Barrier disabled */
 
   lhs = globals[ G_RESULT ];
@@ -682,8 +686,8 @@ void EXPORT mc_partial_barrier( word *globals )
   gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
   if (gl == gr) return;
   if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl <= gr) return;  
-  if (globals[ G_FILTER_REMSET_RHS_NUM ] == gr) return;
-  if (globals[ G_FILTER_REMSET_LHS_NUM ] == gl) return;
+  if ((s_word)globals[ G_FILTER_REMSET_RHS_NUM ] == (s_word)gr) return;
+  if ((s_word)globals[ G_FILTER_REMSET_LHS_NUM ] == (s_word)gl) return;
 
   ssbtopv = (word**)globals[ G_SSBTOPV ];
   ssblimv = (word**)globals[ G_SSBLIMV ];
@@ -723,6 +727,17 @@ void EXPORT mc_satb_barrier( word *globals )
       (gen_of(rTmp) != 0) && (gen_of(result) != 0)) {
     satb_enqueue( globals, rTmp, result );
   }
+}
+
+/* Used by the SATB barrier in assembly when the SATB SSB fills. */
+
+void EXPORT mc_compact_satb_ssb( word *globals )
+{
+  gc_t *gc = the_gc(globals);
+  seqbuf_t *ssb = gc->satb_ssb;
+
+  if (*ssb->top == *ssb->lim)
+    process_seqbuf( gc, ssb );
 }
 
 static void mc_gen_barrier( word *globals )
@@ -795,7 +810,7 @@ signal_exception( word *globals, word exception, cont_t k, int preserve )
   mc_scheme_callout( globals, MS_EXCEPTION_HANDLER, 4, k, preserve );
 }
 
-static void setup_timer( word *globals, int timer, cont_t k )
+static void setup_timer( word *globals, word timer, cont_t k )
 {
   if (timer <= TIMER_STEP) {
     globals[ G_TIMER ] = timer;
@@ -926,12 +941,12 @@ void mc_scheme_callout( word *globals, int index, int argc, cont_t k, bool prese
   stkp[ 4 ] = globals[G_RETADDR];
   for ( i=0 ; i < NREGS ; i++ )
     stkp[ 5+i ] = globals[ G_REG0+i ];
-  /* FIXME: this next part assumes 32-bit words */
+  /* Each double is saved as four 16-bit fixnums */
   for ( i=0 ; i < NFPREGS ; i++ ) {
-    stkp[ 5+NREGS+(4*i)   ] = (globals[ G_F0+(2*i) ] & 65535) << 2;
-    stkp[ 5+NREGS+(4*i)+1 ] = (globals[ G_F0+(2*i) ] >> 16) << 2;
-    stkp[ 5+NREGS+(4*i)+2 ] = (globals[ G_F0+(2*i)+1 ] & 65535) << 2;
-    stkp[ 5+NREGS+(4*i)+3 ] = (globals[ G_F0+(2*i)+1 ] >> 16) << 2;
+    uint16_t *halves = (uint16_t*)&globals[ G_F0+(2*i) ];
+    int j;
+    for ( j=0 ; j < 4 ; j++ )
+      stkp[ 5+NREGS+(4*i)+j ] = fixnum( halves[j] );
   }
   stkp[ 5+NREGS+(4*NFPREGS) ]   = globals[ G_RESULT ];
   stkp[ 5+NREGS+(4*NFPREGS)+1 ] = (preserve ? TRUE_CONST : FALSE_CONST );
@@ -985,8 +1000,10 @@ cont_t restore_context( CONT_PARAMS )
   for ( i=0 ; i < NREGS ; i++ )
     globals[ G_REG0+i ] = stkp[ 5+i ];
   for ( i=0 ; i < NFPREGS ; i++ ) {
-    globals[G_F0+(2*i)]   = (stkp[5+NREGS+(4*i)+1] << 14) | (stkp[5+NREGS+(4*i)] >> 2) ;
-    globals[G_F0+(2*i)+1] = (stkp[5+NREGS+(4*i)+3] << 14) | (stkp[5+NREGS+(4*i)+2] >> 2);
+    uint16_t *halves = (uint16_t*)&globals[ G_F0+(2*i) ];
+    int j;
+    for ( j=0 ; j < 4 ; j++ )
+      halves[j] = (uint16_t)nativeuint( stkp[ 5+NREGS+(4*i)+j ] );
   }
   k = stkp[ 4 ];
 

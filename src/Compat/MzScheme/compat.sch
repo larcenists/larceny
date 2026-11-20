@@ -40,7 +40,7 @@
 (define version-370? 
   ((version-greater-or-equal-to? 370) (version)))
 (define version-4.x? 
-  ((version-greater-or-equal-to? "4.0.0") (version)))
+  ((version-greater-or-equal-to? "4.0") (version)))
 
 (define bytes->list
   (cond (version-4.x?
@@ -526,3 +526,19 @@
   (if (null? l)
       '()
       (loop0 '() l (cdr l))))
+
+;; Tables keyed by object identity (eq?), for the compiler:
+;;   (compat:make-eq-table)
+;;   (compat:eq-table-ref table key default)
+;;   (compat:eq-table-set! table key value)
+;; (An association list: this host is not known to have eq-hashtables.)
+
+(define (compat:make-eq-table) (list 'eq-table))
+(define (compat:eq-table-ref table key default)
+  (let ((probe (assq key (cdr table))))
+    (if probe (cdr probe) default)))
+(define (compat:eq-table-set! table key value)
+  (let ((probe (assq key (cdr table))))
+    (if probe
+        (set-cdr! probe value)
+        (set-cdr! table (cons (cons key value) (cdr table))))))

@@ -438,35 +438,37 @@
         (else
          (- (/ (acos -1.0) 2.0) (asin z)))))
 
-(define (atan z . rest)
-  (if (null? rest)
-      (cond ((flonum? z)
-             (flonum:atan z))
-            ((not (real? z))
-             (/ (- (log (+ 1.0 (* +1.0i z))) (log (- 1.0 (* +1.0i z))))
-                +2.0i))
-            (else
-             (flonum:atan (exact->inexact z))))
-      (let ((x z)
-            (y (car rest)))
-        (cond ((and (flonum? x) (flonum? y))
-               (flonum:atan2 x y))
-              ((not (and (real? x) (real? y)))
-               (error "atan: domain error:" (list x y))
-               #t)
-              (else
-               (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
+(define atan
+  (case-lambda
+   ((z)
+    (cond ((flonum? z)
+           (flonum:atan z))
+          ((not (real? z))
+           (/ (- (log (+ 1.0 (* +1.0i z))) (log (- 1.0 (* +1.0i z))))
+              +2.0i))
+          (else
+           (flonum:atan (exact->inexact z)))))
+   ((x y)
+    (cond ((and (flonum? x) (flonum? y))
+           (flonum:atan2 x y))
+          ((not (and (real? x) (real? y)))
+           (error "atan: domain error:" (list x y))
+           #t)
+          (else
+           (flonum:atan2 (exact->inexact x) (exact->inexact y)))))))
 
 ; Complex/negative case from the R^4.95RS, p25.
 
-(define (log z . rest)
-  (cond ((pair? rest)
-         (let ((z2 (car rest)))
-           (if (and (complex? z2)
-                    (null? (cdr rest)))
-               (/ (log z) (log z2))
-               (error "log: domain error" (list x y)))))
-        ((and (flonum? z) (> z 0.0))
+(define log
+  (case-lambda
+   ((z) (log:1 z))
+   ((z z2)
+    (if (complex? z2)
+        (/ (log:1 z) (log:1 z2))
+        (error "log: domain error" (list z z2))))))
+
+(define (log:1 z)
+  (cond ((and (flonum? z) (> z 0.0))
          (flonum:log z))
         ((or (not (real? z))
              (< z 0)

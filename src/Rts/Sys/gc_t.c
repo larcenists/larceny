@@ -13,14 +13,14 @@ gc_t
 *create_gc_t(char *id,
 	     void *data,
 	     int  (*initialize)( gc_t *gc ),
-	     word *(*allocate)( gc_t *gc, int nbytes, bool no_gc, bool atomic),
-	     word *(*allocate_nonmoving)( gc_t *gc, int nbytes, bool atomic ),
+	     word *(*allocate)( gc_t *gc, s_word nbytes, bool no_gc, bool atomic),
+	     word *(*allocate_nonmoving)( gc_t *gc, s_word nbytes, bool atomic ),
 	     void (*make_room)( gc_t *gc ), 
-	     void (*collect)( gc_t *gc, int gen, int bytes, gc_type_t req ),
+	     void (*collect)( gc_t *gc, int gen, s_word bytes, gc_type_t req ),
              void (*incremental)( gc_t *gc ),
 	     void (*set_policy)( gc_t *gc, int heap, int x, int y ),
-	     word *(*data_load_area)( gc_t *gc, int nbytes ),
-	     word *(*text_load_area)( gc_t *gc, int nbytes ),
+	     word *(*data_load_area)( gc_t *gc, s_word nbytes ),
+	     word *(*text_load_area)( gc_t *gc, s_word nbytes ),
 	     int  (*iflush)( gc_t *gc, int generation ),
 	     word (*creg_get)( gc_t *gc ),
 	     void (*creg_set)( gc_t *gc, word k ),
@@ -54,14 +54,14 @@ gc_t
 	        ( gc_t *gc, int gno, 
 	          void (*f)( word *s, word *l, void *d), void *d ),
 	     semispace_t *(*fresh_space)( gc_t *gc ),
-	     semispace_t *(*find_space)( gc_t *gc, unsigned bytes_needed,
+	     semispace_t *(*find_space)( gc_t *gc, s_word bytes_needed,
 					 semispace_t *cur ),
-	     int (*allocated_to_areas)( gc_t *gc, gset_t gs ),
-	     int (*maximum_allotted)( gc_t *gc, gset_t gs ),
+	     s_word (*allocated_to_areas)( gc_t *gc, gset_t gs ),
+	     s_word (*maximum_allotted)( gc_t *gc, gset_t gs ),
 	     bool (*is_nonmoving)( gc_t *gc, int gen_no ), 
 	     bool (*is_address_mapped)( gc_t *gc, word *addr, bool noisy ),
 	     void (*check_remset_invs)( gc_t *gc, word src, word tgt ),
-	     void (*points_across)( gc_t *gc, word lhs, int offset, word rhs ),
+	     void (*points_across)( gc_t *gc, word lhs, s_word offset, word rhs ),
 	     old_heap_t *(*heap_for_gno)(gc_t *gc, int gen_no ),
 	     region_group_t (*region_group_for_gno)(gc_t *gc, int gen_no ),
 	     void (*check_invariants_between_fwd_and_free)( gc_t *gc, int gen_no )
@@ -76,6 +76,7 @@ gc_t
   gc->los = 0;
   gc->young_area = 0;
   gc->static_area = 0; 
+  gc->code_space = 0;
   gc->los = 0;
   gc->gno_count = 0;
   gc->smircy = 0;

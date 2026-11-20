@@ -31,7 +31,7 @@
  *  Goldie                      0.99        25 May 2016     4671a1f
  *  Grain Alcohol and Rainwater 1.3          6 Aug 2017     567b862
  *  Group Commander Mandrake    1.4         16 Nov 2026     2077092
- *  Hair Mussed                 1.5
+ *  Hair Mussed                 1.5         17 Nov 2026     f7d752a
  *  Hi There!                   2.0
  *  Horsing Around
  *  Ignorant Peons
@@ -69,10 +69,10 @@
 
 #include "config.h"
 
-int  larceny_major_version = 1;
-int  larceny_minor_version = 5;
-char *larceny_version_qualifier = " \"Hair Mussed\"";
-/* char *larceny_version_qualifier = ".3a1"; */
+int  larceny_major_version = 2;
+int  larceny_minor_version = 0;
+char *larceny_version_qualifier = " \"Hi There!\"";
+/* char *larceny_version_qualifier = ".4a1"; */
 
 char *date = DATE " " TIME;
 char *user = USER;

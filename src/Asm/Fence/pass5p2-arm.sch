@@ -150,6 +150,20 @@
           (arm.setval as arm.TMP1 offset)
           (arm.STR    as rs base arm.TMP1)))))
 
+; 32-bit loads and stores are ordinary word loads and stores here.
+
+(define (cant.ldwiz as base offset rd)
+  (cant.ldi as base offset rd))
+
+(define (cant.stwi as rs base offset)
+  (cant.sti as rs base offset))
+
+(define (cant.stzi as base offset)
+  (let ((base (arm.reg base)))
+    (assert (< (abs offset) #x1000))
+    (arm.MOVWI as arm.TMP1 0)
+    (arm.STRI  as arm.TMP1 base offset)))
+
 (define (cant.stbi as rs base offset)
   (let ((base (arm.reg base))
         (rs   (arm.reg rs)))
@@ -614,6 +628,7 @@
                    ((less-or-equal) arm.B.LE)
                    ((greater-or-equal) arm.B.GE)
                    ((unsigned-less) arm.B.HI) ; op1 < op2 === op2 > op1
+                   ((unsigned-greater-or-equal) arm.B.LS) ; op1 >= op2 === op2 <= op1
                    (else (error "bccx: should not happen: branch condition: " condition)))
               L))
 
@@ -660,13 +675,13 @@
                   ;; if any, fits in n bits, and we support only n<=8.
                   (assert (<= 0 src2 255))
                   (arm.CMPI as arm.TMP1 0 src2))))
-          ((eq? condition 'unsigned-less)
+          ((memq condition '(unsigned-less unsigned-greater-or-equal))
            ;; Here we must reverse the operands for the caller to be able to
            ;; use available instructions.  Ergo tricky to use an immediate form.
            (if (not src2-imm?)
                (arm.CMP as src2 r1)
                (begin
-                 (arm.setval as arm.TMP1 imm)
+                 (arm.setval as arm.TMP1 src2)
                  (arm.CMP as arm.TMP1 r1))))
           (else
            ;; TODO: We may be able to use CMN here for negative immediate src2
@@ -969,6 +984,7 @@
 (define arm.B.NE (arm.bcc "B.NE" arm-cond.NE))
 (define arm.B.VC (arm.bcc "B.VC" arm-cond.VC))
 (define arm.B.HI (arm.bcc "B.HI" arm-cond.HI))
+(define arm.B.LS (arm.bcc "B.LS" arm-cond.LS))
 (define arm.B.LT (arm.bcc "B.LT" arm-cond.LT))
 (define arm.B.GT (arm.bcc "B.GT" arm-cond.GT))
 (define arm.B.LE (arm.bcc "B.LE" arm-cond.LE))
@@ -1032,3 +1048,14 @@
 
 (define (arm.VMRS.APSR as)
   (arm.emit-other as (+ #b00001110 arm-cond.AL) #b11110001 #b11111010 #b00010000))
+
+; The features of the code this assembler produces (see
+; Lib/Common/code-features.sch).  The version number in the target
+; changes when the calling convention or the millicode interface does.
+; Both barriers are always emitted.
+
+(define (assembler-lop-features)
+  (make-code-features 'lop
+                      '((target fence-arm 1)
+                        (word-size 32))
+                      '(write-barrier satb-barrier)))

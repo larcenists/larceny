@@ -41,7 +41,50 @@
   (test-odd-even)
   (test-sundry-arithmetic)
   (test-in-out-conversion)
-  (test-trancendental-functions))
+  (test-trancendental-functions)
+  (test-inline-predicates)
+  (if (environment-variable? (interaction-environment) 'fl=)
+      (test-larceny-flonum-procedures)))
+
+; zero?, integer?, exact? and inexact? are in line for fixnums, millicode
+; otherwise, and zero? also as a branch.  The arguments come from a list
+; so that the compiler cannot fold them.
+
+(define (test-inline-predicates)
+
+  (define values
+    (list 0 1 -1 (most-positive-fixnum) (most-negative-fixnum)
+          (+ (most-positive-fixnum) 1) (- (expt 2 100)) 1/2 -3/4
+          0.0 -0.0 1.5 -2.0 +inf.0 +nan.0 (make-rectangular 1 2)
+          (make-rectangular 0.0 0.0)))
+
+  (define (zero-value x) (zero? x))
+  (define (zero-branch x) (if (zero? x) 'yes 'no))
+  (define (not-zero-branch x) (if (not (zero? x)) 'no 'yes))
+
+  (define (reference-zero? x) (= x 0))
+
+  (allof "inline predicates"
+   (test "zero? as a value"
+         (map zero-value values) (map reference-zero? values))
+   (test "zero? as a branch"
+         (map zero-branch values)
+         (map (lambda (x) (if (reference-zero? x) 'yes 'no)) values))
+   (test "not zero? as a branch"
+         (map not-zero-branch values) (map zero-branch values))
+   (test "integer?"
+         (map integer? values)
+         '(#t #t #t #t #t #t #t #f #f #t #t #f #t #f #f #f #f))
+   (test "exact?"
+         (map exact? values)
+         '(#t #t #t #t #t #t #t #t #t #f #f #f #f #f #f #t #f))
+   (test "inexact?"
+         (map inexact? values)
+         '(#f #f #f #f #f #f #f #f #f #t #t #t #t #t #t #f #t))
+   (mustfail "zero? of a symbol" zero-value 'a)
+   (mustfail "zero? branch of a symbol" zero-branch 'a)
+   (mustfail "exact? of a symbol" exact? 'a)
+   (mustfail "inexact? of a string" inexact? "1")))
 
 
 ; NOTE
@@ -61,12 +104,19 @@
   (allof "number fixnum?, bignum?, ratnum?, flonum?, compnum?, rectnum?"
    (test "(rpred 1)" (rpred 1) '(#t #f #f #f #f #f))
    (test "(rpred -1)" (rpred -1) '(#t #f #f #f #f #f))
-   (test "(rpred 536870911)" (rpred 536870911) '(#t #f #f #f #f #f))
-   (test "(rpred -536870912)" (rpred -536870912) '(#t #f #f #f #f #f))
-   (test "(rpred 536870912)" (rpred 536870912) '(#f #t #f #f #f #f))
-   (test "(rpred -536870913)" (rpred -536870913) '(#f #t #f #f #f #f))
-   (test "(rpred 1234567890)" (rpred 1234567890) '(#f #t #f #f #f #f))
-   (test "(rpred -1234567890)" (rpred -1234567890) '(#f #t #f #f #f #f))
+   ; The fixnum range depends on the word size.
+   (test "(rpred (most-positive-fixnum))"
+         (rpred (most-positive-fixnum)) '(#t #f #f #f #f #f))
+   (test "(rpred (most-negative-fixnum))"
+         (rpred (most-negative-fixnum)) '(#t #f #f #f #f #f))
+   (test "(rpred (+ (most-positive-fixnum) 1))"
+         (rpred (+ (most-positive-fixnum) 1)) '(#f #t #f #f #f #f))
+   (test "(rpred (- (most-negative-fixnum) 1))"
+         (rpred (- (most-negative-fixnum) 1)) '(#f #t #f #f #f #f))
+   (test "(rpred 12345678901234567890)"
+         (rpred 12345678901234567890) '(#f #t #f #f #f #f))
+   (test "(rpred -12345678901234567890)"
+         (rpred -12345678901234567890) '(#f #t #f #f #f #f))
    (test "(rpred 1122334455667788990011223344556677889900)"
 	 (rpred 1122334455667788990011223344556677889900)
 	 '(#f #t #f #f #f #f))
@@ -541,8 +591,9 @@
      (test "(= (fxrshl #x44 2) #x11)" (= (fxrshl #x44 2) #x11) #t)
      (test "(= (fxrshl #x44 7) 0)" (= (fxrshl #x44 7) 0) #t)
      (test "(= (fxrsha -1 4) -1)" (= (fxrsha -1 4) -1) #t)
-     (test "(= (fxrshl #x-20000000 4) #x2000000)"
-	   (= (fxrshl #x-20000000 4) #x2000000)
+     (test "(= (fxrshl (most-negative-fixnum) 4) (expt 2 (- w 5)))"
+	   (let ((w (fixnum-width)))
+             (= (fxrshl (most-negative-fixnum) 4) (expt 2 (- w 5))))
 	   #t)))
 
   (test-logand)
@@ -1151,5 +1202,40 @@
      (test "(atan  0.75)"  (atan  0.75)  0.6435011087932844))
 
    ))
+
+; Larceny's fl=, fl<, fl<=, fl>, fl>= and fl-- (native Larceny only;
+; not R6RS's fl=? and the like): primitives in line, procedures as
+; values or with more than two arguments, and errors for non-flonums.
+; They once called themselves forever.
+
+(define (test-larceny-flonum-procedures)
+  (let* ((args (list 1. 2. 2. (/ 0. 0.) 0.))
+         (one (car args))
+         (two (cadr args))
+         (nan (cadddr args))
+         (zero (car (cddddr args)))
+         (procs (list fl= fl< fl<= fl> fl>=)))
+    (allof "Larceny's flonum procedures"
+     (test "in line"
+           (list (fl= one two) (fl< one two) (fl<= two two)
+                 (fl> one two) (fl>= two one))
+           '(#f #t #t #f #t))
+     (test "as values"
+           (map (lambda (p) (p one two)) procs)
+           '(#f #t #t #f #f))
+     (test "more arguments"
+           (list (fl< one two 3.) (fl< one 3. two) (apply fl= args)
+                 (apply fl<= (list one two 2.)))
+           '(#t #f #f #t))
+     (test "NaN"
+           (map (lambda (p) (p nan nan)) procs)
+           '(#f #f #f #f #f))
+     (test "fl--"
+           (list (fl-- one) (eqv? (fl-- zero) -0.) (eqv? (fl-- -0.) 0.))
+           '(-1. #t #t))
+     (mustfail "fl= of a fixnum" fl= 1 two)
+     (mustfail "fl< of a symbol" fl< one 'x)
+     (mustfail "fl>= of a fixnum, more arguments" fl>= two one 0)
+     (mustfail "fl-- of a fixnum" fl-- 3))))
 
 ; eof

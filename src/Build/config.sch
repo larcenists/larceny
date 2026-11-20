@@ -83,6 +83,37 @@
   (define table-objects '())
   (define table-counter 0)
 
+  ;; Output is written to <file>.new, and <file> is replaced only if its
+  ;; contents change, so that files that depend on it (the compiled
+  ;; libraries depend on layouts.sch, for example) are not remade.
+
+  (define pending-outputs '())
+
+  (define (open-new-output-file file)
+    (let ((new (string-append file ".new")))
+      (set! pending-outputs (cons file pending-outputs))
+      (delete-file new)
+      (open-output-file new)))
+
+  (define (file->string fn)
+    (call-with-input-file fn
+      (lambda (in)
+        (let ((out (open-output-string)))
+          (do ((c (read-char in) (read-char in)))
+              ((eof-object? c) (get-output-string out))
+            (write-char c out))))))
+
+  (define (commit-outputs!)
+    (for-each (lambda (file)
+                (let ((new (string-append file ".new")))
+                  (if (and (file-exists? file)
+                           (string=? (file->string file) (file->string new)))
+                      (delete-file new)
+                      (begin (delete-file file)
+                             (rename-file new file)))))
+              pending-outputs)
+    (set! pending-outputs '()))
+
   (define asm-comment-template #f)
   (define asm-define-template #f)
   (define asm-table-generator #f)
@@ -102,7 +133,12 @@
        (set! asm-comment-template "! ~a")
        (set! asm-define-template  "#define ~a ~a~%"))
       ((arm)
-       (set! asm-table-generator arm-table)
+       (set! asm-table-generator
+             (if (= 64 (nbuild-parameter 'word-size)) arm64-table arm-table))
+       (set! asm-comment-template "/* ~a */")
+       (set! asm-define-template  "#define ~a ~a~%"))
+      ((x86-64)
+       (set! asm-table-generator x86-64-table)
        (set! asm-comment-template "/* ~a */")
        (set! asm-define-template  "#define ~a ~a~%"))
       ((x86-nasm x86-sass)
@@ -147,8 +183,7 @@
 			(map (lambda (name define-fmt warning-comment param)
 			       (if name
 				   (let ((file (param-filename param name)))
-                                     (delete-file file)
-                                     (let ((port (open-output-file file)))
+                                     (let ((port (open-new-output-file file)))
                                        (display warning-comment port)
                                        (newline port)
                                        (newline port)
@@ -291,8 +326,7 @@
 
     (define (open-table-output name table comment)
       (let ((name (string-append (nbuild-parameter 'rts) name)))
-        (delete-file name)
-        (let ((port (open-output-file name)))
+        (let ((port (open-new-output-file name)))
           (display comment port)
           (newline port)
           (set! table-objects (cons (the-table port table) table-objects)))))
@@ -429,7 +463,8 @@
 	 (let ((config-info (open-output-files (cdr files))))
 	   (config-loop inp config-info)
 	   (close-input-port inp)
-	   (close-output-files config-info))))))
+	   (close-output-files config-info)
+	   (commit-outputs!))))))
 
   (define (close-output-files info)
     (if (info.c info) (close-output-port (lang.port (info.c info))))
@@ -498,6 +533,75 @@
 
     (define (table-branch name)
       (show `(#\tab "b" #\tab ,name #\newline))
+      1)
+
+    (define (table-footer) #f)
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
+  ;; x86-64 (ELF) globals table.  Millicode entries are pointers to the
+  ;; millicode procedures, called with CALL through the table.
+
+  (define (x86-64-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '(#\tab ".data" #\newline
+	      #\tab ".globl globals" #\newline
+	      #\tab ".p2align 4" #\newline
+	      "globals:" #\newline)))
+
+    (define (table-word value comment)
+      (show `(#\tab ".quad" #\tab ,value #\tab "/* "
+		    ,(or comment "padding") " */"
+		    #\newline)))
+
+    (define (table-branch name)
+      (show `(#\tab ".quad" #\tab ,name #\newline))
+      1)
+
+    (define (table-footer)
+      (show '(#\tab ".section .note.GNU-stack,\"\",@progbits" #\newline)))
+
+    (case op
+      ((heading) table-heading)
+      ((word) table-word)
+      ((branch) table-branch)
+      ((footer) table-footer)
+      (else ???)))
+
+  ;; AArch64 (Mach-O) globals table.  Millicode entries are pointers
+  ;; to the millicode procedures, called with LDR/BLR.
+
+  (define (arm64-table output op)
+
+    (define (show data)
+      (for-each (lambda (x)
+		  (display x output))
+		data))
+
+    (define (table-heading)
+      (show '(#\tab ".data" #\newline
+	      #\tab ".globl _globals" #\newline
+	      #\tab ".p2align 4" #\newline
+	      "_globals:" #\newline)))
+
+    (define (table-word value comment)
+      (show `(#\tab ".quad" #\tab ,value #\tab "/* "
+		    ,(or comment "padding") " */"
+		    #\newline)))
+
+    (define (table-branch name)
+      (show `(#\tab ".quad" #\tab "_" ,name #\newline))
       1)
 
     (define (table-footer) #f)

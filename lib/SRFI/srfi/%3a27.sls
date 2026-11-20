@@ -168,8 +168,11 @@
 (define (mrg32k3a-unpack-state state)
   (list->vector (map inexact->exact (vector->list state))))
 
+; Larceny: the range must not exceed m1 (the modulus of the generator);
+; on 64-bit systems the fixnums are larger than m1.
+
 (define (mrg32k3a-random-range)
-  (most-positive-fixnum))
+  (min (most-positive-fixnum) 4294967087))
 
 ;;; Larceny: in -r7strict mode, (exact 0.0) isn't an integer,
 ;;; which explains the call to round.

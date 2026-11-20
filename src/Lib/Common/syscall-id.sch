@@ -67,5 +67,11 @@
 (define syscall:flonum-fma 56)
 (define syscall:flonum-jn 57)
 (define syscall:flonum-yn 58)
+(define syscall:codevector-install 59)
+(define syscall:bytevector-like-move 60)
+(define syscall:vector-like-move 61)
+(define syscall:vector-like-fill 62)
+(define syscall:vector-like-fill-from-list 63)
+(define syscall:monotonic-ns 64)
 
 ; eof

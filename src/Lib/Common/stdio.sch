@@ -132,25 +132,17 @@
 ;        (error "read-char: too many arguments.")
 ;        #t)))
 
-(define (peek-char . rest)
-  (cond ((null? rest)
-         (io/peek-char (current-input-port)))
-        ((null? (cdr rest))
-         (io/peek-char (car rest)))
-        (else
-         (error "peek-char: too many arguments.")
-         #t)))
+(define peek-char
+  (case-lambda
+   (() (io/peek-char (current-input-port)))
+   ((p) (io/peek-char p))))
 
 ; FIXME:  This no longer works!
 
-(define (char-ready? . rest)
-  (cond ((null? rest)
-         (io/char-ready? (current-input-port)))
-        ((null? (cdr rest))
-         (io/char-ready? (car rest)))
-        (else
-         (error "char-ready?: too many arguments.")
-         #t)))
+(define char-ready?
+  (case-lambda
+   (() (io/char-ready? (current-input-port)))
+   ((p) (io/char-ready? p))))
 
 ;;; New for R7RS.  FIXME: Performance could be improved.
 
@@ -171,7 +163,12 @@
 ;;;     "\r\n"
 ;;;     "\r"
 
-(define (read-line . rest)
+(define read-line
+  (case-lambda
+   (() (read-line:port (current-input-port)))
+   ((p) (read-line:port p))))
+
+(define (read-line:port p)
   (define (loop p chars)
     (let ((c (get-char p)))
       (define (finish c)
@@ -185,53 +182,64 @@
              (finish c))
             ((char=? c #\return)
              (let ((c2 (peek-char p)))
-               (if (char=? c2 #\newline)
+               (if (eqv? c2 #\newline)            ; c2 may be the eof object
                    (get-char p)))
              (finish c))
             (else
              (loop p (cons c chars))))))
-  (loop (if (null? rest) (current-input-port) (car rest))
-        '()))
+  (loop p '()))
 
-(define (read-string k . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
-    (get-string-n p k)))
+(define read-string
+  (case-lambda
+   ((k) (get-string-n (current-input-port) k))
+   ((k p) (get-string-n p k))))
 
-(define (read-u8 . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
-    (get-u8 p)))
+(define read-u8
+  (case-lambda
+   (() (get-u8 (current-input-port)))
+   ((p) (get-u8 p))))
 
-(define (peek-u8 . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
-    (lookahead-u8 p)))
+(define peek-u8
+  (case-lambda
+   (() (lookahead-u8 (current-input-port)))
+   ((p) (lookahead-u8 p))))
 
-(define (u8-ready? . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
-    (io/u8-ready? p)))
+(define u8-ready?
+  (case-lambda
+   (() (io/u8-ready? (current-input-port)))
+   ((p) (io/u8-ready? p))))
 
-(define (write-u8 n . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
-    (put-u8 p n)))
+(define write-u8
+  (case-lambda
+   ((n) (put-u8 (current-output-port) n))
+   ((n p) (put-u8 p n))))
 
-(define (read-bytevector k . rest)
-  (let ((p (if (null? rest) (current-input-port) (car rest))))
-    (get-bytevector-n p k)))
+(define read-bytevector
+  (case-lambda
+   ((k) (get-bytevector-n (current-input-port) k))
+   ((k p) (get-bytevector-n p k))))
 
-(define (read-bytevector! bv . rest)
-  (let* ((p (if (null? rest) (current-input-port) (car rest)))
-         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
-         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
-                  (bytevector-length bv)
-                  (caddr rest))))
-    (get-bytevector-n! p bv start (- end start))))
+(define read-bytevector!
+  (case-lambda
+   ((bv)
+    (get-bytevector-n! (current-input-port) bv 0 (bytevector-length bv)))
+   ((bv p)
+    (get-bytevector-n! p bv 0 (bytevector-length bv)))
+   ((bv p start)
+    (get-bytevector-n! p bv start (- (bytevector-length bv) start)))
+   ((bv p start end)
+    (get-bytevector-n! p bv start (- end start)))))
 
-(define (write-bytevector bv . rest)
-  (let* ((p (if (null? rest) (current-output-port) (car rest)))
-         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
-         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
-                  (bytevector-length bv)
-                  (caddr rest))))
-    (put-bytevector p bv start (- end start))))
+(define write-bytevector
+  (case-lambda
+   ((bv)
+    (put-bytevector (current-output-port) bv 0 (bytevector-length bv)))
+   ((bv p)
+    (put-bytevector p bv 0 (bytevector-length bv)))
+   ((bv p start)
+    (put-bytevector p bv start (- (bytevector-length bv) start)))
+   ((bv p start end)
+    (put-bytevector p bv start (- end start)))))
 
 ; Write-char has been re-coded in MAL for performance; see Lib/malcode.mal.
 ;
@@ -244,27 +252,29 @@
 ;        (error "write-char: too many arguments.")
 ;        #t)))
 
-(define (write-bytevector-like bvl . rest)
-  (if (pair? rest)
-      (if (null? (cdr rest))
-          (io/write-bytevector-like bvl (car rest))
-          (begin (error "write-bytevector-like: too many arguments.")
-                 #t))
-      (io/write-bytevector-like bvl (current-output-port))))
+(define write-bytevector-like
+  (case-lambda
+   ((bvl) (io/write-bytevector-like bvl (current-output-port)))
+   ((bvl p) (io/write-bytevector-like bvl p))))
 
 ;; Simply emits the characters in string to the port.
 
-(define (write-string string . rest)
-  (let* ((n (string-length string))
-         (p (if (null? rest) (current-output-port) (car rest)))
-         (start (if (or (null? rest) (null? (cdr rest))) 0 (cadr rest)))
-         (end (if (or (null? rest) (null? (cdr rest)) (null? (cddr rest)))
-                  n
-                  (caddr rest)))
-         (s (if (and (= start 0) (= end n))
-                string
-                (substring string start end))))
-    (io/write-string s p)))
+(define write-string
+  (case-lambda
+   ((string)
+    (io/write-string string (current-output-port)))
+   ((string p)
+    (io/write-string string p))
+   ((string p start)
+    (write-string:range string p start (string-length string)))
+   ((string p start end)
+    (write-string:range string p start end))))
+
+(define (write-string:range string p start end)
+  (io/write-string (if (and (= start 0) (= end (string-length string)))
+                       string
+                       (substring string start end))
+                   p))
 
 ;;; The R7RS says these next two procedures accept any argument.
 
@@ -377,14 +387,10 @@
          (error "close-output-port: not an output port: " p)
          #t)))
 
-(define (flush-output-port . rest)
-  (cond ((null? rest)
-         (io/flush (current-output-port)))
-        ((null? (cdr rest))
-         (io/flush (car rest)))
-        (else
-         (error "flush-output-port: too many arguments.")
-         #t)))
+(define flush-output-port
+  (case-lambda
+   (() (io/flush (current-output-port)))
+   ((p) (io/flush p))))
 
 (define (call-with-input-file file proc)
   (call-with-port (open-input-file file) proc))

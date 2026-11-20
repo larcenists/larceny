@@ -13,9 +13,9 @@
  * account realloc. --lars)
  */
 
-static int bytes_allocated_by_malloc = 0;
+static size_t bytes_allocated_by_malloc = 0;
 
-void *must_malloc( unsigned bytes )
+void *must_malloc( size_t bytes )
 {
   void *p;
 
@@ -40,7 +40,7 @@ void *must_malloc( unsigned bytes )
 }
 
 
-void *must_realloc( void *ptr, unsigned bytes )
+void *must_realloc( void *ptr, size_t bytes )
 {
   void *p;
 

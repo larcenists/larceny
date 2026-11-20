@@ -16,6 +16,7 @@
 #include "gc_t.h"
 #include "remset_t.h"
 #include "uremset_t.h"
+#include "code-space.h"
 
 typedef struct static_data static_data_t;
 
@@ -27,10 +28,10 @@ struct static_data {
 #define DATA(heap)   ((static_data_t*)(heap->data))
 
 
-static word *allocate( static_heap_t *heap, int nbytes )
+static word *allocate( static_heap_t *heap, s_word nbytes )
 {
   word *p;
-  int nwords;
+  s_word nwords;
   static_data_t *data = DATA(heap);
   semispace_t *ss;
 
@@ -50,7 +51,7 @@ static void reorganize( static_heap_t *heap )
 {
   static_data_t *s_data = DATA(heap);
   semispace_t *text, *data;
-  unsigned textsize, datasize;
+  s_word textsize, datasize;
 
   /* HACK!  We create both semispaces large enough to receive all of
      the data from the current static area.  When just doing a static
@@ -62,13 +63,30 @@ static void reorganize( static_heap_t *heap )
   text = create_semispace( textsize, s_data->gen_no);
   data = create_semispace( datasize, s_data->gen_no);
   gclib_stopcopy_split_heap( heap->collector, data, text );
+#if CODE_SPACE
+  /* On CODE_SPACE systems the text area holds nothing (code lives in
+     the code space, and other bytevectors are data); the code moved by
+     the collection must be adopted. */
+  if (heap->collector->code_space)
+    cs_after_collection( heap->collector->code_space );
+#endif
   if (heap->text_area) ss_free( heap->text_area );
   if (heap->data_area) ss_free( heap->data_area );
   heap->text_area = heap->data_area = 0;
-  ss_shrinkwrap( text ); ss_sync( text );
-  ss_shrinkwrap( data ); ss_sync( data );
-  if (text->used > 0) heap->text_area = text; else ss_free( text );
-  if (data->used > 0) heap->data_area = data; else ss_free( data );
+  ss_sync( text );
+  ss_sync( data );
+  if (text->used > 0) {
+    ss_shrinkwrap( text ); ss_sync( text );
+    heap->text_area = text;
+  }
+  else 
+    ss_free( text );
+  if (data->used > 0) {
+    ss_shrinkwrap( data ); ss_sync( data );
+    heap->data_area = data;
+  }
+  else 
+    ss_free( data );
 }
 
 static void stats( static_heap_t *heap )
@@ -86,13 +104,16 @@ static void stats( static_heap_t *heap )
     ss_sync( heap->data_area );
     s.used += bytes2words(heap->data_area->used);
   }
+#if CODE_SPACE
+  cs_add_stats( heap->collector->code_space, DATA(heap)->gen_no, &s );
+#endif
 
   stats_add_gen_stats( DATA(heap)->self, &s );
   if (heap->collector->gno_count > DATA(heap)->gen_no)
     urs_checkpoint_stats( heap->collector->the_remset, DATA(heap)->gen_no );
 }
 
-static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
+static word *allocate_chunk( semispace_t **space, s_word nbytes, int gen_no )
 {
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
@@ -105,13 +126,13 @@ static word *allocate_chunk( semispace_t **space, int nbytes, int gen_no )
   return (*space)->chunks[ (*space)->current ].bot;
 }
 
-static word *data_load_area( static_heap_t *heap, int nbytes )
+static word *data_load_area( static_heap_t *heap, s_word nbytes )
 {
   heap->allocated += nbytes;
   return allocate_chunk( &heap->data_area, nbytes, DATA(heap)->gen_no );
 }
 
-static word *text_load_area( static_heap_t *heap, int nbytes )
+static word *text_load_area( static_heap_t *heap, s_word nbytes )
 {
   heap->allocated += nbytes;
   return allocate_chunk( &heap->text_area, nbytes, DATA(heap)->gen_no );

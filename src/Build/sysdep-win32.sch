@@ -31,6 +31,11 @@
 
 ; TODO doc
 
+(define (install-executable source-path name target-path)
+  (copy-file/regexp source-path name target-path))
+
+; TODO doc
+
 (define (delete-file/regexp target-path pat)
   (system (string-append "del " (make-filename target-path pat))))
 

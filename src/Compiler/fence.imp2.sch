@@ -59,8 +59,8 @@
 
 ; Parameters.
 
-(define rep:min_fixnum (- (expt 2 29)))
-(define rep:max_fixnum (- (expt 2 29) 1))
+(define rep:min_fixnum (- (expt 2 (if (fixnum? (expt 2 32)) 61 29))))
+(define rep:max_fixnum (- (- rep:min_fixnum) 1))
 (define rep:max_index  (- (expt 2 24) 1))
 
 ; The representations we'll recognize for now.
@@ -294,6 +294,8 @@
      (make-bytevector   (object object)             (bytevector))
      (.bytevector-like-length:bvl (bytevector)      (index))
      (.bytevector-like-ref:trusted (bytevector fixnum) (index))
+     (.bytevector-like-ref32u:trusted (bytevector fixnum) (fixnum))
+     (.bytevector-like-ref32s:trusted (bytevector fixnum) (fixnum))
 
      (make-string       (object object)             (string))
      (.string-length:str (string)                   (index))

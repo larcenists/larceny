@@ -23,7 +23,7 @@
 
 ; FIXME: temporary instrumentation for C <--> Scheme string conversions.
 
-(define **syscall-magic-cookie** (make-vector 50 #f))
+(define **syscall-magic-cookie** (make-vector 64 #f))   ; one per syscall
 
 (define (syscall id . args)
   (cond ((eq? id '**syscall-magic-cookie**)
@@ -78,10 +78,58 @@
   (syscall syscall:gc gen type)
   (unspecified))
 
+;; Copies count bytes of bytevector-like src, starting at byte i, to
+;; bytevector-like dst, starting at byte j, with memmove (the ranges may
+;; overlap).  Trusts its caller: the arguments must be bytevector-like
+;; objects and fixnums with both ranges in bounds.  For fewer than
+;; sys$bytevector-like-move-threshold bytes a loop is faster.
+
+(define (sys$bytevector-like-move! src i dst j count)
+  (%syscall syscall:bytevector-like-move src i dst j count))
+
+(define sys$bytevector-like-move-threshold 8)
+
+;; The bytevector-fill! primitive, inline (Twobit does not inline it in
+;; bytevector.sch, which defines bytevector-fill!).
+
+(define (sys$bytevector-fill! b fill)
+  (bytevector-fill! b fill))
+
+;; Copies count elements of vector-like src, starting at element i, to
+;; vector-like dst, starting at element j, with memmove (the ranges may
+;; overlap), doing the write barrier's work for each slot.  Stores x
+;; into count elements of vector-like dst starting at element j.  Both
+;; trust their caller, as sys$bytevector-like-move! does.
+
+(define (sys$vector-like-move! src i dst j count)
+  (%syscall syscall:vector-like-move src i dst j count))
+
+(define (sys$vector-like-fill! dst j count x)
+  (%syscall syscall:vector-like-fill dst j count x))
+
+;; Stores the cars of the first count pairs of list l into count
+;; elements of vector-like dst starting at element j.  Trusts its
+;; caller: l must have at least count pairs.
+
+(define (sys$vector-like-fill-from-list! dst j count l)
+  (%syscall syscall:vector-like-fill-from-list dst j count l))
+
+(define sys$vector-like-move-threshold 8)
+
 (define (sys$codevector-iflush bv)
   (if (not (bytevector-like? bv))
       (error "sys$codevector-iflush: not a bytevector-like: " bv))
   (syscall syscall:iflush bv))
+
+; Given a bytevector of machine code, returns a code vector that can be
+; stored into slot 0 of a procedure: on systems that keep code in a
+; separate executable space, a copy in that space, and otherwise the
+; argument itself.  Either way the instruction cache has been flushed.
+
+(define (sys$codevector-install bv)
+  (if (not (bytevector? bv))
+      (error "sys$codevector-install: not a bytevector: " bv))
+  (syscall syscall:codevector-install bv))
 
 (define (sys$gcctl heap rator rand)
   (if (not (and (fixnum? heap) (fixnum? rator) (fixnum? rand)))
@@ -166,7 +214,8 @@
          ((2) "X86-NASM")
          ((3) "IAssassin")
          ((4) "CLR")
-         ((5) "ARM")
+	 ((5) "ARM")
+	 ((6) "X86-64")
          (else "Unknown"))))
     ((endian)
      (let ((end (get-feature feature$endianness)))
@@ -233,7 +282,7 @@
                            #f))))
            (vector-set! g i (vector i type size params))))
        (cons (case gc-type
-               ((0) 'stop-and-copy)
+               ((0) 'stop-and-copy) ; was stop+copy
                ((1) 'generational)
                ((2) 'conservative)
                ((3) 'regional)
@@ -449,7 +498,7 @@
            (<= count (bytevector-length bv))
            (or (fixnum? addr)
                (and (bignum? addr)
-                    (<= 0 addr 4294967295))))
+                    (<= 0 addr 18446744073709551615))))
       (syscall syscall:peek-bytes addr bv count)
       (error "peek-bytes: invalid arguments " addr ", " bv ", " count)))
 
@@ -459,7 +508,7 @@
            (<= count (bytevector-length bv))
            (or (fixnum? addr)
                (and (bignum? addr)
-                    (<= 0 addr 4294967295))))
+                    (<= 0 addr 18446744073709551615))))
       (syscall syscall:poke-bytes addr bv count)
       (error "poke-bytes: invalid arguments " addr ", " bv ", " count)))
 

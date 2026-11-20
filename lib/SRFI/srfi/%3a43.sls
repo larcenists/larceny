@@ -86,7 +86,9 @@
           (rnrs lists)
           (rnrs r5rs)
           (srfi :23 error)
-          (srfi :43 vectors helper))
+          (srfi :43 vectors helper)
+          (rename (only (scheme base) vector-copy!)
+                  (vector-copy! r7rs:vector-copy!)))
 
 
 
@@ -381,25 +383,10 @@
 ;;;     assembly can give you for this.
 ;;; I already lambda-lift it by hand, but you should be able to make it
 ;;; even better than that.
-(define %vector-copy!
-  (letrec ((loop/l->r (lambda (target source send i j)
-                        (cond ((< i send)
-                               (vector-set! target j
-                                            (vector-ref source i))
-                               (loop/l->r target source send
-                                          (+ i 1) (+ j 1))))))
-           (loop/r->l (lambda (target source sstart i j)
-                        (cond ((>= i sstart)
-                               (vector-set! target j
-                                            (vector-ref source i))
-                               (loop/r->l target source sstart
-                                          (- i 1) (- j 1)))))))
-    (lambda (target tstart source sstart send)
-      (if (> sstart tstart)             ; Make sure we don't copy over
-                                        ;   ourselves.
-          (loop/l->r target source send sstart tstart)
-          (loop/r->l target source sstart (- send 1)
-                     (+ -1 tstart send (- sstart)))))))
+;;; In Larceny, R7RS vector-copy! is that primitive (memmove for long
+;;; copies, which also handles overlap).
+(define (%vector-copy! target tstart source sstart send)
+  (r7rs:vector-copy! target tstart source sstart send))
 
 ;;; (%VECTOR-REVERSE-COPY! <target> <tstart> <source> <sstart> <send>)
 ;;;   Copy elements from SSTART to SEND from SOURCE to TARGET, in the

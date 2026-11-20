@@ -8,7 +8,7 @@
 #include "larceny.h"
 #include "petit-instr.h"
 
-extern cont_t *twobit_load_table[];
+extern codeptr_t *twobit_load_table[];
 
 void larceny_segment_code_address( word w_id, word w_number )
 {

@@ -18,6 +18,11 @@
 
 ($$trace "flonums-be")
 
+; Byte offset of the IEEE double within a flonum (see flonums-el.sch).
+; The code in this file assumes it is 4 (32-bit words).
+
+(define flonum:o $flonum.data-offset)
+
 ; Create a boxed flonum from a bignum:
 ;   `s' is 0 or 1, a fixnum.
 ;   `m', the mantissa (with the leading 1 present), is a bignum with 

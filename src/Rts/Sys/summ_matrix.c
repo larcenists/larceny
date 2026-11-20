@@ -55,6 +55,7 @@
 #include "static_heap_t.h"
 #include "summary_t.h"
 #include "uremset_t.h"
+#include "card.h"
 
 #define DEFAULT_OBJS_POOL_SIZE 2048 /* 2K elements = 8KB */
 #define DEFAULT_LOCS_POOL_SIZE 2048 /* 2K elements = 8KB */
@@ -1883,7 +1884,7 @@ static void col_print_ptr( summ_matrix_t *summ, summ_col_t *col )
     for( objs = cell->objects; objs != NULL; objs = objs->next ) {
       word *wptr;
       for( wptr = objs->bot; wptr < objs->top; wptr++ ) {
-        printf("0x%08x (%d) ", *wptr, gen_of(*wptr));
+        printf("0x%08" PRIxWORD " (%d) ", *wptr, gen_of(*wptr));
       }
     }
     cell = cell->next_col;
@@ -1902,12 +1903,12 @@ static void oflo_check_loc( summ_matrix_t *summ,
 static void incr_size_and_oflo_check( summ_matrix_t *summ, int tgno, word w,
                                       void (*incr_words)( summ_col_t *c, int dw ))
 {
-  int word_count;
+  int word_count;   /* < 2^31: see LARGEST_OBJECT */
   summ_col_t *col = DATA(summ)->cols[tgno];
   if (tagof(w) == PAIR_TAG) {
     word_count = 2;
   } else {
-    word_count = sizefield( *ptrof(w) ) / sizeof(word);
+    word_count = (int)(sizefield( *ptrof(w) ) / sizeof(word));
   }
 
   incr_words( col, word_count );
@@ -2115,7 +2116,7 @@ EXPORT void sm_add_ssb_elems_to_summary( summ_matrix_t *summ, word *bot, word *t
       assert( 1 == ((top - q) % 2));
       w = *q;
       if (! is_fixnum(w)) {
-        consolemsg("non-fixnum: 0x%08x at q: 0x%08x p: 0x%08x (q-p):%d (top-q):%d", w, q, p, (q-p), (top-q));
+        consolemsg("non-fixnum: 0x%08" PRIxWORD " at q: %p p: %p (q-p):%ld (top-q):%ld", w, q, p, (q-p), (top-q));
       }
       assert( 1 == ((top - q) % 2));
       assert(is_fixnum(w));
@@ -2156,6 +2157,43 @@ static void bump_incoming_words( summ_matrix_t *summ, int gen )
 }
 
 
+/* Summarizes the slot of the vector or procedure ptr (in mygen) at
+   loc, offset bytes from its header; returns whether it points into
+   another generation.  */
+static bool summarize_slot( remset_summary_data_t *remsum, word ptr, int mygen,
+                            word *loc, s_word offset, bool *do_enqueue,
+                            bool *keep_in_remembered_set )
+{
+  static const bool instrumented = FALSE;
+
+  if (isptr(*loc)) {
+    int gen = gen_of(*loc);
+    assert2( gen >= 0 );
+    if (instrumented) 
+      annoyingmsg("scan_object_for_remset_summary "
+                  "vecproc 0x%08" PRIxWORD " (%d) : 0x%08" PRIxWORD " (%d)", 
+                  ptr, gen_of(ptr), *loc, gen);
+    if (mygen != gen) {
+#if SUMMARIZE_KILLS_RS_ENTRIES
+      if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
+        *keep_in_remembered_set = TRUE;
+      }
+#endif
+      if ( gc_region_group_for_gno( remsum->summ->collector, gen )
+           == region_group_summzing ) {
+        loc_t loc;
+        *do_enqueue = TRUE;
+        loc = make_loc( ptr, offset );
+        add_loc_to_sum_array( remsum->summ, 
+                              gen, loc, mygen, incr_ctxt_sm );
+      }
+      bump_incoming_words( remsum->summ, gen );
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 static bool scan_object_for_remset_summary( word ptr, void *data )
 {
   word *loc = ptrof(ptr);
@@ -2163,9 +2201,8 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
   bool do_enqueue = FALSE;
   remset_summary_data_t *remsum = (remset_summary_data_t*)data;
   int mygen = gen_of(ptr); 
-#if SUMMARIZE_KILLS_RS_ENTRIES
   bool keep_in_remembered_set = FALSE;
-#endif
+  card_table_t *ct;
   /* XXX fixme: the way remset's are scanned, we should not need to reextract this */
 
   static const bool instrumented = FALSE;
@@ -2185,7 +2222,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
       int gen = gen_of(*loc);
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
-                    "pair 0x%08x (%d) car: 0x%08d (%d)", 
+                    "pair 0x%08" PRIxWORD " (%d) car: 0x%08" PRIdWORD " (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2212,7 +2249,7 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
       assert( gen >= 0 );
       if (instrumented) 
         annoyingmsg("scan_object_for_remset_summary "
-                    "pair 0x%08x (%d) cdr: 0x%08d (%d)", 
+                    "pair 0x%08" PRIxWORD " (%d) cdr: 0x%08" PRIdWORD " (%d)", 
                     ptr, gen_of(ptr), *loc, gen);
       if (mygen != gen) {
 #if SUMMARIZE_KILLS_RS_ENTRIES
@@ -2233,40 +2270,76 @@ static bool scan_object_for_remset_summary( word ptr, void *data )
       }
     }
     scanned = 2;
+  } else if (card_eligible( ptr ) && (ct = card_table_of( loc )) != 0) {
+    /* A large vector with a card table: only the cards with their
+       across bits set can point into other generations (card.h).
+       Scan those and clear the bits of the ones that do not.  */
+    word *slots = loc + 1;
+    word words = sizefield( *loc ) / sizeof(word);
+    word nwords = card_nwords( ct );
+    word *across = card_across_bits( ct );
+    word i, b, j;
+#if CARD_CHECK_ACROSS
+    { /* Summarization also runs between collections (from
+         incremental_rgnl), when the SSBs may hold writes to ptr whose
+         cards are not yet marked; count those cards as marked.  */
+      gc_t *gc = remsum->summ->collector;
+      word *expected = (word*)must_malloc( nwords*sizeof( word ) );
+      int g;
+      word *q;
+
+      memcpy( expected, across, nwords*sizeof( word ) );
+      for ( g = 0 ; g < gc->gno_count ; g++ )
+        for ( q = *gc->ssb[g]->bot ; q+1 < *gc->ssb[g]->top ; q += 2 )
+          if (*q == ptr) {
+            word c = (*(q+1) - sizeof(word)) / CARD_BYTES;
+            if (*(q+1) < sizeof(word) || c >= ct->cards)
+              memset( expected, 0xFF, nwords*sizeof( word ) );
+            else
+              expected[ c / CARD_BITS_PER_WORD ]
+                |= (word)1 << (c % CARD_BITS_PER_WORD);
+          }
+      card_check_across( ptr, ct, expected,
+                         (gc->static_area
+                          ? gc->static_area->data_area->gen_no : -1),
+                         "summarization" );
+      free( expected );
+    }
+#endif
+
+    for ( i = 0 ; i < nwords ; i++ ) {
+      word bits = across[i];
+      if (bits == 0) continue;
+      for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
+        word card = i*CARD_BITS_PER_WORD + b;
+        word lim;
+        bool points_across = FALSE;
+
+        if ((bits & ((word)1 << b)) == 0 || card >= ct->cards) continue;
+        lim = (card+1)*CARD_WORDS;
+        if (lim > words) lim = words;
+        for ( j = card*CARD_WORDS ; j < lim ; j++ )
+          if (summarize_slot( remsum, ptr, mygen, slots+j,
+                              (j+1)*sizeof(word),
+                              &do_enqueue, &keep_in_remembered_set ))
+            points_across = TRUE;
+        if (! points_across)
+          across[i] &= ~((word)1 << b);
+        scanned += lim - card*CARD_WORDS;
+      }
+    }
   } else { /* vector or procedure */
     word words;
-    int offset;
+    s_word offset;
     assert( (tagof(ptr) == VEC_TAG) || (tagof(ptr) == PROC_TAG) );
-    words = sizefield( *loc ) / 4;
+    words = sizefield( *loc ) / sizeof(word);
     scanned = words;
     offset = 0;
     while (words--) {
       ++loc;
       offset += sizeof(word);
-      if (isptr(*loc)) {
-        int gen = gen_of(*loc);
-        assert2( gen >= 0 );
-        if (instrumented) 
-          annoyingmsg("scan_object_for_remset_summary "
-                      "vecproc 0x%08x (%d) : 0x%08x (%d)", 
-                      ptr, gen_of(ptr), *loc, gen);
-        if (mygen != gen) {
-#if SUMMARIZE_KILLS_RS_ENTRIES
-          if (! gc_is_nonmoving( remsum->summ->collector, gen )) {
-            keep_in_remembered_set = TRUE;
-          }
-#endif
-          if ( gc_region_group_for_gno( remsum->summ->collector, gen )
-               == region_group_summzing ) {
-            loc_t loc;
-            do_enqueue = TRUE;
-            loc = make_loc( ptr, offset );
-            add_loc_to_sum_array( remsum->summ, 
-                                  gen, loc, mygen, incr_ctxt_sm );
-          }
-          bump_incoming_words( remsum->summ, gen );
-        }
-      }
+      summarize_slot( remsum, ptr, mygen, loc, offset,
+                      &do_enqueue, &keep_in_remembered_set );
     }
   }
   
@@ -2868,7 +2941,7 @@ struct verify_summaries_msgc_fcn_data {
   locset_t **summaries;
 };
 
-static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset, 
+static void* verify_summaries_msgc_fcn( word obj, word src, s_word byte_offset, 
                                         void *my_data )
 {
   struct verify_summaries_msgc_fcn_data *data =
@@ -2893,10 +2966,10 @@ static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset,
         loc = make_loc( src, byte_offset );
         assert2( byte_offset < 0 || ((byte_offset % sizeof(word)) == 0));
         if ( summaries[ tgt_gen ] == NULL ) {
-          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn  null summ[i=%d]: src: 0x%08" PRIxWORD " (%d) obj: 0x%08" PRIxWORD " (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
-          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn notin summ[i=%d]: src: 0x%08" PRIxWORD "[%" PRIdWORD "] (%d) obj: 0x%08" PRIxWORD " (%d)",
                     tgt_gen, src, byte_offset, src_gen, obj, tgt_gen );
         }
         assert( summaries[ tgt_gen ] != NULL );
@@ -2913,10 +2986,10 @@ static void* verify_summaries_msgc_fcn( word obj, word src, int byte_offset,
         loc_t loc;
         loc = make_loc( src, byte_offset );
         if ( summaries[ tgt_gen ] == NULL ) {
-          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08x (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn  null zing[i=%d]: src: 0x%08" PRIxWORD " (%d) obj: 0x%08" PRIxWORD " (%d)",
                      tgt_gen, src, src_gen, obj, tgt_gen );
         } else if ( ! ls_ismember_loc( summaries[ tgt_gen ], loc )) {
-          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08x[%d] (%d) obj: 0x%08x (%d)",
+          assertmsg("verify_summaries_msgc_fcn notin zing[i=%d]: src: 0x%08" PRIxWORD "[%" PRIdWORD "] (%d) obj: 0x%08" PRIxWORD " (%d)",
                     tgt_gen, src, byte_offset, src_gen, obj, tgt_gen );
         }
         assert( summaries[ tgt_gen ] != NULL );
@@ -2944,7 +3017,7 @@ static bool msvfy_object_marked_p( msgc_context_t *c, word x ) {
 static void msvfy_set_object_visitor( msgc_context_t *c, 
                                       void* (*visitor)( word obj, 
                                                         word src,
-                                                        int offset, 
+                                                        s_word offset, 
                                                         void *data ), 
                                       void *data ) {
   msgc_set_object_visitor( c, visitor, data );
@@ -2990,7 +3063,7 @@ static bool verify_summaries_locset_fcn( loc_t loc, void *the_data )
   if ( msvfy_object_marked_p( data->conserv_context, obj ) &&
        ( gen_of(obj) != data->summary_for_region )) {
   } else {
-    consolemsg(  "VERIFY SUMM REMS 0x%08x (%d) "
+    consolemsg(  "VERIFY SUMM REMS 0x%08" PRIxWORD " (%d) "
                  "marked {agg: %s, con: %s, rs[%d]: %s, smircy: %s}", 
                  obj, gen_of(obj), 
                  msvfy_object_marked_p( data->aggress_context, obj )?"Y":"N", 
@@ -4094,7 +4167,7 @@ static bool region_summarizing_curr( summ_matrix_t *summ, int gno )
  * keep transient table that maps (SZED u SZING) -> [Maybe Cell].
  */
 EXPORT void sm_points_across_callback( summ_matrix_t *summ, 
-                                       word lhs, int offset, int g_rhs )
+                                       word lhs, s_word offset, int g_rhs )
 {
 
   /* Below condition is subtle.

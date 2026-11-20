@@ -8,8 +8,12 @@
                        letrec-syntax)
                run expand)
           (for (rnrs lists) run expand)
-          (for (only (rnrs syntax-case) quasisyntax unsyntax) run expand)
-          (err5rs records procedural))
+          (for (only (rnrs syntax-case)
+                     quasisyntax unsyntax generate-temporaries)
+               run expand)
+          (err5rs records procedural)
+          (primitives record-ref:bummed record-set!:bummed
+                      record:inline-hierarchy-vector))
 
   (define-syntax define-record-type
     (syntax-rules ()
@@ -45,16 +49,42 @@
                   (else
                    (datum->syntax tname x))))
 
-          #`(#,(frob #'define-record-type-helper)
-             #,(frob tname)
-             #,(frob fields)
-             #,(frob parent)
-             #,(if constructor-args
-                   (list (frob constructor-name) (frob constructor-args))
-                   (frob constructor-name))
-             #,(frob predicate-name)
-             #,(frob accessor-fields)
-             #,(frob mutator-fields))))
+          ;; Without a parent, the field indexes are known here, and
+          ;; the accessors and mutators are open-coded: each is a macro
+          ;; that expands a call into record-ref:bummed (or
+          ;; record-set!:bummed, Compiler/common.imp.sch), and any other
+          ;; reference into the procedure, which gets a name of its own,
+          ;; as does the hierarchy vector the expansion compares with.
+          ;; Each entry of accessor-fields and mutator-fields then has
+          ;; the index of the field and those two names added.
+
+          (define (add-names entries)
+            (map (lambda (entry)
+                   (append entry (generate-temporaries '(proc hvec))))
+                 entries))
+
+          (if (eq? parent #f)
+              #`(#,(frob #'define-record-type-helper/inline)
+                 #,(frob tname)
+                 #,(frob fields)
+                 #,(if constructor-args
+                       (list (frob constructor-name) (frob constructor-args))
+                       (frob constructor-name))
+                 #,(frob predicate-name)
+                 #,(add-names (frob accessor-fields))
+                 #,(add-names (frob mutator-fields)))
+              #`(#,(frob #'define-record-type-helper)
+                 #,(frob tname)
+                 #,(frob fields)
+                 #,(frob parent)
+                 #,(if constructor-args
+                       (list (frob constructor-name) (frob constructor-args))
+                       (frob constructor-name))
+                 #,(frob predicate-name)
+                 #,(frob (map (lambda (x) (list (car x) (cadr x)))
+                              accessor-fields))
+                 #,(frob (map (lambda (x) (list (car x) (cadr x)))
+                              mutator-fields))))))
 
       ; Searches for a clause beginning with the given symbol,
       ; returning the entire clause (as a syntax object) if found
@@ -212,29 +242,39 @@
                                        field-name)))
                              field-specs)))
   
+               ;; The index of each field within the record (after the
+               ;; hierarchy vector in slot 0), for a type without a parent.
+
+               (indexed-specs
+                (let loop ((specs field-specs) (i 1))
+                  (if (null? specs)
+                      '()
+                      (cons (cons i (car specs))
+                            (loop (cdr specs) (+ i 1))))))
+
                ;; accessor-fields is a list of lists of these forms:
-               ;;     (<symbol> <identifier>)
-               ;;     (<identifier> <identifier>)
+               ;;     (<symbol> <identifier> <index>)
+               ;;     (<identifier> <identifier> <index>)
                ;; where the first element of each list names an accessor
 
                (accessor-fields
                 (map (lambda (x)
-                       (let ((x (syntax-list x)))
-                         (list (caddr x) (cadr x))))
-                     (filter (lambda (x) (>= (length (syntax-list x)) 3))
-                             field-specs)))
+                       (let ((i (car x)) (x (syntax-list (cdr x))))
+                         (list (caddr x) (cadr x) i)))
+                     (filter (lambda (x) (>= (length (syntax-list (cdr x))) 3))
+                             indexed-specs)))
   
                ;; mutator-fields is a list of lists of these forms:
-               ;;     (<symbol> <identifier>)
-               ;;     (<identifier> <identifier>)
+               ;;     (<symbol> <identifier> <index>)
+               ;;     (<identifier> <identifier> <index>)
                ;; where the first element of each list names a mutator
 
                (mutator-fields
                 (map (lambda (x)
-                       (let ((x (syntax-list x)))
-                         (list (cadddr x) (cadr x))))
-                     (filter (lambda (x) (= (length (syntax-list x)) 4))
-                             field-specs))))
+                       (let ((i (car x)) (x (syntax-list (cdr x))))
+                         (list (cadddr x) (cadr x) i)))
+                     (filter (lambda (x) (= (length (syntax-list (cdr x))) 4))
+                             indexed-specs))))
   
           (construct-record-type-definition
            #'tname
@@ -280,5 +320,42 @@
              ...
              (define mutator (rtd-mutator type-name 'mutable-field))
              ...))))
+
+  ;; A record type without a parent: as define-record-type-helper, with
+  ;; the accessors and mutators open-coded (see above).  The hierarchy
+  ;; vector of the type is depth 1, and record:inline-hierarchy-vector
+  ;; (Lib/Common/record.sch) checks that and the index of each field.
+
+  (define-syntax define-record-type-helper/inline
+    (syntax-rules ()
+     ((_ type-name fields constructor predicate
+         ((accessor field i proc hvec) ...)
+         ((mutator mfield mi mproc mhvec) ...))
+      (begin
+       (define-record-type-helper
+        type-name fields #f constructor predicate
+        ((proc field) ...) ((mproc mfield) ...))
+       (define hvec (record:inline-hierarchy-vector type-name 'field 1 i))
+       ...
+       (define-syntax accessor
+         (lambda (x)
+           (syntax-case x ()
+            ((_ obj)
+             #'(record-ref:bummed obj type-name hvec 1 i))
+            (id
+             (identifier? #'id)
+             #'proc))))
+       ...
+       (define mhvec (record:inline-hierarchy-vector type-name 'mfield 1 mi))
+       ...
+       (define-syntax mutator
+         (lambda (x)
+           (syntax-case x ()
+            ((_ obj val)
+             #'(record-set!:bummed obj type-name mhvec 1 mi val))
+            (id
+             (identifier? #'id)
+             #'mproc))))
+       ...))))
 
   ) ; err5rs records syntactic original

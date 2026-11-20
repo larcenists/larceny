@@ -113,6 +113,8 @@
 ;     get-char    next byte is 13 or greater than 127
 ;     put-char    mainbuf is full or character is non-Ascii
 ;
+; (The mainbuf of a string port is a string; see "String ports".)
+;
 ; For a textual input port, the mainbuf always contains a
 ; sentinel that forces complicated situations to be handled
 ; by out-of-line code.  The other bytes of the mainbuf depend
@@ -138,9 +140,13 @@
 ;         2 means input
 ;         4 means output
 ;         6 means input/output
+;     buffer:
+;         0 means the mainbuf is a bytevector
+;         8 means the mainbuf is a string (string ports)
 
 (define type-mask:binary/textual  1)
 (define type-mask:direction       6)
+(define type-mask:string          8)
 
 (define type:binary               0)
 (define type:textual              1)
@@ -154,6 +160,8 @@
 (define type:textual-output       5)
 (define type:binary-input/output  6)
 (define type:textual-input/output 7)
+(define type:string-input        11)
+(define type:string-output       13)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -175,6 +183,7 @@
 
 (define port.type       0) ; fixnum: see above for encoding
 (define port.mainbuf    1) ; bytevector: Latin-1 or UTF-8 encodings
+                          ; (a string in string ports; see below)
 (define port.mainptr    2) ; nonnegative fixnum: next loc in mainbuf (input)
 (define port.mainlim    3) ; nonnegative fixnum: sentinel in mainbuf (input)
 
@@ -274,6 +283,7 @@
         (output? #f)
         (binary? #f)
         (textual? #f)
+        (string? #f)
         (set-position? #f))
 
     (vector-set! v port.bufmode 'block) ; default buffer mode is block
@@ -287,6 +297,7 @@
         ((output)        (set! output? #t))
         ((text)          (set! textual? #t))
         ((binary)        (set! binary? #t))
+        ((string)        (set! string? #t))
         ((set-position!) (set! set-position? #t))
         ((none)          (vector-set! v port.bufmode 'none))
         ((line)          (vector-set! v port.bufmode 'line))
@@ -315,7 +326,17 @@
                    (error
                     'io/make-port "neither input nor output" rest))))
 
-    (vector-set! v port.mainbuf (make-bytevector port.mainbuf-size))
+    ; A string port's creator stores its string in the mainbuf.
+
+    (if string?
+        (let ((type (vector-ref v port.type)))
+          (if (not (or (fx= type type:textual-input)
+                       (fx= type type:textual-output)))
+              (assertion-violation 'io/make-port "bad string port" rest))
+          (vector-set! v port.type (fxlogior type type-mask:string))))
+
+    (vector-set! v port.mainbuf
+                   (if string? "" (make-bytevector port.mainbuf-size)))
     (vector-set! v port.mainptr 0)
     (vector-set! v port.mainlim 0)
     (vector-set! v port.mainpos 0)
@@ -326,7 +347,7 @@
     (vector-set! v port.state (if binary? 'binary 'textual))
     (vector-set! v port.iodata iodata)
     (vector-set! v port.ioproc ioproc)
-    (vector-set! v port.auxbuf (make-bytevector 4))
+    (vector-set! v port.auxbuf (if string? #f (make-bytevector 4)))
     (vector-set! v port.auxlim 0)
     (vector-set! v port.linesread 0)
     (vector-set! v port.linestart 0)
@@ -341,7 +362,8 @@
     (vector-set! v port.r7rstype (vector-ref v port.type))
 
     (typetag-set! v sys$tag.port-typetag)
-    (io/reset-buffers! v)                     ; inserts sentinel
+    (if (not string?)
+        (io/reset-buffers! v))                ; inserts sentinel
     v))
 
 ; Port? is integrable.
@@ -404,6 +426,8 @@
                      (begin (vector-like-set! p port.mainptr (+ ptr 1))
                             (integer->char unit))
                      (io/get-char p #f))))
+              ((eq? type type:string-input)
+               (io/string-get-char p #f))
               ((eq? type type:binary-input)                 ; FIXME (was io/if)
                (let ((x (io/get-u8 p #f)))
                  (if (eof-object? x)
@@ -427,6 +451,8 @@
                  (if (< unit 128)
                      (integer->char unit)
                      (io/get-char p #t))))
+              ((eq? type type:string-input)
+               (io/string-get-char p #t))
               ((eq? type type:binary-input)                 ; FIXME (was io/if)
                (let ((x (io/get-u8 p #t)))
                  (if (eof-object? x)
@@ -461,6 +487,7 @@
                           'eof)
                      (((vector-like-ref p port.ioproc) 'ready?)
                       (vector-like-ref p port.iodata)))))
+              ((eq? type type:string-input) #t)
               (else #f)))
       (error 'char-ready? (errmsg 'msg:nottextualinput) p)))
 
@@ -498,6 +525,8 @@
                             c p))))
               ((eq? type type:textual-output)
                (io/put-char p c))
+              ((eq? type type:string-output)
+               (io/string-put-char p c))
               (else
                (error 'write-char "not a textual output port" p)
                #t)))
@@ -537,10 +566,13 @@
 ; this should be fast enough for now.
 
 (define (io/write-string s p)
-  (do ((n (string-length s))
-       (i 0 (+ i 1)))
-      ((= i n) (unspecified))
-    (io/write-char (string-ref s i) p)))
+  (let ((n (string-length s)))
+    (if (not (and (io/string-port? p)
+                  (io/put-string-maybe p s 0 n)))
+        (do ((i 0 (+ i 1)))
+            ((= i n))
+          (io/write-char (string-ref s i) p)))
+    (unspecified)))
 
 (define (io/discretionary-flush p)
   (if (and (port? p) (io/output-port? p))
@@ -1007,7 +1039,8 @@
 ;     port-position-in-chars (used by custom ports)
 
 (define (io/port-position p)
-  (if (io/binary-port? p)
+  (if (or (io/binary-port? p)
+          (io/string-port? p))
       (io/port-position-nocache p)
       (let ((posn (io/port-position-nocache p)))
 
@@ -1098,7 +1131,9 @@
 (define (io/set-port-position! p posn)
   (if (io/output-port? p)
       (io/flush p))
-  (cond ((not (and (port? p)
+  (cond ((io/string-port? p)
+         (io/string-set-position! p posn))
+        ((not (and (port? p)
                    (vector-like-ref p port.setposn)))
          (error 'io/set-port-position! (errmsg 'msg:illegalarg1) p posn))
         ((eq? (vector-like-ref p port.state) 'closed)
@@ -1501,10 +1536,14 @@
         (ptr  (vector-like-ref p port.mainptr))
         (lim  (vector-like-ref p port.mainlim)))
     (cond ((not (eq? type type:textual-input))
-           (if (eq? type type:textual-input/output)
-               (io/get-char-input/output p lookahead?)
-               (assertion-violation 'get-char
-                                    "argument not a textual input port" p)))
+           (cond ((eq? type type:string-input)
+                  (io/string-get-char p lookahead?))
+                 ((eq? type type:textual-input/output)
+                  (io/get-char-input/output p lookahead?))
+                 (else
+                  (assertion-violation 'get-char
+                                       "argument not a textual input port"
+                                       p))))
           ((fx< ptr lim)
            (let ((unit (bytevector-ref buf ptr)))
              (cond ((<= unit #x7f)
@@ -1688,6 +1727,8 @@
                           (bytevector-set! buf (+ lim 3) u3)
                           (vector-like-set! p port.mainpos (- pos 3))
                           (vector-like-set! p port.mainlim (+ lim 4)))))))
+              ((eq? type type:string-output)
+               (io/string-put-char p c))
               ((eq? type type:textual-input/output)
                (io/put-char-input/output p c))
               (else
@@ -1869,38 +1910,141 @@
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Handles the common case in which the line is all-Ascii,
-; terminated by a linefeed, and lies entirely within the buffer.
+; Handles the common case in which the line is terminated by a
+; linefeed and lies entirely within the buffer, and is Ascii or valid
+; UTF-8 (for a UTF-8 port) without a #\return, #\x85, or #\x2028.
+; The scan relies on the sentinel at mainbuf[mainlim]: 255 is never
+; part of a UTF-8 character.
+;
+; Like get-char, updates the character position (port.mainpos
+; counts the extra bytes of multibyte characters) and the line count.
 
 (define (io/get-line-maybe p)
   (and (port? p)
        (let ((type (.vector-ref:trusted p port.type))
              (buf  (.vector-ref:trusted p port.mainbuf))
              (ptr  (.vector-ref:trusted p port.mainptr)))
-         (define (loop i)
+         (define (continuation? i)
+           (let ((unit (bytevector-ref buf i)))
+             (and (.<=:fix:fix #x80 unit) (.<=:fix:fix unit #xbf))))
+         ; Returns #f, or the index of the linefeed; n counts characters.
+         (define (scan i n)
            (let ((unit (bytevector-ref buf i)))     ; FIXME: should be trusted
-             (cond ((and (.<:fix:fix 13 unit)       ; 13 = #\return
-                         (.<:fix:fix unit 128))
-                    (loop (.+:idx:idx i 1)))
-                   ((.=:fix:fix 10 unit)            ; 10 = #\linefeed
-                    (let* ((n (.-:idx:idx i ptr))
-                           (s (make-string n)))
-                      (loop2 ptr i s 0)))
+             (cond ((.<:fix:fix unit 128)
+                    (cond ((.=:fix:fix 10 unit)     ; 10 = #\linefeed
+                           (fill ptr i (make-string n) 0))
+                          ((.=:fix:fix 13 unit)     ; 13 = #\return
+                           #f)
+                          (else
+                           (scan (.+:idx:idx i 1) (.+:idx:idx n 1)))))
+                   ((not utf-8?)
+                    #f)
+                   ((.<:fix:fix unit #xc2)           ; not a first byte
+                    #f)
+                   ((.<:fix:fix unit #xe0)
+                    (and (continuation? (.+:idx:idx i 1))
+                         (not (and (.=:fix:fix unit #xc2)    ; #\x85
+                                   (.=:fix:fix (bytevector-ref buf (.+:idx:idx i 1))
+                                               #x85)))
+                         (scan (.+:idx:idx i 2) (.+:idx:idx n 1))))
+                   ((.<:fix:fix unit #xf0)
+                    (let ((unit2 (bytevector-ref buf (.+:idx:idx i 1))))
+                      (and (cond ((.=:fix:fix unit #xe0)
+                                  (and (.<=:fix:fix #xa0 unit2)
+                                       (.<=:fix:fix unit2 #xbf)))
+                                 ((.=:fix:fix unit #xed)    ; surrogates
+                                  (and (.<=:fix:fix #x80 unit2)
+                                       (.<=:fix:fix unit2 #x9f)))
+                                 ((.=:fix:fix unit #xe2)    ; #\x2028
+                                  (and (continuation? (.+:idx:idx i 1))
+                                       (not (and (.=:fix:fix unit2 #x80)
+                                                 (.=:fix:fix
+                                                  (bytevector-ref
+                                                   buf (.+:idx:idx i 2))
+                                                  #xa8)))))
+                                 (else
+                                  (continuation? (.+:idx:idx i 1))))
+                           (continuation? (.+:idx:idx i 2))
+                           (scan (.+:idx:idx i 3) (.+:idx:idx n 1)))))
+                   ((.<:fix:fix unit #xf5)
+                    (let ((unit2 (bytevector-ref buf (.+:idx:idx i 1))))
+                      (and (cond ((.=:fix:fix unit #xf0)
+                                  (and (.<=:fix:fix #x90 unit2)
+                                       (.<=:fix:fix unit2 #xbf)))
+                                 ((.=:fix:fix unit #xf4)
+                                  (and (.<=:fix:fix #x80 unit2)
+                                       (.<=:fix:fix unit2 #x8f)))
+                                 (else
+                                  (continuation? (.+:idx:idx i 1))))
+                           (continuation? (.+:idx:idx i 2))
+                           (continuation? (.+:idx:idx i 3))
+                           (scan (.+:idx:idx i 4) (.+:idx:idx n 1)))))
                    (else #f))))
-         (define (loop2 j k s i)
+         ; Decodes the bytes from j to k (the linefeed) into s.
+         (define (fill j k s i)
            (cond ((.<:fix:fix j k)
-                  (.string-set!:trusted s i (.integer->char:trusted
-                                             (bytevector-ref buf j)))
-                  (loop2 (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
+                  (let ((unit (bytevector-ref buf j)))
+                    (cond ((.<:fix:fix unit 128)
+                           (.string-set!:trusted s i (.integer->char:trusted unit))
+                           (fill (.+:idx:idx j 1) k s (.+:idx:idx i 1)))
+                          ((.<:fix:fix unit #xe0)
+                           (.string-set!:trusted
+                            s i
+                            (.integer->char:trusted
+                             (fxlogior
+                              (fxlsh (fxlogand #x1f unit) 6)
+                              (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 1))))))
+                           (fill (.+:idx:idx j 2) k s (.+:idx:idx i 1)))
+                          ((.<:fix:fix unit #xf0)
+                           (.string-set!:trusted
+                            s i
+                            (.integer->char:trusted
+                             (fxlogior
+                              (fxlsh (fxlogand #x0f unit) 12)
+                              (fxlogior
+                               (fxlsh (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 1)))
+                                      6)
+                               (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 2)))))))
+                           (fill (.+:idx:idx j 3) k s (.+:idx:idx i 1)))
+                          (else
+                           (.string-set!:trusted
+                            s i
+                            (.integer->char:trusted
+                             (fxlogior
+                              (fxlogior
+                               (fxlsh (fxlogand #x07 unit) 18)
+                               (fxlsh (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 1)))
+                                      12))
+                              (fxlogior
+                               (fxlsh (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 2)))
+                                      6)
+                               (fxlogand #x3f (bytevector-ref buf (.+:idx:idx j 3)))))))
+                           (fill (.+:idx:idx j 4) k s (.+:idx:idx i 1))))))
                  (else
-                  (.vector-set!:trusted:nwb p port.mainptr (.+:idx:idx k 1))
-                  s)))
-         (and (eq? type type:textual-input)
-              (not (vector-like-ref p port.wasreturn))
-              (loop ptr)))))
+                  (let* ((extra (.-:idx:idx (.-:idx:idx k ptr) i))
+                         (pos (- (.vector-ref:trusted p port.mainpos) extra))
+                         (ptr (.+:idx:idx k 1)))
+                    (if (not (.=:fix:fix extra 0))
+                        (.vector-set!:trusted p port.mainpos pos))
+                    (.vector-set!:trusted:nwb p port.mainptr ptr)
+                    (.vector-set!:trusted
+                     p port.linesread
+                     (+ (.vector-ref:trusted p port.linesread) 1))
+                    (.vector-set!:trusted p port.linestart (+ pos ptr))
+                    s))))
+         (define utf-8?
+           (.=:fix:fix codec:utf-8
+                       (fxlogand transcoder-mask:codec
+                                 (.vector-ref:trusted p port.transcoder))))
+         (cond ((eq? type type:textual-input)
+                (and (not (vector-like-ref p port.wasreturn))
+                     (scan ptr 0)))
+               ((eq? type type:string-input)
+                (io/string-get-line p))
+               (else #f)))))
 
 ; Handles the common case in which the string is all-Ascii
-; and can be buffered without flushing.
+; and can be buffered without flushing, and string ports.
 
 (define (io/put-string-maybe p s start count)
   (and (port? p)
@@ -1908,6 +2052,7 @@
        (fixnum? start)
        (fixnum? count)
        (.<=:fix:fix 0 start)
+       (.<=:fix:fix 0 count)
        (let ((k (.+:fix:fix start count))
              (n (.string-length:str s))
              (type (.vector-ref:trusted p port.type))
@@ -1925,11 +2070,223 @@
                  (else
                   (.vector-set!:trusted:nwb p port.mainlim j)
                   #t)))
-         (and (.<:fix:fix start n)
-              (<= k n)
-              (eq? type type:textual-output)
-              (.<=:fix:fix (.+:idx:idx lim count) (bytevector-length buf))
-              (loop start lim)))))
+         (and (<= k n)
+              (cond ((eq? type type:textual-output)
+                     (and (.<:fix:fix start n)
+                          (.<=:fix:fix (.+:idx:idx lim count)
+                                       (bytevector-length buf))
+                          (loop start lim)))
+                    ((eq? type type:string-output)
+                     (io/string-put-string p s start k))
+                    (else #f))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; String ports
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The mainbuf of a string port is a string, and its type has the
+; type-mask:string bit, so the paths for bytevector buffers, which
+; test for type:textual-input or type:textual-output, leave string
+; ports to the procedures below.  The in-line get-char, lookahead-char
+; and put-char (Compiler/common.imp.sch) have paths of their own for
+; string ports.  mainpos is always 0, so positions are indexes into
+; the string.
+;
+; A string input port's mainbuf is the string it reads, mainptr the
+; index of the next character, and mainlim the string's length.  It
+; has no sentinel; its eol-style is none, so only a #\linefeed ends
+; a line.
+;
+; A string output port's mainbuf grows as needed, and mainlim is the
+; index where the next character goes.  Since set-port-position! can
+; move mainlim back, the output is as long as the larger of mainlim
+; and mainptr, which set-port-position! sets to the length so far.
+; A #\newline is written in the transcoder's eol-style.
+;
+; The ioproc of a string port is used only for its name and closing.
+
+(define (io/string-port? p)
+  (and (port? p)
+       (fx= type-mask:string
+            (fxlogand type-mask:string (vector-like-ref p port.type)))))
+
+(define (io/string-get-char p lookahead?)
+  (let ((ptr (vector-like-ref p port.mainptr)))
+    (if (fx< ptr (vector-like-ref p port.mainlim))
+        (let ((c (string-ref (vector-like-ref p port.mainbuf) ptr)))
+          (if (not lookahead?)
+              (let ((ptr (fx+ ptr 1)))
+                (vector-like-set! p port.mainptr ptr)
+                (if (char=? c #\linefeed)
+                    (begin
+                     (vector-like-set! p port.linesread
+                                       (+ (vector-like-ref p port.linesread)
+                                          1))
+                     (vector-like-set! p port.linestart ptr)))))
+          c)
+        (eof-object))))
+
+; Returns the characters from mainptr up to k, consuming them and
+; counting their lines.
+
+(define (io/string-take! p k)
+  (let ((s (vector-like-ref p port.mainbuf))
+        (ptr (vector-like-ref p port.mainptr)))
+    (let loop ((i ptr) (lines 0) (start #f))
+      (cond ((fx< i k)
+             (if (char=? (string-ref s i) #\linefeed)
+                 (loop (fx+ i 1) (fx+ lines 1) (fx+ i 1))
+                 (loop (fx+ i 1) lines start)))
+            (else
+             (if start
+                 (begin
+                  (vector-like-set! p port.linesread
+                                    (+ (vector-like-ref p port.linesread)
+                                       lines))
+                  (vector-like-set! p port.linestart start)))
+             (vector-like-set! p port.mainptr k)
+             (substring s ptr k))))))
+
+; get-line: the characters before the next #\linefeed, which is
+; consumed, or the rest of the string.
+
+(define (io/string-get-line p)
+  (let ((s (vector-like-ref p port.mainbuf))
+        (ptr (vector-like-ref p port.mainptr))
+        (lim (vector-like-ref p port.mainlim)))
+    (let loop ((i ptr))
+      (cond ((fx= i lim)
+             (if (fx= ptr lim)
+                 (eof-object)
+                 (io/string-take! p lim)))
+            ((char=? (string-ref s i) #\linefeed)
+             (let ((line (io/string-take! p i)))
+               (io/string-get-char p #f)
+               line))
+            (else
+             (loop (fx+ i 1)))))))
+
+; get-string-n (count) and get-string-all (count #f).
+
+(define (io/string-get-string p count)
+  (let* ((ptr (vector-like-ref p port.mainptr))
+         (lim (vector-like-ref p port.mainlim))
+         (n (if count (min count (fx- lim ptr)) (fx- lim ptr))))
+    (if (and (fx= n 0)
+             (not (eqv? count 0)))
+        (eof-object)
+        (io/string-take! p (fx+ ptr n)))))
+
+; get-string-n!: returns the number of characters read, or the eof
+; object.
+
+(define (io/string-get-string! p s start count)
+  (let* ((ptr (vector-like-ref p port.mainptr))
+         (lim (vector-like-ref p port.mainlim))
+         (n (min count (fx- lim ptr))))
+    (if (and (fx= n 0)
+             (not (fx= count 0)))
+        (eof-object)
+        (let ((chars (io/string-take! p (fx+ ptr n))))
+          (string-copy! s start chars)
+          n))))
+
+; Makes room for n characters in a string output port's mainbuf.
+
+(define (io/string-room! p n)
+  (let* ((s (vector-like-ref p port.mainbuf))
+         (len (string-length s)))
+    (if (fx< len n)
+        (let ((s2 (make-string (max n (* 2 len)))))
+          (string-copy! s2 0 s 0 len)
+          (vector-like-set! p port.mainbuf s2)))))
+
+(define (io/string-put-char p c)
+  (let ((s (vector-like-ref p port.mainbuf))
+        (lim (vector-like-ref p port.mainlim)))
+    (cond ((and (char=? c #\newline)
+                (io/string-eol p))
+           => (lambda (eol)
+                (io/string-append! p eol 0 (string-length eol))))
+          ((fx< lim (string-length s))
+           (string-set! s lim c)
+           (vector-like-set! p port.mainlim (fx+ lim 1)))
+          (else
+           (io/string-room! p (fx+ lim 1))
+           (io/string-put-char p c)))
+    (unspecified)))
+
+; The characters that write a #\newline, or #f if it is written as
+; itself.
+
+(define (io/string-eol p)
+  (let ((eolstyle (fxlogand transcoder-mask:eolstyle
+                            (vector-like-ref p port.transcoder))))
+    (cond ((or (fx= eolstyle eolstyle:none)
+               (fx= eolstyle eolstyle:lf))
+           #f)
+          ; (No lexical syntax for non-Ascii characters: the build may be
+          ; hosted by a Scheme that reads it differently.)
+          ((fx= eolstyle eolstyle:cr)    "\r")
+          ((fx= eolstyle eolstyle:crlf)  "\r\n")
+          ((fx= eolstyle eolstyle:nel)   (string (integer->char #x85)))
+          ((fx= eolstyle eolstyle:crnel) (string #\return (integer->char #x85)))
+          ((fx= eolstyle eolstyle:ls)    (string (integer->char #x2028)))
+          (else
+           (assertion-violation 'put-char "internal error" p)))))
+
+; Writes s[start..end); returns #f, having written nothing, if that
+; contains a #\newline that is not written as itself.
+
+(define (io/string-put-string p s start end)
+  (and (or (not (io/string-eol p))
+           (let loop ((i start))
+             (or (fx= i end)
+                 (and (not (char=? (string-ref s i) #\newline))
+                      (loop (fx+ i 1))))))
+       (begin (io/string-append! p s start end)
+              #t)))
+
+(define (io/string-append! p s start end)
+  (let* ((lim (vector-like-ref p port.mainlim))
+         (lim2 (fx+ lim (fx- end start))))
+    (io/string-room! p lim2)
+    (string-copy! (vector-like-ref p port.mainbuf) lim s start end)
+    (vector-like-set! p port.mainlim lim2)))
+
+; The characters written to a string output port, and forgetting them.
+
+(define (io/string-output p)
+  (substring (vector-like-ref p port.mainbuf)
+             0
+             (max (vector-like-ref p port.mainptr)
+                  (vector-like-ref p port.mainlim))))
+
+(define (io/string-output-reset! p)
+  (vector-like-set! p port.mainptr 0)
+  (vector-like-set! p port.mainlim 0))
+
+; A position is an index from 0 to the string's length (input), or
+; to the length of the output so far (output).
+
+(define (io/string-set-position! p posn)
+  (let* ((input? (io/input-port? p))
+         (n (if input?
+                (vector-like-ref p port.mainlim)
+                (max (vector-like-ref p port.mainptr)
+                     (vector-like-ref p port.mainlim)))))
+    (if (not (and (fixnum? posn) (fx<= 0 posn) (fx<= posn n)))
+        (raise-r6rs-exception (make-i/o-invalid-position-error posn)
+                              'set-port-position!
+                              (errmsg 'msg:illegalarg2)
+                              (list p posn)))
+    (if input?
+        (vector-like-set! p port.mainptr posn)
+        (begin (vector-like-set! p port.mainptr n)
+               (vector-like-set! p port.mainlim posn)))
+    (unspecified)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -2000,7 +2357,8 @@
 
 (define (io/flush-buffer p)
   (let ((wr-ptr (vector-like-ref p port.mainlim)))
-    (if (> wr-ptr 0)
+    (if (and (> wr-ptr 0)
+             (not (eq? (vector-like-ref p port.type) type:string-output)))
         (let ((r (((vector-like-ref p port.ioproc) 'write)
                   (vector-like-ref p port.iodata)
                   (vector-like-ref p port.mainbuf)
@@ -2049,7 +2407,11 @@
   (vector-like-set! p port.mainlim 0)
   (vector-like-set! p port.auxptr 0)
   (vector-like-set! p port.auxlim 0)
-  (bytevector-set! (vector-like-ref p port.mainbuf) 0 port.sentinel)
+  (let ((buf (vector-like-ref p port.mainbuf)))
+    (if (bytevector? buf)
+        (bytevector-set! buf 0 port.sentinel)
+        ; Only closing resets a string port's buffers.
+        (vector-like-set! p port.mainbuf (make-bytevector 1 port.sentinel))))
   (case (vector-like-ref p port.state)
    ((auxstart auxend)
     (vector-like-set! p port.state 'textual))))
@@ -2258,10 +2620,19 @@
 
 (define (io/get-char-utf-8 p lookahead? unit buf ptr lim)
 
-  (define (decoding-error units)
-    (for-each (lambda (x) (io/consume-byte! p)) units)
+  ; Consumes the first k units, the maximal subpart of a character
+  ; (as in Unicode 6.0 chapter 3, U+FFFD substitution), but not the
+  ; unit that shows the sequence is invalid, which may begin the next
+  ; character; units, for the error message, includes that one.
+  ; A lookahead in replace mode consumes nothing.
+
+  (define (decoding-error k units)
     (let* ((transcoder (vector-like-ref p port.transcoder))
            (errmode (fxlogand transcoder-mask:errmode transcoder)))
+      (if (not (and lookahead? (fx= errmode errmode:replace)))
+          (do ((k k (fx- k 1)))
+              ((fx= k 0))
+            (io/consume-byte! p)))
       (cond ((fx= errmode errmode:replace)
              (integer->char #xfffd))
             ((fx= errmode errmode:ignore)
@@ -2276,7 +2647,32 @@
                                      units))))))
 
   ; Forces at least one more byte into the active buffer,
-  ; and retries.
+  ; and retries.  The active buffer ends with a valid prefix of a
+  ; character, so its units are pending; if end of file comes before
+  ; the rest of the character, they are a decoding error.  The eof
+  ; state discards the buffers, so a lookahead that replaces them with
+  ; #\xfffd puts them back for the next get-char to find again.
+
+  (define (fill-buffer-and-retry! pending)
+    (io/fill-buffer! p)
+    (if (eq? 'eof (vector-like-ref p port.state))
+        (let ((errmode (fxlogand transcoder-mask:errmode
+                                 (vector-like-ref p port.transcoder)))
+              (k (bytevector-length pending))
+              (mainbuf (vector-like-ref p port.mainbuf)))
+          (if (and lookahead? (fx= errmode errmode:replace))
+              (begin (r6rs:bytevector-copy! pending 0 mainbuf 0 k)
+                     (bytevector-set! mainbuf k port.sentinel)
+                     (vector-like-set! p port.mainptr 0)
+                     (vector-like-set! p port.mainlim k)
+                     (vector-like-set! p port.state 'textual)))
+          (decoding-error 0 (bytevector->list pending)))
+        (io/get-char p lookahead?)))
+
+  (define (pending-units bv k)
+    (let ((pending (make-bytevector k)))
+      (r6rs:bytevector-copy! bv 0 pending 0 k)
+      pending))
 
   (define (read-more-bytes)
     (let* ((state (vector-like-ref p port.state))
@@ -2319,13 +2715,18 @@
         (vector-like-set! p port.mainlim 0)
         (vector-like-set! p port.auxptr 0)
         (vector-like-set! p port.auxlim m)
-        (io/fill-buffer! p)
-        (io/get-char p lookahead?))
+        (fill-buffer-and-retry! (pending-units auxbuf m)))
 
        ((auxstart)
         (assert (eq? buf auxbuf))
-        (assert (fx= 0 auxptr))
         (assert (fx< n 4))
+
+        ; A decoding error may have consumed the start of auxbuf.
+
+        (if (fx< 0 auxptr)
+            (begin (r6rs:bytevector-copy! auxbuf auxptr auxbuf 0 n)
+                   (vector-like-set! p port.auxptr 0)
+                   (vector-like-set! p port.auxlim n)))
         (if (fx>= m 2)
             (begin
 
@@ -2333,15 +2734,13 @@
              ; and move mainbuf down by 1.
              ; FIXME:  This is grossly inefficient, but works for now.
 
-             (bytevector-set! auxbuf auxlim (bytevector-ref mainbuf 1))
+             (bytevector-set! auxbuf n (bytevector-ref mainbuf 1))
              (r6rs:bytevector-copy! mainbuf 2 mainbuf 1 (- m 2))
              (vector-like-set! p port.mainlim (- mainlim 1))
-             (vector-like-set! p port.auxlim (+ auxlim 1))
+             (vector-like-set! p port.auxlim (+ n 1))
              (io/get-char p lookahead?))
 
-            (begin
-             (io/fill-buffer! p)
-             (io/get-char p lookahead?))))
+            (fill-buffer-and-retry! (pending-units auxbuf n))))
 
        (else
         ; state is closed, error, eof, or binary
@@ -2366,74 +2765,49 @@
      (else
       (integer->char sv))))
 
-  (define (decode2) ; decodes 2 bytes
-    (let ((unit2 (bytevector-ref buf (+ ptr 1))))
-      (if (<= #x80 unit2 #xbf)
-          (finish 2
-                  (fxlogior
-                   (fxlsh (fxlogand #b00011111 unit) 6)
-                   (fxlogand #b00111111 (bytevector-ref buf (+ ptr 1)))))
-          (decoding-error (list unit unit2)))))
+  ; Is u a valid second unit after the first unit?
 
-  (define (decode3) ; decodes 3 bytes
-    (let ((unit2 (bytevector-ref buf (+ ptr 1)))
-          (unit3 (bytevector-ref buf (+ ptr 2))))
-      (cond ((or (and (fx= unit #xe0)
-                      (fx< unit2 #xa0))
-                 (not (<= #x80 unit2 #xbf)))
-             (decoding-error (list unit unit2)))
-            ((not (<= #x80 unit3 #xbf))
-             (decoding-error (list unit unit2 unit3)))
-            (else
-             (finish 3
-                     (fxlogior
-                      (fxlsh (fxlogand #b00001111 unit) 12)
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f unit2) 6)
-                       (fxlogand #x3f unit3))))))))
+  (define (valid-second? u)
+    (cond ((fx= unit #xe0) (<= #xa0 u #xbf))
+          ((fx= unit #xed) (<= #x80 u #x9f))          ; not a surrogate
+          ((fx= unit #xf0) (<= #x90 u #xbf))
+          ((fx= unit #xf4) (<= #x80 u #x8f))
+          (else (<= #x80 u #xbf))))
 
-  (define (decode4) ; decodes 4 bytes
-    (let ((unit2 (bytevector-ref buf (+ ptr 1)))
-          (unit3 (bytevector-ref buf (+ ptr 2)))
-          (unit4 (bytevector-ref buf (+ ptr 3))))
-      (cond ((or (and (fx= unit #xf0)
-                      (fx< unit2 #x90))
-                 (and (fx= unit #xf4)
-                      (fx> unit2 #x8f))
-                 (not (<= #x80 unit2 #xbf)))
-             (decoding-error (list unit unit2)))
-            ((not (<= #x80 unit3 #xbf))
-             (decoding-error (list unit unit2 unit3)))
-            ((not (<= #x80 unit4 #xbf))
-             (decoding-error (list unit unit2 unit3 unit4)))
+  ; Decodes a character of k units, checking each unit as it becomes
+  ; available, so that more bytes are read only after a valid prefix.
+
+  (define (decode k mask)
+    (let loop ((i 1)
+               (sv (fxlogand mask unit)))
+      (cond ((fx= i k)
+             (finish k sv))
+            ((fx= i n)
+             (read-more-bytes))
             (else
-             (finish 4
-                     (fxlogior
-                      (fxlogior
-                       (fxlsh (fxlogand #b00000111 unit) 18)
-                       (fxlsh (fxlogand #x3f unit2) 12))
-                      (fxlogior
-                       (fxlsh (fxlogand #x3f unit3) 6)
-                       (fxlogand #x3f unit4))))))))
+             (let ((u (bytevector-ref buf (+ ptr i))))
+               (if (if (fx= i 1) (valid-second? u) (<= #x80 u #xbf))
+                   (loop (fx+ i 1)
+                         (fxlogior (fxlsh sv 6) (fxlogand #x3f u)))
+                   (decoding-error
+                    i
+                    (do ((j i (fx- j 1))
+                         (units '() (cons (bytevector-ref buf (+ ptr j))
+                                          units)))
+                        ((fx< j 0) units)))))))))
 
   (define n (- lim ptr))
 
-  (cond ((< n 2)
-         (read-more-bytes))
-        ((<= unit #xc1)
-         (decoding-error (list unit)))
+  (cond ((<= unit #xc1)
+         (decoding-error 1 (list unit)))
         ((<= unit #xdf)
-         (decode2))
-        ((< n 3)
-         (read-more-bytes))
+         (decode 2 #b00011111))
         ((<= unit #xef)
-         (decode3))
-        ((< n 4)
-         (read-more-bytes))
+         (decode 3 #b00001111))
         ((<= unit #xf4)
-         (decode4))
+         (decode 4 #b00000111))
         (else
-         (decoding-error (list unit)))))
+         (decoding-error 1 (list unit)))))
 
 ; The special case of get-char and lookahead-char on a textual port
 ; that's in the auxstart state, where it reads from auxbuf instead

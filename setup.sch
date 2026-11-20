@@ -154,6 +154,9 @@
                      (flag quiet-load)
                      (flag verbose-load)
                      (flag always-source)
+                     ;; Build products from another configuration
+                     (flag clean)
+                     (flag keep-build-products)
                      ;; Target variation options
                      (flag native)
                      (flag nasm)
@@ -182,12 +185,18 @@
          ((environment-get (interaction-environment) 'current-larceny-root))))
 
   (set! *always-source* always-source)
-  (set! *runtime:additional-features* 
-        (append 
-         (if dof-collector     '("DOF_COLLECTOR") '())
-         (if rof-collector:    '("ROF_COLLECTOR") '())
-         (if gclib-large-table '("GCLIB_LARGE_TABLE") '())
-         *runtime:additional-features*))
+  ;; setup may be called more than once in a session; don't accumulate
+  ;; duplicates.
+  (let loop ((new (append 
+                   (if dof-collector     '("DOF_COLLECTOR") '())
+                   (if rof-collector:    '("ROF_COLLECTOR") '())
+                   (if gclib-large-table '("GCLIB_LARGE_TABLE") '()))))
+    (if (pair? new)
+        (begin
+          (if (not (member (car new) *runtime:additional-features*))
+              (set! *runtime:additional-features*
+                    (cons (car new) *runtime:additional-features*)))
+          (loop (cdr new)))))
 
   (cond (quiet-load   (set! *verbose-load* #f))
         (verbose-load (set! *verbose-load* #t)))
@@ -203,6 +212,11 @@
                 (cdr (assq 'arch-endianness (system-features)))))
            (cond 
 
+            ((and (equal? os-name "Linux") (eq? arch-endianness 'little)
+                  (eqv? 64 (cdr (assq 'arch-word-size (system-features))))
+                  (not (equal? arch-name "ARM")))
+             (set! host: 'linux-x86-64))
+
             ((and (equal? os-name "Linux") (eq? arch-endianness 'little)) 
              (if (equal? arch-name "ARM")
                  (set! host: 'linux-arm-el)
@@ -216,6 +230,10 @@
 
             ((and (equal? os-name "Win32") (eq? arch-endianness 'little)) 
              (set! host: 'win32))
+
+            ((and (equal? os-name "MacOS X") (eq? arch-endianness 'little)
+                  (eqv? 64 (cdr (assq 'arch-word-size (system-features)))))
+             (set! host: 'macosx-arm64))
 
             ((and (equal? os-name "MacOS X") (eq? arch-endianness 'little)) 
              (set! host: 'macosx-el))
@@ -246,7 +264,124 @@
                                (else host:))))
            (setup-real! scheme: host: target: c-compiler: string-rep:
             (or native sassy nasm) code-cov rebuild-code-cov
-            sassy nasm)))))
+            sassy nasm)
+           (check-build-configuration! clean keep-build-products)))))
+
+;; Build products (.lop, .fasl, object files, heaps, generated headers,
+;; and so on) are written into the source tree, and make decides what
+;; to rebuild by comparing timestamps only, so products of one
+;; configuration (Petit vs native, 32 vs 64 bits, ...) must never be
+;; mixed with those of another.  setup therefore records the target
+;; configuration in the file below and checks it on every later setup.
+;; The host Scheme is not part of the configuration: the products are
+;; the same whichever Scheme hosts the build.
+
+(define *build-configuration-file* "build-configuration")
+
+(define (build-configuration-string)
+  (define (->string x)
+    (cond ((symbol? x) (symbol->string x))
+          ((number? x) (number->string x))
+          ((string? x) x)
+          ((not x) "#f")
+          ((pair? x) (apply string-append
+                            (map (lambda (y) (string-append (->string y) " "))
+                                 x)))
+          ((null? x) "")
+          (else "?")))
+  (apply string-append
+         (map (lambda (x) (string-append (->string x) "; "))
+              (list *target:machine* *target:os* *target:word-size*
+                    *target:endianness* *runtime-type* *heap-type*
+                    *target:string-rep* *change-feature-set*
+                    *runtime:additional-features* *globals-table*))))
+
+(define (check-build-configuration! clean keep-build-products)
+
+  ;; Looked up at run time: some hosts (Racket) import file-exists? when
+  ;; the compatibility package is loaded, after this file was compiled.
+  (define (file-exists? f)
+    ((eval 'file-exists? (interaction-environment)) f))
+
+  (define (displn . args)
+    (for-each display args)
+    (newline))
+
+  (define (recorded-configuration)
+    (and (file-exists? *build-configuration-file*)
+         (call-with-input-file *build-configuration-file* read)))
+
+  (define (record-configuration!)
+    (if (file-exists? *build-configuration-file*)
+        (delete-file *build-configuration-file*))
+    (call-with-output-file *build-configuration-file*
+      (lambda (out)
+        (write (build-configuration-string) out)
+        (newline out))))
+
+  (define (build-products-present?)
+    (or (file-exists? "include/config.h")
+        (file-exists? "src/Rts/Makefile")
+        (file-exists? "src/Lib/Common/malcode.lap")
+        (file-exists? "src/Lib/Common/malcode.lop")))
+
+  ;; Removes the build products: the files git ignores in the root
+  ;; directory and in include, src, and lib (except editor backups and
+  ;; the logs of src/Build/bootstrap.sh, which may be the build that is
+  ;; running).
+  (define (clean-build-products!)
+    (if (not (zero? (system "git rev-parse --git-dir > /dev/null 2>&1")))
+        (error 'setup
+               "'clean needs git to find the build products; remove them by hand"))
+    (displn "Removing build products...")
+    (system (string-append
+             "git ls-files -z -o -i --exclude-standard -- "
+             "':(glob)*' include src lib "
+             "':(exclude,glob)*~' ':(exclude,glob)**/*~' "
+             "':(exclude)bootstrap.log' ':(exclude)bootstrap-r7rs.log' "
+             "| xargs -0 rm -f --")))
+
+  (define (refuse why)
+    (displn why)
+    (displn "Products of different configurations must not be mixed.  Re-run setup")
+    (displn "with 'clean to remove the existing build products first, or with")
+    (displn "'keep-build-products if you are sure they belong to this configuration.")
+    (error 'setup "build products from another configuration"))
+
+  ;; Compares descriptions word by word, ignoring repeated words (the
+  ;; description once recorded a feature twice when setup had been called
+  ;; twice in a session).
+  (define (same-configuration? old new)
+    (define (words s)
+      (let loop ((i 0) (start 0) (acc '()))
+        (cond ((= i (string-length s))
+               (reverse (if (< start i) (cons (substring s start i) acc) acc)))
+              ((char=? (string-ref s i) #\space)
+               (loop (+ i 1) (+ i 1)
+                     (if (< start i) (cons (substring s start i) acc) acc)))
+              (else (loop (+ i 1) start acc)))))
+    (define (dedup l)
+      (cond ((null? l) '())
+            ((member (car l) (cdr l)) (dedup (cdr l)))
+            (else (cons (car l) (dedup (cdr l))))))
+    (and (string? old)
+         (equal? (dedup (words old)) (dedup (words new)))))
+
+  (let ((old (recorded-configuration))
+        (new (build-configuration-string)))
+    (cond ((same-configuration? old new)
+           (if clean (begin (clean-build-products!) (record-configuration!))))
+          (clean
+           (clean-build-products!)
+           (record-configuration!))
+          ((or keep-build-products
+               (and (not old) (not (build-products-present?))))
+           (record-configuration!))
+          (old
+           (refuse (string-append "This tree was set up for another configuration:\n  "
+                                  old "\nnot:\n  " new)))
+          (else
+           (refuse "This tree contains build products of an unknown configuration.")))))
 
 ;; Can't use parameters for *host-dir* and such, because we have not
 ;; loaded the compatibility files yet at the time we get here.
@@ -263,13 +398,13 @@
   (define (platform->endianness sym)
     (case sym 
       ((macosx solaris clr-be)                  'big)
-      ((macosx-el linux-el linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
+      ((macosx-el macosx-arm64 linux-el linux-x86-64 linux-arm-el linux-arm-el-hardfp linux-arm-el-hardfp0
                   cygwin win32 clr-el)
        'little)
       (else (error 'platform->endianness "Unhandled case: ~a" sym))))
   (define (platform->os sym)
     (case sym 
-      ((macosx macosx-el solaris linux-el cygwin linux-arm-el linux-arm-el-hardfp
+      ((macosx macosx-el macosx-arm64 solaris linux-el linux-x86-64 cygwin linux-arm-el linux-arm-el-hardfp
                linux-arm-el-hardfp0)
        'unix)
       ((win32) 'win32)
@@ -300,6 +435,9 @@
     ((plt-r5rs)
      (set! *host-dir*  "PLT-R5RS")
      (set! *host-name* "PLT-R5RS"))
+    ((racket)
+     (set! *host-dir*  "Racket")
+     (set! *host-name* "Racket"))
     ((mzscheme) 
      (set! *host-dir*  "MzScheme") 
      (set! *host-name* "MzScheme"))
@@ -322,6 +460,8 @@
           ((macosx-el)    (cond (sassy 'features-x86-sassy-macosx)
                                 (else 'features-petit-macosx-el)))
           ((macosx)       'features-petit-macosx)
+          ((macosx-arm64) (cond (native 'features-arm64-macosx)
+                                (else   'features-petit-macosx-arm64)))
           ((solaris)      (cond (native 'features-sparc-solaris)
                                 (else 'features-petit-solaris)))
           ((linux-arm-el-hardfp linux-arm-el-hardfp0)
@@ -331,6 +471,8 @@
                                 (nasm      'features-x86-nasm-linux)
                                 (native    'features-x86-nasm-linux)
                                 (else      'features-petit-linux)))
+          ((linux-x86-64) (cond (native 'features-x86-64-linux)
+                                (else   'features-petit-linux-x86-64)))
           ((cygwin)       'features-petit-cygwin)
           ((win32)        (cond (sassy  'features-x86-sassy-win32)
                                 (nasm   'features-x86-nasm-win32)
@@ -355,12 +497,18 @@
   (set! *make:larceny-target*
         (case target-arch
           ((macosx
-            macosx-el) "petitmacosx")
+            macosx-el
+            macosx-arm64) "petitmacosx")
           ((solaris) "petitsparcsolaris")
           ((cygwin)  "petitcygwinmswindows")
-          ((linux-el linux-arm-el-hardfp linux-arm-el-hardfp0)
+          ((linux-el linux-x86-64 linux-arm-el-hardfp linux-arm-el-hardfp0)
            "petitdebianlinux")
           ((clr-be clr-le) "common")))        ; FIXME
+
+  (set! *target:word-size*
+        (case target-arch
+          ((macosx-arm64 linux-x86-64) 64)
+          (else 32)))
 
   (set! *host:endianness* (platform->endianness host-arch))
   (set! *target:endianness* (platform->endianness target-arch))
@@ -402,6 +550,20 @@
             (set! *makefile-configuration* 'arm-hardfp-linux-gcc-v4-gas)
             (set! *heap-type* 'arm-native)
             (set! *runtime-type* 'arm-native))
+
+           ((macosx-arm64)
+            (set! *target:machine* 'arm)
+            (set! *target:machine-source* "Fence")
+            (set! *makefile-configuration* 'arm64-macosx-clang)
+            (set! *heap-type* 'arm64-native)
+            (set! *runtime-type* 'arm64-native))
+
+           ((linux-x86-64)
+            (set! *target:machine* 'x86-64)
+            (set! *target:machine-source* "Fence")
+            (set! *makefile-configuration* 'x86-64-linux-gcc)
+            (set! *heap-type* 'x86-64-native)
+            (set! *runtime-type* 'x86-64-native))
 
            ((linux-arm-el-hardfp0)
             (set! *target:machine* 'arm)
@@ -477,8 +639,16 @@
           (eq? *target:machine* 'x86-sass))
       (set! *globals-table* "globals-nasm.cfg"))
 
-  (if (eq? *target:machine* 'arm)
+  (if (memq *target:machine* '(arm x86-64))
       (set! *globals-table* "globals-fence.cfg"))
+
+  ;; A Larceny host loads compiled (.fasl) versions of the build files
+  ;; from the tree when they exist, but those were compiled for the
+  ;; tree's target, so a host of another kind (say, native Larceny
+  ;; building Petit Larceny) must load the sources instead.
+  (if (and (eq? host-scheme 'larceny)
+           (not (host-matches-target?)))
+      (set! *always-source* #t))
  
   (case target-arch
    ((clr-be clr-el)
@@ -486,6 +656,22 @@
     (larceny-setup "Larceny" *target:os* *target:endianness*))   ; FIXME
    (else
     (unix-&-win32-initialize))))
+
+; Is the host Larceny the kind of Larceny being built?
+
+(define (host-matches-target?)
+  (let ((features (system-features)))
+    (and (equal? (cdr (assq 'arch-name features))
+                 (case *target:machine*
+                   ((standard-c) "Standard-C")
+                   ((arm) "ARM")
+                   ((x86-64) "X86-64")
+                   ((sparc) "SPARC")
+                   ((x86-sass) "IAssassin")
+                   ((x86-nasm) "X86-NASM")
+                   (else #f)))
+         (eqv? (cdr (assq 'arch-word-size features))
+               *target:word-size*))))
 
 (define (setup-load-build . args) 
   (apply setup args)

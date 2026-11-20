@@ -1,0 +1,18 @@
+This directory holds compatibility files for hosting Larceny's build
+process (Twobit, the assemblers, and the bootstrap heap dumper) under
+modern Racket (tested with Racket v9.3 CS), using the plt-r5rs
+language, which provides mutable pairs, mutable string literals, and
+an R5RS-style top level.
+
+The setup process mutates bindings in the standard environment
+(e.g. load), so plt-r5rs must be started with the --no-prim flag:
+
+  % plt-r5rs --no-prim
+  > (load "setup.sch")
+  > (setup 'scheme: 'racket 'host: 'macosx-arm64)
+  > (build-config-files)
+  > (load-compiler)
+  ...
+
+The older MzScheme and PLT-R5RS compatibility layers target PLT
+Scheme v3/v4 and no longer work with current versions of Racket.

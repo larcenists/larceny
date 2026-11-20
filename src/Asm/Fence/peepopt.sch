@@ -370,7 +370,23 @@
   (let ((rs1 (operand1 i:reg))
         (rs2 (operand2 i:op2))
         (op  (operand1 i:op2)))
-    (peep-reg/op2/setreg as op rs1 rs2 $r.result tail)))
+    (if (result-overwritten? tail)
+        (as-source! as (cons (list $reg/op2/setreg op rs1 rs2 $r.result 'dead)
+                             tail))
+        (peep-reg/op2/setreg as op rs1 rs2 $r.result tail))))
+
+; True if the first instruction of tail sets RESULT without reading it,
+; so the value an instruction leaves in RESULT is dead.  (The mutators
+; need not load #!unspecified into it then; see fence.result-dead?.)
+
+(define (result-overwritten? tail)
+  (and (pair? tail)
+       (let ((i (car tail)))
+         (or (= (car i) $reg)
+             (= (car i) $const)
+             (= (car i) $global)
+             (= (car i) $stack)
+             (= (car i) $lexical)))))
 
 (define (reg-op2imm as i:reg i:op2imm tail)
   (let ((rs  (operand1 i:reg))
@@ -401,7 +417,10 @@
         (rs2 (operand2 i:op3))
         (rs3 (operand3 i:op3))
         (op  (operand1 i:op3)))
-    (as-source! as (cons (list $reg/op3 op rs1 rs2 rs3) tail))))
+    (as-source! as (cons (if (result-overwritten? tail)
+                             (list $reg/op3 op rs1 rs2 rs3 'dead)
+                             (list $reg/op3 op rs1 rs2 rs3))
+                         tail))))
 
 (define (reg-op1-branchf as i:reg i:op1 i:branchf tail)
   (let ((rs (operand1 i:reg))
@@ -450,7 +469,9 @@
 
 (define (peep-reg/op2imm/branchf as op rs imm l tail)
   (if (case op
-        ((eq? < <= = > >= <:fix:fix <=:fix:fix =:fix:fix >:fix:fix >=:fix:fix) #t)
+        ((eq? < <= = > >= <:fix:fix <=:fix:fix =:fix:fix >:fix:fix >=:fix:fix
+          fxaligned?:fix)
+         #t)
         (else #f))
       (as-source! as
                   (cons (list $reg/op2imm/branchf op rs imm l)
@@ -459,12 +480,47 @@
 (define (reg-op1-check as i:reg i:op1 i:check tail)
   (let ((rs (operand1 i:reg))
         (op (operand1 i:op1))
-        (l  (operand4 i:check)))
-    (peep-reg/op1/check as op rs l
-                        (list (operand1 i:check)
-                              (operand2 i:check)
-                              (operand3 i:check))
-                        tail)))
+        (l  (operand4 i:check))
+        (liveregs (list (operand1 i:check)
+                        (operand2 i:check)
+                        (operand3 i:check))))
+    (or (reg-op1-check-reg-op1-setreg as op rs l liveregs tail)
+        (peep-reg/op1/check as op rs l liveregs tail))))
+
+; A type check followed by the length of the object checked:
+;   reg      rs
+;   op1      vector?
+;   check    k1,k2,k3,L
+;   reg      rs
+;   op1      vector-length:vec
+;   setreg   rd                   (optional; rd is RESULT without it)
+; => reg/op1/check/length  vector?,rs,L,(k1 k2 k3),rd
+; The check loads the header, which gives the length.  Likewise for
+; bytevector? and bytevector-like-length:bvl.
+
+(define (reg-op1-check-reg-op1-setreg as op rs l liveregs tail)
+  (and (memq op '(vector? bytevector?))
+       (pair? tail)
+       (pair? (cdr tail))
+       (let ((i:reg (car tail))
+             (i:op1 (cadr tail))
+             (tail (cddr tail)))
+         (and (= (car i:reg) $reg)
+              (= (operand1 i:reg) rs)
+              (= (car i:op1) $op1)
+              (eq? (operand1 i:op1)
+                   (if (eq? op 'vector?)
+                       'vector-length:vec
+                       'bytevector-like-length:bvl))
+              (let* ((setreg? (and (pair? tail)
+                                   (= (car (car tail)) $setreg)))
+                     (rd (if setreg? (operand1 (car tail)) $r.result))
+                     (tail (if setreg? (cdr tail) tail)))
+                (as-source! as
+                            (cons (list $reg/op1/check/length
+                                        op rs l liveregs rd)
+                                  tail))
+                #t)))))
 
 (define (op1-check as i:op1 i:check tail)
   (let ((op (operand1 i:op1))
@@ -531,7 +587,7 @@
 
 (define (peep-reg/op2imm/check as op rs1 rs2 l1 liveregs tail)
   (if (case op
-        ((=:fix:fix <:fix:fix <=:fix:fix >=:fix:fix >:fix:fix) #t)
+        ((=:fix:fix <:fix:fix <=:fix:fix >=:fix:fix >:fix:fix fxaligned?:fix) #t)
         (else #f))
       (as-source! as
                   (cons (list $reg/op2imm/check op rs1 rs2 l1 liveregs)

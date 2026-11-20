@@ -70,6 +70,7 @@
 #include "stats.h"
 #include "gc_t.h"
 #include "summary_t.h"
+#include "card.h"
 
 /* This is an artifact of the low-level implementation of the hash pool;
    see comments above. */
@@ -323,6 +324,20 @@ void rs_del_elem( remset_t *rs, word w )
   }
 }
 
+/* An object remembered other than by rs_add_elems_distribute, which
+   knows the slot, has all its cards marked (card.h).  */
+
+static void mark_all_cards( word w )
+{
+  if (isptr( w ) && card_eligible( w )) {
+    card_table_t *ct = card_table_of( ptrof( w ) );
+    if (ct != 0)
+      card_mark_all( ct );
+  }
+}
+
+static bool rs_add_elem_raw( remset_t *rs, word w );
+
 bool rs_add_elem_new( remset_t *rs, word w ) 
 {
   word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
@@ -330,6 +345,7 @@ bool rs_add_elem_new( remset_t *rs, word w )
   remset_data_t *data = DATA(rs);
 
   assert2(! rs_isremembered( rs, w ));
+  mark_all_cards( w );
 
   pooltop = data->curr_pool->top;
   poollim = data->curr_pool->lim;
@@ -359,6 +375,12 @@ bool rs_add_elem_new( remset_t *rs, word w )
 
 /* Adds w to remset rs.  Returns true if rs overflowed when inserting w. */
 bool rs_add_elem( remset_t *rs, word w ) 
+{
+  mark_all_cards( w );
+  return rs_add_elem_raw( rs, w );
+}
+
+static bool rs_add_elem_raw( remset_t *rs, word w ) 
 {
   word mask, *tbl, *b, *pooltop, *poollim, tblsize, h;
   bool overflowed = FALSE;
@@ -406,18 +428,39 @@ bool rs_add_elems_distribute( remset_t **remset, word *bot, word *top )
   p = bot;
   q = top;
 
-  /* (The scan is down for historical reasons that no longer apply.) */
+  /* (The scan is down for historical reasons that no longer apply.)
+     The barrier logs the object and then the byte offset of the slot
+     (a fixnum), so going down an offset comes before its object.  A
+     large object's card for the slot is marked (card.h); if it was
+     remembered without a card table, all its cards are.  */
 
-  while (q > p) {
-    q--;
-    w = *q;
-    if ( is_fixnum(w) ) {
-      /* fixnums in SSB log indicate which field was written to. */
-      continue;
+  {
+    word offset = 0;
+    bool have_offset = FALSE;
+
+    while (q > p) {
+      q--;
+      w = *q;
+      if ( is_fixnum(w) ) {
+        /* fixnums in SSB log indicate which field was written to. */
+        offset = w;
+        have_offset = TRUE;
+        continue;
+      }
+      gno = gen_of(w);
+      rs = remset[gno];
+      if (card_eligible( w )) {
+        card_table_t *ct = card_table_of( ptrof( w ) );
+        if (ct == 0)
+          ct = card_table_get( w, rs_isremembered( rs, w ) );
+        if (have_offset)
+          card_mark( ct, offset );
+        else
+          card_mark_all( ct );
+      }
+      have_offset = FALSE;
+      overflowed |= rs_add_elem_raw( rs, w );
     }
-    gno = gen_of(w);
-    rs = remset[gno];
-    overflowed |= rs_add_elem( rs, w );
   }
 
   return overflowed;
@@ -503,7 +546,7 @@ void rs_enumerate( remset_t *rs,
   DATA(rs)->stats.removed += removed_count;
   rs->live -= removed_count;
   DATA(rs)->stats.scanned++;
-  supremely_annoyingmsg( "REMSET @0x%x: removed %d elements (total %d).", 
+  supremely_annoyingmsg( "REMSET @0x%" PRIxWORD ": removed %d elements (total %d).", 
 			 (word)rs, removed_count, 
 			 DATA(rs)->stats.removed );
 }
@@ -727,7 +770,7 @@ static bool remset_crossing_fn( word w, void *data, unsigned *ignored )
     if (isptr(cdr)) genv[gen_of(cdr)]++;
   }
   else if (tag == VEC_TAG || tag == PROC_TAG) {
-    unsigned size = sizefield(*ptrof(w))/4;
+    word size = sizefield(*ptrof(w))/sizeof(word);
     word *p = ptrof(w)+1;
     while (size-- > 0) {
       word k = *p++;

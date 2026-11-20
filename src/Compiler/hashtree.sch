@@ -106,7 +106,32 @@
       (buckets-n      (lambda (buckets) (car buckets)))
       (buckets-alist  (lambda (buckets) (cadr buckets)))
       (buckets-left   (lambda (buckets) (caddr buckets)))
-      (buckets-right  (lambda (buckets) (cadddr buckets))))
+      (buckets-right  (lambda (buckets) (cadddr buckets)))
+
+      ; The tree is ordered by a scrambled hash code: hash codes of
+      ; related keys, such as generated symbols, are often nearly
+      ; sequential, and inserting them in that order would make the
+      ; (unbalanced) tree a list, so that each PUT copies all of it.
+      ; Scrambling reverses the low 28 bits, which keeps it a
+      ; bijection on those bits and within a 32-bit fixnum.  Keys whose
+      ; scrambled codes collide share an alist, which is still correct.
+
+      (scramble
+       (let ((reversed (make-vector 128 0)))
+         (do ((i 0 (+ i 1)))
+             ((= i 128))
+           (do ((j 0 (+ j 1))
+                (x i (quotient x 2))
+                (r 0 (+ (* 2 r) (remainder x 2))))
+               ((= j 7)
+                (vector-set! reversed i r))))
+         (lambda (h)
+           (let loop ((h (modulo h 268435456)) (j 0) (r 0))
+             (if (= j 4)
+                 r
+                 (loop (quotient h 128)
+                       (+ j 1)
+                       (+ (* 128 r) (vector-ref reversed (remainder h 128))))))))))
   
   (let ((hashtree? (lambda (ht)
                       (and (vector? ht)
@@ -207,7 +232,7 @@
     (define (contains? ht key)
       (if (hashtree? ht)
           (let* ((t (buckets ht))
-                 (h ((hasher ht) key)))
+                 (h (scramble ((hasher ht) key))))
             (if ((searcher ht) key (find-bucket t h))
                 #t
                 #f))
@@ -216,7 +241,7 @@
     (define (fetch ht key flag)
       (if (hashtree? ht)
           (let* ((t (buckets ht))
-                 (h ((hasher ht) key))
+                 (h (scramble ((hasher ht) key)))
                  (probe ((searcher ht) key (find-bucket t h))))
             (if probe
                 (cdr probe)
@@ -239,7 +264,7 @@
     (define (put ht key val)
       (if (hashtree? ht)
           (let ((t (buckets ht))
-                (h ((hasher ht) key))
+                (h (scramble ((hasher ht) key)))
                 (association (cons key val))
                 (c (count ht)))
             (define (put t h)
@@ -282,7 +307,7 @@
     (define (remove ht key)
       (if (hashtree? ht)
           (let ((t (buckets ht))
-                (h ((hasher ht) key))
+                (h (scramble ((hasher ht) key)))
                 (c (count ht)))
             (define (remove t h)
               (if (buckets-empty? t)

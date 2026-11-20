@@ -59,8 +59,8 @@
 
 ; Parameters.
 
-(define rep:min_fixnum (- (expt 2 29)))
-(define rep:max_fixnum (- (expt 2 29) 1))
+(define rep:min_fixnum (- (expt 2 (if (fixnum? (expt 2 32)) 61 29))))
+(define rep:max_fixnum (- (- rep:min_fixnum) 1))
 (define rep:max_index  (- (expt 2 24) 1))
 
 ; The representations we'll recognize for now.

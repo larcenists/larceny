@@ -103,19 +103,34 @@ struct hio_range  {
   word *top;
   bool is_large;
   word *real_bot;
-  int  bytes;
-  int  pages;
+  s_word bytes;
+  s_word pages;
 };
 
-#define HIBIT  0x80000000U
+#define HIBIT  ((word)1 << (8*sizeof(word)-1))
+
+/* In Petit Larceny, the code slot of a procedure holds the address of a
+   C function (encoded so it looks like a fixnum).  Executables are
+   position-independent on modern systems, so code addresses change
+   from run to run; when a heap is dumped the code addresses are stored
+   relative to an anchor function in the executable, and they are
+   relocated when the heap is loaded.  (Code in dynamically loaded
+   shared objects cannot be relocated this way.)
+   */
+#if defined(PETIT_LARCENY)
+extern int larceny_main( int argc, char **argv );
+# define CODE_ANCHOR       ((word)&larceny_main)
+# define is_proc_header(w) (ishdr(w) && header(w) == header(PROC_HDR))
+# define is_codeptr(w)     (is_fixnum(w) && (w) != 0)
+#endif
 
 static jmp_buf EX_heapio_ex;
 
 #define CATCH( var )  if ((var = setjmp( EX_heapio_ex )) != 0)
 #define THROW( val )  longjmp( EX_heapio_ex, val )
 
-static int  load_text( heapio_t *h, word *base, int count );
-static int  load_data( heapio_t *h, word *text, word *data, int count );
+static int  load_text( heapio_t *h, word *base, s_word count );
+static int  load_data( heapio_t *h, word *text, word *data, s_word count );
 #if 0
 static void putheader( FILE*, word, word, word, word*, word );
 static void put_tagged_word( word, FILE*, word, word, word );
@@ -307,7 +322,8 @@ int hio_dump_segment( heapio_t *h, int type, word *bot, word *top )
 int hio_dump_commit( heapio_t *h )
 {
   word *lowest, *highest, *pagetbl;
-  int pages, i, j, pg, r, text_size, data_size, nextpage;
+  int i, r;
+  s_word pages, j, pg, text_size, data_size, nextpage;
 
   /* Compute limits */
   lowest = min( h->text_segments->lowest, h->data_segments->lowest );
@@ -369,7 +385,7 @@ put_tagged_word( word w, word *lowest, word *pagetbl, FILE *fp )
 }    
 
 static void
-pad( int bytes, FILE *fp )
+pad( s_word bytes, FILE *fp )
 {
   int i;
 
@@ -390,8 +406,8 @@ static void
 dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
 {
   word w, *p;
-  int i, data_count;
-  int bytes_written;
+  s_word i, data_count;
+  s_word bytes_written;
   data_count = (a.top - a.bot);
   p = a.bot;
   if (a.is_large) {
@@ -408,8 +424,17 @@ dump_data_block( hio_range a, word *lowest, word *pagetbl, FILE *fp )
     put_tagged_word( w, lowest, pagetbl, fp );
     data_count--;
 
+#if defined(PETIT_LARCENY)
+    if (is_proc_header( w ) && data_count > 0) {
+      word code = *p++;
+      if (is_codeptr( code ))
+        code = code - CODE_ANCHOR;
+      put_tagged_word( code, lowest, pagetbl, fp );
+      data_count--;
+    }
+#endif
     if (header( w ) == BV_HDR) {
-      i = roundup4( sizefield( w ) ) / sizeof( word );
+      i = roundup_word( sizefield( w ) ) / sizeof( word );
       while (i--) {
 	putword( *p++, fp );
 	data_count--;
@@ -452,24 +477,42 @@ int hio_load_bootstrap( heapio_t *h, word *text_base, word *data_base,
 }
 
 static int
-load_text( heapio_t *h, word *text_base, int count )
+load_text( heapio_t *h, word *text_base, s_word count )
 {
   word n;
-  supremely_annoyingmsg("heapio load_text( h, 0x%08x, %d )", 
+  supremely_annoyingmsg("heapio load_text( h, %p, %" PRIdWORD " )", 
 			text_base, count);
 
+#if CODE_SPACE
+  /* The kernel will not read directly into code memory that is
+     writable only by user-mode code (MAP_JIT memory on MacOS X), so
+     read the text through a buffer. */
+  {
+    word buf[ 4096 ];
+    while (count > 0) {
+      s_word k = min( count, (s_word)(sizeof( buf )/sizeof( word )) );
+      n = fread( (char*)buf, sizeof( word ), k, h->fp );
+      if (n < k)
+        return HEAPIO_CANTREAD;
+      memcpy( text_base, buf, k*sizeof( word ) );
+      text_base += k;
+      count -= k;
+    }
+  }
+#else
   n = fread( (char*)text_base, sizeof( word ), count, h->fp );
   if (n < count)
     return HEAPIO_CANTREAD;
+#endif
   return HEAPIO_OK;
 }
 
 static int
-load_data( heapio_t *h, word *text_base, word *data_base, int count )
+load_data( heapio_t *h, word *text_base, word *data_base, s_word count )
 {
   word *p, w;
-  int i;
-  supremely_annoyingmsg("heapio load_data( h, 0x%08x, [0x%08x,0x%08x), %d )", 
+  s_word i;
+  supremely_annoyingmsg("heapio load_data( h, %p, [%p,%p), %" PRIdWORD " )", 
 			text_base, data_base, data_base+count, count);
 
   if (fread( (char*)data_base, sizeof( word ), count, h->fp ) < count)
@@ -486,6 +529,12 @@ load_data( heapio_t *h, word *text_base, word *data_base, int count )
 	*p = w + (word)data_base;
     }
     p++;
+#if defined(PETIT_LARCENY)
+    if (is_proc_header( w ) && count > 0) {
+      if (is_codeptr( *p ))
+        *p = *p + CODE_ANCHOR;
+    }
+#endif
     if (header( w ) == BV_HDR) { /* is well-defined on non-hdrs */
       i = roundup_word( sizefield( w ) ) / sizeof( word );
       p += i;
@@ -557,7 +606,7 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
 	   FILE *fp )
 {
   word w, *p, words, data_count;
-  int i, r;
+  s_word i; int r;
 
   data_count = (data_top - data_base)/sizeof(word);
   p = (word *) data_base;
@@ -569,7 +618,7 @@ dump_data( word data_base, word data_top, word text_base, word text_top,
     words++;
 
     if (header( w ) == BV_HDR) {
-      i = roundup4( sizefield( w ) ) / sizeof( word );
+      i = roundup_word( sizefield( w ) ) / sizeof( word );
       while (i--) {
 	putword( *p++, fp );
 	data_count--;
@@ -597,7 +646,7 @@ put_tagged_word( word w, FILE *fp,
 {
   if (isptr( w )) {
     if (w >= text_base && w < text_top) 
-      putword( (w-text_base) | 0x80000000, fp );
+      putword( (w-text_base) | HIBIT, fp );
     else 
       putword( w-data_base, fp );
   }
@@ -606,50 +655,38 @@ put_tagged_word( word w, FILE *fp,
 }
 #endif
 
-#if defined( BIG_ENDIAN ) && defined( BITS_32 )
+/* Words are written in the target's byte order, sizeof(word) bytes each. */
 
 static void putword( word w, FILE *fp )
 {
-  if (putc( (w >> 24) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 16) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 8) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( w & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
+  int i;
+#if defined( BIG_ENDIAN )
+  for ( i=sizeof(word)-1 ; i >= 0 ; i-- )
+    if (putc( (int)((w >> (8*i)) & 0xFF), fp ) == EOF) 
+      THROW( HEAPIO_CANTWRITE );
+#elif defined( ENDIAN_LITTLE )
+  for ( i=0 ; i < sizeof(word) ; i++ )
+    if (putc( (int)((w >> (8*i)) & 0xFF), fp ) == EOF) 
+      THROW( HEAPIO_CANTWRITE );
+#else
+#  error "Must select an endianness."
+#endif
 }
 
 /* FIXME: does not check EOF */
 
 static word getword( FILE *fp )
 {
-  word a = getc( fp );
-  word b = getc( fp );
-  word c = getc( fp );
-  word d = getc( fp );
-
-  return (a << 24) | (b << 16) | (c << 8) | d;
-}
-
-#elif defined( ENDIAN_LITTLE ) && defined( BITS_32 )
-
-static void putword( word w, FILE *fp )
-{
-  if (putc( w & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 8) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 16) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-  if (putc( (w >> 24) & 0xFF, fp ) == EOF) THROW( HEAPIO_CANTWRITE );
-}
-
-static word getword( FILE *fp )
-{
-  word d = getc( fp );
-  word c = getc( fp );
-  word b = getc( fp );
-  word a = getc( fp );
-
-  return (a << 24) | (b << 16) | (c << 8) | d;
-}
-
+  word w = 0;
+  int i;
+#if defined( BIG_ENDIAN )
+  for ( i=0 ; i < sizeof(word) ; i++ )
+    w = (w << 8) | (word)(getc( fp ) & 0xFF);
 #else
-#  error "Must write new putword() and getword()."
-#endif  /* defined( BIG_ENDIAN ) && defined( BITS_32 ) */
+  for ( i=0 ; i < sizeof(word) ; i++ )
+    w = w | ((word)(getc( fp ) & 0xFF) << (8*i));
+#endif
+  return w;
+}
 
 /* eof */

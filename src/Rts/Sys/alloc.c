@@ -96,38 +96,38 @@ static struct {
   byte *heapbot;
   byte *heaplim;
   
-  unsigned     descriptor_slots;     /* number of allocated slots */
-  unsigned     heap_bytes_limit;     /* Maximum allowed heap allocation */
-  unsigned     heap_bytes;           /* bytes allocated to heap */
-  unsigned     max_heap_bytes;       /* max ditto */
-  unsigned     peak_heap_bytes;      /* max_mem_bytes ditto */
-  unsigned     remset_bytes;         /* bytes allocated to remset */
-  unsigned     max_remset_bytes;     /* max ditto */
-  unsigned     peak_remset_bytes;    /* max_mem_bytes ditto */
-  unsigned     summ_bytes;           /* bytes allocated to summary sets */
-  unsigned     max_summ_bytes;       /* max ditto */
-  unsigned     peak_summ_bytes;      /* max_mem_bytes ditto */
-  unsigned     smircy_bytes;         /* bytes allocated to marking state */
-  unsigned     max_smircy_bytes;     /* max ditto */
-  unsigned     peak_smircy_bytes;    /* max_mem_bytes ditto */
-  unsigned     rts_bytes;            /* bytes allocated to RTS "other" */
-  unsigned     max_rts_bytes;        /* max ditto */
-  unsigned     peak_rts_bytes;       /* max_mem_bytes ditto */
-  unsigned     wastage_bytes;        /* amount of wasted space */
-  unsigned     max_wastage_bytes;    /* max ditto */
-  unsigned     peak_wastage_bytes;   /* max_mem_bytes ditto */
-  unsigned     mem_bytes;            /* amount of heap + remset + RTS + frag */
-  unsigned     max_mem_bytes;        /* max ditto */
+  word         descriptor_slots;     /* number of allocated slots */
+  word         heap_bytes_limit;     /* Maximum allowed heap allocation */
+  word         heap_bytes;           /* bytes allocated to heap */
+  word         max_heap_bytes;       /* max ditto */
+  word         peak_heap_bytes;      /* max_mem_bytes ditto */
+  word         remset_bytes;         /* bytes allocated to remset */
+  word         max_remset_bytes;     /* max ditto */
+  word         peak_remset_bytes;    /* max_mem_bytes ditto */
+  word         summ_bytes;           /* bytes allocated to summary sets */
+  word         max_summ_bytes;       /* max ditto */
+  word         peak_summ_bytes;      /* max_mem_bytes ditto */
+  word         smircy_bytes;         /* bytes allocated to marking state */
+  word         max_smircy_bytes;     /* max ditto */
+  word         peak_smircy_bytes;    /* max_mem_bytes ditto */
+  word         rts_bytes;            /* bytes allocated to RTS "other" */
+  word         max_rts_bytes;        /* max ditto */
+  word         peak_rts_bytes;       /* max_mem_bytes ditto */
+  word         wastage_bytes;        /* amount of wasted space */
+  word         max_wastage_bytes;    /* max ditto */
+  word         peak_wastage_bytes;   /* max_mem_bytes ditto */
+  word         mem_bytes;            /* amount of heap + remset + RTS + frag */
+  word         max_mem_bytes;        /* max ditto */
 } data;
 
-static byte *gclib_alloc( unsigned bytes );
+static byte *gclib_alloc( s_word bytes, int code );
 #if !GCLIB_LARGE_TABLE
-static void allocation_below_membot( byte *ptr, int bytes );
-static void allocation_above_memtop( byte *ptr, int bytes );
+static void allocation_below_membot( byte *ptr, s_word bytes );
+static void allocation_above_memtop( byte *ptr, s_word bytes );
 static void grow_table( byte *new_bot, byte *new_top );
 #endif
-static byte *alloc_aligned( unsigned bytes );
-static void free_aligned( byte *p, unsigned bytes );
+static byte *alloc_aligned( s_word bytes, int code );
+static void free_aligned( byte *p, s_word bytes, int code );
 static void update_mem_bytes( void );
 
 /* Initialize descriptor tables and memory allocation pointers. */
@@ -181,12 +181,12 @@ void gclib_memory_range( caddr_t *lowest, caddr_t *highest )
 #endif
 }
 
-void gclib_set_heap_limit( int bytes )
+void gclib_set_heap_limit( s_word bytes )
 {
   data.heap_bytes_limit = bytes;
 }
 
-void *gclib_alloc_heap( int bytes, int gen_no )
+void *gclib_alloc_heap( s_word bytes, int gen_no )
 {
   byte *ptr;
   int i;
@@ -195,12 +195,12 @@ void *gclib_alloc_heap( int bytes, int gen_no )
 
   if (data.heap_bytes_limit > 0 &&
       data.heap_bytes + bytes > data.heap_bytes_limit) {
-    memfail( MF_HEAP, "Hard heap limit exceeded by request for %d bytes.\n"
-	    "Current size is %d bytes.", 
+    memfail( MF_HEAP, "Hard heap limit exceeded by request for %" PRIdWORD " bytes.\n"
+	    "Current size is %" PRIdWORD " bytes.", 
 	     bytes, data.heap_bytes );
   }
 
-  ptr = gclib_alloc( bytes );
+  ptr = gclib_alloc( bytes, 0 );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
     gclib_desc_g[i] = gen_no;
@@ -211,7 +211,7 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   data.heap_bytes += bytes;
   data.max_heap_bytes = umax( data.max_heap_bytes, data.heap_bytes );
 
-  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%d addr=[0x%08x,0x%08x)",
+  supremely_annoyingmsg( "Allocated heap memory gen=%d bytes=%" PRIdWORD " addr=[%p,%p)",
 			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
@@ -221,13 +221,40 @@ void *gclib_alloc_heap( int bytes, int gen_no )
   return (void*)ptr;
 }
 
-void *gclib_alloc_rts( int bytes, unsigned attribute )
+#if CODE_SPACE
+void *gclib_alloc_code( s_word bytes, int gen_no )
 {
   byte *ptr;
   int i;
 
   bytes = roundup_page( bytes );
-  ptr = gclib_alloc( bytes );
+  ptr = gclib_alloc( bytes, 1 );
+
+  for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
+    gclib_desc_g[i] = gen_no;
+    gclib_desc_b[i] = MB_ALLOCATED | MB_HEAP_MEMORY | MB_CODE;
+  }
+  data.heap_bytes += bytes;
+  data.max_heap_bytes = umax( data.max_heap_bytes, data.heap_bytes );
+
+  supremely_annoyingmsg( "Allocated code memory gen=%d bytes=%" PRIdWORD " addr=[%p,%p)",
+			 gen_no, bytes, (void*)ptr, (void*)(ptr+bytes) );
+
+  update_mem_bytes();
+
+  if (data.heapbot == 0 || ptr < data.heapbot) data.heapbot = ptr;
+  if (data.heaplim == 0 || ptr+bytes > data.heaplim) data.heaplim = ptr+bytes;
+  return (void*)ptr;
+}
+#endif
+
+void *gclib_alloc_rts( s_word bytes, unsigned attribute )
+{
+  byte *ptr;
+  int i;
+
+  bytes = roundup_page( bytes );
+  ptr = gclib_alloc( bytes, 0 );
 
   for ( i = pageof( ptr ) ; i < pageof( ptr+bytes ) ; i++ ) {
 #if GCLIB_LARGE_TABLE
@@ -256,7 +283,7 @@ void *gclib_alloc_rts( int bytes, unsigned attribute )
     data.max_rts_bytes = max( data.max_rts_bytes, data.rts_bytes );
   }
 
-  supremely_annoyingmsg( "Allocated rts memory bytes=%d addr=[0x%08x,0x%08x)",
+  supremely_annoyingmsg( "Allocated rts memory bytes=%" PRIdWORD " addr=[%p,%p)",
 			 bytes, (void*)ptr, (void*)(ptr+bytes) );
 
   update_mem_bytes();
@@ -289,12 +316,12 @@ static void update_mem_bytes( void )
  * grows down (MacOS, Solaris with mmap()) it would be better to slide
  * more aggressively.  FIXME.
  */
-static byte *gclib_alloc( unsigned bytes )
+static byte *gclib_alloc( s_word bytes, int code )
 {
   byte *ptr, *top;
   
   assert( ( bytes % PAGESIZE) == 0 );
-  ptr = alloc_aligned( bytes );
+  ptr = alloc_aligned( bytes, code );
   top = ptr+bytes;
 
 #if GCLIB_LARGE_TABLE
@@ -304,21 +331,32 @@ static byte *gclib_alloc( unsigned bytes )
   assert( gclib_pagebase == 0 || (byte*)gclib_pagebase == data.membot );
   
   if (gclib_pagebase == 0) {
+    /* The first allocation: the table must cover it, though it may be
+       larger than the initial table (a large nursery, say). */
     gclib_pagebase = (caddr_t)ptr;
     data.membot = ptr;
-    data.memtop = top;
+    data.memtop = ptr;
+    if (pageof( top-1 ) >= data.descriptor_slots) {
+      grow_table( ptr, top );         /* nothing to copy; sets memtop */
+      wb_re_setup( (byte*)gclib_pagebase, gclib_desc_g );
+    }
+    else
+      data.memtop = top;
   }
   else if (ptr < data.membot)
     allocation_below_membot( ptr, bytes );
   else if (top > data.memtop)
     allocation_above_memtop( ptr, bytes );
+
+  /* The callers set the descriptors of every page of the allocation. */
+  assert( pageof( ptr ) >= 0 && pageof( top-1 ) < data.descriptor_slots );
 #endif
   
   return ptr;
 }
 
 #if !GCLIB_LARGE_TABLE
-static void allocation_below_membot( byte *ptr, int bytes )
+static void allocation_below_membot( byte *ptr, s_word bytes )
 {
   int i;
   byte *old_pagebase;
@@ -353,7 +391,7 @@ static void allocation_below_membot( byte *ptr, int bytes )
   wb_re_setup( (byte*)gclib_pagebase, gclib_desc_g );
 }
 
-static void allocation_above_memtop( byte *ptr, int bytes )
+static void allocation_above_memtop( byte *ptr, s_word bytes )
 {
   int i;
   byte *old_memtop;
@@ -433,18 +471,22 @@ static void grow_table( byte *new_bot, byte *new_top )
 }
 #endif
 
-void gclib_free( void *addr, int bytes )
+void gclib_free( void *addr, s_word bytes )
 {
-  unsigned pages;
-  unsigned pageno;
+  word pages;
+  word pageno;
+  int code = 0;
 
   assert( (word)addr % PAGESIZE == 0 );
 
   bytes = roundup_page( bytes );
 
-  supremely_annoyingmsg( "Freeing: bytes=%d addr=[0x%08x,0x%08x)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
+  supremely_annoyingmsg( "Freeing: bytes=%" PRIdWORD " addr=[%p,%p)", bytes, (void*)addr, (void*)(((byte*)addr)+bytes) );
   
-  free_aligned( addr, bytes );
+#if CODE_SPACE
+  code = bytes > 0 && is_code_page( addr );
+#endif
+  free_aligned( addr, bytes, code );
 
   pages = bytes/PAGESIZE;
   pageno = pageof( addr );
@@ -489,14 +531,14 @@ void gclib_free( void *addr, int bytes )
   update_mem_bytes();
 }
 
-void gclib_shrink_block( void *p, int oldsize, int newsize )
+void gclib_shrink_block( void *p, s_word oldsize, s_word newsize )
 {
   assert( oldsize >= newsize );
 
   /* This does not make sense in a malloc-based implementation */
 }
 
-void gclib_set_generation( void *address, int nbytes, int generation )
+void gclib_set_generation( void *address, s_word nbytes, int generation )
 {
   int p;
 
@@ -509,7 +551,7 @@ void gclib_set_generation( void *address, int nbytes, int generation )
   }
 }
 
-void gclib_add_attribute( void *address, int nbytes, unsigned attr )
+void gclib_add_attribute( void *address, s_word nbytes, unsigned attr )
 {
   int p;
 
@@ -555,12 +597,17 @@ void gclib_stats( gclib_stats_t *stats )
 
 /* Very lowest level allocator */
 
-static byte *alloc_aligned( unsigned bytes )
+static byte *alloc_aligned( s_word bytes, int code )
 {
   byte *p;
   
   assert( bytes % PAGESIZE == 0 );
 
+#if CODE_SPACE
+  if (code)
+    p = (byte*)osdep_alloc_code( bytes );
+  else
+#endif
   p = (byte*)osdep_alloc_aligned( bytes );
   if (DEMONIC_PREINIT) { int i; for(i=0; i<bytes; i++) p[i] = 1; }
   data.wastage_bytes = osdep_fragmentation();
@@ -568,10 +615,15 @@ static byte *alloc_aligned( unsigned bytes )
   return p;
 }
 
-static void free_aligned( byte *p, unsigned bytes )
+static void free_aligned( byte *p, s_word bytes, int code )
 {
   assert( bytes % PAGESIZE == 0 );
 
+#if CODE_SPACE
+  if (code)
+    osdep_free_code( (void*)p, bytes );
+  else
+#endif
   osdep_free_aligned( (void*)p, bytes );
   data.wastage_bytes = osdep_fragmentation();
 }

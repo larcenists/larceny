@@ -64,14 +64,14 @@ struct young_data {
 
   word       *heapbot;		/* address of first word of nursery */
   word       *heaplim;		/* address of first word after nursery */
-  int        heapsize;		/* size of nursery in bytes */
+  s_word        heapsize;		/* size of nursery in bytes */
   word       *globals;		/* the globals vector */
 
   bool       havestats;		/* Flag */
-  int        los_live;		/* Before gc */
-  int        stack_live;	/* Before gc */
-  int        not_used;		/* Before gc */
-  int        nbytes_wanted;	/* bytes wanted during last gc */
+  s_word        los_live;		/* Before gc */
+  s_word        stack_live;	/* Before gc */
+  s_word        not_used;		/* Before gc */
+  s_word        nbytes_wanted;	/* bytes wanted during last gc */
 };
 
 #define DATA( heap )  ((young_data_t*)((heap)->data))
@@ -80,8 +80,8 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc );
 static void must_create_stack( young_heap_t *heap );
 static void must_restore_frame( young_heap_t *heap );
 static void flush_stack( young_heap_t *heap );
-static int free_space( young_heap_t *heap );
-static void collect_if_no_room( young_heap_t *heap, int room );
+static s_word free_space( young_heap_t *heap );
+static void collect_if_no_room( young_heap_t *heap, s_word room );
 
 young_heap_t *
 create_nursery( int gen_no,
@@ -90,7 +90,7 @@ create_nursery( int gen_no,
 	        word *globals           /* the globals array (not in heap) */
 	       )
 {
-  int size_bytes = info->size_bytes;
+  s_word size_bytes = info->size_bytes;
   young_data_t *data;
   young_heap_t *heap;
 
@@ -134,7 +134,7 @@ static void create_initial_stack( young_heap_t *heap )
   must_create_stack( heap );
 }
 
-static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
+static word *allocate( young_heap_t *heap, s_word nbytes, int no_gc )
 {
   word *globals = DATA(heap)->globals;
   word *p;
@@ -174,11 +174,11 @@ static void make_room( young_heap_t *heap )
 }
 
 /* Request is ignored -- doesn't make sense in nursery. */
-static void collect( young_heap_t *heap, int nbytes, int request )
+static void collect( young_heap_t *heap, s_word nbytes, int request )
 {
   young_data_t *data = DATA(heap);
 
-  supremely_annoyingmsg( "nursery: promoting (free=%d; request=%d)%s",
+  supremely_annoyingmsg( "nursery: promoting (free=%" PRIdWORD "; request=%" PRIdWORD ")%s",
 			 free_space( heap ), nbytes,
 			 (nbytes == 0 ? " [stack overflow]" : "" ) );
 
@@ -234,7 +234,7 @@ static void after_collection( young_heap_t *heap )
 	  free_space( heap ) >= data->nbytes_wanted );
 }
 
-static int free_space( young_heap_t *heap )
+static s_word free_space( young_heap_t *heap )
 {
   word *globals = DATA(heap)->globals;
 
@@ -265,7 +265,7 @@ static void stats( young_heap_t *heap )
   data->havestats = FALSE;
 }
 
-static word *data_load_area( young_heap_t *heap, int nbytes )
+static word *data_load_area( young_heap_t *heap, s_word nbytes )
 {
   young_data_t *data = DATA(heap);
 
@@ -337,7 +337,7 @@ static void creg_set( young_heap_t *heap, word k )
     stack_overflow( heap );                        /* [sic] */
 }
 
-static void collect_if_no_room( young_heap_t *heap, int room )
+static void collect_if_no_room( young_heap_t *heap, s_word room )
 {
   room = roundup_balign( room );
   if (free_space( heap ) < room)
@@ -347,6 +347,19 @@ static void collect_if_no_room( young_heap_t *heap, int room )
 static bool is_address_mapped( young_heap_t *h, word *addr ) 
 {
   return ((DATA(h)->heapbot <= addr) && (addr < DATA(h)->heaplim));
+}
+
+/* What stats() will add for the allocation so far: the nursery's
+   objects and its large objects.  (A collection first flushes the
+   stack into the nursery, and those frames are counted too.)  */
+
+static word words_allocated_pending( young_heap_t *heap )
+{
+  young_data_t *data = DATA(heap);
+  word *globals = data->globals;
+
+  return bytes2words( globals[G_ETOP] - globals[G_EBOT] )
+    + bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
 }
 
 static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
@@ -377,6 +390,7 @@ static young_heap_t *allocate_nursery( int gen_no, gc_t *gc )
 			      is_address_mapped,
 			      data );
   heap->collector = gc;
+  heap->words_allocated_pending = words_allocated_pending;
 
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;

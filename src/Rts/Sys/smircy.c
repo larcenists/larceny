@@ -97,6 +97,8 @@
 
 #define bounded_decrement( x, y ) if (x > 0) x = max( 0, x - (y) );
 
+#include <limits.h>
+
 #include "larceny.h"
 #include "gc_t.h"
 #include "gclib.h"
@@ -154,16 +156,16 @@ static void print_stack( smircy_context_t *context )
     seg = obj_stack->seg;
     stkp = obj_stack->stkp;
     stkbot = obj_stack->stkbot;
-    consolemsg(    "stack[    ]:    [0x%08x 0x%08x]", stkbot, stkp);
+    consolemsg(    "stack[    ]:    [%p %p]", stkbot, stkp);
     while (stkp > stkbot) {
       stkp--;
       w = stkp->val;
-      consolemsg(  "     0x%08x", w);
+      consolemsg(  "     0x%08" PRIxWORD, w);
       if (stkp == stkbot && seg->next != NULL) {
         seg = seg->next;
         stkp = seg->data+OBJ_STACK_SIZE;
         stkbot = seg->data;
-        consolemsg("     ---------- [0x%08x 0x%08x]", stkbot, stkp);
+        consolemsg("     ---------- [%p %p]", stkbot, stkp);
       }
     }
   }
@@ -198,23 +200,23 @@ static void print_stack_sizes( smircy_context_t *context )
       }
     }
     if (full_objseg_count == 0 && full_losseg_count == 0) {
-      consolemsg( "OBJSTK[    ]:             % 5d " 
-                  "LOSSTK[    ]:             % 5d ",
+      consolemsg( "OBJSTK[    ]:             % 5ld " 
+                  "LOSSTK[    ]:             % 5ld ",
                   obj_stack->stkp - obj_stack->stkbot,
                   los_stack->stkp - los_stack->stkbot);
     } else if (full_objseg_count == 0) {
-      consolemsg( "OBJSTK[    ]:             % 5d " 
-                  "LOSSTK[    ]: % 4d*%d + % 5d ",
+      consolemsg( "OBJSTK[    ]:             % 5ld " 
+                  "LOSSTK[    ]: % 4d*%d + % 5ld ",
                   obj_stack->stkp - obj_stack->stkbot,
                   full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
     } else if (full_losseg_count == 0) {
-      consolemsg( "OBJSTK[    ]: % 4d*%d + % 5d " 
-                  "LOSSTK[    ]:             % 5d ",
+      consolemsg( "OBJSTK[    ]: % 4d*%d + % 5ld " 
+                  "LOSSTK[    ]:             % 5ld ",
                   full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
                   los_stack->stkp - los_stack->stkbot);
     } else {
-      consolemsg( "OBJSTK[    ]: % 4d*%d + % 5d " 
-                  "LOSSTK[    ]: % 4d*%d + % 5d ",
+      consolemsg( "OBJSTK[    ]: % 4d*%d + % 5ld " 
+                  "LOSSTK[    ]: % 4d*%d + % 5ld ",
                   full_objseg_count, OBJ_STACK_SIZE, obj_stack->stkp - obj_stack->stkbot,
                   full_losseg_count, LOS_STACK_SIZE, los_stack->stkp - los_stack->stkbot);
     }
@@ -278,7 +280,7 @@ int smircy_stack_count( smircy_context_t *context )
   return objcount;
 }
 
-static void *my_gclib_alloc_rts( int bytes, unsigned attribute, char *where )
+static void *my_gclib_alloc_rts( s_word bytes, unsigned attribute, char *where )
 {
 #if 0
   consolemsg( "gclib_alloc_rts from: %22s bytes=%8d {frag: %4d approx 0.%02d}",
@@ -416,14 +418,19 @@ static int expand_bitmap_core( smircy_context_t *context,
   bitmap_old = context->bitmap;
   words_in_bitmap_old = context->words_in_bitmap;
 
-  dbmsg( "expand_bitmap_core( context, [0x%08x,0x%08x] ) from [0x%08x,0x%08x]",
+  dbmsg( "expand_bitmap_core( context, [%p,%p] ) from [%p,%p]",
          lowest_heap_address_new, highest_heap_address_new,
          lowest_heap_address_old, highest_heap_address_old );
 
+  /* Cover the old range, the requested one, and the memory gclib knows
+     (memory_range); the requested range may hold memory that gclib's
+     range does not (the code space, for example). */
   words_in_bitmap_new = 
     allocate_bitmap_expanding_from( context /* (mutates context) */ ,
-                                    lowest_heap_address_old, 
-                                    highest_heap_address_old);
+                                    min( lowest_heap_address_old,
+                                         lowest_heap_address_new ),
+                                    max( highest_heap_address_old,
+                                         highest_heap_address_new ));
 
   bitmap_new = context->bitmap;
 
@@ -448,7 +455,7 @@ static void *increment_gnos_geq( word *pw, int *pgno, void *data )
   int shift_geq_gno = *(int*)data;
   word w = *pw;
   if (*pgno >= shift_geq_gno) {
-    dbmsg("increment_gnos_geq: 0x%08x (%d) incr %d", w, gen_of(w), *pgno );
+    dbmsg("increment_gnos_geq: 0x%08" PRIxWORD " (%d) incr %d", w, gen_of(w), *pgno );
     *pgno = *pgno+1;
   }
   return data;
@@ -556,16 +563,21 @@ static word *allocate_new_bitmap( char **lowest_inout, char **highest_inout,
                                   int *words_in_bitmap_recv ) {
   char *lowest, *highest;
   char *highest_adjusted;
-  int max_obj_count;
-  int words_in_bitmap; 
+  word max_obj_count;
+  word words_in_bitmap; 
   word *bitmap;
 
   memory_range( lowest_inout, highest_inout );
   lowest = *lowest_inout;
   highest = *highest_inout;
-  /* Upper bound on number of objects that fit in memory range. */
-  max_obj_count = CEILDIV(highest-lowest,MIN_BYTES_PER_OBJECT);
+  /* Upper bound on number of objects that fit in memory range.  (In
+     words: the range may span more than 2^31 objects, 32GB, on a 64-bit
+     system, beyond what the int fields can describe.) */
+  max_obj_count = CEILDIV((word)(highest-lowest),MIN_BYTES_PER_OBJECT);
   words_in_bitmap = CEILDIV(max_obj_count,BITS_PER_WORD);
+  if (words_in_bitmap > INT_MAX/sizeof(word))
+    panic_exit( "smircy: the heap spans too many addresses for the mark bitmap"
+                " (%p to %p)", (void*)lowest, (void*)highest );
 
 #if 1
   /* (allocated to page boundary; utilize (expectedly small) space) */
@@ -592,8 +604,8 @@ static word *allocate_new_bitmap( char **lowest_inout, char **highest_inout,
 static void init_from_old( word *bitmap_old, word *lo_addr_old, word *hi_addr_old, int words_in_old, 
                            word *bitmap_new, word *lo_addr_new, word *hi_addr_new, int words_in_new ) {
   int i;
-  int offset_bit_idx = ((char*)lo_addr_old - (char*)lo_addr_new) >> BIT_IDX_SHIFT;
-  int offset_word_idx = offset_bit_idx >> BIT_IDX_TO_WORD_IDX;
+  word offset_bit_idx = ((char*)lo_addr_old - (char*)lo_addr_new) >> BIT_IDX_SHIFT;
+  int offset_word_idx = (int)(offset_bit_idx >> BIT_IDX_TO_WORD_IDX);
   word testobj;
   assert( words_in_old > 0 );
   assert( offset_word_idx+words_in_old <= words_in_new );
@@ -686,7 +698,7 @@ static obj_stackseg_t *push_obj_segment( obj_stackseg_t *obj,
   if (*freed == NULL) {
     sp = alloc_obj_stackseg();
 
-    dbmsg( "SMIRCY push_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x [%d]", 
+    dbmsg( "SMIRCY push_obj_segment( %p, [%p] ) => %p [%d]", 
            obj, *freed, sp, gno_owner );
 
     sp->next = obj;
@@ -695,7 +707,7 @@ static obj_stackseg_t *push_obj_segment( obj_stackseg_t *obj,
   } else {
     sp = *freed;
 
-    dbmsg( "SMIRCY push_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x [%d]", 
+    dbmsg( "SMIRCY push_obj_segment( %p, [%p] ) => %p [%d]", 
            obj, *freed, sp, gno_owner );
 
     *freed = sp->next;
@@ -719,7 +731,7 @@ static obj_stackseg_t *pop_obj_segment( obj_stackseg_t *obj,
   assert( obj != NULL );
   sp = obj->next;
 
-  dbmsg( "SMIRCY  pop_obj_segment( 0x%08x, [0x%08x] ) => 0x%08x", 
+  dbmsg( "SMIRCY  pop_obj_segment( %p, [%p] ) => %p", 
          obj, *freed, sp );
 
 #if ATTEMPT_SEGMENT_REUSE
@@ -748,7 +760,7 @@ static los_stackseg_t *push_los_segment( los_stackseg_t *los,
   if (*freed == NULL) {
     sp = alloc_los_stackseg();
 
-    dbmsg( "SMIRCY push_los_segment( 0x%08x, [0x%08x] ) => 0x%08x", 
+    dbmsg( "SMIRCY push_los_segment( %p, [%p] ) => %p", 
            los, *freed, sp );
 
     sp->next = los;
@@ -756,7 +768,7 @@ static los_stackseg_t *push_los_segment( los_stackseg_t *los,
   } else {
     sp = *freed;
 
-    dbmsg( "SMIRCY push_los_segment( 0x%08x, [0x%08x] ) => 0x%08x", 
+    dbmsg( "SMIRCY push_los_segment( %p, [%p] ) => %p", 
            los, *freed, sp );
 
     *freed = sp->next;
@@ -776,7 +788,7 @@ static los_stackseg_t *pop_los_segment( los_stackseg_t *los,
   assert( los != NULL );
   sp = los->next;
 
-  dbmsg( "SMIRCY  pop_los_segment( 0x%08x, [0x%08x] ) => 0x%08x", 
+  dbmsg( "SMIRCY  pop_los_segment( %p, [%p] ) => %p", 
          los, *freed, sp );
 
 #if ATTEMPT_SEGMENT_REUSE
@@ -978,7 +990,7 @@ smircy_context_t *smircy_begin_opt( gc_t *gc, int num_rgns,
   /* all hasbeen regions can now be reclassified as polling */
   region_group_enq_all( region_group_hasbeen, region_group_advertised );
 
-  dbmsg( "smircy_begin( gc, %d ) bitmap: 0x%08x ", 
+  dbmsg( "smircy_begin( gc, %d ) bitmap: %p ", 
          num_rgns, context->bitmap );
 
   CHECK_REP( context );
@@ -995,7 +1007,7 @@ static void push_root( word *loc, void *data )
 {
   smircy_context_t *context = (smircy_context_t*) data;
   if (isptr(*loc)) {
-    dbmsg("smircy push_root( [0x%08x (%d)], context )", *loc, gen_of(*loc));
+    dbmsg("smircy push_root( [0x%08" PRIxWORD " (%d)], context )", *loc, gen_of(*loc));
   }
   push( context, *loc, 0x0 );
 }
@@ -1013,7 +1025,7 @@ static bool push_remset_entry( word obj, void *data, unsigned *stats )
 {
   smircy_context_t *context = (smircy_context_t*)data;
   if (isptr(obj)) {
-    dbmsg("smircy push_remset_entry( 0x%08x (%d), context, stats )", obj, gen_of(obj));
+    dbmsg("smircy push_remset_entry( 0x%08" PRIxWORD " (%d), context, stats )", obj, gen_of(obj));
   }
   push( context, obj, 0x0 );
   return TRUE;
@@ -1024,7 +1036,7 @@ static bool push_locset_entry( word *loc, void *data )
   smircy_context_t *context = (smircy_context_t*)data;
   word obj = *loc;
   if (isptr(obj)) {
-    dbmsg("smircy push_locset_entry( 0x%08x -> 0x%08x (%d), context )", 
+    dbmsg("smircy push_locset_entry( %p -> 0x%08" PRIxWORD " (%d), context )", 
           loc, obj, gen_of(obj));
   }
   push( context, obj, 0x0 );
@@ -1058,8 +1070,8 @@ static bool mark_word( word *bitmap, word obj, word first )
   /* Note: marks object "header" only, not entire range it occupies. */
   bit_idx     = (obj - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORD_IDX;
-  bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
-  retval      = (bool)( bitmap[ word_idx ] & bit_in_word );
+  bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+  retval      = (( bitmap[ word_idx ] & bit_in_word ) != 0);
   bitmap[ word_idx ] |= bit_in_word;
   return retval;
 }
@@ -1072,9 +1084,9 @@ static bool unmark_word( word *bitmap, word obj, word first )
   /* Note: unmarks object "header" only, not entire range it occupies. */
   bit_idx     = (obj - first) >> BIT_IDX_SHIFT;
   word_idx    = bit_idx >> BIT_IDX_TO_WORD_IDX;
-  set_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
+  set_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
   bit_in_word = ~set_in_word;
-  retval      = (bool)( bitmap[ word_idx ] & set_in_word );
+  retval      = (( bitmap[ word_idx ] & set_in_word ) != 0);
   bitmap[ word_idx ] &= bit_in_word;
   return retval;
 }
@@ -1086,7 +1098,7 @@ static bool is_address_in_bitmap( smircy_context_t *context, word obj ) {
 static bool mark_object( smircy_context_t *context, word obj )
 {
   bool rtn;
-  dbmsg( "smircy mark_object( context, 0x%08x (%d) )", obj, gen_of(obj) );
+  dbmsg( "smircy mark_object( context, 0x%08" PRIxWORD " (%d) )", obj, gen_of(obj) );
   if ( context->lowest_heap_address <= ptrof( obj ) &&
        ptrof( obj ) < context->highest_heap_address ) {
     rtn = mark_word( context->bitmap, obj, (word)context->lowest_heap_address );
@@ -1099,7 +1111,7 @@ static bool mark_object( smircy_context_t *context, word obj )
 
 static bool unmark_object( smircy_context_t *context, word obj ) {
   bool rtn;
-  dbmsg( "smircy unmark_object( context, 0x%08x (%d) )", obj, gen_of(obj) );
+  dbmsg( "smircy unmark_object( context, 0x%08" PRIxWORD " (%d) )", obj, gen_of(obj) );
   assert( context->lowest_heap_address <= ptrof( obj ) &&
           ptrof( obj ) < context->highest_heap_address );
   rtn = unmark_word( context->bitmap, obj, (word)context->lowest_heap_address );
@@ -1174,7 +1186,7 @@ void smircy_progress( smircy_context_t *context,
 
   stack = &context->stack;
   dbmsg("smircy process stack, "
-        "stk{bot,p,lim}:{0x%08x,0x%08x,0x%08x}", 
+        "stk{bot,p,lim}:{%p,%p,%p}", 
         stack->obj.stkbot, stack->obj.stkp, stack->obj.stklim );
   {
     {
@@ -1225,9 +1237,9 @@ void smircy_progress( smircy_context_t *context,
 #endif
         assert( w_gno > 0 ); /* gno valid and non-nursery */
         if (context->rgn_to_obj_entry[ w_gno ] != stack->obj.stkp ) {
-          consolemsg("w: 0x%08x (%d) "
-                     "context->rgn_to_obj_entry[ w_gno ]: 0x%08x "
-                     "*stack->obj.stkp: [0x%08x,0x%08x]",
+          consolemsg("w: 0x%08" PRIxWORD " (%d) "
+                     "context->rgn_to_obj_entry[ w_gno ]: %p "
+                     "*stack->obj.stkp: [0x%08" PRIxWORD ",%p]",
                      w, w_gno, 
                      context->rgn_to_obj_entry[ w_gno ], 
                      stack->obj.stkp->val,
@@ -1236,7 +1248,7 @@ void smircy_progress( smircy_context_t *context,
         assert( context->rgn_to_obj_entry[ w_gno ] == stack->obj.stkp );
         context->rgn_to_obj_entry[ w_gno ] = stack->obj.stkp->next_in_rgn;
 
-        dbmsg( "SMIRCY popped 0x%08x off of stack", w );
+        dbmsg( "SMIRCY popped 0x%08" PRIxWORD " off of stack", w );
 
         traced++;
         context->total_traced++;
@@ -1348,8 +1360,8 @@ bool smircy_object_marked_p( smircy_context_t *context, word obj )
        ptrof( obj ) < highest_heap_address ) {
     bit_idx = (obj - (word)lowest_heap_address) >> BIT_IDX_SHIFT;
     word_idx = bit_idx >> BIT_IDX_TO_WORD_IDX;
-    bit_in_word = 1 << (bit_idx & BIT_IN_WORD_MASK);
-    return (bool)(bitmap[ word_idx ] & bit_in_word);
+    bit_in_word = (word)1 << (bit_idx & BIT_IN_WORD_MASK);
+    return ((bitmap[ word_idx ] & bit_in_word) != 0);
   } else {
     return TRUE; /* all objects outside bitmap considered marked. */
   }
@@ -1417,7 +1429,7 @@ void smircy_enumerate_stack_of_rgn( smircy_context_t *context,
 
     if (!  ( !isptr(obj_entry->val) || gen_of(obj_entry->val) == rgn )) {
       consolemsg("smircy_enumerate_stack_of_rgn "
-                 "rgn: %d obj_entry val: 0x%08x (%d)",
+                 "rgn: %d obj_entry val: 0x%08" PRIxWORD " (%d)",
                  rgn, obj_entry->val, 
                  isptr(obj_entry->val)?gen_of(obj_entry->val):-1);
     }
@@ -1602,7 +1614,7 @@ void smircy_when_object_forwarded( smircy_context_t *context,
   bool old_is_marked, new_is_marked;
 
   if (obj_orig == obj_new) {
-    dbmsg( "smircy_when_object_forwarded( context, 0x%08x (%d):%s, 0x%08x (%d):%s )",
+    dbmsg( "smircy_when_object_forwarded( context, 0x%08" PRIxWORD " (%d):%s, 0x%08" PRIxWORD " (%d):%s )",
            obj_orig, gen_orig, smircy_object_marked_p( context, obj_orig )?"M":"U" , 
            obj_new, gen_new,   smircy_object_marked_p( context, obj_new  )?"M":"U" );
   }
@@ -1611,7 +1623,7 @@ void smircy_when_object_forwarded( smircy_context_t *context,
    * ironed out other bugs... */
   if (! is_address_in_bitmap( context, obj_new ) ||
       ! is_address_in_bitmap( context, obj_orig ) ) {
-    dbmsg( "smircy_when_object_forwarded( context, 0x%08x (%d), 0x%08x (%d) ) "
+    dbmsg( "smircy_when_object_forwarded( context, 0x%08" PRIxWORD " (%d), 0x%08" PRIxWORD " (%d) ) "
            " expanding bitmap",
            obj_orig, gen_orig, obj_new, gen_new );
     expand_bitmap_core( context,
@@ -1653,7 +1665,7 @@ void smircy_when_object_forwarded( smircy_context_t *context,
       expand_context( context ); /* expensive; hopefully uncommon! */
       assert2(! smircy_object_marked_p( context, obj_orig )); /* still sane? */
       newsz = context->words_in_bitmap;
-      dbmsg("forwarding unmarked 0x%08x (%d) to 0x%08x (%d) in new area; "
+      dbmsg("forwarding unmarked 0x%08" PRIxWORD " (%d) to 0x%08" PRIxWORD " (%d) in new area; "
             "expanding mark bitmap, old: %d new: %d delta: %d",
             obj_orig, gen_orig, obj_new, gen_new, 
             oldsz, newsz, (newsz-oldsz));

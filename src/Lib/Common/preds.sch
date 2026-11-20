@@ -29,289 +29,128 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
-;;; Copyright 2006 William D Clinger.
+;;; EQUAL?
 ;;;
-;;; Please do not copy this software.  It is in alpha test form.
-;;; A better version will be distributed at some later date.
+;;; Terminates on all arguments, including circular structures, by the
+;;; interleaved algorithm of Michael D Adams and R Kent Dybvig
+;;; ("Efficient Nondestructive Equality Checking for Trees and Graphs",
+;;; ICFP 2008), as in Chez Scheme:
 ;;;
-;;; Last modified 7 November 2007
+;;; The comparison starts in fast mode, the traditional recursive
+;;; algorithm, with a budget of equal:fast-nodes pairs and vectors.
+;;; When the budget runs out it compares the next equal:slow-nodes pairs
+;;; and vectors in slow mode, which keeps a union-find structure of the
+;;; objects known or assumed to be equal: comparing x and y when they
+;;; are already in one class succeeds, and otherwise their classes are
+;;; merged before their elements are compared.  (That is sound because
+;;; any difference anywhere makes the answer #f.)  Slow mode goes on
+;;; while it finds already equated objects; after equal:slow-nodes new
+;;; ones in a row it returns to fast mode with a new budget.  Circular and shared structure thus
+;;; costs little, while trees and long lists are compared mostly in
+;;; fast mode, and small ones without a table at all.
 ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;; Uses R6RS hashtables.  Uses only:
-;;;
-;;; make-eq-hashtable
-;;; hashtable-ref
-;;; hashtable-set!
-;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;
-;;; EQUIV?
-;;;
-;;; EQUIV? is a version of EQUAL? that terminates on all arguments.
-;;;
-;;; The basic idea of the algorithm is presented in
-;;;
-;;; J E Hopcroft and R M Karp.  A Linear Algorithm for
-;;; Testing Equivalence of Finite Automata.
-;;; Cornell University Technical Report 71-114,
-;;; December 1971.
-;;; http://techreports.library.cornell.edu:8081/Dienst/UI/1.0/Display/cul.cs/TR71-114
-;;;
-;;; The algorithm uses FIND and MERGE operations, which
-;;; roughly correspond to done? and equate! in the code below.
-;;; The algorithm maintains a stack of comparisons to do,
-;;; and a set of equivalences that would be implied by the
-;;; comparisons yet to be done.
-;;;
-;;; When comparing objects x and y whose equality cannot be
-;;; determined without recursion, the algorithm pushes all
-;;; the recursive subgoals onto the stack, and merges the
-;;; equivalence classes for x and y.  If any of the subgoals
-;;; involve comparing x and y, the algorithm will notice
-;;; that they are in the same equivalence class and will
-;;; avoid circularity by assuming x and y are equal.
-;;; If all of the subgoals succeed, then x and y really are
-;;; equal, so the algorithm is correct.
-;;;
-;;; If the hash tables give amortized constant-time lookup on
-;;; object identity, then this algorithm could be made to run
-;;; in O(n) time, where n is the number of nodes in the larger
-;;; of the two structures being compared.
-;;;
-;;; If implemented in portable R5RS Scheme, the algorithm
-;;; should still run in O(n^2) time, or close to it.
-;;;
-;;; This implementation uses two techniques to reduce the
-;;; cost of the algorithm for common special cases:
-;;;
-;;; It starts out by trying the traditional recursive algorithm
-;;; to bounded depth.
-;;; It handles easy cases specially.
+;;; This replaces an algorithm (Will Clinger, 2006, after Hopcroft and
+;;; Karp) that tried the recursive algorithm for up to 5000000 steps
+;;; before switching for good to equivalence classes kept as lists, so
+;;; that comparing circular or heavily shared structures took the 5000000
+;;; steps every time.
 
-; How long should we try the traditional recursive algorithm
-; before switching to the terminating algorithm?
+; Chez uses budgets of a few hundred and a few dozen nodes; these are
+; larger because hashtable operations cost much more than a fast step
+; here.  (The equal benchmark, test/Benchmarking/R6RS, takes 0.64 s of
+; comparisons with these, against 2.9 s before: 4 ms instead of 1625 for
+; circular lists, 118 instead of 1000 for shared trees, 212 and 237
+; instead of 110 and 140 for lists of shared trees and deep trees.)
 
-(define equal:bound-on-recursion 5000000)
+(define equal:fast-nodes 50000)
+(define equal:slow-nodes 1000)
 
 (define (equal? x y)
 
-  ; The traditional recursive algorithm, with bounded recursion.
-  ; Returns #f or an exact integer n.
-  ; If n > 0, then x and y are equal and the comparison involved
-  ; bound - n recursive calls.
-  ; If n <= 0, then the algorithm terminated before
-  ; it could determine whether x and y are equal.
+  (define table #f)                       ; object -> class node
 
-  (define (equal? x y bound)
+  ; A class node is a vector of one element, the node's parent, or #f
+  ; in the representative of the class.
+
+  (define (find node)
+    (let loop ((root node))
+      (let ((parent (vector-ref root 0)))
+        (if parent
+            (loop parent)
+            (let compress ((node node))  ; path compression
+              (let ((parent (vector-ref node 0)))
+                (if (and parent (not (eq? parent root)))
+                    (begin (vector-set! node 0 root)
+                           (compress parent))
+                    root)))))))
+
+  (define (node-of x)
+    (or (hashtable-ref table x #f)
+        (let ((node (vector #f)))
+          (hashtable-set! table x node)
+          node)))
+
+  ; Returns #t if x and y are in one class, and otherwise merges their
+  ; classes and returns #f.
+
+  (define (same-class! x y)
+    (if (not table)
+        (set! table (make-eq-hashtable)))
+    (let ((rx (find (node-of x)))
+          (ry (find (node-of y))))
+      (or (eq? rx ry)
+          (begin (vector-set! rx 0 ry)
+                 #f))))
+
+
+					; Compares x and y with budget k: fast mode while k > 0, slow mode
+  ; for k from 0 down to (- equal:slow-nodes).  Returns #f if they
+  ; differ, and otherwise the budget left.  In slow mode, a pair or
+  ; vector already equated to the other succeeds at once, and the
+  ; budget goes back to 0: slow mode lasts while it keeps finding
+  ; shared structure, and ends only after equal:slow-nodes new nodes in
+  ; a row.  (Otherwise fast mode would explore shared structure as if
+  ; it were a tree.)
+
+  (define (e? x y k)
     (cond ((eq? x y)
-           bound)
-          ((<= bound 0)
-           bound)
+           k)
           ((and (pair? x) (pair? y))
-           (if (eq? (car x) (car y))
-               (equal? (cdr x) (cdr y) (- bound 1))
-               (let ((result (equal? (car x) (car y) (- bound 1))))
-                 (if result
-                     (equal? (cdr x) (cdr y) result)
-                     #f))))
+           (if (and (<= k 0) (same-class! x y))
+               0
+               (let ((k (e? (car x) (car y) (next k))))
+                 (and k (e? (cdr x) (cdr y) k)))))
           ((and (vector? x) (vector? y))
-           (let ((nx (vector-length x))
-                 (ny (vector-length y)))
-             (if (= nx ny)
-                 (let loop ((i 0)
-                            (bound (- bound 1)))
-                   (if (< i nx)
-                       (let ((result (equal? (vector-ref x i)
-                                             (vector-ref y i)
-                                             bound)))
-                         (if result
-                             (loop (+ i 1) result)
-                             #f))
-                       bound))
-                 #f)))
+           (let ((n (vector-length x)))
+             (and (= n (vector-length y))
+                  (if (and (<= k 0) (same-class! x y))
+                      0
+                      (let loop ((i 0) (k (next k)))
+                        (if (< i n)
+                            (let ((k (e? (vector-ref x i) (vector-ref y i) k)))
+                              (and k (loop (+ i 1) k)))
+                            k))))))
           ((and (bytevector? x) (bytevector? y))
-           (if (bytevector=? x y) bound #f))
+           (and (bytevector=? x y) k))
           ((and (string? x) (string? y))
-           (if (string=? x y) bound #f))
+           (and (string=? x y) k))
           ((and (text? x) (text? y))
-           (if (textual=? x y) bound #f))
+           (and (textual=? x y) k))
           ((and (numeric-vector? x) (numeric-vector? y))
-           (if (numeric-vector=? x y) bound #f))
+           (and (numeric-vector=? x y) k))
           ((eqv? x y)
-           bound)
+           k)
           (else #f)))
 
-  ; Returns #t iff x and y would have the same (possibly infinite)
-  ; printed representation.  Always terminates.
+  ; The budget after a pair or vector: in slow mode, back to fast mode
+  ; after equal:slow-nodes of them.
 
-  (define (equiv? x y)
-    (let ((done (initial-equivalences)))
+  (define (next k)
+    (cond ((> k 0) (- k 1))
+          ((<= k (- equal:slow-nodes)) equal:fast-nodes)
+          (else (- k 1))))
 
-      ; done is a hash table that maps objects to their
-      ; equivalence classes.
-      ;
-      ; Algorithmic invariant:  If all of the comparisons that
-      ; are in progress (pushed onto the control stack) come out
-      ; equal, then all of the equivalences in done are correct.
-      ;
-      ; Invariant of this implementation:  The equivalence classes
-      ; omit easy cases, which are defined as cases in which eqv?
-      ; always returns the correct answer.  The equivalence classes
-      ; also omit strings, because strings can be compared without
-      ; risk of circularity.
-      ;
-      ; Invariant of this prototype:  The equivalence classes include
-      ; only pairs and vectors.  If records or other things are to be
-      ; compared recursively, then they should be added to done.
-      ;
-      ; Without constant-time lookups, it is important to keep
-      ; done as small as possible.  This implementation takes
-      ; advantage of several common cases for which it is not
-      ; necessary to keep track of a node's equivalence class.
-
-      (define (equiv? x y)
-        ;(step x y done)
-        (cond ((eqv? x y)
-               #t)
-              ((and (pair? x) (pair? y))
-               (let ((x1 (car x))
-                     (y1 (car y))
-                     (x2 (cdr x))
-                     (y2 (cdr y)))
-                 (cond ((done? x y done)
-                        #t)
-                       ((eqv? x1 y1)
-                        (equate! x y done)
-                        (equiv? x2 y2))
-                       ((eqv? x2 y2)
-                        (equate! x y done)
-                        (equiv? x1 y1))
-                       ((easy? x1 y1)
-                        #f)
-                       ((easy? x2 y2)
-                        #f)
-                       (else
-                        (equate! x y done)
-                        (and (equiv? x1 y1)
-                             (equiv? x2 y2))))))
-              ((and (vector? x) (vector? y))
-               (let ((n (vector-length x)))
-                 (if (= n (vector-length y))
-                     (if (done? x y done)
-                         #t
-                         (begin (equate! x y done)
-                                (vector-equiv? x y n 0)))
-                     #f)))
-              ((and (bytevector? x) (bytevector? y))
-               (bytevector=? x y))
-              ((and (string? x) (string? y))
-               (string=? x y))
-              ((and (text? x) (text? y))
-               (textual=? x y))
-              (else #f)))
-
-      ; Like equiv? above, except x and y are known to be vectors,
-      ; n is the length of both, and i is the first index that has
-      ; not yet been pushed onto the todo set.
-    
-      (define (vector-equiv? x y n i)
-        (if (< i n)
-            (let ((xi (vector-ref x i))
-                  (yi (vector-ref y i)))
-              (if (easy? xi yi)
-                  (if (eqv? xi yi)
-                      (vector-equiv? x y n (+ i 1))
-                      #f)
-                  (and (equiv? xi yi)
-                       (vector-equiv? x y n (+ i 1)))))
-            #t))
-
-      (equiv? x y)))
-
-  ; A comparison is easy if eqv? returns the right answer.
-
-  (define (easy? x y)
-    (cond ((eqv? x y)
-           #t)
-          ((pair? x)
-           (not (pair? y)))
-          ((pair? y)
-           #t)
-          ((vector? x)
-           (not (vector? y)))
-          ((vector? y)
-           #t)
-          ((vector? x)
-           (not (vector? y)))
-          ((vector? y)
-           #t)
-          ((bytevector? x)
-           (not (bytevector? y)))
-          ((bytevector? y)
-           #t)
-          ((string? x)
-           (not (string? y)))
-          ((string? y)
-           #t)
-          ((text? x)
-           (not (text? y)))
-          ((text? y)
-           #t)
-          (else #f)))
-
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;
-  ; Tables mapping objects to their equivalence classes.
-  ;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-  ; FIXME:  Equivalence classes are represented as lists,
-  ; which means they can't be merged in constant time.
-
-  (define (initial-equivalences)
-    (make-eq-hashtable))
-
-  ; Are x and y equivalent according to the table?
-
-  (define (done? x y table)
-    (memq x (hashtable-ref table y '())))
-
-  ; Merge the equivalence classes of x and y in the table,
-  ; and return the table.  Changes the table.
-
-  (define (equate! x y table)
-    (let ((xclass (hashtable-ref table x '()))
-          (yclass (hashtable-ref table y '())))
-      (cond ((and (null? xclass) (null? yclass))
-             (let ((class (list x y)))
-               (hashtable-set! table x class)
-               (hashtable-set! table y class)))
-            ((null? xclass)
-             (let ((class0 (cons x (cdr yclass))))
-               (set-cdr! yclass class0)
-               (hashtable-set! table x yclass)))
-            ((null? yclass)
-             (let ((class0 (cons y (cdr xclass))))
-               (set-cdr! xclass class0)
-               (hashtable-set! table y xclass)))
-            ((eq? xclass yclass)
-             #t)
-            ((memq x yclass)
-             #t)
-            (else
-             (let ((class0 (append (cdr xclass) yclass)))
-               (set-cdr! xclass class0)
-               (for-each (lambda (y) (hashtable-set! table y xclass))
-                         yclass)))))
-    table)
-
-  (let ((result (equal? x y equal:bound-on-recursion)))
-    (if result
-        (if (> result 0)
-            #t
-            (equiv? x y))
-        #f)))
+  (if (e? x y equal:fast-nodes) #t #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

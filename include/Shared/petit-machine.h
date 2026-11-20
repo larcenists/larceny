@@ -25,8 +25,8 @@
  * is that src/Rts/petit-regs.cfg was never created, so that there is
  * a hack here to handle LASTREG and NREGS.
  */
-#ifdef ARM
-#error "You should not be seeing this file for ARM Fence/Cant builds"
+#if defined(ARM) || defined(X86_64)
+#error "You should not be seeing this file for Fence/Cant builds"
 #else
 #define LASTREG           31
 #define NREGS             32

@@ -35,6 +35,7 @@
 #include "stats.h"
 #include "gc_mmu_log.h"
 #include "uremset_t.h"
+#include "code-space.h"
 
 #define PROMOTE_WITHOUT_COLLECTING       0
 #define PROMOTE_WHILE_COLLECTING         1
@@ -50,15 +51,16 @@ struct old_data {
   oh_type_t   oh_type;            /* ephemeral/dynamic/regional */
 
   /* Strategy/Policy/Mechanism */
-  int         size_bytes;         /* Initial size */
-  int         lower_limit;        /* 0 or lower limit on expandable area */
-  int         upper_limit;	  /* 0 or upper limit on expandable area */
-  int         target_size;        /* Current size */
+  s_word         size_bytes;         /* Initial size */
+  s_word         lower_limit;        /* 0 or lower limit on expandable area */
+  s_word         upper_limit;	  /* 0 or upper limit on expandable area */
+  s_word         target_size;        /* Current size */
   double      load_factor;        /* That's the L from the formula above */
+  s_word         max_dynamic_size;   /* Greatest M so far (-nocontract) */
   bool        must_clear_area;    /* Clear area after collection */
   bool        must_clear_remset;  /* Clear remset after collection */
 
-  int         promoted_last_gc;	  /* For policy use */
+  s_word         promoted_last_gc;	  /* For policy use */
 
   gen_stats_t gen_stats;	  /* accumulates collections and time */
   gc_stats_t  gc_stats;		  /* accumulates words copied/moved */
@@ -74,16 +76,16 @@ static int  decision( old_heap_t *heap );
 static void perform_collect( old_heap_t *heap );
 static void perform_promote( old_heap_t *heap );
 static void perform_promote_then_promote( old_heap_t *heap );
-static int  compute_dynamic_size( old_heap_t *heap, int live, int los );
-static int  used_space( old_heap_t *heap );
-static int  used_space_amid_gc( old_heap_t *heap );
+static s_word  compute_dynamic_size( old_heap_t *heap, s_word live, s_word los );
+static s_word  used_space( old_heap_t *heap );
+static s_word  used_space_amid_gc( old_heap_t *heap );
 #if FLOAT_REDUCTION
 static void full_collection( old_heap_t *heap );
 #endif
 static void start_timers( stats_id_t *timer1, stats_id_t *timer2 );
 static void stop_timers( bool is_promotion,
 			 old_heap_t *heap, 
-			 int bytes_copied, int bytes_moved, 
+			 s_word bytes_copied, s_word bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 );
 
 semispace_t *
@@ -120,6 +122,7 @@ clone_sc_area( old_heap_t *src_heap, int tgt_gen_no )
     tgt_data->load_factor = src_data->load_factor;
     tgt_data->lower_limit = src_data->lower_limit;
     tgt_data->upper_limit = src_data->upper_limit;
+    tgt_data->max_dynamic_size = src_data->max_dynamic_size;
     tgt_data->target_size = src_data->target_size;
     break;
   case OHTYPE_EPHEMERAL:
@@ -184,9 +187,9 @@ static void collect_regional_into( old_heap_t *heap, gc_type_t request, old_heap
   old_data_t *data_to = DATA(heap_to);
   semispace_t *from, *to, *newspace;
   int rgn_idx = data_from->gen_no;
-  int used_before, tospace_before, los_before;
+  s_word used_before, tospace_before, los_before;
   stats_id_t timer1, timer2;
-  int bytes_copied, bytes_moved;
+  s_word bytes_copied, bytes_moved;
 
   annoyingmsg( "Regional area: garbage collection." );
 
@@ -292,7 +295,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request )
 {
   gc_t *gc = heap->collector;
   old_data_t *data = DATA(heap);
-  int alloc, i;
+  s_word alloc; int i;
 
   annoyingmsg( "Dynamic area: garbage collection." );
 
@@ -300,7 +303,7 @@ static void collect_dynamic( old_heap_t *heap, gc_type_t request )
      */
   alloc = gc_allocated_to_areas( gc, gset_range( 0, data->gen_no ));
 
-  supremely_annoyingmsg( "  alloc=%d  size=%d  used=%d",
+  supremely_annoyingmsg( "  alloc=%" PRIdWORD "  size=%" PRIdWORD "  used=%" PRIdWORD,
 			 alloc, data->target_size, used_space( heap ) );
 
   data->must_clear_remset = 1;
@@ -359,7 +362,7 @@ static int decision( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
   gc_t *gc = heap->collector;
-  int X, Y, Z, M, Xnext;
+  s_word X, Y, Z, M, Xnext;
   int i, n, j;
 
 #if 0
@@ -387,8 +390,8 @@ static int decision( old_heap_t *heap )
   Xnext = (X+M) / 2;
 
   supremely_annoyingmsg( "old-heap: DECISION for generation %d\n"
-			 "  M=%d, X=%d, Y=%d, Z=%d, Xnext=%d\n"
-			 "  alloc=%d, max=%d",
+			 "  M=%" PRIdWORD ", X=%" PRIdWORD ", Y=%" PRIdWORD ", Z=%" PRIdWORD ", Xnext=%" PRIdWORD "\n"
+			 "  alloc=%" PRIdWORD ", max=%" PRIdWORD,
 			 data->gen_no, M, X, Y, Z, Xnext, 
 			 heap->allocated, heap->maximum );
 
@@ -427,7 +430,7 @@ static void start_timers( stats_id_t *timer1, stats_id_t *timer2 ) {
 
 static void stop_timers( bool is_promotion, 
 			 old_heap_t *heap, 
-			 int bytes_copied, int bytes_moved, 
+			 s_word bytes_copied, s_word bytes_moved, 
 			 stats_id_t *timer1, stats_id_t *timer2 ) {
   int ms;
   int ms_cpu;
@@ -495,7 +498,7 @@ static void perform_collect( old_heap_t *heap )
 static void perform_promote( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
-  int used_before, tospace_before, los_before;
+  s_word used_before, tospace_before, los_before;
   stats_id_t timer1, timer2;
 
   annoyingmsg( "  Promoting into generation %d.", data->gen_no );
@@ -537,8 +540,8 @@ static void check_budget( old_heap_t *heap, char *where )
 {
 #if 0
   if (heap->allocated > heap->maximum) {
-    int nonlos_allocated = DATA(heap)->current_space->used;
-    int los_allocated = 
+    s_word nonlos_allocated = DATA(heap)->current_space->used;
+    s_word los_allocated = 
       los_bytes_used( heap->collector->los, DATA(heap)->gen_no );
     consolemsg("old-heap[%d] allocated=%d=%d+%d more than maximum=%d %s",
                DATA(heap)->gen_no, 
@@ -575,7 +578,7 @@ static void after_collection( old_heap_t *heap )
 
   heap->allocated = used_space( heap );
   check_budget( heap, "after_collection" );
-  annoyingmsg( "  Generation %d: Size=%d, Live=%d, Remset live=%d.", 
+  annoyingmsg( "  Generation %d: Size=%" PRIdWORD ", Live=%" PRIdWORD ", Remset live=%d.", 
 	       data->gen_no, data->target_size, heap->allocated, 
 	       urs_live_count( heap->collector->the_remset, data->gen_no ));
 }
@@ -591,6 +594,9 @@ static void stats( old_heap_t *heap )
     bytes2words(data->current_space->allocated + 
 		los_bytes_used( heap->collector->los, data->gen_no ));
   data->gen_stats.used = bytes2words(used_space( heap ));
+#if CODE_SPACE
+  cs_add_stats( heap->collector->code_space, data->gen_no, &data->gen_stats );
+#endif
 
   stats_add_gen_stats( data->self, &data->gen_stats );
   stats_add_gc_stats( &data->gc_stats );
@@ -601,10 +607,10 @@ static void stats( old_heap_t *heap )
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
-static word *data_load_area( old_heap_t *heap, int nbytes )
+static word *data_load_area( old_heap_t *heap, s_word nbytes )
 {
   old_data_t *data = DATA( heap );
-  int n;
+  s_word n;
 
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
@@ -615,7 +621,7 @@ static word *data_load_area( old_heap_t *heap, int nbytes )
 
 /* Internal */
 
-static int static_used( old_heap_t *heap )
+static s_word static_used( old_heap_t *heap )
 {
   static_heap_t *s = heap->collector->static_area;  /* may be NULL */
 
@@ -630,19 +636,20 @@ static int static_used( old_heap_t *heap )
   return (s ? s->data_area->allocated : 0);
 }
 
-static int compute_dynamic_size( old_heap_t *heap, int D, int Q )
+static s_word compute_dynamic_size( old_heap_t *heap, s_word D, s_word Q )
 {
-  int S = static_used( heap );
+  s_word S = static_used( heap );
   double L = DATA(heap)->load_factor;
-  int upper_limit = DATA(heap)->upper_limit;
-  int lower_limit = DATA(heap)->lower_limit;
+  s_word upper_limit = DATA(heap)->upper_limit;
+  s_word lower_limit = DATA(heap)->lower_limit;
 
   return gc_compute_dynamic_size( heap->collector,
-				  D, S, Q, L, lower_limit, upper_limit );
+				  D, S, Q, L, lower_limit, upper_limit,
+				  &DATA(heap)->max_dynamic_size );
 }
 
 
-static int used_space( old_heap_t *heap )
+static s_word used_space( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
 
@@ -651,7 +658,7 @@ static int used_space( old_heap_t *heap )
            los_bytes_used( heap->collector->los, data->gen_no );
 }
 
-static int used_space_amid_gc( old_heap_t *heap )
+static s_word used_space_amid_gc( old_heap_t *heap )
 {
   old_data_t *data = DATA(heap);
 
@@ -788,6 +795,7 @@ static old_heap_t *allocate_heap( int gen_no, gc_t *gc, oh_type_t oh_type )
   data->promoted_last_gc = 0;
   data->oh_type = oh_type;
   data->load_factor = 0.0;
+  data->max_dynamic_size = 0;
   data->target_size = 0;
   data->must_clear_area = 0;
   data->must_clear_remset = 0;

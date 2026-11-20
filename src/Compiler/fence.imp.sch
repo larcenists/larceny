@@ -49,7 +49,7 @@
 
 ; A non-inclusive upper bound for the instruction encodings.
 
-(define *number-of-mnemonics* 72)
+(define *number-of-mnemonics* 80)
 
 ; Integrable procedures and procedure-specific source code transformations.
 ; Every integrable procedure that takes a varying number of arguments must
@@ -98,8 +98,12 @@
 ; This predicate returns #t iff its argument will be represented
 ; as a fixnum on the target machine.
 
+; Target fixnums are 30 bits on 32-bit systems and 62 bits on 64-bit
+; systems.  (When Twobit is hosted by some other Scheme system, the
+; compatibility layer defines fixnum? to describe the target's fixnums.)
+
 (define smallint?
-  (let* ((least (- (expt 2 29)))
+  (let* ((least (- (expt 2 (if (fixnum? (expt 2 32)) 61 29))))
          (greatest (- (- least) 1)))
     (lambda (x)
       (and (number? x)
@@ -109,6 +113,20 @@
 
 (define (fence-imm? x)
   (smallint? x))
+
+; The alignment of .fxaligned?:fix (64-bit systems, where its fused
+; tests exist).
+
+(define (fence-alignment-imm? x)
+  (and (memv x '(2 4 8))
+       (fixnum? (expt 2 32))))
+
+; A constant shift count for fxrsha and .fxlsh: 0 <= x < the fixnum width.
+
+(define (fence-shift-imm? x)
+  (and (fixnum? x)
+       (<= 0 x)
+       (< x (if (fixnum? (expt 2 32)) 62 30))))
 
 (define (fence-eq-imm? x)
   (or (fence-imm? x)
@@ -212,6 +230,25 @@
     (.bytevector-like-set!:trusted
                       3 bytevector-like-set!:trusted #f -1 ,:dead  ,:string #f)
 
+    ; Multi-byte loads and stores in the native byte order, used by the
+    ; compiler macros of bytevector-u32-ref and friends on 64-bit
+    ; systems (see bytevector-accessor-rules in common.imp.sch).  The
+    ; 64-bit loads return #f for values that are not fixnums.
+
+    (.fxaligned?:fix  2 fxaligned?:fix   ,fence-alignment-imm? -1 ,:immortal ,:none #f)
+    (.bytevector-like-ref32u:trusted
+                      2 bytevector-like-ref32u:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-ref32s:trusted
+                      2 bytevector-like-ref32s:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-ref64u:trusted
+                      2 bytevector-like-ref64u:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-ref64s:trusted
+                      2 bytevector-like-ref64s:trusted #f -1 ,:string ,:none #f)
+    (.bytevector-like-set32!:trusted
+                      3 bytevector-like-set32!:trusted #f -1 ,:dead ,:string #f)
+    (.bytevector-like-set64!:trusted
+                      3 bytevector-like-set64!:trusted #f -1 ,:dead ,:string #f)
+
     (.car:pair        1 car:pair         #f           404 ,:car      ,:none #f)
     (.cdr:pair        1 cdr:pair         #f           405 ,:cdr      ,:none #f)
 
@@ -230,8 +267,8 @@
     (.fxlogand        2 fxlogand         #f            71 ,:immortal ,:none #f)
     (.fxlogior        2 fxlogior         #f            72 ,:immortal ,:none #f)
     (.fxlogxor        2 fxlogxor         #f            73 ,:immortal ,:none #f)
-    (.fxlsh           2 fxlsh            #f            74 ,:immortal ,:none #f)
-    (.fxrsha          2 fxrsha           #f            75 ,:immortal ,:none #f)
+    (.fxlsh           2 fxlsh            ,fence-shift-imm? 74 ,:immortal ,:none #f)
+    (.fxrsha          2 fxrsha           ,fence-shift-imm? 75 ,:immortal ,:none #f)
     (.fxrshl          2 fxrshl           #f            76 ,:immortal ,:none #f)
 
     (.+:flo:flo       2 +:flo:flo        #f            -1 ,:immortal ,:none)
@@ -468,7 +505,7 @@
     (fxlogior         2 fxlogior         #f            72 ,:immortal ,:none #f)
     (fxlogxor         2 fxlogxor         #f            73 ,:immortal ,:none #f)
     (fxlsh            2 fxlsh            #f            74 ,:immortal ,:none #f)
-    (fxrsha           2 fxrsha           #f            75 ,:immortal ,:none #f)
+    (fxrsha           2 fxrsha           ,fence-shift-imm? 75 ,:immortal ,:none #f)
     (fxrshl           2 fxrshl           #f            76 ,:immortal ,:none #f)
 ;   (rot              2 rot              #f            77 ,:immortal ,:none #f)
     (bytevector-ref   2 bytevector-ref   ,fence-imm?    82 ,:string   ,:none #f)
@@ -507,16 +544,20 @@
     (fxzero?      1 fxzero?      #f            211 ,:immortal ,:none #f)
     (fxpositive?  1 fxpositive?  #f            212 ,:immortal ,:none #f)
     (fxnegative?  1 fxnegative?  #f            213 ,:immortal ,:none #f)
+
+    ; Larceny's flonum procedures (not R6RS's fl=? and the like, which
+    ; are compiler macros in common.imp.sch): they check that their
+    ; arguments are flonums.  fl-- negates with millicode.
+    (fl--         1 fl--         #f            302 ,:immortal ,:none #t)
+    (fl=          2 fl=          #f            304 ,:immortal ,:none #f)
+    (fl<          2 fl<          #f            305 ,:immortal ,:none #f)
+    (fl<=         2 fl<=         #f            306 ,:immortal ,:none #f)
+    (fl>          2 fl>          #f            307 ,:immortal ,:none #f)
+    (fl>=         2 fl>=         #f            308 ,:immortal ,:none #f)
 ; FIXME: not implemented
 ;    (fl+          2 +            #f            300 ,:immortal ,:none #f)
 ;    (fl-          2 -            #f            301 ,:immortal ,:none #f)
-;    (fl--         1 --           #f            302 ,:immortal ,:none #f)
 ;    (fl*          2 *            #f            303 ,:immortal ,:none #f)
-;    (fl=          2 =            #f            304 ,:immortal ,:none #f)
-;    (fl<          2 <            #f            305 ,:immortal ,:none #f)
-;    (fl<=         2 <=           #f            306 ,:immortal ,:none #f)
-;    (fl>          2 >            #f            307 ,:immortal ,:none #f)
-;    (fl>=         2 >=           #f            308 ,:immortal ,:none #f)
 
     ; Temporary because they are used for bootstrapping
 
@@ -611,6 +652,8 @@
   (make-mnemonic 'reg/check))
 (define $save/stores
   (make-mnemonic 'save/stores))           ; save/store         n,(k1 ...),(n1 ...)
+(define $reg/op1/check/length             ; reg/op1/check/length prim,k,L,liveregs,kr
+  (make-mnemonic 'reg/op1/check/length))
 
 ; misc
 

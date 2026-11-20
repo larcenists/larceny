@@ -79,6 +79,8 @@
   (environment-set! null '.cdr .cdr)
   (environment-set! null '.append .append)
   (environment-set! null '.make-promise .make-promise)
+  (environment-set! null '.make-case-lambda .make-case-lambda)
+  (environment-set! null 'case-lambda:make case-lambda:make)
   (environment-set! null '.make-cell .make-cell)
   (environment-set! null '.cell-ref .cell-ref)
   (environment-set! null '.cell-set! .cell-set!)
@@ -1139,10 +1141,34 @@
 
   (environment-set! larc 'record-indexer record-indexer) ; MzScheme
 
+  ;; For the open-coded accessors of define-record-type (record.sch).
+
+  (environment-set! larc 'record-ref:bummed record-ref:bummed)
+  (environment-set! larc 'record-set!:bummed record-set!:bummed)
+  (environment-set! larc 'record:wrong-type record:wrong-type)
+  (environment-set! larc 'record:inline-hierarchy-vector
+                    record:inline-hierarchy-vector)
+
   ;; record printers
 
   (environment-set! larc 'rtd-printer rtd-printer)
   (environment-set! larc 'rtd-printer-set! rtd-printer-set!)
+
+  ;; feature markers of compiled code (#lap, #lop)
+
+  (environment-set! larc 'list->code-features list->code-features)
+  (environment-set! larc 'make-code-features make-code-features)
+  (environment-set! larc 'code-features? code-features?)
+  (environment-set! larc 'code-features-kind code-features-kind)
+  (environment-set! larc 'code-features-clauses code-features-clauses)
+  (environment-set! larc 'code-features-clause code-features-clause)
+  (environment-set! larc 'code-features-assumes code-features-assumes)
+  (environment-set! larc 'code-features-guarantees code-features-guarantees)
+  (environment-set! larc 'write-code-features write-code-features)
+  (environment-set! larc 'system-code-features system-code-features)
+  (environment-set! larc 'system-code-requirements system-code-requirements)
+  (environment-set! larc 'code-features-problems code-features-problems)
+  (environment-set! larc 'check-code-features! check-code-features!)
 
   ;; R7RS exception mechanism
 
@@ -1946,6 +1972,8 @@
 
   (environment-set! larc 'current-second current-second)
   (environment-set! larc 'current-seconds current-seconds)
+  (environment-set! larc 'larceny:monotonic-nanoseconds
+                    larceny:monotonic-nanoseconds)
   (environment-set! larc 'twobit-timer-hook twobit-timer-hook)
 
 

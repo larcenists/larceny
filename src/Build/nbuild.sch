@@ -92,6 +92,30 @@
 (writeln "Loading make utility, makefile, and help.")
 (nbuild-load-files (nbuild:utility-files))
 
+; Compiled files are out of date when the compiler that made them has
+; changed, not just when their sources have.
+
+(let* ((twobit (nbuild:twobit-files))
+       (asm (append twobit
+                    (nbuild:common-asm-files)
+                    (nbuild:machine-asm-files))))
+  (make:tool-files ".lap" twobit)
+  (make:tool-files ".lop" asm)
+  (make:tool-files ".fasl" asm))
+
+; They are also out of date when their feature markers differ from what
+; the compiler would write now.
+
+(make:target-check ".lap"
+  (lambda (file)
+    (code-features-equal? (file-code-features file) (twobit-lap-features))))
+(make:target-check ".lop"
+  (lambda (file)
+    (code-features-equal? (file-code-features file) (assembler-lop-features))))
+(make:target-check ".fasl"
+  (lambda (file)
+    (code-features-equal? (file-code-features file) (assembler-lop-features))))
+
 (writeln "Loading utility functions.")
 (compat:load (param-filename 'rts "make-templates.sch"))
 (compat:load (param-filename 'util "cleanup.sch"))
@@ -106,7 +130,7 @@
 (initialize-help (nbuild-parameter 'compiler) 
                  'full
                  (case (nbuild-parameter 'target-machine)
-                   ((sparc x86-sass arm) 'native)
+                   ((sparc x86-sass arm x86-64) 'native)
                    (else 'petit)))
 
 ; Initialize assembler (Nothing yet -- must eventually adjust endianness.)

@@ -218,12 +218,27 @@ static void enumerate_minor_complement( uremset_t *urs,
   wrapper_data.filter_these = NULL;
   wrapper_data.mirror_these = NULL;
   
+  /* A scanner can add a region (a forward that needs space), which
+   * gives the new region the static area's number and moves the
+   * static area's remembered sets up one.  With the count read once,
+   * the loop then ended before the static area's minor set, whose
+   * objects were not scanned, and clear_minor dropped them: a static
+   * object (a runtime global's value cell) kept a pointer into the
+   * nursery past the collection.  So, as in enumerate_complement, the
+   * static area comes first, and then the regions present before. */
   rs_count = DATA(urs)->remset_count;
+  if (urs->collector->static_area != NULL) {
+    i = urs->collector->gno_count-1;
+    if (! gset_memberp( i, gset ))
+      rs_enumerate( DATA(urs)->remset[ i ],
+                    apply_scanner_to_rs, &wrapper_data );
+    rs_count -= 1;
+  }
   /* static objects die; remset_count includes static remset (thus
    * refinement eliminates corpses with dangling pointers). */
   for( i=1; i < rs_count; i++) {
     if (! gset_memberp( i, gset )) {
-      rs_enumerate( DATA(urs)->remset[ i ], 
+      rs_enumerate( DATA(urs)->remset[ i ],
                     apply_scanner_to_rs, &wrapper_data );
     }
   }

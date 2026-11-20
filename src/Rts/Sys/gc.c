@@ -20,6 +20,8 @@
 #include "semispace_t.h"
 #include "heapio.h"
 #include "memmgr.h"
+#include "gc_t.h"
+#include "code-space.h"
 
 static gc_t *gc;
 static int  generations;
@@ -39,7 +41,7 @@ int create_memory_manager( gc_param_t *params, int *gens )
   return 1;
 }
 
-word *alloc_from_heap( int bytes )
+word *alloc_from_heap( s_word bytes )
 {
   return gc_allocate( gc, bytes, 0, 0 );
 }
@@ -49,15 +51,15 @@ word *alloc_from_heap( int bytes )
    The length is the number of data fields in the structure and does
    not include header or padding.
    */
-word allocate_nonmoving( int length, int tag )
+word allocate_nonmoving( s_word length, int tag )
 {
-  int i, bytes = 0;
+  s_word i, bytes = 0;
   word *obj;
 
   switch( tag ) {
   case PAIR_TAG :
   case VEC_TAG :
-    bytes = sizeof(word)*length + 1; /* header */
+    bytes = sizeof(word)*(length + 1); /* header */
     break;
   case BVEC_TAG :
     bytes = length + sizeof(word);   /* header */
@@ -74,7 +76,7 @@ word allocate_nonmoving( int length, int tag )
     return tagptr( obj, PAIR_TAG );
   case VEC_TAG :
     obj[0] = mkheader( length*sizeof(word), VECTOR_HDR );
-    for ( i=1 ; i < length ; i++ )
+    for ( i=1 ; i <= length ; i++ )
       obj[i] = FALSE_CONST;
     return tagptr( obj, VEC_TAG );
   case BVEC_TAG :
@@ -95,7 +97,7 @@ static char *heapio_msg[] =
 int load_heap_image_from_file( const char *filename )
 {
   heapio_t *heap;
-  int text_size, data_size, r, i;
+  s_word text_size, data_size; int r, i;
   word *sbase, *tbase, tmp1, tmp2;
 
   heap = create_heapio();
@@ -114,6 +116,10 @@ int load_heap_image_from_file( const char *filename )
     tbase = gc_data_load_area( gc, data_size );
     if ((r = hio_load_bootstrap( heap, sbase, tbase, globals )) < 0)
       goto fail;
+#if CODE_SPACE
+    if (text_size > 0)
+      cs_load_complete( gc->code_space );
+#endif
   }
   else if (!gc_load_heap( gc, heap ))
     goto fail2;
@@ -173,8 +179,8 @@ int reorganize_and_dump_static_heap( const char *filename )
   sh_reorganize( gc->static_area );
   data = gc->static_area->data_area;
   text = gc->static_area->text_area;
-  consolemsg( "Data: %d bytes, Text: %d bytes",
-	      data->allocated, text->allocated );
+  consolemsg( "Data: %" PRIdWORD " bytes, Text: %" PRIdWORD " bytes",
+	      (data ? data->allocated : 0), (text ? text->allocated : 0) );
 
   consolemsg( "Dumping \"%s\".", filename );
   if ((r = gc_dump_heap( gc, filename, 0 )) < 0) {

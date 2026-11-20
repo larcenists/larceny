@@ -144,7 +144,7 @@ create_bdw_gc( gc_param_t *params, int *generations )
   return gc;
 }
 
-void gc_parameters( gc_t *gc, int op, int *ans )
+void gc_parameters( gc_t *gc, int op, s_word *ans )
 {
   if (op == 0) {
     ans[0] = 2;			/* Conservative */

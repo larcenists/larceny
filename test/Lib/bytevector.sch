@@ -16,6 +16,7 @@
 (define (run-bytevector-tests)
   (display "Bytevector") (newline)
   (basic-bytevector-tests)
+  (bytevector-copy-tests)
   (ieee-bytevector-tests)
 
   ; There is little point to testing Unicode conversions
@@ -209,6 +210,60 @@
 
      (test "fill!" (bytevector->u8-list b) '(127 127 127 127 127 127 127)))
 
+   ; The fill of bytevector-fill! and make-bytevector is from -128
+   ; through 255.  The procedures below use the inline primitive.
+
+   (let ((fill (lambda (b x) (bytevector-fill! b x) (bytevector->u8-list b)))
+         (make (lambda (n x) (bytevector->u8-list (make-bytevector n x)))))
+     (test "fill! 255" (fill (make-bytevector 2 0) 255) '(255 255))
+     (test "fill! -1" (fill (make-bytevector 2 0) -1) '(255 255))
+     (test "fill! -128" (fill (make-bytevector 2 0) -128) '(128 128))
+     (test "make-bytevector -1" (make 2 -1) '(255 255))
+     (mustfail "fill! 256" fill (make-bytevector 2 0) 256)
+     (mustfail "fill! -129" fill (make-bytevector 2 0) -129)
+     (mustfail "fill! symbol" fill (make-bytevector 2 0) 'a)
+     (mustfail "fill! flonum" fill (make-bytevector 2 0) 1.0)
+     (mustfail "fill! bignum" fill (make-bytevector 2 0) (expt 2 100))
+     (mustfail "make-bytevector 256" make 2 256)
+     (mustfail "make-bytevector symbol" make 2 'a))
+
+   ; The same through the procedure, not the inline primitive.
+
+   (let ((fill (lambda (b x) (apply bytevector-fill! b (list x))
+                             (bytevector->u8-list b))))
+     (test "procedure fill! -1" (fill (make-bytevector 3 0) -1) '(255 255 255))
+     (test "procedure fill! 7" (fill (make-bytevector 100 0) 7)
+           (vector->list (make-vector 100 7)))
+     (test "procedure fill! empty" (fill (make-bytevector 0) 7) '())
+     (mustfail "procedure fill! 256" fill (make-bytevector 2 0) 256)
+     (mustfail "procedure fill! string" fill (make-string 2 #\a) 65))
+
+   ; bytevector-set! and bytevector-u8-set! store octets, 0 through
+   ; 255; bytevector-s8-set! stores -128 through 127.
+
+   (let ((set (lambda (b i x) (bytevector-set! b i x) (bytevector->u8-list b)))
+         (u8 (lambda (b i x) (bytevector-u8-set! b i x) (bytevector->u8-list b)))
+         (s8 (lambda (b i x) (bytevector-s8-set! b i x) (bytevector->u8-list b))))
+     (test "bytevector-set! 255" (set (make-bytevector 2 0) 1 255) '(0 255))
+     (test "bytevector-u8-set! 0" (u8 (make-bytevector 2 1) 0 0) '(0 1))
+     (test "bytevector-s8-set! -1" (s8 (make-bytevector 2 0) 0 -1) '(255 0))
+     (mustfail "bytevector-set! -1" set (make-bytevector 2 0) 0 -1)
+     (mustfail "bytevector-set! 256" set (make-bytevector 2 0) 0 256)
+     (mustfail "bytevector-u8-set! -1" u8 (make-bytevector 2 0) 0 -1)
+     (mustfail "bytevector-u8-set! -128" u8 (make-bytevector 2 0) 0 -128)
+     (mustfail "bytevector-u8-set! 256" u8 (make-bytevector 2 0) 0 256)
+     (mustfail "bytevector-s8-set! 128" s8 (make-bytevector 2 0) 0 128)
+     (mustfail "bytevector-s8-set! -129" s8 (make-bytevector 2 0) 0 -129))
+
+   (test "r7rs:bytevector-copy!"
+         (map (lambda (args)
+                (let ((d (make-bytevector 6 0)))
+                  (apply r7rs:bytevector-copy!
+                         d 1 (u8-list->bytevector '(1 2 3 4 5 6)) args)
+                  (bytevector->u8-list d)))
+              '(() (2) (2 4)))
+         '((0 1 2 3 4 5) (0 3 4 5 6 0) (0 3 4 0 0 0)))
+
    (let ((b (u8-list->bytevector '(1 2 3 4 5 6 7 8))))
      (r6rs:bytevector-copy! b 0 b 3 4)
 
@@ -221,6 +276,69 @@
      (test "->uint-list" (bytevector->uint-list b (endianness little) 2)
                          '(513 65283 513 513)))))
 
+
+; Copies of all sizes (long ones use memmove), overlapping in both
+; directions, against a copy made through a list.
+
+(define (bytevector-copy-tests)
+
+  (define (numbered n)
+    (let ((b (make-bytevector n)))
+      (do ((i 0 (+ i 1)))
+          ((= i n) b)
+        (bytevector-u8-set! b i (remainder (* 7 i) 256)))))
+
+  (define (reference-copy! src i dst j n)
+    (let ((l (list-tail (bytevector->u8-list src) i)))
+      (do ((k 0 (+ k 1))
+           (l l (cdr l)))
+          ((= k n))
+        (bytevector-u8-set! dst (+ j k) (car l)))))
+
+  (define (bad-args? thunk)
+    (call-with-current-continuation
+     (lambda (k)
+       (with-exception-handler
+        (lambda (e) (k #t))
+        (lambda () (thunk) #f)))))
+
+  (allof "bytevector copies"
+   (allof-map "sizes and overlaps"
+    (lambda (n)
+      (for-each
+       (lambda (shift)
+         (let ((a (numbered 400))
+               (b (numbered 400)))
+           (r6rs:bytevector-copy! a 100 a (+ 100 shift) n)
+           (reference-copy! b 100 b (+ 100 shift) n)
+           (test (string-append "copy " (number->string n)
+                                " by " (number->string shift))
+                 (bytevector=? a b)
+                 #t)))
+       '(-100 -9 -1 0 1 9 100)))
+    '(0 1 7 8 9 63 64 65 200))
+   (test "copy of 100000"
+         (let ((a (numbered 100000))
+               (b (make-bytevector 100000 0)))
+           (r6rs:bytevector-copy! a 0 b 0 100000)
+           (bytevector=? a b))
+         #t)
+   (test "source range" (bad-args? (lambda ()
+                                     (r6rs:bytevector-copy!
+                                      (numbered 10) 5 (numbered 10) 0 6)))
+         #t)
+   (test "target range" (bad-args? (lambda ()
+                                     (r6rs:bytevector-copy!
+                                      (numbered 10) 0 (numbered 10) 5 6)))
+         #t)
+   (test "negative count" (bad-args? (lambda ()
+                                       (r6rs:bytevector-copy!
+                                        (numbered 10) 0 (numbered 10) 0 -1)))
+         #t)
+   (test "not a bytevector" (bad-args? (lambda ()
+                                         (r6rs:bytevector-copy!
+                                          "abcdefghij" 0 (numbered 10) 0 3)))
+         #t)))
 
 (define (ieee-bytevector-tests)
 

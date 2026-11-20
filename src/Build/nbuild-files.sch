@@ -88,7 +88,8 @@
      "ecodes.sch"
      "layouts.sch"
      ,@(case *runtime-type* 
-        ((sparc-native sassy-native arm-native arm-native0)
+        ((sparc-native sassy-native arm-native arm-native0 arm64-native
+          x86-64-native)
          '("regs.sch"))
         (else '())))))
 
@@ -123,7 +124,7 @@
           "petit-init-proc.sch"
           "md5.sch"
           ,@(case (nbuild-parameter 'host-os)
-             ((macosx macosx-el unix cygwin solaris linux-el)
+             ((macosx macosx-el macosx-arm64 unix cygwin solaris linux-el linux-x86-64)
               '("dumpheap-unix.sch"))
              ((win32)
               '("dumpheap-win32.sch"))
@@ -176,12 +177,26 @@
   (if (eq? 'arm (nbuild-parameter 'target-machine))
       (append
        (param-filename 'arm-fence-asm
-                       `("asm-switches.sch"
-			 "pass5p2.sch"
-			 "peepopt.sch"
-			 "pass5p2-arm.sch"
-                         "arm-optimizer.sch"
-                         "arm-disassembler.sch")))
+                       (if (= 64 (nbuild-parameter 'word-size))
+                           `("asm-switches.sch"
+                             "pass5p2.sch"
+                             "peepopt.sch"
+                             "pass5p2-arm64.sch")
+                           `("asm-switches.sch"
+                             "pass5p2.sch"
+                             "peepopt.sch"
+                             "pass5p2-arm.sch"
+                             "arm-optimizer.sch"
+                             "arm-disassembler.sch"))))
+      '()))
+
+(define *nbuild:x86-64-fence-files*
+  (if (eq? 'x86-64 (nbuild-parameter 'target-machine))
+      (param-filename 'arm-fence-asm
+                      `("asm-switches.sch"
+                        "pass5p2.sch"
+                        "peepopt.sch"
+                        "pass5p2-x86-64.sch"))
       '()))
 
 (define *nbuild:dotnetasm-files* 
@@ -236,7 +251,7 @@
             ((standard-c) *nbuild:petit/twobit-files*)
             ((x86-sass)   *nbuild:iasn/twobit-files*)
             ((x86-nasm)   *nbuild:petit/twobit-files*)  ; for now
-	    ((arm)        *nbuild:fence/twobit-files*)	; common to all fence ports
+	    ((arm x86-64) *nbuild:fence/twobit-files*)	; common to all fence ports
             ((dotnet)     *nbuild:dotnet/twobit-files*) ; FIXME
             (else (error "nbuild:twobit-files: bad architecture.")))
 
@@ -257,6 +272,7 @@
     ((x86-nasm)   *nbuild:x86-nasm-files*)
     ((x86-sass)   *nbuild:x86-sass-files*)
     ((arm)        *nbuild:arm-fence-files*)
+    ((x86-64)     *nbuild:x86-64-fence-files*)
     ((dotnet)     *nbuild:dotnetasm-files*) ; FIXME
     (else (error "nbuild:machine-asm-files: bad architecture."))))
 
@@ -266,7 +282,7 @@
     ((standard-c) *nbuild:petit-heap-dumper-files*)
     ((x86-sass)   *nbuild:petit-heap-dumper-files*)
     ((x86-nasm)   *nbuild:petit-heap-dumper-files*)
-    ((arm)        *nbuild:petit-heap-dumper-files*)
+    ((arm x86-64) *nbuild:petit-heap-dumper-files*)
     ((dotnet)     *nbuild:dotnet-heap-dumper-files*) ; FIXME
     (else (error "nbuild:heap-dumper-files: bad architecture."))))
 

@@ -50,7 +50,7 @@ extern const char *larceny_gc_technology;
 typedef struct opt opt_t;
 struct opt {
   int        maxheaps;                  /* length of size[] member */
-  int        size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
+  s_word     size[ MAX_GENERATIONS ];   /* area 1 at loc 0, etc */
   gc_param_t gc_info;                   /* detailed info about areas */
   unsigned   timerval;                  /* timer value */
   bool       enable_singlestep;         /* enable/disable single stepping */
@@ -62,6 +62,7 @@ struct opt {
   bool       supremely_annoying;        /* print massively many msgs */
   bool       flush;                     /* force icache flushing */
   bool       noflush;                   /* disable icache flushing */
+  bool       keepregs;                  /* GC: keep registers past REG0's count */
   bool       reorganize_and_dump;       /* split text and data and dump */
   bool       nobanner;          /* disable printing of (secondary) banner */
   bool       unsafe;            /* cheat ad libitum */
@@ -88,19 +89,24 @@ struct opt {
 
 extern opt_t command_line_options;
 
-extern int  panic_exit( const char *fmt, ... );
-extern int  panic_abort( const char *fmt, ... );
+/* Lets the compiler check the arguments of printf-like functions. */
 #ifdef __GNUC__
-extern void annoyingmsg( const char *fmt, ... ) __attribute__ ((format (printf, 1, 2)));
+#define PRINTF_LIKE( fmt_arg, first_arg ) \
+  __attribute__ ((format (printf, fmt_arg, first_arg)))
 #else
-extern void annoyingmsg( const char *fmt, ... );
+#define PRINTF_LIKE( fmt_arg, first_arg )
 #endif
-extern void supremely_annoyingmsg( const char *fmt, ... );
-extern void consolemsg( const char *fmt, ... );
-extern void hardconsolemsg( const char *fmt, ... );
+
+extern int  panic_exit( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern int  panic_abort( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void annoyingmsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern bool gc_keep_dead_registers;     /* Sys/memmgr.c */
+extern void supremely_annoyingmsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void consolemsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
+extern void hardconsolemsg( const char *fmt, ... ) PRINTF_LIKE( 1, 2 );
 extern void conditional_abort( void );
 extern int  saw_event( void );
-extern void eventmsg( const char *fnt, ... );
+extern void eventmsg( const char *fnt, ... ) PRINTF_LIKE( 1, 2 );
 
 /* In "Rts/Sys/heapio.c" */
 
@@ -117,8 +123,8 @@ extern int dump_dumped_heap( char *filename, gc_t *gc, word *globals );
 
 #if !defined( GC_INTERNAL )
 extern int  create_memory_manager( gc_param_t *params, int *generations );
-extern word *alloc_from_heap( int nbytes );
-extern word allocate_nonmoving( int length, int tag );
+extern word *alloc_from_heap( s_word nbytes );
+extern word allocate_nonmoving( s_word length, int tag );
 extern int  load_heap_image_from_file( const char *filename );
 extern int  dump_heap_image_to_file( const char *filename );
 extern int  reorganize_and_dump_static_heap( const char *filename );
@@ -157,6 +163,11 @@ extern void primitive_listenv_init( void );
 extern void primitive_listenv( word );
 extern void primitive_garbage_collect( word, word );
 extern void primitive_iflush( word );
+extern void primitive_codevector_install( word );
+extern void primitive_bytevector_like_move( word, word, word, word, word );
+extern void primitive_vector_like_move( word, word, word, word, word );
+extern void primitive_vector_like_fill( word, word, word, word );
+extern void primitive_vector_like_fill_from_list( word, word, word, word );
 extern void primitive_flonum_exp( word, word );
 extern void primitive_flonum_log( word, word );
 extern void primitive_flonum_sin( word, word );
@@ -185,6 +196,7 @@ extern void primitive_exit( word );
 extern void primitive_errno( void );
 extern void primitive_seterrno( word );
 extern void primitive_time( word );
+extern void primitive_monotonic_ns( void );
 #endif
 
 
@@ -195,7 +207,7 @@ extern word sro( gc_t *gc, int p_tag, int h_tag, int limit );
 /* In "Rts/Sys/ldebug.c" */
 
 extern void localdebugger( void );
-#ifdef ARM
+#if defined(ARM) || defined(X86_64)   /* Fence/Cant */
 extern void localdebugger_step( word* globals );
 #endif
 extern void debugvsm( void );
@@ -226,8 +238,8 @@ extern word allocate_argument_vector( gc_t *gc, int argc, char **argv );
 
 /* In "Rts/Sys/malloc.c" */
 
-extern void *must_malloc( unsigned bytes );
-extern void *must_realloc( void *ptr, unsigned size );
+extern void *must_malloc( size_t bytes );
+extern void *must_realloc( void *ptr, size_t size );
 
 /* In "Rts/Sys/signals.c" */
 
@@ -267,8 +279,12 @@ word box_int( int i );
 word box_uint( unsigned u );
 word box_longlong( long long ll );
 word box_ulonglong( unsigned long long ull );
+word box_word( word w );
 unsigned unbox_uint( word w );
 int unbox_int( word w );
+unsigned long long unbox_ulonglong( word w );
+long long unbox_longlong( word w );
+word unbox_word( word w );
 /* Some of the following may be supplied by the system libraries. */
 double rint( double f );
 double aint( double f );
@@ -279,8 +295,8 @@ char *strdup( const char * );
 #if !defined(HAVE_HRTIME_T)
 hrtime_t gethrtime( void );
 #endif
-int umin( int x, int y );
-int umax( int x, int y );
+word umin( word x, word y );
+word umax( word x, word y );
 
 
 /* Target-specific */
@@ -320,7 +336,7 @@ extern void cache_setup( void );
 /* Out-of-memory exception handling */
 /* In Rts/Sys/larceny.c */
 
-extern int memfail( int code, char *fmt, ... );
+extern int memfail( int code, char *fmt, ... ) PRINTF_LIKE( 2, 3 );
 
 #define MF_MALLOC   0     /* malloc() failed */
 #define MF_HEAP     1     /* gclib_alloc_heap() failed */
@@ -363,10 +379,19 @@ extern int memfail( int code, char *fmt, ... );
  * The size of the largest object is determined by the size field in
  * a vector, bytevector, or procedure header.  In the 32-bit implementation,
  * this field is 24 bits, so the largest object can be 2^24-1 bytes long.
+ * In the 64-bit implementation the size field is 56 bits, but the
+ * collectors keep word counts and word indices within an object in an
+ * int, so objects are limited to 2^31 words (16GB).  (Byte offsets
+ * within an object are s_words.)
  */
 
+#if defined(BITS_64)
+#define LARGEST_OBJECT    ((s_word)0x3FFFFFFF0)
+#define BYTE_ALIGNMENT    16
+#else
 #define LARGEST_OBJECT    16777215
 #define BYTE_ALIGNMENT    8
+#endif
 #define WORD_ALIGNMENT    2
 
 /* debugmsg( char *fmt, ... ); */

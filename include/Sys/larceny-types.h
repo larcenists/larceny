@@ -10,10 +10,40 @@
 
 #include "config.h"
 
-/* Scalar data types. */
+/* Scalar data types.
+ *
+ * A word is the size of a pointer: 32 bits when BITS_32, 64 bits when
+ * BITS_64.  An s_word is the signed counterpart of a word.
+ */
+#include <stdint.h>
+#if defined(BITS_64)
+typedef uint64_t word;
+typedef int64_t s_word;
+#else
 typedef unsigned int word;
 typedef int s_word;
+#endif
+/* printf formats for words, like those of <inttypes.h>:
+   printf( "%" PRIxWORD, w ) */
+#include <inttypes.h>
+#if defined(BITS_64)
+#define PRIdWORD PRId64
+#define PRIuWORD PRIu64
+#define PRIxWORD PRIx64
+#define PRIXWORD PRIX64
+#else
+#define PRIdWORD "d"
+#define PRIuWORD "u"
+#define PRIxWORD "x"
+#define PRIXWORD "X"
+#endif
 typedef unsigned char byte;
+typedef uint32_t u32;         /* 32-bit quantities, e.g. bignum digits */
+typedef int32_t s32;
+/* Note: bool is int-sized (not C99's bool), and some functions declared
+   to return bool return other integers.  On 64-bit systems, converting a
+   word to bool can therefore lose information: compare with 0 instead,
+   e.g. ((w & mask) != 0). */
 #if defined __bool_true_false_are_defined /* C99 <stdbool.h> */
 #define TRUE true
 #define FALSE false
@@ -99,6 +129,7 @@ typedef struct seqbuf seqbuf_t;
 
 /* semispace_t and ss_chunk_t are elaborated in semispace_t.h */
 typedef struct semispace semispace_t;
+typedef struct code_space code_space_t;
 typedef struct ss_chunk ss_chunk_t;
 
 /* uremset_t is elaborated in uremset_t.h */

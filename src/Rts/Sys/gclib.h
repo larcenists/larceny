@@ -90,6 +90,14 @@
 # define MB_FLONUMS        128    /* Memory is part of a flonum space */
 # define MB_SUMMARY_SETS   256    /* Memory belongs to summarization sets */
 # define MB_SMIRCY_MARK    512     /* Memory belongs to marking state */
+# define MB_CODE           1024    /* Memory belongs to the code space */
+#endif
+
+#if CODE_SPACE
+# if GCLIB_LARGE_TABLE
+#  error "CODE_SPACE requires the small page table"
+# endif
+# define is_code_page( ptr ) ((gclib_desc_b[pageof(ptr)] & MB_CODE) != 0)
 #endif
 
 /* The following values are used in the desc_g array for 
@@ -119,12 +127,18 @@ void gclib_init( void );
   /* Initialize the low-level memory allocator.
      */
 
-void gclib_set_heap_limit( int bytes );
+void gclib_set_heap_limit( s_word bytes );
   /* Set the maximum number of bytes that may be allocated to the
      heap to `bytes'.  If bytes==0, remove the limit.
      */
 
-void *gclib_alloc_heap( int bytes, int gen_no );
+void *gclib_alloc_heap( s_word bytes, int gen_no );
+#if CODE_SPACE
+void *gclib_alloc_code( s_word bytes, int gen_no );
+  /* Like gclib_alloc_heap, but the memory is in the code arena and
+     the pages have the MB_CODE attribute.  Free it with gclib_free.
+     */
+#endif
   /* Allocate `bytes' bytes of heap memory with the given generation
      attribute, and return a pointer to the block.  The memory is
      allocated starting on a page boundary.  If a heap limit is in
@@ -133,20 +147,20 @@ void *gclib_alloc_heap( int bytes, int gen_no );
      exceeded.
      */
 
-void *gclib_alloc_rts( int bytes, unsigned attribute );
+void *gclib_alloc_rts( s_word bytes, unsigned attribute );
   /* Allocate `bytes' bytes of RTS memory with the given attribute, and
      return a pointer to the block.
      The memory is allocated starting on a page boundary.
      */
 
-void gclib_free( void *addr, int bytes );
+void gclib_free( void *addr, s_word bytes );
   /* Free the memory.  `Addr' must have been returned from one of the
      allocation functions, and `bytes' must reflect the actual allocated
      size, possibly after adjustment with gclib_shrink_block().  That is,
      you may not use this function to free partial blocks.
      */
 
-void gclib_shrink_block( void *addr, int oldsize, int newsize );
+void gclib_shrink_block( void *addr, s_word oldsize, s_word newsize );
   /* Shrink the block by reducing its size; the address of the block
      remains the same.  `Oldsize' must reflect the actual size of the
      block, possibly after prior adjustment with gclib_shrink_block().
@@ -159,12 +173,12 @@ void gclib_memory_range( caddr_t *lowest, caddr_t *highest );
      descriptor tables.
      */
 
-void gclib_set_generation( void *address, int nbytes, int generation );
+void gclib_set_generation( void *address, s_word nbytes, int generation );
   /* Set the generation number for all pages in the range implied by
      `address' and `nbytes' to `generation'.
      */
 
-void gclib_add_attribute( void *address, int nbytes, unsigned attr );
+void gclib_add_attribute( void *address, s_word nbytes, unsigned attr );
   /* Add the attribute bits of `attr' to the attributes for all the
      pages in the range implied by `address' and `nbytes'.
      */

@@ -98,22 +98,31 @@
 ;
 ; There is no provision for denormals here.
 
+; On 64-bit targets, there is no unused word.
+
+(define (flonum-pad)
+  (if (= 64 (nbuild-parameter 'word-size)) '() '(0 0 0 0)))
+
 (define (flonum->bytevector f)
-  (list->bytevector (append '(0 0 0 0) (flonum-bits f))))
+  (list->bytevector (append (flonum-pad) (flonum-bits f))))
 
 (define (compnum->bytevector c)
   (let ((f1 (flonum-bits (real-part c)))
         (f2 (flonum-bits (imag-part c))))
-    (list->bytevector (append '(0 0 0 0) f1 f2))))
+    (list->bytevector (append (flonum-pad) f1 f2))))
 
 ; Return a list of byte values representing an IEEE double precision number,
 ; in little-endian order.
 
+; The host's flonums have a pad word on 32-bit systems only
+; (see Lib/Common/flonums-el.sch).
+
 (define (flonum-bits f)
-  (let ((bits (let loop ((i 4) (l '()))
-                (if (= i 12)
-                    l
-                    (loop (+ i 1) (cons (bytevector-like-ref f i) l))))))
+  (let* ((o (if (fixnum? (expt 2 32)) 0 4))
+         (bits (let loop ((i o) (l '()))
+                 (if (= i (+ o 8))
+                     l
+                     (loop (+ i 1) (cons (bytevector-like-ref f i) l))))))
     (if (eq? (nbuild-parameter 'host-endianness) 'little)
         (reverse bits)
         bits)))

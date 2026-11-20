@@ -9,6 +9,8 @@
   (io-basic-tests)
   (io-eol-tests)
   (io-input/output-tests)
+  (io-string-port-tests)
+  (io-reader-tests)
   (if (and #f (null? rest)) ;FIXME
       (io-test-error)
       #t)
@@ -791,6 +793,29 @@
       '#vu8(97 226 128 168 98 13 99 194 133 100 226 128 168
             101 13 226 128 168 102 13 194 133 103))
 
+   (test "write-u8 to the current output port"
+         (let ((p (open-output-bytevector)))
+           (parameterize ((current-output-port p))
+             (write-u8 65)
+             (write-u8 66 p))
+           (bytevector->u8-list (get-output-bytevector p)))
+         '(65 66))
+
+   ; read-line ends a line at "\n", "\r\n" or "\r", even at the end.
+
+   (test "read-line"
+         (map (lambda (s)
+                (let ((p (transcoded-port
+                          (open-bytevector-input-port (string->utf8 s))
+                          (make-transcoder (utf-8-codec) 'none 'replace))))
+                  (let loop ((l '()))
+                    (let ((x (read-line p)))
+                      (if (eof-object? x)
+                          (reverse l)
+                          (loop (cons x l)))))))
+              '("a\nb\r\nc\rd" "a\r" "\r\r\n"))
+         '(("a" "b" "c" "d") ("a") ("" "")))
+
 )))
 
 (define (io-input/output-tests)
@@ -922,3 +947,357 @@
          '(0 1 #f 3 #vu8(0 1 101 3 4 5 6 7 8 9 10 11 12)))
 
   ))
+
+; String ports keep a string for their characters and use the port's
+; byte buffer only as a staging area, so these tests cross the buffer's
+; size with characters of every UTF-8 length.
+
+(define (io-string-port-tests)
+
+  (define chars
+    (list #\a #\x3bb #\x4e2d #\x1f600 #\newline #\x7f #\x80 #\x7ff
+          #\x800 #\xffff #\x10000 #\x10ffff))
+
+  (define (make-test n)
+    (let loop ((i 0) (l '()))
+      (if (= i n)
+          (list->string (reverse l))
+          (loop (+ i 1)
+                (cons (list-ref chars (remainder (* i 7) (length chars)))
+                      l)))))
+
+  (define sizes '(0 1 2 3 100 1019 1020 1021 1022 1023 1024 1025 3000 5000))
+
+  (define (all-chars p read)
+    (let loop ((l '()))
+      (let ((c (read p)))
+        (if (eof-object? c)
+            (list->string (reverse l))
+            (loop (cons c l))))))
+
+  (allof "string port tests"
+
+   (test "string output ports"
+         (let loop ((ns sizes))
+           (or (null? ns)
+               (let* ((s (make-test (car ns)))
+                      (p (open-output-string))
+                      (q (open-output-string)))
+                 (string-for-each (lambda (c) (write-char c p)) s)
+                 (write-string s q)
+                 (and (string=? (get-output-string p) s)
+                      (string=? (get-output-string p) s)
+                      (string=? (get-output-string q) s)
+                      (loop (cdr ns))))))
+         #t)
+
+   (test "get-output-string, reset-output-string"
+         (let* ((p (open-output-string))
+                (a (begin (write-string "hello" p) (get-output-string p)))
+                (b (begin (write-string " world" p) (get-output-string p)))
+                (c (begin (reset-output-string p) (get-output-string p)))
+                (d (begin (write-string "x\x3bb;y" p) (get-output-string p))))
+           (list a b c d))
+         '("hello" "hello world" "" "x\x3bb;y"))
+
+   (test "string output port positions"
+         (let ((p (open-output-string)))
+           (write-string "abc\x3bb;def" p)
+           (let ((posn (port-position p)))
+             (write-string "ghi" p)
+             (set-port-position! p 7)
+             (write-string "XY" p)
+             (list posn (get-output-string p))))
+         '(7 "abc\x3bb;defXYi"))
+
+   (test "open-string-output-port"
+         (call-with-values
+          open-string-output-port
+          (lambda (p extract)
+            (put-string p "r6rs \x3bb;")
+            (let ((a (extract)))
+              (put-string p "again")
+              (list a (extract)))))
+         '("r6rs \x3bb;" "again"))
+
+   (test "call-with-string-output-port"
+         (call-with-string-output-port
+          (lambda (p) (put-string p "abc") (put-char p #\x3bb)))
+         "abc\x3bb;")
+
+   (test "string input ports"
+         (let loop ((ns sizes))
+           (or (null? ns)
+               (let ((s (make-test (car ns))))
+                 (and (string=? (all-chars (open-input-string s) read-char) s)
+                      (string=? (all-chars (open-string-input-port s)
+                                           get-char)
+                                s)
+                      (let ((q (open-input-string s)))
+                        (string=? (all-chars q
+                                             (lambda (q)
+                                               (let ((c (peek-char q)))
+                                                 (read-char q)
+                                                 c)))
+                                  s))
+                      (loop (cdr ns))))))
+         #t)
+
+   (test "string input port positions"
+         (let ((p (open-input-string "ab\x3bb;cdef")))
+           (read-char p) (read-char p) (read-char p)
+           (let* ((posn (port-position p))
+                  (c1 (read-char p))
+                  (c2 (begin (set-port-position! p posn) (read-char p)))
+                  (c3 (begin (set-port-position! p 0) (read-char p))))
+             (list posn c1 c2 c3)))
+         '(3 #\c #\c #\a))
+
+   (test "get-line on a string port"
+         (let* ((p (open-string-input-port "line one\nl\x3bb;ne two\nlast"))
+                (a (get-line p))
+                (b (get-line p))
+                (c (get-line p)))
+           (list a b c (eof-object? (get-line p))))
+         '("line one" "l\x3bb;ne two" "last" #t))
+
+   ; A string port's buffer is the string itself.
+
+   (test "string input port line counts"
+         (let ((p (open-input-string "ab\ncd\n\nef\ng\x3bb;\nh")))
+           (define (counts) (list (port-lines-read p) (port-line-start p)))
+           (let* ((a (begin (get-char p) (get-char p) (counts)))
+                  (b (begin (get-char p) (counts)))
+                  (c (begin (get-line p) (counts)))
+                  (d (begin (get-string-n p 3) (counts)))
+                  (e (begin (lookahead-char p) (read p) (counts)))
+                  (f (list (get-string-all p) (counts))))
+             (list a b c d e f)))
+         '((0 0) (1 3) (2 6) (3 7) (4 10) ("\nh" (5 13))))
+
+   (test "get-string-n, get-string-n!, get-string-all on string ports"
+         (let ((p (open-input-string "abc\x3bb;e"))
+               (s (make-string 4 #\-)))
+           (list (get-string-n p 0)
+                 (get-string-n p 2)
+                 (get-string-n! p s 1 2)
+                 s
+                 (get-string-all p)
+                 (get-string-n p 0)
+                 (eof-object? (get-string-n p 1))
+                 (eof-object? (get-string-n! p s 0 1))
+                 (eof-object? (get-string-all p))
+                 (eof-object? (get-line p))
+                 (eof-object? (get-char p))))
+         '("" "ab" 2 "-c\x3bb;-" "e" "" #t #t #t #t #t))
+
+   (test "string port positions out of range"
+         (let ((p (open-input-string "abc"))
+               (q (open-output-string)))
+           (define (invalid? thunk)
+             (call-with-current-continuation
+              (lambda (k)
+                (with-exception-handler
+                 (lambda (e) (k (i/o-invalid-position-error? e)))
+                 (lambda () (thunk) #f)))))
+           (write-string "xyz" q)
+           (set-port-position! q 1)
+           (list (invalid? (lambda () (set-port-position! p 4)))
+                 (begin (set-port-position! p 3) (eof-object? (read-char p)))
+                 (invalid? (lambda () (set-port-position! q 4)))
+                 (begin (set-port-position! q 3) (write-char #\! q)
+                        (get-output-string q))))
+         '(#t #t #t "xyz!"))
+
+   (test "large writes to a string port"
+         (let ((p (open-output-string))
+               (s (make-test 3000)))
+           (write-string s p)
+           (put-string p s 1000 5)
+           (write-char #\x3bb p)
+           (string=? (get-output-string p)
+                     (string-append s (substring s 1000 1005) "\x3bb;")))
+         #t)
+
+   (test "a closed string port"
+         (let ((p (open-output-string)))
+           (write-string "abc" p)
+           (close-port p)
+           (call-with-current-continuation
+            (lambda (k)
+              (with-exception-handler
+               (lambda (e) (k 'error))
+               (lambda () (get-output-string p))))))
+         'error)
+
+   (test "read from a string port"
+         (let ((p (open-input-string "(a \"\x3bb;\" 1.5 #\\x4e2d) 2")))
+           (let* ((a (read p)) (b (read p)))
+             (list a b (eof-object? (read p)))))
+         '((a "\x3bb;" 1.5 #\x4e2d) 2 #t))
+
+   (test "get-string-all on a string port"
+         (get-string-all (open-string-input-port "r6 \x3bb;"))
+         "r6 \x3bb;")
+
+   ; get-line reads a line that is in the buffer at once, and must
+   ; agree with get-char on positions, line counts, and line endings.
+
+   (test "get-line with UTF-8, positions and line counts"
+         (let ((p (transcoded-port
+                   (open-bytevector-input-port
+                    (string->utf8 "abc\nx\x3bb;\x4e2d;\x1f600;y\n\nlast"))
+                   (make-transcoder (utf-8-codec) 'none 'replace))))
+           (let loop ((acc '()))
+             (let ((s (get-line p)))
+               (if (eof-object? s)
+                   (reverse acc)
+                   (loop (cons (list s
+                                     (port-position p)
+                                     (port-lines-read p)
+                                     (port-line-start p))
+                               acc))))))
+         '(("abc" 4 1 4) ("x\x3bb;\x4e2d;\x1f600;y" 10 2 10) ("" 11 3 11)
+           ("last" 15 3 11)))
+
+   (test "get-line and line endings"
+         (map (lambda (eol)
+                (let ((p (transcoded-port
+                          (open-bytevector-input-port
+                           (string->utf8
+                            "a\x85;b\x2028;c\r\nd\re\n"))
+                          (make-transcoder (utf-8-codec) eol 'replace))))
+                  (let loop ((acc '()))
+                    (let ((s (get-line p)))
+                      (if (eof-object? s)
+                          (reverse acc)
+                          (loop (cons s acc)))))))
+              '(none crlf))
+         '(("a\x85;b\x2028;c\r" "d\re")
+           ("a" "b" "c" "d" "e")))
+
+   (test "get-line with invalid UTF-8"
+         (let ((bytes (bytevector #x61 #xce #x62 #xff #x63 #xe4 #xb8 #x0a
+                                  #x64 #xed #xa0 #x0a #x65 #x0a)))
+           (define (port)
+             (transcoded-port (open-bytevector-input-port bytes)
+                              (make-transcoder (utf-8-codec) 'none 'replace)))
+           (define (get-line-by-chars p)
+             (let loop ((l '()))
+               (let ((c (get-char p)))
+                 (if (or (eof-object? c) (char=? c #\newline))
+                     (list->string (reverse l))
+                     (loop (cons c l))))))
+           (let ((p (port)) (q (port)))
+             (let loop ((lines '()))
+               (let ((a (get-line p)))
+                 (if (eof-object? a)
+                     (port-eof? q)
+                     (let ((b (get-line-by-chars q)))
+                       (and (string=? a b)
+                            (= (port-position p) (port-position q))
+                            (loop (cons a lines)))))))))
+         #t)
+
+   ; An invalid UTF-8 sequence is replaced by one #\xfffd for its
+   ; maximal subpart, not consuming the byte that shows it is invalid;
+   ; the same when it is split between reads, or ends the input.
+
+   (let ()
+     (define bytes
+       (bytevector #x61 #xce #x62 #xed #xa0 #x80 #xe2 #x82 #x0a
+                   #xf0 #x9f #x98 #x80 #xf4 #x90 #x63 #xc0 #xe2 #x82))
+     (define chars
+       (string->list
+        "a\xfffd;b\xfffd;\xfffd;\xfffd;\xfffd;\n\x1f600;\xfffd;\xfffd;c\xfffd;\xfffd;"))
+     (define (port chunk mode)
+       (let ((pos 0) (n (bytevector-length bytes)))
+         (transcoded-port
+          (make-custom-binary-input-port
+           "chunked"
+           (lambda (bv start count)
+             (let ((k (min count chunk (- n pos))))
+               (r6rs:bytevector-copy! bytes pos bv start k)
+               (set! pos (+ pos k))
+               k))
+           #f #f #f)
+          (make-transcoder (utf-8-codec) 'none mode))))
+     (define (read-chars p)
+       (let loop ((l '()))
+         (let* ((c1 (lookahead-char p))
+                (c (get-char p)))
+           (cond ((not (eqv? c1 c)) (list 'lookahead c1 c))
+                 ((eof-object? c) (reverse l))
+                 (else (loop (cons c l)))))))
+     (for-each
+      (lambda (chunk)
+        (test (string-append "UTF-8 decoding errors, replace, read by "
+                             (number->string chunk))
+              (read-chars (port chunk 'replace))
+              chars)
+        (test (string-append "UTF-8 decoding errors, ignore, read by "
+                             (number->string chunk))
+              (read-chars (port chunk 'ignore))
+              (filter (lambda (c) (not (char=? c #\xfffd))) chars)))
+      '(1 2 3 1024))
+     (test "UTF-8 decoding errors, raise"
+           (let ((p (port 1 'raise)))
+             (let loop ((l '()))
+               (let ((c (guard (e ((i/o-decoding-error? e) 'error))
+                          (get-char p))))
+                 (if (eof-object? c)
+                     (reverse l)
+                     (loop (cons c l))))))
+           (map (lambda (c) (if (char=? c #\xfffd) 'error c)) chars)))
+
+   (test "get-line with Latin-1"
+         (get-line
+          (transcoded-port
+           (open-bytevector-input-port (bytevector #x61 #xce #xbb #x0a))
+           (make-transcoder (latin-1-codec) 'none 'replace)))
+         "a\xce;\xbb;")
+
+   (test "get-line across buffer boundaries"
+         (let* ((line (list->string
+                       (filter (lambda (c) (not (char=? c #\newline)))
+                               (string->list (make-test 700)))))
+                (text (string-append line "\n" line "\n" line))
+                (p (transcoded-port
+                    (open-bytevector-input-port (string->utf8 text))
+                    (make-transcoder (utf-8-codec) 'none 'replace))))
+           (let* ((a (get-line p)) (b (get-line p)) (c (get-line p)))
+             (list (string=? a line) (string=? b line) (string=? c line)
+                   (= (port-position p) (string-length text))
+                   (eof-object? (get-line p)))))
+         '(#t #t #t #t #t))
+
+   ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The reader: what #!r6rs disallows, and input that ends too soon.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (io-reader-tests)
+
+  (define (read-all s)
+    (let ((p (open-input-string s)))
+      (let loop ((l '()))
+        (let ((x (read p)))
+          (if (eof-object? x)
+              (reverse l)
+              (loop (cons x l)))))))
+
+  (allof "reader tests"
+   (mustfail "#!r6rs @" read-all "#!r6rs @")
+   (mustfail "#!r6rs @b" read-all "#!r6rs @b")
+   (mustfail "#!r6rs #\\null" read-all "#!r6rs #\\null")
+   (test "#!r6rs a@b" (read-all "#!r6rs a@b") '(a@b))
+   (test "#!r6rs #\\nul" (read-all "#!r6rs #\\nul") (list (integer->char 0)))
+
+   ; A codevector (fasl syntax) without its closing quote used to loop.
+   (mustfail "unterminated codevector"
+             read-all
+             (string-append "#!fasl\n#" (string (integer->char 2)) "\"ab"))
+   ))

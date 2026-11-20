@@ -297,9 +297,34 @@
 
 ;;; Dump the heap
 
+; The new heap is made under another name and installed only when it is
+; complete, so that a build that fails leaves the old heap, which may
+; be needed to host the next build.  The old heap is kept as
+; larceny.heap.prev.  A heap may need the binary that dumped it, which
+; the build may already have replaced, so the binary that dumped the
+; new heap is kept as larceny.bin.cur, and the one before as
+; larceny.bin.prev: larceny.bin.cur with larceny.heap, and larceny.bin.prev
+; with larceny.heap.prev, are the last two heaps that were built.
+
 (gctwa)
-(dump-interactive-heap "larceny.heap")
-(system "./larceny.bin -reorganize-and-dump -heap larceny.heap")
-(system "/bin/mv larceny.heap.split larceny.heap")
+(dump-interactive-heap "larceny.heap.new")
+
+; (Defined after the dump, so that it is not in the heap.)
+
+(define (heap-build-step command)
+  (if (not (zero? (system command)))
+      (begin (display "Failed: ")
+             (display command)
+             (newline)
+             (exit 1))))
+
+(heap-build-step "./larceny.bin -reorganize-and-dump -heap larceny.heap.new")
+(if (file-exists? "larceny.heap")
+    (heap-build-step "/bin/mv -f larceny.heap larceny.heap.prev"))
+(heap-build-step "/bin/mv larceny.heap.new.split larceny.heap")
+(if (file-exists? "larceny.bin.cur")
+    (heap-build-step "/bin/mv -f larceny.bin.cur larceny.bin.prev"))
+(heap-build-step "/bin/cp larceny.bin larceny.bin.cur")
+(delete-file "larceny.heap.new")
 
 ; eof

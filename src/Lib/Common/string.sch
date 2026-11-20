@@ -109,12 +109,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define string-copy
-  (lambda (x . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end  (if (or (null? rest) (null? (cdr rest)))
-                     (string-length x)
-                     (cadr rest))))
-      (substring x start end))))
+  (case-lambda
+   ((x) (substring x 0 (string-length x)))
+   ((x start) (substring x start (string-length x)))
+   ((x start end) (substring x start end))))
 
 ; Copies (substring x i j) into y starting at k.
 ; Used only within this file.
@@ -123,19 +121,38 @@
 
 (define string-copy-into-down!
   (lambda (x i j y k)
-    (do ((i i (.+:idx:idx i 1))
-         (k k (.+:idx:idx k 1)))
-        ((.>=:fix:fix i j))
-      (.string-set!:trusted y k (.string-ref:trusted x i)))))
+    (if (.>=:fix:fix (.-:idx:idx j i) string-copy:move-threshold)
+        (string-copy:move! x i j y k)
+        (do ((i i (.+:idx:idx i 1))
+             (k k (.+:idx:idx k 1)))
+            ((.>=:fix:fix i j))
+          (.string-set!:trusted y k (.string-ref:trusted x i))))))
 
 ; As above, but assumes k >= i.
 
 (define string-copy-into-up!
   (lambda (x i j y k)
-    (do ((j (- j 1) (- j 1))
-         (k (+ k (- j i) -1) (- k 1)))
-        ((> i j))
-      (string-set! y k (string-ref x j)))))
+    (if (>= (- j i) string-copy:move-threshold)
+        (string-copy:move! x i j y k)
+        (do ((j (- j 1) (- j 1))
+             (k (+ k (- j i) -1) (- k 1)))
+            ((> i j))
+          (string-set! y k (string-ref x j))))))
+
+; Copies of at least string-copy:move-threshold characters use memmove
+; on the strings' bytes.  (The number of bytes per character is found
+; on first use, not when the heap is initialized.)
+
+(define string-copy:move-threshold 6)
+
+(define string-copy:char-bytes #f)
+
+(define (string-copy:move! x i j y k)
+  (if (not string-copy:char-bytes)
+      (set! string-copy:char-bytes
+            (bytevector-like-length (make-string 1 #\space))))
+  (let ((b string-copy:char-bytes))
+    (sys$bytevector-like-move! x (* b i) y (* b k) (* b (- j i)))))
 
 ;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
 ;;; the length of to.  It is also an error if (- (string-length to) at)
@@ -145,44 +162,43 @@
 ;;; that will work.
 
 (define string-copy!
-  (lambda (dst at src . rest)
+  (case-lambda
+   ((dst at src)
+    (string-copy!:copy dst at src 0 (string-copy!:end dst at src 0)))
+   ((dst at src start)
+    (string-copy!:copy dst at src start (string-copy!:end dst at src start)))
+   ((dst at src start end)
+    (string-copy!:copy dst at src start end))))
 
-    (define (complain0 msgcode)
-      (assertion-violation 'string-copy!
-                           (errmsg msgcode)
-                           (cons dst (cons at (cons src rest)))))
+(define (string-copy!:end dst at src start)
+  (if (and (string? dst) (string? src) (fixnum? at) (fixnum? start))
+      (min (string-length src)
+           (+ start (- (string-length dst) at)))
+      0))
 
-    (define (complain msgcode culprit)
-      (assertion-violation 'string-copy!
-                           (errmsg msgcode)
-                           culprit))
-
-    (let* ((start (if (null? rest)
-                      0
-                      (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (min (string-length src)
-                         (+ start (- (string-length dst) at)))
-                    (cadr rest))))
-      (cond ((not (string? dst))
-             (complain 'msg:notstring dst))
-            ((not (string? src))
-             (complain 'msg:notstring src))
-            ((not (fixnum? at))
-             (complain 'msg:notfixnum at))
-            ((not (fixnum? start))
-             (complain 'msg:notfixnum start))
-            ((not (fixnum? end))
-             (complain 'msg:notfixnum end))
-            ((not (and (<= 0 at (string-length dst))
-                       (<= 0 start end (string-length src))
-                       (<= (+ at (- end start)) (string-length dst))))
-             (complain0 'msg:rangeerror))
-            (else
-             ((if (<= at start)
-                  string-copy-into-down!
-                  string-copy-into-up!)
-              src start end dst at))))))
+(define (string-copy!:copy dst at src start end)
+  (define (complain msgcode culprit)
+    (assertion-violation 'string-copy! (errmsg msgcode) culprit))
+  (cond ((not (string? dst))
+         (complain 'msg:notstring dst))
+        ((not (string? src))
+         (complain 'msg:notstring src))
+        ((not (fixnum? at))
+         (complain 'msg:notfixnum at))
+        ((not (fixnum? start))
+         (complain 'msg:notfixnum start))
+        ((not (fixnum? end))
+         (complain 'msg:notfixnum end))
+        ((not (and (<= 0 at (string-length dst))
+                   (<= 0 start end (string-length src))
+                   (<= (+ at (- end start)) (string-length dst))))
+         (assertion-violation 'string-copy!
+                              (errmsg 'msg:rangeerror)
+                              (list dst at src start end)))
+        ((<= at start)
+         (string-copy-into-down! src start end dst at))
+        (else
+         (string-copy-into-up! src start end dst at))))
 
 (define string
   (lambda chars
@@ -220,18 +236,33 @@
         (error 'substring (errmsg 'msg:illegalargs) s m n))))
 
 (define string-fill!
-  (lambda (s c . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (string-length s)
-                    (cadr rest))))
-      (substring-fill! s start end c))))
+  (case-lambda
+   ((s c) (substring-fill! s 0 (string-length s) c))
+   ((s c start) (substring-fill! s start (string-length s) c))
+   ((s c start end) (substring-fill! s start end c))))
+
+; Fills the first characters one at a time, then doubles the filled
+; part with string-copy-into-down! (memmove) until the range is full.
 
 (define substring-fill!
   (lambda (s start end c)
-    (do ((i start (+ i 1)))
-        ((>= i end) s)
-        (string-set! s i c))))
+    (if (not (and (string? s)
+                  (fixnum? start)
+                  (fixnum? end)
+                  (<= 0 start end (string-length s))
+                  (char? c)))
+        (error 'string-fill! (errmsg 'msg:illegalargs) s c start end))
+    (let ((k (min end (+ start string-copy:move-threshold))))
+      (do ((i start (+ i 1)))
+          ((>= i k))
+        (string-set! s i c))
+      (let loop ((filled (- k start)))
+        (let ((m (min filled (- end start filled))))
+          (if (> m 0)
+              (begin (string-copy-into-down! s start (+ start m)
+                                             s (+ start filled))
+                     (loop (+ filled m)))
+              s))))))
 
 ; Make-string is now a primitive; see primops.sch.
 
@@ -245,16 +276,18 @@
     (lambda (l)
       (loop (make-string (length l)) 0 l))))
 
-(define (string->list s . rest)
+(define string->list
+  (case-lambda
+   ((s) (string->list:range s 0 (string-length s)))
+   ((s start) (string->list:range s start (string-length s)))
+   ((s start end) (string->list:range s start end))))
+
+(define (string->list:range s start end)
   (define (loop s start i chars)
     (if (< i start)
         chars
         (loop s start (- i 1) (cons (string-ref s i) chars))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (string-length s)
-                  (cadr rest))))
-    (loop s start (- end 1) '())))
+  (loop s start (- end 1) '()))
 
 ;;; FIXME:  This code must be kept in sync with the definition of
 ;;; twobit-symbol-hash in Compiler/pass2if.sch.

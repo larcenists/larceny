@@ -54,6 +54,7 @@
 #include "stack.h"
 #include "gclib.h"
 #include "stats.h"
+#include "code-space.h"
 
 typedef struct {
   /* The heap */
@@ -63,13 +64,14 @@ typedef struct {
   semispace_t *current_space;   /* The heap area */
 
   /* Strategy/Policy/Mechanism */
-  int         target_size;      /* Dynamic area size computed following GC. */
+  s_word         target_size;      /* Dynamic area size computed following GC. */
   double      load_factor;      /* Really the inverse load, L */
-  int         lower_limit;      /* 0 or lower bound on area (bytes) */
-  int         upper_limit;      /* 0 or upper bound on area (bytes) */
+  s_word         lower_limit;      /* 0 or lower bound on area (bytes) */
+  s_word         upper_limit;      /* 0 or upper bound on area (bytes) */
+  s_word         max_dynamic_size; /* Greatest M so far (-nocontract) */
 
   /* Statistics */
-  int         used_after_last_gc;  /* Bytes */
+  s_word         used_after_last_gc;  /* Bytes, not counting the stack */
   gen_stats_t gen_stats;        /* Local statistics */
   gc_stats_t  gc_stats;         /* Global statistics */
 } sc_data_t;
@@ -77,19 +79,20 @@ typedef struct {
 #define DATA(heap)  ((sc_data_t*)((heap)->data))
 
 static young_heap_t *allocate_heap( int gen_no, gc_t *gc );
-static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok );
-static int  collect_if_no_room( young_heap_t *heap, int nbytes );
-static int  compute_target_size( young_heap_t *heap, int D, int Q );
+static void make_space_for( young_heap_t *heap, s_word nbytes, int stack_ok );
+static int  collect_if_no_room( young_heap_t *heap, s_word nbytes );
+static s_word  compute_target_size( young_heap_t *heap, s_word D, s_word Q );
 static void must_create_stack( young_heap_t *heap );
 static void must_restore_frame( young_heap_t *heap );
 static void flush_stack( young_heap_t *heap );
 static void mode_ss_to_globals( young_heap_t *heap );
 static void mode_globals_to_ss( young_heap_t *heap );
-static int  free_current_chunk( young_heap_t *heap );
-static int  used_stack_space( young_heap_t *heap );
-static int  used_space( young_heap_t *heap );
-static int  static_used( young_heap_t *heap );
-static int  free_space( young_heap_t *heap );
+static s_word  free_current_chunk( young_heap_t *heap );
+static s_word  used_stack_space( young_heap_t *heap );
+static s_word  used_space( young_heap_t *heap );
+static s_word  static_used( young_heap_t *heap );
+static s_word  free_space( young_heap_t *heap );
+static word    words_allocated_pending( young_heap_t *heap );
 
 young_heap_t*
 create_sc_heap( int gen_no, 
@@ -113,10 +116,11 @@ create_sc_heap( int gen_no,
   data->load_factor = info->load_factor;
   data->lower_limit = info->dynamic_min;
   data->upper_limit = info->dynamic_max;
+  data->max_dynamic_size = 0;
   data->target_size =
-    compute_target_size( heap, (int)(info->size_bytes/data->load_factor), 0 );
+    compute_target_size( heap, (s_word)(info->size_bytes/data->load_factor), 0 );
 
-  supremely_annoyingmsg( "sc-heap: initial size = %d", data->target_size );
+  supremely_annoyingmsg( "sc-heap: initial size = %" PRIdWORD, data->target_size );
 
   mode_ss_to_globals( heap );
 
@@ -139,7 +143,7 @@ semispace_t *yhsc_data_area( young_heap_t *heap )
   return DATA(heap)->current_space;
 }
 
-static word *allocate( young_heap_t *heap, int nbytes, int no_gc )
+static word *allocate( young_heap_t *heap, s_word nbytes, int no_gc )
 {
   sc_data_t *data = DATA(heap);
   word *globals = data->globals;
@@ -171,18 +175,18 @@ static void make_room( young_heap_t *heap )
 }
 
 /* Request is ignored -- doesn't make sense in stop/copy heap. */
-static void collect( young_heap_t *heap, int request_bytes, int request )
+static void collect( young_heap_t *heap, s_word request_bytes, int request )
 {
   sc_data_t *data = DATA(heap);
   semispace_t *other_space;
-  int total_bytes, stack, used_before, used_after;
+  s_word total_bytes, stack, used_before, used_after, heap_before;
   stats_id_t timer1, timer2;
 
   timer1 = stats_start_timer( TIMER_ELAPSED );
   timer2 = stats_start_timer( TIMER_CPU );
 
 #if 1
-  annoyingmsg("Request: %d\n", request_bytes);
+  annoyingmsg("Request: %" PRIdWORD "\n", request_bytes);
 #endif
 
   assert( request_bytes >= 0 );
@@ -218,14 +222,15 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 #endif
 
   used_before = used_space( heap );
+  heap_before = used_before - used_stack_space( heap );
   annoyingmsg( "Stop-and-copy heap: Garbage collection." );
-  annoyingmsg( "  Avail=%d,  Used=%d", free_space( heap ), used_before );
+  annoyingmsg( "  Avail=%" PRIdWORD ",  Used=%" PRIdWORD, free_space( heap ), used_before );
   
   /* MODE: ss */
   mode_globals_to_ss( heap );
 
   ss_sync( data->current_space );
-  supremely_annoyingmsg( "ss used=%d, ss allocd=%d, stack=%d, los=%d",
+  supremely_annoyingmsg( "ss used=%" PRIdWORD ", ss allocd=%" PRIdWORD ", stack=%" PRIdWORD ", los=%" PRIdWORD,
                          data->current_space->used,
                          data->current_space->allocated,
                          stack,
@@ -239,7 +244,7 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
     int i;
     for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ ) {
       if (!(i > G_REG5 && i <= G_REG31))
-        annoyingmsg( "GLOB %d = %08x", i, data->globals[i] );
+        annoyingmsg( "GLOB %d = %08" PRIxWORD, i, data->globals[i] );
     }
   }
 #endif
@@ -256,13 +261,13 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
   /* Statistics */
   used_after = used_space( heap );
   data->gc_stats.allocated += 
-    bytes2words( used_before - data->used_after_last_gc );
+    bytes2words( heap_before - data->used_after_last_gc );
   data->gc_stats.reclaimed += bytes2words( used_before - used_after );
   data->gc_stats.words_copied += bytes2words( data->current_space->used );
   data->gc_stats.words_moved += 
     bytes2words( los_bytes_used( heap->collector->los, data->gen_no ) );
   data->gen_stats.collections += 1;
-  data->used_after_last_gc = used_after;
+  data->used_after_last_gc = used_after - used_stack_space( heap );
 
   /* POLICY */
   data->target_size =
@@ -292,12 +297,12 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
       max( data->gc_stats.max_ms_cheney_collection_cpu, ms_cpu );
   }
 
-  annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%d",
+  annoyingmsg( "Stop-and-copy heap: Collection finished; Live=%" PRIdWORD,
                used_space( heap ) );
 
   ss_sync( data->current_space );
   supremely_annoyingmsg( 
-    "  size=%d, ss used=%d, ss allocd=%d, los=%d, static=%d",
+    "  size=%" PRIdWORD ", ss used=%" PRIdWORD ", ss allocd=%" PRIdWORD ", los=%" PRIdWORD ", static=%" PRIdWORD,
     data->target_size,
     data->current_space->used,
     data->current_space->allocated,
@@ -306,16 +311,17 @@ static void collect( young_heap_t *heap, int request_bytes, int request )
 
 }
 
-static int compute_target_size( young_heap_t *heap, int D, int Q )
+static s_word compute_target_size( young_heap_t *heap, s_word D, s_word Q )
 {
-  int s;
+  s_word s;
   s = gc_compute_dynamic_size( heap->collector,
                                D,
                                static_used( heap ),
                                Q,
                                DATA(heap)->load_factor,
                                DATA(heap)->lower_limit,
-                               DATA(heap)->upper_limit );
+                               DATA(heap)->upper_limit,
+                               &DATA(heap)->max_dynamic_size );
   /* gc_compute_dynamic_size() may return with no room for allocation */
   if (s - D < 65536)
     s += 65536;
@@ -333,7 +339,7 @@ static void after_collection( young_heap_t *heap )
   /* Nothing */
 }
 
-static int free_space( young_heap_t *heap ) 
+static s_word free_space( young_heap_t *heap ) 
 {
   sc_data_t *data = DATA(heap);
 
@@ -352,6 +358,9 @@ static void stats( young_heap_t *heap )
                  + los_bytes_used( heap->collector->los, data->gen_no ) );
   data->gen_stats.used = 
     bytes2words( used_space( heap ) - used_stack_space( heap ) );
+#if CODE_SPACE
+  cs_add_stats( heap->collector->code_space, data->gen_no, &data->gen_stats );
+#endif
 
   stats_add_gen_stats( data->self, &data->gen_stats );
   memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
@@ -360,10 +369,10 @@ static void stats( young_heap_t *heap )
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
 }
 
-static word *data_load_area( young_heap_t *heap, int nbytes )
+static word *data_load_area( young_heap_t *heap, s_word nbytes )
 {
   sc_data_t *data = DATA(heap);
-  int n;
+  s_word n;
 
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
@@ -372,16 +381,29 @@ static word *data_load_area( young_heap_t *heap, int nbytes )
   return data->current_space->chunks[ n ].bot;
 }
 
-/* Here we don't know the size of the frame that overflowed.  If the frame
-   is larger than STACK_ROOM then we may conceivably loop forever if
-   the chunk allocated is no larger than STACK_ROOM.  Therefore, chunks
-   should be larger than the largest possible stack frame.
+/* Make room for the stack.  When a frame could not be restored (stack
+   underflow, creg-set), the room must hold that frame: asking only for
+   STACK_ROOM looped forever when the free space was more than STACK_ROOM
+   (so no chunk was allocated) but less than the frame.  On a real
+   overflow the size of the new frame is not known, but it is more than
+   the free space: when that is at least STACK_ROOM, the room asked for
+   is more than the free space (twice it), so that a frame of any size
+   fits after enough overflows.  (Asking only for STACK_ROOM looped
+   forever on a frame larger than STACK_ROOM.)
    */
 static void stack_overflow( young_heap_t *heap )
 {
+  word *globals = DATA(heap)->globals;
+  s_word room = STACK_ROOM;
+  s_word free = free_current_chunk( heap );
+
   annoyingmsg("Stack overflow");
-  if (!collect_if_no_room( heap, 0 ))
-    make_space_for( heap, STACK_ROOM, 1 );
+  if (globals[ G_STKP ] == globals[ G_STKBOT ])   /* restoring a frame */
+    room = max( room, stk_size_for_top_stack_frame( globals ) );
+  else if (free >= room)
+    room = 2*free + STACK_ROOM;
+  if (!collect_if_no_room( heap, room ))
+    make_space_for( heap, room, 1 );
 }
 
 static void stack_underflow( young_heap_t *heap )
@@ -423,10 +445,10 @@ static void creg_set( young_heap_t *heap, word k )
 
 /* Internal functions past this point. */
 
-static int collect_if_no_room( young_heap_t *heap, int nbytes )
+static int collect_if_no_room( young_heap_t *heap, s_word nbytes )
 {
   if (free_space( heap ) < nbytes) {
-    supremely_annoyingmsg( "sc-heap: couldn't find room for %d bytes",
+    supremely_annoyingmsg( "sc-heap: couldn't find room for %" PRIdWORD " bytes",
                            nbytes );
     if (nbytes <= GC_LARGE_OBJECT_LIMIT)
       gc_collect( heap->collector, 0, nbytes, GCTYPE_COLLECT );
@@ -438,12 +460,12 @@ static int collect_if_no_room( young_heap_t *heap, int nbytes )
     return 0;
 }
 
-static void make_space_for( young_heap_t *heap, int nbytes, int stack_ok )
+static void make_space_for( young_heap_t *heap, s_word nbytes, int stack_ok )
 {
   sc_data_t *data = DATA(heap);
   word *globals = data->globals;
   semispace_t *ss = data->current_space;
-  int extra = 0, bytes_to_alloc, budget;
+  s_word extra = 0, bytes_to_alloc, budget;
   word *top, *stklim;
 
   if (free_current_chunk( heap ) < nbytes) {
@@ -517,7 +539,7 @@ static void mode_ss_to_globals( young_heap_t *heap )
   globals[ G_STKP ] = globals[ G_ELIM ];
 }
 
-static int static_used( young_heap_t *heap )
+static s_word static_used( young_heap_t *heap )
 {
   static_heap_t *s = heap->collector->static_area;  /* may be NULL */
 
@@ -532,21 +554,35 @@ static int static_used( young_heap_t *heap )
   return (s ? s->data_area->allocated : 0);
 }
 
-static int free_current_chunk( young_heap_t *heap )
+static s_word free_current_chunk( young_heap_t *heap )
 {
   word *globals = DATA(heap)->globals;
   return globals[ G_STKP ] - globals[ G_ETOP ] - SCE_BUFFER;
 }
 
-static int used_stack_space( young_heap_t *heap )
+static s_word used_stack_space( young_heap_t *heap )
 {
   semispace_t *ss = DATA(heap)->current_space;
   word *globals = DATA(heap)->globals;
 
-  return (int)((word)ss->chunks[ss->current].lim - globals[ G_STKP ]);
+  return (s_word)((word)ss->chunks[ss->current].lim - globals[ G_STKP ]);
 }
 
-static int used_space( young_heap_t *heap )
+/* What a collection now would add to the words allocated (collect()):
+   the growth of the used space since the last one, not counting the
+   stack, which grows when frames are restored from the heap.  (A
+   collection first flushes the stack into the heap, and those frames
+   are counted too.)  */
+
+static word words_allocated_pending( young_heap_t *heap )
+{
+  s_word used = used_space( heap ) - used_stack_space( heap );
+  s_word last = DATA(heap)->used_after_last_gc;
+
+  return (used > last ? bytes2words( used - last ) : 0);
+}
+
+static s_word used_space( young_heap_t *heap )
 {
   semispace_t *ss = DATA(heap)->current_space;
 
@@ -590,11 +626,13 @@ static young_heap_t *allocate_heap( int gen_no, gc_t *gc )
                               is_address_mapped,
                               data );
   heap->collector = gc;
+  heap->words_allocated_pending = words_allocated_pending;
 
   data->self = stats_new_generation( gen_no, 0 );
   data->gen_no = gen_no;
   memset( &data->gen_stats, 0, sizeof( gen_stats_t ) );
   memset( &data->gc_stats, 0, sizeof( gc_stats_t ) );
+  data->used_after_last_gc = 0;
 
   return heap;
 }

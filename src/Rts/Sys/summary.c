@@ -157,7 +157,7 @@ static void apply_f_to_summary_obj_entry( word obj, void *data_orig,
     w += 1;
     f( w, scan_data );
   } else {
-    word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    word words = sizefield( *w ) / sizeof(word);
     while (words--) {
       w += 1;
       f( w, scan_data );
@@ -251,7 +251,7 @@ static void apply_f_to_summary_obj_entry2( word obj, void *data_orig,
     w += 1;
     f( make_loc(obj, ((byte*)w-(byte*)ptrof(obj))), scan_data );
   } else {
-    word words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    word words = sizefield( *w ) / sizeof(word);
     while (words--) {
       w += 1;
       f( make_loc(obj, ((byte*)w-(byte*)ptrof(obj))), scan_data );

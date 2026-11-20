@@ -21,7 +21,11 @@
 ;
 ; Features:
 ;  - Little/big-endian independent.
-;  - By and large it is 64-bit clean.
+;  - 64-bit clean: fixnums have two tag bits whatever the word size,
+;    so on a 64-bit system a fixnum index must be doubled to become a
+;    word offset, and header size fields (in bytes) must be halved to
+;    become fixnum lengths.  See fence.index->word-offset and
+;    fence.header-length-shift.
 ;  - Direct support for floating point operations.
 ;
 ; TODO:
@@ -32,7 +36,6 @@
 ;    branches to existing handlers instead of new handlers; the
 ;    optimizer should carefully optimize branch-over-branch to
 ;    reverse the condition and eliminate the redundant branch.
-;  - Add the missing parts of the 64-bit support, search for FIXME64.
 
 ; Arguably a hack, should define these elsewhere.  But they are
 ; target-independent.
@@ -145,7 +148,8 @@
 
 (define-instruction $.proc
   (lambda (instruction as)
-    (list-instruction ".proc" instruction)))
+    (list-instruction ".proc" instruction)
+    (fence.note-entry! as)))
 
 (define-instruction $.proc-doc
   (lambda (instruction as)
@@ -167,7 +171,162 @@
 
 (define-instruction $.end
   (lambda (instruction as)
-    (cant.end as)))
+    (fence.emit-deferred! as)
+    (cant.end as)
+    (if fence.records-registers?
+        (fence.store-register-mask! as))
+    (set! fence.registers-used (make-vector *nregs* #f))
+    (set! fence.seen-entry? #f)))
+
+; The garbage collector treats the registers as roots, and a register
+; keeps a dead value until something overwrites it, possibly long after
+; the procedure that put it there has returned.  So the documentation of
+; a code vector (constant 0, see src/Lib/Common/procinfo.sch) records
+; the set of registers that its code uses, as a bit mask, and when a
+; collection starts in that code (REG0's), the collector clears the
+; others (before_collection in src/Rts/Sys/memmgr.c).  A set, not the
+; highest register: Twobit allocates temporaries from the top.  A back
+; end whose register mapping calls fence.note-register! for every MAL
+; register sets fence.records-registers?; a code vector without the
+; mask keeps all registers.  Too many registers is safe; too few clears
+; a live one.  Code that leaves millicode to read registers that it
+; does not name itself (rest arguments, syscall) notes all of them.
+;
+; Nested lambdas are assembled after their parent's $.end, one code
+; vector at a time; a retry (long addresses) only adds registers.
+
+(define fence.records-registers? #f)
+
+(define fence.registers-used (make-vector *nregs* #f))
+
+(define (fence.note-register! r)
+  (if (< r *nregs*)
+      (vector-set! fence.registers-used r #t)))
+
+(define (fence.note-all-registers!)
+  (vector-fill! fence.registers-used #t))
+
+; Registers 1 through n hold n arguments (or values); with n or more
+; than *lastreg*, the last holds a list of the rest.
+
+(define (fence.note-argument-registers! n)
+  (if (>= n *lastreg*)
+      (fence.note-all-registers!)
+      (do ((r 1 (+ r 1)))
+          ((> r n))
+        (fence.note-register! r))))
+
+; Registers can also be live without the code naming them: arguments
+; that it passes on in the registers they came in.  They come in at the
+; entries of procedures (and at return points with args= or args>=,
+; which note their registers): the first .proc is the code vector's
+; procedure, documented by constant 0, and an internal procedure (which
+; an inner lambda may reach with jump) is documented by the .proc-doc
+; that follows its .proc.  Each notes the registers of its arguments,
+; or all of them when its arity is not a known fixnum.
+
+(define fence.seen-entry? #f)
+
+(define (fence.note-entry! as)
+
+  (define (doc-arity doc)
+    (and (vector? doc)
+         (> (vector-length doc) 2)
+         (fixnum? (vector-ref doc 2))
+         (vector-ref doc 2)))
+
+  (let* ((next (as-source as))
+         (doc (cond ((and (pair? next)
+                          (= (operand0 (car next)) $.proc-doc))
+                     (operand1 (car next)))
+                    ((not fence.seen-entry?)
+                     (let ((constant0 (car (as-constants as))))
+                       (and (pair? constant0)
+                            (eq? (car constant0) 'data)
+                            (cadr constant0))))
+                    (else #f)))
+         (n (doc-arity doc)))
+    (set! fence.seen-entry? #t)
+    (if n
+        (fence.note-argument-registers! n)
+        (fence.note-all-registers!))))
+
+(define doc.registers 6)                ; see procinfo.sch
+
+; The mask has bit r for register r, and bit 16 set to mark it as a
+; mask (the collector ignores other values).
+
+(define (fence.store-register-mask! as)
+
+  (define n
+    (do ((r (- *nregs* 1) (- r 1))
+         (mask 1 (+ (* 2 mask)
+                    (if (vector-ref fence.registers-used r) 1 0))))
+        ((< r 0) mask)))
+
+  ; A code vector without documentation gets no mask: its constant 0
+  ; might be shared with an equal literal (emit-constant), so it is not
+  ; replaced.
+
+  (define (add-mask doc)
+    (cond ((vector? doc)
+           (let ((new (make-vector (max (+ doc.registers 1)
+                                        (vector-length doc))
+                                   #f)))
+             (do ((i 0 (+ i 1)))
+                 ((= i (vector-length doc)))
+               (vector-set! new i (vector-ref doc i)))
+             (vector-set! new doc.registers n)
+             new))
+          ((and (pair? doc) (pair? (car doc)) (vector? (cdar doc)))
+           (map (lambda (entry)
+                  (cons (car entry) (add-mask (cdr entry))))
+                doc))
+          (else doc)))                  ; unknown: no mask, all live
+
+  (let ((constant0 (car (as-constants as))))
+    (if (and (pair? constant0) (eq? (car constant0) 'data))
+        (set-constant! as 0 (add-mask (cadr constant0))))))
+
+; Code that is rarely executed (slow paths) can be deferred to the end
+; of the code vector, out of the way of the code around it.  A deferred
+; thunk is called with no arguments at the end of assembly, and must
+; end with a branch back (or a call that does not return).
+
+(define fence.deferred '())             ; list of (as . thunks), newest first
+
+(define fence.inline-deferred
+  (let ((e (getenv "FENCE_INLINE_DEFERRED")))
+    (if e (read (open-input-string (string-append "(" e ")"))) '())))
+
+(define (fence.defer! as thunk . category)
+  (if (or (memq 'all fence.inline-deferred)
+          (and (pair? category) (memq (car category) fence.inline-deferred)))
+      (let ((Lskip (fence.make-label as)))
+        (cant.ba     as Lskip)
+        (thunk)
+        (fence.label as Lskip))
+      (fence.defer!0 as thunk)))
+
+(define (fence.defer!0 as thunk)
+  (let ((probe (assq as fence.deferred)))
+    (if probe
+        (set-cdr! probe (cons thunk (cdr probe)))
+        (set! fence.deferred (cons (list as thunk) fence.deferred)))))
+
+(define (fence.emit-deferred! as)
+  (let ((probe (assq as fence.deferred)))
+    (if (and probe (pair? (cdr probe)))
+        (let ((thunks (reverse (cdr probe))))
+          (set-cdr! probe '())
+          (for-each (lambda (thunk) (thunk)) thunks)
+          (fence.emit-deferred! as))       ; deferred code may defer more
+        #t)
+    (set! fence.deferred
+          (let loop ((l fence.deferred))
+            (cond ((null? l) '())
+                  ((eq? (caar l) as) (loop (cdr l)))
+                  (else (cons (car l) (loop (cdr l)))))))))
 
 ; Single-step non-trivial MAL instructions.
 ;
@@ -217,12 +376,14 @@
 (define-instruction $op2
   (lambda (instruction as)
     (list-instruction "op2" instruction)
-    (emit-op2 as (operand1 instruction) $r.result (operand2 instruction) $r.result)))
+    (emit-op2 as (operand1 instruction) $r.result (operand2 instruction) $r.result)
+    (emit-mutator-result as (operand1 instruction) $r.result)))
 
 (define-instruction $op3
   (lambda (instruction as)
     (list-instruction "op3" instruction)
-    (emit-op3 as (operand1 instruction) $r.result (operand2 instruction) (operand3 instruction))))
+    (emit-op3 as (operand1 instruction) $r.result (operand2 instruction) (operand3 instruction))
+    (emit-mutator-result as (operand1 instruction) $r.result)))
 
 (define-instruction $op2imm
   (lambda (instruction as)
@@ -280,25 +441,87 @@
 (define-instruction $args=
   (lambda (instruction as)
     (list-instruction "args=" instruction)
-    (let ((L1 (fence.make-label as))
-          (n  (fence.native->fixnum (operand1 instruction))))
-      (cant.bcci   as 'equal $r.result n L1)
-      (cant.movi   as n $r.second)
-      (cant.trap   as $m.argc-ex '*argc-ex) ; THIRD=REG0 happens in millicode
-      (fence.label as L1))))
+    (let ((n  (fence.native->fixnum (operand1 instruction))))
+      (fence.note-argument-registers! (operand1 instruction))
+      (emit-check-branch
+       as
+       (lambda (L) (cant.bcci as 'not-equal $r.result n L))
+       (lambda ()
+         (cant.movi   as n $r.second)
+         (cant.trap   as $m.argc-ex '*argc-ex)))))) ; THIRD=REG0 happens in millicode
+
+; With no arguments beyond the n required, the rest list is (), stored
+; in line; otherwise the millicode makes it.  (Register n+1 receives
+; the rest list; registers past *lastreg* are not hardware registers.)
 
 (define-instruction $args>=
   (lambda (instruction as)
     (list-instruction "args>=" instruction)
-    (let ((L1 (fence.make-label as))
-          (n  (fence.native->fixnum (operand1 instruction))))
+    (let* ((k  (operand1 instruction))
+           (n  (fence.native->fixnum k)))
+      (fence.note-all-registers!)         ; mc_restargs reads them all
       (cant.movi as n $r.second)
       (if (runtime-safety-checking)
-          (begin
-            (cant.bcc  as 'greater-or-equal $r.result $r.second L1)
-            (emit-exception as $ex.vargc $r.result $r.second) ; THIRD=REG0 happens in millicode
-            (fence.label as L1)))
-      (cant.trap as $m.varargs '*varargs))))
+          (emit-check-branch
+           as
+           (lambda (L) (cant.bcc as 'less $r.result $r.second L))
+           (lambda () (emit-exception as $ex.vargc $r.result $r.second)))) ; THIRD=REG0 happens in millicode
+      (if (< (+ k 1) *lastreg*)
+          (let ((Lmore (fence.make-label as))
+                (Ldone (fence.make-label as)))
+            (cant.bcc  as 'not-equal $r.result $r.second Lmore)
+            (cant.movi as $imm.null (+ k 1))
+            (fence.defer! as
+                          (lambda ()
+                            (fence.label as Lmore)
+                            (cant.trap as $m.varargs '*varargs)
+                            (cant.ba   as Ldone))
+                          'check)
+            (fence.label as Ldone))
+          (cant.trap as $m.varargs '*varargs)))))
+
+; The code of every procedure made by case-lambda (case-lambda.mal,
+; and .make-case-lambda in Lib/Common/make-case-lambda.sch).  REG0 is the
+; procedure, whose slots from the first environment slot on hold an
+; arity and a clause (a procedure) for each clause, then #f.  An arity
+; n >= 0 accepts n arguments, and -(m+1) accepts m or more.  Jumps to
+; the first clause that accepts the RESULT arguments, with RESULT and
+; the arguments as they are (so its own entry checks and conses the
+; rest list).  (.make-case-lambda ends with a clause that accepts any
+; number; if none did, the first clause would signal the error.)
+; SECOND and TMP are free at a procedure's entry, but SECOND is a root
+; for the garbage collector, which the clause may call, so it holds a
+; multiple of 4 (a fixnum): the byte offset of an arity less bias.
+
+(define-instruction $arity-dispatch
+  (lambda (instruction as)
+    (list-instruction "arity-dispatch" instruction)
+    (let* ((Lloop  (fence.make-label as))
+           (Lnext  (fence.make-label as))
+           (Lfail  (fence.make-label as))
+           (Lfound (fence.make-label as))
+           (step   (* 2 $bytewidth.wordsize))
+           (bias   (remainder $p.reg0 4))
+           (first  (- $p.reg0 bias)))
+      (cant.movi  as first $r.second)            ; offset of an arity - bias
+      (fence.label as Lloop)
+      (cant.add   as $r.reg0 $r.second $r.tmp)
+      (cant.ldi   as $r.tmp bias $r.tmp)         ; the arity, or #f
+      (cant.bcci  as 'equal $r.tmp $imm.false Lfail)
+      (cant.bcc   as 'equal $r.tmp $r.result Lfound)
+      (cant.bcci  as 'greater-or-equal $r.tmp 0 Lnext)
+      (cant.add   as $r.tmp $r.result $r.tmp)    ; argc-m-1, as a fixnum
+      (cant.addi  as $r.tmp (fence.native->fixnum 1) $r.tmp)
+      (cant.bcci  as 'greater-or-equal $r.tmp 0 Lfound)
+      (fence.label as Lnext)
+      (cant.addi  as $r.second step $r.second)
+      (cant.ba    as Lloop)
+      (fence.label as Lfail)
+      (cant.movi  as first $r.second)
+      (fence.label as Lfound)
+      (cant.add   as $r.reg0 $r.second $r.tmp)
+      (cant.ldi   as $r.tmp (+ bias $bytewidth.wordsize) $r.reg0)
+      (cant.jump  as #f))))
 
 (define-instruction $invoke
   (lambda (instruction as)
@@ -354,7 +577,7 @@
           ;; n+3 words for retaddr, dynamic link, and REG0..REGn
           ;; realsize includes the size field and padding
           (let* ((framesize (* $bytewidth.wordsize (+ n 3)))
-                 (realsize  (fence.roundup8
+                 (realsize  (fence.roundup-dword
                              (+ framesize $bytewidth.wordsize))))
             (list-instruction "pop" instruction)
             (cant.addi as $r.stkp realsize $r.stkp))))))
@@ -396,8 +619,9 @@
       ;; the write barrier invocation.  See notes at emit-write-barrier.
       (cant.mov as $r.result $r.second)
       (let ((base (emit-follow-lexical-chain as rib $r.result)))
+        (emit-pre-barrier   as base base (fence.procedure-slot slot))
         (cant.sti           as $r.second base (fence.procedure-slot slot))
-        (emit-write-barrier as base $r.second)))))
+        (emit-write-barrier as base $r.second base (fence.procedure-slot slot))))))
 
 (define-instruction $reg
   (lambda (instruction as)
@@ -502,7 +726,7 @@
       (do ((i 0 (+ i 1)))
           ((> i n))
         (if (not (vector-ref v i))
-            (cant.sti as $r.tmp $r.stkp (fence.frame-slot i))))
+            (cant.stzi as $r.stkp (fence.frame-slot i))))
       (do ((rs rs (cdr rs))
            (ss ss (cdr ss)))
           ((null? rs))
@@ -513,20 +737,24 @@
     (list-instruction "reg/op1/setreg" instruction)
     (emit-op1 as (operand1 instruction) (operand2 instruction) (operand3 instruction))))
 
-(define-instruction $reg/op2/setreg     ; op rs1 rs2 rd
+(define-instruction $reg/op2/setreg     ; op rs1 rs2 rd [dead]
   (lambda (instruction as)
     (list-instruction "reg/op2/setreg" instruction)
-    (emit-op2 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))))
+    (emit-op2 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))
+    (if (not (fence.result-dead? instruction 4))
+        (emit-mutator-result as (operand1 instruction) (operand4 instruction)))))
 
 (define-instruction $reg/op2imm/setreg  ; op rs imm rd
   (lambda (instruction as)
     (list-instruction "reg/op2imm/setreg" instruction)
     (emit-op2imm as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))))
 
-(define-instruction $reg/op3            ; op rs1 rs2 rs3
+(define-instruction $reg/op3            ; op rs1 rs2 rs3 [dead]
   (lambda (instruction as)
     (list-instruction "reg/op3" instruction)
-    (emit-op3 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))))
+    (emit-op3 as (operand1 instruction) (operand2 instruction) (operand3 instruction) (operand4 instruction))
+    (if (not (fence.result-dead? instruction 4))
+        (emit-mutator-result as (operand1 instruction) $r.result))))
 
 (define-instruction $reg/branchf        ; rs label
   (lambda (instruction as)
@@ -571,6 +799,15 @@
                     (operand1 instruction)
                     (operand2 instruction)
                     (make-asm-label as (operand3 instruction)))))
+
+(define-instruction $reg/op1/check/length ; op rs label liveregs rd
+  (lambda (instruction as)
+    (list-instruction "reg/op1/check/length" instruction)
+    (emit-op1-check/length as
+                           (operand1 instruction)
+                           (operand2 instruction)
+                           (make-asm-label as (operand3 instruction))
+                           (operand5 instruction))))
 
 (define-instruction $reg/op2/check      ; op rs1 rs2 label liveregs
   (lambda (instruction as)
@@ -679,38 +916,35 @@
   (let* ((L1        (fence.make-label as))
          (L0        (fence.make-label as))
          (framesize (* $bytewidth.wordsize (+ n 3))) ; Retaddr + dynamic link + REG0..REGn
-         (realsize  (fence.roundup8 (+ framesize $bytewidth.wordsize)))) ; Additional word for the size field
+         (realsize  (fence.roundup-dword (+ framesize $bytewidth.wordsize)))) ; Additional word for the size field
     (fence.label as L0)
     (cant.ldi    as $r.globals $g.etop $r.tmp) ; System invariant: nursery top is stack limit (TODO: sce_buffer)
     ;; TODO: Should just use subi here (and the ARM back-end should implement subi as well as addi)
     (cant.addi   as $r.stkp (- realsize) $r.stkp)
-    ;; Note order of arguments.
-    ;; TODO: unsigned-less-or-equal would have been more appropriate but is not currently supported.
-    (cant.bcc    as 'unsigned-less $r.tmp $r.stkp L1)
-    (cant.addi   as $r.stkp realsize $r.stkp)
-    (cant.trap   as $m.stkoflow '*stkoflow)
-    (cant.ba     as L0)
-    (fence.label as L1)
+    ;; Note order of arguments.  The overflow case is deferred.
+    (cant.bcc    as 'unsigned-greater-or-equal $r.tmp $r.stkp L1)
+    (fence.defer!
+     as
+     (lambda ()
+       (fence.label as L1)
+       (cant.addi   as $r.stkp realsize $r.stkp)
+       (cant.trap   as $m.stkoflow '*stkoflow)
+       (cant.ba     as L0)) 'stack)
     (cant.movi   as framesize $r.tmp)
     (cant.sti    as $r.tmp $r.stkp $stk.contsize)
-    (cant.movi   as 0 $r.tmp)                    ; $r.tmp == 0 is used by emit-save1 also
-    (cant.sti    as $r.tmp $r.stkp $stk.dynlink) ; Clearing the dynamic link is redundant.  TODO: remove.
-    (cant.sti    as $r.tmp $r.stkp $stk.retaddr)
-    ;; Clearing the pad word is redundant, the GC does not inspect it.  TODO: remove.
-    (if (and (= 4 $bytewidth.wordsize) 
-             (= (- realsize framesize) 8))
-        (cant.sti as $r.tmp $r.stkp (fence.frame-slot (+ n 1))))))
+    ;; The return address must be valid in case the frame is flushed
+    ;; to the heap before the return address is set.  The dynamic link
+    ;; need not be initialized (it is set when the frame is flushed), nor
+    ;; the pad word, if any (the collector does not inspect it).
+    (cant.stzi   as $r.stkp $stk.retaddr)))
 
-; Clear all the slots in the frame.  We depend on $r.tmp being
-; set to zero when we enter.  (In principle we could reinitialize
-; and count on the Cant back-end to optimize out the redundant
-; initialization, if it is redundant.)
+; Clear all the slots in the frame.
 
 (define (emit-save1 as slots)
   (do ((i 0 (+ i 1))
        (offset $stk.reg0 (+ offset $bytewidth.wordsize)))
       ((> i slots))
-    (cant.sti as $r.tmp $r.stkp offset)))
+    (cant.stzi as $r.stkp offset)))
 
 ; emit-getglbl may destroy RESULT (because of the error trap).
 ; Note that rd may be RESULT or SECOND.
@@ -726,15 +960,42 @@
         (cant.trap      as $m.global-ex '*global-ex)
         (fence.label    as L))))
 
-; emit-setglbl destroys RESULT (because of the write barrier).  Note
-; that rs may be RESULT or SECOND.
+; emit-setglbl leaves #!unspecified in RESULT (which held the global's
+; cell, which must not escape).  Note that rs may be RESULT or SECOND.
 
 (define (emit-setglbl as rs name)
   (if (not (= rs $r.second))
       (cant.mov          as rs $r.second))
   (emit-global->register as name $r.result)
+  (emit-pre-barrier      as $r.result $r.result (- $tag.pair-tag))
   (cant.sti              as $r.second $r.result (- $tag.pair-tag))
-  (emit-write-barrier    as $r.result $r.second))
+  (emit-write-barrier    as $r.result $r.second $r.result (- $tag.pair-tag))
+  (cant.movi             as $imm.unspecified $r.result))
+
+; The value of a primitive that mutates an object is #!unspecified.
+; The code for it leaves whatever it likes in the destination register,
+; which may be an object that must not escape (the write barrier's
+; millicode can leave a code vector in RESULT).
+
+(define fence.mutators
+  '(set-car! set-cdr! cell-set! cell-set!:nwb
+    vector-set! vector-set!:trusted vector-set!:trusted:nwb vector-like-set!
+    procedure-set! bytevector-set! bytevector-like-set!
+    bytevector-like-set!:trusted bytevector-like-set32!:trusted
+    bytevector-like-set64!:trusted bytevector-fill! string-set!
+    ustring-set! ustring-set!:trusted typetag-set! creg-set!))
+
+(define (emit-mutator-result as name rd)
+  (if (memq name fence.mutators)
+      (cant.movi as $imm.unspecified rd)))
+
+; The peephole optimizer appends the symbol dead to an instruction
+; (after its n operands) whose result, in RESULT, the next instruction
+; overwrites; the mutators then need not leave #!unspecified there.
+
+(define (fence.result-dead? instruction n)
+  (let ((rest (list-tail instruction (+ n 1))))
+    (and (pair? rest) (eq? (car rest) 'dead))))
 
     
 ;;; Helpers
@@ -796,11 +1057,40 @@
 (define (fence.label as L)
   (cant.label as L))
 
-; Round a value up to next increment of 8, x must be a fixnum
-; as must the rounded-up value.
+; Round a byte count up to the next multiple of two words (the
+; alignment of objects and stack frames); x must be a fixnum as must
+; the rounded-up value.
 
-(define (fence.roundup8 x)
-  (fxlogand (+ x 7) (fxlognot 7)))
+(define (fence.roundup-dword x)
+  (let ((m (- (* 2 $bytewidth.wordsize) 1)))
+    (fxlogand (+ x m) (fxlognot m))))
+
+; A fixnum index scaled to a word offset: on a 64-bit system a word
+; is twice the size of the fixnum representation of 1.  Destroys
+; only rd, which may be the same as ridx but must not be rbase.
+
+(define (fence.index->word-offset as rbase ridx rd)
+  (case $bytewidth.wordsize
+    ((4) (cant.add as rbase ridx rd))
+    ((8) (cant.addshli as rbase ridx 1 rd))     ; 64-bit targets only
+    (else ???)))
+
+; Shift a header right by this much to get the object's length as a
+; fixnum, if the length is counted in words.
+
+(define fence.header-length-shift
+  (case $bytewidth.wordsize
+    ((4) 8)
+    ((8) 9)
+    (else ???)))
+
+; Size in bytes of the data part of a flonum, including padding.
+
+(define fence.flonum-data-bytes
+  (case $bytewidth.wordsize
+    ((4) 12)
+    ((8) 8)
+    (else ???)))
 
 ;;; Emitter utilities
 
@@ -914,17 +1204,45 @@
           (cant.ldi as base $p.linkoffset target)
           (loop (- q 1) target)))))
 
-; val has been stored in obj, now record that store.
-; This may destroy RESULT and SECOND, and it will destroy TMP 
-; only if r1=SECOND and r2=RESULT.
+; A value is about to be stored in obj at address base+offset.  During
+; the concurrent marking phase of the regional collector, the
+; snapshot-at-the-beginning barrier must record the old value of the
+; slot.  This may destroy RESULT and TMP; the slot address is computed
+; into TMP by compute-address, or from base and offset.
+
+(define (emit-pre-barrier as r_obj r_base offset . compute-address)
+  (let ((L1 (fence.make-label as))
+        (L (fence.make-label as)))
+    (cant.ldi  as $r.globals $g.concurrent-mark $r.tmp)
+    (cant.bcci as 'not-equal $r.tmp 0 L1)
+    (fence.defer!                       ; only while marking
+     as
+     (lambda ()
+       (fence.label as L1)
+       (if (null? compute-address)
+           (cant.addi as r_base offset $r.tmp)
+           ((car compute-address)))
+       (cant.sti  as $r.tmp $r.globals $g.third)
+       (if (not (= r_obj $r.result))
+           (cant.mov as r_obj $r.result))
+       (cant.trap as $m.satb-barrier '*satb-barrier)
+       (cant.ba   as L)) 'satb)
+    (fence.label as L)))
+
+; val has been stored in obj at address base+offset, now record that
+; store.  This may destroy RESULT, SECOND, and TMP.
 ;
-; TODO: Need to support full-barrier.
+; The millicode wants the object in RESULT, the value in SECOND, and
+; the address of the slot in THIRD.
+;
+; TODO: Need to support full-barrier, and the SATB pre-barrier used by
+; the regional collector's concurrent marking.
 ;
 ; To reduce code size we could imagine several entry points, eg, one
 ; for RESULT/SECOND, another for SECOND/RESULT.  Not clear how big the
 ; benefit would be.
 
-(define (emit-write-barrier as r_obj r_val)
+(define (emit-write-barrier as r_obj r_val r_base offset)
 
   ;; Not yet useful outside emit-write-barrier.
   (define (emit-millicode-arguments2 as r1 r2)
@@ -941,6 +1259,8 @@
 
   (let ((L (fence.make-label as)))
     (cant.bcci as 'low1-equal r_val 0 L)        ; Skip if value is not pointer
+    (cant.addi as r_base offset $r.tmp)
+    (cant.sti  as $r.tmp $r.globals $g.third)
     (emit-millicode-arguments2 as r_obj r_val)
     (cant.trap as $m.partial-barrier '*partial-barrier)
     (fence.label as L)))
@@ -951,12 +1271,15 @@
   (let ((L1 (fence.make-label as))
         (L2 (fence.make-label as)))
     (cant.ldi    as $r.globals $g.timer $r.tmp)
-    (cant.bcci   as 'not-equal $r.tmp 0 L1)
-    (cant.trap   as $m.timer-exception '*timer-exception) ; Kills $r.tmp
-    (cant.ba     as L2)
-    (fence.label as L1)
+    (cant.bcci   as 'equal $r.tmp 0 L1)
     (cant.addi   as $r.tmp -1 $r.tmp)
     (cant.sti    as $r.tmp $r.globals $g.timer)
+    (fence.defer!
+     as
+     (lambda ()
+       (fence.label as L1)
+       (cant.trap   as $m.timer-exception '*timer-exception) ; Kills $r.tmp
+       (cant.ba     as L2)) 'timer)
     (fence.label as L2)))
 
 ; Allocate uninitialized memory and leave an untagged pointer in RESULT.
@@ -970,11 +1293,31 @@
 ;
 ; TODO: Verify that alloc performs the necessary check.
 
+; The allocation is done in line when there is room in the nursery:
+; the nursery grows up from G_ETOP towards the stack, which grows down
+; from STKP, and SCE_BUFFER words must be left between them (as in the
+; allocation millicode).  Otherwise the millicode allocates.
+
+(define fence.sce-buffer-bytes $sce.buffer)          ; In bytes
+
 (define (emit-allocate-uninitialized as nbytes)
   (if (not (zero? (remainder nbytes $bytewidth.wordsize)))
       (error "Allocation request size must be divisible by the word size"))
-  (cant.movi as nbytes $r.result)
-  (cant.trap as $m.alloc '*alloc))
+  (let ((n     (fence.roundup-dword nbytes))
+        (b     fence.sce-buffer-bytes)
+        (Lslow (fence.make-label as))
+        (Ldone (fence.make-label as)))
+    (cant.ldi    as $r.globals $g.etop $r.result)
+    (cant.addi   as $r.result (+ n b) $r.tmp)
+    (cant.bcc    as 'unsigned-less $r.stkp $r.tmp Lslow)
+    (cant.addi   as $r.tmp (- b) $r.tmp)
+    (cant.sti    as $r.tmp $r.globals $g.etop)
+    (cant.ba     as Ldone)
+    (fence.label as Lslow)
+    ;; The millicode takes the number of words, as a fixnum.
+    (cant.movi   as (fence.native->fixnum (quotient nbytes $bytewidth.wordsize)) $r.result)
+    (cant.trap   as $m.alloc '*alloc)
+    (fence.label as Ldone)))
 
 ; rinit is a register name or ().  If () we initialize with $imm.null,
 ; otherwise with the register contents.
@@ -985,19 +1328,50 @@
 ;
 ; TODO: Verify that alloci performs the necessary check.
 
+; The allocation and initialization are done in line when there is
+; room in the nursery (see emit-allocate-uninitialized) and the length
+; is reasonable; the in-line loop fills the header and any padding word
+; too, and the header is written afterwards.
+
+(define fence.inline-alloci-limit (fence.native->fixnum (expt 2 24)))
+
 (define (emit-make-word-structure as rlen rinit rd tag hdr exn)
   (assert (or (null? rinit) (not (= rinit $r.result))))
-  (if (= $bytewidth.wordsize 8)
-      (error "emit-make-word-structure must correctly compute and store 64-bit length value")) ; FIXME64
   (emit-check-positive-fixnum as rlen exn)
   (cant.sti    as rlen $r.globals $g.alloctmp)             ; Save the actual length
-  (cant.addi   as rlen (fence.native->fixnum 1) $r.result) ; Add one word for the header
   (if (null? rinit)
       (cant.movi as $imm.null $r.second)
       (cant.mov  as rinit $r.second))
-  (cant.trap   as $m.alloci '*alloci)
+  (let ((b     fence.sce-buffer-bytes)
+        (a     (- (* 2 $bytewidth.wordsize) 1))
+        (Lslow (fence.make-label as))
+        (Lloop (fence.make-label as))
+        (Ldone (fence.make-label as)))
+    (cant.bcci   as 'greater-or-equal rlen fence.inline-alloci-limit Lslow)
+    ;; Bytes needed: the header plus length words, rounded up.
+    (if (= $bytewidth.wordsize 8)
+        (cant.shli as rlen 1 $r.tmp)
+        (cant.mov  as rlen $r.tmp))
+    (cant.addi   as $r.tmp (+ $bytewidth.wordsize a) $r.tmp)
+    (cant.andni  as $r.tmp a $r.tmp)
+    (cant.ldi    as $r.globals $g.etop $r.result)
+    (cant.add    as $r.result $r.tmp $r.tmp)
+    (cant.addi   as $r.tmp b $r.tmp)
+    (cant.bcc    as 'unsigned-less $r.stkp $r.tmp Lslow)
+    (cant.addi   as $r.tmp (- b) $r.tmp)
+    (cant.sti    as $r.tmp $r.globals $g.etop)
+    (fence.label as Lloop)                                 ; Fill from the end down
+    (cant.addi   as $r.tmp (- $bytewidth.wordsize) $r.tmp)
+    (cant.sti    as $r.second $r.tmp 0)
+    (cant.bcc    as 'unsigned-less $r.result $r.tmp Lloop)
+    (cant.ba     as Ldone)
+    (fence.label as Lslow)
+    (cant.ldi    as $r.globals $g.alloctmp $r.result)      ; rlen may have been RESULT
+    (cant.addi   as $r.result (fence.native->fixnum 1) $r.result) ; Add one word for the header
+    (cant.trap   as $m.alloci '*alloci)
+    (fence.label as Ldone))
   (cant.ldi    as $r.globals $g.alloctmp $r.tmp)
-  (cant.shli   as $r.tmp 8 $r.tmp)
+  (cant.shli   as $r.tmp fence.header-length-shift $r.tmp)
   (cant.addi   as $r.tmp hdr $r.tmp)
   (cant.sti    as $r.tmp $r.result 0)
   (cant.addi   as $r.result tag rd))
@@ -1009,8 +1383,6 @@
 ; TODO: Verify that alloc-bv performs the necessary check.
 
 (define (emit-make-byte-structure as rlen rd tag hdr exn)
-  (if (= $bytewidth.wordsize 8)
-      (error "emit-make-byte-structure must correctly compute and store 64-bit length value")) ; FIXME64
   (emit-check-positive-fixnum as rlen exn)
   (cant.sti    as rlen $r.globals $g.alloctmp)  ; Save the actual length
   (cant.addi   as rlen (fence.native->fixnum $bytewidth.wordsize) $r.result) ; Add space for header
@@ -1020,6 +1392,27 @@
   (cant.addi   as $r.tmp hdr $r.tmp)            ;     with header tag
   (cant.sti    as $r.tmp $r.result 0)           ;       and store
   (cant.addi   as $r.result tag rd))            ; Tag
+
+; A flat4 string on a 64-bit system: characters are 32 bits, so the
+; string is allocated as ceiling(n/2) words initialized with two
+; copies of the character, plus a header.  rinit must be a character.
+
+(define (emit-make-ustring-64 as rlen rinit rd exn)
+  (assert (not (= rinit $r.result)))
+  (emit-check-positive-fixnum as rlen exn)
+  (cant.sti    as rlen $r.globals $g.alloctmp)  ; Save the actual length
+  (cant.addi   as rlen (fence.native->fixnum 1) $r.result)
+  (cant.shri   as $r.result 1 $r.result)        ; Fixnum ceiling(n/2),
+  (cant.andni  as $r.result 3 $r.result)        ;   the number of data words
+  (cant.addi   as $r.result (fence.native->fixnum 1) $r.result) ; Add a word for the header
+  (cant.shli   as rinit 32 $r.tmp)              ; Two copies of the character
+  (cant.or     as rinit $r.tmp $r.second)
+  (cant.trap   as $m.alloci '*alloci)
+  (cant.ldi    as $r.globals $g.alloctmp $r.tmp); Length in characters, as a fixnum,
+  (cant.shli   as $r.tmp 8 $r.tmp)              ;   is the length in bytes
+  (cant.addi   as $r.tmp (+ $imm.bytevector-header $tag.ustring-typetag) $r.tmp)
+  (cant.sti    as $r.tmp $r.result 0)
+  (cant.addi   as $r.result $tag.bytevector-tag rd))
 
 (define (emit-op1 as name rs rd)
 
@@ -1039,6 +1432,22 @@
     (if (not (= rs $r.result))
         (cant.mov as rs $r.result))
     (cant.trap as code name))
+
+  ; A fixnum argument is handled in line by fixnum-case, which stores
+  ; the result in rd; anything else goes to the millicode, out of line.
+
+  (define (fixnum-fast-case fixnum-case code)
+    (let ((L1 (fence.make-label as))
+          (L2 (fence.make-label as)))
+      (cant.bcci as 'low2-not-equal rs 0 L1)
+      (fixnum-case)
+      (fence.defer! as
+                    (lambda ()
+                      (fence.label as L1)
+                      (trap1 code)
+                      (cant.ba as L2))
+                    'arith)
+      (fence.label as L2)))
 
   (assert (not (= rs $r.second)))
   (case name
@@ -1113,7 +1522,7 @@
     ;; Vectors
     ((vector-length:vec)
      (cant.ldi as rs (- $tag.vector-tag) rd)
-     (cant.shri as rd 8 rd))
+     (cant.shri as rd fence.header-length-shift rd))
     ((vector-length)
      (emit-structure-length2 as rs rd $tag.vector-tag $hdr.vector $ex.vref))
     ((vector-like-length)
@@ -1193,15 +1602,20 @@
      (trap1 $m.negate))
     ((fx--)
      (if (runtime-safety-checking)
-         (let ((L (fence.make-label as)))
+         (begin
            (emit-check-fixnum as rs $ex.fx--)
-           (cant.movi as 0 $r.tmp)
-           (cant.sub/bnv  as $r.tmp rs rd L)
-           (emit-exception as $ex.fx-- rs)
-           (fence.label as L))
+           (emit-check-branch
+            as
+            (lambda (L)
+              (cant.movi    as 0 $r.tmp)
+              (cant.sub/bov as $r.tmp rs rd L))
+            (lambda () (emit-exception as $ex.fx-- rs))))
          (begin
            (cant.movi as 0 $r.tmp)
-           (cant.sub/bnv  as $r.tmp rs rd L))))
+           (cant.sub  as $r.tmp rs rd))))
+    ((fl--)
+     (emit-check-flonum as rs $ex.fl--)
+     (trap1 $m.negate))
     ((fxzero?)
      (emit-check-fixnum as rs $ex.fxzero?)
      (cant.setcci as 'equal rs 0 rd))
@@ -1234,6 +1648,7 @@
     ;; Miscellaneous operations that call millicode.  In all cases
     ;; these are allowed to destroy RESULT and SECOND.
     ((syscall)
+     (fence.note-all-registers!)        ; primitives read the registers
      (trap1 $m.syscall))
     ((creg)
      (trap0 $m.creg))
@@ -1259,18 +1674,22 @@
      (trap1 $m.round))
     ((truncate)
      (trap1 $m.truncate))
-    ((zero?)                            ; TODO: fixnum fast case?
-     (trap1 $m.zerop))
+    ((zero?)
+     (fixnum-fast-case (lambda () (cant.setcci as 'equal rs 0 rd))
+                       $m.zerop))
     ((complex?)
      (trap1 $m.complexp))
     ((rational?)
      (trap1 $m.rationalp))
-    ((integer?)                         ; TODO: fixnum fast case?
-     (trap1 $m.integerp))
-    ((exact?)                           ; TODO: fixnum fast case?
-     (trap1 $m.exactp))
-    ((inexact?)                         ; TODO: fixnum fast case?
-     (trap1 $m.inexactp))
+    ((integer?)
+     (fixnum-fast-case (lambda () (cant.movi as $imm.true rd))
+                       $m.integerp))
+    ((exact?)
+     (fixnum-fast-case (lambda () (cant.movi as $imm.true rd))
+                       $m.exactp))
+    ((inexact?)
+     (fixnum-fast-case (lambda () (cant.movi as $imm.false rd))
+                       $m.inexactp))
 
     (else
      (error "Unknown 1-argument primitive: " name))))
@@ -1287,10 +1706,21 @@
      (cant.bcci as 'not-equal rs $imm.eof label))
     ((pair?)
      (cant.bcci as 'low3-not-equal rs $tag.pair-tag label))
-    ((zero?)
-     ;; TODO: implement better?
-     (emit-op1 as name rs $r.result)
-     (emit-branchf as $r.result label))
+    ((zero?)                            ; a fixnum in line
+     (let ((L1 (fence.make-label as))
+           (L2 (fence.make-label as)))
+       (cant.bcci as 'low2-not-equal rs 0 L1)
+       (cant.bcci as 'not-equal rs 0 label)
+       (fence.defer! as
+                     (lambda ()
+                       (fence.label as L1)
+                       (if (not (= rs $r.result))
+                           (cant.mov as rs $r.result))
+                       (cant.trap as $m.zerop name)
+                       (emit-branchf as $r.result label)
+                       (cant.ba as L2))
+                     'arith)
+       (fence.label as L2)))
     ((fixnum?)
      (cant.bcci as 'low2-not-equal rs 0 label))
     ((flonum?)
@@ -1330,6 +1760,26 @@
         (else
          (error "Unknown op1-check primitive: " name)))))
 
+; A type check of rs, then its length into rd, from the header the
+; check loaded (see emit-test-tags-branchf).  Without runtime safety
+; checking there is no check, so the header is loaded here.
+
+(define (emit-op1-check/length as name rs label rd)
+  (case name
+    ((vector?)
+     (if (runtime-safety-checking)
+         (begin (emit-op1-check as name rs label)
+                (cant.shri as $r.tmp fence.header-length-shift rd))
+         (emit-op1 as 'vector-length:vec rs rd)))
+    ((bytevector?)
+     (if (runtime-safety-checking)
+         (begin (emit-op1-check as name rs label)
+                (cant.shri  as $r.tmp 6 rd)
+                (cant.andni as rd 3 rd))
+         (emit-op1 as 'bytevector-like-length:bvl rs rd)))
+    (else
+     (error "Unknown op1-check/length primitive: " name))))
+
 (define (emit-op2 as name rs1 rs2 rd)
 
   (define (trap2 code)
@@ -1348,22 +1798,17 @@
         (cant.mov as rs2 $r.second))
     (cant.trap as code name))
 
-  (define (fixnum-fast-case op trap-code)
-    (let ((L1 (fence.make-label as))
-          (L2 (fence.make-label as)))
-      (cant.or     as rs1 rs2 $r.tmp)
-      (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
-      (op L2)
-      (fence.label as L1)
-      (trap2 trap-code)
-      (fence.label as L2)))
-
   (define (flonum-math op)
     (cant.fldi as rs1 (+ 8 (- $tag.bytevector-tag)) $r.f0)
     (cant.fldi as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1)
+    (flonum-math-fregs op))
+
+  ; The result of op on f0 and f1, as a new flonum in rd.
+
+  (define (flonum-math-fregs op)
     (op        as $r.f0 $r.f1 $r.f0)
     (emit-allocate-uninitialized as 16)
-    (cant.movi as (+ (* 16 256) $hdr.flonum) $r.tmp)
+    (cant.movi as (+ (* fence.flonum-data-bytes 256) $hdr.flonum) $r.tmp)
     (cant.sti  as $r.tmp $r.result 0)
     (cant.fsti as $r.f0 $r.result 8)
     (cant.addi as $r.result $tag.bytevector-tag rd))
@@ -1373,22 +1818,93 @@
     (cant.fldi   as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1)
     (cant.fsetcc as op $r.f0 $r.f1 rd))
 
+  ; Generic arithmetic: inline for two fixnums (op, which branches to
+  ; its label if it overflows) or two flonums (flop), millicode
+  ; otherwise.
+
+  (define (arith-fast-case op flop trap-code)
+    (let ((L1 (fence.make-label as))
+          (L2 (fence.make-label as))
+          (L3 (fence.make-label as)))
+      (if op
+          (begin (cant.or     as rs1 rs2 $r.tmp)
+                 (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
+                 (op L1))                       ; branches to L1 on overflow
+          (cant.ba as L1))
+      (fence.defer!
+       as
+       (lambda ()
+         (fence.label as L1)
+         (emit-flonum-operands as rs1 rs2 #f L3)
+         (flonum-math-fregs flop)
+         (cant.ba     as L2)
+         (fence.label as L3)
+         (trap2 trap-code)
+         (cant.ba     as L2)) 'arith)
+      (fence.label as L2)))
+
+  ; Quotient and remainder: inline for two fixnums on 64-bit targets
+  ; (op branches to its label when the divisor is 0 or the quotient
+  ; overflows), millicode otherwise.
+
+  (define (divide-fast-case op trap-code)
+    (if (= $bytewidth.wordsize 8)
+        (let ((L1 (fence.make-label as))
+              (L2 (fence.make-label as)))
+          (cant.or     as rs1 rs2 $r.tmp)
+          (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
+          (op L1)
+          (fence.defer!
+           as
+           (lambda ()
+             (fence.label as L1)
+             (trap2 trap-code)
+             (cant.ba     as L2)) 'arith)
+          (fence.label as L2))
+        (trap2 trap-code)))
+
+  ; A generic comparison: inline for two fixnums or two flonums,
+  ; millicode otherwise.
+
+  (define (compare-fast-case op trap-code)
+    (let ((L1 (fence.make-label as))
+          (L2 (fence.make-label as))
+          (L3 (fence.make-label as)))
+      (cant.or     as rs1 rs2 $r.tmp)
+      (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
+      (cant.setcc  as op rs1 rs2 rd)
+      (fence.defer!
+       as
+       (lambda ()
+         (fence.label as L1)
+         (emit-flonum-operands as rs1 rs2 #t L3)
+         (cant.fsetcc as op $r.f0 $r.f1 rd)
+         (cant.ba     as L2)
+         (fence.label as L3)
+         (trap2 trap-code)
+         (cant.ba     as L2)) 'arith)
+      (fence.label as L2)))
+
   (assert (not (= rs1 $r.second)))
   (assert (not (= rs2 $r.result)))
   (case name
     ((cell-set!)
+     (emit-pre-barrier as rs1 rs1 (- $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $tag.pair-tag))
-     (emit-write-barrier as rs1 rs2))
+     (emit-write-barrier as rs1 rs2 rs1 (- $tag.pair-tag)))
     ((cell-set!:nwb)
+     (emit-pre-barrier as rs1 rs1 (- $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $tag.pair-tag)))
     ((set-car!)
      (emit-check-tag as rs1 $tag.pair-tag $ex.setcar)
+     (emit-pre-barrier as rs1 rs1 (- $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $tag.pair-tag))
-     (emit-write-barrier as rs1 rs2))
+     (emit-write-barrier as rs1 rs2 rs1 (- $tag.pair-tag)))
     ((set-cdr!)
      (emit-check-tag as rs1 $tag.pair-tag $ex.setcdr)
+     (emit-pre-barrier as rs1 rs1 (- $bytewidth.wordsize $tag.pair-tag))
      (cant.sti as rs2 rs1 (- $bytewidth.wordsize $tag.pair-tag))
-     (emit-write-barrier as rs1 rs2))
+     (emit-write-barrier as rs1 rs2 rs1 (- $bytewidth.wordsize $tag.pair-tag)))
     ((cons)
      (let ((spill? (or (= rs1 $r.result) (= rs2 $r.result))))
        (if spill?
@@ -1424,6 +1940,43 @@
      (cant.add   as rs1 $r.tmp rd)
      (cant.ldbiz as rd (- $bytewidth.wordsize $tag.bytevector-tag) rd)
      (cant.shli  as rd 2 rd))
+    ; Multi-byte loads (64-bit systems), in the native byte order, for
+    ; the compiler macros of bytevector-u32-ref and friends; the index
+    ; (a byte index) has been checked.  The 64-bit ones leave #f in rd
+    ; if the value is not a fixnum.
+    ((bytevector-like-ref32u:trusted bytevector-like-ref32s:trusted
+      bytevector-like-ref64u:trusted bytevector-like-ref64s:trusted)
+     (let ((offset (- $bytewidth.wordsize $tag.bytevector-tag)))
+       (cant.shri as rs2 2 $r.tmp)
+       (cant.add  as rs1 $r.tmp $r.tmp)
+       (case name
+         ((bytevector-like-ref32u:trusted)
+          (cant.ldwiz as $r.tmp offset rd)
+          (cant.shli  as rd 2 rd))
+         ((bytevector-like-ref32s:trusted)
+          (cant.ldwiz as $r.tmp offset rd)
+          (cant.shli  as rd 32 rd)
+          (cant.shrai as rd 30 rd))
+         (else
+          (let ((Lnot (fence.make-label as))
+                (Ldone (fence.make-label as)))
+            (cant.ldi as $r.tmp offset rd)
+            ; A fixnum if the top three bits are all 0 (or, if signed,
+            ; all 1).
+            (if (eq? name 'bytevector-like-ref64u:trusted)
+                (cant.shri as rd 61 $r.tmp)
+                (begin (cant.shrai as rd 61 $r.tmp)    ; 0 or -1
+                       (cant.addi  as $r.tmp 1 $r.tmp) ; 1 or 0
+                       (cant.shri  as $r.tmp 1 $r.tmp)))
+            (cant.bcci as 'not-equal $r.tmp 0 Lnot)
+            (cant.shli as rd 2 rd)
+            (fence.defer! as
+                          (lambda ()
+                            (fence.label as Lnot)
+                            (cant.movi as $imm.false rd)
+                            (cant.ba   as Ldone))
+                          'check)
+            (fence.label as Ldone))))))
     ((bytevector-ref)
      (emit-check-tags as rs1 $tag.bytevector-tag $hdr.bytevector $ex.bvref)
      (emit-check-fixnum as rs2 $ex.bvref)
@@ -1431,7 +1984,7 @@
      (emit-op2 as 'bytevector-like-ref:trusted rs1 rs2 rd))
     ((bytevector-like-ref)
      (emit-check-tag as rs1 $tag.bytevector-tag $ex.bvlref)
-     (emit-check-fixnum rs1 $ex.bvlref)
+     (emit-check-fixnum as rs2 $ex.bvlref)
      (emit-check-byte-range as $tag.bytevector-tag rs1 rs2 $ex.bvlref)
      (emit-op2 as 'bytevector-like-ref:trusted rs1 rs2 rd))
     ((bytevector-fill!)
@@ -1440,6 +1993,7 @@
      ;; and we fault in the current (July 2012) strings code if we
      ;; look too closely.
      (emit-check-tag as rs1 $tag.bytevector-tag $ex.bvfill)
+     (emit-check-byte-value as rs1 rs2 $ex.bvfill)
      (trap2 $m.bytevector-like-fill))
 
     ;; Strings
@@ -1458,7 +2012,7 @@
         (emit-check-character as rs2 $ex.mkstr)
         (if (= $bytewidth.wordsize 4)
             (emit-make-word-structure as rs1 rs2 rd $tag.bytevector-tag (+ $imm.bytevector-header $tag.ustring-typetag) $ex.mkstr)
-            (error "make-ustring not implemented for 64-bit systems"))) ; FIXME64
+            (emit-make-ustring-64 as rs1 rs2 rd $ex.mkstr)))
        (else
         (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
     ((ustring-ref:trusted)
@@ -1470,10 +2024,9 @@
         (cant.shli  as rd 8 rd)
         (cant.addi  as rd $imm.character rd))
        ((flat4)
-        (cant.add as rs1 rs2 rd)
-        (if (= $bytewidth.wordsize 4)
-            (cant.ldi as rd (- $bytewidth.wordsize $tag.bytevector-tag) rd)
-            (error "ustring-ref:trusted not implemented for 64-bit systems"))) ; FIXME64
+        ;; The fixnum index is the byte offset of a 32-bit character.
+        (cant.add   as rs1 rs2 rd)
+        (cant.ldwiz as rd (- $bytewidth.wordsize $tag.bytevector-tag) rd))
        (else
         (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
 
@@ -1520,67 +2073,59 @@
     ((>:fix:fix)
      (cant.setcc as 'greater rs1 rs2 rd))
     ((+)
-     (fixnum-fast-case (lambda (Ldone) 
-                         (cant.add/bnv as rs1 rs2 rd Ldone))
-                       $m.add))
+     (arith-fast-case (lambda (Lslow)
+                        (cant.add/bov as rs1 rs2 rd Lslow))
+                      cant.fadd
+                      $m.add))
     ((-)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.sub/bnv as rs1 rs2 rd Ldone))
-                       $m.subtract))
+     (arith-fast-case (lambda (Lslow)
+                        (cant.sub/bov as rs1 rs2 rd Lslow))
+                      cant.fsub
+                      $m.subtract))
     ((*)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.shrai as rs2 2 $r.tmp)
-                         (cant.mul/bnv as rs1 $r.tmp rd Ldone))
-                       $m.multiply))
+     (arith-fast-case (lambda (Lslow)
+                        (cant.shrai as rs2 2 $r.tmp)
+                        (cant.mul/bov as rs1 $r.tmp rd Lslow))
+                      cant.fmul
+                      $m.multiply))
     ((=)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'equal rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numeq))
+     (compare-fast-case 'equal $m.numeq))
     ((<)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'less rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numlt))
+     (compare-fast-case 'less $m.numlt))
     ((<=)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'less-or-equal rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numle))
+     (compare-fast-case 'less-or-equal $m.numle))
     ((>)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'greater rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numgt))
+     (compare-fast-case 'greater $m.numgt))
     ((>=)
-     (fixnum-fast-case (lambda (Ldone)
-                         (cant.setcc as 'greater-or-equal rs1 rs2 rd)
-                         (cant.ba    as Ldone))
-                       $m.numge))
+     (compare-fast-case 'greater-or-equal $m.numge))
     ((fx+)
      (if (runtime-safety-checking)
-         (let ((L (fence.make-label as)))
+         (begin
            (emit-check-fixnums as rs1 rs2 $ex.fx+)
-           (cant.add/bnv as rs1 rs2 rd L)
-           (emit-exception as $ex.fx+ rs1 rs2)
-           (fence.label as L))
+           (emit-check-branch
+            as
+            (lambda (L) (cant.add/bov as rs1 rs2 rd L))
+            (lambda () (emit-exception as $ex.fx+ rs1 rs2))))
          (cant.add as rs1 rs2 rd)))
     ((fx-)
      (if (runtime-safety-checking)
-         (let ((L (fence.make-label as)))
+         (begin
            (emit-check-fixnums as rs1 rs2 $ex.fx-)
-           (cant.sub/bnv as rs1 rs2 rd L)
-           (emit-exception as $ex.fx- rs1 rs2)
-           (fence.label as L))
+           (emit-check-branch
+            as
+            (lambda (L) (cant.sub/bov as rs1 rs2 rd L))
+            (lambda () (emit-exception as $ex.fx- rs1 rs2))))
          (cant.sub as rs1 rs2 rd)))
     ((fx*)
      (if (runtime-safety-checking)
-         (let ((L (fence.make-label as)))
+         (begin
            (emit-check-fixnums as rs1 rs2 $ex.fx*)
-           (cant.shrai as rs2 2 $r.tmp)
-           (cant.mul/bnv as rs1 $r.tmp rd L)
-           (emit-exception as $ex.fx* rs1 rs2)
-           (fence.label as L))
+           (emit-check-branch
+            as
+            (lambda (L)
+              (cant.shrai as rs2 2 $r.tmp)
+              (cant.mul/bov as rs1 $r.tmp rd L))
+            (lambda () (emit-exception as $ex.fx* rs1 rs2))))
          (begin
            (cant.shrai as rs2 2 $r.tmp)
            (cant.mul as rs1 $r.tmp rd))))
@@ -1602,6 +2147,10 @@
     ((fxlogand)
      (emit-check-fixnums as rs1 rs2 $ex.logand)
      (cant.and      as rs1 rs2 rd))
+    ((fxaligned?:fix)                   ; rs2 is 2, 4 or 8, as a fixnum
+     (cant.subi  as rs2 4 $r.tmp)       ; the mask, as a fixnum
+     (cant.and   as rs1 $r.tmp $r.tmp)
+     (cant.setcci as 'equal $r.tmp 0 rd))
     ((fxlogior)
      (emit-check-fixnums as rs1 rs2 $ex.logior)
      (cant.or      as rs1 rs2 rd))
@@ -1624,6 +2173,21 @@
      (cant.andni    as rd 3 rd))
     ((rot)
      (error "ROT is not implemented, was it ever?"))
+    ((fl=)
+     (emit-check-flonums as rs1 rs2 $ex.fl=)
+     (flonum-compare 'equal))
+    ((fl<)
+     (emit-check-flonums as rs1 rs2 $ex.fl<)
+     (flonum-compare 'less))
+    ((fl<=)
+     (emit-check-flonums as rs1 rs2 $ex.fl<=)
+     (flonum-compare 'less-or-equal))
+    ((fl>)
+     (emit-check-flonums as rs1 rs2 $ex.fl>)
+     (flonum-compare 'greater))
+    ((fl>=)
+     (emit-check-flonums as rs1 rs2 $ex.fl>=)
+     (flonum-compare 'greater-or-equal))
     ((+:flo:flo)
      (flonum-math cant.fadd))
     ((-:flo:flo)
@@ -1658,31 +2222,45 @@
     ((sys$bvlcmp)
      (trap2 $m.bvlcmp))
     ((/)
-     (trap2 $m.divide))
-    ((quotient)                         ; TODO: in-line fast path?
-     (trap2 $m.quotient))
-    ((remainder)                        ; TODO: in-line fast path?
-     (trap2 $m.remainder))
+     (arith-fast-case #f cant.fdiv $m.divide))
+    ((quotient)
+     (divide-fast-case (lambda (L) (cant.fxquotient/bov as rs1 rs2 rd L))
+                       $m.quotient))
+    ((remainder)
+     (divide-fast-case (lambda (L) (cant.fxremainder/bov as rs1 rs2 rd L))
+                       $m.remainder))
 
     (else
      (error "Unknown 2-argument primitive: " name))))
 
 (define (emit-op2-branchf as name rs1 rs2 label)
 
-  (define (fixnum-fast-case op trap-code)
+  ; Inline for two fixnums (op is the negated condition) or two
+  ; flonums (flop is the condition), millicode otherwise.
+
+  (define (fixnum-fast-case op flop trap-code)
     (let ((L1 (fence.make-label as))
-          (L2 (fence.make-label as)))
+          (L2 (fence.make-label as))
+          (L3 (fence.make-label as)))
       (cant.or     as rs1 rs2 $r.tmp)
       (cant.bcci   as 'low2-not-equal $r.tmp 0 L1)
       (cant.bcc    as op rs1 rs2 label)
-      (cant.ba     as L2)
-      (fence.label as L1)
-      (if (not (= rs1 $r.result))
-          (cant.mov as rs1 $r.result))
-      (if (not (= rs2 $r.second))
-          (cant.mov as rs2 $r.second))
-      (cant.trap   as trap-code name)
-      (cant.bcci   as 'equal $r.result $imm.false label)
+      (fence.defer!
+       as
+       (lambda ()
+         (fence.label as L1)
+         (emit-flonum-operands as rs1 rs2 #t L3)
+         (cant.fsetcc as flop $r.f0 $r.f1 $r.result)
+         (cant.bcci   as 'equal $r.result $imm.false label)
+         (cant.ba     as L2)
+         (fence.label as L3)
+         (if (not (= rs1 $r.result))
+             (cant.mov as rs1 $r.result))
+         (if (not (= rs2 $r.second))
+             (cant.mov as rs2 $r.second))
+         (cant.trap   as trap-code name)
+         (cant.bcci   as 'equal $r.result $imm.false label)
+         (cant.ba     as L2)) 'arith)
       (fence.label as L2)))
 
   (if (label-value as label)
@@ -1691,15 +2269,15 @@
     ((eq?)
      (cant.bcc as 'not-equal rs1 rs2 label))
     ((<)
-     (fixnum-fast-case 'greater-or-equal $m.numlt))
+     (fixnum-fast-case 'greater-or-equal 'less $m.numlt))
     ((<=)
-     (fixnum-fast-case 'greater $m.numle))
+     (fixnum-fast-case 'greater 'less-or-equal $m.numle))
     ((=)
-     (fixnum-fast-case 'not-equal $m.numeq))
+     (fixnum-fast-case 'not-equal 'equal $m.numeq))
     ((>)
-     (fixnum-fast-case 'less-or-equal $m.numgt))
+     (fixnum-fast-case 'less-or-equal 'greater $m.numgt))
     ((>=)
-     (fixnum-fast-case 'less $m.numge))
+     (fixnum-fast-case 'less 'greater-or-equal $m.numge))
     ((<:fix:fix)
      (cant.bcc as 'greater-or-equal rs1 rs2 label))
     ((<=:fix:fix)
@@ -1742,6 +2320,16 @@
     (if (not (= rd $r.result))
         (cant.mov as $r.result rd)))
 
+  ; The result of op on f0 and f1, as a new flonum in rd.
+
+  (define (flonum-result op)
+    (op        as $r.f0 $r.f1 $r.f0)
+    (emit-allocate-uninitialized as 16)
+    (cant.movi as (+ (* fence.flonum-data-bytes 256) $hdr.flonum) $r.tmp)
+    (cant.sti  as $r.tmp $r.result 0)
+    (cant.fsti as $r.f0 $r.result 8)
+    (cant.addi as $r.result $tag.bytevector-tag rd))
+
   ;; First do non-fixnum cases, then fixnum cases
 
   (case name
@@ -1767,6 +2355,31 @@
      (cant.movi as (char-representation imm) $r.second)
      (emit-check-character as rs $ex.char>=?)
      (cant.setcc as 'greater-or-equal rs $r.second rd))
+    ((fxaligned?:fix)
+     (cant.setcci as (fence.aligned-condition imm #t) rs 0 rd))
+    ((fxrsha)                           ; 0 <= imm < fixnum width
+     (if (runtime-safety-checking)
+         (emit-check-branch
+          as
+          (lambda (L) (cant.bcci as 'low2-not-equal rs 0 L))
+          (lambda ()
+            (if (not (= rs $r.result))
+                (cant.mov as rs $r.result))
+            (cant.movi as (fence.native->fixnum imm) $r.second)
+            (cant.trap as $m.exception '*exception $ex.rsha))))
+     (cant.shrai as rs imm rd)
+     (cant.andni as rd 3 rd))
+    ((fxlsh)                            ; 0 <= imm < fixnum width
+     (if (runtime-safety-checking)
+         (emit-check-branch
+          as
+          (lambda (L) (cant.bcci as 'low2-not-equal rs 0 L))
+          (lambda ()
+            (if (not (= rs $r.result))
+                (cant.mov as rs $r.result))
+            (cant.movi as (fence.native->fixnum imm) $r.second)
+            (cant.trap as $m.exception '*exception $ex.lsh))))
+     (cant.shli as rs imm rd))
     ((eq?)
      (cond ((eq? imm #t)
             (cant.setcci as 'equal rs $imm.true rd))
@@ -1781,13 +2394,30 @@
     (else
      (let ((imm (fence.native->fixnum imm)))
 
-       (define (fixnum-fast-case op trap-code)
+       ; op falls through, or branches to its label (on overflow).
+       ; The slow path handles a flonum rs inline if flonum-op is given:
+       ; (flonum-op) computes the result from f0 (rs) and f1 (imm);
+       ; compare? as for emit-flonum-operands.
+       (define (fixnum-fast-case op trap-code . flonum)
          (let ((L1 (fence.make-label as))
-               (L2 (fence.make-label as)))
+               (L2 (fence.make-label as))
+               (L3 (fence.make-label as)))
            (cant.bcci   as 'low2-not-equal rs 0 L1)
-           (op L2)
-           (fence.label as L1)
-           (trap2 imm trap-code)
+           (op L1)
+           (fence.defer!
+            as
+            (lambda ()
+              (fence.label as L1)
+              (if (and (pair? flonum) (not (= rs $r.second)))
+                  (let ((compare? (car flonum))
+                        (flonum-op (cadr flonum)))
+                    (cant.movi as imm $r.second)
+                    (emit-flonum-operands as rs $r.second compare? L3)
+                    (flonum-op)
+                    (cant.ba     as L2)))
+              (fence.label as L3)
+              (trap2 imm trap-code)
+              (cant.ba     as L2)) 'imm)
            (fence.label as L2)))
 
        (case name
@@ -1796,15 +2426,23 @@
          ((-:idx:idx)
           (cant.subi as rs imm rd))
          ((+:fix:fix)
-          (let ((L1 (fence.make-label as)))
-            (cant.addi/bnv as rs imm rd L1)
-            (trap2 imm $m.add)
-            (fence.label as L1)))
+          (let ((L1 (fence.make-label as))
+                (L2 (fence.make-label as)))
+            (cant.addi/bov as rs imm rd L1)
+            (fence.defer! as (lambda ()
+                               (fence.label as L1)
+                               (trap2 imm $m.add)
+                               (cant.ba as L2)) 'imm)
+            (fence.label as L2)))
          ((-:fix:fix)
-          (let ((L1 (fence.make-label as)))
-            (cant.subi/bnv   as rs imm rd L1)
-            (trap2 imm $m.subtract)
-            (fence.label as L1)))
+          (let ((L1 (fence.make-label as))
+                (L2 (fence.make-label as)))
+            (cant.subi/bov as rs imm rd L1)
+            (fence.defer! as (lambda ()
+                               (fence.label as L1)
+                               (trap2 imm $m.subtract)
+                               (cant.ba as L2)) 'imm)
+            (fence.label as L2)))
          ((=:fix:fix)
           (cant.setcci as 'equal rs imm rd))
          ((<:fix:fix)
@@ -1816,55 +2454,61 @@
          ((>:fix:fix)
           (cant.setcci as 'greater rs imm rd))
          ((+)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.addi/bnv as rs imm rd Ldone))
-                            $m.add))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.addi/bov as rs imm rd Lslow))
+                            $m.add
+                            #f (lambda () (flonum-result cant.fadd))))
          ((-)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.subi/bnv as rs imm rd Ldone))
-                            $m.subtract))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.subi/bov as rs imm rd Lslow))
+                            $m.subtract
+                            #f (lambda () (flonum-result cant.fsub))))
          ((<)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.setcci as 'less rs imm rd)
-                              (cant.ba     as Ldone))
-                            $m.numlt))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.setcci as 'less rs imm rd))
+                            $m.numlt
+                            #t (lambda () (cant.fsetcc as 'less $r.f0 $r.f1 rd))))
          ((<=)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.setcci as 'less-or-equal rs imm rd)
-                              (cant.ba     as Ldone))
-                            $m.numle))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.setcci as 'less-or-equal rs imm rd))
+                            $m.numle
+                            #t (lambda () (cant.fsetcc as 'less-or-equal $r.f0 $r.f1 rd))))
          ((=)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.setcci as 'equal rs imm rd)
-                              (cant.ba     as Ldone))
-                            $m.numeq))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.setcci as 'equal rs imm rd))
+                            $m.numeq
+                            #t (lambda () (cant.fsetcc as 'equal $r.f0 $r.f1 rd))))
          ((>)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.setcci as 'greater rs imm rd)
-                              (cant.ba     as Ldone))
-                            $m.numgt))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.setcci as 'greater rs imm rd))
+                            $m.numgt
+                            #t (lambda () (cant.fsetcc as 'greater $r.f0 $r.f1 rd))))
          ((>=)
-          (fixnum-fast-case (lambda (Ldone)
-                              (cant.setcci as 'greater-or-equal rs imm rd)
-                              (cant.ba     as Ldone))
-                            $m.numge))
+          (fixnum-fast-case (lambda (Lslow)
+                              (cant.setcci as 'greater-or-equal rs imm rd))
+                            $m.numge
+                            #t (lambda () (cant.fsetcc as 'greater-or-equal $r.f0 $r.f1 rd))))
          ((fx+)
           (if (runtime-safety-checking)
-              (let ((L (fence.make-label as)))
+              (begin
                 (emit-check-fixnum/imm as rs imm $ex.fx+)
-                (cant.addi/bnv as rs imm rd L)
-                (cant.movi as imm $r.second)
-                (emit-exception as $ex.fx+ rs $r.second)
-                (fence.label as L))
+                (emit-check-branch
+                 as
+                 (lambda (L) (cant.addi/bov as rs imm rd L))
+                 (lambda ()
+                   (cant.movi as imm $r.second)
+                   (emit-exception as $ex.fx+ rs $r.second))))
               (cant.addi as rs imm rd)))
          ((fx-)
           (if (runtime-safety-checking)
-              (let ((L (fence.make-label as)))
+              (begin
                 (emit-check-fixnum/imm as rs imm $ex.fx-)
-                (cant.subi/bnv as rs imm rd L)
-                (cant.movi as imm $r.second)
-                (emit-exception as $ex.fx- rs $r.second)
-                (fence.label as L))
+                (emit-check-branch
+                 as
+                 (lambda (L) (cant.subi/bov as rs imm rd L))
+                 (lambda ()
+                   (cant.movi as imm $r.second)
+                   (emit-exception as $ex.fx- rs $r.second))))
               (cant.subi as rs imm rd)))
          ((fx=)
           (emit-check-fixnum/imm as rs imm $ex.fx=)
@@ -1888,10 +2532,22 @@
          (else
           (error 'op2imm "Unknown operation: " name)))))))
 
+; .fxaligned?:fix: is the fixnum rs a multiple of imm (2, 4 or 8), that
+; is, are the low 3, 4 or 5 bits of its representation zero?
+
+(define (fence.aligned-condition imm equal?)
+  (case imm
+    ((2) (if equal? 'low3-equal 'low3-not-equal))
+    ((4) (if equal? 'low4-equal 'low4-not-equal))
+    ((8) (if equal? 'low5-equal 'low5-not-equal))
+    (else (error 'fence.aligned-condition "Bad alignment: " imm))))
+
 (define (emit-op2imm-branchf as name rs imm label)
   (if (label-value as label)
       (emit-timer-tick as))
   (case name
+    ((fxaligned?:fix)
+     (cant.bcci as (fence.aligned-condition imm #f) rs 0 label))
     ((eq?)
      (cond ((eq? imm #t)
             (cant.bcci as 'not-equal rs $imm.true label))
@@ -1906,31 +2562,44 @@
     (else
      (let ((imm (fence.native->fixnum imm)))
 
-       (define (fixnum-fast-case op trap-code)
+       ; flop is the condition for flonum operands.
+       (define (fixnum-fast-case op flop trap-code)
          (let ((L1 (fence.make-label as))
-               (L2 (fence.make-label as)))
+               (L2 (fence.make-label as))
+               (L3 (fence.make-label as)))
            (cant.bcci   as 'low2-not-equal rs 0 L1)
            (cant.bcci   as op rs imm label)
-           (cant.ba     as L2)
-           (fence.label as L1)
-           (if (not (= rs $r.result))
-               (cant.mov as rs $r.result))
-           (cant.movi   as imm $r.second)
-           (cant.trap   as trap-code name)
-           (cant.bcci   as 'equal $r.result $imm.false label)
+           (fence.defer!
+            as
+            (lambda ()
+              (fence.label as L1)
+              (if (not (= rs $r.second))
+                  (begin
+                    (cant.movi   as imm $r.second)
+                    (emit-flonum-operands as rs $r.second #t L3)
+                    (cant.fsetcc as flop $r.f0 $r.f1 $r.result)
+                    (cant.bcci   as 'equal $r.result $imm.false label)
+                    (cant.ba     as L2)))
+              (fence.label as L3)
+              (if (not (= rs $r.result))
+                  (cant.mov as rs $r.result))
+              (cant.movi   as imm $r.second)
+              (cant.trap   as trap-code name)
+              (cant.bcci   as 'equal $r.result $imm.false label)
+              (cant.ba     as L2)) 'imm)
            (fence.label as L2)))
 
        (case name
          ((<)
-          (fixnum-fast-case 'greater-or-equal $m.numlt))
+          (fixnum-fast-case 'greater-or-equal 'less $m.numlt))
          ((<=)
-          (fixnum-fast-case 'greater $m.numle))
+          (fixnum-fast-case 'greater 'less-or-equal $m.numle))
          ((=)
-          (fixnum-fast-case 'not-equal $m.numeq))
+          (fixnum-fast-case 'not-equal 'equal $m.numeq))
          ((>)
-          (fixnum-fast-case 'less-or-equal $m.numgt))
+          (fixnum-fast-case 'less-or-equal 'greater $m.numgt))
          ((>=)
-          (fixnum-fast-case 'less $m.numge))
+          (fixnum-fast-case 'less 'greater-or-equal $m.numge))
          ((<:fix:fix)
           (cant.bcci as 'greater-or-equal rs imm label))
          ((<=:fix:fix)
@@ -1945,21 +2614,24 @@
           (error 'emit-op2imm-branchf "Unknown: " name)))))))
      
 (define (emit-op2imm-check as name rs imm label)
-  (if (runtime-safety-checking)
-      (let ((imm (fence.native->fixnum imm)))
-        (case name
-          ((<:fix:fix)
-           (cant.bcci as 'greater-or-equal rs imm label))
-          ((<=:fix:fix)
-           (cant.bcci as 'greater rs imm label))
-          ((=:fix:fix)
-           (cant.bcci as 'not-equal rs imm label))
-          ((>:fix:fix)
-           (cant.bcci as 'less-or-equal rs imm label))
-          ((>=:fix:fix)
-           (cant.bcci as 'less rs imm label))
-          (else
-           (error 'emit-op2imm-check "Unknown: " name))))))
+  (cond ((not (runtime-safety-checking)))
+        ((eq? name 'fxaligned?:fix)
+         (cant.bcci as (fence.aligned-condition imm #f) rs 0 label))
+        (else
+         (let ((imm (fence.native->fixnum imm)))
+           (case name
+             ((<:fix:fix)
+              (cant.bcci as 'greater-or-equal rs imm label))
+             ((<=:fix:fix)
+              (cant.bcci as 'greater rs imm label))
+             ((=:fix:fix)
+              (cant.bcci as 'not-equal rs imm label))
+             ((>:fix:fix)
+              (cant.bcci as 'less-or-equal rs imm label))
+             ((>=:fix:fix)
+              (cant.bcci as 'less rs imm label))
+             (else
+              (error 'emit-op2imm-check "Unknown: " name)))))))
 
 (define (emit-op3 as name rs1 rs2 rs3)
   (assert (not (= rs1 $r.second)))
@@ -1988,6 +2660,18 @@
      (cant.shri as rs3 2 $r.result)      ; Byte value in RESULT, rs3 is free (note RESULT may be rs1, rs2, or rs3 but that's OK)
      (cant.stbi as $r.result $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag))
      (cant.movi as 0 $r.result))         ; clear untagged value
+    ; Stores of the low 32 bits or of all of a fixnum (64-bit systems),
+    ; for the compiler macros of bytevector-u32-set! and friends; the
+    ; index and value have been checked.
+    ((bytevector-like-set32!:trusted bytevector-like-set64!:trusted)
+     (let ((offset (- $bytewidth.wordsize $tag.bytevector-tag)))
+       (cant.shri  as rs2 2 $r.tmp)
+       (cant.add   as rs1 $r.tmp $r.tmp)
+       (cant.shrai as rs3 2 $r.result)   ; untagged value in RESULT
+       (if (eq? name 'bytevector-like-set32!:trusted)
+           (cant.stwi as $r.result $r.tmp offset)
+           (cant.sti  as $r.result $r.tmp offset))
+       (cant.movi  as 0 $r.result)))     ; clear untagged value
     ((bytevector-set!)
      (emit-check-tags       as rs1 $tag.bytevector-tag $hdr.bytevector $ex.bvset)
      (emit-check-fixnums    as rs2 rs3 $ex.bvset)
@@ -2009,108 +2693,241 @@
         (cant.stbi as $r.result $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag))
         (cant.movi as 0 $r.result))     ; clear untagged value
        ((flat4)
-        (cant.add as rs1 rs2 $r.tmp)
-        (if (= $bytewidth.wordsize 4)
-            (cant.sti as rs3 $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag))
-            (error "ustring-set!:trusted not implemented for 64-bit systems"))) ; FIXME64
+        (cant.add  as rs1 rs2 $r.tmp)
+        (cant.stwi as rs3 $r.tmp (- $bytewidth.wordsize $tag.bytevector-tag)))
        (else
         (error "Unsupported string representation " (nbuild-parameter 'target-string-rep)))))
 
     (else
      (error "Unknown 3-argument primitive: " name))))
 
+; A check: branch-to-failure emits code that branches to its label if
+; the check fails and otherwise falls through; the failure code
+; (usually a call of exception millicode) is deferred.
+
+(define (emit-check-branch as branch-to-failure failure)
+  (let ((Lfail (fence.make-label as))
+        (Lok   (fence.make-label as)))
+    (branch-to-failure Lfail)
+    (fence.defer! as (lambda ()
+                       (fence.label as Lfail)
+                       (failure)
+                       (cant.ba     as Lok)) 'check)
+    (fence.label as Lok)))
+
 (define (emit-check-tag as reg tag exn)
   (if (runtime-safety-checking)
-      (let ((L (fence.make-label as)))
-        (cant.bcci      as 'low3-equal reg tag L)
-        (emit-exception as exn reg)
-        (fence.label    as L))))
+      (emit-check-branch
+       as
+       (lambda (L) (cant.bcci as 'low3-not-equal reg tag L))
+       (lambda () (emit-exception as exn reg)))))
 
 ; Using LDI and BCCI/low8-equal insulates against endianness
 ; dependency, but it may be a reasonable optimization to change that.
 
 (define (emit-check-tags as reg ptr hdr exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as))
-            (L2 (fence.make-label as)))
-        (cant.bcci      as 'low3-equal reg ptr L1)
-        (fence.label    as L2)
-        (emit-exception as exn reg)
-        (fence.label    as L1)
-        (cant.ldi       as $r.result (- ptr) $r.tmp)
-        (cant.bcci      as 'low8-equal $r.tmp hdr L2))))
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.bcci as 'low3-not-equal reg ptr L)
+         (cant.ldi  as reg (- ptr) $r.tmp)
+         (cant.bcci as 'low8-not-equal $r.tmp hdr L))
+       (lambda () (emit-exception as exn reg)))))
+
+; Fixnum arithmetic that branches to L on overflow and otherwise falls
+; through.  On overflow rd is unchanged if it is one of the operands
+; (otherwise it may be garbage; slow paths use the operands).  In terms of the /bnv
+; forms, which branch when there is no overflow; targets may redefine
+; these to avoid the branch around the branch.
+
+(define (cant.bov-from-bnv bnv)
+  (lambda (as rs1 rs2 rd L)
+    (let ((L0 (fence.make-label as)))
+      (bnv as rs1 rs2 rd L0)
+      (cant.ba     as L)
+      (fence.label as L0))))
+
+(define (cant.add/bov as rs1 rs2 rd L) ((cant.bov-from-bnv cant.add/bnv) as rs1 rs2 rd L))
+(define (cant.sub/bov as rs1 rs2 rd L) ((cant.bov-from-bnv cant.sub/bnv) as rs1 rs2 rd L))
+(define (cant.mul/bov as rs1 rs2 rd L) ((cant.bov-from-bnv cant.mul/bnv) as rs1 rs2 rd L))
+(define (cant.addi/bov as rs imm rd L) ((cant.bov-from-bnv cant.addi/bnv) as rs imm rd L))
+(define (cant.subi/bov as rs imm rd L) ((cant.bov-from-bnv cant.subi/bnv) as rs imm rd L))
+
+; Branch to Lfail unless reg holds a flonum.  Destroys TMP.
+
+(define (emit-branch-unless-flonum as reg Lfail)
+  (cant.bcci as 'low3-not-equal reg $tag.bytevector-tag Lfail)
+  (cant.ldi  as reg (- $tag.bytevector-tag) $r.tmp)
+  (cant.bcci as 'low8-not-equal $r.tmp $hdr.flonum Lfail))
+
+; Leave the value of reg, a fixnum or a flonum, as a double in frd;
+; branch to Lfail if it is neither, if exact? and it is a fixnum that a
+; double does not represent exactly (magnitude of 2^53 or more), or if
+; zero-fails? and it is a flonum zero.  Only on targets with
+; cant.fixnum->flonum.  Destroys TMP.
+
+(define (emit-number->flonum as reg frd exact? zero-fails? Lfail)
+  (let ((Lnotfix (fence.make-label as))
+        (Ldone (fence.make-label as)))
+    (cant.bcci as 'low2-not-equal reg 0 Lnotfix)
+    (if exact?
+        (let ((Lok (fence.make-label as)))
+          (cant.shrai  as reg (+ 2 53) $r.tmp)    ; 0 or -1 if it fits
+          (cant.addi   as $r.tmp 1 $r.tmp)
+          (cant.bcci   as 'unsigned-less $r.tmp 2 Lok)
+          (cant.ba     as Lfail)
+          (fence.label as Lok)))
+    (cant.fixnum->flonum as reg frd)
+    (cant.ba     as Ldone)
+    (fence.label as Lnotfix)
+    (emit-branch-unless-flonum as reg Lfail)
+    (if zero-fails?
+        (begin
+          (cant.ldi  as reg (+ 8 (- $tag.bytevector-tag)) $r.tmp)
+          (cant.shli as $r.tmp 1 $r.tmp)            ; drop the sign
+          (cant.bcci as 'equal $r.tmp 0 Lfail)))
+    (cant.fldi   as reg (+ 8 (- $tag.bytevector-tag)) frd)
+    (fence.label as Ldone)))
+
+; Load the operands of a generic arithmetic operation or comparison
+; (compare?) into f0 and f1, or branch to Lfail: two flonums, or (where
+; the target converts fixnums inline) a fixnum and a flonum.  Not two
+; fixnums: their sums and so on are exact.
+;
+; A flonum zero compared with a fixnum takes the millicode path: when
+; (larceny:r7strict) is 'extremely, 0.0 represents a small positive
+; number there (see contag.sch).
+
+(define (emit-flonum-operands as rs1 rs2 compare? Lfail)
+  (define (both-flonums)
+    (emit-branch-unless-flonum as rs1 Lfail)
+    (emit-branch-unless-flonum as rs2 Lfail)
+    (cant.fldi as rs1 (+ 8 (- $tag.bytevector-tag)) $r.f0)
+    (cant.fldi as rs2 (+ 8 (- $tag.bytevector-tag)) $r.f1))
+  (if fence.inline-fixnum->flonum?
+      (let ((Lsame (fence.make-label as))
+            (Ldone (fence.make-label as)))
+        (cant.or   as rs1 rs2 $r.tmp)
+        (cant.bcci as 'low2-equal $r.tmp 0 Lfail)   ; two fixnums
+        ; A fixnum and a pointer have low2 bits in common only if the
+        ; pointer's are 00, and pointers have nonzero tags.
+        (cant.and  as rs1 rs2 $r.tmp)
+        (cant.bcci as 'low2-not-equal $r.tmp 0 Lsame)
+        (emit-number->flonum as rs1 $r.f0 compare? compare? Lfail)
+        (emit-number->flonum as rs2 $r.f1 compare? compare? Lfail)
+        (cant.ba     as Ldone)
+        (fence.label as Lsame)
+        (both-flonums)
+        (fence.label as Ldone))
+      (both-flonums)))
+
+; Targets that implement cant.fixnum->flonum redefine this.
+
+(define fence.inline-fixnum->flonum? #f)
 
 (define (emit-check-fixnum as reg exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as)))
-        (cant.bcci      as 'low2-equal reg 0 L1)
-        (emit-exception as exn reg)
-        (fence.label    as L1))))
+      (emit-check-branch
+       as
+       (lambda (L) (cant.bcci as 'low2-not-equal reg 0 L))
+       (lambda () (emit-exception as exn reg)))))
+
+(define (emit-check-flonum as reg exn)
+  (if (runtime-safety-checking)
+      (emit-check-branch
+       as
+       (lambda (L) (emit-branch-unless-flonum as reg L))
+       (lambda () (emit-exception as exn reg)))))
+
+(define (emit-check-flonums as reg1 reg2 exn)
+  (if (runtime-safety-checking)
+      (emit-check-branch
+       as
+       (lambda (L)
+         (emit-branch-unless-flonum as reg1 L)
+         (emit-branch-unless-flonum as reg2 L))
+       (lambda () (emit-exception as exn reg1 reg2)))))
 
 (define (emit-check-positive-fixnum as reg exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as))
-            (L2 (fence.make-label as)))
-        (cant.bcci      as 'low2-equal reg 0 L1)
-        (fence.label    as L2)
-        (emit-exception as exn reg)
-        (fence.label    as L1)
-        (cant.bcci      as 'less reg 0 L2))))
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.bcci as 'low2-not-equal reg 0 L)
+         (cant.bcci as 'less reg 0 L))
+       (lambda () (emit-exception as exn reg)))))
 
 (define (emit-check-fixnums as reg1 reg2 exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as)))
-        (cant.or        as reg1 reg2 $r.tmp)
-        (cant.bcci      as 'low2-equal $r.tmp 0 L1)
-        (emit-exception as exn reg1 reg2)
-        (fence.label    as L1))))
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.or   as reg1 reg2 $r.tmp)
+         (cant.bcci as 'low2-not-equal $r.tmp 0 L))
+       (lambda () (emit-exception as exn reg1 reg2)))))
 
 (define (emit-check-fixnum/imm as reg imm exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as)))
-        (cant.bcci      as 'low2-equal reg 0 L1)
-        (cant.movi      as imm $r.second)
-        (emit-exception as exn reg $r.second)
-        (fence.label    as L1))))
+      (emit-check-branch
+       as
+       (lambda (L) (cant.bcci as 'low2-not-equal reg 0 L))
+       (lambda ()
+         (cant.movi      as imm $r.second)
+         (emit-exception as exn reg $r.second)))))
 
 ; r_obj must be an object with the given tag.
 ; r_idx must be a fixnum.
 
 (define (emit-check-word-range as tag r_obj r_idx exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as)))
-        (cant.ldi       as r_obj (- tag) $r.tmp)
-        (cant.shrai     as $r.tmp 8 $r.tmp)
-        (cant.bcc       as 'unsigned-less r_idx $r.tmp L1)
-        (emit-exception as exn r_obj r_idx)
-        (fence.label    as L1))))
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.ldi   as r_obj (- tag) $r.tmp)
+         (cant.shrai as $r.tmp fence.header-length-shift $r.tmp)
+         (cant.bcc   as 'unsigned-greater-or-equal r_idx $r.tmp L))
+       (lambda () (emit-exception as exn r_obj r_idx)))))
 
 (define (emit-check-byte-range as tag r_obj r_idx exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as)))
-        (cant.ldi       as r_obj (- tag) $r.tmp)
-        (cant.shrai     as $r.tmp 6 $r.tmp)
-        (cant.andni     as $r.tmp 3 $r.tmp)
-        (cant.bcc       as 'unsigned-less r_idx $r.tmp L1)
-        (emit-exception as exn r_obj r_idx)
-        (fence.label    as L1))))
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.ldi   as r_obj (- tag) $r.tmp)
+         (cant.shrai as $r.tmp 6 $r.tmp)
+         (cant.andni as $r.tmp 3 $r.tmp)
+         (cant.bcc   as 'unsigned-greater-or-equal r_idx $r.tmp L))
+       (lambda () (emit-exception as exn r_obj r_idx)))))
+
+; r_val must be a fixnum from -128 through 255, as the fill of a
+; bytevector; the millicode stores its low 8 bits.
+
+(define (emit-check-byte-value as r_obj r_val exn)
+  (if (runtime-safety-checking)
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.bcci as 'low2-not-equal r_val 0 L)
+         (cant.addi as r_val (fence.native->fixnum 128) $r.tmp)
+         (cant.bcci as 'unsigned-greater-or-equal $r.tmp (fence.native->fixnum 384) L))
+       (lambda () (emit-exception as exn r_obj r_val)))))
 
 (define (emit-check-character as r exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as)))
-        (cant.bcci      as 'low8-equal r $imm.character L1)
-        (emit-exception as exn r)
-        (fence.label    as L1))))
+      (emit-check-branch
+       as
+       (lambda (L) (cant.bcci as 'low8-not-equal r $imm.character L))
+       (lambda () (emit-exception as exn r)))))
 
 (define (emit-check-characters as r1 r2 exn)
   (if (runtime-safety-checking)
-      (let ((L1 (fence.make-label as))
-            (L2 (fence.make-label as)))
-        (cant.bcci      as 'low8-equal r1 $imm.character L1)
-        (fence.label    as L2)
-        (emit-exception as exn r1 r2)
-        (fence.label    as L1)
-        (cant.bcci      as 'low8-not-equal r2 $imm.character L2))))
+      (emit-check-branch
+       as
+       (lambda (L)
+         (cant.bcci as 'low8-not-equal r1 $imm.character L)
+         (cant.bcci as 'low8-not-equal r2 $imm.character L))
+       (lambda () (emit-exception as exn r1 r2)))))
 
 (define (emit-test-tags as reg rd ptr hdr)
   (let ((L1 (fence.make-label as))
@@ -2131,12 +2948,12 @@
 (define (emit-structure-length1 as rs rd tag exn)
   (emit-check-tag as rs tag exn)
   (cant.ldi       as rs (- tag) rd)
-  (cant.shri      as rd 8 rd))
+  (cant.shri      as rd fence.header-length-shift rd))
 
 (define (emit-structure-length2 as rs rd tag hdr exn)
   (emit-check-tags as rs tag hdr exn)
   (cant.ldi        as rs (- tag) rd)
-  (cant.shri       as rd 8 rd))
+  (cant.shri       as rd fence.header-length-shift rd))
 
 (define (emit-structure-ref1 as rs1 rs2 rd tag exn)
   (emit-check-tag        as rs1 tag exn)
@@ -2144,7 +2961,7 @@
   (emit-check-word-range as tag rs1 rs2 exn)
   (emit-unchecked-structure-ref as rs1 rs2 rd tag))
 
-(define (emit-structure-ref2 rs1 rs2 rd tag hdr exn)
+(define (emit-structure-ref2 as rs1 rs2 rd tag hdr exn)
   (emit-check-tags       as rs1 tag hdr exn)
   (emit-check-fixnum     as rs2 exn)
   (emit-check-word-range as tag rs1 rs2 exn)
@@ -2162,15 +2979,26 @@
   (emit-check-word-range as tag rs1 rs2 exn)
   (emit-unchecked-structure-set as rs1 rs2 rs3 tag #t))
 
+; rd may be the same as rs2 but not rs1.
+
 (define (emit-unchecked-structure-ref as rs1 rs2 rd tag)
-  (cant.add as rs1 rs2 rd)
-  (cant.ldi as rd (- $bytewidth.wordsize tag) rd))
+  (if (= rd rs1)
+      (begin
+        (fence.index->word-offset as rs1 rs2 $r.tmp)
+        (cant.ldi as $r.tmp (- $bytewidth.wordsize tag) rd))
+      (begin
+        (fence.index->word-offset as rs1 rs2 rd)
+        (cant.ldi as rd (- $bytewidth.wordsize tag) rd))))
 
 (define (emit-unchecked-structure-set as rs1 rs2 rs3 tag barrier?)
-  (cant.add           as rs1 rs2 $r.tmp)
+  (emit-pre-barrier as rs1 #f #f
+                    (lambda ()
+                      (fence.index->word-offset as rs1 rs2 $r.tmp)
+                      (cant.addi as $r.tmp (- $bytewidth.wordsize tag) $r.tmp)))
+  (fence.index->word-offset as rs1 rs2 $r.tmp)
   (cant.sti           as rs3 $r.tmp (- $bytewidth.wordsize tag))
   (if barrier?
-      (emit-write-barrier as rs1 rs3)))
+      (emit-write-barrier as rs1 rs3 $r.tmp (- $bytewidth.wordsize tag))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2236,6 +3064,14 @@
   (list-cant "ldb" `(#f ,(list-regname base) ,offset ,(list-regname rd)))
   (emit! as $cant$))
 
+; Load a 32-bit value from memory and zero-extend into an integer
+; register: rd=zeroExtend(*(uint32*)(base+offset)).  On a 32-bit
+; system this is the same as ldi.
+
+(define (cant.ldwiz as base offset rd)
+  (list-cant "ldwiz" `(#f ,(list-regname base) ,offset ,(list-regname rd)))
+  (emit! as $cant$))
+
 ; Load a floating register from memory.  The effective address must be
 ; 8-byte aligned.
 
@@ -2250,12 +3086,27 @@
   (list-cant "sti" `(#f ,(list-regname rs) ,(list-regname base) ,offset))
   (emit! as $cant$))
 
+; Store the value zero (a fixnum) into memory without a write barrier:
+; *(base+offset)=0.
+
+(define (cant.stzi as base offset)
+  (list-cant "stzi" `(#f ,(list-regname base) ,offset))
+  (emit! as $cant$))
+
 ; Store a byte value from an integer register into memory without a
 ; write barrier.  The low byte of the source register is used:
 ; *(byte*)(base+offset)=(byte)rs.
 
 (define (cant.stbi as rs base offset)
   (list-cant "sti" `(#f ,(list-regname rs) ,(list-regname base) ,offset))
+  (emit! as $cant$))
+
+; Store the low 32 bits of an integer register into memory without a
+; write barrier: *(uint32*)(base+offset)=(uint32)rs.  On a 32-bit
+; system this is the same as sti.
+
+(define (cant.stwi as rs base offset)
+  (list-cant "stwi" `(#f ,(list-regname rs) ,(list-regname base) ,offset))
   (emit! as $cant$))
 
 ; Store a floating register to memory.  The effective address must be
@@ -2329,6 +3180,10 @@
 ;  - low2-not-equal
 ;  - low3-equal
 ;  - low3-not-equal
+;  - low4-equal          (64-bit targets only, for now)
+;  - low4-not-equal
+;  - low5-equal
+;  - low5-not-equal
 ;  - low8-equal
 ;  - low8-not-equal
 ;
@@ -2489,6 +3344,9 @@
   (emit! as $cant$))
 
 ; Floating register add
+
+(define (cant.fixnum->flonum as rs frd)
+  (list-cant "fixnum->flonum" `(#f ,(list-regname rs) ,(list-fregname frd))))
 
 (define (cant.fadd as frs1 frs2 frd)
   (list-cant "fadd" `(#f ,(list-fregname frs1) ,(list-fregname frs2) ,(list-fregname frd)))

@@ -23,7 +23,9 @@
  "SPARC" 			; Native: SPARC v8 or later
  "X86_SASSY"			; Native: Intel 486 using Sassy assembler
  "X86_NASM"                     ; Native: Intel 386 using NASM macro assembler
- "ARM"				; Native: ARMv7-A using Fence/Cant assembler
+ "ARM"				; Native: ARMv7-A or AArch64 (with BITS_64)
+				; using Fence/Cant assembler
+ "X86_64"			; Native: x86-64 using Fence/Cant assembler
  "PPC_GAS"                      ; Native: PowerPC using GNU 'as'
  "PETIT_LARCENY"		; Portable: Hardware is irrelevant
 
@@ -95,6 +97,14 @@
     ; impact of this is negligible.)
     ; 
     ; Recommended setting is on.
+
+ "CODE_SPACE"
+    ; When set, compiled code (code vectors) lives in a separate,
+    ; executable semispace owned by the oldest non-static generation,
+    ; rather than in the data heap.  The code space is collected, by
+    ; copying, whenever that generation is.  Required on systems that
+    ; forbid memory that is both writable and executable, such as
+    ; MacOS X on Apple Silicon.  Native systems only.
 
  "GCLIB_LARGE_TABLE"
     ; When set, preallocates a page table for the entire 4GB address
@@ -387,6 +397,77 @@
     "STACK_UNDERFLOW_COUNTING"
     "USE_GENERIC_ALLOCATOR"		; some weirdness with mmap
     "USE_CACHED_STATE"
+    ))
+
+(define features-petit-macosx-arm64	; Apple Silicon, clang, 64-bit words
+  '("PETIT_LARCENY"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "EXPLICIT_DIVZ_CHECK"                ; arm64 does not trap on x/0
+    "MACOS_X"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_SELECT"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "USE_CACHED_STATE"
+    ))
+
+(define features-petit-linux-x86-64	; x86-64 GNU/Linux, gcc, 64-bit words
+  '("PETIT_LARCENY"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "EXPLICIT_DIVZ_CHECK"                ; x/0 is undefined in C
+    "LINUX"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "USE_CACHED_STATE"
+    ))
+
+(define features-x86-64-linux		; Native: x86-64 GNU/Linux, gcc, 64-bit words
+  '("X86_64"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "LINUX"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_POLL"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "CODE_SPACE"
+    ))
+
+(define features-arm64-macosx		; Native: Apple Silicon, clang, 64-bit words
+  '("ARM"
+    "BITS_64"
+    "ENDIAN_LITTLE"
+    "EXPLICIT_DIVZ_CHECK"                ; arm64 does not trap on x/0
+    "MACOS_X"
+    "POSIX_UNIX"
+    "HAVE_RINT"
+    "HAVE_STRDUP"
+    "HAVE_STRNCASECMP"
+    "HAVE_SELECT"
+    "HAVE_DLFCN"
+    "DYNAMIC_LOADING"
+    "STACK_UNDERFLOW_COUNTING"
+    "USE_GENERIC_ALLOCATOR"
+    "CODE_SPACE"
     ))
 
 (define features-petit-win32		; works for Mingw; believed to work
@@ -743,8 +824,15 @@
     fs))
 
 (define (feature-sanity-checks fs)
-  (if (member "BITS_64" fs)
-      (error "Larceny cannot yet handle 64-bit systems."))
+  (if (and (member "BITS_64" fs)
+           (not (member "PETIT_LARCENY" fs))
+           (not (member "ARM" fs))
+           (not (member "X86_64" fs)))
+      (error "Only Petit Larceny, ARM (AArch64), and X86_64 can handle 64-bit systems."))
+
+  (if (and (member "CODE_SPACE" fs)
+           (member "PETIT_LARCENY" fs))
+      (error "CODE_SPACE is only for native systems."))
 
   (if (not (or (member "BITS_32" fs) (member "BITS_64" fs)))
       (error "You need to select a word size"))

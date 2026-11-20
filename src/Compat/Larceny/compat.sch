@@ -35,9 +35,32 @@
       (let ((dir (nbuild-parameter 'compatibility))
             (auxlib (nbuild-parameter 'auxiliary)))
 	(compat:load (string-append dir "compat2.sch"))
+	(compat:load (string-append dir "eq-table.sch"))
 	(compat:load (string-append auxlib "list.sch"))
 	(compat:load (string-append auxlib "pp.sch"))
+        ; Hosts older than the feature markers of compiled code (#lap,
+        ; #lop) need the procedures that handle them.
+        (if (not (environment-variable? (interaction-environment)
+                                        'code-features?))
+            (load (string-append (nbuild-parameter 'common-source)
+                                 "code-features.sch")))
         )))
+
+;; Fasl files begin with #!fasl and, since the feature markers were
+;; introduced, a #lop(...) marker.  A host that predates the markers
+;; cannot read such a file, and loads the source instead.
+
+(define compat:host-reads-markers?
+  (guard (e (#t #f))
+    (not (eof-object? (read (open-input-string "#lop()"))))))
+
+(define (compat:host-can-load-fasl? fn)
+  (or compat:host-reads-markers?
+      (call-with-input-file fn
+        (lambda (p)
+          (read-line p)
+          (let ((c (peek-char p)))
+            (not (eqv? c #\#)))))))
 
 (define (larc-new-extension fn ext)
   (let* ((l (string-length fn))
@@ -61,7 +84,8 @@
 	;; exist, handy for cross-compilation.
 	(cond ((and (file-exists? fn)
 		    (file-exists? filename)
-		    (compat:file-newer? fn filename))
+		    (compat:file-newer? fn filename)
+                    (compat:host-can-load-fasl? fn))
 	       (loadit fn))
 	      ((and (file-exists? fn) 
 		    (not (file-exists? filename)))

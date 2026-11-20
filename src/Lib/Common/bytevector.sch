@@ -56,10 +56,13 @@
 
 
 (define (bytevector-like-copy-into! src from lim dest to)
-  (do ((i from (+ i 1))
-       (j to   (+ j 1)))
-      ((= i lim) dest)
-    (bytevector-like-set! dest j (bytevector-like-ref src i))))
+  (if (>= (- lim from) sys$bytevector-like-move-threshold)
+      (begin (sys$bytevector-like-move! src from dest to (- lim from))
+             dest)
+      (do ((i from (+ i 1))
+           (j to   (+ j 1)))
+          ((= i lim) dest)
+        (bytevector-like-set! dest j (bytevector-like-ref src i)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -96,15 +99,22 @@
 ;;; omitted.  If end is not specified, Larceny uses the largest index
 ;;; that will work.
 
-(define (r7rs:bytevector-copy! dst at src . rest)
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (rest (if (null? rest) rest (cdr rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (min (bytevector-length src)
-                       (+ start (- (bytevector-length dst) at)))
-                  (cadr rest)))
-         (kount (- end start)))
-    (r6rs:bytevector-copy! src start dst at kount)))
+(define r7rs:bytevector-copy!
+  (case-lambda
+   ((dst at src)
+    (r7rs:bytevector-copy!:copy dst at src 0 #f))
+   ((dst at src start)
+    (r7rs:bytevector-copy!:copy dst at src start #f))
+   ((dst at src start end)
+    (r7rs:bytevector-copy!:copy dst at src start end))))
+
+; end is #f for the default.  r6rs:bytevector-copy! checks the rest.
+
+(define (r7rs:bytevector-copy!:copy dst at src start end)
+  (let ((end (or end
+                 (min (bytevector-length src)
+                      (+ start (- (bytevector-length dst) at))))))
+    (r6rs:bytevector-copy! src start dst at (- end start))))
 
 ;;; FIXME: this is the R6RS version with a temporary hack.
 
@@ -150,36 +160,6 @@
       (if (negative? val)
           (+ val 256)
           val)))))
-
-(define (make-uint-ref size)
-  (lambda (bytevector k endianness)
-    (bytevector-uint-ref bytevector k endianness size)))
-
-(define (make-sint-ref size)
-  (lambda (bytevector k endianness)
-    (bytevector-sint-ref bytevector k endianness size)))
-
-(define (make-uint-set! size)
-  (lambda (bytevector k n endianness)
-    (bytevector-uint-set! bytevector k n endianness size)))
-
-(define (make-sint-set! size)
-  (lambda (bytevector k n endianness)
-    (bytevector-sint-set! bytevector k n endianness size)))
-
-(define (make-ref/native base base-ref)
-  (lambda (bytevector index)
-    (ensure-aligned index base)
-    (base-ref bytevector index (native-endianness))))
-
-(define (make-set!/native base base-set!)
-  (lambda (bytevector index val)
-    (ensure-aligned index base)
-    (base-set! bytevector index val (native-endianness))))
-
-(define (ensure-aligned index base)
-  (if (not (zero? (bytevector:mod index base)))
-      (error "non-aligned bytevector access" index base)))
 
 (define (make-bytevector->int-list bytevector-ref)
   (lambda (b endness size)
@@ -267,8 +247,7 @@
 
 ; These are inlined by common.imp.sch:
 ;
-;          bytevector-u8-ref bytevector-s8-ref
-;          bytevector-u8-set! bytevector-s8-set!
+;          bytevector-u8-ref bytevector-u8-set!
 
 (define (bytevector-u8-ref bv i) (bytevector-ref bv i))
 
@@ -278,7 +257,10 @@
   (u8->s8 (bytevector-u8-ref b k)))
 
 (define (bytevector-s8-set! b k val)
-  (bytevector-u8-set! b k (s8->u8 val)))
+  (if (and (fixnum? val) (<= -128 val 127))
+      (bytevector-u8-set! b k (s8->u8 val))
+      (assertion-violation 'bytevector-s8-set! (errmsg 'msg:illegalarg3)
+                           b k val)))
 
 (define (bytevector-uint-ref bytevector index endness size)
   (case endness
@@ -332,32 +314,62 @@
                   val)))
     (bytevector-uint-set! bytevector index uval endness size)))
   
-(define bytevector-u16-ref (make-uint-ref 2))
-(define bytevector-u16-set! (make-uint-set! 2))
-(define bytevector-s16-ref (make-sint-ref 2))
-(define bytevector-s16-set! (make-sint-set! 2))
-(define bytevector-u16-native-ref (make-ref/native 2 bytevector-u16-ref))
-(define bytevector-u16-native-set! (make-set!/native 2 bytevector-u16-set!))
-(define bytevector-s16-native-ref (make-ref/native 2 bytevector-s16-ref))
-(define bytevector-s16-native-set! (make-set!/native 2 bytevector-s16-set!))
+; The 16-, 32- and 64-bit accessors are open-coded by compiler macros
+; (bytevector-accessor-rules in Compiler/common.imp.sch), which these
+; definitions use: compiled without them (integrate-procedures 'none),
+; each would call itself forever.  (With (define (f ...) ...), benchmark
+; mode would make the call a local one, which the macros do not see.)
 
-(define bytevector-u32-ref (make-uint-ref 4))
-(define bytevector-u32-set! (make-uint-set! 4))
-(define bytevector-s32-ref (make-sint-ref 4))
-(define bytevector-s32-set! (make-sint-set! 4))
-(define bytevector-u32-native-ref (make-ref/native 4 bytevector-u32-ref))
-(define bytevector-u32-native-set! (make-set!/native 4 bytevector-u32-set!))
-(define bytevector-s32-native-ref (make-ref/native 4 bytevector-s32-ref))
-(define bytevector-s32-native-set! (make-set!/native 4 bytevector-s32-set!))
+(define bytevector-u16-ref
+  (lambda (b k e) (bytevector-u16-ref b k e)))
+(define bytevector-u16-set!
+  (lambda (b k n e) (bytevector-u16-set! b k n e)))
+(define bytevector-s16-ref
+  (lambda (b k e) (bytevector-s16-ref b k e)))
+(define bytevector-s16-set!
+  (lambda (b k n e) (bytevector-s16-set! b k n e)))
+(define bytevector-u16-native-ref
+  (lambda (b k) (bytevector-u16-native-ref b k)))
+(define bytevector-u16-native-set!
+  (lambda (b k n) (bytevector-u16-native-set! b k n)))
+(define bytevector-s16-native-ref
+  (lambda (b k) (bytevector-s16-native-ref b k)))
+(define bytevector-s16-native-set!
+  (lambda (b k n) (bytevector-s16-native-set! b k n)))
 
-(define bytevector-u64-ref (make-uint-ref 8))
-(define bytevector-u64-set! (make-uint-set! 8))
-(define bytevector-s64-ref (make-sint-ref 8))
-(define bytevector-s64-set! (make-sint-set! 8))
-(define bytevector-u64-native-ref (make-ref/native 8 bytevector-u64-ref))
-(define bytevector-u64-native-set! (make-set!/native 8 bytevector-u64-set!))
-(define bytevector-s64-native-ref (make-ref/native 8 bytevector-s64-ref))
-(define bytevector-s64-native-set! (make-set!/native 8 bytevector-s64-set!))
+(define bytevector-u32-ref
+  (lambda (b k e) (bytevector-u32-ref b k e)))
+(define bytevector-u32-set!
+  (lambda (b k n e) (bytevector-u32-set! b k n e)))
+(define bytevector-s32-ref
+  (lambda (b k e) (bytevector-s32-ref b k e)))
+(define bytevector-s32-set!
+  (lambda (b k n e) (bytevector-s32-set! b k n e)))
+(define bytevector-u32-native-ref
+  (lambda (b k) (bytevector-u32-native-ref b k)))
+(define bytevector-u32-native-set!
+  (lambda (b k n) (bytevector-u32-native-set! b k n)))
+(define bytevector-s32-native-ref
+  (lambda (b k) (bytevector-s32-native-ref b k)))
+(define bytevector-s32-native-set!
+  (lambda (b k n) (bytevector-s32-native-set! b k n)))
+
+(define bytevector-u64-ref
+  (lambda (b k e) (bytevector-u64-ref b k e)))
+(define bytevector-u64-set!
+  (lambda (b k n e) (bytevector-u64-set! b k n e)))
+(define bytevector-s64-ref
+  (lambda (b k e) (bytevector-s64-ref b k e)))
+(define bytevector-s64-set!
+  (lambda (b k n e) (bytevector-s64-set! b k n e)))
+(define bytevector-u64-native-ref
+  (lambda (b k) (bytevector-u64-native-ref b k)))
+(define bytevector-u64-native-set!
+  (lambda (b k n) (bytevector-u64-native-set! b k n)))
+(define bytevector-s64-native-ref
+  (lambda (b k) (bytevector-s64-native-ref b k)))
+(define bytevector-s64-native-set!
+  (lambda (b k n) (bytevector-s64-native-set! b k n)))
 
 (define (bytevector=? b1 b2)
   (if (or (not (bytevector? b1))
@@ -372,36 +384,57 @@
                               (bytevector-u8-ref b2 i))))
                   (= i n1)))))))
 
-; FIXME: should use word-at-a-time when possible
+; The primitive (memset in millicode) checks that b is bytevector-like
+; and fill is in -128..255; bytevector-length checks that b is a
+; bytevector.
 
 (define (bytevector-fill! b fill)
-  (if (<= -128 fill -1)
-      (bytevector-fill! b (+ fill 256))
-      (let ((n (bytevector-length b)))
-        (do ((i 0 (+ i 1)))
-            ((= i n))
-          (bytevector-u8-set! b i fill)))))
+  (bytevector-length b)
+  (sys$bytevector-fill! b fill))
 
 (define (r6rs:bytevector-copy! source source-start target target-start count)
-  (if (>= source-start target-start)
-      (do ((i 0 (+ i 1)))
-          ((>= i count))
-        (bytevector-u8-set! target
-                       (+ target-start i)
-                       (bytevector-u8-ref source (+ source-start i))))
-      (do ((i (- count 1) (- i 1)))
-          ((< i 0))
-        (bytevector-u8-set! target
-                       (+ target-start i)
-                       (bytevector-u8-ref source (+ source-start i))))))
+  (if (not (and (bytevector? source)
+                (bytevector? target)
+                (fixnum? source-start)
+                (fixnum? target-start)
+                (fixnum? count)
+                (<= 0 source-start)
+                (<= 0 target-start)
+                (<= 0 count)
+                (<= (+ source-start count) (bytevector-length source))
+                (<= (+ target-start count) (bytevector-length target))))
+      (assertion-violation 'bytevector-copy!
+                           "illegal arguments"
+                           source source-start target target-start count))
+  (cond ((>= count sys$bytevector-like-move-threshold)
+         (sys$bytevector-like-move! source source-start
+                                    target target-start count))
+        ((>= source-start target-start)
+         (do ((i 0 (+ i 1)))
+             ((>= i count))
+           (bytevector-u8-set! target
+                               (+ target-start i)
+                               (bytevector-u8-ref source (+ source-start i)))))
+        (else
+         (do ((i (- count 1) (- i 1)))
+             ((< i 0))
+           (bytevector-u8-set! target
+                               (+ target-start i)
+                               (bytevector-u8-ref source (+ source-start i)))))))
 
 ;;; Generalized from one argument for R7RS.
 
-(define (bytevector-copy b . rest)
-  (let* ((n (bytevector-length b))
-         (start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
-         (k (- end start))
+(define bytevector-copy
+  (case-lambda
+   ((b)
+    (bytevector-copy:copy b 0 (bytevector-length b)))
+   ((b start)
+    (bytevector-copy:copy b start (bytevector-length b)))
+   ((b start end)
+    (bytevector-copy:copy b start end))))
+
+(define (bytevector-copy:copy b start end)
+  (let* ((k (- end start))
          (b2 (make-bytevector k)))
     (r6rs:bytevector-copy! b start b2 0 k)
     b2))
@@ -573,30 +606,34 @@
 
 ; The exported procedures
 
+; A flonum holds an IEEE double at byte offset flonum:o (see flonums-el.sch).
+
 (define (bytevector-ieee-double-native-ref bytevector k)
   (assert (eq? 0 (fxand k 7)))
-  (let ((x (make-bytevector 12)))
-    (bytevector-set! x 4  (bytevector-ref bytevector (+ k 0)))
-    (bytevector-set! x 5  (bytevector-ref bytevector (+ k 1)))
-    (bytevector-set! x 6  (bytevector-ref bytevector (+ k 2)))
-    (bytevector-set! x 7  (bytevector-ref bytevector (+ k 3)))
-    (bytevector-set! x 8  (bytevector-ref bytevector (+ k 4)))
-    (bytevector-set! x 9  (bytevector-ref bytevector (+ k 5)))
-    (bytevector-set! x 10 (bytevector-ref bytevector (+ k 6)))
-    (bytevector-set! x 11 (bytevector-ref bytevector (+ k 7)))
+  (let* ((o flonum:o)
+         (x (make-bytevector (+ o 8))))
+    (bytevector-set! x (+ o 0) (bytevector-ref bytevector (+ k 0)))
+    (bytevector-set! x (+ o 1) (bytevector-ref bytevector (+ k 1)))
+    (bytevector-set! x (+ o 2) (bytevector-ref bytevector (+ k 2)))
+    (bytevector-set! x (+ o 3) (bytevector-ref bytevector (+ k 3)))
+    (bytevector-set! x (+ o 4) (bytevector-ref bytevector (+ k 4)))
+    (bytevector-set! x (+ o 5) (bytevector-ref bytevector (+ k 5)))
+    (bytevector-set! x (+ o 6) (bytevector-ref bytevector (+ k 6)))
+    (bytevector-set! x (+ o 7) (bytevector-ref bytevector (+ k 7)))
     (typetag-set! x 2)
     x))
 
 (define (bytevector-ieee-double-native-set! bytevector k x)
   (assert (eq? 0 (fxand k 7)))
-  (bytevector-set! bytevector (+ k 0) (bytevector-like-ref x 4))
-  (bytevector-set! bytevector (+ k 1) (bytevector-like-ref x 5))
-  (bytevector-set! bytevector (+ k 2) (bytevector-like-ref x 6))
-  (bytevector-set! bytevector (+ k 3) (bytevector-like-ref x 7))
-  (bytevector-set! bytevector (+ k 4) (bytevector-like-ref x 8))
-  (bytevector-set! bytevector (+ k 5) (bytevector-like-ref x 9))
-  (bytevector-set! bytevector (+ k 6) (bytevector-like-ref x 10))
-  (bytevector-set! bytevector (+ k 7) (bytevector-like-ref x 11)))
+  (let ((o flonum:o))
+    (bytevector-set! bytevector (+ k 0) (bytevector-like-ref x (+ o 0)))
+    (bytevector-set! bytevector (+ k 1) (bytevector-like-ref x (+ o 1)))
+    (bytevector-set! bytevector (+ k 2) (bytevector-like-ref x (+ o 2)))
+    (bytevector-set! bytevector (+ k 3) (bytevector-like-ref x (+ o 3)))
+    (bytevector-set! bytevector (+ k 4) (bytevector-like-ref x (+ o 4)))
+    (bytevector-set! bytevector (+ k 5) (bytevector-like-ref x (+ o 5)))
+    (bytevector-set! bytevector (+ k 6) (bytevector-like-ref x (+ o 6)))
+    (bytevector-set! bytevector (+ k 7) (bytevector-like-ref x (+ o 7)))))
 
 (define (bytevector-ieee-single-native-ref bytevector k)
   (assert (eq? 0 (fxand k 3)))
@@ -787,11 +824,14 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (string->utf8 string . rest)
-  (let* ((n (string-length string))
-         (start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
-         (k (do ((i start (+ i 1))
+(define string->utf8
+  (case-lambda
+   ((string) (string->utf8:range string 0 (string-length string)))
+   ((string start) (string->utf8:range string start (string-length string)))
+   ((string start end) (string->utf8:range string start end))))
+
+(define (string->utf8:range string start end)
+  (let* ((k (do ((i start (+ i 1))
                  (k 0 (+ k (let ((sv (char->integer (string-ref string i))))
                              (cond ((<= sv #x007f) 1)
                                    ((<= sv #x07ff) 2)
@@ -886,10 +926,14 @@
 ;
 ; q3 --- expecting three more bytes, the first in range lower..upper
 
-(define (utf8->string bv . rest)
+(define utf8->string
+  (case-lambda
+   ((bv) (utf8->string:range bv 0 (bytevector-length bv)))
+   ((bv start) (utf8->string:range bv start (bytevector-length bv)))
+   ((bv start end) (utf8->string:range bv start end))))
+
+(define (utf8->string:range bv start end)
   (let* ((n (bytevector-length bv))
-         (start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest))) n (cadr rest)))
          (replacement-character (integer->char #xfffd))
          (begins-with-bom?
           (and (<= 3 n)

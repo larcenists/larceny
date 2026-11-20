@@ -1,0 +1,489 @@
+/* -*- indent-tabs-mode: nil -*- */
+/* Copyright 2012 Lars T Hansen */
+
+/* AArch64 millicode to support the Fence/Cant back-end.  Derived from
+ * arm-millicode.sx.
+ *
+ * This code is for the clang assembler with CPP macros (Mach-O symbol
+ * names).  Process this file with cc, which runs CPP on it due to the
+ * .sx file type.
+ *
+ * Scheme code calls millicode with BLR through a pointer in the
+ * globals table, so the return address is in lr (x30).
+ *
+ * Scheme code never changes sp, x18, or x29.  GLOBALS (x23) is
+ * callee-saved in the C ABI, so it survives calls to C.  The
+ * MacScheme floating registers are d8-d11, which are callee-saved
+ * too, but they are saved and restored with the rest of the context
+ * in case millicode calls out to Scheme.
+ *
+ * Note: We can always destroy TMP0, TMP1, and TMP2 in millicode.
+ */
+
+#include "asmdefs.h"
+
+#define EXTNAME(x) _##x
+
+        .text
+        .p2align 2
+
+        .globl EXTNAME(fence_dispatch_loop_return)
+        .globl EXTNAME(fence_stack_underflow)
+        .globl EXTNAME(fence_scheme_jump)
+        .globl EXTNAME(fence_return_from_scheme)
+
+/* Save Scheme context where the garbage collector will find it.
+ * Adjacent slots of the globals table are stored in pairs (the
+ * offsets are checked below); the flonum slots are not adjacent. */
+
+#if G_SECOND != G_RESULT+8 || G_STKP != G_RETADDR+8 || G_REG15 != G_REG0+15*8
+# error "arm64-millicode.sx: the globals table layout has changed"
+#endif
+
+#define SAVE_SCHEME_CONTEXT \
+        stp     RESULT, SECOND, [GLOBALS, #G_RESULT] %% \
+        stp     x30, STKP, [GLOBALS, #G_RETADDR]     %% \
+        stp     REG0, REG1, [GLOBALS, #G_REG0]       %% \
+        stp     REG2, REG3, [GLOBALS, #G_REG2]       %% \
+        stp     REG4, REG5, [GLOBALS, #G_REG4]       %% \
+        stp     REG6, REG7, [GLOBALS, #G_REG6]       %% \
+        stp     REG8, REG9, [GLOBALS, #G_REG8]       %% \
+        stp     REG10, REG11, [GLOBALS, #G_REG10]    %% \
+        stp     REG12, REG13, [GLOBALS, #G_REG12]    %% \
+        stp     REG14, REG15, [GLOBALS, #G_REG14]    %% \
+        str     d8, [GLOBALS, #G_F0]                 %% \
+        str     d9, [GLOBALS, #G_F1]                 %% \
+        str     d10, [GLOBALS, #G_F2]                %% \
+        str     d11, [GLOBALS, #G_F3]
+
+/* The return address, relative to the start of the code of the
+ * procedure in REG0.  The garbage collector may move the code. */
+
+#define CODE_START(r) \
+        ldur    r, [REG0, #(-7+8)]           %% \
+        add     r, r, #(8-5)
+
+#define SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR \
+        SAVE_SCHEME_CONTEXT                  %% \
+        CODE_START(TMP1)                     %% \
+        sub     TMP1, x30, TMP1              %% \
+        str     TMP1, [GLOBALS, #G_RETADDR]
+
+/* Load the Scheme context into registers assuming GLOBALS has been set up */
+
+#define LOAD_SCHEME_CONTEXT \
+        ldp     RESULT, SECOND, [GLOBALS, #G_RESULT] %% \
+        ldp     x30, STKP, [GLOBALS, #G_RETADDR]     %% \
+        ldp     REG0, REG1, [GLOBALS, #G_REG0]       %% \
+        ldp     REG2, REG3, [GLOBALS, #G_REG2]       %% \
+        ldp     REG4, REG5, [GLOBALS, #G_REG4]       %% \
+        ldp     REG6, REG7, [GLOBALS, #G_REG6]       %% \
+        ldp     REG8, REG9, [GLOBALS, #G_REG8]       %% \
+        ldp     REG10, REG11, [GLOBALS, #G_REG10]    %% \
+        ldp     REG12, REG13, [GLOBALS, #G_REG12]    %% \
+        ldp     REG14, REG15, [GLOBALS, #G_REG14]    %% \
+        ldr     d8, [GLOBALS, #G_F0]                 %% \
+        ldr     d9, [GLOBALS, #G_F1]                 %% \
+        ldr     d10, [GLOBALS, #G_F2]                %% \
+        ldr     d11, [GLOBALS, #G_F3]
+
+#define LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR \
+        LOAD_SCHEME_CONTEXT                  %% \
+        CODE_START(TMP1)                     %% \
+        add     x30, x30, TMP1
+
+/* Switch to C context.  GLOBALS is callee-saved, so it is still valid
+ * when the C code returns. */
+
+#define LOAD_C_CONTEXT \
+        ldr     TMP1, [GLOBALS, #G_SAVED_SP] %% \
+        mov     sp, TMP1
+
+/* Enter Scheme mode from C.  The only argument is the globals pointer;
+ * globals[G_RETADDR] has a translated "return" address.
+ * Does not return.
+ */
+EXTNAME(fence_scheme_jump):
+        mov     TMP1, sp
+        str     TMP1, [x0, #G_SAVED_SP]
+        str     x29, [x0, #G_SAVED_FP]
+        mov     GLOBALS, x0
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        br      x30
+
+/* A pointer to fence_dispatch_loop_return is installed as the
+ * return address in the bottommost (oldest) stack frame.  If
+ * code returns into this function then Larceny will exit.
+ */
+        .p2align 2
+EXTNAME(fence_dispatch_loop_return):
+        SAVE_SCHEME_CONTEXT
+        LOAD_C_CONTEXT
+        mov     x0, GLOBALS             /* arg #1: globals */
+        b       EXTNAME(dispatch_loop_return)
+
+/* A pointer to fence_stack_underflow is installed as the return
+ * address in the frame underneath the stack cache.  If code
+ * returns into this functions then Larceny will repopulate the
+ * cache with at least one frame from the heap and return into
+ * that frame.
+ *
+ * The frame is restored here, without a context switch, when there is
+ * room for it in the stack cache: this is stk_restore_frame (stack.c)
+ * and the underflow handlers of the young heaps (nursery.c, sc-heap.c),
+ * after the SPARC version (mem_stkuflow_retpoint in Sparc/memory.s).
+ * If you change this code, check that code too.  The frame goes under
+ * the underflow frame (which stays at the bottom of the stack): copy
+ * it from the heap frame in G_CONT, follow the dynamic link, turn the
+ * header back into the size, and turn the return offset back into an
+ * address, relative to the code of the frame's procedure.  Only RESULT
+ * is live at a return; this uses only the TMPs and x30.  When there is
+ * no room, C does it (and may collect).  fmc_restore_continuation
+ * (below) makes the same copy.
+ */
+        .p2align 2
+EXTNAME(fence_stack_underflow):
+        ldr     TMP0, [GLOBALS, #G_CONT]
+        sub     TMP0, TMP0, #VEC_TAG            /* the heap frame */
+        ldr     TMP1, [TMP0]                    /* its header */
+        lsr     TMP1, TMP1, #8                  /* size of the data */
+        add     TMP1, TMP1, #(8+15)             /* bytes to copy, */
+        and     TMP1, TMP1, #~15                /* header and padding */
+        sub     x30, STKP, TMP1                 /* new stack top */
+        ldr     TMP2, [GLOBALS, #G_ETOP]
+        cmp     x30, TMP2
+        b.lo    9f                              /* no room: C */
+        mov     TMP2, x30
+1:      ldr     TMP1, [TMP0], #8                /* copy the frame */
+        str     TMP1, [TMP2], #8
+        cmp     TMP2, STKP
+        b.lo    1b
+        mov     STKP, x30
+        ldr     TMP1, [STKP, #16]               /* HC_DYNLINK */
+        str     TMP1, [GLOBALS, #G_CONT]
+        ldr     TMP1, [STKP, #HC_HEADER]
+        lsr     TMP1, TMP1, #8
+        ldr     TMP0, [STKP, #HC_RETOFFSET]
+        str     TMP1, [STKP, #STK_CONTSIZE]
+        ldr     TMP1, [STKP, #STK_REG0]         /* the procedure */
+        cbz     TMP1, 2f
+        ldur    TMP2, [TMP1, #(8-PROC_TAG)]     /* its code (PROC_CODEPTR) */
+        and     x30, TMP2, #7
+        cmp     x30, #BVEC_TAG
+        b.ne    2f
+        add     TMP2, TMP2, #(8-BVEC_TAG)       /* start of the code */
+        add     TMP0, TMP0, TMP2
+2:      str     TMP0, [STKP, #STK_RETADDR]
+        ldr     TMP1, [GLOBALS, #G_STKUFLOW]
+        add     TMP1, TMP1, #1
+        str     TMP1, [GLOBALS, #G_STKUFLOW]
+        br      TMP0
+9:      SAVE_SCHEME_CONTEXT     /* globals[G_RETADDR] is junk, ignore it */
+        LOAD_C_CONTEXT
+        mov     x0, GLOBALS     /* arg #1: globals */
+        bl      EXTNAME(mem_stkuflow)    /* Changes globals[G_RETADDR] */
+        LOAD_SCHEME_CONTEXT     /* Do not decode G_RETADDR, it is decoded already */
+        br      x30
+
+/* creg-set!: reinstate the continuation in RESULT.  This is creg_set
+ * (nursery.c, sc-heap.c) without a context switch when there is room:
+ * empty the stack cache (stk_clear), make RESULT the continuation, and
+ * copy its top frame onto the stack as fence_stack_underflow does
+ * (above), then return to the caller.  When there is no room, C does
+ * it (mc_restore_continuation, which may collect).
+ *
+ * Copying the frame here, rather than leaving it to the underflow
+ * handler at the next return, keeps that return a single mispredicted
+ * branch.
+ *
+ * Destroys RESULT, SECOND and the TMPs.  SECOND is a root of the
+ * garbage collector, so it is left holding a fixnum.
+ */
+
+        .globl  EXTNAME(fmc_restore_continuation)
+        .p2align 2
+EXTNAME(fmc_restore_continuation):
+        ldr     STKP, [GLOBALS, #G_STKBOT]      /* stk_clear */
+        str     RESULT, [GLOBALS, #G_CONT]
+        sub     TMP0, RESULT, #VEC_TAG          /* the heap frame */
+        ldr     TMP1, [TMP0]                    /* its header */
+        lsr     TMP1, TMP1, #8                  /* size of the data */
+        add     TMP1, TMP1, #(8+15)             /* bytes to copy, */
+        and     TMP1, TMP1, #~15                /* header and padding */
+        sub     SECOND, STKP, TMP1              /* new stack top */
+        ldr     TMP2, [GLOBALS, #G_ETOP]
+        cmp     SECOND, TMP2
+        b.lo    9f                              /* no room: C */
+        mov     TMP2, SECOND
+1:      ldr     TMP1, [TMP0], #8                /* copy the frame */
+        str     TMP1, [TMP2], #8
+        cmp     TMP2, STKP
+        b.lo    1b
+        mov     STKP, SECOND
+        ldr     TMP1, [STKP, #16]               /* HC_DYNLINK */
+        str     TMP1, [GLOBALS, #G_CONT]
+        ldr     TMP1, [STKP, #HC_HEADER]
+        lsr     TMP1, TMP1, #8
+        ldr     TMP0, [STKP, #HC_RETOFFSET]
+        str     TMP1, [STKP, #STK_CONTSIZE]
+        ldr     TMP1, [STKP, #STK_REG0]         /* the procedure */
+        cbz     TMP1, 2f
+        ldur    TMP2, [TMP1, #(8-PROC_TAG)]     /* its code (PROC_CODEPTR) */
+        and     SECOND, TMP2, #7
+        cmp     SECOND, #BVEC_TAG
+        b.ne    2f
+        add     TMP2, TMP2, #(8-BVEC_TAG)       /* start of the code */
+        add     TMP0, TMP0, TMP2
+2:      str     TMP0, [STKP, #STK_RETADDR]
+        ldr     TMP1, [GLOBALS, #G_STKUFLOW]
+        add     TMP1, TMP1, #1
+        str     TMP1, [GLOBALS, #G_STKUFLOW]
+        mov     SECOND, #0                      /* a fixnum */
+        ret
+9:      mov     SECOND, #0                      /* a fixnum */
+        SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR
+        LOAD_C_CONTEXT
+        mov     x0, GLOBALS
+        mov     x1, #4
+        bl      EXTNAME(mc_restore_continuation)
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        ret
+
+/* A pointer to fence_return_from_scheme is installed as the return
+ * address when millicode calls out to Scheme.  return_from_scheme
+ * changes the value of globals[G_RETADDR], and LOAD_SCHEME_CONTEXT
+ * restores that value into lr.
+ */
+        .p2align 2
+EXTNAME(fence_return_from_scheme):
+        SAVE_SCHEME_CONTEXT     /* globals[G_RETADDR] is junk, ignore it */
+        LOAD_C_CONTEXT
+        mov     x0, GLOBALS     /* arg #1: globals */
+        bl      EXTNAME(return_from_scheme)
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        br      x30
+
+#define MILLIPROC2(asmname,cname,value) \
+        .globl  EXTNAME(asmname)               %% \
+        .p2align 2                             %% \
+EXTNAME(asmname):                              %% \
+        SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR %% \
+        LOAD_C_CONTEXT                         %% \
+        mov     x0, GLOBALS                    %% \
+        mov     x1, #(value)                   %% \
+        bl      EXTNAME(cname)                 %% \
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR %% \
+        ret
+
+#define MILLIPROC1(asmname,cname) \
+        MILLIPROC2(asmname,cname,4)
+
+/* For the sake of simplicity the C millicode entry points are
+ * compatible with the i386 and Petit Larceny millicode in the sense
+ * that they accept a redundant (for native code) continuation argument
+ * in many cases.  We always pass 4 for that argument because it
+ * is used only as a flag in Fence.  (Zero would mean
+ * mc_scheme_callout needs to perform a longjmp to avoid
+ * returning to C code that shouldn't be executed.)
+ */
+MILLIPROC1(fmc_morecore,mc_morecore)
+MILLIPROC1(fmc_stack_overflow,mc_stack_overflow)
+MILLIPROC2(fmc_timer_exception,mc_timer_exception,4)
+MILLIPROC2(fmc_add,mc_add,4)
+MILLIPROC2(fmc_sub,mc_sub,4)
+MILLIPROC2(fmc_equalp,mc_equalp,4)
+MILLIPROC1(fmc_alloc,mc_alloc)
+MILLIPROC1(fmc_alloci,mc_alloci)
+MILLIPROC1(fmc_alloc_bv,mc_alloc_bv)
+MILLIPROC1(fmc_capture_continuation,mc_capture_continuation)
+MILLIPROC1(fmc_full_barrier,mc_full_barrier)
+MILLIPROC1(fmc_compact_ssbs,mc_compact_ssbs)
+MILLIPROC1(fmc_compact_satb_ssb,mc_compact_satb_ssb)
+MILLIPROC1(fmc_break,mc_break)
+MILLIPROC2(fmc_global_exception,mc_exception,EX_UNDEF_GLOBAL)
+MILLIPROC2(fmc_invoke_exception,mc_exception,EX_NONPROC)
+MILLIPROC2(fmc_global_invoke_exception,mc_exception,EX_GLOBAL_INVOKE)
+MILLIPROC2(fmc_argc_exception,mc_exception,EX_ARGC)
+MILLIPROC2(fmc_enable_interrupts,mc_enable_interrupts,4)
+MILLIPROC2(fmc_disable_interrupts,mc_disable_interrupts,4)
+MILLIPROC1(fmc_apply,mc_apply)
+MILLIPROC1(fmc_restargs,mc_restargs)
+MILLIPROC2(fmc_syscall,mc_syscall,4)
+MILLIPROC1(fmc_typetag,mc_typetag)
+MILLIPROC1(fmc_typetag_set,mc_typetag_set)
+MILLIPROC2(fmc_eqv_slow,mc_eqv,4)
+MILLIPROC1(fmc_partial_list2vector,mc_partial_list2vector)
+MILLIPROC1(fmc_bytevector_like_fill,mc_bytevector_like_fill)
+MILLIPROC1(fmc_bytevector_like_compare,mc_bytevector_like_compare)
+MILLIPROC2(fmc_mul,mc_mul,4)
+MILLIPROC2(fmc_div,mc_div,4)
+MILLIPROC2(fmc_quo,mc_quo,4)
+MILLIPROC2(fmc_rem,mc_rem,4)
+MILLIPROC2(fmc_neg,mc_neg,4)
+MILLIPROC2(fmc_abs,mc_abs,4)
+MILLIPROC2(fmc_lessp,mc_lessp,4)
+MILLIPROC2(fmc_less_or_equalp,mc_less_or_equalp,4)
+MILLIPROC2(fmc_greaterp,mc_greaterp,4)
+MILLIPROC2(fmc_greater_or_equalp,mc_greater_or_equalp,4)
+MILLIPROC2(fmc_exact2inexact,mc_exact2inexact,4)
+MILLIPROC2(fmc_inexact2exact,mc_inexact2exact,4)
+MILLIPROC1(fmc_real_part,mc_real_part)
+MILLIPROC1(fmc_imag_part,mc_imag_part)
+MILLIPROC2(fmc_round,mc_round,4)
+MILLIPROC2(fmc_truncate,mc_truncate,4)
+MILLIPROC1(fmc_zerop,mc_zerop)
+MILLIPROC1(fmc_complexp,mc_complexp)
+MILLIPROC1(fmc_rationalp,mc_rationalp)
+MILLIPROC1(fmc_integerp,mc_integerp)
+MILLIPROC1(fmc_exactp,mc_exactp)
+MILLIPROC1(fmc_inexactp,mc_inexactp)
+MILLIPROC1(fmc_singlestep,mc_singlestep)
+
+/* The generational write barrier, called after a pointer (SECOND) has
+ * been stored into an object (RESULT) at the address in globals[G_THIRD].
+ * This is mc_partial_barrier (fence-millicode.c) without the context
+ * switch: if the store creates a pointer that the remembered sets must
+ * know about, record the object and the slot's offset in the SSB of
+ * the pointer's generation.  Only when the SSB fills does it save the
+ * context and call C to compact the SSBs.
+ *
+ * May destroy RESULT, SECOND, and the TMPs.  The page map has 32-bit
+ * entries (GCLIB_LARGE_TABLE is not supported).
+ */
+
+        .globl  EXTNAME(fmc_partial_barrier)
+        .p2align 2
+EXTNAME(fmc_partial_barrier):
+        ldr     TMP1, [GLOBALS, #G_GENV]
+        cbz     TMP1, 1f                        /* Barrier disabled */
+        ldr     TMP2, [GLOBALS, #G_PGBASE]
+        sub     TMP0, RESULT, TMP2
+        lsr     TMP0, TMP0, #12
+        ldr     w21, [TMP1, TMP0, lsl #2]       /* TMP0 = gen(lhs) */
+        sub     TMP2, SECOND, TMP2
+        lsr     TMP2, TMP2, #12
+        ldr     w17, [TMP1, TMP2, lsl #2]       /* TMP2 = gen(rhs) */
+        cmp     TMP0, TMP2
+        b.eq    1f
+        ldr     TMP1, [GLOBALS, #G_FILTER_REMSET_GEN_ORDER]
+        cbz     TMP1, 2f
+        cmp     TMP0, TMP2
+        b.ls    1f                              /* gen(lhs) <= gen(rhs) */
+2:      ldr     TMP1, [GLOBALS, #G_FILTER_REMSET_RHS_NUM]
+        cmp     TMP1, TMP2
+        b.eq    1f
+        ldr     TMP1, [GLOBALS, #G_FILTER_REMSET_LHS_NUM]
+        cmp     TMP1, TMP0
+        b.eq    1f
+        ldr     TMP1, [GLOBALS, #G_SSBTOPV]
+        add     TMP1, TMP1, TMP2, lsl #3        /* &ssbtopv[gen(rhs)] */
+        ldr     TMP0, [TMP1]                    /* SSB top */
+        str     RESULT, [TMP0]                  /* the object */
+        and     RESULT, RESULT, #~7             /* ptrof(object) */
+        ldr     SECOND, [GLOBALS, #G_THIRD]
+        sub     SECOND, SECOND, RESULT
+        str     SECOND, [TMP0, #8]              /* the slot's offset, a fixnum */
+        add     TMP0, TMP0, #16
+        str     TMP0, [TMP1]
+        ldr     TMP1, [GLOBALS, #G_SSBLIMV]
+        ldr     TMP1, [TMP1, TMP2, lsl #3]      /* ssblimv[gen(rhs)] */
+        add     TMP0, TMP0, #8
+        cmp     TMP0, TMP1
+        b.hs    EXTNAME(fmc_compact_ssbs)       /* SSB full */
+1:      ret
+
+/* eqv? of RESULT and SECOND, result in RESULT.  This is mc_eqv
+ * (fence-millicode.c) without the context switch when the answer is
+ * easy: the same object or immediate, objects with different tags,
+ * immediates, or two flonums (compared by their bits).  Other
+ * bytevector-like and vector-like objects, which may be bignums,
+ * compnums, ratnums, rectnums, or empty strings and vectors, go to C.
+ *
+ * Destroys only the TMPs.
+ */
+
+        .globl  EXTNAME(fmc_eqv)
+        .p2align 2
+EXTNAME(fmc_eqv):
+        cmp     RESULT, SECOND
+        b.eq    2f                              /* eq? */
+        eor     TMP0, RESULT, SECOND
+        tst     TMP0, #7
+        b.ne    3f                              /* Different tags */
+        and     TMP0, RESULT, #7
+        cmp     TMP0, #BVEC_TAG
+        b.eq    4f
+        cmp     TMP0, #VEC_TAG
+        b.eq    EXTNAME(fmc_eqv_slow)
+3:      mov     RESULT, #FALSE_CONST            /* Not eqv? */
+        ret
+2:      mov     RESULT, #TRUE_CONST
+        ret
+4:      ldur    TMP1, [RESULT, #-BVEC_TAG]
+        and     TMP1, TMP1, #255
+        cmp     TMP1, #FLONUM_HDR
+        b.ne    EXTNAME(fmc_eqv_slow)
+        ldur    TMP2, [SECOND, #-BVEC_TAG]
+        and     TMP2, TMP2, #255
+        cmp     TMP2, #FLONUM_HDR
+        b.ne    EXTNAME(fmc_eqv_slow)
+        ldur    TMP1, [RESULT, #(8-BVEC_TAG)]   /* The flonums' bits */
+        ldur    TMP2, [SECOND, #(8-BVEC_TAG)]
+        cmp     TMP1, TMP2
+        b.eq    2b
+        b       3b
+
+/* The SATB pre-barrier of the regional collector's concurrent marking,
+ * called before a store into an object (RESULT) at the address in
+ * globals[G_THIRD], while marking.  This is mc_satb_barrier
+ * (fence-millicode.c) without the context switch: if the value about
+ * to be overwritten is a pointer, and neither it nor the object is in
+ * the nursery (generation 0), push it on the SATB SSB.  Only when the
+ * SSB fills does it save the context and call C to process the SSB.
+ *
+ * Destroys only the TMPs.  The page map has 32-bit entries
+ * (GCLIB_LARGE_TABLE is not supported).
+ */
+
+        .globl  EXTNAME(fmc_satb_barrier)
+        .p2align 2
+EXTNAME(fmc_satb_barrier):
+        ldr     TMP1, [GLOBALS, #G_CONCURRENT_MARK]
+        cbz     TMP1, 1f                        /* Not marking */
+        ldr     TMP0, [GLOBALS, #G_THIRD]
+        ldr     TMP0, [TMP0]                    /* TMP0 = old value */
+        tbz     TMP0, #0, 1f                    /* Not a pointer */
+        ldr     TMP1, [GLOBALS, #G_GENV]
+        ldr     TMP2, [GLOBALS, #G_PGBASE]
+        sub     TMP2, TMP0, TMP2
+        lsr     TMP2, TMP2, #12
+        ldr     w17, [TMP1, TMP2, lsl #2]       /* TMP2 = gen(old value) */
+        cbz     TMP2, 1f
+        ldr     TMP2, [GLOBALS, #G_PGBASE]
+        sub     TMP2, RESULT, TMP2
+        lsr     TMP2, TMP2, #12
+        ldr     w17, [TMP1, TMP2, lsl #2]       /* TMP2 = gen(object) */
+        cbz     TMP2, 1f
+        ldr     TMP1, [GLOBALS, #G_SATBTOPV]
+        ldr     TMP2, [TMP1]                    /* SATB SSB top */
+        str     TMP0, [TMP2], #8
+        str     TMP2, [TMP1]
+        ldr     TMP1, [GLOBALS, #G_SATBLIMV]
+        ldr     TMP1, [TMP1]                    /* SATB SSB limit */
+        cmp     TMP2, TMP1
+        b.hs    EXTNAME(fmc_compact_satb_ssb)   /* SSB full */
+1:      ret
+
+/* Special case: the exception code is transmitted in TMP0 */
+
+        .globl  EXTNAME(fmc_exception)
+        .p2align 2
+EXTNAME(fmc_exception):
+        str     TMP0, [GLOBALS, #G_PUSHTMP]
+        SAVE_SCHEME_CONTEXT_AND_ENCODE_RETADDR
+        LOAD_C_CONTEXT
+        mov     x0, GLOBALS     /* arg #1: globals */
+        ldr     x1, [GLOBALS, #G_PUSHTMP]
+        bl      EXTNAME(mc_exception)
+        LOAD_SCHEME_CONTEXT_AND_DECODE_RETADDR
+        ret

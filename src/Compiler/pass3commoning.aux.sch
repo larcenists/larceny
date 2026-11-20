@@ -55,6 +55,13 @@
 ; (available-intersect! available0 available1 available2)
 ;     destructively changes available0, making it the intersection
 ;     of available1 and available2
+; (available-true! available T)
+;     records that the local variable T is known not to be #f
+;     (for instance, in the consequent of (if T ...)), so a runtime
+;     check of T can be omitted.  Local variables are not assigned,
+;     so this is never killed.
+; (available-true? available T)
+;     returns true if T is known not to be #f.
 ;
 ; (available-extend! available T E K) is very fast if the previous
 ; operation on the table was (available-expression available E).
@@ -64,7 +71,8 @@
 ; Quick and dirty.
 ;
 ; The available expressions are represented as a vector of
-; 2 association lists (and their current lengths).
+; 2 association lists (and their current lengths), and a list of
+; the variables known not to be #f.
 ;
 ; The first list is used for common subexpression elimination,
 ; and the second is used for copy and constant propagation.
@@ -108,13 +116,14 @@
   (limit! 1))
 
 (define (make-available-table)
-  (vector '() '() 0 0))
+  (vector '() '() 0 0 '()))
 
 (define (copy-available-table available)
   (vector (vector-ref available 0)
           (vector-ref available 1)
           (vector-ref available 2)
-          (vector-ref available 3)))
+          (vector-ref available 3)
+          (vector-ref available 4)))
 
 (define (available-expression available E)
   (let ((binding (assoc E (vector-ref available 0))))
@@ -184,7 +193,18 @@
                (intersection (vector-ref available1 1)
                              (vector-ref available2 1)))
   (vector-set! available0 2 (length (vector-ref available0 0)))
-  (vector-set! available0 3 (length (vector-ref available0 1))))
+  (vector-set! available0 3 (length (vector-ref available0 1)))
+  (vector-set! available0
+               4
+               (intersection (vector-ref available1 4)
+                             (vector-ref available2 4))))
+
+(define (available-true! available T)
+  (if (not (memq T (vector-ref available 4)))
+      (vector-set! available 4 (cons T (vector-ref available 4)))))
+
+(define (available-true? available T)
+  (if (memq T (vector-ref available 4)) #t #f))
 
 ; The Killer concrete data type, represented as a fixnum.
 ;

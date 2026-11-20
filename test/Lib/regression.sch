@@ -113,10 +113,17 @@
    ; difference on _identical_ binary code running in the _same_ process,
    ; where the only difference between the two was where in memory the
    ; code was located.
+   ; memstats counts the nursery's allocation only when it is collected,
+   ; so each measurement starts with an empty nursery: a collection
+   ; during one measurement but not the other would make their
+   ; allocation differ by a nursery's worth.
    (test "Error case #24"               ; Bug 105
-         (let* ((t0 (memstats))
+         (let* ((c0 (collect))
+                (t0 (memstats))
                 (d0 (bug-105-test1))
                 (t1 (memstats))
+                (c1 (collect))
+                (t1b (memstats))
                 (d1 (bug-105-test2))
                 (t2 (memstats)))
            (let ((alloc 0)              ; words allocated
@@ -125,9 +132,9 @@
              ; ratio is within reason.
              (cons 
               (= (- (vector-ref t1 alloc) (vector-ref t0 alloc))
-                 (- (vector-ref t2 alloc) (vector-ref t1 alloc)))
+                 (- (vector-ref t2 alloc) (vector-ref t1b alloc)))
               (let ((time1 (- (vector-ref t1 user) (vector-ref t0 user)))
-                    (time2 (- (vector-ref t2 user) (vector-ref t1 user))))
+                    (time2 (- (vector-ref t2 user) (vector-ref t1b user))))
                 (if (> time1 time2)
                     (or (>= (/ time2 time1) 0.7) (/ time2 time1))
                     (or (>= (/ time1 time2) 0.7) (/ time1 time2)))))))
@@ -740,8 +747,30 @@
                (>= +inf.0 #e1e1000)
                (>= #e1e500 #e1e1000))
          '(#f #f #f #f #f #f #f #t #f))
+
+   ; With 8 registers (x86-64), lambda lifting made the loop below take
+   ; 8 arguments, so each iteration consed the 2 that did not fit in
+   ; registers (lockpick's LARCENY-NOTES.md, item 10).  The loop must
+   ; not allocate.
+   (test "A named let with free variables does not allocate"
+         (begin (collect)
+                (let ((before (memstats-allocated (memstats))))
+                  (lifted-loop-test (make-vector 8 1) 1 2 3 4)
+                  (collect)
+                  (< (- (memstats-allocated (memstats)) before) 20000)))
+         #t)
    ))
 
+
+; Five free variables (the most the old policy lifted) and three
+; arguments of its own.
+
+(define (lifted-loop-test a b c d e)
+  (let loop ((i 0) (j 0) (s 0))
+    (if (= i 100000)
+        s
+        (loop (+ i 1) (+ j 2)
+              (+ s (vector-ref a (remainder i 8)) b c d e)))))
 
 (define (bug-105-test1)
   (do ((i 0 (+ i 1))

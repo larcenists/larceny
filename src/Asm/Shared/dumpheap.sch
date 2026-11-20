@@ -46,6 +46,7 @@
 (define (build-heap-image output-file input-files)
 
   (define tmp-file "HEAPDATA.dat")
+  (define text-file "HEAPTEXT.dat")
 
   (define (process-input-files heap)
     (let loop ((files input-files) (inits '()))
@@ -63,7 +64,10 @@
   ; for MzScheme to implement R6RS i/o.
 
   (delete-file tmp-file)
+  (delete-file text-file)
   (let ((heap  (make-heap #f (open-raw-latin-1-output-file tmp-file))))
+    (if (heap.split-code?)
+        (heap.text-port! heap (open-raw-latin-1-output-file text-file)))
     (before-all-files heap output-file input-files)
     (process-input-files heap)
     (heap.set-root! heap
@@ -75,6 +79,9 @@
     (write-header heap output-file)
     (after-all-files heap output-file input-files)
     (close-output-port (heap.output-port heap))
+    (if (heap.split-code?)
+        (begin (close-output-port (heap.text-port heap))
+               (append-file-shell-command text-file output-file)))
     (append-file-shell-command tmp-file output-file)
     (load-map heap)
     (unspecified)))
@@ -95,10 +102,17 @@
 ;  extra            any value - a client-extension field
 ;  output-port      an output port (for the data stream)
 ;  thunks           a list of codevector addresses
+;  text-top         an exact nonnegative integer: the address of the
+;                   next byte to be emitted in the text segment
+;  text-port        an output port for the text segment, or #f
 ;
+; On targets that keep compiled code in a separate code space (see
+; heap.split-code?, below), code vectors are dumped into a separate
+; text segment and the heap image is a split heap.
 ; Bytes are emitted with the heap.byte! and heap.word! procedures,
-; which emit a byte and a 4-byte word respectively.  These update
-; the top field.
+; which emit a byte and a word respectively.  These update the top
+; field.  A word is 4 bytes on 32-bit targets and 8 bytes on 64-bit
+; targets; see heap.wordsize.
 
 (define (make-heap extra output-port)
   (vector heap.version-number        ; version
@@ -108,6 +122,8 @@
           extra                      ; extra
           output-port                ; output port
           '()                        ; thunks
+          0                          ; text-top
+          #f                         ; text-port
           ))
 
 (define (heap.version h) (vector-ref h 0))
@@ -121,6 +137,24 @@
 (define (heap.roots! h x) (vector-set! h 1 x))
 (define (heap.top! h x) (vector-set! h 2 x))
 (define (heap.thunks! h x) (vector-set! h 6 x))
+(define (heap.text-top h) (vector-ref h 7))
+(define (heap.text-top! h x) (vector-set! h 7 x))
+(define (heap.text-port h) (vector-ref h 8))
+(define (heap.text-port! h x) (vector-set! h 8 x))
+
+; Does the target keep code vectors in a separate code space?  Then the
+; bootstrap heap is a split heap: code vectors go in the text segment,
+; and pointers from the data segment to the text segment have the high
+; bit set (see Rts/Sys/heapio.c).
+
+(define (heap.split-code?)
+  (and (memq (nbuild-parameter 'target-machine) '(arm x86-64))
+       (= 64 (nbuild-parameter 'word-size))))
+
+(define heap.split-type 1)               ; heap type for split heaps
+
+(define (heap.hibit)
+  (expt 2 (- (nbuild-parameter 'word-size) 1)))
 
 
 ; Symbol table.
@@ -185,37 +219,32 @@
 (define twofiftysix^2 (* 256 256))
 (define twofiftysix   256)
 
+; Number of bytes in a target word.
+
+(define (heap.wordsize)
+  (quotient (nbuild-parameter 'word-size) 8))
+
 (define (heap.word! h w)
   (write-word w (heap.output-port h))
-  (heap.top! h (+ 4 (heap.top h))))
+  (heap.top! h (+ (heap.wordsize) (heap.top h))))
 
 (define (heap.byte! h b)
   (write-byte b (heap.output-port h))
   (heap.top! h (+ 1 (heap.top h))))
 
+; The word w must be a nonnegative integer less than 2^(8*wordsize).
+
 (define (write-word-be w out)
-  (write-byte (quotient w twofiftysix^3)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^3) 
-                        twofiftysix^2)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^2) 
-                        twofiftysix)
-              out)
-  (write-byte (remainder w twofiftysix)
-              out))
+  (let loop ((i (- (heap.wordsize) 1)))
+    (if (>= i 0)
+        (begin (write-byte (remainder (quotient w (expt 256 i)) 256) out)
+               (loop (- i 1))))))
 
 (define (write-word-el w out)
-  (write-byte (remainder w twofiftysix)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^2) 
-                        twofiftysix)
-              out)
-  (write-byte (quotient (remainder w twofiftysix^3) 
-                        twofiftysix^2)
-              out)
-  (write-byte (quotient w twofiftysix^3)
-              out))
+  (let loop ((i 0) (w w))
+    (if (< i (heap.wordsize))
+        (begin (write-byte (remainder w 256) out)
+               (loop (+ i 1) (quotient w 256))))))
 
 (define write-word write-word-be)
 
@@ -231,16 +260,21 @@
 (define (heap.header-word! h immediate length)
   (heap.word! h (+ (* length 256) immediate)))
 
+; Objects are aligned on double-word boundaries.
+
 (define (heap.adjust! h)
-  (let ((p (heap.top h)))
-    (let loop ((i (- (* 8 (quotient (+ p 7) 8)) p)))
+  (let* ((p (heap.top h))
+         (a (* 2 (heap.wordsize))))
+    (let loop ((i (- (* a (quotient (+ p (- a 1)) a)) p)))
       (if (zero? i)
           '()
           (begin (heap.byte! h 0)
                  (loop (- i 1)))))))
-  
-(define heap.largest-fixnum (- (expt 2 29) 1))
-(define heap.smallest-fixnum (- (expt 2 29)))
+
+; Target fixnums have two tag bits.
+
+(define heap.largest-fixnum (- (expt 2 (- (nbuild-parameter 'word-size) 3)) 1))
+(define heap.smallest-fixnum (- (expt 2 (- (nbuild-parameter 'word-size) 3))))
 
 (define (heap.set-root! h name value)
   (heap.roots! h (cons (cons name value) (heap.roots h))))
@@ -260,6 +294,7 @@
 (define (dump-file! h filename)
   (call-with-raw-latin-1-input-file filename
     (lambda (in)
+      (read-code-features-marker in)
       (let loop ((decls '()))
         (let ((item (read in)))
           (if (string? item)
@@ -363,7 +398,7 @@
 
 (define (dump-fixnum! h f)
   (if (negative? f)
-      (- #x100000000 (* (abs f) 4))
+      (- (expt 2 (nbuild-parameter 'word-size)) (* (abs f) 4))
       (* 4 f)))
 
 ; In the Old Days, the character representation was this:
@@ -379,7 +414,7 @@
 
 (define dump-char!
   (case (nbuild-parameter 'target-machine)
-    ((sparc x86-sass x86-nasm standard-c arm)
+    ((sparc x86-sass x86-nasm standard-c arm x86-64)
      (lambda (h c)
        (+ (* (char->integer c) twofiftysix) $imm.character)))
     ((**no-known-target-machines**)
@@ -413,6 +448,7 @@
      ((flat1)
       (dump-bytevector! h (flat1->bytevector s) $tag.string-typetag))
      ((flat4)
+      ; Each character is stored as a 32-bit character immediate.
       (let* ((n (string-length s))
              (bv (make-bytevector (* 4 n)))
              (offsets (case (nbuild-parameter 'target-endianness)
@@ -422,10 +458,15 @@
              (j 0 (+ j 4)))
             ((= i n)
              (dump-bytevector! h bv $tag.ustring-typetag))
-          (bytevector-set! bv (+ j (vector-ref offsets 0)) 0)
-          (bytevector-set! bv (+ j (vector-ref offsets 1)) 0)
-          (bytevector-set! bv (+ j (vector-ref offsets 2)) (char->integer (string-ref s i)))
-          (bytevector-set! bv (+ j (vector-ref offsets 3)) $imm.character))))
+          (let ((code (char->integer (string-ref s i))))
+            (bytevector-set! bv (+ j (vector-ref offsets 0))
+                             (quotient code 65536))
+            (bytevector-set! bv (+ j (vector-ref offsets 1))
+                             (remainder (quotient code 256) 256))
+            (bytevector-set! bv (+ j (vector-ref offsets 2))
+                             (remainder code 256))
+            (bytevector-set! bv (+ j (vector-ref offsets 3))
+                             $imm.character)))))
      (else
       (error 'dump-string! "Unknown string representation: " rep)))))
 
@@ -459,7 +500,8 @@
           (begin (vector-set! v i (recur! h (vector-ref cv i)))
                  (loop (+ i 1)))
           (let ((base (heap.top h)))
-            (heap.header-word! h (+ $imm.vector-header variation) (* l 4))
+            (heap.header-word! h (+ $imm.vector-header variation)
+                                  (* l (heap.wordsize)))
             (let loop ((i 0))
               (if (< i l)
                   (begin (heap.word! h (vector-ref v i))
@@ -468,7 +510,28 @@
                          (+ base $tag.vector-tag)))))))))
 
 (define (dump-codevector! h cv)
-  (dump-bytevector! h cv $tag.bytevector-typetag))
+  (if (heap.split-code?)
+      (dump-text-bytevector! h cv)
+      (dump-bytevector! h cv $tag.bytevector-typetag)))
+
+; Dump a code vector into the text segment and return a pointer to it.
+
+(define (dump-text-bytevector! h bv)
+  (let ((out  (heap.text-port h))
+        (base (heap.text-top h))
+        (l    (bytevector-length bv))
+        (a    (* 2 (heap.wordsize))))
+    (write-word (+ (* l 256) $imm.bytevector-header $tag.bytevector-typetag) out)
+    (do ((i 0 (+ i 1)))
+        ((= i l))
+      (write-byte (bytevector-ref bv i) out))
+    (let* ((n   (+ (heap.wordsize) l))
+           (pad (- (* a (quotient (+ n (- a 1)) a)) n)))
+      (do ((i 0 (+ i 1)))
+          ((= i pad))
+        (write-byte 0 out))
+      (heap.text-top! h (+ base n pad)))
+    (+ (heap.hibit) base $tag.bytevector-tag)))
 
 (define (dump-constantvector! h cv)
   (dump-vector-like! h cv dump-tagged-item! $tag.vector-typetag))
@@ -489,7 +552,7 @@
 
 (define (dump-thunk! h code constants)
   (let ((base (heap.top h)))
-    (heap.header-word! h $imm.procedure-header 8)
+    (heap.header-word! h $imm.procedure-header (* 2 (heap.wordsize)))
     (heap.word! h code)
     (heap.word! h constants)
     (heap.adjust! h)
@@ -660,9 +723,15 @@
                             (write-word $imm.false out))))
                     heap.root-names)))
 
-      (write-word heap.version-number out)
-      (write-roots)
-      (write-word (quotient (heap.top h) 4) out))))
+      (if (heap.split-code?)
+          (begin
+            (write-word (+ (* heap.split-type 65536) heap.version-number) out)
+            (write-roots)
+            (write-word (quotient (heap.text-top h) (heap.wordsize)) out))
+          (begin
+            (write-word heap.version-number out)
+            (write-roots)))
+      (write-word (quotient (heap.top h) (heap.wordsize)) out))))
 
 
 ; Ugliness.

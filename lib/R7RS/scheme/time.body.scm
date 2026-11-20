@@ -1,18 +1,24 @@
-;;; Jiffies have one-second resolution or better, and are reckoned with
-;;; zero jiffies corresponding to the approximate time this library was
-;;; loaded.
+;;; Jiffies are nanoseconds of the monotonic clock where that is a
+;;; fixnum (see jiffies-per-second in (larceny r7rs primitives patches)),
+;;; reckoned from the clock's own epoch (boot, on Linux and macOS).
+;;; Otherwise they have one-second resolution or better, and are
+;;; reckoned with zero jiffies corresponding to the approximate time
+;;; this library was loaded.
 
-(define arbitrary-baseline
-  (call-with-values
-   current-utc-time
-   (lambda (secs usecs)
-     secs)))
+(define arbitrary-baseline              ; (current-utc-time) may load the FFI
+  (exact (floor (current-second))))
 
 (define current-jiffy
   (case (jiffies-per-second)
+   ((1000000000)
+    larceny:monotonic-nanoseconds)
    ((1)
     (lambda () (- (current-seconds) arbitrary-baseline)))
    ((1000000)
+    ;; Not current-second: where there is no fixnum of nanoseconds
+    ;; (32-bit systems), current-second may be time(), whole seconds
+    ;; (primitive_time without POSIX_UNIX).  current-utc-time loads the
+    ;; FFI on its first call, which takes a third of a second.
     (lambda ()
       (call-with-values
        current-utc-time
@@ -50,6 +56,10 @@
 ;;; Bottom line:  We *might* be able to make (current-jiffy) faster
 ;;; and more useful for timing small intervals by making it a syscall
 ;;; instead of going through the FFI.  Not worth the trouble.
+;;;
+;;; Since 2026-10-25 64-bit Unix systems use a syscall that returns the
+;;; monotonic clock (clock_gettime) as a fixnum of nanoseconds: it does
+;;; not allocate, and does not jump when the time of day is set.
 
 (define (current-utc-time-continuation-microseconds secs usecs)
   (+ (* 1000000 (- secs arbitrary-baseline))

@@ -1247,6 +1247,31 @@
                      (kar k))))
            '(#t #f 1 2 3))
 
+     ;; Larceny open-codes the accessors and mutators of a record type
+     ;; without a parent (as macros); they are still procedures where
+     ;; they are not called, may be used before the definition in a
+     ;; body, and check their argument.
+
+     (test (let ()
+             (define (early p) (kdr2 p))
+             (define-record-type <pare2>
+               (kons2 x y)
+               pare2?
+               (x kar2 set-kar2!)
+               (y kdr2))
+             (define-record-type <other> (make-other) other?)
+             (let ((p (kons2 1 2))
+                   (set set-kar2!))
+               (set p 5)
+               (list (early p)
+                     (map kar2 (list p (kons2 3 4)))
+                     (eq? kar2 kar2)
+                     (procedure? kdr2)
+                     (guard (c (#t 'error)) (kar2 (vector 1 2 3)))
+                     (guard (c (#t 'error)) (kar2 (make-other)))
+                     (guard (c (#t 'error)) (set-kar2! 'x 1)))))
+           '(2 (5 3) #t #t error error error))
+
      ;;     eqv?                                    ; R7RS 6.1
      ;;     eq?
      ;;     equal?

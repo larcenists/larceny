@@ -29,6 +29,11 @@ const char *larceny_gc_technology = "precise";
 #include "heapio.h"
 #include "barrier.h"
 #include "stack.h"
+#if defined PETIT_LARCENY || defined X86_NASM
+# include "petit-machine.h"            /* For LASTREG */
+#else
+# include "regs.ch"                    /* For LASTREG */
+#endif
 #include "msgc-core.h"
 #include "region_group_t.h"
 #include "smircy.h"
@@ -45,9 +50,14 @@ const char *larceny_gc_technology = "precise";
 #include "memmgr_flt.h"
 #include "memmgr_vfy.h"
 #include "memmgr_internal.h"
+#include "code-space.h"
+#include "card.h"
 
 static gc_t *alloc_gc_structure( word *globals, gc_param_t *info );
-static word *load_text_or_data( gc_t *gc, int size_bytes, int load_text );
+static word *load_text_or_data( gc_t *gc, s_word size_bytes, int load_text );
+#if CODE_SPACE
+static void collect_code_by_scanning( gc_t *gc, smircy_context_t *marks );
+#endif
 static int allocate_generational_system( gc_t *gc, gc_param_t *params );
 static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info );
 static int allocate_regional_system( gc_t *gc, gc_param_t *info );
@@ -164,6 +174,13 @@ void gc_dump_mmu_data( gc_t *gc, FILE *f )
 
    Taking lower_limit into account: pin M as max( M, lower_limit ).
 
+   With -nocontract, pin M as max( M, *max_M ), where *max_M is the
+   greatest M computed before for the same area (0 at first), and
+   update *max_M.  It is not the peak of all the memory allocated to
+   the heap, which includes what each M brings with it (the copy
+   reserve, other areas): the heap allocated would then exceed the
+   peak after each collection, and M would grow at every collection.
+
    Taking upper_limit into account: first pin M as min( M, upper_limit ).
    If M - current_live - live_at_next_gc is negative, then there is
    negative space available for allocation, which is absurd, hence the
@@ -180,16 +197,17 @@ void gc_dump_mmu_data( gc_t *gc, FILE *f )
    can be estimated with some certainty.  Other programs should use the
    load factor for control.
    */
-int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L, 
-                             int lower_limit, int upper_limit )
+s_word gc_compute_dynamic_size( gc_t *gc, s_word D, s_word S, s_word Q, double L, 
+                             s_word lower_limit, s_word upper_limit,
+                             s_word *max_M )
 {
-  int live = D+S+Q;
-  int M = (int)(L*live);
-  int est_live_next_gc = live;        /* == M/L */
+  s_word live = D+S+Q;
+  s_word M = (s_word)(L*live);
+  s_word est_live_next_gc = live;        /* == M/L */
 
   if (lower_limit && upper_limit == lower_limit) {
     /* Fixed heap size */
-    return roundup_page( upper_limit - (int)(upper_limit/L) );
+    return roundup_page( upper_limit - (s_word)(upper_limit/L) );
   }
 
   if (lower_limit) {
@@ -202,38 +220,35 @@ int gc_compute_dynamic_size( gc_t *gc, int D, int S, int Q, double L,
   }
   
   if (!DATA(gc)->shrink_heap) {
-    gclib_stats_t stats;
-
-    gclib_stats( &stats );
-    M = umax( M, stats.heap_allocated_max ); /* use no less than before */
+    /* use no less than before for this area (see above) */
+    M = umax( M, *max_M );
+    *max_M = M;
   }
 
   if (upper_limit > 0) {
-    int newM = min( M, upper_limit );
-    int avail = (newM - live - est_live_next_gc);
+    s_word newM = min( M, upper_limit );
+    s_word avail = (newM - live - est_live_next_gc);
     if (avail < 0)
-      M = newM + roundup_page( abs( avail ) );        /* _Minimal_ amount */
+      M = newM + roundup_page( -avail );        /* _Minimal_ amount */
     else
       M = newM;
   }
 
-  annoyingmsg( "New heap size by policy should be %d bytes", M );
+  annoyingmsg( "New heap size by policy should be %" PRIdWORD " bytes", M );
 
   return roundup_page( M - est_live_next_gc );
 }
 
-void gc_parameters( gc_t *gc, int op, int *ans )
+void gc_parameters( gc_t *gc, int op, s_word *ans )
 {
   gc_data_t *data = DATA(gc);
 
   assert( op >= 0 && op <= data->generations );
 
   if (op == 0) {
-    ans[0] = data->is_partitioned_system;       // generational?
+    /* 0 = stop+copy, 1 = generational, 3 = regional */
+    ans[0] = (data->is_regional_system ? 3 : data->is_partitioned_system);
     ans[1] = data->generations;
-    if (ans[0] && data->remset_undirected) {    // FIXME: 3 means regional
-      ans[0] = 3;                               // see system-interface.sch
-    }
   }
   else {
     /* info about generation op-1
@@ -350,25 +365,25 @@ static int initialize( gc_t *gc )
   return 1;
 }
   
-static word *allocate( gc_t *gc, int nbytes, bool no_gc, bool atomic )
+static word *allocate( gc_t *gc, s_word nbytes, bool no_gc, bool atomic )
 {
   assert( nbytes > 0 );
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
-    panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
+    panic_exit( "Can't allocate an object of size %" PRIdWORD " bytes: max is %" PRIdWORD " bytes.",
                 nbytes, LARGEST_OBJECT );
 
   if (DATA(gc)->ephemeral_area_count > 0 && 
       nbytes > DATA(gc)->ephemeral_area[ 0 ]->maximum ) {
-    consolemsg("allocate: holy cow; nbytes=%d and max=%d",
+    consolemsg("allocate: holy cow; nbytes=%" PRIdWORD " and max=%" PRIdWORD,
                nbytes, DATA(gc)->ephemeral_area[0]->maximum );
   }
 
   return yh_allocate( gc->young_area, nbytes, no_gc );
 }
 
-static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
+static word *allocate_nonmoving( gc_t *gc, s_word nbytes, bool atomic )
 {
   assert( nbytes > 0 );
 
@@ -377,7 +392,7 @@ static word *allocate_nonmoving( gc_t *gc, int nbytes, bool atomic )
 
   nbytes = roundup_balign( nbytes );
   if (nbytes > LARGEST_OBJECT)
-    panic_exit( "Can't allocate an object of size %d bytes: max is %d bytes.",
+    panic_exit( "Can't allocate an object of size %" PRIdWORD " bytes: max is %" PRIdWORD " bytes.",
                 nbytes, LARGEST_OBJECT );
 
   return sh_allocate( gc->static_area, nbytes );
@@ -390,7 +405,7 @@ static void make_room( gc_t *gc )
 
 static void collect_generational( gc_t *gc, 
                                   int gen, 
-                                  int bytes_needed, 
+                                  s_word bytes_needed, 
                                   gc_type_t request )
 {
   gclib_stats_t stats;
@@ -459,10 +474,10 @@ static void collect_generational( gc_t *gc,
     stats_following_gc( gc );
 
     gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+    annoyingmsg( "  Memory usage: heap %" PRIdWORD ", remset %" PRIdWORD ", RTS %" PRIdWORD " words",
                  stats.heap_allocated, stats.remset_allocated, 
                  stats.rts_allocated );
-    annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+    annoyingmsg( "  Max heap usage: %" PRIdWORD " words", stats.heap_allocated_max );
   }
 }
 
@@ -706,7 +721,7 @@ static void reset_countdown_to_next_refine( gc_t *gc )
   
 }
 
-static int add_region_to_expand_heap( gc_t *gc, int maximum_allotted )
+static s_word add_region_to_expand_heap( gc_t *gc, s_word maximum_allotted )
 {
   semispace_t *ss = gc_fresh_space(gc);
   int eidx = ss->gen_no - 1;
@@ -764,7 +779,7 @@ static void rrof_completed_regional_cycle( gc_t *gc )
     print_float_stats( "cycle ", gc );
 
   if (DATA(gc)->region_count < 2) {
-    int live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
+    s_word live_words = gc_allocated_to_areas( gc, gset_singleton( 1 ));
     if (gc->static_area != NULL) {
       live_words += (gc->static_area->data_area->allocated / sizeof(word));
     }
@@ -1087,6 +1102,15 @@ static void smircy_step( gc_t *gc, smircy_step_finish_mode_t finish_mode )
 
   if (gc->smircy != NULL 
       && smircy_in_completed_stage_p( gc->smircy )) {
+#if CODE_SPACE
+    /* Marking has finished and the next cycle has not begun: a code
+       collection deferred during marking can happen now.  (The nursery
+       has been evacuated and the stack flushed.)  With enough regions
+       marking is nearly continuous, so this may be the only chance.
+       The marks tell garbage from live objects. */
+    if (gc->code_space && gc->code_space->scan_requested)
+      collect_code_by_scanning( gc, gc->smircy );
+#endif
     incremental_refinement_has_completed( gc );
   }
 
@@ -1208,7 +1232,7 @@ struct msgc_visit_check_summary_data {
   locset_t *summary_as_ls;
 };
 
-static void* msgc_visit_check_summary( word obj, word src, int offset, 
+static void* msgc_visit_check_summary( word obj, word src, s_word offset, 
                                        void *my_data )
 {
   struct msgc_visit_check_summary_data *data;
@@ -1271,7 +1295,7 @@ static bool lsscan_summary_sound( loc_t loc, void *my_data )
                    && (gen_of(val) != 0));
   if (bad_condition) {
     word loc_obj = loc_to_obj(loc);
-    consolemsg(  "UNSOUND SUMMARY 0x%08x (%d) -> 0x%08x (%d) "
+    consolemsg(  "UNSOUND SUMMARY 0x%08" PRIxWORD " (%d) -> 0x%08" PRIxWORD " (%d) "
                  "marked {obj->slot:N obj:%s, rs: %s, smircy obj->slot:%s obj:%s}", 
                  loc_obj, gen_of(loc_obj), val, gen_of(val), 
                  msgc_object_marked_p( msgc, loc_obj )?"Y":"N", 
@@ -1359,7 +1383,7 @@ struct summaryscan_buildup_ls_data {
 static void summaryscan_buildup_ls( loc_t loc, void *my_data ) 
 { 
   word obj   = loc_to_obj(loc);
-  int offset = loc_to_offset(loc);
+  s_word offset = loc_to_offset(loc);
   struct summaryscan_buildup_ls_data *data;
   locset_t *target_ls;
   static word last_obj = 0x0;
@@ -1586,7 +1610,7 @@ static bool collect_rgnl_majorgc( gc_t *gc,
       assert( other_idx == 0 || other_idx == 1 );
       assert( (other_idx + to_idx) == 1 );
       if (DATA(gc)->ephemeral_area[other_idx]->allocated == 0) {
-        int live_words = 
+        s_word live_words = 
           DATA(gc)->ephemeral_area[to_idx]->allocated / sizeof(word);
         if (gc->static_area != NULL) {
           live_words += (gc->static_area->data_area->allocated / sizeof(word));
@@ -1664,12 +1688,12 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
    */
 
   int other_idx = (-to_idx)+1;
-  int nursery_allocated = (gc->young_area->allocated +
+  s_word nursery_allocated = (gc->young_area->allocated +
                            los_bytes_used( gc->los, 0 ));
-  int nursery_alloc_roundup;
-  int fragmentation_allowance;
-  int rgn_allocated;
-  int rgn_avail;
+  s_word nursery_alloc_roundup;
+  s_word fragmentation_allowance;
+  s_word rgn_allocated;
+  s_word rgn_avail;
   bool data_may_stay_in_one_region, data_stays_in_one_region;
 
   assert2( other_idx == 0 || other_idx == 1 );
@@ -1685,19 +1709,23 @@ static bool data_definitely_stays_in_one_region( gc_t *gc, int to_idx )
          DATA(gc)->ephemeral_area[ to_idx ]->allocated)
         > nursery_allocated));
   if (data_may_stay_in_one_region) {
-    int max_num_gc_chunks;
+    s_word max_num_gc_chunks;
     oh_synchronize( DATA(gc)->ephemeral_area[ other_idx ] );
     oh_synchronize( DATA(gc)->ephemeral_area[ to_idx ] );
 
     rgn_allocated = (DATA(gc)->ephemeral_area[ to_idx ]->allocated 
-                     + los_bytes_used( gc->los, to_idx+1 ));
+                     + los_bytes_used_include_marklists( gc->los, to_idx+1 ));
     rgn_avail = (DATA(gc)->ephemeral_area[ to_idx ]->maximum
                  - rgn_allocated);
     max_num_gc_chunks = quotient2( rgn_avail, GC_CHUNK_SIZE )+1;
     fragmentation_allowance = max_num_gc_chunks * GC_LARGE_OBJECT_LIMIT;
-    nursery_alloc_roundup = 
-      (quotient2( nursery_allocated + fragmentation_allowance, 
-                  GC_CHUNK_SIZE )) * GC_CHUNK_SIZE;
+    /* find_space_rgnl expands the region by at least a chunk, and only
+       if the data already in it plus that chunk fits: the region must
+       have room for all of the promoted data plus a whole chunk, not
+       just for the promoted data rounded up to chunks (that misjudged
+       a 64KB nursery promoted into an almost full region).  */
+    nursery_alloc_roundup =
+      nursery_allocated + fragmentation_allowance + GC_CHUNK_SIZE;
     data_stays_in_one_region
       =  ((DATA(gc)->ephemeral_area[ other_idx ]->allocated == 0)
           && 
@@ -1745,7 +1773,11 @@ static void collect_rgnl_minorgc( gc_t *gc, int rgn_to )
   }
 
 #if 1
-  if (DATA(gc)->region_count == 2) {
+  /* region_count is updated at the start of a cycle, so there may be
+     more areas by now (and rgn_to may be one of them); see also
+     collect_rgnl_majorgc. */
+  if (DATA(gc)->region_count == 2 &&
+      DATA(gc)->ephemeral_area_count == 2) {
     int to_idx = rgn_to - 1;
     assert2( rgn_to == 1 || rgn_to == 2 );
 
@@ -1914,7 +1946,7 @@ static int find_appropriate_next( gc_t *gc )
 }
 
 static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn, 
-                                          int bytes_needed, gc_type_t request )
+                                          s_word bytes_needed, gc_type_t request )
 {
   char *type_str;
   switch (request) {
@@ -1924,7 +1956,7 @@ static void collect_rgnl_annoy_re_inputs( gc_t *gc, int rgn,
   case GCTYPE_FULL:     type_str = "FULL"; break;
   default: assert(0);
   }
-  supremely_annoyingmsg("collect_rgnl(gc, %d, %d, %s)", 
+  supremely_annoyingmsg("collect_rgnl(gc, %d, %" PRIdWORD ", %s)", 
                         rgn, bytes_needed, type_str );
 }
 
@@ -1946,7 +1978,7 @@ static void rrof_calc_target_allocation( gc_t *gc,
   long long A_this = DATA(gc)->since_cycle_began.words_promoted;
   double F_2    = DATA(gc)->rrof_sumz_params.budget_inv;
   int F_3    = DATA(gc)->rrof_sumz_params.max_retries;
-  int N = /* FIXME should be incrementally calculated via collection delta */
+  s_word N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc,
                            gset_range( 1, DATA(gc)->ephemeral_area_count ))
     / sizeof(word);
@@ -2111,7 +2143,7 @@ static void collect_rgnl_evacuate_nursery( gc_t *gc )
   }
 }
 
-static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request )
+static void collect_rgnl( gc_t *gc, int rgn, s_word bytes_needed, gc_type_t request )
 {
   gclib_stats_t stats;
   gc_data_t *data = DATA(gc);
@@ -2204,10 +2236,10 @@ static void collect_rgnl( gc_t *gc, int rgn, int bytes_needed, gc_type_t request
 
     stats_following_gc( gc );
     gclib_stats( &stats );
-    annoyingmsg( "  Memory usage: heap %d, remset %d, RTS %d words",
+    annoyingmsg( "  Memory usage: heap %" PRIdWORD ", remset %" PRIdWORD ", RTS %" PRIdWORD " words",
                  stats.heap_allocated, stats.remset_allocated, 
                  stats.rts_allocated );
-    annoyingmsg( "  Max heap usage: %d words", stats.heap_allocated_max );
+    annoyingmsg( "  Max heap usage: %" PRIdWORD " words", stats.heap_allocated_max );
   }
 
 }
@@ -2316,7 +2348,7 @@ static void incremental_rgnl( gc_t *gc )
 static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt ) 
 {
   assert(isptr(tgt));
-  supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08x (%d), 0x%08x (%d) )", 
+  supremely_annoyingmsg( "check_remset_invs_rgnl( gc, 0x%08" PRIxWORD " (%d), 0x%08" PRIxWORD " (%d) )", 
                          src, isptr(src)?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
   assert( ! isptr(src) ||
@@ -2327,7 +2359,7 @@ static void check_remset_invs_rgnl( gc_t *gc, word src, word tgt )
 }
 static void check_remset_invs( gc_t *gc, word src, word tgt ) 
 {
-  supremely_annoyingmsg( "check_remset_invs( gc, 0x%08x (%d), 0x%08x (%d) )", 
+  supremely_annoyingmsg( "check_remset_invs( gc, 0x%08" PRIxWORD " (%d), 0x%08" PRIxWORD " (%d) )", 
                          src, src?gen_of(src):0, tgt, gen_of(tgt) );
   /* XXX Felix is not convinced this assertion is sound. */
   assert( !src || 
@@ -2389,9 +2421,153 @@ void gc_check_infamy_drop_to_hasbeen( gc_t *gc,
   }
 }
 
+#if CODE_SPACE
+/* Collecting code by scanning (for the regional collector; see
+   code-space.h).  Called after a collection, when the stack has been
+   flushed into the heap and the nursery has been evacuated, so that
+   every pointer to code is in a root, in an area enumerated by
+   enumerate_hdr_address_ranges(), or in a large object.  Every pointer
+   to a code object is updated, and every code object referenced is
+   copied.
+
+   Without marks, that includes code referenced only from garbage, which
+   then lives until the garbage's region is collected.  With the marks
+   of a completed mark cycle (marks != NULL), an unmarked object is
+   known to be garbage (objects promoted since the snapshot are marked
+   when they are forwarded, and objects outside the mark bitmap count as
+   marked), and its pointers to code are cleared instead, so the code
+   is not kept.  Nothing can reach the object to see the cleared fields,
+   and a scan of the heap only reads them.  */
+
+typedef struct {
+  code_space_t *cs;
+  smircy_context_t *marks;      /* or NULL */
+  word dead_code_pointers;      /* cleared in garbage */
+} cs_scan_data_t;
+
+static void cs_scan_root( word *loc, void *data )
+{
+  *loc = cs_update_pointer( ((cs_scan_data_t*)data)->cs, *loc );
+}
+
+/* p[0..n) are the fields of an object, the tagged pointer obj. */
+
+static void cs_scan_fields( cs_scan_data_t *d, word obj, word *p, word n )
+{
+  word i;
+
+  if (d->marks != NULL && !smircy_object_marked_p( d->marks, obj )) {
+    for ( i=0 ; i < n ; i++ )
+      if (tagof( p[i] ) == BVEC_TAG && is_code_page( p[i] )) {
+        p[i] = FALSE_CONST;
+        d->dead_code_pointers++;
+      }
+  }
+  else {
+    for ( i=0 ; i < n ; i++ )
+      p[i] = cs_update_pointer( d->cs, p[i] );
+  }
+}
+
+static void cs_scan_range( word *p, word *lim, void *data )
+{
+  cs_scan_data_t *d = (cs_scan_data_t*)data;
+
+  while (p < lim) {
+    word w = *p;
+    if (ishdr( w )) {
+      word words = 1 + roundup_word( sizefield( w ) )/sizeof(word);
+      if (header( w ) != BV_HDR)
+        cs_scan_fields( d,
+                        tagptr( p, header( w ) == VEC_HDR ? VEC_TAG
+                                                          : PROC_TAG ),
+                        p+1, words-1 );
+      p += roundup_walign( words );
+    }
+    else {
+      cs_scan_fields( d, tagptr( p, PAIR_TAG ), p, 2 );
+      p += 2;
+    }
+  }
+}
+
+static void collect_code_by_scanning( gc_t *gc, smircy_context_t *marks )
+{
+  code_space_t *cs = gc->code_space;
+  cs_scan_data_t d;
+  int gno;
+
+  d.cs = cs;
+  d.marks = marks;
+  d.dead_code_pointers = 0;
+  cs->scan_requested = 0;
+  gc_enumerate_roots( gc, cs_scan_root, (void*)&d );
+  for ( gno=1 ; gno < gc->gno_count ; gno++ )
+    gc_enumerate_hdr_address_ranges( gc, gno, cs_scan_range, (void*)&d );
+  cs_after_collection( cs );
+  cs_collected( cs );
+  annoyingmsg( "Code space: collected by scanning%s; "
+               "%" PRIdWORD " pointers to code cleared in garbage; "
+               "%" PRIdWORD " bytes of code live.",
+               (marks != NULL ? " with marks" : ""),
+               d.dead_code_pointers, cs->live );
+  /* Code objects moved: address-based hash tables must be rehashed. */
+  DATA(gc)->globals[ G_GC_CNT ] += fixnum(1);
+}
+#endif
+
+/* The registers are roots, and a register keeps a dead value until it
+   is overwritten, possibly long after the procedure that set it has
+   returned.  The assembler records in the documentation of a code
+   vector (constant 0) the set of registers that its code uses or
+   receives arguments in, as a bit mask (see fence.store-register-mask!
+   in Asm/Fence/pass5p2.sch and Lib/Common/procinfo.sch); the others
+   cannot hold anything the code in REG0 needs (Twobit keeps a caller's
+   values in its frame, and restores REG0 right after every return), so
+   they are cleared before a collection.  Without a mask all registers
+   are kept, and with -keepregs (gc_keep_dead_registers) too, for
+   debugging.
+   */
+
+#define DOC_REGISTERS 6                 /* doc.registers in procinfo.sch */
+
+bool gc_keep_dead_registers = 0;
+
+static void clear_dead_registers( word *globals )
+{
+  word p, cv, doc, n, mask;
+  int i;
+
+  if (gc_keep_dead_registers)
+    return;
+  p = globals[ G_REG0 ];
+  if (tagof( p ) != PROC_TAG)
+    return;
+  cv = procedure_ref( p, IDX_PROC_CONST );
+  if (tagof( cv ) != VEC_TAG || vector_length( cv ) < 1)
+    return;
+  doc = vector_ref( cv, 0 );
+  if (tagof( doc ) == PAIR_TAG &&       /* ((offset . doc) ...) */
+      tagof( pair_car( doc ) ) == PAIR_TAG)
+    doc = pair_cdr( pair_car( doc ) );
+  if (tagof( doc ) != VEC_TAG ||
+      typetag( *ptrof( doc ) ) != typetag( VECTOR_HDR ) ||
+      vector_length( doc ) <= DOC_REGISTERS)
+    return;
+  n = vector_ref( doc, DOC_REGISTERS );
+  if (!is_fixnum( n ) || (s_word)n < 0 || (nativeuint( n ) >> 16) != 1)
+    return;                             /* not a mask: bit 16 marks one */
+  mask = nativeuint( n );
+  for ( i = 1 ; i <= LASTREG ; i++ )
+    if ((mask & ((word)1 << i)) == 0)
+      globals[ G_REG0+i ] = FALSE_CONST;
+}
+
 static void before_collection( gc_t *gc )
 {
   int e;
+
+  clear_dead_registers( DATA(gc)->globals );
 
   gc->stat_last_ms_gc_cheney_pause = 0;
   gc->stat_last_ms_gc_cheney_pause_cpu = 0;
@@ -2457,11 +2633,21 @@ static void after_collection( gc_t *gc )
   assert(! DATA(gc)->use_summary_instead_of_remsets );
   SUMMMTX_VERIFICATION_POINT(gc);
 
+#if CODE_SPACE
+  /* Here the stack has been flushed and the nursery evacuated. */
+  if (gc->code_space && gc->code_space->scan_requested && gc->smircy == NULL)
+    collect_code_by_scanning( gc, NULL );
+#endif
+
   yh_after_collection( gc->young_area );
   for ( e=0 ; e < DATA(gc)->ephemeral_area_count ; e++ )
     oh_after_collection( DATA(gc)->ephemeral_area[ e ] );
   if (DATA(gc)->dynamic_area)
     oh_after_collection( DATA(gc)->dynamic_area );
+#if CODE_SPACE
+  if (gc->code_space)
+    cs_after_collection( gc->code_space );
+#endif
   if (! DATA(gc)->remset_undirected) {
     /* hack to work around delayed clearing of remset in generational gc;
      * the remset has dangling pointers in it until it is cleared by
@@ -2670,9 +2856,9 @@ static bool apply_f_to_remset_obj_entry( word obj, void *data_orig )
     f( make_loc(obj, sizeof(word)), scan_data );
   } else {
     word words; 
-    int offset;
+    s_word offset;
     assert2( tagof(obj) == VEC_TAG || tagof(obj) == PROC_TAG );
-    words = sizefield( *w ) / 4; /* XXX sizeof(word) for generality? */
+    words = sizefield( *w ) / sizeof(word);
     offset = 0;
     while (words--) {
       offset += sizeof(word);
@@ -2752,23 +2938,31 @@ static void enumerate_hdr_address_ranges( gc_t *gc,
   }
 }
 
-word *data_load_area( gc_t *gc, int size_bytes )
+word *data_load_area( gc_t *gc, s_word size_bytes )
 {
   return load_text_or_data( gc, size_bytes, 0 );
 }
 
-static word *text_load_area( gc_t *gc, int size_bytes )
+static word *text_load_area( gc_t *gc, s_word size_bytes )
 {
   return load_text_or_data( gc, size_bytes, 1 );
 }
 
-static word *load_text_or_data( gc_t *gc, int nbytes, int load_text )
+static word *load_text_or_data( gc_t *gc, s_word nbytes, int load_text )
 {
   word *rtn;
 
   assert( nbytes > 0 );
   assert( nbytes % BYTE_ALIGNMENT == 0 );
   
+#if CODE_SPACE
+  if (load_text) {
+    if (gc->code_space == 0)
+      panic_exit( "This collector does not support compiled code." );
+    return cs_load_area( gc->code_space, nbytes );
+  }
+#endif
+
   if (gc->static_area)
     DATA(gc)->nonexpandable_size += nbytes;
   effect_heap_limits( gc );
@@ -2900,7 +3094,7 @@ static void force_collector_to_make_progress( gc_t *gc )
 {
   word *globals = DATA(gc)->globals;
   word *p;
-  int nbytes;
+  s_word nbytes;
   word *lim;
   p = (word*)globals[ G_ETOP ];
   lim = ((word*)globals[ G_STKP ]-SCE_BUFFER);
@@ -2941,7 +3135,7 @@ static int compact_all_ssbs( gc_t *gc )
     FIXME_UNUSED_VARIABLE(mut_effort_full);
     if (mut_effort_sumz > cN) {
       annoyingmsg( "compact_all_ssbs force_progress because "
-                   "mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%d",
+                   "mut_effort_sumz=%d=%d+%d > cN=%d, while max_live_words=%" PRIdWORD,
                   mut_effort_sumz, 
                   DATA(gc)->mutator_effort.rrof_ssb_entries_flushed_this.sumz_cycle,
                   DATA(gc)->mutator_effort.words_promoted_this.sumz_cycle,
@@ -3012,6 +3206,10 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
     compact_all_areas( gc );
 
   type = (gc->static_area ? HEAP_SPLIT : HEAP_SINGLE);
+#if CODE_SPACE
+  if (gc->code_space)
+    type = HEAP_SPLIT;
+#endif
   heap = create_heapio();
   if ((r = hio_create( heap, filename, type )) < 0) goto fail;
 
@@ -3022,6 +3220,13 @@ static int dump_stopcopy_system( gc_t *gc, const char *filename, bool compact )
      It's awkward, but an OK temporary solution.
      */
   if ((r = hio_dump_initiate( heap, DATA(gc)->globals )) < 0) goto fail;
+
+#if CODE_SPACE
+  if (gc->code_space) {
+    r = dump_semispace( heap, TEXT_SEGMENT, cs_semispace( gc->code_space ) );
+    if (r < 0) goto fail;
+  }
+#endif
 
   if (gc->static_area) {
     if (gc->static_area->text_area) {
@@ -3062,8 +3267,8 @@ static void compact_all_areas( gc_t *gc )
 static void effect_heap_limits( gc_t *gc )
 {
   if (DATA(gc)->dynamic_max) {
-    int lim = DATA(gc)->dynamic_max+DATA(gc)->nonexpandable_size;
-    annoyingmsg( "*** Changing heap limit to %d", lim );
+    s_word lim = DATA(gc)->dynamic_max+DATA(gc)->nonexpandable_size;
+    annoyingmsg( "*** Changing heap limit to %" PRIdWORD, lim );
     gclib_set_heap_limit( lim );
   }
 }
@@ -3190,6 +3395,10 @@ static void expand_static_area_gnos( gc_t *gc, int fresh_gno )
       ss_set_gen_no( gc->static_area->text_area, new_static_gno );
     DATA(gc)->static_generation = new_static_gno;
     DATA(gc)->globals[ G_FILTER_REMSET_RHS_NUM ] = new_static_gno;
+#if CODE_SPACE
+    if (gc->code_space)
+      cs_set_gen_no( gc->code_space, new_static_gno );
+#endif
   }
 }
 
@@ -3212,7 +3421,7 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     new_ssb[i] = gc->ssb[i];
     seqbuf_swap_in_ssb( gc->ssb[i], &new_ssb_bot[i], 
                         &new_ssb_top[i], &new_ssb_lim[i] );
-    seqbuf_set_sp_data( gc->ssb[i], /* XXX */(void*) i );
+    seqbuf_set_sp_data( gc->ssb[i], (void*)(intptr_t) i );
   }
   /* XXX This code only works with RROF, but I do not have a
    * reasonable way to assert that precondition. */
@@ -3220,12 +3429,12 @@ static void expand_remset_gnos( gc_t *gc, int fresh_gno )
     create_seqbuf( DATA(gc)->ssb_entry_count, 
                    &new_ssb_bot[fresh_gno], &new_ssb_top[fresh_gno], 
                    &new_ssb_lim[fresh_gno], ssb_process_rrof, 
-                   /* XXX */(void*) fresh_gno );
+                   (void*)(intptr_t) fresh_gno );
   for( i = fresh_gno+1; i < new_gno_count; i++ ) {
     new_ssb[i] = gc->ssb[i-1];
     seqbuf_swap_in_ssb( gc->ssb[i-1], 
                         &new_ssb_bot[i], &new_ssb_top[i], &new_ssb_lim[i] );
-    seqbuf_set_sp_data( gc->ssb[i-1], /* XXX */(void*)i );
+    seqbuf_set_sp_data( gc->ssb[i-1], (void*)(intptr_t)i );
   }
 
   free( gc->ssb );
@@ -3265,21 +3474,21 @@ static old_heap_t* expand_gc_area_gnos( gc_t *gc, int fresh_gno )
   return heap;
 }
 
-static semispace_t *find_space_expanding( gc_t *gc, unsigned bytes_needed, 
+static semispace_t *find_space_expanding( gc_t *gc, s_word bytes_needed, 
                                           semispace_t *current_space )
 {
   ss_expand( current_space, max( bytes_needed, GC_CHUNK_SIZE ) );
   return current_space;
 }
 
-static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
+static semispace_t *find_space_rgnl( gc_t *gc, s_word bytes_needed,
                                      semispace_t *current_space )
 {
-  int los_allocated;
-  int cur_allocated;
-  int max_allocated = 
+  s_word los_allocated;
+  s_word cur_allocated;
+  s_word max_allocated = 
     gc_maximum_allotted( gc, gset_singleton( current_space->gen_no ));
-  int expansion_amount = max( roundup_page(bytes_needed), GC_CHUNK_SIZE );
+  s_word expansion_amount = max( roundup_page(bytes_needed), GC_CHUNK_SIZE );
   int to_rgn_old = DATA(gc)->rrof_to_region;
   int to_rgn_new;
 
@@ -3311,7 +3520,7 @@ static semispace_t *find_space_rgnl( gc_t *gc, unsigned bytes_needed,
   to_rgn_new = find_appropriate_to( gc );
 
   if (expansion_amount > DATA(gc)->ephemeral_area[ to_rgn_new-1 ]->maximum ) {
-    consolemsg("find_space_rgnl: holy cow; bytes_needed=%d and max=%d",
+    consolemsg("find_space_rgnl: holy cow; bytes_needed=%" PRIdWORD " and max=%" PRIdWORD,
                bytes_needed, DATA(gc)->ephemeral_area[ to_rgn_new-1]->maximum );
   }
 
@@ -3352,7 +3561,7 @@ static semispace_t *fresh_space( gc_t *gc )
   return ss;
 }
 
-static int allocated_to_area( gc_t *gc, int gno ) 
+static s_word allocated_to_area( gc_t *gc, int gno ) 
 {
   int eph_idx = gno-1;
   if (gno == 0) 
@@ -3361,14 +3570,14 @@ static int allocated_to_area( gc_t *gc, int gno )
 #ifdef NDEBUG2
     return DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
 #else
-    int area_thinks_allocated = 
+    s_word area_thinks_allocated = 
       DATA(gc)->ephemeral_area[ eph_idx ]->allocated;
-    int retval;
+    s_word retval;
     semispace_t *space = oh_current_space( DATA(gc)->ephemeral_area[ eph_idx ] );
     ss_sync( space );
     retval = space->used + los_bytes_used( gc->los, gno );
     if (area_thinks_allocated != retval) {
-      consolemsg("gno: %d area thinks: %d but actually: %d", 
+      consolemsg("gno: %d area thinks: %ld but actually: %ld", 
                   gno, area_thinks_allocated, retval);
     }
     assert( area_thinks_allocated == retval ); /* XXX was this ever right? */
@@ -3380,7 +3589,7 @@ static int allocated_to_area( gc_t *gc, int gno )
   }
 }
 
-static int maximum_allotted_to_area( gc_t *gc, int gno ) 
+static s_word maximum_allotted_to_area( gc_t *gc, int gno ) 
 {
   int eph_idx = gno-1;
   if (gno == 0)
@@ -3393,9 +3602,9 @@ static int maximum_allotted_to_area( gc_t *gc, int gno )
   }
 }
 
-static int allocated_to_areas( gc_t *gc, gset_t gs ) 
+static s_word allocated_to_areas( gc_t *gc, gset_t gs ) 
 {
-  int i, sum;
+  int i; s_word sum;
   switch (gs.tag) {
   case gs_singleton:
     return allocated_to_area( gc, gs.g1 );
@@ -3410,9 +3619,9 @@ static int allocated_to_areas( gc_t *gc, gset_t gs )
   assert(0);
 }
 
-static int maximum_allotted( gc_t *gc, gset_t gs ) 
+static s_word maximum_allotted( gc_t *gc, gset_t gs ) 
 {
-  int i, sum;
+  int i; s_word sum;
   switch (gs.tag) {
   case gs_singleton:
     return maximum_allotted_to_area( gc, gs.g1 );
@@ -3510,6 +3719,9 @@ static int allocate_stopcopy_system( gc_t *gc, gc_param_t *info )
 
   gc->young_area = create_sc_heap( 0, gc, &info->sc_info, info->globals );
   strcat( buf, gc->young_area->id );
+#if CODE_SPACE
+  gc->code_space = create_code_space( 0, 0 );
+#endif
 
   if (info->use_static_area) {
     gc->static_area = create_static_area( 1, gc );
@@ -3536,7 +3748,7 @@ static int calc_cN( gc_t *gc )
   double   S = DATA(gc)->rrof_sumz_params.popularity_factor;
 
   double c = (F_2*F_3 - 1.0)/(F_1 * F_2)*S - 1.0;
-  int N = /* FIXME should be incrementally calculated via collection delta */
+  s_word N = /* FIXME should be incrementally calculated via collection delta */
     gc_allocated_to_areas( gc, gset_range( 1, DATA(gc)->ephemeral_area_count )) 
     / sizeof(word);
   int retval;
@@ -3547,7 +3759,7 @@ static int calc_cN( gc_t *gc )
 
   retval = (int)(c * ((double)N));
   if (retval <= 0 ) {
-    consolemsg("c:%g * N:%d yields nonneg.", c, N );
+    consolemsg("c:%g * N:%" PRIdWORD " yields nonneg.", c, N );
   }
   assert( retval > 0 );
   return retval;
@@ -3736,7 +3948,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
   }
   retval |= urs_add_elems( gc->the_remset, bot, top );
 
-  g_rhs = (int)ep_data; /* XXX is (int) of void* legal C? */
+  g_rhs = (int)(intptr_t)ep_data;
   if (DATA(gc)->summaries != NULL
 #if 0
       && g_rhs <= DATA(gc)->region_count /* XXX is region_count sane? */
@@ -3750,7 +3962,7 @@ static int ssb_process_rrof( gc_t *gc, word *bot, word *top, void *ep_data )
 static int allocate_generational_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 256 ], buf2[ 100 ];
-  int gen_no, i, size;
+  int gen_no, i; s_word size;
   gc_data_t *data = DATA(gc);
 
   data->globals[ G_FILTER_REMSET_GEN_ORDER ] =  TRUE;
@@ -3820,6 +4032,9 @@ static int allocate_generational_system( gc_t *gc, gc_param_t *info )
   else {
     DATA(gc)->dynamic_area = 
       create_sc_area( gen_no, gc, &info->dynamic_sc_info, OHTYPE_DYNAMIC );
+#if CODE_SPACE
+    gc->code_space = create_code_space( gen_no, 0 );
+#endif
     gen_no += 1;
   }
   strcat( buf, "+" );
@@ -3884,11 +4099,12 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 {
   char buf[ 256 ], buf2[100]; /* are these numbers large enough in general? */
   gc_data_t *data = DATA(gc);
-  int gen_no, size;
+  int gen_no; s_word size;
   
   data->globals[ G_FILTER_REMSET_GEN_ORDER ] = FALSE;
   gen_no = 0;
   data->is_partitioned_system = 1;
+  data->is_regional_system = 1;
   assert( ! info->use_non_predictive_collector );
   data->use_np_collector = 0; /* RROF is not ROF. */
   data->remset_undirected = TRUE;
@@ -3914,7 +4130,7 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
   { 
     int i;
     int e = data->ephemeral_area_count = info->ephemeral_area_count;
-    int words;
+    s_word words;
     double popular_factor;
     double infamy_factor;
     assert( e > 0 );
@@ -4013,6 +4229,9 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     gc->static_area = create_static_area( gen_no, gc );
     data->globals[ G_FILTER_REMSET_RHS_NUM ] = gen_no;
     data->static_generation = gen_no;
+#if CODE_SPACE
+    gc->code_space = create_code_space( gen_no, 1 );
+#endif
     gen_no += 1;
     strcat( buf, "+" );
     strcat( buf, gc->static_area->id );
@@ -4043,11 +4262,15 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
     gc->ssb = (seqbuf_t**)must_malloc( sizeof(seqbuf_t*)*gc->gno_count );
     DATA(gc)->ssb_entry_count = info->ssb;
     for ( i = 0; i < gc->gno_count ; i++ ) {
-      /* nursery has one too! */
+      /* nursery has one too!  Its data is its region's number, which
+         ssb_process_rrof adds the entries to the summary of; until
+         expand_remset_gnos renumbers them, when the first region is
+         added, that was 0 for every SSB, and entries flushed into a
+         summarized region were left out of its summary. */
       gc->ssb[i] = 
         create_seqbuf( DATA(gc)->ssb_entry_count, 
                        &data->ssb_bot[i], &data->ssb_top[i], &data->ssb_lim[i],
-                       ssb_process_rrof, 0 );
+                       ssb_process_rrof, (void*)(intptr_t) i );
     }
     gc->satb_ssb = create_seqbuf( DATA(gc)->ssb_entry_count, 
                                   &data->satb_ssb_bot, 
@@ -4092,11 +4315,17 @@ static int allocate_regional_system( gc_t *gc, gc_param_t *info )
 }
 
 static word last_origin_ptr_added = 0;
-static void points_across_callback( gc_t *gc, word lhs, int offset, word rhs ) 
+static void points_across_callback( gc_t *gc, word lhs, s_word offset, word rhs ) 
 {
   int g_lhs = gen_of(lhs);
   int g_rhs = gen_of(rhs);
   assert2( g_lhs != 0 ); /* gf_filter_remset_lhs == 0 */
+  if (card_eligible( lhs )) {
+    /* The slot points into another region (card.h).  */
+    card_table_t *ct = card_table_of( ptrof( lhs ) );
+    if (ct != 0)
+      card_mark_across( ct, offset );
+  }
   if (! gc_is_nonmoving( gc, g_rhs )) {
     {
       assert2(g_lhs > 0);
@@ -4151,9 +4380,9 @@ static gc_t *alloc_gc_structure( word *globals, gc_param_t *info )
 {
   gc_data_t *data;
   gc_t *ret;
-  semispace_t *(*my_find_space)( gc_t *gc, unsigned bytes_needed, 
+  semispace_t *(*my_find_space)( gc_t *gc, s_word bytes_needed, 
                                  semispace_t *current_space );
-  void (*my_collect)( gc_t *gc, int rgn, int bytes_needed, gc_type_t request );
+  void (*my_collect)( gc_t *gc, int rgn, s_word bytes_needed, gc_type_t request );
   void (*my_incremental)( gc_t *gc );
   void (*my_check_remset_invs)( gc_t *gc, word src, word tgt );
   

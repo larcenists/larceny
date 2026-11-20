@@ -224,6 +224,52 @@
 	     state)))))
 
 
+; Files made by rules can also depend on the tools that make them: a
+; compiled file is out of date when the compiler has changed since it
+; was made, even if its source has not.  (make:tool-files ext files)
+; records that files with extension 'ext' made by a rule depend on
+; 'files' too; (make:tool-files) returns the alist of such records.
+; Like make:pretend, this is global.
+
+(define make:tool-files
+  (let ((state '()))
+    (lambda args
+      (cond ((null? args) state)
+            ((and (pair? (cdr args))
+                  (null? (cddr args))
+                  (string? (car args))
+                  (list? (cadr args)))
+             (let ((probe (assoc (car args) state)))
+               (if probe
+                   (set-cdr! probe (cadr args))
+                   (set! state (cons (cons (car args) (cadr args)) state)))
+               (unspecified)))
+            (else
+             (display "Make:tool-files: strange: " args)
+             state)))))
+
+; A file made by a rule can also be out of date for reasons its
+; timestamp does not show.  (make:target-check ext proc) records that a
+; file with extension 'ext' made by a rule is out of date unless (proc
+; file) returns true.  Like make:pretend, this is global.
+
+(define make:target-check
+  (let ((state '()))
+    (lambda args
+      (cond ((null? args) state)
+            ((and (pair? (cdr args))
+                  (null? (cddr args))
+                  (string? (car args))
+                  (procedure? (cadr args)))
+             (let ((probe (assoc (car args) state)))
+               (if probe
+                   (set-cdr! probe (cadr args))
+                   (set! state (cons (cons (car args) (cadr args)) state)))
+               (unspecified)))
+            (else
+             (display "Make:target-check: strange: " args)
+             state)))))
+
 ; Turn debugging output on/off.
 
 (define make:debug
@@ -244,6 +290,11 @@
 (define (make:make proj target . maybe-error-target)
 
   (define have-made '())
+
+  ; Maps an extension to the time of the newest of its tool files,
+  ; or #f if it has none.
+
+  (define tool-times '())
 
   (define (errhandler target)
     (lambda ()
@@ -314,14 +365,41 @@
 			 matches)))))))
 
 
-  ; Given a target, a command to build it, and its list of dependencies,
-  ; build all the dependencies and then the target.
+  (define (newest-tool-time ext)
+    (let ((probe (assoc ext tool-times)))
+      (if probe
+          (cdr probe)
+          (let ((probe (assoc ext (make:tool-files))))
+            (let loop ((files (if probe (cdr probe) '())) (newest #f))
+              (cond ((null? files)
+                     (set! tool-times (cons (cons ext newest) tool-times))
+                     newest)
+                    ((not (file-exists? (car files)))
+                     (loop (cdr files) newest))
+                    (else
+                     (let ((t (file-modification-time (car files))))
+                       (loop (cdr files)
+                             (if (or (not newest) (timestamp-newer? t newest))
+                                 t
+                                 newest))))))))))
 
-  (define (make-target target cmd deps)  
+  ; Given a target, a command to build it, its list of dependencies, and
+  ; the time of the newest tool that builds it (or #f), build all the
+  ; dependencies and then the target.
+
+  (define (target-ok? target)
+    (let ((probe (assoc (extension target) (make:target-check))))
+      (or (not probe) ((cdr probe) target))))
+
+  (define (make-target target cmd deps tool-time)
     (make:debugmsg "make-target target=" target "; deps=" deps)
     (for-each make deps)
     (cond ((and (file-exists? target)
-		(not (some? (lambda (d) (newer-than? d target)) deps)))
+		(not (some? (lambda (d) (newer-than? d target)) deps))
+                (not (and tool-time
+                          (timestamp-newer? tool-time
+                                            (file-modification-time target))))
+                (or (not tool-time) (target-ok? target)))
 	   (make:debugmsg
             "make-target target=" target ": all dependencies are older."))
 	  (else
@@ -357,7 +435,7 @@
 	       (dprobe  (assoc target deps)))
 	  (cond (probe
 		 (make:debugmsg target ": RULE: explicit target")
-		 (make-target target (cdr probe) (if dprobe (cdr dprobe) '())))
+		 (make-target target (cdr probe) (if dprobe (cdr dprobe) '()) #f))
 		((find-rule target)
 		 =>
 		 (lambda (r)
@@ -368,7 +446,8 @@
 				       target
 				       (make-rule.ext1 r)
 				       (make-rule.ext2 r))
-				      (if dprobe (cdr dprobe) '())))))
+				      (if dprobe (cdr dprobe) '()))
+				(newest-tool-time (make-rule.ext1 r)))))
 		((file-exists? target)
 		 (make:debugmsg target ": RULE: file exists")
 		 #t)
@@ -379,6 +458,7 @@
 	  (set! have-made (cons target have-made)))))
 
   (set! have-made '())
+  (set! tool-times '())
   (make target)
   (unspecified))
 

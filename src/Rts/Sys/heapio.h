@@ -16,8 +16,8 @@ typedef struct hio_tbl hio_tbl;
 
 struct heapio_t {
   /* Public fields for single and split heaps */
-  int     text_size;            /* Size (words) of text */
-  int     data_size;            /* Size (words) of data */
+  s_word  text_size;            /* Size (words) of text */
+  s_word  data_size;            /* Size (words) of data */
   int     type;                 /* Type code */
 
   /* Private data */

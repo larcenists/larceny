@@ -13,7 +13,7 @@
 #include "gc.h"
 #include "gc_t.h"
 
-#define HDR_BYTES    4		/* Belongs in layouts.cfg */
+#define HDR_BYTES    sizeof(word)	/* Belongs in layouts.cfg */
 
 /* Given a tagged pointer to an object, make a copy of the object in the
  * heap of the given collector.  The source object does not need to be
@@ -23,7 +23,7 @@
 word copy_object( gc_t *gc, word obj )
 {
   word *p;
-  unsigned size;
+  word size;
   int t;
 
   t = tagof( obj );
@@ -46,122 +46,138 @@ word *search_memory( word *from, word *limit, word datum )
   return (from < limit ? from : 0);
 }
 
+/* Box a sign/magnitude integer as a bignum with 32-bit digits. */
+static word box_magnitude( int neg, unsigned long long m )
+{
+  int n = ((m >> 32) != 0 ? 2 : 1);
+  int bytes = 4 + 4*n;                 /* metaword + digits */
+  word *p = gc_allocate( the_gc(globals), 
+                         roundup_balign( sizeof(word)+bytes ), 0, 1 );
+  u32 *d = (u32*)(p+1);
+
+  *p = mkheader( bytes, BIGNUM_HDR );
+  d[0] = mkbignum_header( neg ? 1 : 0, n );
+  d[1] = (u32)m;
+  if (n == 2) d[2] = (u32)(m >> 32);
+  return tagptr( p, BVEC_TAG );
+}
+
 word box_int( int n )
 {
-  if (n >= MOST_NEGATIVE_FIXNUM && n <= MOST_POSITIVE_FIXNUM)
-    return fixnum(n);
-  else {
-    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
-    *p = mkheader( 8, BIGNUM_HDR );
-    if (n < 0) {
-      n = -n;
-      *(p+1) = mkbignum_header( 1, 1 );
-    }
-    else
-      *(p+1) = mkbignum_header( 0, 1 );
-    *(p+2) = n;
-    return tagptr( p, BVEC_TAG );
-  }
+  return box_longlong( n );
 }
 
 word box_uint( unsigned n )
 {
-  if (n <= MOST_POSITIVE_FIXNUM)
-    return fixnum(n);
-  else {
-    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
-    *p = mkheader( 8, BIGNUM_HDR );
-    *(p+1) = mkbignum_header( 0, 1 );
-    *(p+2) = n;
-    return tagptr( p, BVEC_TAG );
-  }
+  return box_ulonglong( n );
 }
 
-word box_longlong( long long ll_orig ) 
+word box_longlong( long long ll )
 {
-  int neg = (ll_orig < 0);
-  long long ll = (ll_orig < 0) ? -ll_orig : ll_orig;
-  word w0 = (ll >> 8*sizeof(word)*0) & ((word)-1);
-  word w1 = (ll >> 8*sizeof(word)*1) & ((word)-1);
   if (ll >= MOST_NEGATIVE_FIXNUM && ll <= MOST_POSITIVE_FIXNUM)
-    return fixnum((int)ll);
-  else if (w1 == 0) {
-    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
-    *p = mkheader( 8, BIGNUM_HDR );
-    *(p+1) = mkbignum_header( neg?1:0, 1 );
-    *(p+2) = w0;
-    return tagptr( p, BVEC_TAG );
-  } else {
-    word *p = gc_allocate( the_gc(globals), 16, 0, 1 );
-    *p = mkheader( 12, BIGNUM_HDR );
-    *(p+1) = mkbignum_header( neg?1:0, 2 );
-    *(p+2) = w0;
-    *(p+3) = w1;
-    return tagptr( p, BVEC_TAG );
-  }
+    return fixnum( (s_word)ll );
+  else if (ll < 0)
+    return box_magnitude( 1, -(unsigned long long)ll );
+  else
+    return box_magnitude( 0, (unsigned long long)ll );
 }
+
 word box_ulonglong( unsigned long long ull )
 {
-  word w0 = (ull >> 8*sizeof(word)*0) & ((word)-1);
-  word w1 = (ull >> 8*sizeof(word)*1) & ((word)-1);
-  if (ull <= MOST_POSITIVE_FIXNUM)
-    return fixnum((int)ull);
-  else if (w1 == 0) {
-    word *p = gc_allocate( the_gc(globals), 12, 0, 1 );
-    *p = mkheader( 8, BIGNUM_HDR );
-    *(p+1) = mkbignum_header( 0, 1 );
-    *(p+2) = w0;
-    return tagptr( p, BVEC_TAG );
-  } else {
-    word *p = gc_allocate( the_gc(globals), 16, 0, 1 );
-    *p = mkheader( 12, BIGNUM_HDR );
-    *(p+1) = mkbignum_header( 0, 2 );
-    *(p+2) = w0;
-    *(p+3) = w1;
-    return tagptr( p, BVEC_TAG );
-  }
+  if (ull <= (unsigned long long)MOST_POSITIVE_FIXNUM)
+    return fixnum( (s_word)ull );
+  else
+    return box_magnitude( 0, ull );
+}
+
+/* A machine word (e.g. an address), treated as unsigned. */
+word box_word( word w )
+{
+  return box_ulonglong( w );
 }
 
 word box_double( double d )
 {
-  word *p = gc_allocate( the_gc(globals), 16, 0, 1 );
-  *(double*)(p+2) = d;
-  *p = mkheader( 12, FLONUM_HDR );
+  word *p = gc_allocate( the_gc(globals), 
+                         roundup_balign( sizeof(word)+FLONUM_DATA_BYTES ),
+                         0, 1 );
+  *(double*)(p+1+FLONUM_PAD_WORDS) = d;
+  *p = mkheader( FLONUM_DATA_BYTES, FLONUM_HDR );
   return tagptr(p, BVEC_TAG);
+}
+
+/* Returns TRUE and the magnitude and sign if w is a fixnum or a bignum
+   of at most 64 bits.
+   */
+static bool unbox_magnitude( word w, unsigned long long *m, int *neg )
+{
+  if ((w & 3) == 0) {
+    s_word n = (s_word)nativeint( w );
+    *neg = (n < 0);
+    *m = (n < 0 ? -(unsigned long long)n : (unsigned long long)n);
+    return TRUE;
+  }
+  else if (tagof(w) == BVEC_TAG
+	   && typetag(*ptrof( w )) == BIG_SUBTAG
+	   && bignum_length( w ) <= 2) {
+    *neg = bignum_sign( w );
+    *m = 0;
+    if (bignum_length( w ) >= 1) *m = bignum_ref32( w, 0 );
+    if (bignum_length( w ) == 2) 
+      *m |= (unsigned long long)bignum_ref32( w, 1 ) << 32;
+    return TRUE;
+  }
+  else
+    return FALSE;
+}
+
+unsigned long long unbox_ulonglong( word w )
+{
+  unsigned long long m;
+  int neg;
+
+  if (unbox_magnitude( w, &m, &neg ) && !neg)
+    return m;
+  hardconsolemsg( "Illegal value in unbox_ulonglong; returning -1" );
+  return (unsigned long long)-1;
+}
+
+long long unbox_longlong( word w )
+{
+  unsigned long long m;
+  int neg;
+
+  if (unbox_magnitude( w, &m, &neg ))
+    return (neg ? -(long long)m : (long long)m);
+  hardconsolemsg( "Illegal value in unbox_longlong; returning -1" );
+  return -1;
+}
+
+word unbox_word( word w )
+{
+  return (word)unbox_ulonglong( w );
 }
 
 unsigned unbox_uint( word w )
 {
-  if ((w & 3) == 0)
-    return nativeuint(w);
-  else if (tagof(w) == BVEC_TAG
-	   && typetag(*ptrof( w )) == BIG_SUBTAG
-	   && bignum_length( w ) == 1
-	   && bignum_sign( w ) == 0) {
-    return bignum_ref32( w, 0 );
-  }
-  else {
-    hardconsolemsg( "Illegal value in unbox_uint; returning (unsigned)-1" );
-    return (unsigned)-1;
-  }
+  unsigned long long m;
+  int neg;
+
+  if (unbox_magnitude( w, &m, &neg ) && !neg && m <= 0xFFFFFFFFULL)
+    return (unsigned)m;
+  hardconsolemsg( "Illegal value in unbox_uint; returning (unsigned)-1" );
+  return (unsigned)-1;
 }
 
 int unbox_int( word w )
 {
-  if ((w & 3) == 0)
-    return nativeint(w);
-  else if (tagof(w) == BVEC_TAG
-	   && typetag(*ptrof( w )) == BIG_SUBTAG
-	   && bignum_length( w ) == 1) {
-    if (bignum_sign( w ) == 0) 
-      return (int)bignum_ref32( w, 0 );
-    else
-      return -(int)bignum_ref32( w, 0 );
-  }
-  else {
-    hardconsolemsg( "Illegal value in unbox_int: 0x%08x; returning -1", w );
-    return -1;
-  }
+  unsigned long long m;
+  int neg;
+
+  if (unbox_magnitude( w, &m, &neg ) && m <= 0x80000000ULL)
+    return (neg ? -(int)m : (int)m);
+  hardconsolemsg( "Illegal value in unbox_int: 0x%08" PRIxWORD "; returning -1", w );
+  return -1;
 }
 
 #if !defined(HAVE_RINT)
@@ -248,32 +264,16 @@ hrtime_t gethrtime( void )
 }
 #endif
 
-/* For use when computing the maximum of two int values that are
+/* For use when computing the maximum or minimum of two values that are
  * really unsigned values.  (Typically used with peak memory sizes.)
  */
 
-int umax( int x, int y ) {
-  if ((x >= 0) && (y >= 0))
-    return max( x, y );
-  else if ((x < 0) && (y >= 0))
-    return x;
-  else if ((x >= 0) && (y < 0))
-    return y;
-  else if (x < y)
-    return x; /* yes, x */
-  else return y;
-} 
+word umax( word x, word y ) {
+  return (x > y ? x : y);
+}
 
-int umin( int x, int y ) {
-  if ((x >= 0) && (y >= 0))
-    return min( x, y );
-  else if ((x < 0) && (y >= 0))
-    return y;
-  else if ((x >= 0) && (y < 0))
-    return x;
-  else if (x < y)
-    return y; /* yes, y */
-  else return x;
-} 
+word umin( word x, word y ) {
+  return (x < y ? x : y);
+}
 
 /* eof */

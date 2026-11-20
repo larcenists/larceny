@@ -22,6 +22,8 @@
 #include "larceny.h"
 #include "stats.h"
 #include "gc.h"
+#include "gc_t.h"
+#include "young_heap_t.h"
 
 #define MAX_TIMERS     20	      /* Should be plenty */
 #define LARGEST_FIXNUM (2147483644L)  /* ((2^29)-1)*4 */
@@ -494,7 +496,7 @@ static struct {
   FILE *dump_file;
 } stats_state;
 
-static void add( word *hi, word *lo, int x );
+static void add( word *hi, word *lo, s_word x );
 
 void stats_init( gc_t *gc )
 {
@@ -1158,9 +1160,14 @@ static void fill_main_entries( word *vp )
   UPDATE_COUNT_MINOR_RUNS( 1000, 2000 );
   vp[ STAT_COUNT_MINOR_RUNS_GEQ_2000 ] = gclib->count_minor_geq_2000_runs;
 
-  /* gc */
-  vp[ STAT_WALLOCATED_HI ] = gc->allocated_hi;
-  vp[ STAT_WALLOCATED_LO ] = gc->allocated_lo;
+  /* gc: the young heap adds its allocation when it is collected; count
+     the allocation since then too */
+  { word hi = gc->allocated_hi, lo = gc->allocated_lo;
+    if (stats_state.gc != 0 && stats_state.gc->young_area != 0)
+      add( &hi, &lo, yh_words_allocated_pending( stats_state.gc->young_area ) );
+    vp[ STAT_WALLOCATED_HI ] = hi;
+    vp[ STAT_WALLOCATED_LO ] = lo;
+  }
   vp[ STAT_WCOLLECTED_HI ] = gc->reclaimed_hi;
   vp[ STAT_WCOLLECTED_LO ] = gc->reclaimed_lo;
   vp[ STAT_WCOPIED_HI ]    = gc->words_copied_hi;
@@ -1307,13 +1314,12 @@ static void fill_remset_vector( word *rv, remset_memstat_t *rs )
  * the doubleword are independently represented as fixnums.  'x' is
  * a native integer.
  */
-static void add( word *hi, word *lo, int x )
+static void add( word *hi, word *lo, s_word x )
 {
-  *lo += fixnum(x);
-  if (*lo > LARGEST_FIXNUM) {
-    *lo -= LARGEST_FIXNUM;
-    *hi += 4;
-  }
+  /* The value is hi*(2^29-1) + lo; x may be larger than 2^29-1. */
+  word v = nativeuint( *lo ) + (word)x;
+  *hi += fixnum( v / nativeuint( LARGEST_FIXNUM ) );
+  *lo = fixnum( v % nativeuint( LARGEST_FIXNUM ) );
 }
 
 /* Dumping */

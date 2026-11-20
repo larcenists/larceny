@@ -34,8 +34,10 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "code-space.h"
 #include "remset_t.h"
 #include "seqbuf_t.h"
+#include "card.h"
 #include "msgc-core.h"
 #include "smircy.h"
 #include "smircy_internal.h"
@@ -149,7 +151,7 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   do {                                                                 \
     word next_obj;                                                     \
     word new_obj, old_obj; int new_gno, old_gno;                       \
-    check_spaceI(dest,lim,8,0,e);                                      \
+    check_spaceI(dest,lim,2*sizeof(word),0,e);                                      \
     *dest = *TMP_P;                                                    \
     *(dest+1) = next_obj = *(TMP_P+1);                                 \
     new_obj = install_fwdptr( TMP_P, dest, PAIR_TAG);                  \
@@ -170,9 +172,11 @@ static word install_fwdptr( word *addr, word *newaddr, word tag ) {
   else if (tagof( T_obj ) == PAIR_TAG) {                                      \
     FORW_PAIR( TMP_P, loc, dest, lim, e, check_spaceI );                      \
   }                                                                           \
+  else if (is_code_obj( T_obj ))                                              \
+    FORW_CODE( T_obj, loc, e );                                               \
   else {                                                                      \
     word *TMPD;                                                               \
-    check_spaceI(dest,lim,sizefield(TMP_W)+4,8,e);                            \
+    check_spaceI(dest,lim,sizefield(TMP_W)+sizeof(word),2*sizeof(word),e);                            \
     TMPD = dest;                                                              \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;                           \
   }
@@ -459,7 +463,7 @@ static word gf_last_lhs;
 
 static bool update_remset( cheney_env_t *e,
                            word *origin_ptr, int origin_gen, int origin_tag,
-                           int offset, 
+                           s_word offset, 
                            word target_ptr ) {
   if (e->points_across == NULL)
     return FALSE;
@@ -480,12 +484,12 @@ static bool update_remset( cheney_env_t *e,
   }
 }
 
-static bool points_across_noop( cheney_env_t* e, word lhs, int offset, word rhs ) 
+static bool points_across_noop( cheney_env_t* e, word lhs, s_word offset, word rhs ) 
 {
   return FALSE;
 }
 
-static bool points_across( cheney_env_t* e, word lhs, int offset, word rhs )
+static bool points_across( cheney_env_t* e, word lhs, s_word offset, word rhs )
 {
   gc_points_across( e->gc, lhs, offset, rhs );
   return FALSE;
@@ -517,6 +521,20 @@ init_env_with_cursors( cheney_env_t *e,
   e->gclib_desc_g = gclib_desc_g;
   e->forw_gset = forw_gset;
   e->scan_static = attributes & SCAN_STATIC;
+#if CODE_SPACE
+  /* Pointers from the static area into the code space are not
+     remembered (they are created when a heap image is loaded), so a
+     collection that moves code must scan the static area, unless it
+     is collecting the static area itself (the splitting collection).  */
+  if (gc->code_space && gset_memberp( gc->code_space->gen_no, forw_gset )
+      && !(attributes & SPLITTING_GC)) {
+    /* The code space belongs to the oldest non-static generation, and
+       collections collect a generation and all younger ones, so every
+       non-static generation is being collected.  */
+    e->scan_static = SCAN_STATIC;
+    e->static_instead_of_remsets = TRUE;
+  }
+#endif
   e->splitting = attributes & SPLITTING_GC;
   e->iflush = gc_iflush( gc );
   e->tospaces = tospaces;
@@ -591,10 +609,11 @@ void oldspace_copy( cheney_env_t *e )
     timer2 = stats_start_timer( TIMER_CPU );
 
     objects_scanned = 0;
-    gc_enumerate_remsets_complement( e->gc,
-                                     e->forw_gset,
-                                     e->scan_from_remsets,
-                                     (void*)e );
+    if (!(e->static_instead_of_remsets && e->gc->static_area))
+      gc_enumerate_remsets_complement( e->gc,
+                                       e->forw_gset,
+                                       e->scan_from_remsets,
+                                       (void*)e );
 
 
     elapsed = stats_stop_timer( timer1 );
@@ -662,10 +681,11 @@ void oldspace_copy_using_locations( cheney_env_t *e )
     timer2 = stats_start_timer( TIMER_CPU );
     objects_scanned = 0;
 
-    gc_enumerate_remembered_locations
-      ( e->gc, e->forw_gset, 
-        remset_loc_scanner_oflo, (void*)e,
-        e->scan_from_remsets, (void*)e );
+    if (!(e->static_instead_of_remsets && e->gc->static_area))
+      gc_enumerate_remembered_locations
+        ( e->gc, e->forw_gset, 
+          remset_loc_scanner_oflo, (void*)e,
+          e->scan_from_remsets, (void*)e );
 
     elapsed = stats_stop_timer( timer1 );
     cpu     = stats_stop_timer( timer2 );
@@ -764,25 +784,77 @@ static void root_scanner_oflo( word *ptr, void *data )
              e->dest, e->lim, e, check_space_expand );
 }
 
+/* The generation of the object being scanned, read each time: a
+   forward can add a region (expand_space, find_space_rgnl), which
+   renumbers the static area (expand_static_area_gnos) and gives the new
+   region the static area's old number.  With the number read on entry,
+   a static object's slot that now points into the new region looks like
+   it points into its own generation, and the object leaves the
+   remembered set though it points into a region; that region's
+   summary then misses the slot, and collecting the region frees a live
+   object. */
+#define OBJ_GEN gen_of( object )
+
 static bool remset_scanner_oflo( word object, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   gset_t       forw_gset = e->forw_gset;
-  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
+  card_table_t *ct;
 
   objects_scanned++;
   assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
-  remset_scanner_core( e, object, loc, 
-                       forw_oflo_record_track_old2young 
-                                       ( loc, forward_nursery_and, forw_gset,
-                                         dest, lim,
-                                         has_intergen_ptr, old_obj_gen, e, 
-                                         check_space_expand ) );
+
+  if (card_eligible( object ) &&
+      (ct = card_table_of( ptrof( object ) )) != 0) {
+    /* A large object with a card table: scan the marked cards only,
+       and unmark those that no longer point into a younger
+       generation (card.h).  */
+    word *slots = ptrof( object ) + 1;
+    word *end = slots + sizefield( *ptrof( object ) ) / sizeof( word );
+    word nwords = (ct->cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+    word i, b;
+
+    for ( i = 0 ; i < nwords ; i++ ) {
+      word bits = ct->bits[i];
+      if (bits == 0) continue;
+      for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
+        word card = i*CARD_BITS_PER_WORD + b;
+        word *from, *to;
+        bool card_has_intergen_ptr = 0;
+
+        if ((bits & ((word)1 << b)) == 0) continue;
+        if (card >= ct->cards) {          /* bits past the last card */
+          ct->bits[i] &= ~((word)1 << b);
+          continue;
+        }
+        from = slots + card*CARD_WORDS;
+        to = from + CARD_WORDS;
+        if (to > end) to = end;
+        for ( loc = from ; loc < to ; loc++ )
+          forw_oflo_record_track_old2young( loc, forward_nursery_and,
+                                            forw_gset, dest, lim,
+                                            card_has_intergen_ptr,
+                                            OBJ_GEN, e,
+                                            check_space_expand );
+        if (card_has_intergen_ptr)
+          has_intergen_ptr = 1;
+        else
+          ct->bits[i] &= ~((word)1 << b);
+      }
+    }
+  }
+  else
+    remset_scanner_core( e, object, loc, 
+                         forw_oflo_record_track_old2young 
+                                         ( loc, forward_nursery_and, forw_gset,
+                                           dest, lim,
+                                           has_intergen_ptr, OBJ_GEN, e, 
+                                           check_space_expand ) );
 
   e->dest = dest;
   e->lim = lim;
@@ -793,27 +865,98 @@ static bool remset_scanner_oflo_update_rs( word object, void *data )
 {
   cheney_env_t *e = (cheney_env_t*)data;
   gset_t       forw_gset = e->forw_gset;
-  unsigned     old_obj_gen = gen_of(object);
   bool         has_intergen_ptr = 0;
   word         *dest = e->dest;
   word         *lim = e->lim;
   word         *loc;            /* Used as a temp by scanner and fwd macros */
 
+  card_table_t *ct;
+
   objects_scanned++;
   assert( objects_scanned >= 0 );
   assert2( *ptrof(object) != FORWARD_HDR );
-  remset_scanner_update_rs
-    ( e, object, loc, 
-      forw_oflo_record_track_any2other( loc, 
-                        forward_nursery_and, forw_gset, dest, lim,
-                        has_intergen_ptr, old_obj_gen, e, 
-                        check_space_expand ),
-      update_remset );
+
+  if (card_eligible( object ) &&
+      (ct = card_table_of( ptrof( object ) )) != 0) {
+    /* A large object with a card table (card.h).  In a minor
+       collection, its marked cards are those written since the last
+       minor collection (uremset_extbmp.c), and only they can point
+       into the nursery; the object stays remembered, as the other
+       cards may point into other regions.  Otherwise the cards with
+       their across bits set are those that can point into other
+       regions.  Scan those cards, clear the across bits of the ones
+       that point nowhere else, and unmark the cards once the nursery
+       has been collected.  */
+    bool minor = (forw_gset.tag == gs_singleton && forw_gset.g1 == 0);
+    word *slots = ptrof( object ) + 1;
+    word *end = slots + sizefield( *ptrof( object ) ) / sizeof( word );
+    word nwords = card_nwords( ct );
+    word *across = card_across_bits( ct );
+    word *scan = (minor ? ct->bits : across);
+    word i, b;
+#if CARD_CHECK_ACROSS
+    card_check_across( object, ct, across,
+                       (e->gc->static_area
+                        ? e->gc->static_area->data_area->gen_no : -1),
+                       (minor ? "minor" : "major") );
+#endif
+
+    for ( i = 0 ; i < nwords ; i++ ) {
+      word bits = scan[i];
+      if (bits == 0) continue;
+      for ( b = 0 ; b < CARD_BITS_PER_WORD ; b++ ) {
+        word card = i*CARD_BITS_PER_WORD + b;
+        word *from, *to;
+        bool card_has_intergen_ptr = 0;
+
+        if ((bits & ((word)1 << b)) == 0 || card >= ct->cards) continue;
+        from = slots + card*CARD_WORDS;
+        to = from + CARD_WORDS;
+        if (to > end) to = end;
+        for ( loc = from ; loc < to ; loc++ )
+          forw_oflo_record_track_any2other( loc, forward_nursery_and,
+                                            forw_gset, dest, lim,
+                                            card_has_intergen_ptr,
+                                            OBJ_GEN,
+                                            e, check_space_expand );
+        if (card_has_intergen_ptr)
+          has_intergen_ptr = 1;
+        else
+          across[i] &= ~((word)1 << b);
+      }
+    }
+    if (gset_memberp( 0, forw_gset ))
+      memset( ct->bits, 0, nwords*sizeof( word ) );
+    if (minor)
+      has_intergen_ptr = 1;
+  }
+  else
+    remset_scanner_update_rs
+      ( e, object, loc, 
+        forw_oflo_record_track_any2other( loc, 
+                          forward_nursery_and, forw_gset, dest, lim,
+                          has_intergen_ptr, OBJ_GEN, e, 
+                          check_space_expand ),
+        update_remset );
 
   e->dest = dest;
   e->lim = lim;
   return has_intergen_ptr;
 }
+
+#undef OBJ_GEN
+
+/* The scan is done when it has reached dest in the chunk that dest
+ * points into.  Comparing the pointers alone is not enough: when
+ * to-space grows, dest may be the first word of a new chunk that
+ * happens to begin where the chunk being scanned ends (as the chunks
+ * made for large objects, which are forwarded without copying, may),
+ * and the scan would stop before the chunks in between.
+ */
+#define scan_reached_dest( e, scanptr, dest )                             \
+  ((scanptr) == (dest)                                                    \
+   && (e)->tospaces_cur_scan == (e)->tospaces_cur_dest                    \
+   && (e)->scan_idx == tospace_dest(e)->current)
 
 void scan_oflo_normal( cheney_env_t *e )
 {
@@ -831,13 +974,13 @@ void scan_oflo_normal( cheney_env_t *e )
   do {
     morework = 0;
 
-    while (scanptr != dest) {
-      while (scanptr != dest && scanptr < scanlim) {
+    while (!scan_reached_dest( e, scanptr, dest )) {
+      while (scanptr < scanlim && !scan_reached_dest( e, scanptr, dest )) {
         scan_and_forward( scanptr, e->iflush, forward_nursery_and, forw_gset, 
                           dest, copylim, e, check_space_expand );
       }
 
-      if (scanptr != dest) {
+      if (!scan_reached_dest( e, scanptr, dest )) {
         e->scan_idx++;
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
@@ -848,18 +991,6 @@ void scan_oflo_normal( cheney_env_t *e )
         } else {
           scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
           scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
-        }
-        
-        /* A corner case when we fill up all of the to-space chunk
-         * (that is, when dest == copylim).  In this situation, dest
-         * does not point to a valid location in to-space; it may be
-         * pointing at the _next_ chunk that we would scan when the
-         * scan_idx is incremented below, which leads to a premature
-         * scan loop termination. */
-        if (dest == copylim) {
-          /* Set dest and copylim to values that we *know* cannot
-           * alias the new scanptr. */
-          dest = copylim = 0;
         }
       }
     }
@@ -893,14 +1024,14 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
   do {
     morework = 0;
 
-    while (scanptr != dest) {
-      while (scanptr != dest && scanptr < scanlim) {
+    while (!scan_reached_dest( e, scanptr, dest )) {
+      while (scanptr < scanlim && !scan_reached_dest( e, scanptr, dest )) {
         scan_and_forward_update_rs( scanptr, e->iflush,
                                     forward_nursery_and, forw_gset,
                                     dest, copylim, e, check_space_expand );
       }
 
-      if (scanptr != dest) {
+      if (!scan_reached_dest( e, scanptr, dest )) {
         e->scan_idx++;
         if (e->scan_idx > tospace_scan(e)->current) {
           e->tospaces_cur_scan++;
@@ -912,18 +1043,6 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
         } else {
           scanptr = tospace_scan(e)->chunks[e->scan_idx].bot;
           scanlim = tospace_scan(e)->chunks[e->scan_idx].lim;
-        }
-        
-        /* A corner case when we fill up all of the to-space chunk
-         * (that is, when dest == copylim).  In this situation, dest
-         * does not point to a valid location in to-space; it may be
-         * pointing at the _next_ chunk that we would scan when the
-         * scan_idx is incremented below, which leads to a premature
-         * scan loop termination. */
-        if (dest == copylim) {
-          /* Set dest and copylim to values that we *know* cannot
-           * alias the new scanptr. */
-          dest = copylim = 0;
         }
       }
     }
@@ -955,14 +1074,19 @@ void scan_oflo_normal_update_rs( cheney_env_t *e )
  */
 
 void copied_icache_flush( word *bv ) {
+#if CODE_SPACE
+  /* Code is never copied into the data heap. */
+}
+#else
   word hdr = *bv;
   word T_h = header( hdr );
   word T_bytes = sizefield( hdr );
   word *start = bv;
-  word *end = (word *) (((char *) (start + 1)) + roundup8( T_bytes ));
+  word *end = (word *) (((char *) (start + 1)) + roundup_word( T_bytes ));
   if ( T_h == BV_HDR )
     mem_icache_flush( start, end );
 }
+#endif
 
 /* "p" is a tagged pointer into oldspace;
  * "*dest" is a pointer into newspace, the destination of the next object.
@@ -1010,17 +1134,17 @@ word forward( const word p, word **dest, cheney_env_t *e )
   assert2( ishdr( hdr ) );
 
 #if FORW_BY_LOOP
-  { unsigned words;
+  { word words;
 
     /* gcc gets this right, so no sense in being obscure.
        words = (((hdr >> 8) + 11) >> 3) << 1; */
-    words = roundup8( sizefield( hdr ) + 4 ) / 4;
-    wordsz = words;
+    words = object_size_bytes( hdr ) / sizeof(word);
+    wordsz = (int)words;
 
 #if CHECK_EVERY_WORD
     switch (tag) {
     case VEC_TAG : case PROC_TAG :
-      gclib_check_memory_validity( p2, (sizefield( hdr ) + 4)/4 );
+      gclib_check_memory_validity( p2, (sizefield( hdr ) + sizeof(word))/sizeof(word) );
     }
 #endif
     /* 32 is pretty arbitrary; chosen to match overhead of memcpy(). */
@@ -1034,10 +1158,10 @@ word forward( const word p, word **dest, cheney_env_t *e )
         words -= 2;
       }
     }
-    else if (words > GC_LARGE_OBJECT_LIMIT/4 && e->los) 
+    else if (words > GC_LARGE_OBJECT_LIMIT/sizeof(word) && e->los) 
       return forward_large_object( e, ptr, tag, tospace_dest(e)->gen_no );
     else {
-      memcpy( p1, p2, words*4 );
+      memcpy( p1, p2, words*sizeof(word) );
       p1 += words;
     }
     *dest = p1;
@@ -1045,15 +1169,15 @@ word forward( const word p, word **dest, cheney_env_t *e )
 #endif
 
 #if FORW_BY_DUFF
-  { unsigned bytes;
+  { s_word bytes;
 
-  bytes = roundup8( sizefield( hdr ) + 4 );
+  bytes = object_size_bytes( hdr );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los) 
     return forward_large_object( e, ptr, tag, gen_of(p1) );
 
   wordsz = bytes / sizeof(word);
 
-  switch (bytes >> 3) {
+  switch (bytes / (2*sizeof(word))) {
     case 8  : *p1++ = *p2++;
               *p1++ = *p2++;
     case 7  : *p1++ = *p2++;
@@ -1071,23 +1195,23 @@ word forward( const word p, word **dest, cheney_env_t *e )
     case 1  : *p1++ = *p2++;
               *p1++ = *p2++;
     case 0  : break;
-    default : memcpy( p1, p2, bytes );  p1 += (bytes >> 2);
+    default : memcpy( p1, p2, bytes );  p1 += (bytes / sizeof(word));
   }
   *dest = p1;
   }
 #endif
 
 #if FORW_BY_MEMCPY
-  { unsigned bytes;
+  { s_word bytes;
   /* This appears to be slowest */
-  bytes = roundup8( sizefield( hdr ) + 4 );
+  bytes = object_size_bytes( hdr );
   if (bytes > GC_LARGE_OBJECT_LIMIT && los)
     return forward_large_object( e, ptr, tag, gen_of(p1) );
 
   wordsz = bytes / sizeof(word);
 
   memcpy( p1, p2, bytes );
-  *dest = p1 + (bytes >> 2);
+  *dest = p1 + (bytes / sizeof(word));
   }
 #endif
 
@@ -1158,12 +1282,12 @@ void enqueue_tospace( cheney_env_t *e, semispace_t *ss )
 }
 
 void
-expand_space( cheney_env_t *e, word **lim, word **dest, unsigned bytes )
+expand_space( cheney_env_t *e, word **lim, word **dest, s_word bytes )
 {
   semispace_t *ss;
   int i;
 
-  supremely_annoyingmsg("   expand_space( e, 0x%08x, 0x%08x, %d )", 
+  supremely_annoyingmsg("   expand_space( e, %p, %p, %" PRIdWORD " )", 
                         *lim, *dest, bytes );
 
   ss = tospace_dest(e);
@@ -1220,15 +1344,15 @@ static word forward_large_object( cheney_env_t * const e,
   los_t *los = e->los;
   los_list_t *mark_list;
   word hdr, ret;
-  int bytes, was_marked, sub1 = 0, sub2 = 0;
+  s_word bytes, was_marked, sub1 = 0, sub2 = 0;
 
   hdr = *ptr;
-  bytes = roundup8( sizefield( hdr ) + 4 );
+  bytes = object_size_bytes( hdr );
 
 #if CHECK_EVERY_WORD
     switch (tag) {
     case VEC_TAG : case PROC_TAG :
-      gclib_check_memory_validity( ptr, (sizefield(hdr)+4)/4 );
+      gclib_check_memory_validity( ptr, (sizefield(hdr)+sizeof(word))/sizeof(word) );
       break;
     }
 #endif
@@ -1270,7 +1394,7 @@ static word forward_large_object( cheney_env_t * const e,
     word *new;
 
     hdr = *ptr;
-    bytes = roundup8( sizefield( hdr ) + 4 );
+    bytes = object_size_bytes( hdr );
     new = los_allocate( los, bytes, gen_of( ptr ) );
     memcpy( new, ptr, bytes );
     

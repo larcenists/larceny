@@ -16,6 +16,10 @@
 #include "gc_t.h"
 #include "gc.h"
 #include "stats.h"
+#include "gclib.h"              /* For pageof() */
+#include "seqbuf_t.h"           /* For SSB_ENQUEUE */
+#include "gc_t.h"
+#include "code-space.h"
 
 extern void mem_icache_flush( void *lo, void *limit );
 
@@ -50,21 +54,21 @@ word w_envvar;
     return;
   }
   l = strlen( p );
-  q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+  q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
   *q = mkheader( l, BV_HDR );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
 }
 
 /* returns a freshly allocated bytevector initialized to environ */
-/* FIXME: hard-codes 4 as the header size (in bytes)             */
+/* (the header is sizeof(word) bytes)             */
 
 void primitive_listenv_init( void )
 {
   extern char **environ;
   word *q;
 
-  q = (word*)gc_allocate( the_gc(globals), (4 + sizeof(char**)), 0, 1 );
+  q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + sizeof(char**)), 0, 1 );
   *q = mkheader( sizeof(char**), BV_HDR );
   *((word **) string_data( q )) = (word *) environ;
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
@@ -72,7 +76,7 @@ void primitive_listenv_init( void )
 
 /* given a bytevector created by primitive_listenv_init, returns */
 /* the next environment variable and updates the bytevector      */
-/* FIXME: hard-codes 4 as the header size (in bytes)             */
+/* (the header is sizeof(word) bytes)             */
 
 void primitive_listenv( generator )
 word generator;
@@ -91,7 +95,7 @@ word generator;
     return;
   }
   l = strlen( p );
-  q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+  q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
   *q = mkheader( l, BV_HDR );
   memcpy( string_data( q ), p, l );
   globals[ G_RESULT ] = (word)tagptr( q, BVEC_TAG );
@@ -127,13 +131,56 @@ void primitive_iflush( w_bv )
 word w_bv;
 {
   mem_icache_flush( ptrof( w_bv )+1, 
-                    ptrof( w_bv )+1+roundup4(sizefield(*ptrof(w_bv)))/4 );
+                    ptrof( w_bv )+1+roundup_word(sizefield(*ptrof(w_bv)))/sizeof(word) );
+}
+
+/* Make the code vector w_bv executable, and return (in RESULT) the code
+   vector to be stored into procedures.  On CODE_SPACE systems that is a
+   copy of w_bv in the code space; otherwise it is w_bv itself.  */
+
+void primitive_codevector_install( w_bv )
+word w_bv;
+{
+#if CODE_SPACE
+  gc_t *gc = the_gc( globals );
+  if (gc->code_space == 0)
+    panic_exit( "This collector does not support compiled code." );
+  if (cs_wants_collection( gc->code_space )) {
+    code_space_t *cs = gc->code_space;
+    if (!cs->by_scanning) {
+      globals[ G_RESULT ] = w_bv;        /* A root; the collection moves it */
+      gc_collect( gc, cs->gen_no, 0, GCTYPE_COLLECT );
+      cs_collected( cs );
+      w_bv = globals[ G_RESULT ];
+    }
+    else if (!cs->scan_requested) {
+      /* The scan (see memmgr.c) follows a collection, but not while
+         the regional collector is marking; until it has happened the
+         request stays pending. */
+      cs->scan_requested = 1;
+      if (gc->smircy == NULL) {
+        /* Collect the nursery, then scan for code. */
+        globals[ G_RESULT ] = w_bv;
+        gc_collect( gc, 0, 0, GCTYPE_EVACUATE );
+        w_bv = globals[ G_RESULT ];
+      }
+      else
+        annoyingmsg( "Code space: scan deferred until marking is done." );
+    }
+  }
+  globals[ G_RESULT ] = cs_install( gc->code_space, w_bv );
+#else
+  primitive_iflush( w_bv );
+  globals[ G_RESULT ] = w_bv;
+#endif
 }
 
 /* Floating-point operations */
 
-#define flonum_val( p )    (*(double*)((char*)(p)-5+8))
-#define box_flonum( p, v ) (*(double*)((char*)(p)-5+8) = (v))
+#define flonum_val( p ) \
+  (*(double*)((char*)(p)-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
+#define box_flonum( p, v ) \
+  (*(double*)((char*)(p)-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)) = (v))
 
 /* One-argument math operations */
 #define numeric_onearg( name, op ) \
@@ -228,7 +275,7 @@ void primitive_block_signals( word code )
 void primitive_allocate_nonmoving( word w_length, word w_tag )
 {
   globals[ G_RESULT ] = 
-    allocate_nonmoving( nativeint( w_length ), nativeint( w_tag ) );
+    allocate_nonmoving( nativeint( w_length ), (int)nativeint( w_tag ) );
 }
 
 void primitive_object_to_address( word w_obj )
@@ -238,14 +285,14 @@ void primitive_object_to_address( word w_obj )
    * FIXME: can't we check that this invariant holds?
    */
   if (isptr(w_obj))
-    globals[ G_RESULT ] = box_uint( (word)ptrof( w_obj ) );
+    globals[ G_RESULT ] = box_word( (word)ptrof( w_obj ) );
   else
     globals[ G_RESULT ] = w_obj;
 }
 
 void primitive_sysfeature( word v /* a vector of sufficient length */ )
 {
-  int major, minor, ans[4];
+  int major, minor; s_word ans[4];
 
   switch (nativeint(vector_ref( v, 0 ))) {
   case 0  : /* larceny-major */
@@ -286,6 +333,8 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       vector_set( v, 0, fixnum(3) );
     else if (strcmp( larceny_architecture, "ARM" ) == 0)
       vector_set( v, 0, fixnum(5) );
+    else if (strcmp( larceny_architecture, "X86-64" ) == 0)
+      vector_set( v, 0, fixnum(6) );
     else
       vector_set( v, 0, fixnum(-1) );
     break;
@@ -378,7 +427,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
@@ -395,7 +444,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
@@ -418,7 +467,7 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
@@ -435,14 +484,14 @@ void primitive_sysfeature( word v /* a vector of sufficient length */ )
       return;
     }
     l = strlen( p );
-    q = (word*)gc_allocate( the_gc(globals), (4 + l), 0, 1 );
+    q = (word*)gc_allocate( the_gc(globals), (sizeof(word) + l), 0, 1 );
     *q = mkheader( l, BV_HDR );
     memcpy( string_data( q ), p, l );
     vector_set ( v, 0, (word)tagptr( q, BVEC_TAG ) );
     break;
   }
   default : 
-    panic_exit( "Unknown code %d passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
+    panic_exit( "Unknown code %" PRIdWORD " passed to primitive_sysfeature", nativeint( vector_ref( v, 0 ) ) );
   }
 }
 
@@ -491,15 +540,177 @@ word w_errcode;
   errno = nativeint( w_errcode );
 }
 
-/* Returns the current time in the flonum provided. */
+/* Copies w_count bytes from bytevector-like w_src, starting at byte
+   w_from, to bytevector-like w_dst, starting at byte w_to; the ranges
+   may overlap.  The arguments are fixnums and bytevector-like objects,
+   and the ranges are in bounds (checked in Scheme, see bytevector.sch).
+   Bytevector-like objects contain no pointers, so there is no barrier.
+   */
+
+void primitive_bytevector_like_move( word w_src, word w_from,
+                                     word w_dst, word w_to, word w_count )
+{
+  byte *src = (byte*)(ptrof( w_src ) + BVEC_HEADER_WORDS);
+  byte *dst = (byte*)(ptrof( w_dst ) + BVEC_HEADER_WORDS);
+
+  memmove( dst + nativeint( w_to ), src + nativeint( w_from ),
+           (size_t)nativeint( w_count ) );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
+/* The barriers of a store into each of the n slots of vector-like lhs
+   starting at p, as mc_satb_barrier and mc_partial_barrier do them for
+   one slot (see Rts/Fence/fence-millicode.c and Standard-C/millicode.c).
+
+   range_pre_barrier precedes the stores: during the concurrent marking
+   phase of the regional collector, it logs the old values that are
+   pointers, unless the object or the value is in the nursery.
+
+   range_post_barrier follows them: it logs the object and the slot's
+   offset for each stored pointer that crosses generations (or regions)
+   and is not filtered out.  It looks at the filters for the whole
+   range first: an object in the nursery needs nothing logged when the
+   collector orders generations.
+   */
+
+static void range_pre_barrier( word lhs, word *p, word n )
+{
+  gc_t *gc;
+  word i, old;
+
+  if (!globals[ G_CONCURRENT_MARK ] || gen_of( lhs ) == 0)
+    return;
+  gc = the_gc( globals );
+  for ( i=0 ; i < n ; i++ ) {
+    old = p[i];
+    if (isptr( old ) && gen_of( old ) != 0)
+      SSB_ENQUEUE( gc, gc->satb_ssb, old );
+  }
+}
+
+static void range_post_barrier( word lhs, word *p, word n )
+{
+  gclib_desc_t *genv;
+  word gl, gr, i, rhs;
+  word **ssbtopv, **ssblimv;
+
+  genv = (gclib_desc_t*)globals[ G_GENV ];
+  if (genv == 0) return;        /* Barrier disabled */
+
+  gl = genv[pageof(lhs)];
+  if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl == 0) return;
+  if ((s_word)globals[ G_FILTER_REMSET_LHS_NUM ] == (s_word)gl) return;
+
+  for ( i=0 ; i < n ; i++ ) {
+    rhs = p[i];
+    if (!isptr( rhs )) continue;
+    genv = (gclib_desc_t*)globals[ G_GENV ];
+    gr = genv[pageof(rhs)];
+    if (gl == gr) continue;
+    if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl <= gr) continue;
+    if ((s_word)globals[ G_FILTER_REMSET_RHS_NUM ] == (s_word)gr) continue;
+
+    ssbtopv = (word**)globals[ G_SSBTOPV ];
+    ssblimv = (word**)globals[ G_SSBLIMV ];
+    *ssbtopv[gr] = lhs;
+    *(ssbtopv[gr]+1) = (word)(p+i) - (word)ptrof( lhs );
+    ssbtopv[gr] = ssbtopv[gr]+2;
+    if (ssbtopv[gr]+1 >= ssblimv[gr])
+      gc_compact_all_ssbs( the_gc(globals) );
+  }
+}
+
+/* Copies w_count elements of vector-like w_src, starting at element
+   w_from, to vector-like w_dst, starting at element w_to; the ranges
+   may overlap.  The arguments are fixnums and vector-like objects, and
+   the ranges are in bounds (checked in Scheme, see vector.sch).
+   */
+
+void primitive_vector_like_move( word w_src, word w_from,
+                                 word w_dst, word w_to, word w_count )
+{
+  word *src = ptrof( w_src ) + VEC_HEADER_WORDS + nativeint( w_from );
+  word *dst = ptrof( w_dst ) + VEC_HEADER_WORDS + nativeint( w_to );
+  word n = nativeint( w_count );
+
+  range_pre_barrier( w_dst, dst, n );
+  memmove( dst, src, n*sizeof(word) );
+  range_post_barrier( w_dst, dst, n );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
+/* Stores w_x into the w_count elements of vector-like w_dst starting
+   at element w_to, which are in bounds.
+   */
+
+void primitive_vector_like_fill( word w_dst, word w_to, word w_count,
+                                 word w_x )
+{
+  word *dst = ptrof( w_dst ) + VEC_HEADER_WORDS + nativeint( w_to );
+  word n = nativeint( w_count );
+  word i;
+
+  range_pre_barrier( w_dst, dst, n );
+  for ( i=0 ; i < n ; i++ )
+    dst[i] = w_x;
+  if (isptr( w_x ))
+    range_post_barrier( w_dst, dst, n );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
+/* Stores the cars of the first w_count pairs of list w_list into the
+   w_count elements of vector-like w_dst starting at element w_to, which
+   are in bounds; the list has at least w_count pairs.
+   */
+
+void primitive_vector_like_fill_from_list( word w_dst, word w_to,
+                                           word w_count, word w_list )
+{
+  word *dst = ptrof( w_dst ) + VEC_HEADER_WORDS + nativeint( w_to );
+  word n = nativeint( w_count );
+  word i, l;
+
+  range_pre_barrier( w_dst, dst, n );
+  for ( i=0, l=w_list ; i < n ; i++, l=pair_cdr( l ) )
+    dst[i] = pair_car( l );
+  range_post_barrier( w_dst, dst, n );
+  globals[ G_RESULT ] = UNSPECIFIED_CONST;
+}
+
+/* Returns the current time, in seconds since the epoch, in the flonum
+   provided.  With POSIX clocks, the time has a fractional part. */
 
 void primitive_time( word w_result )
 {
+#if defined(POSIX_UNIX)
+  struct timespec ts;
+  double d;
+  clock_gettime( CLOCK_REALTIME, &ts );
+  d = (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+#else
   time_t t0 = 0;
   time_t t1 = time(0);
   double d = difftime(t1, t0);
+#endif
   box_flonum( w_result, d );
   globals[ G_RESULT ] = w_result;
+}
+
+/* Returns the monotonic clock's time in nanoseconds (since boot, on
+   Linux and macOS) as a fixnum, or #f where that does not fit in a
+   fixnum or there is no such clock.  A 64-bit fixnum holds 73 years of
+   nanoseconds.  It is current-jiffy where jiffies-per-second is 10^9. */
+
+void primitive_monotonic_ns( void )
+{
+#if defined(POSIX_UNIX) && defined(BITS_64)
+  struct timespec ts;
+  clock_gettime( CLOCK_MONOTONIC, &ts );
+  globals[ G_RESULT ] =
+    fixnum( (s_word)ts.tv_sec * 1000000000 + (s_word)ts.tv_nsec );
+#else
+  globals[ G_RESULT ] = FALSE_CONST;
+#endif
 }
 
 /* eof */

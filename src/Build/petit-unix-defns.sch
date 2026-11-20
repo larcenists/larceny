@@ -17,7 +17,7 @@
 
 (define (unix-&-win32-initialize)
   (load (case *host:os*
-          ((unix macosx macosx-el solaris linux-el linux-arm-el)
+          ((unix macosx macosx-el macosx-arm64 solaris linux-el linux-x86-64 linux-arm-el)
            "src/Build/sysdep-unix.sch")
           ((cygwin win32)
            "src/Build/sysdep-win32.sch")
@@ -41,6 +41,7 @@
          'target-endianness *target:endianness*
          'compatibility     (pathname-append "src" "Compat" *host-dir*)
          'globals-table     *globals-table*
+         'word-size         *target:word-size*
          'host-system       *host-name*))
   (display "Loading ")
   (display (nbuild-parameter 'host-system))
@@ -90,6 +91,8 @@
     ((sassy-native) (config (in-rts "iasn-regs.cfg")))
     ((arm-native) (config (in-rts "fence-arm-regs.cfg")))
     ((arm-native0) (config (in-rts "fence-arm-regs0.cfg")))
+    ((arm64-native) (config (in-rts "fence-arm64-regs.cfg")))
+    ((x86-64-native) (config (in-rts "fence-x86-64-regs.cfg")))
     ((petit) #t)
     (else (error "No registers config file for this runtime-type: " *runtime-type*)))
   (catfiles (map in-include
@@ -107,7 +110,8 @@
                    "layouts.ah"
                    "mprocs.ah"
                    ,@(case *runtime-type* 
-                       ((sparc-native sassy-native arm-native arm-native0)
+                       ((sparc-native sassy-native arm-native arm-native0 arm64-native
+                         x86-64-native)
                         '("regs.ah"))
                        (else '()))))
             (in-include "asmdefs.h"))
@@ -132,6 +136,8 @@
      features-petit-solaris             ; solaris 2.5 or later
      features-petit-macosx              ; gcc and GNU libc
      features-petit-macosx-el           ; gcc and GNU libc
+     features-petit-macosx-arm64        ; clang, 64-bit
+     features-petit-linux-x86-64        ; gcc, 64-bit
      features-petit-win32               ; works for Mingw; believed to work
      features-petit-linux               ; Debian GNU/Linux 3.0 (woody), x86
      features-petit-cygwin              ; Tested with cygwin 1.5.10 (May 2004)
@@ -141,6 +147,8 @@
      features-x86-nasm-win32
      features-x86-sassy-win32
      features-arm-el-hardfp-linux	; Hardfp is modern
+     features-arm64-macosx              ; Native AArch64, clang
+     features-x86-64-linux              ; Native x86-64, gcc
      features-petit-linux-redhat5       ; Very old, Redhat linux 5.1
      features-sparc-linux-debian        ; Very old, SPARC Debian v2(?)
      features-petit-macos9-cw3          ; Very old (ca v0.48), CW Pro 3

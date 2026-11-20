@@ -37,3 +37,29 @@ A fast machine is better -- some of these programs take a while.  Also,
 plenty of real memory is a plus, since the heap size can grow over 30MB
 for some programs.
 
+
+big-objects.sch tests objects of more than 2GB and 4GB on 64-bit
+systems; it needs about 12GB of memory.  Run it under each collector:
+
+    LARCENY_ARENA_GB=64 larceny [-stopcopy | -rrof] < big-objects.sch
+
+code-space.sch loads a compiled file 100000 times, so that code is
+installed and becomes garbage; with -annoy-user the collector reports
+each collection of the code space.  It writes code-space-tmp.sch and
+code-space-tmp.fasl in the current directory.
+
+    larceny -rrof -size1 1M -annoy-user < code-space.sch
+
+scan-after-large-objects.sch runs merge sorts of 1.1 million characters
+under the profiler; it crashed the generational collector when the
+Cheney scan stopped early after forwarding large objects (see the
+comment at its head).  It prints "scan-after-large-objects: ok".
+
+    larceny [-stopcopy | -rrof] < scan-after-large-objects.sch
+
+large-nursery.sch stores into objects all over a nursery larger than
+the low-level allocator's initial page table (32MB), which overflowed
+when it was not grown for the first allocation (see the comment at its
+head).  It prints "large-nursery: ok".
+
+    larceny -size0 256M -- large-nursery.sch

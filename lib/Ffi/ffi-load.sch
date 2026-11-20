@@ -12,7 +12,8 @@
     (let* ((f   (system-features))
 	   (ar  (cdr (assq 'arch-name f)))
 	   (os  (cdr (assq 'os-name f)))
-	   (maj (cdr (assq 'os-major-version f))))
+	   (maj (cdr (assq 'os-major-version f)))
+	   (bits (cdr (assq 'arch-word-size f))))
       (cond ((string=? os "SunOS")
 	     (case maj
 	       ((4) 'sun4-sunos4)
@@ -23,9 +24,19 @@
 	     'i386-win32)
 	    ((and (string=? os "MacOS X") (string=? ar "IAssassin"))
 	     'i386-macosx)
+	    ;; The only MacOS systems with 64-bit words are arm64 ones.
+	    ((and (string=? os "MacOS X")
+		  (= bits 64)
+		  (or (string=? ar "ARM") (string=? ar "Standard-C")))
+	     'arm64-macosx)
 	    ((and (string=? os "Linux")
 		  (string=? ar "ARM"))
 	     'arm-linux)
+	    ((and (string=? os "Linux")
+		  (= bits 64)
+		  (zero?
+		   (system "test \"`uname -m`\" = x86_64")))
+	     'x86-64-linux)
 	    ((and (string=? os "Linux")
 		  (zero?
 		   (system "test \"`uname -m | grep 'i.86'`x\" != \"x\"")))
@@ -87,6 +98,22 @@
      (values architecture
 	     ffi/i386-linux-C-callout-cdecl
 	     ffi/i386-linux-C-callback-cdecl
+             #f
+             #f))
+    ((arm64-macosx)
+     (require "ffi-arm64")
+     (ffi/libraries (list (ffi/arm64-macosx-libc)))
+     (values architecture
+             ffi/arm64-macosx-C-callout-stdabi
+             ffi/arm64-macosx-C-callback-stdabi
+             #f
+             #f))
+    ((x86-64-linux)
+     (require "ffi-arm64")
+     (require "ffi-x86-64")
+     (values architecture
+             ffi/x86-64-linux-C-callout-stdabi
+             ffi/x86-64-linux-C-callback-stdabi
              #f
              #f))
     ((arm-linux)

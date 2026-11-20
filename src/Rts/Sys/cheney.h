@@ -14,7 +14,19 @@
    This bit pattern is an unused immediate and can be generated in a single
    cycle on most machines (it's -2).
    */
-#define FORWARD_HDR      0xFFFFFFFE
+#define FORWARD_HDR      ((word)-2)
+
+/* Code objects (on CODE_SPACE systems) are forwarded into the code
+   space rather than into the to-space of the collection; see
+   code-space.h.  FORW_CODE() is used by the forwarding macros.  */
+#if CODE_SPACE
+# define is_code_obj( obj ) (tagof( obj ) == BVEC_TAG && is_code_page( obj ))
+# define FORW_CODE( T_obj, loc, e ) \
+    (*(loc) = cs_forward( (e)->gc->code_space, (T_obj) ))
+#else
+# define is_code_obj( obj ) 0
+# define FORW_CODE( T_obj, loc, e ) ((void)0)
+#endif
 
 /* Copy loop implementation.
 
@@ -72,6 +84,12 @@ struct cheney_env {
        */
 
   bool scan_static;
+  bool static_instead_of_remsets;
+    /* On CODE_SPACE systems: the collection moves code, and every
+       generation except the static generation is being collected, so
+       the static area is scanned in full and the remembered sets
+       (which then remember only static objects) are not scanned;
+       scanning both would visit some locations twice.  */
     /* TRUE if the static area needs to be scanned in its entirety.
        */
 
@@ -95,7 +113,7 @@ struct cheney_env {
        address of codevectors.
        */
 
-  bool (*points_across)( cheney_env_t *e, word l, int offset, word r);
+  bool (*points_across)( cheney_env_t *e, word l, s_word offset, word r);
     /* (potentially) invoked by scanner when l[offset] points to r across 
        generations.  Returns true iff l is added to remset. 
        */
@@ -224,9 +242,9 @@ static void stop( void )
       if (T_h == BV_HDR) {                                                    \
         /* bytevector: skip it, and flush the icache if code */               \
         word *T_oldptr = ptr;                                                 \
-        word T_bytes = roundup4( sizefield( T_w ) );                          \
-        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
-        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                \
+        word T_bytes = roundup_word( sizefield( T_w ) );                      \
+        ptr = (word *)((word)ptr + (T_bytes + sizeof(word))); /* no pad */    \
+        if (!(T_bytes & sizeof(word))) *ptr++ = 0;  /* pad. */                \
         /* Only code vectors typically use a plain bytevector typetag,        \
          * so almost any bytevector will be a code vector that must           \
          * be flushed.                                                        \
@@ -236,13 +254,13 @@ static void stop( void )
       }                                                                       \
       else {                                                                  \
         /* vector or procedure: scan in a tight loop */                       \
-        word T_words = sizefield( T_w ) >> 2;                                 \
+        word T_words = sizefield( T_w ) >> WORD_SHIFT;                                 \
         ptr++;                                                                \
         while (T_words--) {                                                   \
           FORW;                                                               \
           ptr++;                                                              \
         }                                                                     \
-        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
+        if (!(sizefield( T_w ) & sizeof(word))) *ptr++ = 0; /* pad. */                \
       }                                                                       \
     }                                                                         \
     else {                                                                    \
@@ -253,20 +271,21 @@ static void stop( void )
     }                                                                         \
   } while (0)
 
+/* The object's generation is read after each FORW, not once: a forward
+   can add a region, which renumbers the static area and gives the new
+   region the static area's old number (see OBJ_GEN in cheney.c).  */
 #define scan_update_rs( e, ptr, iflush, FORW, UPDATE_REMSET )                 \
   do {                                                                        \
     word *scan_core_old_ptr = ptr, T_w = *ptr;                                \
-    int g_lhs, g_rhs;                                                         \
     assert2( T_w != FORWARD_HDR);                                             \
-    g_lhs = gen_of(ptr);                                                      \
     if (ishdr( T_w )) {                                                       \
       word T_h = header( T_w );                                               \
       if (T_h == BV_HDR) {                                                    \
         /* bytevector: skip it, and flush the icache if code */               \
         word *T_oldptr = ptr;                                                 \
-        word T_bytes = roundup4( sizefield( T_w ) );                          \
-        ptr = (word *)((word)ptr + (T_bytes + 4)); /* doesn't skip padding */ \
-        if (!(T_bytes & 4)) *ptr++ = 0;             /* pad. */                \
+        word T_bytes = roundup_word( sizefield( T_w ) );                      \
+        ptr = (word *)((word)ptr + (T_bytes + sizeof(word))); /* no pad */    \
+        if (!(T_bytes & sizeof(word))) *ptr++ = 0;  /* pad. */                \
         /* Only code vectors typically use a plain bytevector typetag,        \
          * so almost any bytevector will be a code vector that must           \
          * be flushed.                                                        \
@@ -276,14 +295,14 @@ static void stop( void )
       }                                                                       \
       else {                                                                  \
         /* vector or procedure: scan in a tight loop */                       \
-        word T_words = sizefield( T_w ) >> 2;                                 \
+        word T_words = sizefield( T_w ) >> WORD_SHIFT;                                 \
         bool updated = FALSE;                                                 \
         ptr++;                                                                \
         while (T_words) {                                                     \
           T_words--;                                                          \
           FORW;                                                               \
           updated =                                                           \
-            UPDATE_REMSET( e, scan_core_old_ptr, g_lhs,                       \
+            UPDATE_REMSET( e, scan_core_old_ptr, gen_of( scan_core_old_ptr ),                       \
                            ((T_h == VEC_HDR)?VEC_TAG:PROC_TAG),               \
                            ((byte*)ptr - (byte*)scan_core_old_ptr),           \
                            *ptr );                                            \
@@ -294,20 +313,20 @@ static void stop( void )
           FORW;                                                               \
           ptr++;                                                              \
         }                                                                     \
-        if (!(sizefield( T_w ) & 4)) *ptr++ = 0; /* pad. */                   \
+        if (!(sizefield( T_w ) & sizeof(word))) *ptr++ = 0; /* pad. */                \
       }                                                                       \
     }                                                                         \
     else {                                                                    \
       bool upd;                                                               \
       FORW;                                                                   \
-      upd = UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,             \
+      upd = UPDATE_REMSET( e, scan_core_old_ptr, gen_of( scan_core_old_ptr ), PAIR_TAG,             \
                            ((byte*)ptr - (byte*)scan_core_old_ptr),           \
                            *ptr );                                            \
       ptr++;                                                                  \
       FORW;                                                                   \
       if (!upd)                                                               \
         upd =                                                                 \
-          UPDATE_REMSET( e, scan_core_old_ptr, g_lhs, PAIR_TAG,               \
+          UPDATE_REMSET( e, scan_core_old_ptr, gen_of( scan_core_old_ptr ), PAIR_TAG,               \
                          ((byte*)ptr - (byte*)scan_core_old_ptr),             \
                          *ptr );                                              \
       ptr++;                                                                  \
@@ -329,7 +348,7 @@ static void stop( void )
       FORW;                                                          \
     }                                                                \
     else {                                                           \
-      word words = sizefield( *p ) / 4;                              \
+      word words = sizefield( *p ) / sizeof(word);                              \
       COUNT_REMSET_LARGE_OBJ( words );                               \
       while (words--) {                                              \
         ++p;                                                         \
@@ -350,7 +369,7 @@ static void stop( void )
       FORW;                                                               \
     }                                                                     \
     else {                                                                \
-      word words = sizefield( *p ) / 4;                                   \
+      word words = sizefield( *p ) / sizeof(word);                                   \
       COUNT_REMSET_LARGE_OBJ( words );                                    \
       while (words--) {                                                   \
         ++p;                                                              \
@@ -375,7 +394,7 @@ word forward(const word, word **, cheney_env_t *e );
 void oldspace_copy( cheney_env_t *e );
 void seal_chunk( semispace_t *ss, word *lim, word *dest );
 void sweep_large_objects( gc_t *gc, int sweep_oldest, int g1, int g2 );
-void expand_space( cheney_env_t *, word **, word **, unsigned );
+void expand_space( cheney_env_t *, word **, word **, s_word );
 void init_env( cheney_env_t *e, gc_t *gc,
 	       semispace_t **tospaces, int tospaces_len, int tospaces_cap,
                semispace_t *tospace2,

@@ -201,7 +201,7 @@ void sm_verify_summaries_via_oracle( summ_matrix_t *summ );
 int  sm_summarized_live( summ_matrix_t *summ, int rgn );
 void sm_clear_summary( summ_matrix_t *summ, int rgn_next, int ne_rgn_count );
 void sm_clear_contribution_to_summaries( summ_matrix_t *summ, int rgn_next );
-void sm_points_across_callback( summ_matrix_t *summ, word lhs, int offset, int g_rhs );
+void sm_points_across_callback( summ_matrix_t *summ, word lhs, s_word offset, int g_rhs );
 
 void sm_start_refinement( summ_matrix_t *summ );
 bool sm_majorgc_permitted( summ_matrix_t *summ, int rgn_next );

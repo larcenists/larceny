@@ -16,6 +16,7 @@
 #include "millicode.h"
 #include "petit-machine.h"
 #include "signals.h"
+#include "seqbuf_t.h"            /* For SSB_ENQUEUE */
 #include "assert.h"
 #include <setjmp.h>
 #include <stdlib.h>
@@ -24,7 +25,7 @@
 static void timer_exception( word *globals, cont_t k );
 static void signal_exception( word *globals, word exception, cont_t k, 
                               int preserve );
-static void setup_timer( word *globals, int timer, cont_t k );
+static void setup_timer( word *globals, word timer, cont_t k );
 static void check_signals( word *globals, cont_t k );
 
 /* Also visible to native systems based on Petit Larceny */
@@ -246,7 +247,7 @@ void twobit_integrity_check( word *globals, const char *name )
   /* Fixme: should check handles too */
   for ( i=FIRST_ROOT ; i <= LAST_ROOT ; i++ )
     if (!valid_datum( globals[i] ))
-      panic_abort( "Invalid value 0x%08x found in global %d\n", 
+      panic_abort( "Invalid value 0x%08" PRIxWORD " found in global %d\n", 
                   globals[i], i );
 
   stkp = (word*)globals[ G_STKP ];
@@ -258,13 +259,13 @@ void twobit_integrity_check( word *globals, const char *name )
   /* Check heap and stack pointers */
   if (stkp < etop)
     panic_abort( "Stack pointer points below heap top!\n"
-                 "stkp=0x%08x, etop=0x%08x\n", (word)stkp, (word)etop );
+                 "stkp=0x%08" PRIxWORD ", etop=0x%08" PRIxWORD "\n", (word)stkp, (word)etop );
   if (stkp > stkbot)
     panic_abort( "Stack pointer points above stack bottom!\n"
-                 "stkp=0x%08x, stkbot=0x%08x\n", (word)stkp, (word)stkbot );
+                 "stkp=0x%08" PRIxWORD ", stkbot=0x%08" PRIxWORD "\n", (word)stkp, (word)stkbot );
   if (etop < ebot || etop > elim)
     panic_abort( "Heap pointers are not ordered correctly!\n"
-                "ebot=0x%08x, etop=0x%08x, elim=0x%08x",
+                "ebot=0x%08" PRIxWORD ", etop=0x%08" PRIxWORD ", elim=0x%08" PRIxWORD,
                 (word)ebot, (word)etop, (word)elim );
                  
   /* Check that all stack frames look OK
@@ -276,14 +277,14 @@ void twobit_integrity_check( word *globals, const char *name )
   while (frame < stkbot) {
     word size = frame[ STK_FRAMESIZE ];
     word retaddr = frame[ STK_RETADDR ];
-    if (!is_fixnum(size) || (s_word)size < 12)
-      panic_abort( "Invalid stack frame size %u\n", size );
+    if (!is_fixnum(size) || (s_word)size < 3*sizeof(word))
+      panic_abort( "Invalid stack frame size %" PRIuWORD "\n", size );
     if (!is_fixnum(retaddr))
-      panic_abort( "Invalid return address 0x%08x\n", retaddr );
-    for ( i=STK_REG0 ; i <= nativeint(size) ; i++ )
+      panic_abort( "Invalid return address 0x%08" PRIxWORD "\n", retaddr );
+    for ( i=STK_REG0 ; i <= size/sizeof(word) ; i++ )
       if (!valid_datum( frame[i] ))
-        panic_abort( "Invalid datum in stack frame: 0x%08x\n", frame[i] );
-    frame = frame + roundup_walign( size/4+1 );
+        panic_abort( "Invalid datum in stack frame: 0x%08" PRIxWORD "\n", frame[i] );
+    frame = frame + roundup_walign( size/sizeof(word)+1 );
   }
 
   /* Obviously one can also test the heap, SSBs, remembered sets, and
@@ -327,11 +328,11 @@ RTYPE EXPORT mem_stkuflow( CONT_PARAMS )
 
 void EXPORT mc_alloc_bv( word *globals )
 {
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
 
 #if defined( BDW_GC )
 #error "This must be changed because RESULT is size in bytes"
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
 
   nwords = roundup_walign( nwords );
@@ -339,7 +340,9 @@ void EXPORT mc_alloc_bv( word *globals )
   assert2( p != 0 );
   globals[ G_RESULT ] = (word)p;
 #else
-  globals[ G_RESULT ] = roundup4( globals[ G_RESULT ] >> 2 );
+  /* Convert fixnum number of bytes to fixnum number of words */
+  globals[ G_RESULT ] = 
+    fixnum( roundup_word( nativeuint( globals[ G_RESULT ] ) ) / sizeof(word) );
   mc_alloc( globals );
 #endif
 }
@@ -347,10 +350,10 @@ void EXPORT mc_alloc_bv( word *globals )
 void EXPORT mc_alloc( word *globals )
 {
 #if defined( BDW_GC )
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
 
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
 
   nwords = roundup_walign( nwords );
   if ( nwords*sizeof(word) > LARGEST_OBJECT )
@@ -360,12 +363,12 @@ void EXPORT mc_alloc( word *globals )
   assert (p != 0);
   globals[ G_RESULT ] = (word)p;
 #else
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *etop = (word*)globals[ G_ETOP ];
   word *elim = (word*)globals[ G_STKP ];
   word *p;
 
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
   assert2(((word)etop & 7) == 0);
   assert2(((word)elim & 7) == 0);
 
@@ -391,11 +394,11 @@ void EXPORT mc_alloc( word *globals )
 
 void EXPORT mc_alloci( word *globals )
 {
-  int nwords = (int)nativeuint( globals[ G_RESULT ] );
+  s_word nwords = (s_word)nativeuint( globals[ G_RESULT ] );
   word *p;
   word init;
 
-  assert2( is_fixnum(globals[G_RESULT]) && (int)globals[G_RESULT] >= 0 );
+  assert2( is_fixnum(globals[G_RESULT]) && (s_word)globals[G_RESULT] >= 0 );
 
   mc_alloc( globals );
   p = (word*)globals[ G_RESULT ];
@@ -462,7 +465,7 @@ void EXPORT mc_enable_interrupts( word *globals, cont_t k )
 {
   word x = globals[ G_RESULT ];
 
-  if (is_fixnum( x ) && (int)x > 0) {
+  if (is_fixnum( x ) && (s_word)x > 0) {
     globals[ G_TIMER_ENABLE ] = TRUE_CONST;
     setup_timer( globals, nativeuint( x ), k ); /* Checks signals */
   }
@@ -643,9 +646,12 @@ void EXPORT mc_typetag_set( word *globals )
   signal_exception( globals, EX_TYPETAGSET, 0, 0 );
 }
 
-#define compnum_real( x )  (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
-#define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
-#define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
+#define compnum_real( x ) \
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
+#define compnum_imag( x ) \
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)+sizeof(double)))
+#define flonum_val( x ) \
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
 
 /* returns true iff x and y have the same bit-level representation. */
 
@@ -747,7 +753,7 @@ void EXPORT mc_bytevector_like_fill( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   unsigned char c = (globals[ G_SECOND ] >> 2) & 255;
-  int length = sizefield( *x );
+  word length = sizefield( *x );
 
   memset( x+BVEC_HEADER_WORDS, c, length );
 }
@@ -756,7 +762,8 @@ void EXPORT mc_bytevector_like_compare( word *globals )
 {
   word *x = ptrof( globals[ G_RESULT ] ); /* assume: bytevector-like */
   word *y = ptrof( globals[ G_SECOND ] ); /* assume: bytevector-like */
-  int lx, ly, n;
+  s_word lx, ly;
+  int n;
 
   lx = sizefield( *x );
   ly = sizefield( *y );
@@ -795,13 +802,28 @@ void EXPORT mc_compact_ssbs( word *globals ) /* Used by inline barrier */
     gc_compact_all_ssbs( the_gc(globals) );
 }
 
+/* The write barrier.
+
+   On entry, RESULT holds the object that was assigned into, SECOND the
+   value that was stored, and THIRD the address of the slot that was
+   assigned.  The protocol is the same as for native Larceny (see
+   Rts/IAssassin/millicode.c): if the assignment creates a pointer that
+   crosses generations (or regions), and it is not filtered out by the
+   collector's filter settings, then the object and the byte offset of
+   the slot (a fixnum) are logged in the SSB for the generation of the
+   stored value.  The regional collector uses that points-into
+   information to build summaries; the other collectors ignore the
+   offsets.
+   */
+
 void EXPORT mc_partial_barrier( word *globals )
 {
-  unsigned *genv, gl, gr;
+  gclib_desc_t *genv;
+  word gl, gr;
   word **ssbtopv, **ssblimv;
   word lhs, rhs;
 
-  genv = (unsigned*)globals[ G_GENV ];
+  genv = (gclib_desc_t*)globals[ G_GENV ];
   if (genv == 0) return;        /* Barrier disabled */
 
   lhs = globals[ G_RESULT ];
@@ -809,14 +831,38 @@ void EXPORT mc_partial_barrier( word *globals )
 
   gl = genv[pageof(lhs)];       /* gl: generation # of lhs */
   gr = genv[pageof(rhs)];       /* gr: generation # of rhs */
-  if (gl <= gr) return;  
-  
+  if (gl == gr) return;
+  if (globals[ G_FILTER_REMSET_GEN_ORDER ] && gl <= gr) return;
+  if ((s_word)globals[ G_FILTER_REMSET_RHS_NUM ] == (s_word)gr) return;
+  if ((s_word)globals[ G_FILTER_REMSET_LHS_NUM ] == (s_word)gl) return;
+
   ssbtopv = (word**)globals[ G_SSBTOPV ];
   ssblimv = (word**)globals[ G_SSBLIMV ];
-  *ssbtopv[gl] = lhs;
-  ssbtopv[gl] = ssbtopv[gl]+1;
-  if (ssbtopv[gl] == ssblimv[gl]) 
+  assert2( tagof( lhs ) != 0 );
+  assert2( is_fixnum( globals[ G_THIRD ] - (word)ptrof( lhs ) ) );
+  *ssbtopv[gr] = lhs;
+  *(ssbtopv[gr]+1) = globals[ G_THIRD ] - (word)ptrof( lhs );
+  ssbtopv[gr] = ssbtopv[gr]+2;
+  if (ssbtopv[gr]+1 >= ssblimv[gr]) 
     gc_compact_all_ssbs( the_gc(globals) );
+}
+
+/* The snapshot-at-the-beginning barrier, used during the concurrent
+   marking phase of the regional collector.  It is called before an
+   assignment, with RESULT holding the object assigned into and THIRD
+   the address of the slot; it logs the old value of the slot.
+   */
+
+void EXPORT mc_satb_barrier( word *globals )
+{
+  word old = *(word*)globals[ G_THIRD ];
+  word lhs = globals[ G_RESULT ];
+
+  if (globals[ G_CONCURRENT_MARK ] && isptr( old ) &&
+      gen_of( old ) != 0 && gen_of( lhs ) != 0) {
+    gc_t *gc = the_gc( globals );
+    SSB_ENQUEUE( gc, gc->satb_ssb, old );
+  }
 }
 
 void EXPORT mc_full_barrier( word *globals )
@@ -885,7 +931,7 @@ signal_exception( word *globals, word exception, cont_t k, int preserve )
   mc_scheme_callout( globals, MS_EXCEPTION_HANDLER, 4, k, preserve );
 }
 
-static void setup_timer( word *globals, int timer, cont_t k )
+static void setup_timer( word *globals, word timer, cont_t k )
 {
   if (timer <= TIMER_STEP) {
     globals[ G_TIMER ] = timer;

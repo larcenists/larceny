@@ -69,7 +69,7 @@ extern void osdep_os_version( int *major, int *minor );
   /* Return the major and minor version numbers of the operating system.
      */
 
-void *osdep_alloc_aligned( int bytes );
+void *osdep_alloc_aligned( s_word bytes );
   /* Takes a request for a number of bytes, which must be a nonzero
      multiple of 4KB, and returns a pointer to a block of memory of the
      requested size aligned on a 4KB boundary.
@@ -78,11 +78,35 @@ void *osdep_alloc_aligned( int bytes );
      space.  
      */
 
-void osdep_free_aligned( void *block, int bytes );
+void osdep_free_aligned( void *block, s_word bytes );
   /* Takes a pointer returned from osdep_alloc_aligned() as well as
      the size of the pointed-to block and returns the block to
      the free memory pool.
      */
+
+#if CODE_SPACE
+void *osdep_alloc_code( s_word bytes );
+  /* Like osdep_alloc_aligned(), but returns memory that can hold
+     executable code.  Such memory may be writable only while code
+     writing is enabled; see osdep_code_writing().
+     */
+
+void osdep_free_code( void *block, s_word bytes );
+  /* Takes a pointer returned from osdep_alloc_code() as well as the
+     size of the pointed-to block and returns the block to the free
+     memory pool.
+     */
+
+void osdep_code_writing( int enable );
+  /* If enable is nonzero, make code memory writable (and maybe not
+     executable) for the calling thread, otherwise make it executable
+     (and maybe not writable).  Code memory is initially executable.
+     */
+
+void osdep_code_flush( void *start, void *end );
+  /* Make newly written code in [start,end) visible to instruction fetch.
+     */
+#endif
 
 int osdep_fragmentation( void );
   /* Return the number of bytes of internal fragmentation in blocks

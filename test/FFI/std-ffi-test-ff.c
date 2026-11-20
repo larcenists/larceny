@@ -9,6 +9,8 @@
  *     gcc -fPIC -shared std-ffi-test-ff.c -o std-ffi-test-ff.so
  */
 
+#include <string.h>
+
 #ifdef WIN32
 # define CDECL __cdecl
 #else

@@ -31,6 +31,7 @@
 (define (assembly-start as)
   (let ((u (as-user as)))
     (user-data.proc-counter! u 0)
+    (user-data.label-range! u (label-range (as-source as)))
     (user-data.toplevel-counter! u (+ 1 (user-data.toplevel-counter u))))
   (let ((e (new-proc-id as)))
     (as-source! as (cons (list $.entry e #t) (as-source as)))))
@@ -55,17 +56,43 @@
 	      '("#define INLINE_ASSIGNMENT")
 	      '())))
 
-; User-data structure has two fields:
+; User-data structure has three fields:
 ;  toplevel-counter     Different for each compiled segment
 ;  proc-counter         A serial number for labels
+;  label-range          (min . max) of the segment's MAL labels, or #f
 
-(define (make-user-data) (list 0 0))
+(define (make-user-data) (list 0 0 #f))
 
 (define (user-data.toplevel-counter u) (car u))
 (define (user-data.proc-counter u) (cadr u))
+(define (user-data.label-range u) (car (cddr u)))
 
 (define (user-data.toplevel-counter! u x) (set-car! u x))
 (define (user-data.proc-counter! u x) (set-car! (cdr u) x))
+(define (user-data.label-range! u x) (set-car! (cddr u) x))
+
+; The least and greatest labels of the MAL source, including its nested
+; lambda expressions, or #f if it has none.
+
+(define (label-range source)
+  (let loop ((source source) (range #f))
+    (if (null? source)
+        range
+        (let ((instruction (car source)))
+          (loop (cdr source)
+                (cond ((eqv? (car instruction) $.label)
+                       (let ((n (cadr instruction)))
+                         (if range
+                             (cons (min n (car range)) (max n (cdr range)))
+                             (cons n n))))
+                      ((eqv? (car instruction) $lambda)
+                       (let ((nested (loop (operand1 instruction) #f)))
+                         (cond ((not nested) range)
+                               ((not range) nested)
+                               (else
+                                (cons (min (car nested) (car range))
+                                      (max (cdr nested) (cdr range)))))))
+                      (else range)))))))
 
 
 ; Assembly listing.
@@ -263,7 +290,8 @@
 	(emit-text as "twobit_op2_~a( ~a ); /* ~a */"
 		   (op2-primcode (operand1 instruction))
 		   (operand2 instruction)
-		   (operand1 instruction)))))
+		   (operand1 instruction)))
+    (emit-mutator-result as (operand1 instruction))))
 
 (define-instruction $op2imm
   (lambda (instruction as)
@@ -303,7 +331,8 @@
 		   (op3-primcode (operand1 instruction))
 		   (operand2 instruction)
 		   (operand3 instruction)
-		   (operand1 instruction)))))
+		   (operand1 instruction)))
+    (emit-mutator-result as (operand1 instruction))))
 
 (define-instruction $const
   (lambda (instruction as)
@@ -327,7 +356,22 @@
     (list-instruction "setglbl" instruction)
     (emit-text as "twobit_setglbl( ~a ); /* ~a */"
 	       (emit-global as (operand1 instruction))
-	       (safe-symbol (operand1 instruction)))))
+	       (safe-symbol (operand1 instruction)))
+    ; RESULT holds the global's cell, which must not escape.
+    (emit-text as "twobit_op1_3(); /* unspecified */")))
+
+; The value of a primitive that mutates an object is #!unspecified.
+
+(define petit.mutators
+  '(set-car! set-cdr! cell-set! cell-set!:nwb
+    vector-set! vector-set!:trusted vector-set!:trusted:nwb vector-like-set!
+    procedure-set! bytevector-set! bytevector-like-set!
+    bytevector-like-set!:trusted bytevector-fill! string-set!
+    ustring-set! ustring-set!:trusted typetag-set!))
+
+(define (emit-mutator-result as name)
+  (if (memq name petit.mutators)
+      (emit-text as "twobit_op1_3(); /* unspecified */")))
 
 (define-instruction $lambda
   (lambda (instruction as)
@@ -376,6 +420,13 @@
   (lambda (instruction as)
     (list-instruction "invoke" instruction)
     (emit-text as "twobit_invoke( ~a );" (operand1 instruction))))
+
+; See $arity-dispatch in Asm/Fence/pass5p2.sch.
+
+(define-instruction $arity-dispatch
+  (lambda (instruction as)
+    (list-instruction "arity-dispatch" instruction)
+    (emit-text as "twobit_arity_dispatch();")))
 
 (define-instruction $restore
   (lambda (instruction as)
@@ -713,11 +764,30 @@
         ((char? x)                (char->immediate x))
 	(else ???)))
 
+; The ids number the implicit continuations (compiled_temp_x_y) too,
+; and both they and the labels are case values in the procedure that
+; holds them, so the ids skip the labels' range.
+
 (define (new-proc-id as)
   (let* ((u (as-user as))
-	 (x (user-data.proc-counter u)))
+         (range (user-data.label-range u))
+	 (x (user-data.proc-counter u))
+         (x (if (and range (<= (car range) x (cdr range)))
+                (+ 1 (cdr range))
+                x)))
     (user-data.proc-counter! u (+ 1 x))
     x))
 
+
+; The features of the code this assembler produces (see
+; Lib/Common/code-features.sch).  The version number in the target
+; changes when the calling convention or the millicode interface does.
+; The barriers are in the C macros of petit-instr.h.
+
+(define (assembler-lop-features)
+  (make-code-features 'lop
+                      (list '(target petit 1)
+                            (list 'word-size (nbuild-parameter 'word-size)))
+                      '(write-barrier satb-barrier)))
 
 ; eof

@@ -31,6 +31,174 @@ you will need to start with a different pre-built copy of Larceny.
 for building a 64-bit version of Larceny.)
 
 
+BUILDING ON APPLE SILICON (macOS/arm64): THE SHORT VERSION
+
+From the Larceny root directory,
+
+    % src/Build/bootstrap.sh --native --r7rs      # native Larceny
+    % src/Build/bootstrap.sh --petit --r7rs       # Petit Larceny
+
+builds everything with Racket as the host (--larceny PATH-TO-LARCENY
+uses an existing Larceny instead; --clean removes the build products
+of another configuration first).  The rest of this section describes
+the steps the script performs.
+
+
+BUILDING 64-BIT PETIT LARCENY ON APPLE SILICON (macOS/arm64)
+
+Petit Larceny can be built as a 64-bit system (64-bit words, 62-bit
+fixnums) for macOS on Apple Silicon, using Racket (v8 or later, with
+its plt-r5rs language) to host the build instead of a prebuilt
+Larceny.  The C compiler is Apple's clang (invoked as cc/gcc).
+
+ 1. From the Larceny root directory, run plt-r5rs with --no-prim and
+    build the bootstrap system:
+
+        % plt-r5rs --no-prim
+        > (load "setup.sch")
+        > (setup 'scheme: 'racket 'host: 'macosx-arm64)
+        > (build-config-files)
+        > (load-compiler)
+        > (build-heap)
+        > (build-runtime)
+        > (build-executable)
+        > (build-larceny-files)
+        > (build-larceny-heap)
+        > (exit)
+
+    (Racket's plt-r5rs is in the bin directory of the Racket
+    installation, e.g. "/Applications/Racket v9.3/bin/plt-r5rs".)
+
+ 2. (build-larceny-heap) creates the heap image; it runs
+
+        % ./petit-larceny.bin -stopcopy -heap petit.heap \
+              -- src/Build/petit-larceny-heap.sch
+
+ 3. Compile the R7RS/R6RS/SRFI libraries as in step 4 below:
+
+        % ./larceny
+        > (require 'r7rsmode)
+        > (larceny:compile-r7rs-runtime)
+        > (exit)
+
+The 64-bit system uses the same object representations as the 32-bit
+system, scaled to 8-byte words, except that flonums and compnums have
+no pad word after the header, and fixnums have 62 bits.  Heap memory
+is allocated from a reserved region of virtual address space (64 GB by
+default; set LARCENY_ARENA_GB to change it).  Petit Larceny's write
+barrier now follows the same protocol as native Larceny's, so the
+regional collector (-rrof) works.  Code compiled by earlier versions
+of Petit Larceny must be recompiled.  The FFI supports callouts (made
+from C, in src/Rts/Sys/ffi.c, on arm64 and x86-64) but not callbacks.
+The non-predictive collector (-np) is not implemented.
+
+
+BUILDING NATIVE LARCENY ON APPLE SILICON (macOS/arm64)
+
+Native Larceny for AArch64 uses the Fence/Cant code generator (see
+src/Asm/Fence/pass5p2-arm64.sch) and, like the 64-bit Petit Larceny,
+uses 64-bit words and 62-bit fixnums.  It is bootstrapped with Racket
+(see "Build configurations", below, if the tree has been used for other
+builds).  The script
+
+        % src/Build/bootstrap-arm64-native.sh
+
+performs steps 1 and 2 below; or, by hand:
+
+ 1. From the Larceny root directory:
+
+        % plt-r5rs --no-prim
+        > (load "setup.sch")
+        > (setup 'scheme: 'racket 'host: 'macosx-arm64 'native)
+        > (build-config-files)
+        > (load-compiler)
+        > (build-heap)
+        > (build-runtime)
+        > (build-executable)
+        > (build-larceny-files)
+        > (build-larceny-heap)
+        > (exit)
+
+ 2. (build-larceny-heap) creates the heap image; it runs
+
+        % ./larceny.bin -stopcopy -heap arm64.heap \
+              -- src/Build/arm64-macosx-larceny-heap.sch
+
+ 3. Compile the R7RS/R6RS/SRFI libraries as in step 4 below.
+
+MacOS X on Apple Silicon does not allow memory that is both writable
+and executable, so compiled code lives in a separate code space: a
+semispace of MAP_JIT memory that belongs to the oldest non-static
+generation and is garbage collected, by copying, together with that
+generation.  (The regional collector, -rrof, has no such generation:
+there the code space belongs to the static generation, and code is
+collected by a separate pass over the heap when much code has been
+created.)  Heap images keep code in their text segment.  The code
+space's address space can be set with LARCENY_CODE_GB (default 1 GB).
+
+
+BUILDING 64-BIT PETIT LARCENY ON x86-64 LINUX
+
+Petit Larceny builds on x86-64 Linux as on Apple Silicon (same 64-bit
+representations), with gcc, and Racket's plt-r5rs (v8 or later) or an
+existing Larceny as the host.  For native Larceny, see below.
+
+        % src/Build/bootstrap.sh --petit --r7rs
+
+or by hand as in steps 1 to 3 of the macOS section, with
+
+        > (setup 'scheme: 'racket 'host: 'linux-x86-64)
+
+The runtime is compiled with -std=gnu17: gcc 15 defaults to C23, in
+which bool is a keyword, but the runtime defines its own int-sized
+bool.  On a small machine (one CPU, 1.6 GB of memory, some swap) the
+Racket-hosted build takes about nine minutes, and compiling the
+R7RS/R6RS libraries about as long; neither ran short of memory.
+
+
+BUILDING NATIVE LARCENY ON x86-64 LINUX
+
+Native Larceny for x86-64 uses the Fence/Cant code generator with the
+x86-64 back end (src/Asm/Fence/pass5p2-x86-64.sch), and like the
+AArch64 system uses 64-bit words, 62-bit fixnums, and a code space
+(here mapped read-write-execute; heap images keep code in their text
+segment).  With Racket as the host,
+
+        % src/Build/bootstrap.sh --native --r7rs
+
+or by hand as for AArch64, with
+
+        > (setup 'scheme: 'racket 'host: 'linux-x86-64 'native)
+
+The heap is built from x86-64.heap by
+src/Build/x86-64-linux-larceny-heap.sch.  On a small machine the build
+takes about four minutes and compiling the R7RS/R6RS libraries about a
+minute and a half.
+
+Forward branches always take 32-bit displacements (the assembler makes
+one pass); see TODO.md.  Twobit has only 8 registers on x86-64.
+
+
+BUILD CONFIGURATIONS
+
+Build products are written into the source tree, and must not be mixed
+between configurations (Petit vs native, 32 vs 64 bits, and so on).
+setup records the configuration in the file build-configuration, and
+refuses to proceed if the tree was set up for a different one, or holds
+build products but no record.  Then either
+
+    > (setup ... 'clean)
+
+removes the build products (using git to find them) before proceeding,
+or
+
+    > (setup ... 'keep-build-products)
+
+keeps them and records the new configuration.  The Scheme that hosts
+the build is not part of the configuration, so, for example, a tree
+built with Racket as the host can be rebuilt with Larceny as the host.
+
+
 WHAT TO DO
 
 Building Larceny has four major steps:
@@ -49,11 +217,14 @@ declare which implementation of Scheme you want to use for
 the build process (SCHEME) and which OS you are using as
 both the host and target of the build (HOST):
 
-        SCHEME      ::= 'larceny | 'mzscheme | 'petite | 'chez
-        HOST        ::= 'macosx | 'macosx-el | 'linux86 | 'win32 | 'linux-arm-el
+        SCHEME      ::= 'larceny | 'racket | 'mzscheme | 'petite | 'chez
+        HOST        ::= 'macosx | 'macosx-el | 'macosx-arm64 | 'linux86
+                      | 'win32 | 'linux-arm-el
         STRING-REP  ::= 'flat4  |  'flat1
 
 The HOST option macosx-el is for Intel-based Macintosh computers.
+The HOST option macosx-arm64 is for Apple Silicon Macintosh computers;
+it builds a 64-bit Petit Larceny (see above).
 The HOST option macosx is for PowerPC-based Macintosh computers.
 
 The HOST option linux-arm-el is for most ARM-based Linux systems.

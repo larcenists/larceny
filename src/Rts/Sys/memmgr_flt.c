@@ -92,7 +92,7 @@ static void* visit_measuring_float( word *addr, int tag, void *accum )
   case VEC_TAG:
   case BVEC_TAG:
   case PROC_TAG:
-    words = roundup8( sizefield( *addr )+4 ) / 4;
+    words = object_size_bytes( *addr ) / sizeof(word);
     break;
   default:
     assert(0);
@@ -131,22 +131,22 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                                        struct visit_measuring_float_data data )
 {
   int rgn;
-  int newmax;
+  s_word newmax;
   int data_count, easy_float, hard_float;
   { 
     char bars[BAR_LENGTH+2];
     bars[BAR_LENGTH] = '\0';
     bars[BAR_LENGTH+1] = '\0';
     {
-      int allocated;
-      data_count = data.words.total*4;
-      easy_float = data.words.zzflt*4+data.words.rsflt*4;
-      hard_float = data.words.rsflt*4;
+      s_word allocated;
+      data_count = data.words.total*sizeof(word);
+      easy_float = data.words.zzflt*sizeof(word)+data.words.rsflt*sizeof(word);
+      hard_float = data.words.rsflt*sizeof(word);
       newmax = DATA(gc)->ephemeral_area[i]->maximum;
       allocated = DATA(gc)->ephemeral_area[i]->allocated;
       if ( allocated > newmax ) {
         if ( allocated > 2*newmax ) {
-          consolemsg( "  rgn %d allocated: %d significantly exceeds %d", 
+          consolemsg( "  rgn %d allocated: %" PRIdWORD " significantly exceeds %" PRIdWORD, 
                       i, allocated, newmax );
         }
         newmax = allocated;
@@ -170,8 +170,8 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
       rgn_grp_str = region_group_name( region_group_of(heap ));
       oh_synchronize( heap );
       consolemsg( "%scycle % 3d region% 4d "
-                  "rgn sumz live: %8d lastmajor: %7d "
-                  "float{ objs: %7d/%7d words: %7d/%7d %7d }%s%s %s %s", 
+                  "rgn sumz live: %8d lastmajor: %7" PRIdWORD " "
+                  "float{ objs: %7d/%7d words: %7d/%7d %7" PRIdWORD " }%s%s %s %s", 
                   caller_name,
                   DATA(gc)->rrof_cycle_count, 
                   rgn, 
@@ -181,7 +181,7 @@ static void print_float_stats_for_rgn( char *caller_name, gc_t *gc, int i,
                   data.objs.total,
                   data.words.zzflt+data.words.rsflt,
                   data.words.total, 
-                  heap->allocated/4, 
+                  heap->allocated/sizeof(word), 
 
                   rgn_grp_str,
 
@@ -253,7 +253,7 @@ void print_float_stats( char *caller_name, gc_t *gc )
     }
     consolemsg( "cycle % 3d total float { objs: %dk words: %dK (%3d%%,%3d%%) } nextrefine: %d "
                 "promoted % 10d/% 10d "
-                "live{ est: %dK act: %dK max: %dK } estdelta: %0.2f ",
+                "live{ est: %dK act: %dK max: %" PRIdWORD "K } estdelta: %0.2f ",
                 DATA(gc)->rrof_cycle_count, 
                 total_float_objects/1000, 
                 total_float_words/1024, 

@@ -8,10 +8,18 @@
 ; Documentation format is documented in Larceny Note #12.
 ; Summary:  documentation structure is a vector:
 ;
-;   #(procedure-name source-code arity file-name file-position formals)
+;   #(procedure-name source-code arity file-name file-position formals
+;     registers)
 ;
 ; Any of the entries can be #f, and if the tail of the vector is all #f,
 ; then it may be omitted.
+;
+; Registers is not documentation: the native assembler puts there the
+; set of registers that the code vector uses, as a bit mask (bit 16 set
+; marks it as one), and the
+; garbage collector clears the others (see fence.store-register-mask! in
+; src/Asm/Fence/pass5p2.sch), so it must never leave one out.  It is
+; kept by procedure-documentation-set!.
 ;
 ; The file-position may be one of several things:
 ;     #f
@@ -32,6 +40,7 @@
 (define doc.file-name 3)
 (define doc.file-position 4)
 (define doc.formals 5)
+(define doc.registers 6)
 
 ; PROC[1] is the constant vector.
 ; CV[0] is the documentation slot.
@@ -67,9 +76,21 @@
 ; For safety and simplicity, this procedure mutates a copy of the
 ; constant vector, and will only replace a vector with a vector.
 
-(define (procedure-documentation-set! p newdoc)
+(define (procedure-documentation-set! p newdoc0)
   (let* ((cv (procedure-ref p 1))
-	 (ds (if (vector? cv) (vector-ref cv 0) #f)))
+	 (ds (if (vector? cv) (vector-ref cv 0) #f))
+         (old (cond ((vector? ds) ds)
+                    ((and (pair? ds) (pair? (car ds))) (cdr (car ds)))
+                    (else #f)))
+         (newdoc (if (and (vector? newdoc0)
+                          (vector? old)
+                          (= (vector-length newdoc0) (vector-length old))
+                          (> (vector-length old) doc.registers))
+                     (let ((v (vector-copy newdoc0)))
+                       (vector-set! v doc.registers
+                                    (vector-ref old doc.registers))
+                       v)
+                     newdoc0)))
     (cond ((and (vector? ds)
                 (vector? newdoc)
                 (= (vector-length ds) (vector-length newdoc)))
@@ -126,10 +147,9 @@
          (let ((doc (procedure-documentation proc)))
            (if (and (vector? doc)
                     (< doc.procedure-name (vector-length doc)))
-               (procedure-documentation-set! proc
-                                             (vector-set! (vector-copy doc)
-                                                          doc.procedure-name
-                                                          newval))
+               (let ((doc (vector-copy doc)))
+                 (vector-set! doc doc.procedure-name newval)
+                 (procedure-documentation-set! proc doc))
                #f)))
         (else
          (assertion-violation 'procedure-name-set!

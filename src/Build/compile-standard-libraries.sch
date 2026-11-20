@@ -85,7 +85,7 @@
          (setup))
         ((equal? arch-name "IAssassin")
          (setup 'sassy))
-        ((equal? arch-name "SPARC")
+        ((member arch-name '("SPARC" "ARM" "X86-64"))
          (setup 'native))
         (else
          (error 'compile-standard-libraries.sch ": unknown arch-name" arch-name)))

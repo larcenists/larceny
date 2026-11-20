@@ -26,6 +26,7 @@
 #include "barrier.h"
 #include "stats.h"
 #include "cheney.h"
+#include "code-space.h"
 
 /* Additional forwarding macros for a splitting garbage collection.
 
@@ -54,7 +55,7 @@
 #define FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen )            \
   do {                                                                   \
     word next_obj;                                                       \
-    check_space2(dest,lim,8,e->tospace2);                                \
+    check_space2(dest,lim,2*sizeof(word),e->tospace2);                                \
     *dest = *TMP_P;                                                      \
     *(dest+1) = next_obj = *(TMP_P+1);                                   \
     check_address( TMP_P );                                              \
@@ -64,6 +65,14 @@
     dest += 2;                                                           \
   } while ( 0 )
 
+/* On CODE_SPACE systems code is forwarded into the code space, and
+   other bytevector-like objects stay with the data. */
+#if CODE_SPACE
+# define SPLIT_BVECS_TO_TEXT 0
+#else
+# define SPLIT_BVECS_TO_TEXT 1
+#endif
+
 #define forw_core2( T_obj, loc, dest, dest2, lim, lim2, e, forw_limit_gen )             \
   word *TMP_P = ptrof( T_obj );                                         \
   if (*TMP_P == FORWARD_HDR)                                            \
@@ -71,15 +80,17 @@
   else if (tagof( T_obj ) == PAIR_TAG) {                                \
     FORW_PAIR( TMP_P, loc, dest, lim, e, forw_limit_gen);               \
   }                                                                     \
-  else if (tagof( T_obj ) == BVEC_TAG) {                                \
+  else if (is_code_obj( T_obj ))                                        \
+    FORW_CODE( T_obj, loc, e );                                         \
+  else if (tagof( T_obj ) == BVEC_TAG && SPLIT_BVECS_TO_TEXT) {        \
     word *TMPD;                                                         \
-    check_space2(dest2,lim2,sizefield(*TMP_P)+4,e->tospace2); /*text*/  \
+    check_space2(dest2,lim2,sizefield(*TMP_P)+sizeof(word),e->tospace2); /*text*/  \
     TMPD = dest2;                                                       \
     *loc = forward( T_obj, &TMPD, e ); dest2 = TMPD;              \
   }                                                                     \
   else {                                                                \
     word *TMPD;                                                         \
-    check_space2(dest,lim,sizefield(*TMP_P)+4,tospace_dest(e));/*data*/ \
+    check_space2(dest,lim,sizefield(*TMP_P)+sizeof(word),tospace_dest(e));/*data*/ \
     TMPD = dest;                                                        \
     *loc = forward( T_obj, &TMPD, e ); dest = TMPD;               \
   }
@@ -98,7 +109,7 @@ extern void mem_icache_flush( void *start, void *end );
 static void scan_oflo_splitting( cheney_env_t *e );
 
 static void
-expand_semispace( semispace_t *ss, word **lim, word **dest, unsigned bytes )
+expand_semispace( semispace_t *ss, word **lim, word **dest, s_word bytes )
 {
   seal_chunk( ss, *lim, *dest );
   ss_expand( ss, max( bytes, GC_CHUNK_SIZE ) );

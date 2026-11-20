@@ -100,6 +100,7 @@
       (let ((entrypoints 
 	     (call-with-raw-latin-1-input-file lop-file
 	       (lambda (in)
+		 (read-code-features-marker in)
 		 (let loop ((decls '()))
 		   (let ((item (read in)))
 		     (if (string? item)
@@ -124,6 +125,8 @@
       (call-with-raw-latin-1-output-file fasl-file
 	(lambda (out)
           (write-fasl-token out)
+          ; The C code is compiled now, with the current headers.
+          (write-lop-features out)
 	  (if so-name
 	      (begin (display "(define " out)
 		     (display bootstrap-id out)
@@ -188,6 +191,7 @@
 
   (define (dump-prologue file-unique-id out)
     (write-fasl-token out)
+    (write-lop-features out)
     (display `(define ,file-unique-id 
 		(.petit-shared-object ,*shared-object-so-expression*)) 
 	     out)

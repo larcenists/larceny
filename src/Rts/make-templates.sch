@@ -117,6 +117,14 @@
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc-v6
 		  make-template-target-petit-unix-static)))
+    (petit-macosx-arm64-static-clang
+     . ,(lambda ()
+	  (values make-template-petit-macosx-arm64-clang
+		  make-template-target-petit-macosx-static)))
+    (petit-linux-x86-64-static-gcc
+     . ,(lambda ()
+	  (values make-template-petit-linux-x86-64-gcc
+		  make-template-target-petit-unix-static)))
     (petit-win32-static-mingw-v3
      . ,(lambda () 
 	  (values make-template-petit-unix-gcc-v3
@@ -137,6 +145,14 @@
      . ,(lambda ()
           (values make-template-arm-hardfp-linux
                   make-template-target-arm-linux)))
+    (arm64-macosx-clang
+     . ,(lambda ()
+          (values make-template-arm64-macosx-clang
+                  make-template-target-arm64-macosx)))
+    (x86-64-linux-gcc
+     . ,(lambda ()
+          (values make-template-x86-64-linux-gcc
+                  make-template-target-x86-64-linux)))
     (x86-win32-static-visualc-nasm
      . ,(lambda ()
 	  (values make-template-petit-win32-visualc
@@ -203,6 +219,32 @@ ASFLAGS   = -I$(INC_ROOT)/ -I$(INC_ROOT)/Sys/ -I$(INC_ROOT)/Shared/
   (template-common (makefile-variable-definitions 'gcc-v5)))
 (define make-template-petit-unix-gcc-v6
   (template-common (makefile-variable-definitions 'gcc-v6)))
+
+; Petit Larceny: MacOS X on Apple Silicon (arm64, 64-bit words): clang
+(define make-template-petit-macosx-arm64-clang
+  (template-common
+"O=o
+CC=cc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wformat
+# Floating-point contraction (fused multiply-add) changes results.
+CFLAGS+=-c -fno-common -ffp-contract=off -I$(INC_ROOT)/Standard-C $(WARNINGS)
+LIBS=-lm"))
+
+; Petit Larceny: x86-64 GNU/Linux (64-bit words): gcc
+(define make-template-petit-linux-x86-64-gcc
+  (template-common
+"O=o
+CC=gcc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wno-parentheses -Wno-unused-value -Wformat -Wno-format-zero-length
+# Floating-point contraction (fused multiply-add) changes results.
+# The runtime's bool is int-sized; C23 (gcc 15's default) makes bool a
+# keyword.
+CFLAGS+=-c -std=gnu17 -fno-common -ffp-contract=off -I$(INC_ROOT)/Standard-C $(WARNINGS)
+LIBS=-ldl -lm"))
 
 ; Native Larceny with Sassy back-end: Unix: NASM macro assembler for Rts
 (define make-template-sassy-unix-gcc
@@ -284,6 +326,37 @@ quick-test: larceny.bin
 
 LIBS=-ldl -lm
 AS=$(CC)"))
+
+; Native Larceny: MacOS X on Apple Silicon (AArch64): clang
+(define make-template-arm64-macosx-clang
+  (template-common
+"O=o
+CC=cc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wshorten-64-to-32 -Wno-parentheses -Wno-unused-value -Wformat
+# Floating-point contraction (fused multiply-add) changes results.
+CFLAGS+=-c -fno-common -ffp-contract=off -IBuild $(WARNINGS)
+ASFLAGS+=-c
+LIBS=-lm
+# clang does not recognize .sx as assembler source to be preprocessed
+AS=$(CC) -x assembler-with-cpp"))
+
+; Native Larceny: x86-64 GNU/Linux: gcc
+(define make-template-x86-64-linux-gcc
+  (template-common
+"O=o
+CC=gcc
+DEBUGINFO=-g
+OPTIMIZE=-O2 -DNDEBUG2 # -DNDEBUG
+WARNINGS=-Wno-parentheses -Wno-unused-value -Wformat -Wno-format-zero-length
+# Floating-point contraction (fused multiply-add) changes results.
+# The runtime's bool is int-sized; C23 (gcc 15's default) makes bool a
+# keyword.
+CFLAGS+=-c -std=gnu17 -fno-common -ffp-contract=off -IBuild $(WARNINGS)
+ASFLAGS+=-c
+LIBS=-ldl -lm
+AS=$(CC) -x assembler-with-cpp"))
 
 ; Petit Larceny: MacOS X: gcc (building a shared library)
 (define make-template-petit-macosx-gcc-shared
@@ -406,6 +479,26 @@ larceny.bin: kill_version_o $(ARM_LINUX_LARCENY_OBJECTS) Util/ffi-dummy.o
 		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
 	/bin/rm -f Sys/version.o")
 
+; AArch64 MacOS X
+(define make-template-target-arm64-macosx
+"default_target: larceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+larceny.bin: kill_version_o $(ARM64_MACOSX_LARCENY_OBJECTS)
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(ARM64_MACOSX_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	/bin/rm -f Sys/version.o")
+
+; x86-64 Linux
+(define make-template-target-x86-64-linux
+"default_target: larceny.bin
+kill_version_o: 
+	/bin/rm -f Sys/version.o
+larceny.bin: kill_version_o $(X86_64_LINUX_LARCENY_OBJECTS)
+	$(CC) $(PROFILE) $(TCOV) -o larceny.bin $(X86_64_LINUX_LARCENY_OBJECTS) \\
+		$(LIBS) $(EXTRALIBS) $(EXTRALIBPATH) $(LDXFLAGS)
+	/bin/rm -f Sys/version.o")
+
 ; X86-WIN32
 (define make-template-target-sassy-win32
 "default_target: larceny.bin.exe
@@ -435,6 +528,13 @@ bdwlarceny.bin: kill_version_o $(BDW_LARCENY_OBJECTS) Util/ffi-dummy.o
 "libpetit.a: $(PETIT_LARCENY_OBJECTS)
 	ar -r libpetit.a $(PETIT_LARCENY_OBJECTS)
 	ranlib libpetit.a")
+
+; MacOS X on Apple Silicon: the linker requires 8-byte aligned archive
+; members, which Apple's libtool guarantees but ar does not.
+(define make-template-target-petit-macosx-static
+"libpetit.a: $(PETIT_LARCENY_OBJECTS)
+	rm -f libpetit.a
+	libtool -static -o libpetit.a $(PETIT_LARCENY_OBJECTS)")
 
 ; Unix: generic gcc
 (define make-template-target-petit-unix-shared
@@ -501,7 +601,7 @@ larceny.bin: kill_version_o $(X86_SASSY_LARCENY_OBJECTS)
 	Sys/syscall.$(O) Sys/util.$(O) Sys/version.$(O)
 
 PRECISE_GC_OBJECTS=\\
-	Sys/alloc.$(O) Sys/cheney.$(O) Sys/gc.$(O) \\
+	Sys/alloc.$(O) Sys/cheney.$(O) Sys/code-space.$(O) Sys/gc.$(O) \\
 	Sys/cheney-check.$(O) Sys/cheney-np.$(O) Sys/cheney-split.$(O) \\
 	Sys/extbmp.$(O) \\
 	Sys/heapio.$(O) Sys/los.$(O) Sys/ffi.$(O) \\
@@ -555,6 +655,30 @@ ARM_LINUX_OBJECTS=\\
 	Fence/fence-driver.$(O) Fence/fence-millicode.$(O) Fence/fence-syscall2.$(O) \\
 	Fence/fence-config.$(O) Fence/arm-millicode.$(O) \\
 	fence-table.$(O) 
+
+ARM64_MACOSX_OBJECTS=\\
+	Shared/arithmetic.$(O) Shared/multiply.$(O) \\
+	Fence/fence-driver.$(O) Fence/fence-millicode.$(O) Fence/fence-syscall2.$(O) \\
+	Fence/fence-config.$(O) Fence/arm64-millicode.$(O) \\
+	fence-table.$(O) 
+
+ARM64_MACOSX_LARCENY_OBJECTS=\\
+	Sys/larceny.$(O)\\
+	$(COMMON_RTS_OBJECTS)\\
+	$(PRECISE_GC_OBJECTS)\\
+	$(ARM64_MACOSX_OBJECTS)
+
+X86_64_LINUX_OBJECTS=\\
+	Shared/arithmetic.$(O) Shared/multiply.$(O) \\
+	Fence/fence-driver.$(O) Fence/fence-millicode.$(O) Fence/fence-syscall2.$(O) \\
+	Fence/fence-config.$(O) Fence/x86-64-millicode.$(O) \\
+	fence-table.$(O) 
+
+X86_64_LINUX_LARCENY_OBJECTS=\\
+	Sys/larceny.$(O)\\
+	$(COMMON_RTS_OBJECTS)\\
+	$(PRECISE_GC_OBJECTS)\\
+	$(X86_64_LINUX_OBJECTS)
 
 X86_SASSY_LARCENY_OBJECTS=\\
 	Sys/larceny.$(O)\\
@@ -629,7 +753,7 @@ Util/hsplit.o: Util/hsplit.c
 clean:
 	rm -f larceny.bin larceny.bin.exe hsplit bdwlarceny.bin petit-larceny core \\
 	   Build/*.$(O) Nasm/*.$(O) Sparc/*.$(O) Standard-C/*.$(O) \\
-	   IAssassin/*.$(O) \\
+	   IAssassin/*.$(O) Fence/*.$(O) *.$(O) \\
 	   Sys/*.$(O) Util/*.$(O) \\
 	   libpetit.lib libpetit.so libpetit.dylib libpetit.a libpetit.dll \\
 	   Shared/arithmetic.c Shared/*.$(O)

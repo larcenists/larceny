@@ -32,7 +32,7 @@ struct static_heap {
     /* A text area or NULL.
        */
 
-  int allocated;
+  s_word allocated;
     /* Summary of current allocation.
        */
 
@@ -46,7 +46,7 @@ struct static_heap {
 	1 otherwise.  May be NULL.
 	*/
 
-  word *(*allocate)( static_heap_t *h, int nbytes );
+  word *(*allocate)( static_heap_t *h, s_word nbytes );
      /* A method that allocates `nbytes' bytes from the heap and returns
 	a pointer to the first words.  The memory is allocated
 	permanently -- it cannot be released.
@@ -66,7 +66,7 @@ struct static_heap {
      /* Update the stats for the heap in the central repository. 
 	*/
 
-  word *(*data_load_area)( static_heap_t *h, int nbytes );
+  word *(*data_load_area)( static_heap_t *h, s_word nbytes );
      /* A method that allocates a block of at least `nbytes'
 	consecutive bytes, suitable for loading data into.  A pointer
 	to the first word of the block is returned.  No garbage 
@@ -75,7 +75,7 @@ struct static_heap {
 	nbytes > 0
 	*/
 
-  word *(*text_load_area)( static_heap_t *h, int nbytes );
+  word *(*text_load_area)( static_heap_t *h, s_word nbytes );
      /* A method that allocates a block of at least `nbytes'
 	consecutive bytes, suitable for loading non-pointer containing
 	data into.  A pointer to the first word of the block is returned.  

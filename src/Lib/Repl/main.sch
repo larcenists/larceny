@@ -43,6 +43,25 @@
 
 (define (interactive-entry-point0 argv)
   (command-line-arguments argv)
+
+  ;; A heap is usually dumped by a script that is being loaded, which
+  ;; leaves that script as the current source file (and its last
+  ;; datum's source positions): code compiled in this session would
+  ;; be said to come from it.
+
+  (current-source-file #f)
+  ((source-location-recorder) #f)
+
+  ;; The heap's own code must guarantee what the collector requires,
+  ;; such as the SATB pre-barrier of the regional collector.
+
+  (let ((problems (code-features-problems (system-code-features))))
+    (if (not (null? problems))
+        (let ((out (current-error-port)))
+          (display "This heap's code cannot run with this collector: " out)
+          (write problems out)
+          (newline out)
+          (exit 1))))
   (standard-timeslice (most-positive-fixnum))
   (enable-interrupts (standard-timeslice))
 
@@ -200,6 +219,8 @@
       (adjust-transcoder!)
       (adjust-case-sensitivity!)
       (adjust-safety! (get-feature 'safety))
+      (if (eq? emode 'r5rs)
+          (error-handler (r5rs-error-handler (error-handler))))
       (if (not clr?)                                ; FIXME (ticket #547)
           (begin (failsafe-load-init-files)
                  (failsafe-process-arguments)))
@@ -233,7 +254,7 @@
             (original-handler (error-handler)))
         (parameterize ((error-handler
                         (case emode
-                         ((r5rs) original-handler)
+                         ((r5rs) original-handler)      ; see above
                          (else
                           (lambda the-error
                             (parameterize ((error-handler original-handler))
@@ -302,6 +323,19 @@
       (exit 1)))))
 
 
+; In R5RS mode, an error goes to the R6RS/R7RS exception handlers only if
+; some are installed (with-exception-handler, guard), as error does
+; (use-r7rs-mechanism? in error.sch); otherwise the previous handler
+; reports it as it always has (and enters the debugger).  Installed before
+; the init files and the files named on the command line are loaded.
+
+(define (r5rs-error-handler previous)
+  (lambda the-error
+    (if (custom-exception-handlers?)
+        (parameterize ((error-handler previous))
+          (decode-and-raise-r6rs-exception the-error))
+        (apply previous the-error))))
+
 ; Entry point for R5RS and ERR5RS execution modes.
 ; Called only by interactive-entry-point, above.
 
@@ -343,9 +377,17 @@
 
 
 ; Init file loading.
+;
+; The init files are R5RS code.  A heap dumped from an R7RS session
+; (dump-interactive-heap) keeps that session's load evaluator, which
+; evaluates in the R7RS top level, so they are loaded with the one the
+; heap was built with.
+
+(define r5rs-load-evaluator (load-evaluator))
 
 (define (failsafe-load-init-files)
-  (map failsafe-load-file (osdep/find-init-files)))
+  (parameterize ((load-evaluator r5rs-load-evaluator))
+    (map failsafe-load-file (osdep/find-init-files))))
 
 ;;; FIXME: Larceny shouldn't parse anything past -- on the command line.
 ;;; It now parses past -- only in R5RS mode.  Even then it parses past

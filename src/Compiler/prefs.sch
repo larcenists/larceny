@@ -49,8 +49,7 @@
 
 (define (make-toplevel-definition id exp)
   (let ((doc-id (m-unmangled id)))
-    (if (lambda? exp)
-        (doc.name-set! (lambda.doc exp) doc-id))
+    (name-procedures! exp doc-id)                ; in expand.sch
     (make-begin
      (list (make-assignment id exp)
            (make-constant doc-id)))))

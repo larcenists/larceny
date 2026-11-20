@@ -54,15 +54,16 @@
 
 (define (load-from-port p get-environment . maybe-read)
 
-  (let ((read (if (null? maybe-read) read (car maybe-read))))
+  (let ((read (if (null? maybe-read) read (car maybe-read)))
+        (outer-fasl-evaluator (fasl-evaluator))
+        (after-fasl-flag? #f))
 
     ;; The environment must be recomputed for each expression evaluation --
     ;; the loaded expressions may change the interaction environment, and
     ;; when the environment is implicit, that change should be reflected in
     ;; subsequent evaluations.
 
-    (do ((expr (read p) (read p)))
-        ((eof-object? expr))
+    (define (evaluate expr)
       (call-with-values
        (lambda () ((load-evaluator) expr (get-environment)))
        (lambda values
@@ -72,8 +73,40 @@
                          (write-string ";    " (current-output-port))
                          (write value (current-output-port))
                          (flush-output-port (current-output-port)))
-                       values))))))
+                       values)))))
+
+    ;; In a fasl file, #!fasl is followed by a #lop(...) feature marker
+    ;; (see code-features.sch), which is checked, not evaluated.  A fasl
+    ;; file without one predates the markers.  The value the #!fasl
+    ;; flag would otherwise have is still evaluated: in R7RS mode on
+    ;; Petit, it imports the primitives the rest of the file uses.  The
+    ;; flag reads as that value wrapped (twice or more when loads nest).
+
+    (define (fasl-flag? x)
+      (and (pair? x) (eq? (car x) load-from-port:fasl-flag)))
+
+    (define (fasl-flag-value x)
+      (if (fasl-flag? x) (fasl-flag-value (cdr x)) x))
+
+    (parameterize ((fasl-evaluator
+                    (lambda ()
+                      (cons load-from-port:fasl-flag (outer-fasl-evaluator)))))
+      (do ((expr (read p) (read p)))
+          ((eof-object? expr))
+        (cond ((fasl-flag? expr)
+               (set! after-fasl-flag? #t)
+               (evaluate (fasl-flag-value expr)))
+              ((code-features? expr)
+               (set! after-fasl-flag? #f)
+               (check-code-features! expr (port-name p)))
+              (else
+               (if after-fasl-flag?
+                   (begin (set! after-fasl-flag? #f)
+                          (check-code-features! #f (port-name p))))
+               (evaluate expr))))))
   (unspecified))
+
+(define load-from-port:fasl-flag (list 'fasl-flag))
 
 (define (load filename . rest)
 
@@ -116,11 +149,20 @@
                          #f)))))
              (unspecified))
             (else
+             ;; The source positions are dropped at the end of the file
+             ;; (see read-source-code), and also when the load exits
+             ;; early, so that code compiled afterwards is not given
+             ;; positions in this file.
              (parameterize ((current-source-file filename))
-               (call-with-port
-                (open-input-file filename)
-                (lambda (p)
-                  (load-from-port p get-environment read-source-code)))))))
+               (dynamic-wind
+                (lambda () #t)
+                (lambda ()
+                  (call-with-port
+                   (open-input-file filename)
+                   (lambda (p)
+                     (load-from-port p get-environment read-source-code))))
+                (lambda ()
+                  ((source-location-recorder) #f)))))))
 
     ;; The linker is implicit in the loader (as the #^G thing) and uses
     ;; global-name-resolver as the linker.  The following hack makes

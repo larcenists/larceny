@@ -11,17 +11,20 @@
  * list of objects is doubly linked, circular, with a header node.
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include "larceny.h"
 #include "los_t.h"
 #include "gclib.h"
+#include "card.h"
 
 #define HEADER_WORDS     4	/* Number of header words */
-#define HEADER_UNUSED    -4     /* Unused field (could be mark?) */
+#define HEADER_CARDS     -4     /* Card table or 0 (card.h) */
 #define HEADER_SIZE      -3     /* Offset of size field */
 #define HEADER_NEXTP     -2	/* Offset of 'next' pointer */
 #define HEADER_PREVP     -1	/* Offset of 'previous' pointer */
 
-#define size( x )         (((int*)(x))[ HEADER_SIZE ])
+#define size( x )         (((s_word*)(x))[ HEADER_SIZE ])
 #define next( x )         (((word**)(x))[ HEADER_NEXTP ])
 #define prev( x )         (((word**)(x))[ HEADER_PREVP ])
 
@@ -31,7 +34,7 @@
 
 struct los_list {
   word *header;		/* Points to the word following the header node */
-  int  bytes;		/* Total number of allocated bytes */
+  s_word  bytes;		/* Total number of allocated bytes */
 };
 
 static los_list_t *make_los_list( void );
@@ -41,7 +44,7 @@ static void set_generation_number( los_list_t *list, int gen_no, bool clear );
 static void incr_generation_number_for( los_list_t *list, int fresh_gno );
 static void swap_generation_number_for( los_list_t *list, int gno1, int gno2 );
 static void append_and_clear( los_list_t *left, los_list_t *right );
-static void dump_list( los_list_t *l, char *tag, int nbytes );
+static void dump_list( los_list_t *l, char *tag, s_word nbytes );
 static void clear_list( los_list_t *l );
 
 los_t *create_los( int generations )
@@ -100,7 +103,7 @@ void los_free_list( los_list_t *list )
   free( list );
 }
 
-int los_bytes_used( los_t *los, int gen_no )
+s_word los_bytes_used( los_t *los, int gen_no )
 {
   assert( (0 <= gen_no && gen_no < los->generations)
 	  || gen_no == LOS_MARK1
@@ -114,11 +117,11 @@ int los_bytes_used( los_t *los, int gen_no )
     return los->object_lists[gen_no]->bytes;
 }
 
-static int count_bytes_on_marklist( los_t *los, los_list_t *mark, 
+static s_word count_bytes_on_marklist( los_t *los, los_list_t *mark, 
                                     int match_gen_no )
 {
   word *p, *n, *h;
-  int rtn, nbytes, gen_no;
+  s_word rtn, nbytes; int gen_no;
   h = mark->header;
   p = next( h );
   rtn = 0;
@@ -135,9 +138,9 @@ static int count_bytes_on_marklist( los_t *los, los_list_t *mark,
   return rtn;
 }
 
-int los_bytes_used_include_marklists( los_t *los, int gen_no )
+s_word los_bytes_used_include_marklists( los_t *los, int gen_no )
 {
-  int rtn;
+  s_word rtn;
   assert( 0 <= gen_no && gen_no < los->generations );
 
   rtn = los->object_lists[gen_no]->bytes 
@@ -147,10 +150,10 @@ int los_bytes_used_include_marklists( los_t *los, int gen_no )
   return rtn;
 }
 
-word *los_allocate( los_t *los, int nbytes, int gen_no )
+word *los_allocate( los_t *los, s_word nbytes, int gen_no )
 {
   word *w;
-  int size;
+  s_word size;
 
   assert( 0 <= gen_no && gen_no < los->generations && nbytes > 0 );
 
@@ -160,9 +163,10 @@ word *los_allocate( los_t *los, int nbytes, int gen_no )
 
   w += HEADER_WORDS;
   set_size( w, size );
+  w[ HEADER_CARDS ] = 0;
   insert_at_end( w, los->object_lists[ gen_no ] );
 
-  supremely_annoyingmsg( "{LOS} Allocating large object size %d at 0x%08x", 
+  supremely_annoyingmsg( "{LOS} Allocating large object size %" PRIdWORD " at %p", 
 			 size, w );
 
   return w;
@@ -209,7 +213,7 @@ bool los_mark_and_set_generation( los_t *los, los_list_t *marked, word *w,
 void los_sweep( los_t *los, int gen_no )
 {
   word *p, *n, *h;
-  int nbytes;
+  s_word nbytes;
 
   assert( 0 <= gen_no && gen_no < los->generations );
 
@@ -219,8 +223,9 @@ void los_sweep( los_t *los, int gen_no )
     n = next( p );
     remove( p );
     nbytes = size( p );
+    card_table_free( p );
     gclib_free( p - HEADER_WORDS, nbytes );
-    supremely_annoyingmsg( "{LOS} Freeing large object %d bytes at 0x%08x",
+    supremely_annoyingmsg( "{LOS} Freeing large object %" PRIdWORD " bytes at %p",
 			   nbytes, (void*)p );
     p = n;
   }
@@ -429,16 +434,16 @@ static void append_and_clear( los_list_t *left, los_list_t *right )
    WARNING: don't run this on a mark list during GC because the prev() 
    pointers are not right during GC.
    */
-static void dump_list( los_list_t *l, char *tag, int nbytes )
+static void dump_list( los_list_t *l, char *tag, s_word nbytes )
 {
   word *p;
   int fwd_n, fwd_size, backwd_n, backwd_size;
 
-  consolemsg( "{LOS} list dump %s for %d bytes", tag, nbytes );
-  consolemsg( "{LOS}   header at 0x%08x", l->header - HEADER_WORDS );
+  consolemsg( "{LOS} list dump %s for %" PRIdWORD " bytes", tag, nbytes );
+  consolemsg( "{LOS}   header at %p", l->header - HEADER_WORDS );
   fwd_n = fwd_size = 0;
   for ( p = next( l->header ) ; p != l->header ; p = next( p ) ) {
-    consolemsg( "{LOS}   > %d bytes at 0x%08x", size( p ), p - HEADER_WORDS );
+    consolemsg( "{LOS}   > %" PRIdWORD " bytes at %p", size( p ), p - HEADER_WORDS );
     fwd_n++;
     fwd_size += size( p );
   }
@@ -448,7 +453,7 @@ static void dump_list( los_list_t *l, char *tag, int nbytes )
     backwd_n++;
     backwd_size += size( p );
   }
-  consolemsg( "{LOS}   l->bytes=%d, fwd=%d/%d, backwd=%d/%d",
+  consolemsg( "{LOS}   l->bytes=%" PRIdWORD ", fwd=%d/%d, backwd=%d/%d",
 	      l->bytes, fwd_n, fwd_size, backwd_n, backwd_size );
   if (fwd_size != l->bytes || backwd_size != l->bytes || fwd_n != backwd_n)
     consolemsg( "{LOS}    WARNING: sizes computed differently!" );
@@ -475,21 +480,128 @@ bool los_is_address_mapped( los_t *los, word *addr, bool noisy )
 	byte* finis = start + size(cursor);
 	if (((byte*)addr >= start) && ((byte*)addr < finis)) {
 	  if (noisy)
-	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
-		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) Y",
+	    consolemsg("los_is_address_mapped los: %p addr: %p "
+		       "i: %d cursor: %p size: %" PRIdWORD " (range): [%p,%p) Y",
 		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
 	  
 	  assert(! ret); ret = TRUE;
 	} else {
 	  if (noisy)
-	    consolemsg("los_is_address_mapped los: 0x%08x addr: 0x%08x "
-		       "i: %d cursor: 0x%08x size: %d (range): [0x%08x,0x%08x) N",
+	    consolemsg("los_is_address_mapped los: %p addr: %p "
+		       "i: %d cursor: %p size: %" PRIdWORD " (range): [%p,%p) N",
 		       los, addr, i, cursor, size(cursor), (void*)start, (void*)finis);
 	}
       }
     } while (cursor != NULL);
   }
   return ret;
+}
+
+/* Card tables (card.h).  p is the address of the object's header. */
+
+card_table_t *card_table_of( word *p )
+{
+  return (card_table_t*)p[ HEADER_CARDS ];
+}
+
+bool card_eligible( word obj )
+{
+  return tagof( obj ) == VEC_TAG
+    && sizefield( *ptrof( obj ) ) >= CARD_MIN_OBJECT_BYTES
+    && (attr_of( obj ) & MB_LARGE_OBJECT);
+}
+
+card_table_t *card_table_get( word obj, bool all_marked )
+{
+  word *p = ptrof( obj );
+  card_table_t *ct = card_table_of( p );
+
+  if (ct == 0) {
+    word cards = (sizefield( *p ) + CARD_BYTES - 1) / CARD_BYTES;
+    word nwords = (cards + CARD_BITS_PER_WORD - 1) / CARD_BITS_PER_WORD;
+
+    ct = (card_table_t*)must_malloc( sizeof( card_table_t ) +
+                                     (2*nwords-1)*sizeof( word ) );
+    ct->cards = cards;
+    memset( ct->bits, (all_marked ? 0xFF : 0), nwords*sizeof( word ) );
+    /* Nothing is known of where the object points.  */
+    memset( card_across_bits( ct ), 0xFF, nwords*sizeof( word ) );
+    p[ HEADER_CARDS ] = (word)ct;
+  }
+  else if (all_marked)
+    card_mark_all( ct );
+  return ct;
+}
+
+void card_mark( card_table_t *ct, word offset )
+{
+  word card, i, bit;
+
+  if (offset < sizeof( word )) {        /* not a slot: be safe */
+    card_mark_all( ct );
+    return;
+  }
+  card = (offset - sizeof( word )) / CARD_BYTES;
+  if (card >= ct->cards) {
+    card_mark_all( ct );
+    return;
+  }
+  i = card / CARD_BITS_PER_WORD;
+  bit = (word)1 << (card % CARD_BITS_PER_WORD);
+  ct->bits[ i ] |= bit;
+  card_across_bits( ct )[ i ] |= bit;
+}
+
+void card_mark_all( card_table_t *ct )
+{
+  memset( ct->bits, 0xFF, 2*card_nwords( ct )*sizeof( word ) );
+}
+
+void card_mark_across( card_table_t *ct, word offset )
+{
+  word card;
+
+  if (offset < sizeof( word )
+      || (card = (offset - sizeof( word )) / CARD_BYTES) >= ct->cards) {
+    memset( card_across_bits( ct ), 0xFF, card_nwords( ct )*sizeof( word ) );
+    return;
+  }
+  card_across_bits( ct )[ card / CARD_BITS_PER_WORD ]
+    |= (word)1 << (card % CARD_BITS_PER_WORD);
+}
+
+void card_check_across( word obj, card_table_t *ct, word *across,
+                        int static_gen, const char *who )
+{
+  word *slots = ptrof( obj ) + 1;
+  word words = sizefield( *ptrof( obj ) ) / sizeof( word );
+  int gen = gen_of( obj );
+  word j;
+
+  for ( j = 0 ; j < words ; j++ ) {
+    word card = j / CARD_WORDS;
+    if ((across[ card / CARD_BITS_PER_WORD ]
+         & ((word)1 << (card % CARD_BITS_PER_WORD))) == 0
+        && isptr( slots[j] )
+        && gen_of( slots[j] ) != gen
+        && gen_of( slots[j] ) != static_gen)
+      panic_abort( "card_check_across (%s): object %p (gen %d) slot %" PRIdWORD
+                   " card %" PRIdWORD " points into gen %d (%p); marked %d",
+                   who, (void*)obj, gen, j, card, gen_of( slots[j] ),
+                   (void*)slots[j],
+                   (int)((ct->bits[ card / CARD_BITS_PER_WORD ]
+                          >> (card % CARD_BITS_PER_WORD)) & 1) );
+  }
+}
+
+void card_table_free( word *p )
+{
+  card_table_t *ct = card_table_of( p );
+
+  if (ct != 0) {
+    free( ct );
+    p[ HEADER_CARDS ] = 0;
+  }
 }
 
 /* eof */

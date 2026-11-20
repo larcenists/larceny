@@ -32,7 +32,7 @@
 #include "larceny-types.h"
 
 struct ss_chunk {
-  int  bytes;            /* # of bytes allocated; 0 => pointers are garbage */
+  s_word  bytes;            /* # of bytes allocated; 0 => pointers are garbage */
   word *bot;             /* Pointer to first word */
   word *top;             /* Pointer to next free word */
   word *lim;             /* Pointer past last free word */
@@ -43,11 +43,12 @@ struct semispace {
   int        n;          /* Length of chunk array */
   int        current;    /* Index of current chunk (may be -1 briefly) */
   ss_chunk_t *chunks;    /* Array of chunks */
-  int        allocated;  /* Total allocated bytes in semispace */
-  int        used;       /* Total used bytes in semispace */
+  s_word        allocated;  /* Total allocated bytes in semispace */
+  s_word        used;       /* Total used bytes in semispace */
+  int        code;       /* Chunks are in the code arena? */
 };
 
-semispace_t *create_semispace( int bytes, int gen_no );
+semispace_t *create_semispace( s_word bytes, int gen_no );
   /* Create a semispace_t with a single chunk that can hold at least
      `bytes' bytes, with the given generation number.
 
@@ -55,7 +56,14 @@ semispace_t *create_semispace( int bytes, int gen_no );
      gen_no >= 0
      */
 
-semispace_t *create_semispace_n( int chunk_bytes, int chunks, int gen_no );
+#if CODE_SPACE
+semispace_t *create_code_semispace( s_word bytes, int gen_no );
+  /* Like create_semispace, but the chunks are executable code memory
+     with the MB_CODE attribute (see code-space.h).
+     */
+#endif
+
+semispace_t *create_semispace_n( s_word chunk_bytes, int chunks, int gen_no );
   /* Create a semispace_t with `chunks' chunks of `chunk_bytes' each,
      with the given generation number.  `Chunks' can be 0.
 
@@ -68,7 +76,7 @@ void ss_free( semispace_t *ss );
   /* Destroy a semispace and all its data.  Invalidates ss.
      */
 
-void ss_expand( semispace_t *ss, int bytes_needed );
+void ss_expand( semispace_t *ss, s_word bytes_needed );
   /* Expand the semispace by allocating a chunk large enough to hold
      the request, reusing an unused chunk if possible.  Increments 
      ss->current, and puts the new chunk at the new ss->current,
@@ -77,7 +85,7 @@ void ss_expand( semispace_t *ss, int bytes_needed );
      bytes_needed >= 0
      */
 
-int ss_allocate_and_insert_block( semispace_t *ss, int bytes );
+int ss_allocate_and_insert_block( semispace_t *ss, s_word bytes );
   /* Allocate a chunk that will hold `bytes' bytes and insert it into
      the semispace before the current chunk, unless ss.current == -1
      in which case ss.current will point to the new chunk.  May 
@@ -86,7 +94,7 @@ int ss_allocate_and_insert_block( semispace_t *ss, int bytes );
      bytes > 0
      */
 
-int ss_allocate_block_unconditionally( semispace_t *ss, int bytes );
+int ss_allocate_block_unconditionally( semispace_t *ss, s_word bytes );
   /* Allocate a chunk that will hold `bytes' bytes and insert it into the
      semispace after the current chunk.  Will not reuse any existing but
      unused chunk.  Will not change ss->current.  Returns the index of

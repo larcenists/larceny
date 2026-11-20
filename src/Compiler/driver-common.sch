@@ -44,6 +44,118 @@
             (string->list "#!fasl"))
   (newline outport))
 
+; Feature markers (see Lib/Common/code-features.sch).  A .lap file
+; begins with #lap(...), a .lop file with #lop(...), and a .fasl file
+; with #!fasl and then #lop(...).
+;
+; The features of .lap files: Twobit's output depends on the target's
+; table of integrable procedures and on its word size.
+
+(define (twobit-lap-features)
+  (make-code-features 'lap
+                      (list (list 'target-machine
+                                  (nbuild-parameter 'target-machine))
+                            (list 'word-size (nbuild-parameter 'word-size)))
+                      '()))
+
+; The features of the code the assembler produces.  Machine assemblers
+; (loaded later) redefine this.
+
+(define (assembler-lop-features)
+  (make-code-features 'lop
+                      (list (list 'target-machine
+                                  (nbuild-parameter 'target-machine))
+                            (list 'word-size (nbuild-parameter 'word-size)))
+                      '()))
+
+(define (write-code-features-decl cf)
+  (lambda (outport)
+    (write-code-features cf outport)
+    (newline outport)
+    (newline outport)))
+
+(define (write-lap-features outport)
+  ((write-code-features-decl (twobit-lap-features)) outport))
+
+(define (write-lop-features outport)
+  ((write-code-features-decl (assembler-lop-features)) outport))
+
+; Read the feature marker at the head of a compiled file, after
+; whitespace, and return it, or return #f if there is none.  This does
+; not use the host's reader for the marker itself, which may be a
+; Scheme system that does not know the syntax.
+
+(define (read-code-features-marker port)
+  (define (skip-whitespace)
+    (let ((c (peek-char port)))
+      (if (and (char? c) (char-whitespace? c))
+          (begin (read-char port) (skip-whitespace)))))
+  (skip-whitespace)
+  (if (eqv? (peek-char port) #\#)
+      (let* ((c0 (read-char port))
+             (c1 (read-char port))
+             (c2 (read-char port))
+             (c3 (read-char port))
+             (c4 (read-char port)))
+        (if (not (and (eqv? c1 #\l)
+                      (memv c2 '(#\a #\o))
+                      (eqv? c3 #\p)
+                      (eqv? c4 #\()))
+            (error "read-code-features-marker: not a feature marker: "
+                   (list c0 c1 c2 c3 c4)))
+        (let loop ((clauses '()))
+          (skip-whitespace)
+          (if (eqv? (peek-char port) #\))
+              (begin (read-char port)
+                     (list->code-features (if (eqv? c2 #\a) 'lap 'lop)
+                                          (reverse clauses)))
+              (loop (cons (read port) clauses)))))
+      #f))
+
+; Given a read procedure, returns a read procedure that first skips
+; the feature marker at the head of each port it reads from.
+
+(define (code-features-skipping-reader reader)
+  (let ((ports '()))
+    (lambda (port)
+      (if (not (memq port ports))
+          (begin (set! ports (cons port ports))
+                 (read-code-features-marker port)))
+      (reader port))))
+
+; A declaration that copies the feature marker of a file, if it has
+; one.
+
+(define (write-code-features-of filename)
+  (lambda (outport)
+    (let ((cf (file-code-features filename)))
+      (if cf ((write-code-features-decl cf) outport)))))
+
+; The feature marker of a .lap or .lop file, or #f.
+
+(define (file-code-features filename)
+  (define (first-line in)
+    (let ((out (open-output-string)))
+      (do ((c (read-char in) (read-char in)))
+          ((or (eof-object? c) (char=? c #\newline))
+           (get-output-string out))
+        (write-char c out))))
+  (if (string=? "#!fasl"
+                (call-with-raw-latin-1-input-file filename first-line))
+      (call-with-raw-latin-1-input-file filename
+        (lambda (in)
+          (first-line in)
+          (read-code-features-marker in)))
+      (call-with-raw-latin-1-input-file filename read-code-features-marker)))
+
+; Are cf1 and cf2 (which may be #f) the same features?
+
+(define (code-features-equal? cf1 cf2)
+  (and cf1
+       cf2
+       (eq? (code-features-kind cf1) (code-features-kind cf2))
+       (equal? (code-features-clauses cf1) (code-features-clauses cf2))))
+
 ; Write a declaration to an output port
 
 (define (process-decl outport)
@@ -71,8 +183,10 @@
            (assembly-user-data)))
       (process-file infilename
                     `(,outfilename binary)
-		    (cons write-fasl-token
-                          (assembly-declarations user))
+                    (cons write-fasl-token
+                          (cons write-lop-features
+                                (assembly-declarations user)))
+                    (code-features-skipping-reader read)
                     dump-fasl-segment-to-port
                     (lambda (x) (assemble (if malfile? (eval x) x) user)))
       (unspecified)))

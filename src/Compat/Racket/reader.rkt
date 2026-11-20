@@ -1,0 +1,413 @@
+#lang racket/base
+
+;; A datum reader for Larceny source code, for use when hosting Larceny's
+;; build process under Racket.
+;;
+;; Racket's own reader does not accept several R6RS/R7RS/Larceny lexical
+;; forms that appear throughout Larceny's sources (#\x41, "\x41;",
+;; #u8(...), #!unspecified, #!fold-case, ...).  This reader accepts
+;; R7RS syntax plus the Larceny extensions used in the sources, and
+;; produces data suitable for the plt-r5rs language: mutable pairs,
+;; mutable strings, and Racket byte strings for bytevectors.
+
+(require racket/undefined)
+
+(provide larceny-read
+         larceny-read-fold-case
+         (struct-out lcf))
+
+;; The feature markers #lap(...) and #lop(...) that begin compiled
+;; files read as an lcf; compat.sch defines the code-features procedures
+;; of Lib/Common/code-features.sch on top of it.  Clauses is an mlist.
+
+(struct lcf (kind clauses))
+
+;; Per-port fold-case state, set by #!fold-case and #!no-fold-case.
+
+(define fold-case-ports (make-weak-hasheq))
+
+(define larceny-read-fold-case (make-parameter #f))
+
+(define (fold-case? port)
+  (hash-ref fold-case-ports port (lambda () (larceny-read-fold-case))))
+
+(define (larceny-read [port (current-input-port)])
+  (let loop ()
+    (let ((x (read-datum port)))
+      (if (eq? x comment-marker)
+          (loop)
+          (if (eq? x eof-marker)
+              eof
+              x)))))
+
+;; Special markers.
+
+(define comment-marker (string->uninterned-symbol "comment"))
+(define eof-marker (string->uninterned-symbol "eof"))
+(define close-marker (string->uninterned-symbol "close"))
+(define dot-marker (string->uninterned-symbol "dot"))
+
+(define (read-error port msg . args)
+  (let-values (((line col pos) (port-next-location port)))
+    (error 'larceny-read "~a (line ~a, column ~a): ~a"
+           (object-name port) line col (apply format msg args))))
+
+(define (delimiter? c)
+  (or (eof-object? c)
+      (char-whitespace? c)
+      (memv c '(#\( #\) #\[ #\] #\" #\; #\'  #\` #\,))))
+
+(define (skip-whitespace-and-comments port)
+  (let ((c (peek-char port)))
+    (cond ((eof-object? c) (void))
+          ((char-whitespace? c)
+           (read-char port)
+           (skip-whitespace-and-comments port))
+          ((char=? c #\;)
+           (let loop ()
+             (let ((c (read-char port)))
+               (unless (or (eof-object? c) (char=? c #\newline))
+                 (loop))))
+           (skip-whitespace-and-comments port))
+          (else (void)))))
+
+(define (skip-block-comment port)
+  ;; Called after #| has been consumed.  Nests.
+  (let loop ((depth 1))
+    (let ((c (read-char port)))
+      (cond ((eof-object? c)
+             (read-error port "unterminated block comment"))
+            ((and (char=? c #\|) (eqv? (peek-char port) #\#))
+             (read-char port)
+             (when (> depth 1) (loop (- depth 1))))
+            ((and (char=? c #\#) (eqv? (peek-char port) #\|))
+             (read-char port)
+             (loop (+ depth 1)))
+            (else (loop depth))))))
+
+;; Returns a datum, or one of the markers.
+
+(define (read-datum port)
+  (skip-whitespace-and-comments port)
+  (let ((c (read-char port)))
+    (cond ((eof-object? c) eof-marker)
+          ((or (char=? c #\() (char=? c #\[))
+           (read-list-tail port (if (char=? c #\() #\) #\])))
+          ((or (char=? c #\)) (char=? c #\]))
+           close-marker)
+          ((char=? c #\') (read-abbrev port 'quote))
+          ((char=? c #\`) (read-abbrev port 'quasiquote))
+          ((char=? c #\,)
+           (if (eqv? (peek-char port) #\@)
+               (begin (read-char port) (read-abbrev port 'unquote-splicing))
+               (read-abbrev port 'unquote)))
+          ((char=? c #\") (read-string-literal port))
+          ((char=? c #\|)
+           (string->symbol (read-bar-symbol port)))
+          ((char=? c #\#) (read-hash port))
+          (else
+           (parse-atom port (read-token port (string c)))))))
+
+(define (read-abbrev port sym)
+  (let ((d (read-required-datum port)))
+    (mcons sym (mcons d '()))))
+
+(define (read-required-datum port)
+  (let ((d (read-datum port)))
+    (cond ((eq? d comment-marker) (read-required-datum port))
+          ((eq? d eof-marker) (read-error port "unexpected end of file"))
+          ((eq? d close-marker) (read-error port "unexpected close paren"))
+          ((eq? d dot-marker) (read-error port "unexpected dot"))
+          (else d))))
+
+(define (read-list-tail port closer)
+  (let loop ((acc '()))
+    (let ((d (read-datum port)))
+      (cond ((eq? d comment-marker) (loop acc))
+            ((eq? d eof-marker) (read-error port "unterminated list"))
+            ((eq? d close-marker) (reverse->mlist acc '()))
+            ((eq? d dot-marker)
+             (when (null? acc) (read-error port "dot at start of list"))
+             (let ((tail (read-required-datum port)))
+               (let close-loop ()
+                 (let ((e (read-datum port)))
+                   (cond ((eq? e comment-marker) (close-loop))
+                         ((eq? e close-marker) (reverse->mlist acc tail))
+                         (else (read-error port "bad dotted list")))))))
+            (else (loop (cons d acc)))))))
+
+(define (reverse->mlist acc tail)
+  (let loop ((acc acc) (result tail))
+    (if (null? acc)
+        result
+        (loop (cdr acc) (mcons (car acc) result)))))
+
+(define (read-sequence port)
+  ;; Reads data up to a closing paren; returns an immutable Racket list.
+  (let loop ((acc '()))
+    (let ((d (read-datum port)))
+      (cond ((eq? d comment-marker) (loop acc))
+            ((eq? d eof-marker) (read-error port "unterminated vector"))
+            ((eq? d close-marker) (reverse acc))
+            ((eq? d dot-marker) (read-error port "dot in vector"))
+            (else (loop (cons d acc)))))))
+
+(define (read-token port prefix)
+  (let ((out (open-output-string)))
+    (write-string prefix out)
+    (let loop ()
+      (let ((c (peek-char port)))
+        (cond ((delimiter? c) (get-output-string out))
+              ((char=? c #\\)
+               ;; escape within a symbol; \x...; may contain a semicolon
+               (write-char (read-char port) out)
+               (let ((e (read-char port)))
+                 (when (char? e)
+                   (write-char e out)
+                   (when (memv e '(#\x #\X))
+                     (let hex ()
+                       (let ((h (read-char port)))
+                         (when (char? h)
+                           (write-char h out)
+                           (unless (char=? h #\;) (hex))))))))
+               (loop))
+              ((char=? c #\|)
+               ;; |...| inside a symbol
+               (read-char port)
+               (write-string (read-bar-symbol port) out)
+               (loop))
+              (else
+               (write-char (read-char port) out)
+               (loop)))))))
+
+(define (read-hex-escape port)
+  ;; After \x; reads hex digits up to ';'.
+  (let loop ((digits '()))
+    (let ((c (read-char port)))
+      (cond ((eof-object? c) (read-error port "bad \\x escape"))
+            ((char=? c #\;)
+             (integer->char
+              (string->number (list->string (reverse digits)) 16)))
+            (else (loop (cons c digits)))))))
+
+(define (read-bar-symbol port)
+  ;; After the opening |; returns the string.
+  (let ((out (open-output-string)))
+    (let loop ()
+      (let ((c (read-char port)))
+        (cond ((eof-object? c) (read-error port "unterminated |symbol|"))
+              ((char=? c #\|) (get-output-string out))
+              ((char=? c #\\)
+               (let ((e (read-char port)))
+                 (case e
+                   ((#\x #\X) (write-char (read-hex-escape port) out))
+                   ((#\a) (write-char #\u7 out))
+                   ((#\b) (write-char #\backspace out))
+                   ((#\t) (write-char #\tab out))
+                   ((#\n) (write-char #\newline out))
+                   ((#\r) (write-char #\return out))
+                   (else (write-char e out))))
+               (loop))
+              (else (write-char c out) (loop)))))))
+
+(define (read-string-literal port)
+  (let ((out (open-output-string)))
+    (let loop ()
+      (let ((c (read-char port)))
+        (cond ((eof-object? c) (read-error port "unterminated string"))
+              ((char=? c #\") (string-copy (get-output-string out)))
+              ((char=? c #\\)
+               (let ((e (read-char port)))
+                 (cond ((eof-object? e) (read-error port "bad string escape"))
+                       ((memv e '(#\x #\X))
+                        (write-char (read-hex-escape port) out))
+                       ((char=? e #\a) (write-char #\u7 out))
+                       ((char=? e #\b) (write-char #\backspace out))
+                       ((char=? e #\t) (write-char #\tab out))
+                       ((char=? e #\n) (write-char #\newline out))
+                       ((char=? e #\r) (write-char #\return out))
+                       ((char=? e #\v) (write-char #\vtab out))
+                       ((char=? e #\f) (write-char #\page out))
+                       ((char=? e #\0) (write-char #\nul out))
+                       ((or (char=? e #\space) (char=? e #\tab)
+                            (char=? e #\newline) (char=? e #\return))
+                        ;; line continuation: \<intraline ws>*<newline><intraline ws>*
+                        (let skip1 ((e e))
+                          (cond ((or (char=? e #\space) (char=? e #\tab))
+                                 (skip1 (read-char port)))
+                                ((char=? e #\return)
+                                 (when (eqv? (peek-char port) #\newline)
+                                   (read-char port)))
+                                ((char=? e #\newline) (void))
+                                (else (read-error port "bad line continuation"))))
+                        (let skip2 ()
+                          (let ((c (peek-char port)))
+                            (when (and (char? c)
+                                       (or (char=? c #\space) (char=? c #\tab)))
+                              (read-char port)
+                              (skip2)))))
+                       (else (write-char e out))))
+               (loop))
+              (else (write-char c out) (loop)))))))
+
+(define char-names
+  `(("space" . #\space)
+    ("newline" . #\newline)
+    ("linefeed" . #\newline)
+    ("nl" . #\newline)
+    ("tab" . #\tab)
+    ("nul" . #\nul)
+    ("null" . #\nul)
+    ("alarm" . #\u7)
+    ("backspace" . #\backspace)
+    ("delete" . #\rubout)
+    ("rubout" . #\rubout)
+    ("del" . #\rubout)
+    ("escape" . #\u1B)
+    ("esc" . #\u1B)
+    ("altmode" . #\u1B)
+    ("page" . #\page)
+    ("return" . #\return)
+    ("vtab" . #\vtab)
+    ("nel" . #\u85)
+    ("ls" . ,(integer->char #x2028))))
+
+(define (read-char-literal port)
+  ;; After #\ .
+  (let ((c (read-char port)))
+    (if (eof-object? c)
+        (read-error port "bad character literal")
+        (let ((next (peek-char port)))
+          (if (delimiter? next)
+              c
+              (let ((tok (read-token port (string c))))
+                (cond ((= (string-length tok) 1) (string-ref tok 0))
+                      ((and (memv (string-ref tok 0) '(#\x #\X #\u #\U))
+                            (string->number (substring tok 1) 16))
+                       => integer->char)
+                      ((assoc (string-downcase tok) char-names) => cdr)
+                      (else (read-error port "unknown character name #\\~a"
+                                        tok)))))))))
+
+(define (read-hash port)
+  (let ((c (peek-char port)))
+    (cond ((eof-object? c) (read-error port "bad # syntax"))
+          ((char=? c #\() (read-char port)
+                          (list->vector (read-sequence port)))
+          ((char=? c #\\) (read-char port) (read-char-literal port))
+          ((char=? c #\|) (read-char port) (skip-block-comment port)
+                          comment-marker)
+          ((char=? c #\;) (read-char port) (read-required-datum port)
+                          comment-marker)
+          ((char=? c #\') (read-char port) (read-abbrev port 'syntax))
+          ((char=? c #\`) (read-char port) (read-abbrev port 'quasisyntax))
+          ((char=? c #\,) (read-char port)
+                          (if (eqv? (peek-char port) #\@)
+                              (begin (read-char port)
+                                     (read-abbrev port 'unsyntax-splicing))
+                              (read-abbrev port 'unsyntax)))
+          ((char=? c #\!) (read-char port) (read-hash-bang port))
+          ((char=? c #\") (read-char port) (read-byte-string port))
+          ;; Racket identifiers such as #%require (in the compatibility
+          ;; package itself, which is loaded again if setup is called
+          ;; twice).
+          ((char=? c #\%) (string->symbol (read-token port "#")))
+          (else
+           (let ((tok (read-token port "#")))
+             (cond ((member tok '("#lap" "#lop"))
+                    (unless (eqv? (read-char port) #\()
+                      (read-error port "bad ~a syntax" tok))
+                    (lcf (if (string=? tok "#lap") 'lap 'lop)
+                         (reverse->mlist (reverse (read-sequence port)) '())))
+                   ((member tok '("#u8" "#vu8"))
+                    (unless (eqv? (read-char port) #\()
+                      (read-error port "bad bytevector syntax"))
+                    (apply bytes (read-sequence port)))
+                   ((member tok '("#t" "#true")) #t)
+                   ((member tok '("#f" "#false")) #f)
+                   ((string->number tok) => values)
+                   (else (read-error port "bad # syntax: ~a" tok))))))))
+
+;; Racket's byte-string syntax #"...", which is how Racket writes the
+;; bytevectors in .lop files produced by a Racket-hosted build.
+(define (read-byte-string port)
+  ;; After #" .
+  (define (octal? c) (and (char? c) (char<=? #\0 c #\7)))
+  (let loop ((acc '()))
+    (let ((c (read-char port)))
+      (cond ((eof-object? c) (read-error port "unterminated byte string"))
+            ((char=? c #\") (apply bytes (reverse acc)))
+            ((char=? c #\\)
+             (let ((e (read-char port)))
+               (cond ((eof-object? e) (read-error port "bad byte string escape"))
+                     ((octal? e)
+                      (let oct ((n (- (char->integer e) 48)) (k 1))
+                        (if (and (< k 3) (octal? (peek-char port)))
+                            (oct (+ (* n 8) (- (char->integer (read-char port)) 48))
+                                 (+ k 1))
+                            (loop (cons n acc)))))
+                     ((memv e '(#\x #\X))
+                      (let hex ((n 0) (k 0))
+                        (let ((d (peek-char port)))
+                          (if (and (< k 2) (char? d) (string->number (string d) 16))
+                              (begin (read-char port)
+                                     (hex (+ (* n 16) (string->number (string d) 16))
+                                          (+ k 1)))
+                              (loop (cons n acc))))))
+                     (else
+                      (loop (cons (case e
+                                    ((#\a) 7) ((#\b) 8) ((#\t) 9) ((#\n) 10)
+                                    ((#\v) 11) ((#\f) 12) ((#\r) 13) ((#\e) 27)
+                                    (else (char->integer e)))
+                                  acc))))))
+            (else (loop (cons (char->integer c) acc)))))))
+
+(define (read-hash-bang port)
+  ;; After #!
+  (let ((c (peek-char port)))
+    (if (or (eqv? c #\/) (eqv? c #\space))
+        ;; Script header line: skip to end of line.
+        (let loop ()
+          (let ((c (read-char port)))
+            (if (or (eof-object? c) (char=? c #\newline))
+                comment-marker
+                (loop))))
+        (let ((tok (read-token port "")))
+          (cond ((string=? tok "fold-case")
+                 (hash-set! fold-case-ports port #t) comment-marker)
+                ((string=? tok "no-fold-case")
+                 (hash-set! fold-case-ports port #f) comment-marker)
+                ((string=? tok "eof") eof)
+                ((string=? tok "unspecified") (void))
+                ((string=? tok "void") (void))
+                ((string=? tok "undefined") undefined)
+                ((string=? tok "true") #t)
+                ((string=? tok "false") #f)
+                ((string=? tok "null") '())
+                ((member tok '("r6rs" "r7rs" "r5rs" "larceny" "err5rs"
+                               "fasl" "topic"))
+                 comment-marker)
+                (else (read-error port "unknown #! syntax: #!~a" tok)))))))
+
+(define (parse-atom port tok)
+  (cond ((string=? tok ".") dot-marker)
+        ((string->number tok) => values)
+        (else
+         (let ((s (if (fold-case? port) (string-foldcase tok) tok)))
+           (string->symbol (decode-symbol-escapes port s))))))
+
+(define (decode-symbol-escapes port s)
+  (if (not (for/or ((c (in-string s))) (char=? c #\\)))
+      s
+      (let ((in (open-input-string s))
+            (out (open-output-string)))
+        (let loop ()
+          (let ((c (read-char in)))
+            (cond ((eof-object? c) (get-output-string out))
+                  ((char=? c #\\)
+                   (let ((e (read-char in)))
+                     (if (memv e '(#\x #\X))
+                         (write-char (read-hex-escape in) out)
+                         (write-char e out)))
+                   (loop))
+                  (else (write-char c out) (loop))))))))

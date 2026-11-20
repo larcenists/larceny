@@ -8,10 +8,22 @@
 
 ; $Id$
 
-;; A numeric string that uniquely identifies this run in the universe.
+;; A numeric string that uniquely identifies this run in the universe:
+;; the time in microseconds when it is first asked for.  It is made
+;; again when a dumped heap starts, or every run of a heap dumped after
+;; expanding something would generate the same names, and libraries
+;; compiled in different runs would share keys of environments.
 
-(define (ex:unique-token)
-  (larceny:number->compactstring (current-seconds)))
+(define ex:unique-token
+  (let ((token #f))
+    (add-init-procedure! (lambda () (set! token #f)))
+    (lambda ()
+      (or token
+          (begin
+           (set! token
+                 (larceny:number->compactstring
+                  (exact (round (* 1e6 (current-second))))))
+           token)))))
 
 ;; The letrec black hole and corresponding setter.
 

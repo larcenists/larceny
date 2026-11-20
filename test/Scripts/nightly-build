@@ -165,6 +165,41 @@ case "`basename "$0"`" in
 	MAKETEXTSAFE="iconv -t utf8 -c"
     ;;
 
+    # macOS on Apple Silicon (64-bit ARM).  The Racket hosts expect
+    # Racket's plt-r5rs to be in the PATH.
+    nightly-build-larceny-macosx-arm64-native)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-arm64 'native"
+	HEAP_DUMP_SCRIPT=src/Build/arm64-macosx-HHH-heap.sch
+	DIRNAME=native
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    nightly-build-racket-macosx-arm64-native)
+	SCHEME_PGM="plt-r5rs --no-prim "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'racket  'host: 'macosx-arm64 'native"
+	HEAP_DUMP_SCRIPT=src/Build/arm64-macosx-HHH-heap.sch
+	DIRNAME=rktnative
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    nightly-build-larceny-macosx-arm64-petit)
+	SCHEME_PGM="larceny -- "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx-arm64"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=petit
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+    nightly-build-racket-macosx-arm64-petit)
+	SCHEME_PGM="plt-r5rs --no-prim "
+	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'racket  'host: 'macosx-arm64"
+	FINAL_LARCENY_BIN=petit-larceny.bin
+	FINAL_TWOBIT_BIN=twobit.bin
+	HEAP_DUMP_SCRIPT=src/Build/petit-HHH-heap.sch
+	DIRNAME=rktpetit
+	MAKETEXTSAFE="iconv -t utf8 -c"
+    ;;
+
     nightly-build-larceny-macosx-petit)   # PPC!
 	SCHEME_PGM="larceny -- "
 	SETUP_ARGS="${SETUP_ARGS} 'scheme: 'larceny  'host: 'macosx"

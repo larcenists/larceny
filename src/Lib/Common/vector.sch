@@ -37,96 +37,115 @@
 ; all the time, and we can do this when we know that the vector is in
 ; the tenured area.
 
+; (sys$partial-list->vector l n) would allocate and fill the vector in
+; millicode, but it stores without the write barrier, which a vector
+; allocated outside the nursery needs.
+
 (define list->vector
   (lambda (l)
-;   (sys$partial-list->vector l (length l))
     (let* ((n (length l))
            (v (make-vector n)))
-      (do ((i 0 (+ i 1))
-           (l l (cdr l)))
-          ((= i n) v)
-        (vector-set! v i (car l))))))
+      (if (>= n sys$vector-like-move-threshold)
+          (begin (sys$vector-like-fill-from-list! v 0 n l)
+                 v)
+          (do ((i 0 (+ i 1))
+               (l l (cdr l)))
+              ((= i n) v)
+            (vector-set! v i (car l)))))))
 
-(define (vector->list v . rest)
+(define vector->list
+  (case-lambda
+   ((v) (vector->list:range v 0 (vector-length v)))
+   ((v start) (vector->list:range v start (vector-length v)))
+   ((v start end) (vector->list:range v start end))))
+
+(define (vector->list:range v start end)
   (define (loop v start i xs)
     (if (< i start)
         xs
         (loop v start (- i 1) (cons (vector-ref v i) xs))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (vector-length v)
-                  (cadr rest))))
-    (loop v start (- end 1) '())))
+  (loop v start (- end 1) '()))
 
-(define (vector->string v . rest)
+(define vector->string
+  (case-lambda
+   ((v) (vector->string:range v 0 (vector-length v)))
+   ((v start) (vector->string:range v start (vector-length v)))
+   ((v start end) (vector->string:range v start end))))
+
+(define (vector->string:range v start end)
   (define (loop v i end s j)
     (if (>= i end)
         s
         (begin (string-set! s j (vector-ref v i))
                (loop v (+ i 1) end s (+ j 1)))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (vector-length v)
-                  (cadr rest)))
-         (s (make-string (- end start))))
-    (loop v start end s 0)))
+  (loop v start end (make-string (- end start)) 0))
 
-(define (string->vector s . rest)
+(define string->vector
+  (case-lambda
+   ((s) (string->vector:range s 0 (string-length s)))
+   ((s start) (string->vector:range s start (string-length s)))
+   ((s start end) (string->vector:range s start end))))
+
+(define (string->vector:range s start end)
   (define (loop s i end v j)
     (if (>= i end)
         v
         (begin (vector-set! v j (string-ref s i))
                (loop s (+ i 1) end v (+ j 1)))))
-  (let* ((start (if (null? rest) 0 (car rest)))
-         (end (if (or (null? rest) (null? (cdr rest)))
-                  (string-length s)
-                  (cadr rest)))
-         (v (make-vector (- end start))))
-    (loop s start end v 0)))
+  (loop s start end (make-vector (- end start)) 0))
 
 ; Copies src[i..j] into dst starting at k.
 ; Used only within this file.
 ; Performs no checking.
-; Assumes src and dst are distinct strings, or that k <= i.
+; Assumes src and dst are distinct vectors, or that k <= i.
+;
+; Copies of at least sys$vector-like-move-threshold elements use
+; memmove (which also handles the overlapping case of the -up! copy).
 
 (define vector-copy-into-down!
   (lambda (src i j dst k)
-    (do ((i i (.+:idx:idx i 1))
-         (k k (.+:idx:idx k 1)))
-        ((.>=:fix:fix i j))
-      (.vector-set!:trusted dst k (.vector-ref:trusted src i)))))
+    (if (.>=:fix:fix (.-:idx:idx j i) sys$vector-like-move-threshold)
+        (sys$vector-like-move! src i dst k (.-:idx:idx j i))
+        (do ((i i (.+:idx:idx i 1))
+             (k k (.+:idx:idx k 1)))
+            ((.>=:fix:fix i j))
+          (.vector-set!:trusted dst k (.vector-ref:trusted src i))))))
 
 ; As above, but assumes k >= i.
 
 (define vector-copy-into-up!
   (lambda (src i j dst k)
-    (do ((j (- j 1) (- j 1))
-         (k (+ k (- j i) -1) (- k 1)))
-        ((> i j))
-      (vector-set! dst k (vector-ref src j)))))
+    (if (>= (- j i) sys$vector-like-move-threshold)
+        (sys$vector-like-move! src i dst k (- j i))
+        (do ((j (- j 1) (- j 1))
+             (k (+ k (- j i) -1) (- k 1)))
+            ((> i j))
+          (vector-set! dst k (vector-ref src j))))))
 
 (define vector-copy
-  (lambda (x . rest)
-    (define (complain msgcode culprit)
-      (assertion-violation 'vector-copy
-                           (errmsg msgcode)
-                           culprit))
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end  (if (or (null? rest) (null? (cdr rest)))
-                     (vector-length x)
-                     (cadr rest)))
-           (v (make-vector (- end start))))
-      (cond ((not (vector? x))
-             (complain 'msg:notvector v))
-            ((not (fixnum? start))
-             (complain 'msg:notfixnum start))
-            ((not (fixnum? end))
-             (complain 'msg:notfixnum end))
-            ((not (<= 0 start end (vector-length x)))
-             (complain 'msg:illegalargs (list x start end)))
-            (else
-             (vector-copy-into-up! x start end v 0)
-             v)))))
+  (case-lambda
+   ((x)
+    (vector-copy:copy x 0 (if (vector? x) (vector-length x) 0)))
+   ((x start)
+    (vector-copy:copy x start (if (vector? x) (vector-length x) 0)))
+   ((x start end)
+    (vector-copy:copy x start end))))
+
+(define (vector-copy:copy x start end)
+  (define (complain msgcode culprit)
+    (assertion-violation 'vector-copy (errmsg msgcode) culprit))
+  (cond ((not (vector? x))
+         (complain 'msg:notvector x))
+        ((not (fixnum? start))
+         (complain 'msg:notfixnum start))
+        ((not (fixnum? end))
+         (complain 'msg:notfixnum end))
+        ((not (<= 0 start end (vector-length x)))
+         (complain 'msg:illegalargs (list x start end)))
+        (else
+         (let ((v (make-vector (- end start))))
+           (vector-copy-into-down! x start end v 0)
+           v))))
 
 ;;; R7RS 6.7 says "It is an error if at is less than zero or greater than
 ;;; the length of to.  It is also an error if (- (vector-length to) at)
@@ -136,58 +155,62 @@
 ;;; that will work.
 
 (define vector-copy!
-  (lambda (dst at src . rest)
+  (case-lambda
+   ((dst at src)
+    (vector-copy!:copy dst at src 0 (vector-copy!:end dst at src 0)))
+   ((dst at src start)
+    (vector-copy!:copy dst at src start (vector-copy!:end dst at src start)))
+   ((dst at src start end)
+    (vector-copy!:copy dst at src start end))))
 
-    (define (complain0 msgcode)
-      (assertion-violation 'vector-copy!
-                           (errmsg msgcode)
-                           (cons dst (cons at (cons src rest)))))
+(define (vector-copy!:end dst at src start)
+  (if (and (vector? dst) (vector? src) (fixnum? at) (fixnum? start))
+      (min (vector-length src)
+           (+ start (- (vector-length dst) at)))
+      0))
 
-    (define (complain msgcode culprit)
-      (assertion-violation 'vector-copy!
-                           (errmsg msgcode)
-                           culprit))
-
-    (let* ((start (if (null? rest)
-                      0
-                      (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (min (vector-length src)
-                         (+ start (- (vector-length dst) at)))
-                    (cadr rest))))
-      (cond ((not (vector? dst))
-             (complain 'msg:notvector dst))
-            ((not (vector? src))
-             (complain 'msg:notvector src))
-            ((not (fixnum? at))
-             (complain 'msg:notfixnum at))
-            ((not (fixnum? start))
-             (complain 'msg:notfixnum start))
-            ((not (fixnum? end))
-             (complain 'msg:notfixnum end))
-            ((not (and (<= 0 at (vector-length dst))
-                       (<= 0 start end (vector-length src))
-                       (<= (+ at (- end start)) (vector-length dst))))
-             (complain0 'msg:rangeerror))
-            (else
-             ((if (<= at start)
-                  vector-copy-into-down!
-                  vector-copy-into-up!)
-              src start end dst at))))))
+(define (vector-copy!:copy dst at src start end)
+  (define (complain msgcode culprit)
+    (assertion-violation 'vector-copy! (errmsg msgcode) culprit))
+  (cond ((not (vector? dst))
+         (complain 'msg:notvector dst))
+        ((not (vector? src))
+         (complain 'msg:notvector src))
+        ((not (fixnum? at))
+         (complain 'msg:notfixnum at))
+        ((not (fixnum? start))
+         (complain 'msg:notfixnum start))
+        ((not (fixnum? end))
+         (complain 'msg:notfixnum end))
+        ((not (and (<= 0 at (vector-length dst))
+                   (<= 0 start end (vector-length src))
+                   (<= (+ at (- end start)) (vector-length dst))))
+         (assertion-violation 'vector-copy!
+                              (errmsg 'msg:rangeerror)
+                              (list dst at src start end)))
+        ((<= at start)
+         (vector-copy-into-down! src start end dst at))
+        (else
+         (vector-copy-into-up! src start end dst at))))
 
 (define vector-fill!
-  (lambda (v x . rest)
-    (let* ((start (if (null? rest) 0 (car rest)))
-           (end (if (or (null? rest) (null? (cdr rest)))
-                    (vector-length v)
-                    (cadr rest))))
-      (subvector-fill! v start end x))))
+  (case-lambda
+   ((v x) (subvector-fill! v 0 (vector-length v) x))
+   ((v x start) (subvector-fill! v start (vector-length v) x))
+   ((v x start end) (subvector-fill! v start end x))))
 
 (define subvector-fill!
   (lambda (v start end x)
-    (do ((i start (+ i 1)))
-        ((>= i end) v)
-        (vector-set! v i x))))
+    (if (and (vector? v)
+             (fixnum? start)
+             (fixnum? end)
+             (<= 0 start end (vector-length v))
+             (>= (- end start) sys$vector-like-move-threshold))
+        (begin (sys$vector-like-fill! v start (- end start) x)
+               v)
+        (do ((i start (+ i 1)))
+            ((>= i end) v)
+            (vector-set! v i x)))))
 
 (define (vector-equal? v1 v2)
 

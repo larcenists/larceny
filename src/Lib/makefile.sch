@@ -145,6 +145,8 @@
     ; Fundamental
 
     "malcode"           ; really basic things
+    case-lambda         ; case-lambda's dispatch (to be substituted!)
+    "make-case-lambda"  ; what case-lambda expands into
     "layouts"           ; generated from Rts/layouts.cfg
     "typetags"          ; type tags
     "syscall-id"        ; syscall ID numbers
@@ -169,6 +171,8 @@
     "mcode"             ; millicode support
     "memstats"          ; runtime stats
     "record"            ; records
+    "code-features"     ; feature markers of compiled code
+    "heap-code-features" ; features of the heap's code (generated)
     "condition"         ; conditions
     "ecodes"            ; exception codes
     "ehandler"          ; exception handler
@@ -254,6 +258,7 @@
   (append
    (param-filename 'repl-source '("main" "reploop"))
    (param-filename 'interp-source '("interp" "interp-prim" "switches"))
+   (param-filename 'larceny-compatibility '("eq-table"))  ; for pass1
    (param-filename 'compiler
                  '("pass0" "pass1" "pass1.aux" "pass2.aux" "prefs"
                    "syntaxenv" "syntaxrules2" "syntaxrules" "lowlevel"
@@ -296,6 +301,7 @@
                     (flonum-endian . ,(common-relative "flonums-be.lop"))
                     (bignum-endian . ,(common-relative "bignums-be.lop"))
                     (osdep . ,(common-relative "sys-unix.lop"))
+                    (case-lambda . #f)
                     (extra . #f))))
         (sparc-eval-files
          (objects "" ".lop" eval-files)))
@@ -331,6 +337,7 @@
                     (flonum-endian . ,(common-relative "flonums-el.lop"))
                     (bignum-endian . ,(common-relative "bignums-el.lop"))
                     (osdep . ,(common-relative "sys-unix.lop"))
+                    (case-lambda . ,(common-relative "case-lambda.lop"))
                     (extra . #f))))
         (arm-eval-files
          (objects "" ".lop" eval-files)))
@@ -351,6 +358,47 @@
                  (compat:read-case-sensitive? #t))
     (make:make arm-heap-project "arm.heap" 
                (lambda (tgt) (error 'make-arm-heap tgt)))))
+
+; The heaps of the 64-bit Fence/Cant systems (AArch64 and x86-64) are
+; built from the same files as the ARM heap.
+
+(define (fence64-heap-project heap-name)
+  (let ((heap-files
+         (objects (nbuild-parameter 'common-source)
+                  ".lop"
+                  common-heap-files
+                  `((primops . ,(param-filename 'source "Arch" "Fence" "primops.lop"))
+                    (toplevel-target . ,(param-filename 'source "Arch" "Fence" "toplevel-target.lop"))
+                    (flonum-endian . ,(common-relative "flonums-el.lop"))
+                    (bignum-endian . ,(common-relative "bignums-el.lop"))
+                    (osdep . ,(common-relative "sys-unix.lop"))
+                    (case-lambda . ,(common-relative "case-lambda.lop"))
+                    (extra . #f))))
+        (eval-files
+         (objects "" ".lop" eval-files)))
+    (make:project heap-name
+      `(rules
+        (".lop" ".mal" ,make-assemble)
+        (".lop" ".lap" ,make-assemble)
+        (".lap" ".sch" ,make-compile))
+      `(targets
+        (,heap-name ,make-dumpheap))
+      `(dependencies                    ; Order matters.  [Why??!]
+        (,heap-name ,heap-files)
+        (,heap-name ,eval-files)))))
+
+(define (make-fence64-heap heap-name rest)
+  (make:pretend (not (null? rest)))
+  (parameterize ((integrate-procedures 'larceny)
+                 (compat:read-case-sensitive? #t))
+    (make:make (fence64-heap-project heap-name) heap-name
+               (lambda (tgt) (error 'make-fence64-heap tgt)))))
+
+(define (make-arm64-heap . rest)
+  (make-fence64-heap "arm64.heap" rest))
+
+(define (make-x86-64-heap . rest)
+  (make-fence64-heap "x86-64.heap" rest))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -381,6 +429,7 @@
                       . ,(common-endian "bignums" ".manifest"))
                      (osdep
                       . ,(common-relative osdep-file))
+                     (case-lambda . #f)
                      (extra
                       . ,(param-filename 'source "Arch" "IL"
                                          "loadable.manifest")))))
@@ -491,6 +540,9 @@
                      (flonum-endian . ,(common-endian "flonums"))
                      (bignum-endian . ,(common-endian "bignums"))
                      (osdep    . ,(common-relative target))
+                     (case-lambda
+                      . ,(and (eq? 'standard-c (nbuild-parameter 'target-machine))
+                              (common-relative "case-lambda.lop")))
                      (extra    . ,(machine-relative "loadable.lop")))))
     (set! petit-eval-files
           (objects "" ".lop" eval-files))

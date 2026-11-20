@@ -60,25 +60,33 @@
                (environment-syntax-environment
                 (interaction-environment)))))
         (parameterize ((current-source-file infilename))
-          (if (benchmark-block-mode)
-              (process-file-block infilename
-                                  `(,outfilename binary)
-                                  (cons write-fasl-token
-                                        (assembly-declarations user))
-                                  read-source-code
-                                  dump-fasl-segment-to-port
-                                  (lambda (forms)
-                                    (assemble (compile-block forms syntaxenv) 
-                                              user)))
-              (process-file infilename
-                            `(,outfilename binary)
-                            (cons write-fasl-token
-                                  (assembly-declarations user))
-                            read-source-code
-                            dump-fasl-segment-to-port
-                            (lambda (expr)
-                              (assemble (compile expr syntaxenv) user))))))
-      ((source-location-recorder) #f)
+          (dynamic-wind
+           (lambda () #t)
+           (lambda ()
+            (if (benchmark-block-mode)
+                (process-file-block infilename
+                                    `(,outfilename binary)
+                                    (cons write-fasl-token
+                                          (cons write-lop-features
+                                                (assembly-declarations user)))
+                                    read-source-code
+                                    dump-fasl-segment-to-port
+                                    (lambda (forms)
+                                      (assemble (compile-block forms syntaxenv) 
+                                                user)))
+                (process-file infilename
+                              `(,outfilename binary)
+                              (cons write-fasl-token
+                                    (cons write-lop-features
+                                          (assembly-declarations user)))
+                              read-source-code
+                              dump-fasl-segment-to-port
+                              (lambda (expr)
+                                (assemble (compile expr syntaxenv) user)))))
+           ;; Also when compilation stops on an error, so that code
+           ;; compiled afterwards is not given positions in this file.
+           (lambda ()
+             ((source-location-recorder) #f)))))
       (unspecified)))
 
   (if (eq? (nbuild-parameter 'target-machine) 'standard-c)
@@ -132,14 +140,14 @@
       (if (benchmark-block-mode)
           (process-file-block infilename 
                               outfilename 
-                              '()
+                              (list write-lap-features)
                               read
                               write-lap 
                               (lambda (x)
                                 (compile-block x syntaxenv)))
           (process-file infilename 
                         outfilename 
-                        '()
+                        (list write-lap-features)
                         read
                         write-lap 
                         (lambda (x) 
@@ -162,8 +170,8 @@
          (assembly-user-data)))
     (process-file file
                   `(,outputfile binary)
-                  (assembly-declarations user)
-                  read
+                  (cons write-lop-features (assembly-declarations user))
+                  (code-features-skipping-reader read)
                   write-lop
                   (lambda (x) 
                     (assemble (if malfile? (eval x) x) user)))
@@ -187,14 +195,14 @@
       (if (benchmark-block-mode)
           (process-file-block input-file
                               `(,output-file binary)
-                              (assembly-declarations user)
+                              (cons write-lop-features (assembly-declarations user))
                               read
                               write-lop
                               (lambda (x)
                                 (assemble (compile-block x syntaxenv) user)))
           (process-file input-file
                         `(,output-file binary)
-                        (assembly-declarations user)
+                        (cons write-lop-features (assembly-declarations user))
                         read
                         write-lop
                         (lambda (x) 
@@ -214,8 +222,9 @@
                                   *fasl-file-type*))))
       (process-file `(,infilename binary)
                     `(,outfilename binary)
-                    (list write-fasl-token)
-                    read
+                    (list write-fasl-token
+                          (write-code-features-of infilename))
+                    (code-features-skipping-reader read)
                     dump-fasl-segment-to-port
                     (lambda (x) x))
       (unspecified)))

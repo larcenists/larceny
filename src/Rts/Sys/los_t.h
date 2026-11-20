@@ -64,7 +64,7 @@ los_list_t *create_los_list(void);
 #define LOS_MARK1  -1		/* Secret value */
 #define LOS_MARK2  -2		/* Secret value */
 
-int los_bytes_used( los_t *los, int gen_no );
+s_word los_bytes_used( los_t *los, int gen_no );
   /* Returns the number of bytes allocated to large objects in generation
      `gen_no' or on one of the mark lists.
 
@@ -73,7 +73,7 @@ int los_bytes_used( los_t *los, int gen_no );
   or gen_no == LOS_MARK2
      */
 
-int los_bytes_used_include_marklists( los_t *los, int gen_no );
+s_word los_bytes_used_include_marklists( los_t *los, int gen_no );
   /* Returns the number of bytes allocated to large objects in generation
      `gen_no', including objects on the mark lists that belong to `gen_no'
 
@@ -81,7 +81,7 @@ int los_bytes_used_include_marklists( los_t *los, int gen_no );
      assigned to a generation even when in the *midst* of collection.
      */
 
-word *los_allocate( los_t *los, int nbytes, int gen_no );
+word *los_allocate( los_t *los, s_word nbytes, int gen_no );
   /* Allocate nbytes from the large object space with the given generation
      and return a pointer to the block.  The large object is allocated
      to its own set of pages, and the page attribute on those pages

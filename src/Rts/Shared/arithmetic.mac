@@ -40,15 +40,14 @@
 
 #define setcc( c )  globals[ G_RESULT ] = ((c) ? TRUE_CONST : FALSE_CONST)
 
-/* FIXME: these macros are not valid in a 64-bit setting! */
 /* FIXME: these should be in macros.h, probably */
-#if defined(BITS_64)
-#  error \"Must fix some macros in arithmetic.mac for 64-bit compilation.\"
-#endif
 
-#define compnum_real( x )  (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
-#define compnum_imag( x )  (*(double*)((word)x-BVEC_TAG+4*sizeof(word)))
-#define flonum_val( x )    (*(double*)((word)x-BVEC_TAG+2*sizeof(word)))
+#define compnum_real( x ) \\
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
+#define compnum_imag( x ) \\
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)+sizeof(double)))
+#define flonum_val( x ) \\
+  (*(double*)((word)x-BVEC_TAG+(1+FLONUM_PAD_WORDS)*sizeof(word)))
 
 extern double rint( double x );
 extern double aint( double x );
@@ -62,7 +61,10 @@ extern double aint( double x );
 
 static void generic_binary_operation( word *globals, int op, cont_t k );
 static void generic_unary_operation( word *globals, int op, cont_t k );
-static void ga_box_int( word *globals, word w );
+static void ga_box_int( word *globals, s_word w );
+#if defined(BITS_64)
+static void ga_box_int128( word *globals, __int128 w );
+#endif
 static void ga_box_longint( word *globals, word hi, word lo );
 static void ga_box_word( word *globals, word x, int sign );
 static void ga_box_flonum( word *globals, double d );
@@ -257,7 +259,7 @@ void EXPORT @name@( word *globals @extra@ )
 ; Fixnums with no overflow is handled in-line.
 
 (standard-arithmetic "mc_add" "ADD" 
-"ga_box_int(globals, (int)nativeint(x)+(int)nativeint(y));"
+"ga_box_int(globals, (s_word)nativeint(x)+(s_word)nativeint(y));"
 "ga_box_flonum(globals, flonum_val(x)+flonum_val(y));"
 "ga_box_compnum(globals, compnum_real(x)+compnum_real(y), 
                       compnum_imag(x)+compnum_imag(y));
@@ -270,7 +272,7 @@ void EXPORT @name@( word *globals @extra@ )
 ; Fixnums with no overflow is handled in-line.
 
 (standard-arithmetic "mc_sub" "SUB"
-"ga_box_int(globals, (int)nativeint(x)-(int)nativeint(y));"
+"ga_box_int(globals, (s_word)nativeint(x)-(s_word)nativeint(y));"
 "ga_box_flonum(globals, flonum_val(x)-flonum_val(y));"
 "ga_box_compnum(globals, compnum_real(x)-compnum_real(y),
                       compnum_imag(x)-compnum_imag(y));
@@ -286,7 +288,10 @@ void EXPORT @name@( word *globals @extra@ )
 (standard-arithmetic "mc_mul" "MUL"
 "
 /* DEC C compiler may have problems with the #if not at SOL? */
-#if defined( __GNUC__ ) && 0
+#if defined( BITS_64 )
+  __int128 res = (__int128)(s_word)nativeint( x ) * (s_word)nativeint( y );
+  ga_box_int128( globals, res );
+#elif defined( __GNUC__ ) && 0
   long long int res = (long long)nativeint( x ) * (long long)nativeint( y );
   ga_box_longint( globals, (int)(res >> 32), (int)res );
 #else
@@ -329,8 +334,8 @@ ga_box_compnum( globals, zr, zi );
 #if defined(EXPLICIT_DIVZ_CHECK)
 if (y == 0) mc_exception( globals, EX_DIV );
 #endif
-if ((int)x % (int)y == 0)
-  globals[ G_RESULT ] = fixnum( (int)x / (int)y );
+if ((s_word)x % (s_word)y == 0)
+  ga_box_int( globals, (s_word)x / (s_word)y );
 else
   generic_binary_operation( globals, MS_FIXNUM2RATNUM_DIV, k );
 "
@@ -400,12 +405,12 @@ void EXPORT mc_quo( word *globals, cont_t k )
   else if (tagof( x ) == BVEC_TAG && 
            header_byte(x, BVEC_TAG) == BIGNUM_HDR &&
            is_nonnegative_fixnum( y )) {
-    word z = *(ptrof( x )+1);
+    word z = bignum_data32( x )[0];
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
 #if defined(EXPLICIT_DIVZ_CHECK)
       if (y == 0) mc_exception( globals, EX_QUOTIENT );
 #endif
-      z = *(ptrof( x )+2) / (y >> 2);
+      z = (word)bignum_ref32( x, 0 ) / (y >> 2);
       ga_box_longint( globals, 0, z );
       return;
     }
@@ -428,12 +433,12 @@ void EXPORT mc_rem( word *globals, cont_t k )
   else if (tagof( x ) == BVEC_TAG && 
            header_byte(x, BVEC_TAG) == BIGNUM_HDR &&
            is_nonnegative_fixnum( y )) {
-    word z = *(ptrof( x )+1);
+    word z = bignum_data32( x )[0];
     if (bigmeta_length(z) == 1 && bigmeta_sign(z) == 0) {
 #if defined(EXPLICIT_DIVZ_CHECK)
       if (y == 0) mc_exception( globals, EX_REMAINDER );
 #endif
-      z = *(ptrof( x )+2) % (y >> 2);
+      z = (word)bignum_ref32( x, 0 ) % (y >> 2);
       ga_box_longint( globals, 0, z );
       return;
     }
@@ -500,8 +505,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
           (! command_line_options.r6less_pedantic))
         setcc( 0 );
 "
- "word hdr = *ptrof( x );
-  setcc( (hdr & 0xFFFF) == 0 );  /* 0 digits */  /* big-endian specific?? */
+ "setcc( bignum_length( x ) == 0 );  /* 0 digits */
  "
  "setcc( vector_ref( x, 0 ) == fixnum(0) );"
  "setcc( vector_ref( x, 0 ) == fixnum(0) && vector_ref( x, 1 ) == fixnum(0) );"
@@ -518,7 +522,7 @@ void EXPORT mc_rem( word *globals, cont_t k )
    (retry-name "MS_GENERIC_EQUAL")
    (contagion-name "MS_ECONTAGION")
    (error-code "EX_EQUALP")
-   (fixnum+fixnum "setcc( (int)nativeint(x) == (int)nativeint(y) );")
+   (fixnum+fixnum "setcc( (s_word)nativeint(x) == (s_word)nativeint(y) );")
    (flonum+flonum "setcc( flonum_val(x) == flonum_val(y) );")
    (compnum+compnum "
 setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
@@ -546,7 +550,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
      (error-code ,(string-append "EX_" name2 "P"))
      (fixnum+fixnum 
       ,(apply string-append
-              "setcc( (int)nativeint(x) " op " (int)nativeint(y) );" '()))
+              "setcc( (s_word)nativeint(x) " op " (s_word)nativeint(y) );" '()))
      (flonum+flonum 
       ,(apply string-append 
               "setcc( flonum_val(x) " op " flonum_val(y) );" '()))
@@ -622,7 +626,7 @@ setcc( compnum_real(x)==compnum_real(y) && compnum_imag(x)==compnum_imag(y) );
 
 (unary-decision-tree 
  "mc_exact2inexact" "EX_E2I"
- "ga_box_flonum( globals, (double)(int)nativeint( x ) );"
+ "ga_box_flonum( globals, (double)(s_word)nativeint( x ) );"
  #f
  #f
  "generic_unary_operation( globals, MS_GENERIC_EXACT2INEXACT, k );"
@@ -692,15 +696,88 @@ static void generic_unary_operation( word *globals, int op, cont_t k )
   mc_scheme_callout( globals, op, 1, k, 0 );
 }
 
-#if !BITS_32
-  /* The following procedures are 32-bit specific */
-# error \"Still a few bugs in the system.\"
-#endif
+#if defined(BITS_64)
+
+/* Box a sign/magnitude integer whose magnitude is given as n 32-bit
+   digits, least significant first, as a bignum.  (Callers ensure that
+   the value is not in fixnum range.)
+   */
+static void ga_box_digits( word *globals, int sign, u32 *d, int n )
+{
+  word *p;
+  int i, bytes;
+
+  while (n > 0 && d[n-1] == 0) n--;
+  bytes = 4 + 4*n;                        /* metaword + digits */
+  globals[ G_RESULT ] = fixnum( sizeof(word) + bytes );
+  mc_alloc_bv( globals );
+  p = (word*)globals[ G_RESULT ];
+  p[0] = mkheader( bytes, BIGNUM_HDR );
+  ((u32*)(p+1))[0] = mkbignum_header( sign, n );
+  for ( i=0 ; i < n ; i++ )
+    ((u32*)(p+1))[1+i] = d[i];
+  globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
+}
+
+#define fits_in_fixnum( x ) \\
+  (MOST_NEGATIVE_FIXNUM <= (x) && (x) <= MOST_POSITIVE_FIXNUM)
+
+/* Call this to process a one-word two's complement integer result.
+   Stores a fixnum or a bignum in RESULT.
+   */
+static void ga_box_int( word *globals, s_word x )
+{
+  if (fits_in_fixnum( x ))
+    globals[ G_RESULT ] = fixnum( x );
+  else {
+    word m = (x < 0 ? -(word)x : (word)x);
+    u32 d[2];
+    d[0] = (u32)m;
+    d[1] = (u32)(m >> 32);
+    ga_box_digits( globals, x < 0, d, 2 );
+  }
+}
+
+/* Call this to process a two-word two's complement integer result. */
+static void ga_box_int128( word *globals, __int128 x )
+{
+  if (fits_in_fixnum( x ))
+    globals[ G_RESULT ] = fixnum( (s_word)x );
+  else {
+    unsigned __int128 m = 
+      (x < 0 ? -(unsigned __int128)x : (unsigned __int128)x);
+    u32 d[4];
+    int i;
+    for ( i=0 ; i < 4 ; i++ ) {
+      d[i] = (u32)m;
+      m = m >> 32;
+    }
+    ga_box_digits( globals, x < 0, d, 4 );
+  }
+}
+
+/* Two-word integer given as hi and lo words. */
+static void ga_box_longint( word *globals, word hi, word lo )
+{
+  ga_box_int128( globals, 
+                 (__int128)(((unsigned __int128)hi << 64) | lo) );
+}
+
+/* Box a sign/magnitude integer value. */
+static void ga_box_word( word *globals, word x, int sign )
+{
+  u32 d[2];
+  d[0] = (u32)x;
+  d[1] = (u32)(x >> 32);
+  ga_box_digits( globals, sign, d, 2 );
+}
+
+#else /* BITS_32 */
 
 /* Call this to process a one-word two's complement integer result.
    Stores a fixnum or a one-word bignum in RESULT.
    */
-static void ga_box_int( word *globals, word x )
+static void ga_box_int( word *globals, s_word x )
 {
   if ((x & 0xe0000000) == 0 || (x & 0xe0000000) == 0xe0000000) 
     globals[ G_RESULT ] = fixnum( x );
@@ -766,27 +843,29 @@ static void ga_box_word( word *globals, word x, int sign )
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }
 
+#endif /* BITS_64 */
+
 static void ga_box_flonum( word *globals, double d )
 {
   word *p;
 
-  globals[ G_RESULT ] = fixnum(4*sizeof(word));
+  globals[ G_RESULT ] = fixnum( sizeof(word)+FLONUM_DATA_BYTES );
   mc_alloc_bv( globals );
   p = (word*)globals[ G_RESULT ];
-  *p = mkheader( 3*sizeof(word), FLONUM_HDR );
-  *(double*)(p+2) = d;
+  *p = mkheader( FLONUM_DATA_BYTES, FLONUM_HDR );
+  *(double*)(p+1+FLONUM_PAD_WORDS) = d;
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }
 
 static void ga_box_compnum( word *globals, double r, double i )
 {
   word *p;
-  globals[ G_RESULT ] = fixnum(6*sizeof(word));
+  globals[ G_RESULT ] = fixnum( sizeof(word)+COMPNUM_DATA_BYTES );
   mc_alloc_bv( globals );
   p = (word*)globals[ G_RESULT ];
-  *p = mkheader( 5*sizeof(word), COMPNUM_HDR );
-  *(double*)(p+2) = r;
-  *(double*)(p+4) = i;
+  *p = mkheader( COMPNUM_DATA_BYTES, COMPNUM_HDR );
+  *(double*)(p+1+FLONUM_PAD_WORDS) = r;
+  *((double*)(p+1+FLONUM_PAD_WORDS)+1) = i;
   globals[ G_RESULT ] = tagptr( p, BVEC_TAG );
 }
 

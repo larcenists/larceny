@@ -14,6 +14,7 @@
     ((sys$get-resource-usage) sys$get-resource-usage)
     ((sys$gc) sys$gc)
     ((sys$codevector-iflush) sys$codevector-iflush)
+    ((sys$codevector-install) sys$codevector-install)
     ((sys$tracectl) sys$tracectl)
     ((sys$trace) sys$trace)
     ((io/read-char) io/read-char)
