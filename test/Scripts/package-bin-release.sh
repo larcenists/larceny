@@ -211,3 +211,28 @@ rm -f doc/UserManual/*
 # maybe_mv LarcenyNotes UserManual
 # 
 # cd ..
+
+################################################################
+#
+# For v2.0, we have more clutter to remove.
+
+# Remove CLAUDE.md et cetera.
+
+rm *.md
+
+# Remove log files and other build products.
+
+rm bootstrap*.log
+rm build-configuration
+
+if [ -e larceny.bin.cur ]
+then rm larceny.bin.cur
+fi
+
+if [ -e x86-64.heap ]
+then rm x86-64.heap
+fi
+
+if [ -e arm64.heap ]
+then rm arm64.heap
+fi
