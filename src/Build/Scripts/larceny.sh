@@ -45,6 +45,12 @@ case "`basename "$0"`" in
     petit)              #option
         heap=petit.heap
         cmd=petit.bin
+        if test -x $LARCENY_ROOT/$cmd; then
+	    :
+	else
+	    cmd=petit-larceny.bin
+	    heap=petit-larceny.heap
+	fi
     ;;
 
     larceny)            #option
