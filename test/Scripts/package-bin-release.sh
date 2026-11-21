@@ -229,6 +229,10 @@ if [ -e larceny.bin.cur ]
 then rm larceny.bin.cur
 fi
 
+if [ -e petit-larceny.bin.cur ]
+then rm petit-larceny.bin.cur
+fi
+
 if [ -e x86-64.heap ]
 then rm x86-64.heap
 fi
