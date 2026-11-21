@@ -46,22 +46,22 @@ case "`basename "$0"`" in
         heap=petit.heap
         cmd=petit.bin
         if test -x $LARCENY_ROOT/$cmd; then
-	    :
-	else
-	    cmd=petit-larceny.bin
-	    heap=petit-larceny.heap
-	fi
+            :
+        else
+            cmd=petit-larceny.bin
+            heap=petit-larceny.heap
+        fi
     ;;
 
     larceny)            #option
-	cmd=petit-larceny.bin
-	heap=petit-larceny.heap
+        cmd=petit-larceny.bin
+        heap=petit-larceny.heap
         if test -x $LARCENY_ROOT/$cmd; then
-	    :
-	else
-	    cmd=larceny.bin
-	    heap=larceny.heap
-	fi
+            :
+        else
+            cmd=larceny.bin
+            heap=larceny.heap
+        fi
     ;;
 
     twobit)             #option
@@ -76,21 +76,21 @@ case "`basename "$0"`" in
     ;;
 
     gdb-larceny)        #option
-	heap=larceny.heap
-	cmd=larceny.bin
-	gdb=true
+        heap=larceny.heap
+        cmd=larceny.bin
+        gdb=true
     ;;
 
     larceny-np)         #option
-	cmd=petit-larceny.bin
-	heap=petit-larceny.heap
+        cmd=petit-larceny.bin
+        heap=petit-larceny.heap
         if test -x $LARCENY_ROOT/$cmd; then
-	    :
-	else
-	    cmd=larceny.bin
-	    heap=larceny.heap
-	fi
-	rtopts="-np"
+            :
+        else
+            cmd=larceny.bin
+            heap=larceny.heap
+        fi
+        rtopts="-np"
     ;;
 
     *)
