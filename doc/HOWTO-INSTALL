@@ -1,7 +1,16 @@
 Installing Larceny
 
 
-Short version:
+Outline:
+    How to install (short version)
+    System requirements for 64-bit Larceny
+    System requirements for 32-bit Larceny
+    How to install (long version)
+    Petit Larceny is a little different
+    The scheme-script feature
+
+
+How to install (short version):
 
 Put Larceny's main directory wherever you like, and give it
 whatever name you like.
@@ -16,19 +25,20 @@ create links to the compile-larceny and compile-stale scripts.
 If the directory that contains the executable scripts is not
 already part of your path, then add it to your path.
 
-If that doesn't work, keep reading.
+If that doesn't work, or you want to install both native Larceny
+and Petit Larceny on the same machine, then keep reading.
 
 
-System requirements:
+System requirements for 64-bit Larceny:
 
-To build Larceny from source code, see HOWTO-BUILD.
+Larceny v2.0 is a 64-bit implementation of Scheme.
 
 Prebuilt distributions of Larceny v2.0 are available for:
 
     macOS machines with Apple Silicon (AArch)
     Linux machines with x86-64 processors
 
-Larceny 2.0 is a 64-bit implementation of Scheme.
+To build Larceny from source code, see HOWTO-BUILD.
 
 
 System requirements for 32-bit Larceny (v1.5 or older):
@@ -69,7 +79,7 @@ On Windows, the DEP feature must be told to allow Larceny to
 opt-out.  (See below.)
 
 
-Long version:
+How to install (long version):
 
 After you download a binary distribution of Larceny or build from
 source, there will be several scripts for starting Larceny in the root
@@ -110,6 +120,56 @@ uncommenting the line that sets LARCENY_ROOT, and setting it to
 If you would like to change something else, such as the name of
 a script, editing the script should not be too difficult.
 
+
+Petit Larceny is a little different:
+
+The pre-built distribution of Petit Larceny is only partially
+pre-built.  Its R5RS mode has been pre-compiled and linked
+into the petit-larceny.heap file, which is loaded and executed
+by the petit-larceny.bin runtime system.  Those two files, like
+the larceny script within the same directory, can be moved with
+abandon so long as they all stay within the same directory.
+
+Petit Larceny's R7RS/R6RS modes consist of a great many separate
+libraries, each of which is compiled into multiple files that
+must be able to find each other.  Those files use absolute paths
+to find each other.  That means you can't move those files after
+you have compiled the R7RS/R6RS runtime system.  It also means
+we can't supply Petit Larceny's R7RS/R6RS modes in pre-compiled
+form.  You have to compile the R7RS/R6RS libraries yourself,
+as described in Section 2.5 of Larceny's user manual.
+
+If you don't need to install both Petit Larceny and native
+Larceny on your machine, you can install Petit Larceny just as
+you'd install native Larceny, and then compile Petit Larceny's
+R7RS/R6RS libraries.
+
+If you want to install both Petit Larceny and native Larceny on
+the same machine, we suggest you do what we do on Linux:
+
+    unpack both pre-built distributions
+    move (don't copy!) the unpacked directories to /usr/local/lib
+    create /usr/local/lib/larceny as a symbolic link
+        pointing to the native Larceny directory
+    create /usr/local/lib/petit as a symbolic link
+        pointing to the Petit Larceny directory
+    copy the executable larceny script to /usr/local/bin/larceny
+    copy the executable larceny script to /usr/local/bin/petit
+    edit /usr/local/bin/larceny to make its LARCENY_ROOT
+        point to /usr/local/lib/larceny
+    edit /usr/local/bin/petit to make its LARCENY_ROOT
+        point to /usr/local/lib/petit
+    in the Petit Larceny directory, compile the R7RS/R6RS system
+        as described in Section 2.5 of Larceny's user manual
+
+With operating systems other than Linux, the symbolic links
+might not work, in which case you can just move the appropriate
+directories to /usr/local/lib/petit and /usr/local/lib/larceny
+(or to wherever you want those directories to live).
+
+
+The scheme-script feature:
+
 Larceny is one of the few implementations of R6RS Scheme that
 provides the scheme-script feature proposed by the R6RS editors,
 but other implementations may define their own scheme-script.  If
@@ -120,6 +180,7 @@ scheme-script feature now executes programs in R7RS mode rather
 than R6RS.  Because Larceny's implementation of the R7RS acts as
 a superset of the R6RS standard, all programs that run in R7RS
 mode should also run in R6RS mode, but the reverse is not true.)
+
 
 Windows and DEP:
 
