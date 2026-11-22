@@ -32,7 +32,7 @@
  *  Grain Alcohol and Rainwater 1.3          6 Aug 2017     567b862
  *  Group Commander Mandrake    1.4         16 Nov 2026     2077092
  *  Hair Mussed                 1.5         17 Nov 2026     f7d752a
- *  Hi There!                   2.0
+ *  Hi There!                   2.0         21 Nov 2026     257694f
  *  Horsing Around
  *  Ignorant Peons
  *  Important Promotions
