@@ -156,6 +156,7 @@
 (msg:notrtd                     "not a record type descriptor")
 (msg:notrecordoftype            "not a record of the correct type")
 (msg:notrectnum                 "not a rectnum")
+(msg:notsize                    "not a valid size")
 (msg:notstring                  "not a string")
 (msg:notsymbol                  "not a symbol")
 (msg:notvector                  "not a vector")

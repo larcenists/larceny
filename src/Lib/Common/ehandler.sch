@@ -497,7 +497,7 @@
        ;; Vector-like
 
        ((= code $ex.mkvl)
-        (error 'make-vector-like (errmsg 'msg:nonnaturalnumber) (list arg1)))
+        (error 'make-vector-like (errmsg 'msg:notsize) (list arg1)))
 
        ((or (= code $ex.vlref) (= code $ex.vlset))
         (dstruct code $ex.vlref "vector-like" vector-like? vector-like-length
@@ -516,7 +516,7 @@
         (error 'string-length (errmsg 'msg:notstring) (list arg1)))
        ((= code $ex.mkstr)
         (if (char? arg2)
-            (error 'make-string (errmsg 'msg:nonnaturalnumber) (list arg1))
+            (error 'make-string (errmsg 'msg:notsize) (list arg1))
             (error 'make-string (errmsg 'msg:notchar) (list arg2))))
 
        ;; Bytevectors
@@ -535,7 +535,7 @@
        ;; Bytevector-like
 
        ((= code $ex.mkbvl)
-        (error 'make-bytevector-like (errmsg 'msg:notnaturalnumber)
+        (error 'make-bytevector-like (errmsg 'msg:notsize)
                                      (list arg1)))
 
        ((or (= code $ex.bvlref) (= code $ex.bvlset))
