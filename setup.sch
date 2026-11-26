@@ -126,7 +126,16 @@
 (define-syntax define-keyed
   (syntax-rules ()
     ((define-keyed (PROC ARGS ...) BODY ...)
-     (define PROC (lambda-keyed (ARGS ...) BODY ...)))))
+     (define PROC (lambda-keyed (ARGS ...) BODY ...)))
+    ((define-keyed EXIT (PROC ARGS ...) BODY ...)
+     (define PROC (lambda-keyed (ARGS ...)
+				(call-with-current-continuation
+				 (lambda (k)
+				   ;; With luck, the call to newline
+				   ;; returns an unspecified value
+				   ;; that won't be printed.
+				   (let ((EXIT (lambda () (k (newline)))))
+				     BODY ...))))))))
 
 
 ;; setup : oneof ['help]
@@ -134,7 +143,8 @@
 ;;                 -> Void
 ;; Main entry to set up the build for Petit compiler and runtime.
 
-(define-keyed (setup (with-default 'larceny scheme:)
+(define-keyed exit-from-setup
+              (setup (with-default 'larceny scheme:)
                      ;; inferred for scheme: 'larceny
                      (with-default #f host:)
                      ;; inherits host: if not given
@@ -175,7 +185,7 @@
 
   (set! *exit-on-error* exit-on-error)
 
-  (cond (help (help-text)))
+  (cond (help (help-text) (exit-from-setup)))
 
   ;; Fail fast in case user didn't know 'scheme: defaults to 'larceny
   ;; This expression should have no side-effects on Larceny, but
@@ -221,7 +231,7 @@
              (if (equal? arch-name "ARM")
                  (set! host: 'linux-arm-el)
                  (set! host: 'linux-el)))
-            
+
             ((and (equal? os-name "Linux") (eq? arch-endianness 'big)) 
              (set! host: 'linux-be))
             
@@ -242,7 +252,7 @@
              (set! host: 'macosx))
              
             ;; Fill in other host: clauses here
-            
+
             ))))
   
   (cond ((and (not help) (or (not scheme:) (not host:)))
