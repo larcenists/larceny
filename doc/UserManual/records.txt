@@ -48,7 +48,7 @@ descriptors.
 
 ==== Specification
 
-proc:make-record-type[args="type-name field-names",optargs="parent-rtd"]
+proc:make-record-type[args="type-name field-names",optarg="parent-rtd"]
 
 Returns a "record-type descriptor", a value representing a new data
 type, disjoint from all others. The _type-name_ argument must be a
@@ -70,7 +70,7 @@ procedure will be called to print records of the type represented by
 the record-type descriptor. The procedure must accept two arguments:
 the record object to be printed and an output port.
 
-proc:record-constructor[args="rtd",optargs="field-names"]
+proc:record-constructor[args="rtd",optarg="field-names"]
 
 Returns a procedure for constructing new members of the type
 represented by _rtd._ The returned procedure accepts exactly as many

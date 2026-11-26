@@ -157,7 +157,7 @@ exported by
 Compiling R5RS source files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-proc:compile-file[args="sourcefile",optargs="faslfile"]
+proc:compile-file[args="sourcefile",optarg="faslfile"]
 
 Compiles _sourcefile_, which must be a string naming
 a file that contains R5RS source code.

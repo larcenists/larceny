@@ -61,7 +61,7 @@ semantics for programs that violate the specification.
 
 This section describes the `(err5rs records procedural)` library.
 
-proc:make-rtd[args="name fieldspecs",optargs="parent-rtd"]
+proc:make-rtd[args="name fieldspecs"]
 proctempl:make-rtd[args="name fieldspecs parent-rtd"]
 proctempl:make-rtd[args="name fieldspecs parent-rtd option ..."]
 
