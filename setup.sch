@@ -129,13 +129,13 @@
      (define PROC (lambda-keyed (ARGS ...) BODY ...)))
     ((define-keyed EXIT (PROC ARGS ...) BODY ...)
      (define PROC (lambda-keyed (ARGS ...)
-				(call-with-current-continuation
-				 (lambda (k)
-				   ;; With luck, the call to newline
-				   ;; returns an unspecified value
-				   ;; that won't be printed.
-				   (let ((EXIT (lambda () (k (newline)))))
-				     BODY ...))))))))
+                                (call-with-current-continuation
+                                 (lambda (k)
+                                   ;; With luck, the call to newline
+                                   ;; returns an unspecified value
+                                   ;; that won't be printed.
+                                   (let ((EXIT (lambda () (k (newline)))))
+                                     BODY ...))))))))
 
 
 ;; setup : oneof ['help]
