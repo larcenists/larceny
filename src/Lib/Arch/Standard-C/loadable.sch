@@ -52,12 +52,20 @@
                                 (bytevector-ref bv (if (eq? endianness 'big)
                                                        i
                                                        (- word-size i 1)))))))))
-          ; The result is the fixnum whose representation is the address.
-	  (fxlsh (let ((p (quotient x 4)))
-		 (if (fixnum? p)
-		     p
-		     (- p (expt 2 (- (* 8 word-size) 2)))))
-	       shift))))))
+          ; The result is the fixnum whose representation is the word
+          ; that ENCODE_CODEPTR (petit-machine.h) makes of the address:
+          ; the address shifted left by 0, 1 or 2 bits.  Its value is
+          ; the address divided by 4, 2 or 1.  Shifting the fixnum
+          ; instead would lose the address's low bits, which need not
+          ; be 0 when it is shifted (CODEPTR_SHIFT1 or 2).  The high
+          ; bits that the shift drops are 0 (see features.sch).
+	  (let ((p (case shift
+		     ((0) (quotient x 4))
+		     ((1) (quotient x 2))
+		     (else x))))
+	    (if (fixnum? p)
+		p
+		(- p (expt 2 (- (* 8 word-size) 2))))))))))
 
 ; Given the name of a shared object file that contains compiled code for
 ; one or more FASL files, load the file if it is not already loaded.  Register
