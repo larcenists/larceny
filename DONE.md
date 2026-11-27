@@ -2,6 +2,23 @@
 
 Finished items, moved here from TODO.md.  Newest first.
 
+## 2026-11-27
+
+- Heap corruption on 64-bit macOS on Apple Silicon (native and Petit,
+  every collector): the arena allocator (osdep-generic.c) returned each
+  freed block to the OS with `madvise(MADV_FREE)`, in our 4KB pages,
+  but the OS page there is 16KB and madvise applies to every OS page
+  the range touches.  The OS could then discard live neighbours in the
+  same OS page, which read back as zeros: null links in the
+  large-object lists (`los_sweep` writing at -8 or -16), a fixnum 0 in
+  the symbol table ("Illegal bucket found in obvector"), `#<WEIRD
+  OBJECT>`s, and under `-rrof` the `heap_for_gno` assertion.  Only the
+  OS pages wholly inside a free extent are released now.  It showed
+  under memory pressure, for instance native Larceny 2.0 hosting a
+  Petit build, which failed under each collector after 13-223 s in 9
+  runs of 10 and passes with the fix.  Linux x86-64 (4KB pages) was not
+  affected.
+
 ## 2026-10-26
 
 - Libraries compiled in different runs of a dumped heap can be imported

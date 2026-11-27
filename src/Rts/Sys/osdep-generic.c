@@ -502,7 +502,12 @@ void osdep_pollinput( word w_fd )
    space.  At the first request we therefore reserve a large region of
    virtual memory (backed lazily by the OS) and satisfy all requests
    from it, page-aligned, with a first-fit free list and coalescing.
-   Freed extents are returned to the OS with madvise().
+   The OS pages that lie wholly within a freed extent are returned to
+   the OS with madvise().  An OS page may be larger than ours (16KB on
+   MacOS X on Apple Silicon), and madvise() applies to every OS page
+   that the range touches, so it must not be given a range that only
+   partly covers one: the OS may then discard the rest of that page,
+   which other blocks are using, and they read back as zeros.
 
    The size of the arena can be set with the LARCENY_ARENA_GB
    environment variable; the default is 64 GB of address space.
@@ -522,6 +527,7 @@ void osdep_pollinput( word w_fd )
    */
 
 #include <sys/mman.h>
+#include <unistd.h>
 #if CODE_SPACE && defined(MACOS_X)
 #include <pthread.h>
 #include <libkern/OSCacheControl.h>
@@ -547,6 +553,7 @@ typedef struct {
 } arena_t;
 
 static arena_t arena = { 0, 0, 0, 0, 0 };
+static size_t os_page = 0;        /* the OS's page size */
 #if CODE_SPACE
 static arena_t code_arena = { 0, 0, 0, 0, 0 };
 #endif
@@ -573,6 +580,10 @@ static void arena_init( void )
   size_t code_bytes = 0;
   void *p;
 
+  {
+    long ps = sysconf( _SC_PAGESIZE );
+    os_page = (ps > ARENA_PAGE ? (size_t)ps : ARENA_PAGE);
+  }
 #if CODE_SPACE
   code_bytes = arena_gb( "LARCENY_CODE_GB", CODE_DEFAULT_GB )*1024*1024*1024;
 #endif
@@ -653,6 +664,23 @@ static void *arena_alloc( arena_t *a, s_word bytes )
   return p;
 }
 
+/* Returns to the OS the OS pages that the freed block [p, p+n) touches
+   and that lie wholly within the free extent x, which contains it.  */
+
+static void arena_release( arena_extent_t *x, byte *p, size_t n )
+{
+  word mask = (word)os_page - 1;
+  word lo = (word)p & ~mask;
+  word hi = ((word)p + n + mask) & ~mask;
+
+  if (lo < (word)x->start)
+    lo = ((word)x->start + mask) & ~mask;
+  if (hi > (word)x->start + x->bytes)
+    hi = ((word)x->start + x->bytes) & ~mask;
+  if (lo < hi)
+    madvise( (void*)lo, (size_t)(hi - lo), MADV_FREE );
+}
+
 static void arena_free( arena_t *a, void *block, s_word bytes )
 {
   arena_extent_t *x, *prev, *y;
@@ -662,7 +690,6 @@ static void arena_free( arena_t *a, void *block, s_word bytes )
   assert( a->grows_down
           ? (a->frontier <= p && p + n <= a->limit)
           : (a->base <= p && p + n <= a->frontier) );
-  madvise( p, n, MADV_FREE );
 
   /* Find insertion point. */
   for ( prev = 0, x = a->free ; x != 0 && x->start < p ; 
@@ -691,6 +718,9 @@ static void arena_free( arena_t *a, void *block, s_word bytes )
     y->next = x->next;
     free( x );
   }
+
+  /* After coalescing, so that OS pages freed piecemeal are released. */
+  arena_release( y, p, n );
 
   /* Give back memory at the frontier. */
   if (a->grows_down ? y->start == a->frontier
