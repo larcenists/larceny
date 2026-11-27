@@ -16,34 +16,34 @@
 
 (define (.petit-patch-procedure id number proc)
   (procedure-set! proc 
-		  0 
-		  (if (negative? id)
-		      (lookup-code-pointer-in-table
-		       (caddr (list-ref petit-shared-filenames (- (- id) 1)))
-		       number)
-		      (syscall syscall:segment-code-address id number)))
+                  0 
+                  (if (negative? id)
+                      (lookup-code-pointer-in-table
+                       (caddr (list-ref petit-shared-filenames (- (- id) 1)))
+                       number)
+                      (syscall syscall:segment-code-address id number)))
   proc)
 
 ; This code really wants BYTEVECTOR-WORD-REF.
 
 (define lookup-code-pointer-in-table 
   (let ((endianness #f)
-	(word-size  0)
-	(shift      0))
+        (word-size  0)
+        (shift      0))
     (lambda (table idx)
       (if (not endianness)
-	  (let ((features (system-features)))
-	    (set! word-size  (quotient (cdr (assq 'arch-word-size features)) 8))
-	    (set! endianness (cdr (assq 'arch-endianness features)))
-	    (set! shift (let ((cvr (cdr (assq 'codevector-representation features))))
-			  (case cvr
-			    ((address) 0)
-			    ((address-shifted-1) 1)
-			    ((address-shifted-2) 2)
-			    (else (error "loadable.sch: Bad codevector representation: " cvr)))))))
+          (let ((features (system-features)))
+            (set! word-size  (quotient (cdr (assq 'arch-word-size features)) 8))
+            (set! endianness (cdr (assq 'arch-endianness features)))
+            (set! shift (let ((cvr (cdr (assq 'codevector-representation features))))
+                          (case cvr
+                            ((address) 0)
+                            ((address-shifted-1) 1)
+                            ((address-shifted-2) 2)
+                            (else (error "loadable.sch: Bad codevector representation: " cvr)))))))
       (let ((bv (make-bytevector word-size)))
-	(syscall syscall:peek-bytes (+ table (* idx word-size)) bv word-size)
-	(let ((x (let loop ((i 0) (x 0))
+        (syscall syscall:peek-bytes (+ table (* idx word-size)) bv word-size)
+        (let ((x (let loop ((i 0) (x 0))
                    ; assemble the word from its bytes
                    (if (= i word-size)
                        x
@@ -59,13 +59,13 @@
           ; instead would lose the address's low bits, which need not
           ; be 0 when it is shifted (CODEPTR_SHIFT1 or 2).  The high
           ; bits that the shift drops are 0 (see features.sch).
-	  (let ((p (case shift
-		     ((0) (quotient x 4))
-		     ((1) (quotient x 2))
-		     (else x))))
-	    (if (fixnum? p)
-		p
-		(- p (expt 2 (- (* 8 word-size) 2))))))))))
+          (let ((p (case shift
+                     ((0) (quotient x 4))
+                     ((1) (quotient x 2))
+                     (else x))))
+            (if (fixnum? p)
+                p
+                (- p (expt 2 (- (* 8 word-size) 2))))))))))
 
 ; Given the name of a shared object file that contains compiled code for
 ; one or more FASL files, load the file if it is not already loaded.  Register
@@ -80,30 +80,30 @@
     (let ((b (make-bytevector (+ (string-length str) 1))))
       (bytevector-set! b (string-length str) 0)
       (do ((i (- (string-length str) 1) (- i 1)))
-	  ((< i 0) b)
-	(bytevector-set! b i (char->integer (string-ref str i))))))
+          ((< i 0) b)
+        (bytevector-set! b i (char->integer (string-ref str i))))))
 
   (define (load-and-register filename)
     (let ((shared-object 
-	   (syscall syscall:c-ffi-dlopen (string->asciiz filename))))
+           (syscall syscall:c-ffi-dlopen (string->asciiz filename))))
       (if (zero? shared-object)
-	  (error "Unable to open shared object " filename))
+          (error "Unable to open shared object " filename))
       (let ((table (syscall syscall:c-ffi-dlsym
-			    shared-object
-			    (string->asciiz "twobit_load_table"))))
-	(if (zero? table)
-	    (error "Unable to find 'twobit_load_table' in shared object " 
-		   filename))
-	(let ((id petit-next-shared-id))
-	  (set! petit-next-shared-id (- petit-next-shared-id 1))
-	  (set! petit-shared-filenames 
-		(append! petit-shared-filenames
-			 (list (list (string-copy filename) id table))))
-	  id))))
+                            shared-object
+                            (string->asciiz "twobit_load_table"))))
+        (if (zero? table)
+            (error "Unable to find 'twobit_load_table' in shared object " 
+                   filename))
+        (let ((id petit-next-shared-id))
+          (set! petit-next-shared-id (- petit-next-shared-id 1))
+          (set! petit-shared-filenames 
+                (append! petit-shared-filenames
+                         (list (list (string-copy filename) id table))))
+          id))))
 
   (cond ((assoc filename petit-shared-filenames) 
-	 => cadr)
-	(else
-	 (load-and-register filename))))
+         => cadr)
+        (else
+         (load-and-register filename))))
 
 ; eof
