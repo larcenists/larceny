@@ -71,12 +71,12 @@
         (scheme cxr)
         (scheme process-context)
         (scheme write)
-	(scheme file)
+        (scheme file)
         (scheme list)
         (srfi 138)
         (larceny compiler)
         (larceny parse-options)
-	(primitives system))
+        (primitives system))
 
 (define (usage-message)
   (let ((q (current-error-port)))
@@ -184,18 +184,18 @@
 (let ((maybeFile (get-environment-variable "COMPILE_R7RS")))
   (if (and (string? maybeFile)
            (not (= 0 (string-length maybeFile)))
-	   (call-with-input-file
-	       maybeFile
-	     (lambda (p)
-	       (read-line p)
-	       (read-line p)
-	       (read-line p)
-	       (not (equal? (read-line p) "#!larceny")))))
+           (call-with-input-file
+               maybeFile
+             (lambda (p)
+               (read-line p)
+               (read-line p)
+               (read-line p)
+               (not (equal? (read-line p) "#!larceny")))))
       (let* ((args (apply string-append
                           (map (lambda (s) (string-append " " s))
-	 		       (cdr cmds))))
-	     (cmd (string-append maybeFile args)))
+                                (cdr cmds))))
+             (cmd (string-append maybeFile args)))
         (system cmd)
-	(exit))))
+        (exit))))
 
 (process-commands)
