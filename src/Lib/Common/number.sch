@@ -140,6 +140,8 @@
               (else
                r)))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define (expt x y)
 
   ; x is nonzero, and y is an exact natural number.
@@ -162,6 +164,13 @@
            (let ((v (e2 x (quotient y 2))))
              (* v v)))))
 
+  (define (newton1step x q w) ; y is exact and y = 1/q
+    (- w (/ (- (e w q) x)
+	    (* q (e w (- q 1))))))
+
+  (define (approximate x y)
+    (exp (* y (log x))))
+
   (cond ((zero? x)
          (let ((result (cond ((= y 0) 1)
                              ((> (real-part y) 0) 0)
@@ -169,15 +178,47 @@
            (if (and (exact? x) (exact? y))
                result
                (exact->inexact result))))
-        ((and (exact? y) (integer? y))
-         (if (negative? y)
-             (e2 x y)
-             (e x y)))
+	((exact? y)
+	 (cond ((integer? y)
+		(if (negative? y)
+		    (e2 x y)
+		    (e x y)))
+	       ((> y 0)
+		(let ((q (/ 1 y)))
+		  (if (integer? q)
+		      (cond ((= q 2)
+			     (sqrt x))
+			    (else
+			     (newton1step x q (approximate x y))))
+		      (approximate x y))))
+	       ((= y 0)
+		(if (exact? x) 0 (inexact 0)))
+	       ((< y 0)
+		(/ 1 (expt x (- y))))
+	       (else
+		(approximate x y))))
         ((and (eq? 'extremely (larceny:r7strict))
               (= x (- x x)))
          (expt 0 (exact->inexact y)))
         (else
          (exp (* y (log x))))))
+
+;;; Newton's method for improving an approximation to (expt x y).
+;;;
+;;; Suppose y is an exact rational with y = 1/q.
+;;; We want to find w such that w^q = x, so
+;;; we want to solve for a root of f(w) = w^q - x
+;;;
+;;; f'(w) = q w^(q-1)
+;;;
+;;; By Newton's method, if w approximates a root of f(w), then
+;;;
+;;;     w - (f(w) / f'(w))
+;;;   = w - (w^q - x) / (q w^(q-1))
+;;;
+;;; should be a better approximation.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; From MacScheme.
 ;
