@@ -1,6 +1,7 @@
 #!/usr/bin/env scheme-script
 
 #!r7rs
+#!larceny
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -63,7 +64,6 @@
 ;;; KNOWN BUGS:
 ;;;
 ;;;     doesn't yet look at the COMPILE_R7RS environment variable.
-;;;     doesn't handle colon-separated directory lists
 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -71,10 +71,12 @@
         (scheme cxr)
         (scheme process-context)
         (scheme write)
+	(scheme file)
         (scheme list)
         (srfi 138)
         (larceny compiler)
-        (larceny parse-options))
+        (larceny parse-options)
+	(primitives system))
 
 (define (usage-message)
   (let ((q (current-error-port)))
@@ -169,5 +171,31 @@
                        (error-object-irritants exn)))
       (display "abandoning compilation\n"
                (current-error-port))))
+
+;;; SRFI 138 says we should delegate to $COMPILE_R7RS
+;;; if that environment variable is defined and doesn't
+;;; point to this script.
+;;;
+;;; FIXME: Will can't figure out a perfectly reliable way
+;;; to tell whether it points to this script, so this
+;;; compares its fourth line ( #!larceny ) to the fourth
+;;; line of this script.  That should be reliable enough.
+
+(let ((maybeFile (get-environment-variable "COMPILE_R7RS")))
+  (if (and (string? maybeFile)
+           (not (= 0 (string-length maybeFile)))
+	   (call-with-input-file
+	       maybeFile
+	     (lambda (p)
+	       (read-line p)
+	       (read-line p)
+	       (read-line p)
+	       (not (equal? (read-line p) "#!larceny")))))
+      (let* ((args (apply string-append
+                          (map (lambda (s) (string-append " " s))
+	 		       (cdr cmds))))
+	     (cmd (string-append maybeFile args)))
+        (system cmd)
+	(exit))))
 
 (process-commands)

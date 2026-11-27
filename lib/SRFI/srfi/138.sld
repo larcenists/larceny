@@ -23,8 +23,7 @@
 
 (define-library (srfi 138)
 
-  (export compile-r7rs
-	  compile-r7rs-command-line-parser)
+  (export compile-r7rs)
 
   (import (scheme base)
           (scheme case-lambda)

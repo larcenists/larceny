@@ -133,6 +133,19 @@
 ;;; parses the command line and calls this library's compile-r7rs
 ;;; procedure.
 
+;;; FIXME: This procedure has never been used by a released version
+;;; of Larceny.  It duplicates, less elegantly, a similar procedure
+;;; defined in the compile-larceny Scheme script, which is how
+;;; Larceny provides the compile-r7rs feature; users are supposed
+;;; to create a symlink that makes compile-larceny available as
+;;; compile-r7rs, but Larceny's user manual neglects to suggest
+;;; they do that.
+;;;
+;;; To make it easier to obtain any value I may have overlooked
+;;; within this version of the procedure, I'm commenting it out
+;;; instead of deleting it.
+
+#;
 (define (compile-r7rs-command-line-parser the-command-line)
 
   (define (complain option)
