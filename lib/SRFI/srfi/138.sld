@@ -23,7 +23,8 @@
 
 (define-library (srfi 138)
 
-  (export compile-r7rs)
+  (export compile-r7rs
+	  compile-r7rs-command-line-parser)
 
   (import (scheme base)
           (scheme case-lambda)
@@ -31,9 +32,9 @@
           (scheme file)
           (scheme list)
           (scheme text)
+	  (scheme process-context)
           (only (rnrs base) assert)
           (larceny compiler)
           (primitives system))
 
   (include "138.body.scm"))
-

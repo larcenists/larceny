@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# This script implements SRFI 138 by sending its command line
+# to the compile-r7rs-command-line-parser procedure exported
+# by Larceny's (srfi 138) library.
+
+LARCENY=${LARCENY:-"larceny"}
+# COMPILE_R7RS_SCH=compile-r7rs.sch
+
+# exec $LARCENY -r7 $COMPILE_R7RS_SCH -- $@
+
+pgm=`mktemp "${TMPDIR:-/tmp}/larceny-compile-r7rs.XXXXXX"`
+
+cat > "$pgm" <<EOS
+(import (scheme process-context)
+	(srfi 138))
+(compile-r7rs-command-line-parser (command-line))
+(exit)
+EOS
+
+"$LARCENY" "$pgm" -- $@

@@ -40,14 +40,14 @@
                    (larceny:current-declared-features
                     (append (larceny:current-declared-features)
                             features)))
-     (compile-file pgm pgmfile))
+      (compile-file pgm pgmfile))
     (write-outfile outfile pgmfile dirs dirs2 features)))
 
 ;;; SRFI 138 says the .scm suffix is to be treated specially,
 ;;; with implementations free to do as they like with other suffixes.
 
 (define recognized-program-suffixes
-  '(".scm" ".sps"))
+  '(".scm" ".sch" ".sps" ".sps7"))
 
 ;;; Somewhat accidentally, compile-r7rs can be used to compile
 ;;; libraries as well as programs.  It's almost as easy to support
@@ -109,22 +109,97 @@
 (define (write-outfile-really outfile pgmfile dirs dirs2 features)
   (delete-file outfile)
   (call-with-output-file
-   outfile
-   (lambda (p)
-     (define (write-opts opt things)
-       (for-each (lambda (thing)
-                   (display opt p)
-                   (display " " p)
-                   (display thing p)
-                   (display " " p))
-                 things))
-     (display "#!/bin/sh\n\n" p)
-     (display "LARCENY=${LARCENY:-\"larceny\"}\n\n" p)
-     (display "${LARCENY} --r7rs " p)
-     (write-opts "-I" dirs)
-     (write-opts "-A" dirs2)
-     (write-opts "-D" features)
-     (display "--program " p)
-     (display pgmfile p)
-     (display " -- $@ \n" p)))
+      outfile
+    (lambda (p)
+      (define (write-opts opt things)
+        (for-each (lambda (thing)
+                    (display opt p)
+                    (display " " p)
+                    (display thing p)
+                    (display " " p))
+                  things))
+      (display "#!/bin/sh\n\n" p)
+      (display "LARCENY=${LARCENY:-\"larceny\"}\n\n" p)
+      (display "${LARCENY} --r7rs " p)
+      (write-opts "-I" dirs)
+      (write-opts "-A" dirs2)
+      (write-opts "-D" features)
+      (display "--program " p)
+      (display pgmfile p)
+      (display " -- $@ \n" p)))
   (system (string-append "chmod 775 " outfile)))
+
+;;; Given a compile-r7rs command line as described by SRFI 138,
+;;; parses the command line and calls this library's compile-r7rs
+;;; procedure.
+
+(define (compile-r7rs-command-line-parser the-command-line)
+
+  (define (complain option)
+    (display "Invalid ")
+    (display option)
+    (display " option.\n")
+    (exit -1))
+
+  ;; The first thing in the command line is an alias for Larceny.
+  (let ((the-command-line (cdr the-command-line)))
+    (define (loop the-command-line
+                  iOptions aOptions dOptions outfile pgm)
+      (cond ((null? the-command-line)
+             (if pgm
+                 (compile-r7rs pgm outfile iOptions aOptions dOptions)
+                 (begin
+                   (display "No program named on command line.\n")
+                   (exit -1))))
+            ((equal? "-I" (car the-command-line))
+             (if (and (not (null? (cdr the-command-line)))
+                      (string? (cadr the-command-line)))
+                 (loop (cddr the-command-line)
+                       (cons (cadr the-command-line) iOptions)
+		       aOptions
+		       dOptions
+		       outfile
+		       pgm)
+		 (complain "-I")))
+            ((equal? "-A" (car the-command-line))
+             (if (and (not (null? (cdr the-command-line)))
+                      (string? (cadr the-command-line)))
+                 (loop (cddr the-command-line)
+		       iOptions
+                       (cons (cadr the-command-line) aOptions)
+		       dOptions
+		       outfile
+		       pgm)
+		 (complain "-A")))
+            ((equal? "-D" (car the-command-line))
+             (if (and (not (null? (cdr the-command-line)))
+                      (string? (cadr the-command-line)))
+                 (loop (cddr the-command-line)
+		       iOptions
+		       aOptions
+                       (cons (string->symbol (cadr the-command-line)) dOptions)
+		       outfile
+		       pgm)
+                 (complain "-D")))
+            ((equal? "-o" (car the-command-line))
+             (if (and (not (null? (cdr the-command-line)))
+                      (string? (cadr the-command-line)))
+                 (if outfile
+                     (begin (display "Too many -o options.\n")
+                            (exit -1))
+                     (loop (cddr the-command-line)
+                           iOptions
+                           aOptions
+                           dOptions
+                           (cadr the-command-line)
+                           pgm))
+                 (complain "-o")))
+            ((and (null? (cdr the-command-line))
+                  (string? (car the-command-line)))
+             (compile-r7rs (car the-command-line)
+                           outfile iOptions aOptions dOptions))
+            (else
+             (display "Unrecognized option: " )
+             (display (car the-command-line))
+             (newline))))
+    (loop the-command-line '() '() '() #f #f)))
