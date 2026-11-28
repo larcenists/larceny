@@ -55,6 +55,10 @@ static char *directory_separator = ";";
 static char *directory_separator = ":";
 #endif /* WIN32 */
 
+static char *featuretext = "r7rs r6rs larceny exact-closed ratios exact-complex complex ieee-float full-unicode full-unicode-strings unicode-7";
+
+static char *srfitext = "0 1 2 4 5 6 8 9 11 13 14 16 17 19 23 25 26 27 28 29 30 31 34 37 38 39 41 42 43 45 48 51 54 55 59 60 61 62 63 64 66 67 69 71 74 78 87 95 98 99 101 111 112 113 114 115 116 117 121 122 123 1224 125 126 127 128 129 130 131 132 133 134 135 136 137 138 141 142 143 144 145 146 147 151 152 158 159 160 165 166 176";
+
 static void print_banner(void) {
 #ifndef PETIT_LARCENY
   consolemsg( "%s v%d.%d%s (%s, %s:%s:%s)",
@@ -74,6 +78,26 @@ static void print_banner(void) {
               larceny_version_qualifier,
               larceny_gc_technology,
               osname );
+#endif
+}
+
+static void print_Vbanner(void) {    /* SRFI 176 Version flag syntax */
+  print_banner();
+  consolemsg( "(release.name \"%s\")",
+              larceny_system_name );
+  consolemsg( "(version %d.%d)",
+              larceny_major_version, 
+              larceny_minor_version );
+  consolemsg( "(website \"https://larcenists.org\")" );
+  consolemsg( "(scheme.id larceny)" );        /* cond-expand flag */
+  consolemsg( "(languages scheme r7rs r6rs r5rs)" );
+  consolemsg( "(scheme.features %s)",
+              featuretext );
+  consolemsg( "(scheme.srfi %s)",
+              srfitext );
+#ifndef PETIT_LARCENY
+  consolemsg( "(larceny.cache %s)",
+              (globals[ G_CACHE_FLUSH ] ? "split" : "unified") );
 #endif
 }
 
@@ -715,6 +739,10 @@ parse_options( int argc, char **argv, opt_t *o )
       help(1);
     else if (hstrcmp( *argv, "-version" ) == 0) {
       print_banner();
+      exit(0);
+    }
+    else if (hstrcmp( *argv, "-V" ) == 0) {
+      print_Vbanner();
       exit(0);
     }
     else if (hstrcmp( *argv, "-quiet" ) == 0) 

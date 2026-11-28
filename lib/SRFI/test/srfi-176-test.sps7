@@ -1,0 +1,38 @@
+;;; Larceny-specific test for SRFI 176
+;;;
+;;; SRFI 176 requires two things:
+;;;     -V command-line switch for the Larceny executable
+;;;     version-alist procedure exported by (srfi 176) and (srfi :176)
+;;;         (version-alist) is required to return an association list,
+;;;         which is allowed to be empty
+
+(import (scheme base)
+        (chibi test)
+        (srfi 176)
+        (rename (srfi :176) (version-alist colon:version-alist)))
+
+;;; Implementation-independent tests.
+
+(test-group
+ "implementation-independent"
+
+ (test #t (eq? version-alist colon:version-alist))
+ (test #t (list? (version-alist)))
+
+ (current-test-group-reporter))
+
+;;; Larceny-specific
+
+(test-group
+ "Larceny-specific"
+
+ (test #t (list? (assq 'release.name    (version-alist))))
+ (test #t (list? (assq 'version         (version-alist))))
+ (test #t (let ((x (assq 'scheme.id (version-alist))))
+            (and x (eq? (cadr x) 'larceny))))
+ (test #t (list? (assq 'website         (version-alist))))
+ (test #t (list? (assq 'languages       (version-alist))))
+ (test #t (list? (assq 'scheme.features (version-alist))))
+ (test #t (list? (assq 'scheme.srfi     (version-alist))))
+
+ (current-test-group-reporter))

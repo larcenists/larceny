@@ -91,5 +91,6 @@ echo srfi-158-test; ${LARCENY} --r7rs --program srfi-158-test.sps7; echo
 echo srfi-160-test; ${LARCENY} --r7rs --program srfi-160-test.sps7; echo
 ###  srfi-165-test;              redundant with srfi-165-test.sps7
 echo srfi-166-test; ${LARCENY} --r7rs --program srfi-166-test.sps7; echo
+echo srfi-176-test; ${LARCENY} --r7rs --program srfi-176-test.sps7; echo
 
 echo srfi-78-test; ${LARCENY} --r7rs --program srfi-78-test.sps7; echo
